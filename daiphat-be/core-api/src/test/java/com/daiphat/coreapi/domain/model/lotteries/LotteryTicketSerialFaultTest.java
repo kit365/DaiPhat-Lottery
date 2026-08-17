@@ -208,6 +208,19 @@ class LotteryTicketSerialFaultTest {
     }
 
     @Test
+    @DisplayName("expire leaves SOLD serials unchanged so prize claims keep ownership")
+    void expire_skipsSold() {
+        LotteryTicketSerialModel serial = LotteryTicketSerialModel.builder()
+                .status(LotteryTicketSerialStatus.SOLD)
+                .ticketCondition(TicketCondition.GOOD)
+                .build();
+
+        serial.expire();
+
+        assertThat(serial.getStatus()).isEqualTo(LotteryTicketSerialStatus.SOLD);
+    }
+
+    @Test
     @DisplayName("reassignToTicket updates ticketId and clears replacedForTicketId")
     void reassignToTicket_movesSerialWithoutClone() {
         LotteryTicketSerialModel serial = LotteryTicketSerialModel.builder()

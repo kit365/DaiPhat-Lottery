@@ -4,14 +4,15 @@ Python monorepo for DaiPhat AI services (computer vision, OCR, analytics).
 
 **Jira:** [DP-269](https://jira.atlassian.com) — Thêm mới vé số bằng Camera
 
-## Role in the platform
+## Role in the system
 
-`daiphat-ai/` is a sibling folder to `daiphat-be/` (Java), `daiphat-fe/` (React) and `daiphat_mobile/` (Flutter).
+`daiphat-ai/` is a sibling folder to `daiphat-be/` (Java 21 / Spring Boot), `daiphat-fe/` (Next.js 15) and `daiphat_mobile/` (Flutter).
 Java `core-api` orchestrates business rules, auth, and DB; Python services handle inference only.
 
 ```
-DaiPhat-Lottery-Platform/
+DaiPhat-Lottery-System/
 ├── daiphat-be/       # Spring Boot — API, validation, persistence
+├── daiphat-fe/       # Next.js — Web customer & admin portal
 ├── daiphat_mobile/   # Flutter — camera, scan UI
 └── daiphat-ai/       # FastAPI AI microservices
 ```

@@ -13,10 +13,10 @@ import { createAbortAwareQueryCache } from './queryAbort';
  * badge (30s) Số sidebar / banner.
  */
 export const QUERY_STALE_TIMES = {
-    default: 1000 * 60 * 2,
-    static: 1000 * 60 * 60,
+    default: 0,
+    static: 0,
     live: 0,
-    badge: 30_000,
+    badge: 0,
 } as const;
 
 const QUERY_GC_TIME = 1000 * 60 * 10;
@@ -57,7 +57,7 @@ export const createAppQueryClient = (): QueryClient => {
             queries: {
                 staleTime: QUERY_STALE_TIMES.default,
                 gcTime: QUERY_GC_TIME,
-                refetchOnWindowFocus: false,
+                refetchOnWindowFocus: true,
                 throwOnError: false,
                 retry: shouldRetryQuery,
             },

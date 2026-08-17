@@ -386,6 +386,9 @@ class LotteryTicketSerialServiceTest {
         lotteryTicketSerialService.expireActiveSerials(TICKET_ID);
         
         assertThat(serialModel.getStatus()).isEqualTo(LotteryTicketSerialStatus.EXPIRED);
+        verify(lotteryTicketSerialRepositoryPort).findByTicketIdAndStatuses(
+                TICKET_ID,
+                List.of(LotteryTicketSerialStatus.IN_STOCK, LotteryTicketSerialStatus.RESERVED));
         verify(lotteryTicketSerialRepositoryPort).save(serialModel);
     }
 

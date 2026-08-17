@@ -206,7 +206,7 @@ export function OrderInspectionSection({
     const [replacementAvailability, setReplacementAvailability] = useState<Record<number, boolean>>({});
     const [availableReplacements, setAvailableReplacements] = useState<Record<number, any[]>>({});
     const [replacements, setReplacements] = useState<Record<number, TicketReplacementState>>({});
-    const [expandedRow, setExpandedRow] = useState<number | null>(null);
+    const [replaceTicket, setReplaceTicket] = useState<IncidentTicketDisplay | null>(null);
     const [openRefundDialog, setOpenRefundDialog] = useState(false);
     const [isSubmittingRefund, setIsSubmittingRefund] = useState(false);
     const [refundReason, setRefundReason] = useState('');
@@ -285,7 +285,7 @@ export function OrderInspectionSection({
 
     useEffect(() => {
         setReplacements({});
-        setExpandedRow(null);
+        setReplaceTicket(null);
         setReplacementAvailability({});
         setAvailableReplacements({});
     }, [orderId]);
@@ -293,7 +293,7 @@ export function OrderInspectionSection({
     useEffect(() => {
         if (!open) {
             setReplacements({});
-            setExpandedRow(null);
+            setReplaceTicket(null);
             setReportFaultTicket(null);
         }
     }, [open]);
@@ -364,21 +364,17 @@ export function OrderInspectionSection({
         }
 
         const ticketId = ticket.id;
-        if (expandedRow === ticketId) {
-            setExpandedRow(null);
-        } else {
-            setExpandedRow(ticketId);
-            if (!replacements[ticketId]) {
-                setReplacements(prev => ({
-                    ...prev,
-                    [ticketId]: {
-                        faultedBy: '',
-                        damagedReason: '',
-                        damagedEvidenceUrl: '',
-                        damagedEvidenceFiles: [],
-                    }
-                }));
-            }
+        setReplaceTicket(ticket);
+        if (!replacements[ticketId]) {
+            setReplacements((prev) => ({
+                ...prev,
+                [ticketId]: {
+                    faultedBy: '',
+                    damagedReason: '',
+                    damagedEvidenceUrl: '',
+                    damagedEvidenceFiles: [],
+                },
+            }));
         }
     };
 
@@ -389,8 +385,8 @@ export function OrderInspectionSection({
             delete next[ticketId];
             return next;
         });
-        if (expandedRow === ticketId) {
-            setExpandedRow(null);
+        if (replaceTicket?.id === ticketId) {
+            setReplaceTicket(null);
         }
     };
 
@@ -410,10 +406,8 @@ export function OrderInspectionSection({
 
         const candidates = availableReplacements[Number(ticketId)];
         const hasRep = candidates && candidates.length > 0;
-        // Có tồn kho thay thế → bắt buộc chọn vé thay thế (không hoàn tiền).
         if (hasRep && !state.newTicketId) return false;
 
-        // Nếu báo lỗi là Vé rách (DAMAGED) thì bắt buộc phải có ảnh minh chứng và phải upload thành công
         if (state.faultedBy === 'DAMAGED') {
             if (!state.damagedEvidenceFiles || state.damagedEvidenceFiles.length === 0) return false;
             const hasUnuploadedFiles = state.damagedEvidenceFiles.some((f: any) => f instanceof File);
@@ -425,19 +419,13 @@ export function OrderInspectionSection({
 
     const hasAnyReplacement = Object.keys(replacements).length > 0;
 
-    /**
-     * Refund chỉ cần khi kết quả kiểm tra cuối cùng còn vé không thể fulfil
-     * (hết tồn / báo lỗi mà không chọn được vé thay thế).
-     * Chỉ mở form "Thay vé" hoặc chọn lý do khi vẫn còn tồn thay thế → KHÔNG tính là cần hoàn tiền.
-     */
     const requiresRefund = Object.entries(replacements).some(([ticketId, state]) => {
         if (state.newTicketId) return false;
         const candidates = availableReplacements[Number(ticketId)];
-        if (candidates === undefined) return false; // đang tải tồn kho
+        if (candidates === undefined) return false;
         return candidates.length === 0;
     });
 
-    /** Every eligible ticket is incident-reported and cannot be replaced → full-order cancel. */
     const eligibleTickets = useMemo(
         () => tickets.filter((t) => t.id != null && t.isIncidentEligible),
         [tickets]
@@ -538,9 +526,13 @@ export function OrderInspectionSection({
                 refundReason: reason,
             });
 
+            await updateOrderStatus(orderId, 'PENDING_PICKUP');
+
             toast.success('Đã tạo yêu cầu hoàn tiền và cập nhật đơn hàng thành công');
             setOpenRefundDialog(false);
+            if (onCancel) onCancel();
             if (onSuccess) onSuccess();
+            router.push(`/${prefixAdmin}/refunds/list`);
         } catch (error: any) {
             toast.error(error?.response?.data?.message || 'Có lỗi xảy ra khi tạo yêu cầu hoàn tiền');
         } finally {
@@ -555,7 +547,6 @@ export function OrderInspectionSection({
             return;
         }
         if (requiresRefund) {
-            // Có ít nhất một vé không thay thế được → dialog tạo yêu cầu hoàn tiền
             openRefundRequestDialog();
         } else {
             try {
@@ -567,13 +558,13 @@ export function OrderInspectionSection({
                         damagedReason: state.damagedReason,
                         damagedEvidenceUrl: state.damagedEvidenceUrl
                     }));
-                    // Backend swaps serials and moves to PENDING_PICKUP; no refund when all replaced.
                     await createPartialRefund(orderId, { incidents });
+                    await updateOrderStatus(orderId, 'PENDING_PICKUP');
                     toast.success('Đã đổi vé và chuyển sang chờ nhận vé thành công');
+                    if (onCancel) onCancel();
                     if (onSuccess) onSuccess();
                     return;
                 }
-                // No incident replacements — just open status confirm (onSuccess runs after confirm).
                 if (onMoveToReadyForPickup) {
                     onMoveToReadyForPickup();
                 }
@@ -586,365 +577,76 @@ export function OrderInspectionSection({
         }
     };
 
-    const renderReplacementForm = (ticket: IncidentTicketDisplay) => {
+    const renderReplaceModal = () => {
+        if (!replaceTicket || replaceTicket.id == null) return null;
+        const ticket = replaceTicket;
         const ticketId = ticket.id!;
-        const state = replacements[ticketId];
-        if (!state) return null;
-
-        const hasReplacementCandidates = availableReplacements[ticketId] && availableReplacements[ticketId].length > 0;
+        const state = replacements[ticketId] || {};
+        const candidates = availableReplacements[ticketId];
+        const hasReplacementCandidates = Array.isArray(candidates) && candidates.length > 0;
 
         return (
-            <TableRow>
-                <TableCell colSpan={6} sx={{ p: 0, borderBottom: 'none' }}>
-                    <Collapse in={expandedRow === ticketId} timeout="auto" unmountOnExit>
-                        <Box sx={{ p: { xs: 2.5, md: 3 }, bgcolor: 'var(--palette-background-neutral)', borderRadius: '0 0 12px 12px', mb: 2, border: '1px solid var(--palette-divider)', borderTop: 'none' }}>
-                            <Stack spacing={3} sx={{ maxWidth: hasReplacementCandidates ? '100%' : 960, mx: 'auto', width: '100%' }}>
-                            <Typography variant="subtitle2" sx={{ mb: 0, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: hasReplacementCandidates ? 'flex-start' : { xs: 'flex-start', md: 'center' }, gap: 1, flexWrap: 'wrap', textAlign: hasReplacementCandidates ? 'left' : { xs: 'left', md: 'center' } }}>
-                                Xử lý sự cố cho vé: 
-                                <Box component="span" sx={{ color: 'primary.main', bgcolor: 'primary.lighter', px: 1, py: 0.25, borderRadius: 1 }}>
-                                    {TICKET_NUMBERS_LABEL}{' '}
-                                    <AdminLuckyDisplay value={ticket.numbers} ticket />
-                                </Box>
-                                {ticket.serialNumber && (
-                                    <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.8em', fontWeight: 500, bgcolor: 'action.hover', px: 1, py: 0.25, borderRadius: 1 }}>
-                                        {TICKET_SERIAL_PREFIX}: {ticket.serialNumber}
-                                    </Box>
-                                )}
-                            </Typography>
-                            
-                            {hasReplacementCandidates ? (
-                            <Stack spacing={3}>
-                                    <Stack 
-                                        direction={{ xs: 'column', md: 'row' }} 
-                                        spacing={4} 
-                                        divider={<Divider orientation="vertical" flexItem />}
-                                        alignItems="flex-start"
-                                    >
-                                        {/* Reason & Details Column */}
-                                        <Box sx={{ flex: 1, width: '100%' }}>
-                                            <Stack spacing={2}>
-                                                <Box>
-                                                    <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
-                                                        Lý do báo lỗi (Faulted By)
-                                                    </Typography>
-                                                    <ToggleButtonGroup
-                                                        color="primary"
-                                                        value={state.faultedBy}
-                                                        exclusive
-                                                        onChange={(e, value) => {
-                                                            if (value !== null) {
-                                                                updateReplacement(ticketId, 'faultedBy', value);
-                                                            }
-                                                        }}
-                                                        sx={{
-                                                            width: '100%',
-                                                            height: '40px',
-                                                            '& .MuiToggleButton-root': {
-                                                                flex: 1,
-                                                                textTransform: 'none',
-                                                                fontWeight: 600,
-                                                                border: '1px solid var(--palette-divider)',
-                                                            }
-                                                        }}
-                                                    >
-                                                        <ToggleButton value="DAMAGED">Vé rách / Hư hỏng</ToggleButton>
-                                                        <ToggleButton value="LOST">Thất lạc</ToggleButton>
-                                                    </ToggleButtonGroup>
-                                                </Box>
-
-                                                {state.faultedBy && (
-                                                    <Box>
-                                                        <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
-                                                            Chi tiết lý do
-                                                        </Typography>
-                                                        <TextField 
-                                                            size="small" 
-                                                            fullWidth 
-                                                            multiline
-                                                            minRows={state.faultedBy === 'LOST' ? 3 : 2}
-                                                            value={state.damagedReason}
-                                                            onChange={(e) => updateReplacement(ticketId, 'damagedReason', e.target.value)}
-                                                            placeholder="Nhập chi tiết sự cố..."
-                                                        />
-                                                        {quickReasons[state.faultedBy] && (
-                                                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
-                                                                {quickReasons[state.faultedBy].map(reason => (
-                                                                    <Typography 
-                                                                        key={reason}
-                                                                        variant="caption"
-                                                                        onClick={() => updateReplacement(ticketId, 'damagedReason', reason)}
-                                                                        sx={{ 
-                                                                            cursor: 'pointer', 
-                                                                            px: 1, 
-                                                                            py: 0.5, 
-                                                                            bgcolor: 'action.hover', 
-                                                                            borderRadius: 1, 
-                                                                            border: '1px solid var(--palette-divider)',
-                                                                            '&:hover': { bgcolor: 'action.selected' }
-                                                                        }}
-                                                                    >
-                                                                        {reason}
-                                                                    </Typography>
-                                                                ))}
-                                                            </Box>
-                                                        )}
-                                                    </Box>
-                                                )}
-                                            </Stack>
-                                        </Box>
-
-                                        {/* Replacement Column */}
-                                        {hasReplacementCandidates && (
-                                            <Box sx={{ flex: 1, width: '100%' }}>
-                                                <Stack spacing={2}>
-                                                <Box>
-                                                    <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
-                                                        Chọn vé thay thế
-                                                    </Typography>
-                                                    <Autocomplete
-                                                        fullWidth
-                                                        options={availableReplacements[ticketId] || []}
-                                                        getOptionLabel={(option) => `${TICKET_NUMBERS_LABEL}: ${ticket.numbers} - ${TICKET_SERIAL_PREFIX}: ${option.serialNumber}`}
-                                                        value={availableReplacements[ticketId]?.find(t => t.id === state.newTicketId) || null}
-                                                        onChange={(_, newValue) => updateReplacement(ticketId, 'newTicketId', newValue?.id)}
-                                                        isOptionEqualToValue={(option, value) => option.id === value.id}
-                                                        renderInput={(params) => (
-                                                            <TextField 
-                                                                {...params} 
-                                                                size="small"
-                                                                placeholder={availableReplacements[ticketId] ? "Tìm và chọn vé thay thế..." : "Đang tải..."} 
-                                                            />
-                                                        )}
-                                                        renderOption={(props, option) => (
-                                                            <li {...props} key={option.id} style={{ padding: '4px 8px' }}>
-                                                                <Box sx={{ 
-                                                                    display: 'flex', 
-                                                                    alignItems: 'center', 
-                                                                    gap: 2, 
-                                                                    width: '100%',
-                                                                    p: 1,
-                                                                    borderRadius: 1,
-                                                                }}>
-                                                                    {option.ticketImg ? (
-                                                                        <Box
-                                                                            component="img"
-                                                                            src={option.ticketImg}
-                                                                            alt={`Vé ${ticket.numbers}`}
-                                                                            sx={{
-                                                                                width: 50,
-                                                                                height: 35,
-                                                                                objectFit: 'contain',
-                                                                                borderRadius: '4px',
-                                                                                boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                                                                                border: '1px solid var(--palette-divider)'
-                                                                            }}
-                                                                        />
-                                                                    ) : (
-                                                                        <Box sx={{ 
-                                                                            width: 50, height: 35, borderRadius: '4px', 
-                                                                            bgcolor: 'action.disabledBackground', border: '1px solid var(--palette-divider)',
-                                                                            display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                                                        }}>
-                                                                            <Typography variant="caption" color="text.disabled">No img</Typography>
-                                                                        </Box>
-                                                                    )}
-                                                                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                                                                        <Stack direction="row" justifyContent="space-between" alignItems="center" mb={0.5}>
-                                                                            <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
-                                                                                {TICKET_NUMBERS_LABEL}: <AdminLuckyDisplay value={ticket.numbers} ticket component="span" />
-                                                                            </Typography>
-                                                                            <Box sx={{ 
-                                                                                px: 1, py: 0.25, borderRadius: 1, 
-                                                                                bgcolor: 'success.lighter', color: 'success.dark',
-                                                                                fontSize: '0.65rem', fontWeight: 700
-                                                                            }}>
-                                                                                Sẵn sàng
-                                                                            </Box>
-                                                                        </Stack>
-                                                                        {option.serialNumber && (
-                                                                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontFamily: 'monospace' }}>
-                                                                                {TICKET_SERIAL_PREFIX}: {option.serialNumber}
-                                                                            </Typography>
-                                                                        )}
-                                                                    </Box>
-                                                                </Box>
-                                                            </li>
-                                                        )}
-                                                        noOptionsText="Không có vé thay thế"
-                                                    />
-                                                </Box>
-                                                {state.faultedBy === 'DAMAGED' && (
-                                                    <Box>
-                                                        <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
-                                                            Ảnh minh chứng
-                                                        </Typography>
-                                                        <UploadFiles
-                                                            compact
-                                                            files={state.damagedEvidenceFiles || []}
-                                                            onFilesChange={(files) => {
-                                                                updateReplacement(ticketId, 'damagedEvidenceFiles', files);
-                                                                const url = files.find((f) => typeof f === 'string');
-                                                                updateReplacement(ticketId, 'damagedEvidenceUrl', url || '');
-                                                            }}
-                                                        />
-                                                    </Box>
-                                                )}
-                                                </Stack>
-                                            </Box>
-                                        )}
-                                    </Stack>
-                            </Stack>
-                            ) : (
-                                <>
-                                    <Box sx={{ width: '100%', maxWidth: 640, mx: 'auto' }}>
-                                        <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
-                                            Lý do báo lỗi (Faulted By)
-                                        </Typography>
-                                        <ToggleButtonGroup
-                                            color="primary"
-                                            value={state.faultedBy}
-                                            exclusive
-                                            onChange={(e, value) => {
-                                                if (value !== null) {
-                                                    updateReplacement(ticketId, 'faultedBy', value);
-                                                }
-                                            }}
-                                            sx={{
-                                                width: '100%',
-                                                height: '40px',
-                                                '& .MuiToggleButton-root': {
-                                                    flex: 1,
-                                                    textTransform: 'none',
-                                                    fontWeight: 600,
-                                                    border: '1px solid var(--palette-divider)',
-                                                },
-                                            }}
-                                        >
-                                            <ToggleButton value="DAMAGED">Vé rách / Hư hỏng</ToggleButton>
-                                            <ToggleButton value="LOST">Thất lạc</ToggleButton>
-                                        </ToggleButtonGroup>
-                                    </Box>
-
-                                    {state.faultedBy && (
-                                        <Grid container spacing={3} alignItems="stretch">
-                                            <Grid size={{ xs: 12, md: 6 }}>
-                                                <Stack spacing={2} sx={{ height: '100%' }}>
-                                                    <Box>
-                                                        <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
-                                                            Chi tiết lý do
-                                                        </Typography>
-                                                        <TextField
-                                                            size="small"
-                                                            fullWidth
-                                                            multiline
-                                                            minRows={state.faultedBy === 'LOST' ? 4 : 3}
-                                                            value={state.damagedReason}
-                                                            onChange={(e) =>
-                                                                updateReplacement(ticketId, 'damagedReason', e.target.value)
-                                                            }
-                                                            placeholder="Nhập chi tiết sự cố..."
-                                                        />
-                                                    </Box>
-                                                    {quickReasons[state.faultedBy] && (
-                                                        <Box>
-                                                            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
-                                                                Gợi ý nhanh
-                                                            </Typography>
-                                                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                                                                {quickReasons[state.faultedBy].map((reason) => (
-                                                                    <Typography
-                                                                        key={reason}
-                                                                        variant="caption"
-                                                                        onClick={() =>
-                                                                            updateReplacement(ticketId, 'damagedReason', reason)
-                                                                        }
-                                                                        sx={{
-                                                                            cursor: 'pointer',
-                                                                            px: 1.25,
-                                                                            py: 0.75,
-                                                                            bgcolor: 'action.hover',
-                                                                            borderRadius: 1,
-                                                                            border: '1px solid var(--palette-divider)',
-                                                                            '&:hover': { bgcolor: 'action.selected' },
-                                                                        }}
-                                                                    >
-                                                                        {reason}
-                                                                    </Typography>
-                                                                ))}
-                                                            </Box>
-                                                        </Box>
-                                                    )}
-                                                </Stack>
-                                            </Grid>
-                                            <Grid size={{ xs: 12, md: 6 }}>
-                                                {state.faultedBy === 'DAMAGED' ? (
-                                                    <Stack spacing={1} sx={{ height: '100%' }}>
-                                                        <Typography variant="subtitle2" sx={{ mb: 0.5, color: 'text.secondary' }}>
-                                                            Ảnh minh chứng
-                                                        </Typography>
-                                                        <Box sx={{ flex: 1, display: 'flex', alignItems: 'stretch', minHeight: 140 }}>
-                                                            <UploadFiles
-                                                                compact
-                                                                files={state.damagedEvidenceFiles || []}
-                                                                onFilesChange={(files) => {
-                                                                    updateReplacement(ticketId, 'damagedEvidenceFiles', files);
-                                                                    const url = files.find((f) => typeof f === 'string');
-                                                                    updateReplacement(ticketId, 'damagedEvidenceUrl', url || '');
-                                                                }}
-                                                            />
-                                                        </Box>
-                                                    </Stack>
-                                                ) : (
-                                                    <Box
-                                                        sx={{
-                                                            height: '100%',
-                                                            minHeight: 140,
-                                                            p: 2.5,
-                                                            borderRadius: '12px',
-                                                            border: '1px dashed var(--palette-divider)',
-                                                            bgcolor: 'var(--palette-background-paper)',
-                                                            display: 'flex',
-                                                            flexDirection: 'column',
-                                                            justifyContent: 'center',
-                                                        }}
-                                                    >
-                                                        <Stack direction="row" spacing={1.5} alignItems="flex-start">
-                                                            <Box
-                                                                sx={{
-                                                                    width: 36,
-                                                                    height: 36,
-                                                                    borderRadius: '10px',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    justifyContent: 'center',
-                                                                    bgcolor: 'var(--palette-warning-lighter)',
-                                                                    color: 'var(--palette-warning-dark)',
-                                                                    flexShrink: 0,
-                                                                }}
-                                                            >
-                                                                <Icon icon="solar:box-minimalistic-bold-duotone" width={20} />
-                                                            </Box>
-                                                            <Box>
-                                                                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-                                                                    Không còn vé thay thế
-                                                                </Typography>
-                                                                <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                                                                    Vé thất lạc sẽ được ghi nhận để xử lý hoàn tiền. Vui lòng mô tả chi tiết sự cố ở cột bên trái.
-                                                                </Typography>
-                                                            </Box>
-                                                        </Stack>
-                                                    </Box>
-                                                )}
-                                            </Grid>
-                                        </Grid>
-                                    )}
-                                </>
-                            )}
-                            </Stack>
+            <Dialog open onClose={() => setReplaceTicket(null)} maxWidth={hasReplacementCandidates ? "md" : "sm"} fullWidth PaperProps={{ className: "admin-theme", sx: { borderRadius: "var(--shape-borderRadius-lg)" } }}>
+                <DialogTitle component="div" sx={{ p: 3, pb: 2 }}>
+                    <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="space-between">
+                        <Box>
+                            <Typography component="div" sx={{ fontWeight: 700, fontSize: "1.125rem" }}>Thay thế vé</Typography>
                         </Box>
-                    </Collapse>
-                </TableCell>
-            </TableRow>
+                        <IconButton onClick={() => setReplaceTicket(null)} size="small" aria-label="Đóng">
+                            <Icon icon="solar:close-circle-bold" />
+                        </IconButton>
+                    </Stack>
+                </DialogTitle>
+                <Divider />
+                <DialogContent sx={{ p: { xs: 2.5, md: 3 }, bgcolor: "var(--palette-background-neutral)" }}>
+                    <Stack spacing={3}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                            Xử lý sự cố cho vé: <AdminLuckyDisplay value={ticket.numbers} ticket />
+                        </Typography>
+                        <Box>
+                            <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>Lý do báo lỗi</Typography>
+                            <ToggleButtonGroup
+                                color="primary"
+                                value={state.faultedBy}
+                                exclusive
+                                onChange={(e, val) => val && updateReplacement(ticketId, 'faultedBy', val)}
+                                sx={{ width: '100%', height: '40px' }}
+                            >
+                                <ToggleButton value="DAMAGED">Vé rách / Hư hỏng</ToggleButton>
+                                <ToggleButton value="LOST">Thất lạc</ToggleButton>
+                            </ToggleButtonGroup>
+                        </Box>
+                        <TextField 
+                            size="small" fullWidth multiline
+                            value={state.damagedReason}
+                            onChange={(e) => updateReplacement(ticketId, 'damagedReason', e.target.value)}
+                            placeholder="Mô tả chi tiết..."
+                        />
+                        {state.faultedBy === 'DAMAGED' && (
+                            <UploadFiles
+                                compact files={state.damagedEvidenceFiles || []}
+                                onFilesChange={(files) => {
+                                    updateReplacement(ticketId, 'damagedEvidenceFiles', files);
+                                    updateReplacement(ticketId, 'damagedEvidenceUrl', files.find(f => typeof f === 'string') || '');
+                                }}
+                            />
+                        )}
+                        {hasReplacementCandidates && (
+                            <Autocomplete
+                                options={candidates}
+                                getOptionLabel={(o) => o.serialNumber}
+                                value={candidates.find(c => c.id === state.newTicketId) || null}
+                                onChange={(_, val) => updateReplacement(ticketId, 'newTicketId', val?.id)}
+                                renderInput={(params) => <TextField {...params} label="Chọn vé thay thế" />}
+                            />
+                        )}
+                    </Stack>
+                </DialogContent>
+                <DialogActions sx={{ p: 2.5 }}>
+                    <Button variant="outlined" onClick={() => setReplaceTicket(null)}>Đóng</Button>
+                    <Button variant="contained" onClick={() => setReplaceTicket(null)}>Xác nhận</Button>
+                </DialogActions>
+            </Dialog>
         );
     };
 
@@ -1081,8 +783,7 @@ export function OrderInspectionSection({
                                         const candidates = ticket.id != null ? availableReplacements[ticket.id] : undefined;
                                         const isLoading = ticket.id != null && candidates === undefined;
                                         const hasRep = ticket.id != null && !isLoading && !!candidates && candidates.length > 0;
-                                        const isReplacing = ticket.id != null && expandedRow === ticket.id;
-                                        const hasStartedFilling = ticket.id != null && !!replacements[ticket.id]?.faultedBy;
+                                        const isReplacing = false;
                                         const hasReplaced = ticket.id != null && !!replacements[ticket.id]?.newTicketId;
                                         const alreadyFaultReported = !!ticket.isAlreadyFaultReported;
                                         const hasLocalFaultReport =
@@ -1168,9 +869,6 @@ export function OrderInspectionSection({
                                                                     >
                                                                         Đã báo lỗi
                                                                     </Typography>
-                                                                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                                                                        {serialBadge.label} — không cần báo lại
-                                                                    </Typography>
                                                                 </Stack>
                                                             ) : isLoading ? (
                                                                 <Box sx={{ display: 'flex', alignItems: 'center', height: 26, px: 2 }}>
@@ -1179,13 +877,13 @@ export function OrderInspectionSection({
                                                             ) : hasRep ? (
                                                                 <Button
                                                                     size="small"
-                                                                    variant={isReplacing ? "contained" : (hasReplaced ? "contained" : "outlined")}
-                                                                    color={hasReplaced && !isReplacing ? "success" : "primary"}
+                                                                    variant={hasReplaced ? "contained" : "outlined"}
+                                                                    color={hasReplaced ? "success" : "primary"}
                                                                     disabled={disabled}
                                                                     onClick={() => ticket.id != null && handleReplaceTicketClick(ticket)}
                                                                     sx={{ textTransform: 'none', py: 0.25, minWidth: 'auto', fontSize: '0.75rem', borderRadius: '6px', boxShadow: 'none' }}
                                                                 >
-                                                                    {isReplacing ? "Đóng" : (hasReplaced ? "Đã thay vé" : "Thay vé")}
+                                                                    {hasReplaced ? "Đã thay vé" : `Thay vé (Còn ${candidates!.length} vé)`}
                                                                 </Button>
                                                             ) : hasLocalFaultReport ? (
                                                                 <Typography
@@ -1202,40 +900,30 @@ export function OrderInspectionSection({
                                                                     Đã ghi nhận lỗi
                                                                 </Typography>
                                                             ) : (
-                                                                <>
-                                                                    <Typography variant="caption" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600 }}>
-                                                                        Hết vé thay thế
-                                                                    </Typography>
-                                                                    <Button
-                                                                        size="small"
-                                                                        variant="outlined"
-                                                                        color="error"
-                                                                        disabled={disabled}
-                                                                        onClick={() => handleReportFaultClick(ticket)}
-                                                                        sx={{ textTransform: 'none', py: 0.25, minWidth: 'auto', fontSize: '0.75rem', borderRadius: '6px', boxShadow: 'none' }}
-                                                                    >
-                                                                        Báo lỗi
-                                                                    </Button>
-                                                                </>
+                                                                <Button
+                                                                    size="small"
+                                                                    variant="outlined"
+                                                                    color="error"
+                                                                    disabled={disabled}
+                                                                    onClick={() => handleReportFaultClick(ticket)}
+                                                                    sx={{ textTransform: 'none', py: 0.25, minWidth: 'auto', fontSize: '0.75rem', borderRadius: '6px', boxShadow: 'none' }}
+                                                                >
+                                                                    Báo lỗi {candidates && candidates.length === 0 && "(Hết vé)"}
+                                                                </Button>
                                                             )}
-                                                            {/* Cancel Button */}
                                                             {!alreadyFaultReported && ticket.id != null && replacements[ticket.id] && (
-                                                                (replacements[ticket.id].faultedBy || replacements[ticket.id].newTicketId || replacements[ticket.id].damagedReason) ? (
-                                                                    <IconButton 
-                                                                        size="small" 
-                                                                        color="error" 
-                                                                        onClick={(e) => handleCancelReplacement(ticket.id!, e)}
-                                                                        sx={{ p: 0.5, bgcolor: 'error.lighter', '&:hover': { bgcolor: 'error.light', color: 'common.white' } }}
-                                                                        title="Hủy thao tác"
-                                                                    >
-                                                                        <Icon icon="solar:close-circle-bold" fontSize={18} />
-                                                                    </IconButton>
-                                                                ) : null
+                                                                <IconButton 
+                                                                    size="small" 
+                                                                    color="error" 
+                                                                    onClick={(e) => handleCancelReplacement(ticket.id!, e)}
+                                                                    sx={{ p: 0.5, bgcolor: 'error.lighter' }}
+                                                                >
+                                                                    <Icon icon="solar:close-circle-bold" fontSize={18} />
+                                                                </IconButton>
                                                             )}
                                                         </Stack>
                                                     </TableCell>
                                                 </TableRow>
-                                                {ticket.id != null && !alreadyFaultReported && hasRep && renderReplacementForm(ticket)}
                                             </React.Fragment>
                                         );
                                     })}
@@ -1834,6 +1522,8 @@ export function OrderInspectionSection({
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {renderReplaceModal()}
 
             {reportFaultTicket && (
                 <Dialog

@@ -175,7 +175,7 @@ export const ClientDatePicker: React.FC<ClientDatePickerProps> = ({
             <div
                 ref={panelRef}
                 style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 10000 }}
-                className="bg-white border border-[#E5E8EB] rounded-xl shadow-[0_12px_32px_rgba(0,0,0,0.12)] w-[290px] p-3.5"
+                className="client-portal bg-white border border-[#E5E8EB] rounded-xl shadow-[0_12px_32px_rgba(0,0,0,0.12)] w-[290px] p-3.5"
             >
                 <div className="flex items-center justify-between mb-2.5 px-0.5">
                     <button
