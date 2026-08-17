@@ -4,7 +4,13 @@ import type {
     UpdateImportBatchLineFormValues,
 } from '../schemas/importBatch.schema';
 import type { ImportBatch, ImportBatchLine } from '../types/importBatch.type';
+import {
+    clearTicketLineFormDraft,
+    clearTicketLineFormDrafts,
+} from '../../inventory/utils/ticketLineFormDraftStorage';
 import { canEditImportBatchLineCost } from './importBatchHeaderEdit';
+import { isDrawDateToday, isTicketIntakeClosed } from './importBatchDrawDate';
+import dayjs, { type Dayjs } from 'dayjs';
 
 export type ImportBatchEditDraft = {
     batchId: number;
@@ -54,6 +60,50 @@ export const clearLocalImportBatchEditDraft = (batchId: string | number) => {
         localStorage.removeItem(importBatchEditDraftStorageKey(batchId));
     } catch {
         // ignore
+    }
+};
+
+/** Clears edit-form + unsaved ticket-entry drafts for a batch (browser only). */
+export const clearImportBatchBrowserDrafts = (batchId: string | number) => {
+    clearLocalImportBatchEditDraft(batchId);
+    clearTicketLineFormDrafts(batchId);
+};
+
+/**
+ * Drop local drafts that can no longer be applied: cancelled batch/lines,
+ * or same-day intake already closed (inspection window started).
+ */
+export const discardStaleImportBatchBrowserDrafts = (
+    batch: Pick<ImportBatch, 'id' | 'status' | 'drawDate' | 'lines'>,
+    options?: {
+        returnBufferMinutes?: number;
+        returnCutOffTime?: string | null;
+        now?: Dayjs;
+    }
+) => {
+    if (!batch?.id) {
+        return;
+    }
+
+    if (batch.status === 'CANCELLED') {
+        clearImportBatchBrowserDrafts(batch.id);
+        return;
+    }
+
+    for (const line of batch.lines ?? []) {
+        if (line.status === 'CANCELLED' && line.id != null) {
+            clearTicketLineFormDraft(batch.id, line.id);
+        }
+    }
+
+    const returnCutOffTime = options?.returnCutOffTime ?? undefined;
+    const returnBufferMinutes = options?.returnBufferMinutes ?? 45;
+    const now = options?.now ?? dayjs();
+    if (
+        isDrawDateToday(batch.drawDate) &&
+        isTicketIntakeClosed(returnCutOffTime, returnBufferMinutes, now)
+    ) {
+        clearImportBatchBrowserDrafts(batch.id);
     }
 };
 

@@ -28,6 +28,7 @@ import com.daiphat.coreapi.application.mapper.lotteries.SupplierSettlementApplic
 import com.daiphat.coreapi.application.port.in.lotteries.ImportBatchFileImportServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketSerialServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.SupplierSettlementServicePort;
+import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryStationRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRepositoryPort;
@@ -130,7 +131,6 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             SupplierSettlementAdjustmentReasonCode.SHIPPING_FEE,
             SupplierSettlementAdjustmentReasonCode.LATE_PENALTY,
             SupplierSettlementAdjustmentReasonCode.DISCOUNT,
-            SupplierSettlementAdjustmentReasonCode.ROUNDING,
             SupplierSettlementAdjustmentReasonCode.OTHER
     );
 
@@ -156,6 +156,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
     private final UserRepositoryPort userRepositoryPort;
     private final SupplierSettlementDiscrepancyInventoryHelper discrepancyInventoryHelper;
     private final ObjectProvider<ImportBatchFileImportServicePort> importBatchFileImportService;
+    private final StoragePort storagePort;
     private final Clock clock;
 
     @Override
@@ -331,35 +332,35 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
     @Transactional
     public int markReceiptOverdueSettlements() {
         LocalDateTime now = LocalDateTime.now(clock);
-        LocalTime verificationDeadline = supplierPaymentCutOffCalculator.resolveVerificationDeadline();
         List<SupplierSettlementModel> openSettlements =
                 supplierSettlementRepositoryPort.findByStatus(SupplierSettlementStatus.OPEN);
         int updated = 0;
         for (SupplierSettlementModel settlement : openSettlements) {
-            if (settlement.getPeriodFrom() == null) {
+            if (settlement.getPeriodFrom() == null || settlement.getLotterySupplierId() == null) {
                 continue;
             }
-            String receiptUrl = settlement.getSupplierSettlementReceiptUrl();
-            if (receiptUrl != null && !receiptUrl.isBlank()) {
+            LotterySupplierModel supplier = lotterySupplierRepositoryPort.findById(settlement.getLotterySupplierId())
+                    .orElse(null);
+            if (supplier == null || supplier.getPaymentCutOffTime() == null) {
                 continue;
             }
-            LocalDateTime deadlineAt = LocalDateTime.of(settlement.getPeriodFrom(), verificationDeadline);
+            LocalTime paymentCutOff = supplier.getPaymentCutOffTime();
+            LocalDateTime deadlineAt = LocalDateTime.of(settlement.getPeriodFrom(), paymentCutOff);
             if (!now.isAfter(deadlineAt)) {
                 continue;
             }
             settlement.setStatus(SupplierSettlementStatus.RECEIPT_OVERDUE);
             SupplierSettlementModel saved = supplierSettlementRepositoryPort.save(settlement);
-            sendReceiptOverdueNotification(saved);
+            sendPaymentOverdueNotification(saved, paymentCutOff);
             updated++;
         }
         if (updated > 0) {
-            log.info("Marked {} supplier settlement(s) as RECEIPT_OVERDUE past verification deadline {}",
-                    updated, verificationDeadline);
+            log.info("Marked {} supplier settlement(s) as payment-overdue past supplier paymentCutOff", updated);
         }
         return updated;
     }
 
-    private void sendReceiptOverdueNotification(SupplierSettlementModel settlement) {
+    private void sendPaymentOverdueNotification(SupplierSettlementModel settlement, LocalTime paymentCutOff) {
         if (settlement == null || notificationService == null || userRepositoryPort == null) {
             return;
         }
@@ -371,9 +372,11 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         if (settlement.getPeriodTo() != null) {
             periodStr = periodStr + " đến " + settlement.getPeriodTo();
         }
-        String title = "Quá hạn upload biên lai đối soát";
+        String cutOffLabel = paymentCutOff != null ? paymentCutOff.toString() : "-";
+        String title = "Trễ hạn thanh toán nhà cung cấp";
         String content = "Kỳ đối soát " + code + " của " + supplierName
-                + " (" + periodStr + ") đã vượt hạn chót đối chiếu mà chưa upload biên lai đối soát.";
+                + " (" + periodStr + ") đã quá giờ thanh toán NCC (" + cutOffLabel
+                + ") mà chưa hoàn tất đối soát / chốt thanh toán.";
 
         userRepositoryPort.findAllByRoleCodes(List.of(RoleConstants.ADMIN)).stream()
                 .filter(u -> u.getStatus() == UserStatus.ACTIVE)
@@ -464,12 +467,27 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             );
         }
         String trimmed = supplierSettlementReceiptUrl != null ? supplierSettlementReceiptUrl.trim() : null;
-        settlement.setSupplierSettlementReceiptUrl(
-                trimmed == null || trimmed.isEmpty() ? null : trimmed
-        );
+        String nextUrl = trimmed == null || trimmed.isEmpty() ? null : trimmed;
+        String previousUrl = settlement.getSupplierSettlementReceiptUrl();
+        if (previousUrl != null && !previousUrl.isBlank()
+                && (nextUrl == null || !previousUrl.trim().equals(nextUrl))) {
+            deleteStoredUrlQuietly(previousUrl);
+        }
+        settlement.setSupplierSettlementReceiptUrl(nextUrl);
         SupplierSettlementModel saved = supplierSettlementRepositoryPort.save(settlement);
         log.info("Updated supplierSettlementReceiptUrl for settlementId={}", settlementId);
         return supplierSettlementApplicationMapper.toResponse(saved);
+    }
+
+    private void deleteStoredUrlQuietly(String url) {
+        try {
+            String key = StorageUtils.extractStorageKeyFromUrl(url);
+            if (key != null && !key.isBlank()) {
+                storagePort.delete(key);
+            }
+        } catch (Exception ex) {
+            log.warn("Failed to hard-delete stored file for url={}: {}", url, ex.getMessage());
+        }
     }
 
     @Override
@@ -645,6 +663,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             UUID actorId
     ) {
         SupplierSettlementModel settlement = requireOpenSettlement(settlementId);
+        ensureReconciliationWindowOpen(settlement);
         assertPhaseAllowsMatching(settlement);
         // A rematch replaces the price evidence; any prior unit-price adjustment must
         // not leak into the next recalculation.
@@ -873,6 +892,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             UUID actorId
     ) {
         SupplierSettlementModel settlement = requireOpenSettlement(settlementId);
+        ensureReconciliationWindowOpen(settlement);
         if (!settlement.needsImportResolution()) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "Không có chênh lệch số lượng nhập cần xử lý.");
         }
@@ -1112,6 +1132,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             UUID actorId
     ) {
         SupplierSettlementModel settlement = requireOpenSettlement(settlementId);
+        ensureReconciliationWindowOpen(settlement);
         if (!settlement.needsReturnResolution()) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "Không có chênh lệch số lượng trả cần xử lý.");
         }
@@ -1351,6 +1372,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             UUID actorId
     ) {
         SupplierSettlementModel settlement = requireOpenSettlement(settlementId);
+        ensureReconciliationWindowOpen(settlement);
         if (!settlement.needsUnitPriceResolution()) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "Không có chênh lệch giá nhập cần xử lý.");
         }
@@ -1418,7 +1440,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         if (request.reasonCode() == null || !MONETARY_REASON_CODES.contains(request.reasonCode())) {
             throw new DomainException(
                     ErrorCode.INVALID_INPUT,
-                    "reasonCode phải là SHIPPING_FEE, LATE_PENALTY, DISCOUNT, ROUNDING hoặc OTHER."
+                    "reasonCode phải là SHIPPING_FEE, LATE_PENALTY, DISCOUNT hoặc OTHER."
             );
         }
         if (request.amount() == null) {
@@ -1450,6 +1472,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
     @Transactional
     public SupplierSettlementResponse recalculateReconciliation(Long settlementId, UUID actorId) {
         SupplierSettlementModel settlement = requireOpenSettlement(settlementId);
+        ensureReconciliationWindowOpen(settlement);
         if (settlement.hasUnresolvedDiscrepancies()) {
             throw new DomainException(
                     ErrorCode.INVALID_INPUT,
@@ -1517,6 +1540,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             UUID actorId
     ) {
         SupplierSettlementModel settlement = requireOpenSettlement(settlementId);
+        ensureReconciliationWindowOpen(settlement);
         if (settlement.hasUnresolvedDiscrepancies()) {
             throw new DomainException(
                     ErrorCode.INVALID_INPUT,
@@ -1677,6 +1701,31 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             throw new DomainException(ErrorCode.INVALID_INPUT, "Kỳ đối soát đã chốt, không thể thao tác.");
         }
         return settlement;
+    }
+
+    private void ensureReconciliationWindowOpen(SupplierSettlementModel settlement) {
+        LocalTime paymentCutOff = null;
+        if (settlement.getLotterySupplierId() != null) {
+            LotterySupplierModel supplier = lotterySupplierRepositoryPort.findById(settlement.getLotterySupplierId())
+                    .orElse(null);
+            if (supplier != null) {
+                paymentCutOff = supplier.getPaymentCutOffTime();
+            }
+        }
+        if (paymentCutOff == null) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Nhà cung cấp chưa cấu hình giờ thanh toán (paymentCutOffTime)."
+            );
+        }
+        LocalDateTime now = LocalDateTime.now(clock);
+        if (!supplierPaymentCutOffCalculator.isReconciliationWindowOpen(
+                settlement.getPeriodFrom(),
+                paymentCutOff,
+                now
+        )) {
+            throw new DomainException(ErrorCode.SUPPLIER_SETTLEMENT_RECONCILIATION_NOT_OPEN);
+        }
     }
 
     private void assertPhaseAllowsMatching(SupplierSettlementModel settlement) {
@@ -2107,7 +2156,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             if (item.additionalCostType() == null || !MONETARY_REASON_CODES.contains(item.additionalCostType())) {
                 throw new DomainException(
                         ErrorCode.INVALID_INPUT,
-                        "Loại chi phí phát sinh phải là SHIPPING_FEE, LATE_PENALTY, DISCOUNT, ROUNDING hoặc OTHER."
+                        "Loại chi phí phát sinh phải là SHIPPING_FEE, LATE_PENALTY, DISCOUNT hoặc OTHER."
                 );
             }
             if (item.additionalCostReason() == null || item.additionalCostReason().isBlank()) {

@@ -3,11 +3,15 @@ import type { ImportBatch } from '../types/importBatch.type';
 import {
     buildFormValuesFromBatch,
     convertCreateFormToEditDraft,
+    discardStaleImportBatchBrowserDrafts,
     mergeImportBatchEditDraftWithServer,
     transferCreateFormToEditDraft,
     readLocalImportBatchEditDraft,
     clearLocalImportBatchEditDraft,
+    writeLocalImportBatchEditDraft,
 } from './importBatchEditDraft';
+import { writeTicketLineFormDraft, readTicketLineFormDraft } from '../../inventory/utils/ticketLineFormDraftStorage';
+import dayjs from 'dayjs';
 
 const storage = new Map<string, string>();
 
@@ -230,5 +234,89 @@ describe('importBatchEditDraft', () => {
             stationName: 'Station 3',
             removed: false,
         });
+    });
+
+    it('discards browser drafts when batch is cancelled', () => {
+        writeLocalImportBatchEditDraft(2, {
+            supplierId: 5,
+            drawDate: '2026-07-09',
+            importMode: 'IN_DAY',
+            totalDeclareQuantity: 1,
+            invoiceEvidenceUrl: '',
+            ticketListImageUrls: [],
+            lines: [],
+        });
+        writeTicketLineFormDraft(2, 11, {
+            ticketSections: [{ numbers: '123456', quantity: 1, serials: [{ serialNumber: '1' }] }],
+        });
+
+        discardStaleImportBatchBrowserDrafts({
+            ...sampleBatch,
+            status: 'CANCELLED',
+        });
+
+        expect(readLocalImportBatchEditDraft(2)).toBeNull();
+        expect(readTicketLineFormDraft(2, 11)).toBeNull();
+    });
+
+    it('discards ticket drafts for cancelled lines only', () => {
+        writeTicketLineFormDraft(2, 11, {
+            ticketSections: [{ numbers: '123456', quantity: 1, serials: [{ serialNumber: '1' }] }],
+        });
+        writeTicketLineFormDraft(2, 12, {
+            ticketSections: [{ numbers: '654321', quantity: 1, serials: [{ serialNumber: '2' }] }],
+        });
+
+        discardStaleImportBatchBrowserDrafts({
+            ...sampleBatch,
+            status: 'RECEIVING',
+            lines: [
+                { ...sampleBatch.lines![0], id: 11, status: 'CANCELLED' },
+                {
+                    id: 12,
+                    lotteryStationId: 4,
+                    batchType: 'NEW',
+                    declareQuantity: 1,
+                    importCost: 10000,
+                    totalQuantity: 0,
+                    totalCostValue: 10000,
+                    status: 'OPEN',
+                },
+            ],
+        });
+
+        expect(readTicketLineFormDraft(2, 11)).toBeNull();
+        expect(readTicketLineFormDraft(2, 12)).not.toBeNull();
+    });
+
+    it('discards all browser drafts when same-day intake is closed', () => {
+        writeLocalImportBatchEditDraft(2, {
+            supplierId: 5,
+            drawDate: dayjs().format('YYYY-MM-DD'),
+            importMode: 'IN_DAY',
+            totalDeclareQuantity: 1,
+            invoiceEvidenceUrl: '',
+            ticketListImageUrls: [],
+            lines: [],
+        });
+        writeTicketLineFormDraft(2, 11, {
+            ticketSections: [{ numbers: '123456', quantity: 1, serials: [{ serialNumber: '1' }] }],
+        });
+
+        discardStaleImportBatchBrowserDrafts(
+            {
+                ...sampleBatch,
+                drawDate: dayjs().format('YYYY-MM-DD'),
+                status: 'DRAFT',
+            },
+            {
+                returnCutOffTime: '16:00',
+                returnBufferMinutes: 45,
+                now: dayjs().hour(15).minute(30).second(0).millisecond(0),
+            }
+        );
+
+        expect(readLocalImportBatchEditDraft(2)).toBeNull();
+        expect(readTicketLineFormDraft(2, 11)).toBeNull();
     });
 });

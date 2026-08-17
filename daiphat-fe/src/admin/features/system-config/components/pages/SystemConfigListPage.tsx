@@ -15,6 +15,16 @@ import {
     TableRow,
     Typography,
 } from '@mui/material';
+import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
+import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
+import ConfirmationNumberOutlinedIcon from '@mui/icons-material/ConfirmationNumberOutlined';
+import AssignmentReturnOutlinedIcon from '@mui/icons-material/AssignmentReturnOutlined';
+import BalanceOutlinedIcon from '@mui/icons-material/BalanceOutlined';
+import StorefrontOutlinedIcon from '@mui/icons-material/StorefrontOutlined';
+import ReplayOutlinedIcon from '@mui/icons-material/ReplayOutlined';
+import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
+import EmojiEventsOutlinedIcon from '@mui/icons-material/EmojiEventsOutlined';
+import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
 import { toast } from 'react-toastify';
 import { PageHeader } from '../../../../components/ui/PageHeader';
 import { Search } from '../../../../components/ui/Search';
@@ -25,7 +35,7 @@ import { useBulkUpdateVendorConfidencePolicy, useSystemConfigs, useUpdateSystemC
 import { SystemConfigEditDialog } from '../sections/SystemConfigEditDialog';
 import { SystemConfigTableRow } from '../sections/SystemConfigTableRow';
 import { VendorConfidencePolicyDialog } from '../sections/VendorConfidencePolicyDialog';
-import { SettingsContentTabs } from '../../../settings/components/SettingsContentTabs';
+import { SettingsContentTabs, type SettingsContentTabItem } from '../../../settings/components/SettingsContentTabs';
 import { EditIcon } from '../../../../assets/icons';
 import { buildVendorConfigSections } from '../../utils/vendorConfigSections';
 import {
@@ -38,16 +48,67 @@ type TypeFilter = ConfigType;
 
 const HIDDEN_CONFIG_TYPES = new Set([ConfigType.STATIC_PAGE, ConfigType.GENERAL_SETTING]);
 
-const TYPE_TABS: { value: TypeFilter; label: string }[] = [
-    { value: ConfigType.ORDER_SETTING, label: CONFIG_TYPE_LABELS[ConfigType.ORDER_SETTING] },
-    { value: ConfigType.PAYMENT_SETTING, label: CONFIG_TYPE_LABELS[ConfigType.PAYMENT_SETTING] },
-    { value: ConfigType.TICKET_IMPORT, label: CONFIG_TYPE_LABELS[ConfigType.TICKET_IMPORT] },
-    { value: ConfigType.TICKET_RETURN, label: CONFIG_TYPE_LABELS[ConfigType.TICKET_RETURN] },
-    { value: ConfigType.VENDOR_SETTING, label: CONFIG_TYPE_LABELS[ConfigType.VENDOR_SETTING] },
-    { value: ConfigType.REFUND_SETTING, label: CONFIG_TYPE_LABELS[ConfigType.REFUND_SETTING] },
-    { value: ConfigType.COMPLAINT_SETTING, label: CONFIG_TYPE_LABELS[ConfigType.COMPLAINT_SETTING] },
-    { value: ConfigType.PAYOUT_SETTING, label: CONFIG_TYPE_LABELS[ConfigType.PAYOUT_SETTING] },
-    { value: ConfigType.FORTUNE_SETTING, label: CONFIG_TYPE_LABELS[ConfigType.FORTUNE_SETTING] },
+const TYPE_TABS: Array<{ value: TypeFilter; label: string } & SettingsContentTabItem> = [
+    {
+        value: ConfigType.ORDER_SETTING,
+        label: CONFIG_TYPE_LABELS[ConfigType.ORDER_SETTING],
+        icon: ShoppingCartOutlinedIcon,
+        color: '#2563eb',
+    },
+    {
+        value: ConfigType.PAYMENT_SETTING,
+        label: CONFIG_TYPE_LABELS[ConfigType.PAYMENT_SETTING],
+        icon: PaymentsOutlinedIcon,
+        color: '#059669',
+    },
+    {
+        value: ConfigType.TICKET_IMPORT,
+        label: CONFIG_TYPE_LABELS[ConfigType.TICKET_IMPORT],
+        icon: ConfirmationNumberOutlinedIcon,
+        color: '#7c3aed',
+    },
+    {
+        value: ConfigType.TICKET_RETURN,
+        label: CONFIG_TYPE_LABELS[ConfigType.TICKET_RETURN],
+        icon: AssignmentReturnOutlinedIcon,
+        color: '#ea580c',
+    },
+    {
+        value: ConfigType.SETTLEMENT_SETTING,
+        label: CONFIG_TYPE_LABELS[ConfigType.SETTLEMENT_SETTING],
+        icon: BalanceOutlinedIcon,
+        color: '#0d9488',
+    },
+    {
+        value: ConfigType.VENDOR_SETTING,
+        label: CONFIG_TYPE_LABELS[ConfigType.VENDOR_SETTING],
+        icon: StorefrontOutlinedIcon,
+        color: '#db2777',
+    },
+    {
+        value: ConfigType.REFUND_SETTING,
+        label: CONFIG_TYPE_LABELS[ConfigType.REFUND_SETTING],
+        icon: ReplayOutlinedIcon,
+        color: '#dc2626',
+    },
+    {
+        value: ConfigType.COMPLAINT_SETTING,
+        label: CONFIG_TYPE_LABELS[ConfigType.COMPLAINT_SETTING],
+        icon: ReportProblemOutlinedIcon,
+        color: '#d97706',
+    },
+    {
+        value: ConfigType.PAYOUT_SETTING,
+        label: CONFIG_TYPE_LABELS[ConfigType.PAYOUT_SETTING],
+        icon: EmojiEventsOutlinedIcon,
+        color: '#ca8a04',
+    },
+    {
+        value: ConfigType.FORTUNE_SETTING,
+        label: CONFIG_TYPE_LABELS[ConfigType.FORTUNE_SETTING],
+        icon: AutoAwesomeOutlinedIcon,
+        color: '#4f46e5',
+    },
 ];
 
 const DEFAULT_TAB = TYPE_TABS[0].value;
@@ -217,7 +278,7 @@ export const SystemConfigListPage = () => {
                         0,
                         TYPE_TABS.findIndex((tab) => tab.value === typeFilter)
                     )}
-                    labels={TYPE_TABS.map((tab) => tab.label)}
+                    items={TYPE_TABS.map(({ label, icon, color }) => ({ label, icon, color }))}
                     onChange={(index) => {
                         const next = TYPE_TABS[index];
                         if (next) handleTabChange(next.value);

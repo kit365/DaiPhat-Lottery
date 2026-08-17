@@ -16,12 +16,12 @@ public enum ImportBatchFileIssueCode {
 
     // ---- group level -------------------------------------------------
     /**
-     * Not an error: the file legitimately covers a whole week while a batch can
-     * only be created for today or tomorrow.
+     * Not an error: the file legitimately covers a whole week while file import
+     * only accepts today's draw date. The same file is re-uploaded each day.
      */
     DRAW_DATE_OUT_OF_WINDOW(
             ImportBatchFileIssueSeverity.SKIPPED,
-            "Ngày quay nằm ngoài phạm vi cho phép (chỉ tạo được phiếu cho hôm nay hoặc ngày mai)."
+            "Ngày quay nằm ngoài phạm vi cho phép. Nhập vé từ tệp chỉ áp dụng cho ngày quay hôm nay."
     ),
     DRAFT_ALREADY_EXISTS(
             ImportBatchFileIssueSeverity.WARNING,
@@ -34,6 +34,14 @@ public enum ImportBatchFileIssueCode {
     SUPPLIER_RETURN_CUT_OFF_PASSED(
             ImportBatchFileIssueSeverity.ERROR,
             "Đã qua giờ chốt trả vé của nhà cung cấp cho ngày quay này."
+    ),
+    SUPPLIER_IDENTITY_MISMATCH(
+            ImportBatchFileIssueSeverity.ERROR,
+            "Thông tin nhà cung cấp ghi trong tệp không khớp với nhà cung cấp đã chọn."
+    ),
+    SUPPLIER_IDENTITY_NOT_DECLARED(
+            ImportBatchFileIssueSeverity.WARNING,
+            "Tệp không ghi thông tin nhà cung cấp nên không đối chiếu được. Hãy chắc chắn đã chọn đúng nhà cung cấp."
     ),
     STATION_PRICING_MISMATCH(
             ImportBatchFileIssueSeverity.ERROR,
@@ -68,6 +76,20 @@ public enum ImportBatchFileIssueCode {
     STATION_NOT_ELIGIBLE(
             ImportBatchFileIssueSeverity.ERROR,
             "Nhà đài không có lịch quay vào ngày này."
+    ),
+    /**
+     * The station exists and is active, but its weekly schedule does not include
+     * the day the file's draw date falls on. Distinct from STATION_NOT_FOUND on
+     * purpose: the station is real, so the fix is to correct its schedule, not to
+     * correct the file.
+     */
+    STATION_SCHEDULE_MISMATCH(
+            ImportBatchFileIssueSeverity.ERROR,
+            "Nhà đài có trong hệ thống nhưng lịch quay không bao gồm thứ của ngày quay này."
+    ),
+    STATION_INACTIVE(
+            ImportBatchFileIssueSeverity.ERROR,
+            "Nhà đài đang ngừng hoạt động nên không nhập vé được."
     ),
     STATION_DRAFT_EXISTS(
             ImportBatchFileIssueSeverity.ERROR,

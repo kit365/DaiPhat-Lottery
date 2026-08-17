@@ -8,11 +8,17 @@ import com.daiphat.coreapi.domain.model.settings.SystemConfigModel;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 /**
- * Derives supplier {@code payment_cut_off_time} from global system configs:
- * {@code VERIFICATION_DEADLINE + SETTLEMENT_BUFFER_TIME}.
+ * Settlement timing helpers based on each supplier's {@code paymentCutOffTime}
+ * plus system configs {@code SETTLEMENT_BUFFER_TIME} /
+ * {@code SETTLEMENT_PAYMENT_REMINDER_MINUTES}.
+ *
+ * <p>Reconciliation starts at {@code paymentCutOff − buffer}. When buffer is {@code 0},
+ * reconciliation may start anytime from 00:00 of the settlement period day.
  */
 @Component
 @RequiredArgsConstructor
@@ -20,23 +26,54 @@ public class SupplierPaymentCutOffCalculator {
 
     private final SystemConfigRepositoryPort systemConfigRepositoryPort;
 
-    public LocalTime calculate() {
-        LocalTime verificationDeadline = resolveVerificationDeadline();
-        int bufferMinutes = resolveSettlementBufferMinutes();
-        return addBufferSameDay(verificationDeadline, bufferMinutes);
+    /** When staff should start reconciliation relative to a supplier payment cut-off. */
+    public LocalTime resolveReconciliationStart(LocalTime paymentCutOff) {
+        int buffer = resolveSettlementBufferMinutes();
+        if (buffer <= 0) {
+            return LocalTime.MIN;
+        }
+        return subtractBufferSameDay(paymentCutOff, buffer);
     }
 
-    public LocalTime resolveVerificationDeadline() {
-        SystemConfigEnum key = SystemConfigEnum.VERIFICATION_DEADLINE;
-        String raw = systemConfigRepositoryPort.findActiveByConfigKey(key.name())
-                .map(SystemConfigModel::getConfigValue)
-                .filter(v -> v != null && !v.isBlank())
-                .orElse(key.getDefaultValue());
-        return SystemConfigValueValidator.parseLocalTime(raw, key.getConfigName());
+    /**
+     * {@code true} when reconciliation actions are allowed for {@code periodFrom}.
+     * Buffer {@code 0} → allowed from 00:00 that day; otherwise from paymentCutOff − buffer.
+     */
+    public boolean isReconciliationWindowOpen(
+            LocalDate periodFrom,
+            LocalTime paymentCutOff,
+            LocalDateTime now
+    ) {
+        if (periodFrom == null || paymentCutOff == null || now == null) {
+            return false;
+        }
+        int buffer = resolveSettlementBufferMinutes();
+        LocalDateTime windowStart = buffer <= 0
+                ? LocalDateTime.of(periodFrom, LocalTime.MIN)
+                : LocalDateTime.of(periodFrom, paymentCutOff).minusMinutes(buffer);
+        return !now.isBefore(windowStart);
+    }
+
+    public LocalDateTime reconciliationWindowStartAt(LocalDate periodFrom, LocalTime paymentCutOff) {
+        if (periodFrom == null || paymentCutOff == null) {
+            return null;
+        }
+        int buffer = resolveSettlementBufferMinutes();
+        if (buffer <= 0) {
+            return LocalDateTime.of(periodFrom, LocalTime.MIN);
+        }
+        return LocalDateTime.of(periodFrom, paymentCutOff).minusMinutes(buffer);
     }
 
     public int resolveSettlementBufferMinutes() {
-        SystemConfigEnum key = SystemConfigEnum.SETTLEMENT_BUFFER_TIME;
+        return resolveIntConfig(SystemConfigEnum.SETTLEMENT_BUFFER_TIME);
+    }
+
+    public int resolvePaymentReminderMinutes() {
+        return Math.max(1, resolveIntConfig(SystemConfigEnum.SETTLEMENT_PAYMENT_REMINDER_MINUTES));
+    }
+
+    private int resolveIntConfig(SystemConfigEnum key) {
         String raw = systemConfigRepositoryPort.findActiveByConfigKey(key.name())
                 .map(SystemConfigModel::getConfigValue)
                 .filter(v -> v != null && !v.isBlank())
@@ -49,21 +86,21 @@ public class SupplierPaymentCutOffCalculator {
     }
 
     /**
-     * Adds buffer minutes to a wall-clock time without wrapping to the next calendar day.
+     * Subtracts buffer minutes from a wall-clock time without wrapping to the previous calendar day.
      */
-    static LocalTime addBufferSameDay(LocalTime verificationDeadline, int bufferMinutes) {
-        if (verificationDeadline == null) {
-            throw new DomainException(ErrorCode.INVALID_INPUT, "Thiếu hạn chót đối chiếu");
+    static LocalTime subtractBufferSameDay(LocalTime paymentCutOff, int bufferMinutes) {
+        if (paymentCutOff == null) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "Thiếu giờ thanh toán NCC");
         }
         if (bufferMinutes < 0) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "Thời gian đệm đối soát không được âm");
         }
-        long totalSeconds = verificationDeadline.toSecondOfDay() + (long) bufferMinutes * 60L;
-        if (totalSeconds >= 24L * 60L * 60L) {
+        long totalSeconds = paymentCutOff.toSecondOfDay() - (long) bufferMinutes * 60L;
+        if (totalSeconds < 0L) {
             throw new DomainException(
                     ErrorCode.INVALID_INPUT,
-                    "Giờ thanh toán (" + verificationDeadline + " + " + bufferMinutes
-                            + " phút) vượt quá 23:59 trong cùng ngày. Giảm hạn chót đối chiếu hoặc thời gian đệm."
+                    "Giờ bắt đầu đối soát (" + paymentCutOff + " − " + bufferMinutes
+                            + " phút) trước 00:00. Giảm thời gian đệm hoặc tăng giờ thanh toán của nhà cung cấp."
             );
         }
         return LocalTime.ofSecondOfDay(totalSeconds);

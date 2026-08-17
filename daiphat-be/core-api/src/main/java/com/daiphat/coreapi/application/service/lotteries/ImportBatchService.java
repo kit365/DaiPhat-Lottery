@@ -45,6 +45,7 @@ import com.daiphat.coreapi.shared.util.ImportBatchCodeGenerator;
 import com.daiphat.coreapi.shared.util.ImportBatchDraftExpiryService;
 import com.daiphat.coreapi.shared.util.ImportBatchImportModeResolver;
 import com.daiphat.coreapi.shared.util.ImportBatchStationEligibilityResolver;
+import com.daiphat.coreapi.shared.util.LotteryDrawScheduleFormatter;
 import com.daiphat.coreapi.shared.util.ImportBatchTypeResolver;
 import com.daiphat.coreapi.shared.util.ImportCostCalculator;
 import com.daiphat.coreapi.shared.util.SortUtils;
@@ -204,6 +205,9 @@ public class ImportBatchService implements ImportBatchServicePort {
         header.setSupplierSettlementId(settlement.getId());
 
         ImportBatchModel saved = importBatchRepositoryPort.save(header);
+        if (saved.getSupplierSettlementId() != null) {
+            supplierSettlementServicePort.recalculateTotalImportValue(saved.getSupplierSettlementId());
+        }
         return importBatchApplicationMapper.toResponse(saved, lateImportWarning, warnings);
     }
 
@@ -250,6 +254,9 @@ public class ImportBatchService implements ImportBatchServicePort {
         batch.setUpdatedAt(now);
 
         ImportBatchModel saved = importBatchRepositoryPort.save(batch);
+        if (saved.getSupplierSettlementId() != null) {
+            supplierSettlementServicePort.recalculateTotalImportValue(saved.getSupplierSettlementId());
+        }
         return importBatchApplicationMapper.toResponse(saved);
     }
 
@@ -260,6 +267,10 @@ public class ImportBatchService implements ImportBatchServicePort {
         String trimmed = invoiceEvidenceUrl != null ? invoiceEvidenceUrl.trim() : null;
         // Blank = clear evidence (settlement matching delete / re-upload flow).
         if (trimmed == null || trimmed.isBlank()) {
+            String previousUrl = trimToNull(batch.getInvoiceEvidenceUrl());
+            if (previousUrl != null) {
+                deleteStoredUrlQuietly(previousUrl);
+            }
             batch.setInvoiceEvidenceUrl(null);
             batch.setUpdatedAt(LocalDateTime.now(clock));
             ImportBatchModel cleared = importBatchRepositoryPort.save(batch);
@@ -278,8 +289,24 @@ public class ImportBatchService implements ImportBatchServicePort {
     }
 
     @Override
+    public StorageResult uploadInvoiceEvidence(UploadRequest request) {
+        StorageUtils.validateImportEvidenceUpload(request);
+        int maxSizeMb = Math.max(resolveTicketListImageMaxSizeMb(), 10);
+        long maxBytes = maxSizeMb * 1024L * 1024L;
+        if (request.data().length > maxBytes) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_TICKET_LIST_IMAGE_TOO_LARGE, null, maxSizeMb);
+        }
+        return storagePort.upload(new UploadRequest(
+                request.data(),
+                request.fileName(),
+                request.contentType(),
+                StorageFolderConstants.IMPORT_BATCH_INVOICE_FOLDER
+        ));
+    }
+
+    @Override
     public StorageResult uploadTicketListImage(UploadRequest request) {
-        StorageUtils.validateImageUpload(request);
+        StorageUtils.validateImportEvidenceUpload(request);
         int maxSizeMb = resolveTicketListImageMaxSizeMb();
         long maxBytes = maxSizeMb * 1024L * 1024L;
         if (request.data().length > maxBytes) {
@@ -300,11 +327,35 @@ public class ImportBatchService implements ImportBatchServicePort {
         if (batch.getStatus() == ImportBatchStatus.CANCELLED) {
             throw new DomainException(ErrorCode.IMPORT_BATCH_INVALID_STATUS);
         }
-        batch.setTicketListImageUrls(normalizeTicketListImageUrls(urls));
+        List<String> nextUrls = normalizeTicketListImageUrls(urls);
+        List<String> previousUrls = batch.getTicketListImageUrls() == null
+                ? List.of()
+                : List.copyOf(batch.getTicketListImageUrls());
+        for (String previous : previousUrls) {
+            if (previous == null || previous.isBlank()) {
+                continue;
+            }
+            boolean stillPresent = nextUrls.stream().anyMatch(next -> previous.trim().equals(next));
+            if (!stillPresent) {
+                deleteStoredUrlQuietly(previous);
+            }
+        }
+        batch.setTicketListImageUrls(nextUrls);
         batch.setUpdatedAt(LocalDateTime.now(clock));
         ImportBatchModel saved = importBatchRepositoryPort.save(batch);
         log.info("Attached {} ticket list image(s) for importBatchId={}", saved.getTicketListImageUrls().size(), id);
         return importBatchApplicationMapper.toResponse(saved);
+    }
+
+    private void deleteStoredUrlQuietly(String url) {
+        try {
+            String key = StorageUtils.extractStorageKeyFromUrl(url);
+            if (key != null && !key.isBlank()) {
+                storagePort.delete(key);
+            }
+        } catch (Exception ex) {
+            log.warn("Failed to hard-delete stored file for url={}: {}", url, ex.getMessage());
+        }
     }
 
     private void applyLineUpdates(
@@ -604,6 +655,8 @@ public class ImportBatchService implements ImportBatchServicePort {
             eligible.add(ImportBatchEligibleStationResponse.builder()
                     .lotteryStationId(station.getId())
                     .name(station.getName())
+                    .code(station.getCode())
+                    .drawSchedule(LotteryDrawScheduleFormatter.describe(station))
                     .resolvedBatchType(classification.resolvedBatchType())
                     .price(station.getPrice())
                     .commissionRate(station.getCommissionRate())

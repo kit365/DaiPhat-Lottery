@@ -147,6 +147,18 @@ public class LotteryTicketSerialRepositoryAdapter implements LotteryTicketSerial
     }
 
     @Override
+    public List<LotteryTicketSerialModel> findAllByTicketIds(Collection<Long> ticketIds) {
+        if (ticketIds == null || ticketIds.isEmpty()) {
+            return List.of();
+        }
+        return lotteryTicketSerialRepository
+                .findByTicket_IdInAndDeletedAtIsNullOrderByTicket_IdAscIdAsc(List.copyOf(ticketIds))
+                .stream()
+                .map(lotteryTicketSerialPersistenceMapper::toDomain)
+                .toList();
+    }
+
+    @Override
     public long countByImportBatchLineId(Long importBatchLineId) {
         return lotteryTicketSerialRepository.countByImportBatchLineId(importBatchLineId);
     }

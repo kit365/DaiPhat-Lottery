@@ -39,6 +39,8 @@ export interface ReturnBatch {
     supplierSettlementId?: number | null;
     returnReceiptUrl?: string | null;
     returnEvidenceUrl?: string | null;
+    deliveryMode?: ReturnDeliveryMode | null;
+    deliveryModeLabel?: string | null;
     totalQuantity: number;
     remainingInspectableQuantity?: number | null;
     totalReturnValue: number;

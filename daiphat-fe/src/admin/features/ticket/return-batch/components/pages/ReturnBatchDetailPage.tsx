@@ -11,6 +11,7 @@ import {
     DialogContent,
     DialogTitle,
     IconButton,
+    Paper,
     Stack,
     Table,
     TableBody,
@@ -21,6 +22,8 @@ import {
     TextField,
     Typography,
 } from '@mui/material';
+import AccessTimeOutlinedIcon from '@mui/icons-material/AccessTimeOutlined';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import CloseIcon from '@mui/icons-material/Close';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import dayjs from 'dayjs';
@@ -57,6 +60,19 @@ const isPersistableEvidenceUrl = (url?: string | null): boolean => {
     if (!trimmed) return false;
     if (trimmed.startsWith('blob:') || trimmed.startsWith('data:')) return false;
     return /^https?:\/\//i.test(trimmed) || trimmed.startsWith('/');
+};
+
+const getReturnBatchTypeLabel = (type?: string | null): string => {
+    if (type === 'STREET_AGENT_RETURN') return 'Trả vé đại lý đường phố';
+    if (type === 'SUPPLIER_RETURN') return 'Trả vé nhà cung cấp';
+    return type || '—';
+};
+
+const getDeliveryModeLabel = (mode?: string | null, label?: string | null): string => {
+    if (label) return label;
+    if (mode === 'RETAILER_DELIVERS') return 'Đại lý giao trả';
+    if (mode === 'SUPPLIER_COLLECTS') return 'NCC đến lấy';
+    return '—';
 };
 
 export const ReturnBatchDetailPage = () => {
@@ -123,11 +139,22 @@ export const ReturnBatchDetailPage = () => {
     const canConfirmHandover =
         isPersistableEvidenceUrl(returnEvidenceUrl) && !isEvidenceUploading && !confirmHandover.isPending;
     const remainingInspectable = batch.remainingInspectableQuantity ?? 0;
-    const canInspectTickets =
+    const inspectedQuantity = Math.max(0, (batch.totalQuantity ?? 0) - remainingInspectable);
+    const showInspectButton =
         !batch.inspectionExpired &&
+        batch.status !== 'CANCELLED' &&
         (batch.status === 'PENDING_INSPECTION' ||
             batch.status === 'INSPECTING' ||
             (batch.status === 'PENDING_HANDOVER' && remainingInspectable > 0));
+    const canInspectTickets = showInspectButton && Boolean(batch.inInspectionWindow);
+    const inspectionLockedBeforeWindow =
+        showInspectButton && !batch.inInspectionWindow && !batch.inspectionExpired;
+    const inspectionWindowStartLabel = batch.inspectionWindowStartAt
+        ? dayjs(batch.inspectionWindowStartAt).format('HH:mm · DD/MM/YYYY')
+        : null;
+    const returnCutOffLabel = batch.returnCutOffAt
+        ? dayjs(batch.returnCutOffAt).format('HH:mm · DD/MM/YYYY')
+        : batch.returnCutOffTime || null;
 
     const handleOpenHandoverDialog = () => {
         if (batch.status !== 'PENDING_HANDOVER') {
@@ -187,7 +214,14 @@ export const ReturnBatchDetailPage = () => {
 
     const handleInspectTickets = async () => {
         if (batch.inspectionExpired || batch.status === 'CANCELLED') {
-            router.push(ROUTES.ADMIN.RETURN_BATCH.INSPECT(batch.id));
+            toast.warning('Đã quá hạn trả vé. Chỉ có thể xem chi tiết phiếu trả, không thể kiểm tra.');
+            return;
+        }
+        if (!batch.inInspectionWindow) {
+            const startLabel = batch.inspectionWindowStartAt
+                ? dayjs(batch.inspectionWindowStartAt).format('HH:mm DD/MM/YYYY')
+                : 'mốc thời gian đệm trả vé';
+            toast.warning(`Chưa đến giờ chuẩn bị/kiểm tra vé trả (mở từ ${startLabel}).`);
             return;
         }
         if (
@@ -240,17 +274,34 @@ export const ReturnBatchDetailPage = () => {
                 }
                 action={
                 <Stack direction="row" spacing={1} flexWrap="wrap">
-                    {canInspectTickets && (
+                    {showInspectButton && (
                         <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
                             <Button
-                                label={batch.status === 'INSPECTING' || remainingInspectable > 0 ? 'Kiểm tra vé (Tiếp tục)' : 'Kiểm tra vé'}
+                                label={
+                                    batch.status === 'INSPECTING' || remainingInspectable > 0
+                                        ? 'Tiến hành kiểm tra (Tiếp tục)'
+                                        : 'Tiến hành kiểm tra'
+                                }
                                 className="btn-primary-admin"
                                 loading={startInspection.isPending}
+                                disabled={!canInspectTickets}
                                 onClick={handleInspectTickets}
+                                sx={
+                                    !canInspectTickets
+                                        ? {
+                                              opacity: 0.55,
+                                              cursor: 'not-allowed',
+                                              '&.Mui-disabled': {
+                                                  bgcolor: '#cbd5e1',
+                                                  color: '#64748b',
+                                              },
+                                          }
+                                        : undefined
+                                }
                             />
                         </CanAccess>
                     )}
-                    {batch.status === 'PENDING_HANDOVER' && remainingInspectable === 0 && (
+                    {batch.status === 'PENDING_HANDOVER' && remainingInspectable === 0 && !batch.inspectionExpired && (
                         <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
                             <Button
                                 label="Xác nhận bàn giao"
@@ -275,6 +326,96 @@ export const ReturnBatchDetailPage = () => {
                 </Alert>
             )}
 
+            {batch.inspectionExpired && batch.status !== 'CANCELLED' && (
+                <Alert severity="warning" sx={{ mb: 2.5, borderRadius: '12px' }}>
+                    Đã quá hạn trả vé NCC. Phiếu này chỉ xem chi tiết — không thể tiếp tục kiểm tra / thao tác kiểm đếm.
+                </Alert>
+            )}
+
+            {inspectionLockedBeforeWindow && (
+                <Paper
+                    elevation={0}
+                    sx={{
+                        mb: 2.5,
+                        p: { xs: 1.75, sm: 2 },
+                        borderRadius: '14px',
+                        border: '1px solid #bfdbfe',
+                        bgcolor: '#f0f7ff',
+                        background: 'linear-gradient(135deg, #f0f7ff 0%, #f8fafc 100%)',
+                        boxShadow: '0 2px 8px rgba(37, 99, 235, 0.04)',
+                        display: 'flex',
+                        alignItems: { xs: 'flex-start', sm: 'center' },
+                        justifyContent: 'space-between',
+                        flexWrap: { xs: 'wrap', md: 'nowrap' },
+                        gap: 2,
+                    }}
+                >
+                    <Stack direction="row" spacing={1.75} alignItems="flex-start" sx={{ flex: 1 }}>
+                        <Box
+                            sx={{
+                                width: 42,
+                                height: 42,
+                                borderRadius: '10px',
+                                bgcolor: '#dbeafe',
+                                color: '#1d4ed8',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                                boxShadow: '0 1px 3px rgba(37, 99, 235, 0.1)',
+                            }}
+                        >
+                            <AccessTimeOutlinedIcon sx={{ fontSize: '1.35rem' }} />
+                        </Box>
+
+                        <Box sx={{ flex: 1 }}>
+                            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ mb: 0.5 }}>
+                                <Typography variant="subtitle2" fontWeight={800} color="#0f172a" sx={{ fontSize: '0.925rem' }}>
+                                    Chưa đến giờ chuẩn bị / kiểm tra vé trả
+                                </Typography>
+                                {inspectionWindowStartLabel && (
+                                    <Chip
+                                        size="small"
+                                        icon={<AccessTimeOutlinedIcon sx={{ fontSize: '0.85rem !important', color: '#1d4ed8' }} />}
+                                        label={`Mở lúc: ${inspectionWindowStartLabel}`}
+                                        sx={{
+                                            bgcolor: '#dbeafe',
+                                            color: '#1e40af',
+                                            fontWeight: 700,
+                                            fontSize: '0.725rem',
+                                            border: '1px solid #bfdbfe',
+                                            height: 24,
+                                        }}
+                                    />
+                                )}
+                            </Stack>
+
+                            <Typography variant="body2" color="#475569" sx={{ fontSize: '0.825rem', lineHeight: 1.5 }}>
+                                {batch.returnBufferMinutes === 0
+                                    ? 'Thời gian đệm trả vé = 0 nên cửa sổ kiểm tra mở từ đầu ngày quay đến trước hạn trả NCC. Hệ thống sẽ kích hoạt nút kiểm tra khi đến khung giờ cho phép.'
+                                    : 'Hệ thống đang chờ đến mốc thời gian đệm trả vé. Nút "Tiến hành kiểm tra" tạm khóa và sẽ được mở khi đến giờ chuẩn bị / kiểm tra vé trả.'}
+                            </Typography>
+                        </Box>
+                    </Stack>
+
+                    <Box sx={{ alignSelf: { xs: 'flex-start', sm: 'center' }, flexShrink: 0 }}>
+                        <Chip
+                            size="small"
+                            icon={<LockOutlinedIcon sx={{ fontSize: '0.85rem !important', color: '#64748b' }} />}
+                            label="Tạm khóa kiểm tra"
+                            sx={{
+                                bgcolor: '#ffffff',
+                                color: '#475569',
+                                fontWeight: 700,
+                                fontSize: '0.725rem',
+                                border: '1px solid #cbd5e1',
+                                height: 26,
+                            }}
+                        />
+                    </Box>
+                </Paper>
+            )}
+
             {batch.urgentReminder && !batch.inspectionExpired && (
                 <Alert severity="error" sx={{ mb: 2.5, borderRadius: '12px' }}>
                     Nhắc khẩn: còn {formatMinutesUntilCutoff(batch.minutesUntilCutoff)} đến hạn trả NCC (
@@ -289,17 +430,10 @@ export const ReturnBatchDetailPage = () => {
                 </Alert>
             )}
 
-            {batch.supplierSettlementId && (
-                <Alert severity="info" sx={{ mb: 2.5, borderRadius: '12px' }}>
-                    Liên kết đối soát #{batch.supplierSettlementId}. Giá trị trả của kỳ đối soát được
-                    cập nhật khi vé đã kiểm tra và sẵn sàng trả NCC (chờ trả / đã trả).
-                </Alert>
-            )}
-
             {batch.status === 'PENDING_HANDOVER' && remainingInspectable > 0 && (
                 <Alert severity="warning" sx={{ mb: 2.5, borderRadius: '12px' }}>
                     Còn {new Intl.NumberFormat('vi-VN').format(remainingInspectable)} vé ế chưa kiểm tra.
-                    Bấm <strong>Kiểm tra vé</strong> để tiếp tục trước khi bàn giao nhà cung cấp.
+                    Bấm <strong>Tiến hành kiểm tra</strong> để tiếp tục trước khi bàn giao nhà cung cấp.
                 </Alert>
             )}
 
@@ -315,11 +449,15 @@ export const ReturnBatchDetailPage = () => {
                 {/* Thông tin phiếu Card */}
                 <CollapsibleCard title="Thông tin phiếu" expanded onToggle={() => undefined}>
                     <Box sx={{ p: 3 }}>
-                        {/* 4 Financial / Summary Box Row */}
                         <Box
                             sx={{
                                 display: 'grid',
-                                gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', lg: 'repeat(5, 1fr)' },
+                                gridTemplateColumns: {
+                                    xs: '1fr',
+                                    sm: 'repeat(2, 1fr)',
+                                    md: 'repeat(3, 1fr)',
+                                    lg: 'repeat(6, 1fr)',
+                                },
                                 gap: 2,
                                 mb: 3,
                             }}
@@ -353,6 +491,15 @@ export const ReturnBatchDetailPage = () => {
                                 </Typography>
                                 <Typography variant="body1" fontWeight={800} color="#0284c7" sx={{ mt: 0.5 }}>
                                     {new Intl.NumberFormat('vi-VN').format(batch.totalQuantity ?? 0)} vé
+                                </Typography>
+                            </Box>
+
+                            <Box sx={{ p: 2, borderRadius: '12px', bgcolor: '#eff6ff', border: '1px solid #bfdbfe' }}>
+                                <Typography variant="caption" color="#1d4ed8" fontWeight={700} display="block">
+                                    Đã kiểm tra
+                                </Typography>
+                                <Typography variant="body1" fontWeight={800} color="#1e40af" sx={{ mt: 0.5 }}>
+                                    {new Intl.NumberFormat('vi-VN').format(inspectedQuantity)} vé
                                 </Typography>
                             </Box>
 
@@ -392,26 +539,104 @@ export const ReturnBatchDetailPage = () => {
                             </Box>
                         </Box>
 
-                        {/* Metadata Rows */}
                         <Box
                             sx={{
                                 display: 'grid',
-                                gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
+                                gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', lg: 'repeat(4, 1fr)' },
                                 gap: 2,
+                                mb: 2.5,
                             }}
                         >
                             <Box>
-                                <Typography variant="caption" color="text.secondary" fontWeight={600}>Ghi chú</Typography>
+                                <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                                    Loại phiếu
+                                </Typography>
+                                <Typography variant="body2" fontWeight={600} color="#1e293b" sx={{ mt: 0.25 }}>
+                                    {getReturnBatchTypeLabel(batch.returnBatchType)}
+                                </Typography>
+                            </Box>
+
+                            <Box>
+                                <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                                    Hình thức giao trả
+                                </Typography>
+                                <Typography variant="body2" fontWeight={600} color="#1e293b" sx={{ mt: 0.25 }}>
+                                    {getDeliveryModeLabel(batch.deliveryMode, batch.deliveryModeLabel)}
+                                </Typography>
+                            </Box>
+
+                            <Box>
+                                <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                                    Hạn trả NCC
+                                </Typography>
+                                <Typography variant="body2" fontWeight={600} color="#1e293b" sx={{ mt: 0.25 }}>
+                                    {returnCutOffLabel || '—'}
+                                </Typography>
+                            </Box>
+
+                            <Box>
+                                <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                                    Mở cửa sổ kiểm tra
+                                </Typography>
+                                <Typography variant="body2" fontWeight={600} color="#1e293b" sx={{ mt: 0.25 }}>
+                                    {inspectionWindowStartLabel || '—'}
+                                </Typography>
+                            </Box>
+
+                            <Box>
+                                <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                                    Thời gian đệm
+                                </Typography>
+                                <Typography variant="body2" fontWeight={600} color="#1e293b" sx={{ mt: 0.25 }}>
+                                    {batch.returnBufferMinutes != null
+                                        ? `${batch.returnBufferMinutes} phút`
+                                        : '—'}
+                                </Typography>
+                            </Box>
+
+                            <Box>
+                                <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                                    Nhắc trước hạn
+                                </Typography>
+                                <Typography variant="body2" fontWeight={600} color="#1e293b" sx={{ mt: 0.25 }}>
+                                    {batch.returnReminderMinutes != null
+                                        ? `${batch.returnReminderMinutes} phút`
+                                        : '—'}
+                                </Typography>
+                            </Box>
+
+                            <Box>
+                                <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                                    Phiếu phân bổ nguồn
+                                </Typography>
+                                <Typography variant="body2" fontWeight={600} color="#1e293b" sx={{ mt: 0.25 }}>
+                                    {batch.sourceAllocationBatchId != null
+                                        ? `#${batch.sourceAllocationBatchId}`
+                                        : '—'}
+                                </Typography>
+                            </Box>
+
+                            <Box>
+                                <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                                    Ghi chú
+                                </Typography>
                                 <Typography variant="body2" fontWeight={600} color="#1e293b" sx={{ mt: 0.25 }}>
                                     {batch.note || '—'}
                                 </Typography>
                             </Box>
 
                             <Box>
-                                <Typography variant="caption" color="text.secondary" fontWeight={600}>Biên nhận trả</Typography>
+                                <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                                    Biên nhận trả
+                                </Typography>
                                 <Typography variant="body2" sx={{ mt: 0.25 }}>
                                     {batch.returnReceiptUrl ? (
-                                        <a href={batch.returnReceiptUrl} target="_blank" rel="noreferrer" style={{ color: '#2563eb', fontWeight: 600 }}>
+                                        <a
+                                            href={batch.returnReceiptUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            style={{ color: '#2563eb', fontWeight: 600 }}
+                                        >
                                             Xem biên nhận
                                         </a>
                                     ) : (
@@ -421,7 +646,29 @@ export const ReturnBatchDetailPage = () => {
                             </Box>
 
                             <Box>
-                                <Typography variant="caption" color="text.secondary" fontWeight={600}>Giao trả lúc</Typography>
+                                <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                                    Bằng chứng bàn giao
+                                </Typography>
+                                <Typography variant="body2" sx={{ mt: 0.25 }}>
+                                    {batch.returnEvidenceUrl ? (
+                                        <a
+                                            href={batch.returnEvidenceUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            style={{ color: '#2563eb', fontWeight: 600 }}
+                                        >
+                                            Xem ảnh bằng chứng
+                                        </a>
+                                    ) : (
+                                        '—'
+                                    )}
+                                </Typography>
+                            </Box>
+
+                            <Box>
+                                <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                                    Giao trả lúc
+                                </Typography>
                                 <Typography variant="body2" fontWeight={600} color="#1e293b" sx={{ mt: 0.25 }}>
                                     {batch.returnedAt
                                         ? dayjs(batch.returnedAt).format('DD/MM/YYYY HH:mm')
@@ -430,7 +677,9 @@ export const ReturnBatchDetailPage = () => {
                             </Box>
 
                             <Box>
-                                <Typography variant="caption" color="text.secondary" fontWeight={600}>Xác nhận lúc</Typography>
+                                <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                                    Xác nhận lúc
+                                </Typography>
                                 <Typography variant="body2" fontWeight={600} color="#1e293b" sx={{ mt: 0.25 }}>
                                     {batch.confirmedAt
                                         ? dayjs(batch.confirmedAt).format('DD/MM/YYYY HH:mm')
@@ -489,8 +738,14 @@ export const ReturnBatchDetailPage = () => {
                                     <TableCell align="right" sx={{ fontWeight: 700, color: '#334155' }}>
                                         Số lượng
                                     </TableCell>
+                                    <TableCell align="right" sx={{ fontWeight: 700, color: '#1d4ed8' }}>
+                                        Đã kiểm tra
+                                    </TableCell>
                                     <TableCell align="right" sx={{ fontWeight: 700, color: '#c2410c' }}>
                                         Vé ế còn lại
+                                    </TableCell>
+                                    <TableCell align="right" sx={{ fontWeight: 700, color: '#334155' }}>
+                                        Sê-ri gắn
                                     </TableCell>
                                     <TableCell align="right" sx={{ fontWeight: 700, color: '#166534' }}>
                                         Giá trị trả
@@ -501,7 +756,10 @@ export const ReturnBatchDetailPage = () => {
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {(batch.lines || []).map((line, index) => (
+                                {(batch.lines || []).map((line, index) => {
+                                    const lineRemaining = line.remainingInspectableQuantity ?? 0;
+                                    const lineInspected = Math.max(0, (line.totalQuantity ?? 0) - lineRemaining);
+                                    return (
                                     <TableRow key={line.id} hover>
                                         <TableCell align="center" sx={{ fontWeight: 700, color: '#64748b' }}>
                                             {index + 1}
@@ -512,14 +770,20 @@ export const ReturnBatchDetailPage = () => {
                                         <TableCell align="right" sx={{ fontWeight: 700, color: '#0284c7' }}>
                                             {new Intl.NumberFormat('vi-VN').format(line.totalQuantity ?? 0)} vé
                                         </TableCell>
+                                        <TableCell align="right" sx={{ fontWeight: 700, color: '#1e40af' }}>
+                                            {new Intl.NumberFormat('vi-VN').format(lineInspected)} vé
+                                        </TableCell>
                                         <TableCell
                                             align="right"
                                             sx={{
                                                 fontWeight: 800,
-                                                color: (line.remainingInspectableQuantity ?? 0) > 0 ? '#c2410c' : '#64748b',
+                                                color: lineRemaining > 0 ? '#c2410c' : '#64748b',
                                             }}
                                         >
-                                            {new Intl.NumberFormat('vi-VN').format(line.remainingInspectableQuantity ?? 0)} vé
+                                            {new Intl.NumberFormat('vi-VN').format(lineRemaining)} vé
+                                        </TableCell>
+                                        <TableCell align="right" sx={{ fontWeight: 700, color: '#475569' }}>
+                                            {new Intl.NumberFormat('vi-VN').format(line.attachedSerialCount ?? 0)}
                                         </TableCell>
                                         <TableCell align="right" sx={{ fontWeight: 800, color: '#15803d' }}>
                                             {formatImportCost(line.totalReturnValue)} VNĐ
@@ -532,10 +796,11 @@ export const ReturnBatchDetailPage = () => {
                                             </span>
                                         </TableCell>
                                     </TableRow>
-                                ))}
+                                    );
+                                })}
                                 {(batch.lines || []).length === 0 && (
                                     <TableRow>
-                                        <TableCell colSpan={5} align="center">
+                                        <TableCell colSpan={8} align="center">
                                             <Typography color="text.secondary" sx={{ py: 3 }}>
                                                 Chưa có dòng trả vé.
                                             </Typography>

@@ -2,6 +2,7 @@ package com.daiphat.coreapi.application.service.lotteries;
 
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchFileGroupResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchFileRowResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchFileSupplierIdentityResponse;
 import com.daiphat.coreapi.shared.util.tabular.TabularTable;
 
 import java.time.LocalDate;
@@ -16,7 +17,8 @@ import java.util.Optional;
  */
 record ImportBatchFileResolution(
         TabularTable table,
-        List<ImportBatchFileGroupResponse> groups
+        List<ImportBatchFileGroupResponse> groups,
+        ImportBatchFileSupplierIdentityResponse supplierIdentity
 ) {
 
     Optional<ImportBatchFileGroupResponse> group(LocalDate drawDate) {

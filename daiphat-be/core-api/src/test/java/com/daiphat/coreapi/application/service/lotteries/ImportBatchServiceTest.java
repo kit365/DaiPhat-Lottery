@@ -102,6 +102,8 @@ class ImportBatchServiceTest {
     @Mock
     private com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort systemConfigRepositoryPort;
     @Mock
+    private com.daiphat.coreapi.shared.util.SupplierTicketIntakeWindowPolicy intakeWindowPolicy;
+    @Mock
     private Clock clock;
 
     @InjectMocks

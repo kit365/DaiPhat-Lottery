@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.application.service.lotteries;
 
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotterySupplierRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotterySupplierProfileRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotterySupplierRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotterySupplierResponse;
@@ -40,7 +41,7 @@ public class LotterySupplierService implements LotterySupplierServicePort {
 
         validateNonNegativeAmounts(request.paymentTermDays(), request.defaultImportCost());
         LocalTime paymentCutOffTime = supplierPaymentCutOffSyncService
-                .requirePaymentCutOffForReturn(request.returnCutOffTime());
+                .requirePaymentCutOffAfterReturn(request.paymentCutOffTime(), request.returnCutOffTime());
 
         LotterySupplierModel model = lotterySupplierApplicationMapper.toModel(request);
         model.setPaymentCutOffTime(paymentCutOffTime);
@@ -63,7 +64,7 @@ public class LotterySupplierService implements LotterySupplierServicePort {
 
         validateNonNegativeAmounts(request.paymentTermDays(), request.defaultImportCost());
         LocalTime paymentCutOffTime = supplierPaymentCutOffSyncService
-                .requirePaymentCutOffForReturn(request.returnCutOffTime());
+                .requirePaymentCutOffAfterReturn(request.paymentCutOffTime(), request.returnCutOffTime());
 
         lotterySupplierApplicationMapper.updateModel(model, request);
         model.setPaymentCutOffTime(paymentCutOffTime);
@@ -72,6 +73,53 @@ public class LotterySupplierService implements LotterySupplierServicePort {
         }
         LotterySupplierModel saved = lotterySupplierRepositoryPort.save(model);
         return lotterySupplierApplicationMapper.toResponse(saved);
+    }
+
+    /**
+     * Corrects a supplier's identifying details, leaving the intake hours,
+     * payment terms, type and active flag untouched.
+     *
+     * <p>Reached from the file-import preview when the letterhead of an uploaded
+     * file disagrees with the record. The screen there never loads a supplier's
+     * timing rules, so the full update would blank them; this path cannot.
+     *
+     * <p>An active supplier stays active: the fields edited here are exactly the
+     * ones activation requires, so a correction must not silently deactivate a
+     * supplier mid-delivery. If a value is cleared to the point where activation
+     * would no longer be satisfied, the request is rejected instead.
+     */
+    @Override
+    @Transactional
+    public LotterySupplierResponse updateProfile(UpdateLotterySupplierProfileRequest request) {
+        LotterySupplierModel model = getModelOrThrow(request.supplierId());
+        String code = normalizeCode(request.code());
+        if (lotterySupplierRepositoryPort.existsByCodeAndIdNot(code, request.supplierId())) {
+            throw new DomainException(ErrorCode.LOTTERY_SUPPLIER_CODE_DUPLICATE);
+        }
+
+        model.setName(request.name().trim());
+        model.setCode(code);
+        model.setContactName(trimToNull(request.contactName()));
+        model.setContactPhone(request.contactPhone().trim());
+        model.setContactEmail(trimToNull(request.contactEmail()));
+        model.setAddress(trimToNull(request.address()));
+        model.setTaxCode(trimToNull(request.taxCode()));
+
+        if (model.isActive()) {
+            model.requireActivationReady();
+        }
+
+        LotterySupplierModel saved = lotterySupplierRepositoryPort.save(model);
+        log.info("Updated supplier profile id={} code={}", saved.getId(), saved.getCode());
+        return lotterySupplierApplicationMapper.toResponse(saved);
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     @Override

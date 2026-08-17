@@ -79,11 +79,11 @@ import {
     getImportBatchProgress,
     buildImportBatchProgressSegments,
 } from '../../utils/importBatchProgress';
-import { hasUnsavedImportBatchEditDraft } from '../../utils/importBatchEditDraft';
+import { hasUnsavedImportBatchEditDraft, discardStaleImportBatchBrowserDrafts } from '../../utils/importBatchEditDraft';
 import { ImportBatchProgressBar } from '../sections/ImportBatchProgressBar';
 import { ImagePreview } from '../../../../../components/ui/ImagePreview';
 import { ImportBatchEditPage } from './ImportBatchEditPage';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 
 export const ImportBatchDetailPage = () => {
@@ -108,6 +108,13 @@ export const ImportBatchDetailPage = () => {
         if (!batch) return [];
         return buildImportBatchProgressSegments(batch, resolveStationName);
     }, [batch, providers]);
+
+    useEffect(() => {
+        if (!batch?.id) {
+            return;
+        }
+        discardStaleImportBatchBrowserDrafts(batch);
+    }, [batch]);
 
     // Editable batches: same detail URL hosts the edit form (CREATE required).
     if (!isLoading && batch && isImportBatchEditable(batch) && can(PERMISSIONS.IMPORT_BATCH.CREATE)) {

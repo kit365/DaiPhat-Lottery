@@ -37,6 +37,10 @@ public interface ImportBatchServicePort {
      */
     ImportBatchResponse attachInvoiceEvidence(Long id, String invoiceEvidenceUrl);
 
+    /** Upload invoice evidence (image or document file). */
+    StorageResult uploadInvoiceEvidence(UploadRequest request);
+
+    /** Upload ticket-list evidence (image or document file). */
     StorageResult uploadTicketListImage(UploadRequest request);
 
     ImportBatchResponse attachTicketListImages(Long id, List<String> urls);

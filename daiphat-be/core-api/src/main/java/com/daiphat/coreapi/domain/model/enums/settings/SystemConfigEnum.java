@@ -602,7 +602,7 @@ public enum SystemConfigEnum {
             ConfigType.TICKET_RETURN,
             DataType.INT,
             "45",
-            "Thời gian đệm (phút) trước hạn trả vé của nhà cung cấp",
+            "Thời gian đệm (phút) trước hạn trả vé NCC. >0: chỉ được chuẩn bị/kiểm tra trả từ (hạn trả − đệm). =0: cho phép chuẩn bị/kiểm tra ngay trong ngày (đến trước hạn trả).",
             "Thời gian đệm trả vé",
             "phút",
             "{\"min\":0,\"max\":1440}",
@@ -611,31 +611,31 @@ public enum SystemConfigEnum {
     RETURN_REMINDER_TIME(
             ConfigType.TICKET_RETURN,
             DataType.INT,
-            "15",
-            "Thời gian (phút) trước hạn trả vé NCC để nhắc khẩn kiểm tra phiếu trả",
-            "Nhắc kiểm tra trả vé",
+            "10",
+            "Số phút cuối trước hạn trả vé NCC để hối thúc kiểm đếm / bàn giao phiếu trả chưa hoàn tất.",
+            "Giờ hối thúc trả vé",
             "phút",
             "{\"min\":1,\"max\":1440}",
             true
     ),
-    VERIFICATION_DEADLINE(
-            ConfigType.TICKET_RETURN,
-            DataType.TIME,
-            "17:00",
-            "Hạn chót đối chiếu / upload biên lai đối soát trong ngày (sau hạn trả vé NCC)",
-            "Hạn chót đối chiếu",
-            "HH:mm",
-            "{\"min\":\"00:00\",\"max\":\"23:59\"}",
-            true
-    ),
     SETTLEMENT_BUFFER_TIME(
-            ConfigType.TICKET_RETURN,
+            ConfigType.SETTLEMENT_SETTING,
             DataType.INT,
             "120",
-            "Thời gian đệm (phút) sau hạn chót đối chiếu để hoàn tất đối soát và thanh toán NCC",
-            "Thời gian đệm đối soát/thanh toán",
+            "Thời gian đệm (phút) trước giờ thanh toán của từng NCC (paymentCutOffTime). >0: chỉ được đối soát từ (paymentCutOff − đệm). =0: cho phép đối soát ngay trong ngày kỳ.",
+            "Thời gian đệm trước thanh toán",
             "phút",
             "{\"min\":0,\"max\":1440}",
+            true
+    ),
+    SETTLEMENT_PAYMENT_REMINDER_MINUTES(
+            ConfigType.SETTLEMENT_SETTING,
+            DataType.INT,
+            "10",
+            "Số phút cuối trước giờ thanh toán của từng NCC (paymentCutOffTime) để nhắc các kỳ đối soát chưa hoàn tất thanh toán.",
+            "Nhắc thanh toán cuối kỳ",
+            "phút",
+            "{\"min\":1,\"max\":180}",
             true
     ),
     TICKET_AUTO_IMPORT_THRESHOLD(
