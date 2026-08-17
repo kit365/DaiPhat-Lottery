@@ -13,6 +13,7 @@ import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import 'package:daiphat_mobile/src/shared/utils/auth_navigation.dart';
+import 'package:daiphat_mobile/src/shared/widgets/brand_scrollbar.dart';
 import 'package:daiphat_mobile/src/features/cart/models/cart_item_model.dart';
 import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
 import 'package:daiphat_mobile/src/features/chat/presentation/views/chat_screen.dart';
@@ -272,20 +273,16 @@ class _LoadedViewState extends State<_LoadedView> {
             ? tickets.length
             : (state.totalElements > 0 ? state.totalElements : 0));
 
-    return RawScrollbar(
+    return BrandScrollbar(
       controller: _scrollController,
-      thumbVisibility: true,
-      trackVisibility: true,
-      thickness: 4,
-      radius: const Radius.circular(999),
-      thumbColor: const Color(0x66C90F1D),
-      trackColor: const Color(0x14C90F1D),
-      trackBorderColor: Colors.transparent,
-      padding: const EdgeInsets.only(right: 2, top: 4, bottom: 4),
-      child: ListView(
-        controller: _scrollController,
-        padding: EdgeInsets.zero,
-        children: [
+      child: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: () => widget.viewModel.refresh(),
+        child: ListView(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
+          children: [
           _BuyTicketShowcase(
             initialValue: state.searchQuery,
             filterCount: state.searchFilter.count,
@@ -368,6 +365,7 @@ class _LoadedViewState extends State<_LoadedView> {
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -1539,58 +1537,69 @@ class _TicketDetailViewState extends ConsumerState<TicketDetailView> {
           child: Column(
             children: [
               Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
-                  children: [
-                    _DetailHeroCard(
-                      ticket: resolvedTicket,
-                      dateText: _detailDateWithWeekday(resolvedTicket),
-                    ),
-                    const SizedBox(height: 14),
-                    _DetailSectionCard(
-                      icon: Icons.confirmation_number_outlined,
-                      title: 'Thông tin vé số',
-                      children: [
-                        _DetailInfoRow(
-                          icon: Icons.storefront_outlined,
-                          label: 'Sản phẩm',
-                          value: resolvedTicket.titleText,
-                        ),
-                        _DetailInfoRow(
-                          icon: Icons.location_on_outlined,
-                          label: 'Đài quay',
-                          value: resolvedTicket.stationDisplayText,
-                          showChevron: true,
-                          onTap: () => _openStationTickets(resolvedTicket),
-                        ),
-                        _DetailInfoRow(
-                          icon: Icons.calendar_month_outlined,
-                          label: 'Ngày quay thưởng',
-                          value: _detailDate(resolvedTicket),
-                        ),
-                        _DetailInfoRow(
-                          icon: Icons.qr_code_2_rounded,
-                          label: 'Serial',
-                          value: resolvedTicket.serialNumber ?? '-',
-                          onTap: resolvedTicket.serialNumber == null
-                              ? null
-                              : () => _copyToClipboard(
-                                  resolvedTicket.serialNumber!,
-                                  'Đã sao chép serial vé.',
-                                ),
-                        ),
-                        _DetailInfoRow(
-                          icon: Icons.sell_outlined,
-                          label: 'Giá tiền',
-                          value: _formatTicketPrice(resolvedTicket.price),
-                          highlight: true,
-                          isLast: true,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    const _DetailNoteBox(),
-                  ],
+                child: RefreshIndicator(
+                  color: AppColors.primary,
+                  onRefresh: () async {
+                    if (widget.ticket.id < 0) return;
+                    ref.invalidate(lotteryTicketDetailProvider(widget.ticket.id));
+                    await ref.read(
+                      lotteryTicketDetailProvider(widget.ticket.id).future,
+                    );
+                  },
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
+                    children: [
+                      _DetailHeroCard(
+                        ticket: resolvedTicket,
+                        dateText: _detailDateWithWeekday(resolvedTicket),
+                      ),
+                      const SizedBox(height: 14),
+                      _DetailSectionCard(
+                        icon: Icons.confirmation_number_outlined,
+                        title: 'Thông tin vé số',
+                        children: [
+                          _DetailInfoRow(
+                            icon: Icons.storefront_outlined,
+                            label: 'Sản phẩm',
+                            value: resolvedTicket.titleText,
+                          ),
+                          _DetailInfoRow(
+                            icon: Icons.location_on_outlined,
+                            label: 'Đài quay',
+                            value: resolvedTicket.stationDisplayText,
+                            showChevron: true,
+                            onTap: () => _openStationTickets(resolvedTicket),
+                          ),
+                          _DetailInfoRow(
+                            icon: Icons.calendar_month_outlined,
+                            label: 'Ngày quay thưởng',
+                            value: _detailDate(resolvedTicket),
+                          ),
+                          _DetailInfoRow(
+                            icon: Icons.qr_code_2_rounded,
+                            label: 'Serial',
+                            value: resolvedTicket.serialNumber ?? '-',
+                            onTap: resolvedTicket.serialNumber == null
+                                ? null
+                                : () => _copyToClipboard(
+                                    resolvedTicket.serialNumber!,
+                                    'Đã sao chép serial vé.',
+                                  ),
+                          ),
+                          _DetailInfoRow(
+                            icon: Icons.sell_outlined,
+                            label: 'Giá tiền',
+                            value: _formatTicketPrice(resolvedTicket.price),
+                            highlight: true,
+                            isLast: true,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      const _DetailNoteBox(),
+                    ],
+                  ),
                 ),
               ),
               if (ticketDetailAsync.isLoading)

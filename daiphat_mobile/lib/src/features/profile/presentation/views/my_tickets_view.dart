@@ -9,6 +9,7 @@ import 'package:daiphat_mobile/src/features/checkout/presentation/providers/chec
 import 'package:daiphat_mobile/src/features/profile/data/models/purchased_ticket.dart';
 import 'package:daiphat_mobile/src/features/profile/utils/ticket_display_utils.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/widgets/brand_scrollbar.dart';
 import '../viewmodels/my_tickets_viewmodel.dart';
 
 class MyTicketsView extends ConsumerStatefulWidget {
@@ -274,16 +275,8 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
       return _buildEmptyState();
     }
 
-    return RawScrollbar(
+    return BrandScrollbar(
       controller: _scrollController,
-      thumbVisibility: true,
-      trackVisibility: true,
-      thickness: 4,
-      radius: const Radius.circular(999),
-      thumbColor: const Color(0x66C90F1D),
-      trackColor: const Color(0x14C90F1D),
-      trackBorderColor: Colors.transparent,
-      padding: const EdgeInsets.only(right: 2, top: 4, bottom: 4),
       child: RefreshIndicator(
         onRefresh: () => _viewModel.fetchTickets(refresh: true),
         color: AppColors.primary,

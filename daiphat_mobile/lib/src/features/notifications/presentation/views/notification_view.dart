@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
+import 'package:daiphat_mobile/src/shared/widgets/brand_scrollbar.dart';
 import '../../utils/notification_navigation.dart';
 import '../viewmodels/notification_viewmodel.dart';
 
@@ -249,16 +250,8 @@ class _NotificationViewState extends State<NotificationView> {
     final items = _viewModel.filteredNotifications;
     if (items.isEmpty) return _buildEmpty();
 
-    return RawScrollbar(
+    return BrandScrollbar(
       controller: _scrollController,
-      thumbVisibility: true,
-      trackVisibility: true,
-      thickness: 4,
-      radius: const Radius.circular(999),
-      thumbColor: const Color(0x66C90F1D),
-      trackColor: const Color(0x14C90F1D),
-      trackBorderColor: Colors.transparent,
-      padding: const EdgeInsets.only(right: 2, top: 4, bottom: 4),
       child: RefreshIndicator(
         color: AppColors.primary,
         onRefresh: () => _viewModel.fetchNotifications(refresh: true),

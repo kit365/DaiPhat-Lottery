@@ -9,6 +9,7 @@ import 'package:daiphat_mobile/src/features/profile/data/models/prize_payout_req
 import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/profile_status_badge.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/widgets/brand_scrollbar.dart';
 import '../viewmodels/prize_payouts_viewmodel.dart';
 
 class PrizePayoutsView extends ConsumerStatefulWidget {
@@ -176,16 +177,8 @@ class _PrizePayoutsViewState extends ConsumerState<PrizePayoutsView> {
     if (_viewModel.items.isEmpty) {
       return _buildEmpty();
     }
-    return RawScrollbar(
+    return BrandScrollbar(
       controller: _scrollController,
-      thumbVisibility: true,
-      trackVisibility: true,
-      thickness: 4,
-      radius: const Radius.circular(999),
-      thumbColor: const Color(0x66C90F1D),
-      trackColor: const Color(0x14C90F1D),
-      trackBorderColor: Colors.transparent,
-      padding: const EdgeInsets.only(right: 2, top: 4, bottom: 4),
       child: RefreshIndicator(
         color: AppColors.primary,
         onRefresh: () => _viewModel.fetch(refresh: true),

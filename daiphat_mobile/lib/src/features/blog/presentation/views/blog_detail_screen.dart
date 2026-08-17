@@ -43,16 +43,25 @@ class BlogDetailScreen extends ConsumerWidget {
       backgroundColor: _pageBg,
       body: SafeArea(
         child: detailState.when(
-          data: (data) => CustomScrollView(
-            physics: const BouncingScrollPhysics(),
-            slivers: [
-              SliverToBoxAdapter(child: _buildAppBar(context)),
-              SliverToBoxAdapter(child: _buildArticle(data.post)),
-              SliverToBoxAdapter(
-                child: _buildRelatedSection(context, ref, data.post, data.related),
+          data: (data) => RefreshIndicator(
+            color: _primary,
+            onRefresh: () async {
+              ref.invalidate(blogDetailProvider(slug));
+              await ref.read(blogDetailProvider(slug).future);
+            },
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
               ),
-              const SliverToBoxAdapter(child: SizedBox(height: 32)),
-            ],
+              slivers: [
+                SliverToBoxAdapter(child: _buildAppBar(context)),
+                SliverToBoxAdapter(child: _buildArticle(data.post)),
+                SliverToBoxAdapter(
+                  child: _buildRelatedSection(context, ref, data.post, data.related),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 32)),
+              ],
+            ),
           ),
           loading: () => Column(
             children: [
