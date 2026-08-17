@@ -181,7 +181,7 @@ public class PrizePayoutEligibilityService {
     }
 
     /**
-     * Resolves a single ACTIVE order detail.
+     * Resolves a sold order detail eligible for prize payout (held or already handed over).
      * Staff counter must use orderDetailId (after list pick) or station+drawDate+serial — never serial alone.
      */
     @Transactional(readOnly = true)
@@ -208,7 +208,7 @@ public class PrizePayoutEligibilityService {
                             PrizePayoutRequestModel.OUT_OF_SCOPE_TICKET_MESSAGE));
         }
         if (serialId != null) {
-            return orderDetailRepository.findActiveBySerialId(serialId)
+            return orderDetailRepository.findPayoutEligibleBySerialId(serialId)
                     .orElseThrow(() -> new DomainException(
                             ErrorCode.ORDER_DETAIL_NOT_FOUND,
                             PrizePayoutRequestModel.OUT_OF_SCOPE_TICKET_MESSAGE));
@@ -449,7 +449,7 @@ public class PrizePayoutEligibilityService {
     public PrizeMatchContext resolvePrizeMatchForSerial(Long serialId) {
         LotteryTicketSerialModel serial = lotteryTicketSerialRepositoryPort.findById(serialId)
                 .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_TICKET_NOT_FOUND));
-        OrderDetailEntity detail = orderDetailRepository.findActiveBySerialId(serialId)
+        OrderDetailEntity detail = orderDetailRepository.findPayoutEligibleBySerialId(serialId)
                 .orElseThrow(() -> new DomainException(ErrorCode.ORDER_DETAIL_NOT_FOUND));
         LotteryTicketSerialEntity serialEntity = detail.getLotteryTicketSerial();
         if (serialEntity == null) {
