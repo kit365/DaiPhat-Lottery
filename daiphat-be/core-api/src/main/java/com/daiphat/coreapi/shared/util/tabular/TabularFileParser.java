@@ -86,6 +86,7 @@ public class TabularFileParser {
 
         List<String> headers = null;
         List<TabularRow> rows = new ArrayList<>();
+        List<List<String>> preamble = new ArrayList<>();
         int headerRowIndex = options.headerRowIndexOrDefault();
         int nonBlankIndex = 0;
 
@@ -98,6 +99,7 @@ public class TabularFileParser {
                 }
 
                 if (nonBlankIndex < headerRowIndex) {
+                    preamble.add(List.copyOf(cells));
                     nonBlankIndex++;
                     continue;
                 }
@@ -119,7 +121,7 @@ public class TabularFileParser {
         if (headers == null) {
             throw new DomainException(ErrorCode.IMPORT_BATCH_FILE_HEADER_NOT_FOUND);
         }
-        return new TabularTable(headers, rows, charset.name(), String.valueOf(delimiter));
+        return new TabularTable(headers, rows, charset.name(), String.valueOf(delimiter), preamble);
     }
 
     // -------------------------------------------------------------- Excel
@@ -127,6 +129,7 @@ public class TabularFileParser {
     private TabularTable parseExcel(byte[] content, TabularParseOptions options) {
         List<String> headers = null;
         List<TabularRow> rows = new ArrayList<>();
+        List<List<String>> preamble = new ArrayList<>();
         int headerRowIndex = options.headerRowIndexOrDefault();
         int nonBlankIndex = 0;
 
@@ -141,6 +144,7 @@ public class TabularFileParser {
                 }
 
                 if (nonBlankIndex < headerRowIndex) {
+                    preamble.add(List.copyOf(cells));
                     nonBlankIndex++;
                     continue;
                 }
@@ -165,7 +169,7 @@ public class TabularFileParser {
         if (headers == null) {
             throw new DomainException(ErrorCode.IMPORT_BATCH_FILE_HEADER_NOT_FOUND);
         }
-        return new TabularTable(headers, rows, null, null);
+        return new TabularTable(headers, rows, null, null, preamble);
     }
 
     private List<String> readExcelRow(Row row, DataFormatter formatter) {

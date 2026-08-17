@@ -119,13 +119,13 @@ public class ImportBatchFileImportController {
     @PreAuthorize("hasAnyAuthority('importBatch:view', 'importBatch:create')")
     public ResponseEntity<byte[]> export(@PathVariable Long importBatchId) {
         ImportBatchFileExportResponse export = importBatchFileImportServicePort.export(importBatchId);
-        byte[] body = export.content().getBytes(StandardCharsets.UTF_8);
 
         return ResponseEntity.ok()
-                .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
+                .contentType(MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                 .header(HttpHeaders.CONTENT_DISPOSITION,
                         ContentDisposition.attachment().filename(export.fileName()).build().toString())
-                .body(body);
+                .body(export.content());
     }
 
     /** Shows the operator what rules the importer will apply before they upload. */

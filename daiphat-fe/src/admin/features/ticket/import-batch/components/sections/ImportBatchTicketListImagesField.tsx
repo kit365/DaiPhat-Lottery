@@ -1,6 +1,7 @@
 "use client";
 
 import { Box, ButtonBase, CircularProgress, Stack, Typography } from '@mui/material';
+import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined';
 import { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { AppToast } from '../../../../../../utils/toast.util';
@@ -20,6 +21,27 @@ interface ImportBatchTicketListImagesFieldProps {
     compact?: boolean;
     required?: boolean;
 }
+
+const isLikelyImageUrl = (url?: string | null, file?: File | null): boolean => {
+    if (file) {
+        return (file.type || '').toLowerCase().startsWith('image/');
+    }
+    if (!url) return false;
+    const path = url.split('?')[0].toLowerCase();
+    if (path.startsWith('blob:')) return false;
+    return /\.(png|jpe?g|gif|webp|bmp)$/i.test(path);
+};
+
+const getFileLabel = (url?: string | null, file?: File | null): string => {
+    if (file?.name) return file.name;
+    if (!url) return 'Tệp';
+    try {
+        const path = decodeURIComponent(url.split('?')[0]);
+        return path.split('/').pop() || 'Tệp';
+    } catch {
+        return 'Tệp';
+    }
+};
 
 export const ImportBatchTicketListImagesField = ({
     value,
@@ -47,7 +69,7 @@ export const ImportBatchTicketListImagesField = ({
             const maxBytes = maxSizeMb * 1024 * 1024;
             const sized = acceptedFiles.filter((file) => {
                 if (file.size > maxBytes) {
-                    AppToast.error(`Ảnh vượt quá ${maxSizeMb}MB. Vui lòng chọn ảnh nhỏ hơn.`);
+                    AppToast.error(`Tệp vượt quá ${maxSizeMb}MB. Vui lòng chọn tệp nhỏ hơn.`);
                     return false;
                 }
                 return true;
@@ -59,13 +81,13 @@ export const ImportBatchTicketListImagesField = ({
             const currentCount = deferUpload ? files.length : urls.length;
             const slots = Math.max(0, maxCount - currentCount);
             if (slots <= 0) {
-                AppToast.error(`Chỉ được tải tối đa ${maxCount} ảnh danh sách vé nhập.`);
+                AppToast.error(`Chỉ được tải tối đa ${maxCount} tệp danh sách vé nhập.`);
                 return;
             }
 
             const toUpload = sized.slice(0, slots);
             if (sized.length > slots) {
-                AppToast.error(`Chỉ được tải tối đa ${maxCount} ảnh danh sách vé nhập.`);
+                AppToast.error(`Chỉ được tải tối đa ${maxCount} tệp danh sách vé nhập.`);
             }
 
             if (deferUpload) {
@@ -90,7 +112,7 @@ export const ImportBatchTicketListImagesField = ({
                             (err as { response?: { data?: { message?: string } }; message?: string })
                                 ?.response?.data?.message ||
                             (err as { message?: string })?.message ||
-                            'Tải ảnh danh sách vé nhập thất bại.';
+                            'Tải tệp danh sách vé nhập thất bại.';
                         AppToast.error(message);
                     }
                 }
@@ -105,7 +127,14 @@ export const ImportBatchTicketListImagesField = ({
     );
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
-        accept: { 'image/*': [] },
+        accept: {
+            'image/*': ['.jpg', '.jpeg', '.png', '.webp', '.gif'],
+            'application/pdf': ['.pdf'],
+            'text/csv': ['.csv'],
+            'application/vnd.ms-excel': ['.xls'],
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+            'application/vnd.ms-excel.sheet.macroEnabled.12': ['.xlsm'],
+        },
         multiple: true,
         disabled: disabled || isUploading || remaining <= 0,
         onDrop,
@@ -150,62 +179,103 @@ export const ImportBatchTicketListImagesField = ({
                         <CircularProgress size={22} />
                     ) : null}
                     <Typography sx={{ fontWeight: 700, fontSize: '0.95rem', color: '#0f172a' }}>
-                        {isUploading ? 'Đang tải ảnh lên...' : 'Kéo thả hoặc chọn ảnh'}
+                        {isUploading ? 'Đang tải tệp lên...' : 'Kéo thả hoặc chọn ảnh / tệp'}
                     </Typography>
                     <Typography variant="body2" color="text.secondary" textAlign="center">
-                        {required ? 'Bắt buộc tối thiểu 1 ảnh.' : 'Tùy chọn.'} Tối đa {maxCount} ảnh, mỗi ảnh không quá {maxSizeMb}MB.
-                        {remaining <= 0 ? ' Đã đạt số ảnh tối đa.' : ` Còn ${remaining} ảnh.`}
+                        {required ? 'Bắt buộc tối thiểu 1 tệp.' : 'Tùy chọn.'} Ảnh, PDF, Excel hoặc CSV — tối đa {maxCount} tệp, mỗi tệp không quá {maxSizeMb}MB.
+                        {remaining <= 0 ? ' Đã đạt số tệp tối đa.' : ` Còn ${remaining} tệp.`}
                     </Typography>
                 </Stack>
             </Box>
 
             {urls.length > 0 ? (
                 <Box component="ul" sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', m: 0, p: 0, listStyle: 'none' }}>
-                    {urls.map((url) => (
-                        <Box component="li" key={url} sx={{ position: 'relative' }}>
-                            <ImagePreview
-                                src={url}
-                                alt="Ảnh danh sách vé nhập"
-                                dialogTitle="Ảnh danh sách vé nhập"
-                                thumbnailSx={{
-                                    width: 96,
-                                    height: 96,
-                                    maxWidth: 96,
-                                    maxHeight: 96,
-                                    borderRadius: 1,
-                                    objectFit: 'cover',
-                                    border: '1px solid #e2e8f0',
-                                    bgcolor: '#f8fafc',
-                                }}
-                            />
-                            {!disabled ? (
-                                <ButtonBase
-                                    onClick={(event) => {
-                                        event.stopPropagation();
-                                        handleRemove(url);
-                                    }}
-                                    sx={{
-                                        position: 'absolute',
-                                        top: 4,
-                                        right: 4,
-                                        color: '#fff',
-                                        bgcolor: '#141a217a',
-                                        borderRadius: '50%',
-                                        padding: '4px',
-                                        zIndex: 1,
-                                        '&:hover': { bgcolor: '#FF5630' },
-                                    }}
-                                >
-                                    <svg width="0.75rem" height="0.75rem" viewBox="0 0 24 24">
-                                        <path
-                                            fill="currentColor"
-                                            d="m12 13.414l5.657 5.657a1 1 0 0 0 1.414-1.414L13.414 12l5.657-5.657a1 1 0 0 0-1.414-1.414L12 10.586L6.343 4.929A1 1 0 0 0 4.93 6.343L10.586 12l-5.657 5.657a1 1 0 1 0 1.414 1.414z"
-                                        />
-                                    </svg>
-                                </ButtonBase>
-                            ) : null}
-                        </Box>
-                    ))}
+                    {urls.map((url, idx) => {
+                        const file = files[idx];
+                        const isImage = isLikelyImageUrl(url, file);
+                        return (
+                            <Box component="li" key={url} sx={{ position: 'relative' }}>
+                                {isImage ? (
+                                    <ImagePreview
+                                        src={url}
+                                        alt="Ảnh danh sách vé nhập"
+                                        dialogTitle="Ảnh danh sách vé nhập"
+                                        thumbnailSx={{
+                                            width: 96,
+                                            height: 96,
+                                            maxWidth: 96,
+                                            maxHeight: 96,
+                                            borderRadius: 1,
+                                            objectFit: 'cover',
+                                            border: '1px solid #e2e8f0',
+                                            bgcolor: '#f8fafc',
+                                        }}
+                                    />
+                                ) : (
+                                    <ButtonBase
+                                        onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
+                                        sx={{
+                                            width: 96,
+                                            height: 96,
+                                            borderRadius: 1,
+                                            border: '1px solid #e2e8f0',
+                                            bgcolor: '#f8fafc',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: 0.5,
+                                            px: 0.75,
+                                            textAlign: 'center',
+                                        }}
+                                        title="Mở tệp"
+                                    >
+                                        <InsertDriveFileOutlinedIcon sx={{ color: '#2563eb', fontSize: '1.5rem' }} />
+                                        <Typography
+                                            variant="caption"
+                                            sx={{
+                                                fontSize: '0.62rem',
+                                                fontWeight: 700,
+                                                color: '#0f172a',
+                                                wordBreak: 'break-all',
+                                                lineHeight: 1.2,
+                                                maxHeight: 36,
+                                                overflow: 'hidden',
+                                            }}
+                                        >
+                                            {getFileLabel(url, file)}
+                                        </Typography>
+                                    </ButtonBase>
+                                )}
+                                {!disabled ? (
+                                    <ButtonBase
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            handleRemove(url);
+                                        }}
+                                        sx={{
+                                            position: 'absolute',
+                                            top: 4,
+                                            right: 4,
+                                            color: '#fff',
+                                            bgcolor: '#141a217a',
+                                            borderRadius: '50%',
+                                            padding: '4px',
+                                            zIndex: 1,
+                                            '&:hover': { bgcolor: '#FF5630' },
+                                        }}
+                                    >
+                                        <svg width="0.75rem" height="0.75rem" viewBox="0 0 24 24">
+                                            <path
+                                                fill="currentColor"
+                                                d="m12 13.414l5.657 5.657a1 1 0 0 0 1.414-1.414L13.414 12l5.657-5.657a1 1 0 0 0-1.414-1.414L12 10.586L6.343 4.929A1 1 0 0 0 4.93 6.343L10.586 12l-5.657 5.657a1 1 0 1 0 1.414 1.414z"
+                                            />
+                                        </svg>
+                                    </ButtonBase>
+                                ) : null}
+                            </Box>
+                        );
+                    })}
                 </Box>
             ) : null}
         </Stack>
