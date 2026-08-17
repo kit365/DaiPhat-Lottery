@@ -10,7 +10,9 @@ export enum OrderStatus {
     PREPARING = 'PREPARING',
     PENDING_PICKUP = 'PENDING_PICKUP',
     COMPLETED = 'COMPLETED',
-    CANCELLED = 'CANCELLED'
+    CANCELLED = 'CANCELLED',
+    /** Customer submitted proof for an automatic payment-timeout cancellation. */
+    PAYMENT_COMPLAINT_PENDING = 'PAYMENT_COMPLAINT_PENDING'
 }
 
 export enum OrderType {
@@ -48,6 +50,11 @@ export function getOrderTypeLabel(value?: string | null): string {
 }
 
 export enum OrderDetailStatus {
+    PROXY_HOLDING = 'PROXY_HOLDING',
+    HANDOVER_IN_PROGRESS = 'HANDOVER_IN_PROGRESS',
+    HANDED_OVER = 'HANDED_OVER',
+    REJECTED_BY_CUSTOMER = 'REJECTED_BY_CUSTOMER',
+    /** Legacy values kept so older refund/incident screens remain type-compatible. */
     ACTIVE = 'ACTIVE',
     INACTIVE = 'INACTIVE',
     REFUND_PENDING = 'REFUND_PENDING',
@@ -55,6 +62,10 @@ export enum OrderDetailStatus {
 }
 
 export const ORDER_DETAIL_STATUS_LABELS: Record<OrderDetailStatus, string> = {
+    [OrderDetailStatus.PROXY_HOLDING]: 'Công ty đang giữ vé',
+    [OrderDetailStatus.HANDOVER_IN_PROGRESS]: 'Đang bàn giao',
+    [OrderDetailStatus.HANDED_OVER]: 'Đã bàn giao',
+    [OrderDetailStatus.REJECTED_BY_CUSTOMER]: 'Khách từ chối nhận',
     [OrderDetailStatus.ACTIVE]: 'Đang hiệu lực',
     [OrderDetailStatus.INACTIVE]: 'Không còn hiệu lực',
     [OrderDetailStatus.REFUND_PENDING]: 'Chờ hoàn tiền',
@@ -65,6 +76,34 @@ export const ORDER_DETAIL_STATUS_BADGE: Record<
     OrderDetailStatus,
     { label: string; bg: string; text: string; color: string; bgcolor: string }
 > = {
+    [OrderDetailStatus.PROXY_HOLDING]: {
+        label: ORDER_DETAIL_STATUS_LABELS[OrderDetailStatus.PROXY_HOLDING],
+        bg: 'bg-[#FFF5CC]',
+        text: 'text-[#B76E00]',
+        color: 'var(--palette-warning-dark, #B76E00)',
+        bgcolor: 'var(--palette-warning-lighter, #FFF5CC)',
+    },
+    [OrderDetailStatus.HANDOVER_IN_PROGRESS]: {
+        label: ORDER_DETAIL_STATUS_LABELS[OrderDetailStatus.HANDOVER_IN_PROGRESS],
+        bg: 'bg-[#FFF5CC]',
+        text: 'text-[#B76E00]',
+        color: 'var(--palette-warning-dark, #B76E00)',
+        bgcolor: 'var(--palette-warning-lighter, #FFF5CC)',
+    },
+    [OrderDetailStatus.HANDED_OVER]: {
+        label: ORDER_DETAIL_STATUS_LABELS[OrderDetailStatus.HANDED_OVER],
+        bg: 'bg-[#D3FCD2]',
+        text: 'text-[#118D57]',
+        color: 'var(--palette-success-dark, #118D57)',
+        bgcolor: 'var(--palette-success-lighter, #D3FCD2)',
+    },
+    [OrderDetailStatus.REJECTED_BY_CUSTOMER]: {
+        label: ORDER_DETAIL_STATUS_LABELS[OrderDetailStatus.REJECTED_BY_CUSTOMER],
+        bg: 'bg-[#FFE4DE]',
+        text: 'text-[#B71D18]',
+        color: 'var(--palette-error-dark, #B71D18)',
+        bgcolor: 'var(--palette-error-lighter, #FFE4DE)',
+    },
     [OrderDetailStatus.ACTIVE]: {
         label: ORDER_DETAIL_STATUS_LABELS[OrderDetailStatus.ACTIVE],
         bg: 'bg-[#D3FCD2]',
@@ -119,6 +158,14 @@ export function resolveOrderDetailStatusBadge(
 
 export function getOrderDetailStatusAdminBadgeModifier(status?: string | null): string {
     switch (status) {
+        case OrderDetailStatus.PROXY_HOLDING:
+            return 'admin-status-badge--pending';
+        case OrderDetailStatus.HANDOVER_IN_PROGRESS:
+            return 'admin-status-badge--pending';
+        case OrderDetailStatus.HANDED_OVER:
+            return 'admin-status-badge--success';
+        case OrderDetailStatus.REJECTED_BY_CUSTOMER:
+            return 'admin-status-badge--error';
         case OrderDetailStatus.ACTIVE:
         case 'ACTIVE':
             return 'admin-status-badge--success';
@@ -264,6 +311,11 @@ export interface OrderDetailResponse {
     status?: OrderDetailStatus | string;
     statusDisplayName?: string;
     allocatedSerials?: OrderDetailAllocatedSerial[];
+    rejectionReason?: string | null;
+    rejectedAt?: string | null;
+    rejectedBy?: string | null;
+    handedOverAt?: string | null;
+    handedOverBy?: string | null;
 }
 
 export interface OrderResponse {
@@ -304,4 +356,11 @@ export interface OrderResponse {
     refundPaymentSuccessAt?: string;
     refundDeadlineAt?: string;
     complaintEligibility?: OrderComplaintEligibilityResponse;
+    handoverEvidenceUrl?: string | null;
+    /** Payment-timeout dispute evidence and staff resolution audit fields. */
+    paymentComplaintEvidenceUrl?: string | null;
+    paymentComplaintSubmittedAt?: string | null;
+    paymentComplaintResolvedAt?: string | null;
+    paymentComplaintResolvedBy?: string | null;
+    paymentComplaintResolutionReason?: string | null;
 }

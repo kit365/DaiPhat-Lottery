@@ -20,6 +20,8 @@ public enum AppPermission {
             "Tổng quan", "Xem Phân tích", "Quyền truy cập giao diện Phân tích số liệu", 999),
     DASHBOARD_ECOMMERCE(PermissionConstants.DASHBOARD + PermissionConstants.ECOMMERCE, 
             "Tổng quan", "Xem Bán hàng", "Quyền truy cập giao diện quản lý Bán hàng", 998),
+    DASHBOARD_STAFF(PermissionConstants.DASHBOARD + PermissionConstants.STAFF,
+            "Tổng quan", "Xem công việc nhân viên", "Quyền xem hàng đợi công việc của nhân viên", 997),
     STATS_REVENUE(PermissionConstants.STATISTICS + ":revenue", 
             "Thống kê chi tiết", "Xem doanh thu thuần", "Quyền xem báo cáo doanh thu tài chính", 997),
     STATS_ORDER(PermissionConstants.STATISTICS + ":order", 
@@ -241,6 +243,7 @@ public enum AppPermission {
         }
 
         return switch (resource) {
+            case PermissionConstants.DASHBOARD -> code.endsWith(PermissionConstants.STAFF);
             case PermissionConstants.STATION -> !code.endsWith(PermissionConstants.DELETE);
             case PermissionConstants.REGION -> code.endsWith(PermissionConstants.VIEW);
             case PermissionConstants.TICKET, PermissionConstants.IMPORT_BATCH ->

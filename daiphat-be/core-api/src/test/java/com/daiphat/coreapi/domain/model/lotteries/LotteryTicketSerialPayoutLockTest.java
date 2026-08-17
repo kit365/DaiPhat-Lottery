@@ -14,7 +14,7 @@ class LotteryTicketSerialPayoutLockTest {
     @Test
     void sellOnline_blockedWhenPayoutPending() {
         LotteryTicketSerialModel serial = LotteryTicketSerialModel.builder()
-                .status(LotteryTicketSerialStatus.PROXY_HOLDING)
+                .status(LotteryTicketSerialStatus.SOLD)
                 .payoutState(SerialPayoutState.PAYOUT_PENDING)
                 .build();
 

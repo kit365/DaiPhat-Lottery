@@ -205,7 +205,8 @@ export const OrdersTab = () => {
         { value: OrderStatus.PREPARING, label: 'Đang chuẩn bị vé' },
         { value: OrderStatus.PENDING_PICKUP, label: 'Chờ nhận vé' },
         { value: OrderStatus.COMPLETED, label: 'Đã hoàn thành' },
-        { value: OrderStatus.CANCELLED, label: 'Đã huỷ' }
+        { value: OrderStatus.CANCELLED, label: 'Đã huỷ' },
+        { value: OrderStatus.PAYMENT_COMPLAINT_PENDING, label: 'Chờ xác minh thanh toán' }
     ];
 
     const getOrderTypeDisplay = (type: OrderType) => {

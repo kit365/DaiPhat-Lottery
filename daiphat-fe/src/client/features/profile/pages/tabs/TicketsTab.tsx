@@ -739,9 +739,17 @@ export const TicketsTab = () => {
                                                             <i className={`${possession.icon} text-[11px]`}></i>
                                                             {possession.label}
                                                         </span>
-                                                        {selectedTicket.actualPickedUpAt ? (
+                                                        {possession.status === 'PICKED_UP'
+                                                        && (selectedTicket.handedOverAt || selectedTicket.actualPickedUpAt) ? (
                                                             <span className="text-[12px] text-slate-500 font-medium">
-                                                                Lấy lúc {formatVietnameseDateTime(selectedTicket.actualPickedUpAt)}
+                                                                Lấy lúc {formatVietnameseDateTime(
+                                                                    selectedTicket.handedOverAt
+                                                                        ?? selectedTicket.actualPickedUpAt!
+                                                                )}
+                                                            </span>
+                                                        ) : possession.status === 'REJECTED' && selectedTicket.rejectedAt ? (
+                                                            <span className="text-[12px] text-slate-500 font-medium">
+                                                                Từ chối lúc {formatVietnameseDateTime(selectedTicket.rejectedAt)}
                                                             </span>
                                                         ) : possession.hint ? (
                                                             <span className="text-[12px] text-slate-500 font-medium max-w-[220px]">

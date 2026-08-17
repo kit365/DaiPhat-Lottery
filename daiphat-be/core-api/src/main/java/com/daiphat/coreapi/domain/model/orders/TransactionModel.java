@@ -104,6 +104,26 @@ public class TransactionModel {
         this.codCollectedAt = null;
     }
 
+    /**
+     * Completes a previously timed-out online payment after staff verified the
+     * customer's proof. This is still an ORDER_PAYMENT entry in the shared
+     * transaction ledger, not a status-only correction on the order.
+     */
+    public void markPaymentComplaintVerified(UUID operatorId, String evidenceUrl, String note, LocalDateTime paidAt) {
+        ensureType(TransactionType.ONLINE);
+        ensureStatus(TransactionStatus.PENDING);
+        if (operatorId == null || evidenceUrl == null || evidenceUrl.isBlank() || paidAt == null) {
+            throw new DomainException(ErrorCode.INVALID_INPUT);
+        }
+        this.status = TransactionStatus.COMPLETED;
+        this.paidAt = paidAt;
+        this.cancelledAt = null;
+        this.failureReason = null;
+        this.paymentBy = operatorId;
+        this.paymentEvidenceUrl = evidenceUrl.trim();
+        this.note = note == null || note.isBlank() ? "Xác minh thanh toán sau khiếu nại timeout." : note.trim();
+    }
+
     public void markCancelled(String note) {
         ensureStatus(TransactionStatus.PENDING);
         this.status = TransactionStatus.CANCELLED;

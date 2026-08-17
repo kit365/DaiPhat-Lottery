@@ -6,6 +6,8 @@ import lombok.Builder;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.UUID;
 import java.util.List;
 
 @Builder
@@ -19,15 +21,20 @@ public record OrderDetailResponse(
         LocalDate drawDate,
         String ticketImg,
         String serialNumber,
-        /** Current physical serial status (PROXY_HOLDING, SOLD, DAMAGED, ...). */
+        /** Current physical serial status (SOLD, DAMAGED, ...). */
         LotteryTicketSerialStatus serialStatus,
         String serialStatusDisplayName,
         Long replacedByTicketId,
         Long replacedByTicketSerialId,
         BigDecimal price,
         Integer quantity,
-        /** Order-detail lifecycle status (ACTIVE, REFUND_PENDING, ...). */
+        /** Order-detail lifecycle status (SOLD, HANDOVER_IN_PROGRESS, ...). */
         OrderDetailStatus status,
+        String rejectionReason,
+        LocalDateTime rejectedAt,
+        UUID rejectedBy,
+        LocalDateTime handedOverAt,
+        UUID handedOverBy,
         boolean hasReplacement,
         List<Long> allocatedSerialIds,
         List<OrderDetailAllocatedSerialResponse> allocatedSerials

@@ -38,7 +38,7 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
     private static final List<LotteryTicketSerialStatus> AVAILABLE_STATUSES = List.of(LotteryTicketSerialStatus.IN_STOCK);
     private static final List<LotteryTicketSerialStatus> EXPIRABLE_STATUSES = List.of(
             LotteryTicketSerialStatus.IN_STOCK,
-            LotteryTicketSerialStatus.PROXY_HOLDING
+            LotteryTicketSerialStatus.SOLD
     );
 
     private final LotteryTicketSerialRepositoryPort lotteryTicketSerialRepositoryPort;
@@ -160,24 +160,6 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
     public LotteryTicketSerialModel markSold(Long ticketSerialId) {
         LotteryTicketSerialModel serial = getByIdOrThrow(ticketSerialId);
         serial.sellOnline();
-        return lotteryTicketSerialRepositoryPort.save(serial);
-    }
-
-    @Override
-    public LotteryTicketSerialModel markProxyHoldingForPaidOrder(Long ticketSerialId, UUID orderId) {
-        LotteryTicketSerialModel serial = getByIdOrThrow(ticketSerialId);
-        if (serial.getStatus() == LotteryTicketSerialStatus.PROXY_HOLDING) {
-            if (orderId != null) {
-                serial.assumeProxyHolding(orderId);
-            }
-            return lotteryTicketSerialRepositoryPort.save(serial);
-        }
-        if (serial.getStatus() == LotteryTicketSerialStatus.SOLD) {
-            // Legacy: payment used to mark SOLD immediately — keep link for inspection.
-            serial.assumeProxyHolding(orderId);
-            return lotteryTicketSerialRepositoryPort.save(serial);
-        }
-        serial.confirmPaidProxyHolding(orderId);
         return lotteryTicketSerialRepositoryPort.save(serial);
     }
 

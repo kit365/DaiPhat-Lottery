@@ -68,5 +68,19 @@ export const orderService = {
     getRefundEligibility: async (orderId: string) => {
         const response = await apiApp.get(`${BASE_URL}/my-orders/${orderId}/refund-eligibility`);
         return response.data;
-    }
+    },
+
+    /** Upload proof for an order cancelled by the automatic payment timeout. */
+    submitPaymentTimeoutComplaint: async (
+        id: string,
+        file: File,
+    ): Promise<ApiResponse<OrderResponse>> => {
+        const formData = new FormData();
+        formData.append('file', file);
+        const response = await apiApp.post(`${BASE_URL}/my-orders/${id}/payment-timeout-complaint`, formData, {
+            timeout: 60_000,
+            skipGlobalErrorToast: true,
+        } as any);
+        return response.data;
+    },
 };

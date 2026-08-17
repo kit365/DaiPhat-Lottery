@@ -42,4 +42,8 @@ public interface ConversationRepositoryPort {
     List<ConversationModel> findSpamClosesByCustomerSince(UUID customerId, LocalDateTime since);
 
     Optional<ConversationModel> findPreviousConversation(UUID customerId, LocalDateTime beforeCreatedAt);
+
+    long countLiveAssignments(UUID operatorId);
+
+    Optional<ConversationModel> findNextWaitingForOperatorForUpdate(Long excludeConversationId);
 }

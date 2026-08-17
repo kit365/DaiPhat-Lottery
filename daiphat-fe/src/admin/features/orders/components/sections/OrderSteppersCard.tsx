@@ -12,6 +12,7 @@ export const OrderSteppersCard: React.FC<OrderSteppersCardProps> = ({ order }) =
   if (order.orderType === 'DIRECT') return null;
 
   const isCancelled = order.status === OrderStatus.CANCELLED;
+  const isPaymentComplaintPending = order.status === OrderStatus.PAYMENT_COMPLAINT_PENDING;
   const paymentTxn = (order.transactions || []).find(
     (tx: any) => tx?.status === 'COMPLETED' || tx?.status === 'REFUNDED'
   );
@@ -25,7 +26,7 @@ export const OrderSteppersCard: React.FC<OrderSteppersCardProps> = ({ order }) =
     label: string;
     date: string;
     completed: boolean;
-    variant: 'success' | 'error';
+    variant: 'success' | 'error' | 'pending';
   };
 
   const cancelDate = order.cancelledAt
@@ -33,7 +34,22 @@ export const OrderSteppersCard: React.FC<OrderSteppersCardProps> = ({ order }) =
     : dayjs((order as any).updatedAt).format('DD/MM/YYYY - HH:mm');
 
   let steps: MilestoneStep[];
-  if (isCancelled && !wasPaid) {
+  if (isPaymentComplaintPending) {
+    steps = [
+      {
+        label: 'Đã đặt đơn',
+        date: dayjs(order.createdAt).format('DD/MM/YYYY - HH:mm'),
+        completed: true,
+        variant: 'success',
+      },
+      {
+        label: 'Chờ xác minh thanh toán',
+        date: dayjs((order as any).updatedAt).format('DD/MM/YYYY - HH:mm'),
+        completed: false,
+        variant: 'pending',
+      },
+    ];
+  } else if (isCancelled && !wasPaid) {
     steps = [
       {
         label: 'Đã đặt đơn',
@@ -123,18 +139,25 @@ export const OrderSteppersCard: React.FC<OrderSteppersCardProps> = ({ order }) =
       <Grid container spacing={2}>
         {steps.map((step, idx) => {
           const isErrorStep = step.variant === 'error';
+          const isPendingStep = step.variant === 'pending';
           const iconBg = isErrorStep
             ? 'var(--palette-error-lighter)'
+            : isPendingStep
+              ? 'var(--palette-warning-lighter)'
             : step.completed
               ? 'var(--palette-success-lighter)'
               : 'var(--palette-background-neutral)';
           const iconColor = isErrorStep
             ? 'var(--palette-error-main)'
+            : isPendingStep
+              ? 'var(--palette-warning-dark)'
             : step.completed
               ? 'var(--palette-success-main)'
               : 'var(--palette-text-disabled)';
           const iconName = isErrorStep
             ? 'eva:close-circle-fill'
+            : isPendingStep
+              ? 'eva:clock-outline'
             : step.completed
               ? 'eva:checkmark-circle-2-fill'
               : 'eva:radio-button-off-outline';
@@ -163,6 +186,8 @@ export const OrderSteppersCard: React.FC<OrderSteppersCardProps> = ({ order }) =
                     sx={{
                       color: isErrorStep
                         ? 'var(--palette-error-main)'
+                        : isPendingStep
+                          ? 'var(--palette-warning-dark)'
                         : step.completed
                           ? 'var(--palette-text-primary)'
                           : 'var(--palette-text-disabled)',

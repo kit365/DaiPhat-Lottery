@@ -1,5 +1,5 @@
 import { PageResponse } from './api.type';
-import { PurchasedTicket } from './lottery-ticket.type';
+import { LotteryTicketSerialStatus, PurchasedTicket } from './lottery-ticket.type';
 import { getOrderTypeLabel, OrderType } from './order.type';
 
 export enum PrizePayoutRequestStatus {
@@ -21,12 +21,7 @@ export type PrizePayoutOwnershipVerificationLevel =
 
 export type SerialPayoutState = 'NONE' | 'PAYOUT_PENDING' | 'PAID_OUT';
 
-export type LotteryTicketSerialStatus =
-    | 'IN_STOCK'
-    | 'RESERVED'
-    | 'PROXY_HOLDING'
-    | 'SOLD'
-    | 'EXPIRED';
+export type { LotteryTicketSerialStatus };
 
 export type TicketCondition = 'GOOD' | 'DAMAGED' | 'LOST' | 'VOIDED';
 
@@ -329,6 +324,7 @@ export const SERIAL_STATUS_LABELS: Record<LotteryTicketSerialStatus, string> = {
     PROXY_HOLDING: 'Đại lý giữ hộ',
     SOLD: 'Đã bán',
     EXPIRED: 'Đã hết hạn kỳ quay',
+    WITH_STREET_AGENT: 'Đang giao người bán dạo',
 };
 
 export const TICKET_CONDITION_LABELS: Record<TicketCondition, string> = {
@@ -339,7 +335,12 @@ export const TICKET_CONDITION_LABELS: Record<TicketCondition, string> = {
 };
 
 /** Tình trạng nhận vé vật lý — đã lấy hay còn giữ tại đại lý. */
-export type TicketPossessionStatus = 'PICKED_UP' | 'HELD_AT_AGENT' | 'RESERVED' | 'OTHER';
+export type TicketPossessionStatus =
+    | 'PICKED_UP'
+    | 'HELD_AT_AGENT'
+    | 'RESERVED'
+    | 'REJECTED'
+    | 'OTHER';
 
 export interface TicketPossessionDisplay {
     status: TicketPossessionStatus;
@@ -350,25 +351,51 @@ export interface TicketPossessionDisplay {
 }
 
 export const resolveTicketPossessionDisplay = (
-    ticket: Pick<PurchasedTicket, 'serialStatus' | 'actualPickedUpAt'>
+    ticket: Pick<
+        PurchasedTicket,
+        'serialStatus' | 'actualPickedUpAt' | 'orderDetailStatus' | 'handedOverAt' | 'rejectedAt'
+    >
 ): TicketPossessionDisplay | null => {
-    // Serial possession wins over order-level pickup (orders can mix held + picked tickets).
-    if (ticket.serialStatus === 'PROXY_HOLDING') {
+    // Order-detail handover status is authoritative (serial stays SOLD after payment).
+    if (ticket.orderDetailStatus === 'REJECTED_BY_CUSTOMER') {
         return {
-            status: 'HELD_AT_AGENT',
-            label: 'Đại lý đang giữ hộ',
-            hint: 'Vé chưa được bạn lấy tại quầy',
-            className: 'bg-amber-50 text-amber-700 border-amber-200',
-            icon: 'fa-solid fa-store',
+            status: 'REJECTED',
+            label: 'Khách từ chối nhận',
+            hint: 'Vé vẫn được đại lý giữ — liên hệ hỗ trợ nếu cần',
+            className: 'bg-rose-50 text-rose-700 border-rose-200',
+            icon: 'fa-solid fa-hand',
         };
     }
-    if (ticket.serialStatus === 'SOLD' || ticket.actualPickedUpAt) {
+    if (ticket.orderDetailStatus === 'HANDED_OVER' || ticket.handedOverAt || ticket.actualPickedUpAt) {
         return {
             status: 'PICKED_UP',
             label: 'Đã lấy vé',
             hint: 'Bạn đã nhận vé vật lý tại đại lý',
             className: 'bg-sky-50 text-sky-700 border-sky-200',
             icon: 'fa-solid fa-hand-holding',
+        };
+    }
+    if (
+        ticket.orderDetailStatus === 'PROXY_HOLDING'
+        || ticket.orderDetailStatus === 'HANDOVER_IN_PROGRESS'
+        || ticket.serialStatus === 'PROXY_HOLDING'
+    ) {
+        return {
+            status: 'HELD_AT_AGENT',
+            label: ticket.orderDetailStatus === 'HANDOVER_IN_PROGRESS'
+                ? 'Đang bàn giao'
+                : 'Đại lý đang giữ hộ',
+            hint: 'Vé chưa được bạn lấy tại quầy',
+            className: 'bg-amber-50 text-amber-700 border-amber-200',
+            icon: 'fa-solid fa-store',
+        };
+    }
+    if (ticket.orderDetailStatus === 'REFUND_PENDING' || ticket.orderDetailStatus === 'REFUNDED') {
+        return {
+            status: 'OTHER',
+            label: ticket.orderDetailStatus === 'REFUNDED' ? 'Đã hoàn tiền' : 'Chờ hoàn tiền',
+            className: 'bg-slate-50 text-slate-600 border-slate-200',
+            icon: 'fa-solid fa-rotate-left',
         };
     }
     if (ticket.serialStatus === 'RESERVED') {
@@ -389,18 +416,34 @@ export const resolveTicketPossessionDisplay = (
             icon: 'fa-solid fa-store',
         };
     }
-    if (!ticket.serialStatus) {
+    // Paid serial without a handover decision yet — still at the counter, not picked up.
+    if (ticket.serialStatus === 'SOLD') {
+        return {
+            status: 'HELD_AT_AGENT',
+            label: 'Đại lý đang giữ hộ',
+            hint: 'Vé chưa được bạn lấy tại quầy',
+            className: 'bg-amber-50 text-amber-700 border-amber-200',
+            icon: 'fa-solid fa-store',
+        };
+    }
+    if (!ticket.serialStatus && !ticket.orderDetailStatus) {
         return null;
     }
     return {
         status: 'OTHER',
-        label: SERIAL_STATUS_LABELS[ticket.serialStatus] ?? ticket.serialStatus,
+        label: ticket.serialStatus
+            ? (SERIAL_STATUS_LABELS[ticket.serialStatus] ?? ticket.serialStatus)
+            : (ticket.orderDetailStatus ?? 'Khác'),
         className: 'bg-slate-50 text-slate-600 border-slate-200',
         icon: 'fa-solid fa-ticket',
     };
 };
 
-const PAYOUT_ELIGIBLE_SERIAL_STATUSES: LotteryTicketSerialStatus[] = ['PROXY_HOLDING', 'EXPIRED'];
+const PAYOUT_ELIGIBLE_SERIAL_STATUSES: LotteryTicketSerialStatus[] = [
+    'SOLD',
+    'PROXY_HOLDING',
+    'EXPIRED',
+];
 
 export type TicketPayoutDisplayStatus =
     | 'NOT_REQUESTED'

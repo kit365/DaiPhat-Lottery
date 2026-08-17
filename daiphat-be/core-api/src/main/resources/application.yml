@@ -98,6 +98,8 @@ daiphat:
       switch-intent-threshold: 0.0
       slot-fill-min-confidence: 0.3
       ttl-minutes: 10
+    assignment:
+      max-concurrent-live: 1
     conversation:
       timeout:
         waiting-operator-seconds: 86400

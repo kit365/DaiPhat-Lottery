@@ -77,6 +77,7 @@ const EXACT_ICON_MAP: Record<string, SvgIconComponent> = {
     "eva:person-fill": Person,
     "eva:printer-fill": Print,
     "eva:external-link-fill": OpenInNew,
+    "solar:plain-bold": Send,
     "logos:facebook": Facebook,
     "logos:instagram-icon": Instagram,
     "logos:telegram": Send,
@@ -115,7 +116,7 @@ function resolveIcon(icon: string): SvgIconComponent {
         return WarningAmber;
     }
     if (key.includes("printer")) return Print;
-    if (key.includes("send")) return Send;
+    if (key.includes("plain") || key.includes("paper-plane") || key.includes("send")) return Send;
     if (key.includes("bank")) return AccountBalance;
     if (key.includes("transfer") || key.includes("swap")) return SwapHoriz;
     if (key.includes("gallery") || key.includes("image") || key.includes("photo")) return PhotoLibrary;
