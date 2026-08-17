@@ -9,8 +9,8 @@ import lombok.RequiredArgsConstructor;
  * station draw cutoff; there is no manual transition. The per-unit lifecycle
  * (reserved, sold, proxy-held, damaged, lost, voided, ...) lives on
  * {@link LotteryTicketSerialStatus}. A lottery number cancelled for data-entry
- * mistakes is soft-deleted ({@code deletedAt}); replacement audit lives on
- * {@code lottery_ticket_serials.replaced_for_ticket_id}.
+ * mistakes is soft-deleted ({@code deletedAt}); its serials are reassigned to the
+ * replacement lottery number via {@code ticket_id}.
  */
 @Getter
 @RequiredArgsConstructor

@@ -23,7 +23,14 @@ export const useReturnBatchPendingCount = () => {
 
     const query = useQuery({
         queryKey: [QUERY_KEYS.RETURN_BATCHES, 'pending-count'],
-        queryFn: () => getReturnBatches({ page: 1, size: 50 }),
+        queryFn: () =>
+            getReturnBatches({
+                page: 1,
+                size: 50,
+                // Prefer open statuses so badge does not pull handed-over history through heavy payloads.
+                status: undefined,
+                returnBatchType: 'SUPPLIER_RETURN',
+            }),
         enabled: canView && deferred,
         refetchOnWindowFocus: canView && deferred,
         refetchInterval: (q) => {

@@ -5,10 +5,13 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import {
     completeSettlementReconciliation,
     confirmSettlementMatching,
+    downloadSupplierSettlementReconciliationReport,
+    checkImportFiles,
     getSupplierSettlementById,
     getSupplierSettlementOverview,
     getSupplierSettlements,
     listImportResolvableTickets,
+    updateSupplierSettlementPaymentEvidenceUrls,
     listMissingReturnTickets,
     recalculateSettlementReconciliation,
     resolveImportDiscrepancy,
@@ -57,6 +60,7 @@ export const useSupplierSettlementOverview = (id?: string | number) => {
         select: (res: any) => res.data ?? null,
         staleTime: 0,
         refetchOnMount: 'always',
+        refetchOnWindowFocus: true,
     });
 };
 
@@ -70,7 +74,41 @@ export const useConfirmSettlementMatching = (id?: string | number) => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: (payload: ConfirmSettlementMatchingPayload) => confirmSettlementMatching(id!, payload),
-        onSuccess: () => invalidateSettlement(queryClient, id),
+        onSuccess: (res) => {
+            const updated = res?.data;
+            const cacheKey = [QUERY_KEYS.SUPPLIER_SETTLEMENT_OVERVIEW, String(id)];
+            if (updated) {
+                queryClient.setQueryData(cacheKey, (old: any) => {
+                    if (!old || typeof old !== 'object') {
+                        return old;
+                    }
+                    // Cache stores ApiResponse<Overview>; `select` unwraps `.data`.
+                    if (old.data?.settlement) {
+                        return {
+                            ...old,
+                            data: {
+                                ...old.data,
+                                settlement: {
+                                    ...old.data.settlement,
+                                    ...updated,
+                                },
+                            },
+                        };
+                    }
+                    if (old.settlement) {
+                        return {
+                            ...old,
+                            settlement: {
+                                ...old.settlement,
+                                ...updated,
+                            },
+                        };
+                    }
+                    return old;
+                });
+            }
+            invalidateSettlement(queryClient, id);
+        },
     });
 };
 
@@ -89,6 +127,16 @@ export const useImportResolvableTickets = (id?: string | number, enabled = false
         queryFn: () => listImportResolvableTickets(id!),
         enabled: !!id && enabled,
         select: (res: any) => res.data ?? [],
+    });
+};
+
+export const useImportFileCheck = (id?: string | number, enabled = false) => {
+    return useQuery({
+        queryKey: [QUERY_KEYS.SUPPLIER_SETTLEMENT_OVERVIEW, id, 'import-file-check'],
+        queryFn: () => checkImportFiles(id!),
+        enabled: !!id && enabled,
+        select: (res: any) => res.data ?? null,
+        staleTime: 0,
     });
 };
 
@@ -138,6 +186,20 @@ export const useCompleteSettlementReconciliation = (id?: string | number) => {
     return useMutation({
         mutationFn: (note?: string) => completeSettlementReconciliation(id!, note),
         onSuccess: () => invalidateSettlement(queryClient, id),
+    });
+};
+
+export const useUpdateSettlementPaymentEvidence = (id?: string | number) => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (urls: string[]) => updateSupplierSettlementPaymentEvidenceUrls(id!, urls),
+        onSuccess: () => invalidateSettlement(queryClient, id),
+    });
+};
+
+export const useDownloadSettlementReconciliationReport = (id?: string | number) => {
+    return useMutation({
+        mutationFn: (fileName?: string) => downloadSupplierSettlementReconciliationReport(id!, fileName),
     });
 };
 

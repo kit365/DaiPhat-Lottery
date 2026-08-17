@@ -21,8 +21,10 @@ import { SpinnerLoading } from '../../../../../components/ui/SpinnerLoading';
 import dayjs from 'dayjs';
 import { useQueries } from '@tanstack/react-query';
 import { getOrderDetail } from '../../../../orders/services/orderService';
-import { getOrderStatusBadge } from '@/admin/features/orders/utils/orderStatusBadge';
+import { OrderStatusBadge } from '@/shared/components/StatusBadge';
+import { AdminLuckyDisplay } from '@/shared/lucky-number';
 import { prefixAdmin } from '../../../../../constants/routes';
+import { orderDetailRefundPrepQueryKey } from '../../constants/queryKeys';
 import { OrderDetailStatus } from '../../../../../../types/order.type';
 import {
     formatRefundCurrency,
@@ -115,7 +117,7 @@ export const TicketIncidentRefundStep: React.FC<Props> = ({
 
     const orderQueries = useQueries({
         queries: orderIds.map((orderId) => ({
-            queryKey: ['order-detail-refund-prep', orderId],
+            queryKey: orderDetailRefundPrepQueryKey(orderId),
             queryFn: () => getOrderDetail(orderId),
             enabled: !!orderId,
             staleTime: 0,
@@ -273,7 +275,6 @@ export const TicketIncidentRefundStep: React.FC<Props> = ({
                         line.serials.some((serial) => serial.id === inc.serialId)
                     );
                 }).length;
-                const statusBadge = getOrderStatusBadge(liveOrderStatus);
                 const orderTypeLabel =
                     ORDER_TYPE_LABELS[order?.orderType || draft.orderType || ''] ||
                     order?.orderType ||
@@ -316,16 +317,7 @@ export const TicketIncidentRefundStep: React.FC<Props> = ({
                                         Mã nội bộ: {orderId}
                                     </Typography>
                                 </Stack>
-                                <Chip
-                                    label={statusBadge.label}
-                                    size="small"
-                                    sx={{
-                                        fontWeight: 700,
-                                        fontSize: '0.7rem',
-                                        color: statusBadge.color,
-                                        bgcolor: statusBadge.bg,
-                                    }}
-                                />
+                                <OrderStatusBadge status={liveOrderStatus} />
                             </Stack>
 
                             <Box
@@ -485,7 +477,7 @@ export const TicketIncidentRefundStep: React.FC<Props> = ({
                                             >
                                                 <Stack spacing={0.25}>
                                                     <Typography variant="body2" fontWeight={800}>
-                                                        Dãy số {line.numbers || '—'}
+                                                        Dãy số <AdminLuckyDisplay value={line.numbers} ticket component="span" />
                                                         {line.stationName ? ` · ${line.stationName}` : ''}
                                                     </Typography>
                                                     <Typography variant="caption" color="text.secondary">

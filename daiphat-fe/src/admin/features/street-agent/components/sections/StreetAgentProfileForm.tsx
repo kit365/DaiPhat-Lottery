@@ -28,7 +28,7 @@ import {
     VendorSettingsDefaults,
     VENDOR_LATE_RETURN_POLICY_LABELS,
 } from "../../hooks/useVendorSettingsDefaults";
-import { formatConfidencePoints, formatCurrency, formatVnd } from "../../utils/format";
+import { formatConfidencePoints, formatCurrency, formatVendorHandoverLimit, formatVnd } from "../../utils/format";
 import { useVietnamLocation } from "../../hooks/useVietnamLocation";
 import { AdminDatePicker } from "../../../../components/ui/AdminDatePicker";
 
@@ -176,7 +176,6 @@ export const StreetAgentProfileForm = ({
     depositBalance,
     statusChip,
     confidenceScore,
-    confidenceTier,
     onUploadSignedDocument,
     onViewSignedDocument,
     isUploadingSignedDocument = false,
@@ -285,7 +284,7 @@ export const StreetAgentProfileForm = ({
                 <ReadOnlyRow label="Cọc đang giữ" value={formatVnd(depositBalance ?? 0)} />
                 <ReadOnlyRow
                     label="Điểm tin cậy"
-                    value={formatConfidencePoints(confidenceScore, confidenceTier)}
+                    value={formatConfidencePoints(confidenceScore)}
                 />
             </Box>
         ) : null;
@@ -467,7 +466,7 @@ export const StreetAgentProfileForm = ({
 
                     {sections.contract ? (
                     <Card id={contractSectionId} sx={{ p: 3, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
-                        <SectionTitle title="Thông tin hợp đồng" helperText="Hạn mức giao theo hợp đồng và chính sách vận hành." />
+                        <SectionTitle title="Thông tin hợp đồng" helperText="Giới hạn số vé trên mỗi phiếu bàn giao theo hợp đồng và mức tín cậy." />
                         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" }, gap: 3 }}>
                             <Controller
                                 name="contractStartDate"
@@ -506,7 +505,7 @@ export const StreetAgentProfileForm = ({
                                         {...field}
                                         required
                                         type="number"
-                                        label="Hạn mức tối đa theo hợp đồng (vé/ngày)"
+                                        label="Giới hạn tối đa mỗi phiếu bàn giao (vé)"
                                         placeholder={vendorDefaults?.defaultContractMaxDailyCap?.toString() || "200"}
                                         slotProps={{ htmlInput: { min: 1, step: 1, inputMode: "numeric" } }}
                                         value={field.value ?? ""}
@@ -520,9 +519,9 @@ export const StreetAgentProfileForm = ({
                                             fieldState.error?.message ||
                                             (isEdit
                                                 ? (contractDocumentUrl
-                                                    ? "Hạn mức ghi trong hợp đồng hiện tại. Thay đổi hạn mức sẽ yêu cầu ký lại hợp đồng."
-                                                    : "Hạn mức ghi trong hợp đồng hiện tại. Sau khi lưu thay đổi, cần tải lại bản ký.")
-                                                : `Mặc định ${vendorDefaults?.defaultContractMaxDailyCap ?? 200} vé/ngày; nhân viên có thể điều chỉnh theo hợp đồng.`)
+                                                    ? "Giới hạn ghi trong hợp đồng hiện tại. Thay đổi giới hạn sẽ yêu cầu ký lại hợp đồng."
+                                                    : "Giới hạn ghi trong hợp đồng hiện tại. Sau khi lưu thay đổi, cần tải lại bản ký.")
+                                                : `Mặc định ${vendorDefaults?.defaultContractMaxDailyCap ?? 200} vé/phiếu; nhân viên có thể điều chỉnh theo hợp đồng.`)
                                         }
                                         sx={fieldSx}
                                     />
@@ -530,9 +529,9 @@ export const StreetAgentProfileForm = ({
                             />
                             {isEdit && effectiveDailyCap != null && (
                                 <ReadOnlyRow
-                                    label="Hạn mức giao thực tế"
-                                    value={`${effectiveDailyCap} vé/ngày`}
-                                    helperText="Hạn mức áp dụng sau khi tính điểm tin cậy."
+                                    label="Giới hạn giao hiện tại"
+                                    value={formatVendorHandoverLimit(effectiveDailyCap)}
+                                    helperText="Hệ thống áp dụng theo mức tín cậy. Sau khi phiếu được quyết toán, người bán có thể nhận phiếu mới."
                                 />
                             )}
                         </Box>
@@ -550,63 +549,64 @@ export const StreetAgentProfileForm = ({
                             <Controller
                                 name="contactProvince"
                                 control={control}
-                                render={({ field, fieldState }) => {
-                                    const selectedOption = vietnamLocations?.find(p => p.name === field.value) || null;
-                                    return (
-                                        <Autocomplete
-                                            options={vietnamLocations || []}
-                                            getOptionLabel={(option) => option.name}
-                                            value={selectedOption}
-                                            onChange={(_, newValue) => {
-                                                field.onChange(newValue ? newValue.name : "");
-                                                setValue?.("contactWard", "");
-                                            }}
-                                            disabled={isLoadingLocations}
-                                            loading={isLoadingLocations}
-                                            loadingText="Đang tải danh sách địa phương…"
-                                            noOptionsText="Không tìm thấy tỉnh/thành"
-                                            renderInput={(params) => (
-                                                <TextField
-                                                    {...params}
-                                                    label="Tỉnh/thành"
-                                                    error={!!fieldState.error}
-                                                    helperText={fieldState.error?.message || (isLoadingLocations ? "Đang tải danh sách địa phương…" : undefined)}
-                                                    sx={fieldSx}
-                                                />
-                                            )}
-                                        />
-                                    );
-                                }}
+                                render={({ field, fieldState }) => (
+                                    <TextField
+                                        {...field}
+                                        select
+                                        fullWidth
+                                        label="Tỉnh/thành"
+                                        value={field.value ?? ""}
+                                        onChange={(event) => {
+                                            field.onChange(event.target.value);
+                                            setValue?.("contactWard", "");
+                                        }}
+                                        disabled={isLoadingLocations}
+                                        error={!!fieldState.error}
+                                        helperText={
+                                            fieldState.error?.message ||
+                                            (isLoadingLocations ? "Đang tải danh sách địa phương…" : undefined)
+                                        }
+                                        sx={fieldSx}
+                                    >
+                                        <MenuItem value="">
+                                            <em>Chọn tỉnh/thành</em>
+                                        </MenuItem>
+                                        {(vietnamLocations || []).map((province) => (
+                                            <MenuItem key={province.name} value={province.name}>
+                                                {province.name}
+                                            </MenuItem>
+                                        ))}
+                                    </TextField>
+                                )}
                             />
                             <Controller
                                 name="contactWard"
                                 control={control}
-                                render={({ field, fieldState }) => {
-                                    const selectedWard = wardOptions.find(w => w.name === field.value) || null;
-                                    return (
-                                        <Autocomplete
-                                            options={wardOptions}
-                                            getOptionLabel={(option) => option.name}
-                                            value={selectedWard}
-                                            onChange={(_, newValue) => {
-                                                field.onChange(newValue ? newValue.name : "");
-                                            }}
-                                            disabled={isLoadingLocations || !contactProvince}
-                                            loading={isLoadingLocations}
-                                            loadingText="Đang tải danh sách địa phương…"
-                                            noOptionsText={!contactProvince ? "Vui lòng chọn tỉnh/thành trước" : "Không tìm thấy phường/xã"}
-                                            renderInput={(params) => (
-                                                <TextField
-                                                    {...params}
-                                                    label="Phường/xã"
-                                                    error={!!fieldState.error}
-                                                    helperText={fieldState.error?.message || (!contactProvince ? "Chọn tỉnh/thành trước" : undefined)}
-                                                    sx={fieldSx}
-                                                />
-                                            )}
-                                        />
-                                    );
-                                }}
+                                render={({ field, fieldState }) => (
+                                    <TextField
+                                        {...field}
+                                        select
+                                        fullWidth
+                                        label="Phường/xã"
+                                        value={field.value ?? ""}
+                                        disabled={isLoadingLocations || !contactProvince}
+                                        error={!!fieldState.error}
+                                        helperText={
+                                            fieldState.error?.message ||
+                                            (!contactProvince ? "Chọn tỉnh/thành trước" : undefined)
+                                        }
+                                        sx={fieldSx}
+                                    >
+                                        <MenuItem value="">
+                                            <em>{contactProvince ? "Chọn phường/xã" : "Chọn tỉnh/thành trước"}</em>
+                                        </MenuItem>
+                                        {wardOptions.map((ward) => (
+                                            <MenuItem key={ward.name} value={ward.name}>
+                                                {ward.name}
+                                            </MenuItem>
+                                        ))}
+                                    </TextField>
+                                )}
                             />
                             <Controller
                                 name="contactAddress"

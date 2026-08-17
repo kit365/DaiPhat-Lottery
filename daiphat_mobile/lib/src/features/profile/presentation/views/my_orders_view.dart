@@ -8,6 +8,7 @@ import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/features/checkout/models/order_type.dart';
 import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/widgets/brand_scrollbar.dart';
 import '../viewmodels/my_orders_viewmodel.dart';
 
 class MyOrdersView extends ConsumerStatefulWidget {
@@ -171,36 +172,39 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
       return _buildEmptyState();
     }
 
-    return RefreshIndicator(
-      onRefresh: () => _viewModel.fetchOrders(refresh: true),
-      color: AppColors.primary,
-      child: ListView.builder(
-        controller: _scrollController,
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        itemCount:
-            _viewModel.orders.length + (_viewModel.isLoadingMore ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index == _viewModel.orders.length) {
-            return const Padding(
-              padding: EdgeInsets.symmetric(vertical: 20),
-              child: Center(
-                child: CircularProgressIndicator(color: AppColors.primary),
+    return BrandScrollbar(
+      controller: _scrollController,
+      child: RefreshIndicator(
+        onRefresh: () => _viewModel.fetchOrders(refresh: true),
+        color: AppColors.primary,
+        child: ListView.builder(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          itemCount:
+              _viewModel.orders.length + (_viewModel.isLoadingMore ? 1 : 0),
+          itemBuilder: (context, index) {
+            if (index == _viewModel.orders.length) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                ),
+              );
+            }
+            final order = _viewModel.orders[index];
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: GestureDetector(
+                onTap: () => context.pushNamed(
+                  AppRoute.orderDetail.name,
+                  pathParameters: {'id': order.id},
+                ),
+                child: _buildOrderCard(order),
               ),
             );
-          }
-          final order = _viewModel.orders[index];
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: GestureDetector(
-              onTap: () => context.pushNamed(
-                AppRoute.orderDetail.name,
-                pathParameters: {'id': order.id},
-              ),
-              child: _buildOrderCard(order),
-            ),
-          );
-        },
+          },
+        ),
       ),
     );
   }

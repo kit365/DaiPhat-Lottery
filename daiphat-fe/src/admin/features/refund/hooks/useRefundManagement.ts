@@ -3,7 +3,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { refundAdminApi } from "@/admin/features/refund/services/refundService";
-import { QUERY_KEYS } from '@/constants/queryKeys';
+import { QUERY_KEYS } from '@/admin/features/refund/constants/queryKeys';
+import { QUERY_KEYS as ORDER_QUERY_KEYS } from '@/admin/features/orders/constants/queryKeys';
 import {
     GetStaffRefundsParams,
     TransferRefundRequestRequest,
@@ -100,9 +101,9 @@ export const useCancelOrderWithRefund = () => {
                 toast.success(response.message || 'Đã hủy đơn và tạo yêu cầu hoàn tiền');
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_REFUNDS] });
                 invalidateAdminBadgeCounts(queryClient);
-                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_ORDERS] });
+                queryClient.invalidateQueries({ queryKey: [ORDER_QUERY_KEYS.ORDERS] });
                 invalidateAdminBadgeCounts(queryClient);
-                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_ORDER_DETAIL] });
+                queryClient.invalidateQueries({ queryKey: [ORDER_QUERY_KEYS.ORDER_DETAIL] });
             } else {
                 toast.error(response.message || 'Không thể hủy đơn với hoàn tiền');
             }

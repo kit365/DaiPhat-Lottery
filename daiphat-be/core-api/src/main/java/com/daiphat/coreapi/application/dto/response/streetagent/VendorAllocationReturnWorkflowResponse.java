@@ -12,7 +12,9 @@ public record VendorAllocationReturnWorkflowResponse(
         int unreturnedQuantity,
         boolean canEditReturns,
         boolean canConfirmInspection,
+        boolean canConfirmNoReturn,
         boolean canPreviewSettlement,
-        boolean canSettle
+        boolean canSettle,
+        boolean canReopenInspection
 ) {
 }

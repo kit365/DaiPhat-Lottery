@@ -31,6 +31,10 @@ public class LotteryStationEntity extends BaseEntity {
     @Column(nullable = false, length = 100)
     private String name;
 
+    /** Stable business code carried by exported files and matched on import. */
+    @Column(length = 20)
+    private String code;
+
     @Column(length = 100)
     private String province;
 
@@ -59,6 +63,13 @@ public class LotteryStationEntity extends BaseEntity {
 
     @Column(name = "next_draw_date")
     private LocalDate nextDrawDate;
+
+    /**
+     * Optional override of global {@code PRIZE_REDEMPTION_OFFICIAL_DEADLINE_DAYS}.
+     * Null means use the system default.
+     */
+    @Column(name = "prize_redemption_official_deadline_days")
+    private Integer prizeRedemptionOfficialDeadlineDays;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

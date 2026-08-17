@@ -23,11 +23,14 @@ enum AppRoute {
   bankAccounts,
   notifications,
   notificationSettings,
+  security,
   myTickets,
   myTicketDetail,
   myOrders,
   orderDetail,
   adminScan,
+  fortune,
+  schedule,
 }
 
 extension AppRouteDefinition on AppRoute {
@@ -81,6 +84,8 @@ extension AppRouteDefinition on AppRoute {
         return '/notifications';
       case AppRoute.notificationSettings:
         return '/profile/notification-settings';
+      case AppRoute.security:
+        return '/profile/security';
       case AppRoute.myTickets:
         return '/profile/tickets';
       case AppRoute.myTicketDetail:
@@ -91,6 +96,10 @@ extension AppRouteDefinition on AppRoute {
         return '/profile/orders/:id';
       case AppRoute.adminScan:
         return '/admin/scan';
+      case AppRoute.fortune:
+        return '/fortune';
+      case AppRoute.schedule:
+        return '/schedule';
     }
   }
 
@@ -144,6 +153,8 @@ extension AppRouteDefinition on AppRoute {
         return 'notifications';
       case AppRoute.notificationSettings:
         return 'notification_settings';
+      case AppRoute.security:
+        return 'security';
       case AppRoute.myTickets:
         return 'my_tickets';
       case AppRoute.myTicketDetail:
@@ -154,6 +165,10 @@ extension AppRouteDefinition on AppRoute {
         return 'order_detail';
       case AppRoute.adminScan:
         return 'admin_scan';
+      case AppRoute.fortune:
+        return 'fortune';
+      case AppRoute.schedule:
+        return 'schedule';
     }
   }
 
@@ -180,11 +195,14 @@ extension AppRouteDefinition on AppRoute {
       case AppRoute.bankAccounts:
       case AppRoute.notifications:
       case AppRoute.notificationSettings:
+      case AppRoute.security:
       case AppRoute.myTickets:
       case AppRoute.myTicketDetail:
       case AppRoute.myOrders:
       case AppRoute.orderDetail:
       case AppRoute.adminScan:
+      case AppRoute.fortune:
+      case AppRoute.schedule:
         return true;
       case AppRoute.home:
       case AppRoute.buyTicket:

@@ -10,7 +10,7 @@ import { PERMISSIONS } from '../../../../constants/permission.constants';
 import { getColumnsConfig } from '../configs/column.config';
 import { PaginationMetadata } from '../../../../../types/api.type';
 import { dataGridStyles } from '../../../../shared/data-grid';
-import { DATA_GRID_LOCALE_VN } from "../../../../../shared/components/DataTable/localeText.config";
+import { DATA_GRID_LOCALE_VN } from "@/admin/components/data-grid/localeText.config";
 import { AdminRowActionsMenu } from "../../../../components/ui/AdminRowActionsMenu";
 
 interface UserTableProps {

@@ -34,14 +34,17 @@ import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
-import ConfirmationNumberOutlinedIcon from '@mui/icons-material/ConfirmationNumberOutlined';
 import type { SettlementAdjustmentReasonCode, SettlementResolvableSerial } from '../../types/supplierSettlement.type';
-import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
+import { formatSettlementMoney } from '../../utils/settlementCashflow';
+import { AdminStatusBadge } from '@/admin/components/ui/AdminStatusBadge';
 
 interface MissingReturnTicketsPanelProps {
     serials: SettlementResolvableSerial[];
+    difference?: number;
     loading?: boolean;
     submitting?: boolean;
+    /** Block resolve actions when return-batches are not yet handed over. */
+    disabled?: boolean;
     onResolve: (payload: {
         serialIds?: number[];
         resolution: 'EXPIRED' | 'LOST' | 'DAMAGED' | 'VOIDED';
@@ -61,8 +64,10 @@ const formatNumberWithDots = (val?: number | string | null): string => {
 
 export const MissingReturnTicketsPanel = ({
     serials,
+    difference,
     loading,
     submitting,
+    disabled = false,
     onResolve,
 }: MissingReturnTicketsPanelProps) => {
     const [selected, setSelected] = useState<number[]>([]);
@@ -70,6 +75,8 @@ export const MissingReturnTicketsPanel = ({
     const [reasonCode, setReasonCode] = useState<SettlementAdjustmentReasonCode>('LOST_DURING_RETURN');
     const [amount, setAmount] = useState('');
     const [note, setNote] = useState('');
+    const requiredQuantity = Math.abs(Number(difference ?? 0));
+    const isSelectedQuantityExact = selected.length === requiredQuantity;
 
     // Filter & Search states
     const [searchQuery, setSearchQuery] = useState('');
@@ -165,22 +172,16 @@ export const MissingReturnTicketsPanel = ({
                     </Box>
                     <Box>
                         <Typography variant="h6" fontWeight={800} color="#0f172a" sx={{ fontSize: '1.15rem', lineHeight: 1.3 }}>
-                            Xử lý thiếu trả (âm)
+                            Xử lý hệ thống ghi thừa trả (âm)
                         </Typography>
                         <Typography variant="body2" color="#64748b" sx={{ mt: 0.25 }}>
-                            Danh sách vé chuẩn bị trả theo hệ thống nhưng bị thiếu sót hoặc hết hạn khi kiểm đếm thực tế.
+                            Danh sách vé hệ thống đã ghi nhận trả nhưng không có trong kiểm đếm thực tế hoặc đã hết hạn.
                         </Typography>
                     </Box>
                 </Stack>
-                <Chip
-                    icon={<ConfirmationNumberOutlinedIcon style={{ fontSize: '0.95rem' }} />}
+                <AdminStatusBadge
                     label={`Tổng ${serials.length} vé chuẩn bị trả`}
-                    sx={{
-                        fontWeight: 700,
-                        bgcolor: '#f8fafc',
-                        color: '#475569',
-                        border: '1px solid #e2e8f0',
-                    }}
+                    modifier="admin-status-badge--draft"
                 />
             </Stack>
 
@@ -303,7 +304,7 @@ export const MissingReturnTicketsPanel = ({
                         <Chip
                             size="small"
                             color="warning"
-                            label={`Đã chọn ${selected.length} vé (${formatImportCost(selectedCostSum)} VNĐ)`}
+                            label={`Đã chọn ${selected.length} vé (${formatSettlementMoney(selectedCostSum)} VNĐ)`}
                             onDelete={() => setSelected([])}
                             sx={{ fontWeight: 700 }}
                         />
@@ -389,7 +390,7 @@ export const MissingReturnTicketsPanel = ({
                                             </TableCell>
                                             <TableCell align="right">
                                                 <Typography variant="body2" fontWeight={700} color="#166534">
-                                                    {formatImportCost(Number(s.importCost || 0))} <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500 }}>VNĐ</span>
+                                                    {formatSettlementMoney(Number(s.importCost || 0))} <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500 }}>VNĐ</span>
                                                 </Typography>
                                             </TableCell>
                                         </TableRow>
@@ -425,11 +426,11 @@ export const MissingReturnTicketsPanel = ({
                 }}
             >
                 <Typography variant="caption" fontWeight={800} color="#475569" sx={{ textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', mb: 2 }}>
-                    Thông tin ghi nhận xử lý trả thiếu
+                    Tình trạng & lý do ghi nhận ({selected.length}/{requiredQuantity} vé đã chọn)
                 </Typography>
 
                 <Grid container spacing={2}>
-                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                    <Grid size={{ xs: 12, sm: 6, md: 3 }} sx={{ display: 'none' }}>
                         <FormControl size="small" fullWidth>
                             <InputLabel>Phương án xử lý</InputLabel>
                             <Select
@@ -448,10 +449,10 @@ export const MissingReturnTicketsPanel = ({
                                 }}
                                 sx={{ borderRadius: '10px', bgcolor: '#ffffff' }}
                             >
-                                <MenuItem value="LOST">Mất khi trả (LOST)</MenuItem>
-                                <MenuItem value="DAMAGED">Hỏng / rách (DAMAGED)</MenuItem>
-                                <MenuItem value="VOIDED">Hủy hiệu lực (VOIDED)</MenuItem>
-                                <MenuItem value="EXPIRED">Hết hạn (EXPIRED)</MenuItem>
+                                <MenuItem value="LOST">Mất khi trả hàng</MenuItem>
+                                <MenuItem value="DAMAGED">Vé bị rách / hỏng</MenuItem>
+                                <MenuItem value="VOIDED">Hủy do sai sót</MenuItem>
+                                <MenuItem value="EXPIRED">Vé hết hạn không trả được</MenuItem>
                             </Select>
                         </FormControl>
                     </Grid>
@@ -492,7 +493,7 @@ export const MissingReturnTicketsPanel = ({
                                         onClick={handleApplySelectedCost}
                                         sx={{ color: '#ea580c', cursor: 'pointer', fontWeight: 700, textDecoration: 'underline' }}
                                     >
-                                        Gợi ý: Điền tổng {formatImportCost(selectedCostSum)} đ ({selected.length} vé)
+                                        Gợi ý: Điền tổng {formatSettlementMoney(selectedCostSum)} đ ({selected.length} vé)
                                     </Box>
                                 ) : undefined
                             }
@@ -546,16 +547,17 @@ export const MissingReturnTicketsPanel = ({
                     fontSize: '0.875rem',
                 }}
             >
-                Mỗi sê-ri được chọn sẽ được cập nhật trạng thái/tình trạng và ghi nhận điều chỉnh có người thực hiện + thời gian.
+                Chọn đúng {requiredQuantity} vé đang có trong return-batch. Vé vẫn được giữ trong phiếu trả để lưu vết, nhưng sẽ không còn được tính là vé trả hợp lệ sau khi cập nhật ticketCondition.
             </Alert>
 
             {/* Actions */}
             <Stack direction="row" spacing={1.5} justifyContent="flex-end" alignItems="center">
                 <Button
                     variant="outlined"
-                    disabled={submitting}
+                    disabled={disabled || submitting || selected.length === 0 || !isSelectedQuantityExact}
                     startIcon={<SaveOutlinedIcon />}
                     onClick={() => {
+                        if (disabled) return;
                         const parsedAmount = amount ? parseInt(amount.replace(/\D/g, ''), 10) : undefined;
                         onResolve({
                             serialIds: selected,
@@ -567,6 +569,7 @@ export const MissingReturnTicketsPanel = ({
                         });
                     }}
                     sx={{
+                        display: 'none',
                         textTransform: 'none',
                         fontWeight: 700,
                         borderRadius: '10px',
@@ -578,10 +581,11 @@ export const MissingReturnTicketsPanel = ({
                 </Button>
                 <Button
                     variant="contained"
-                    disabled={submitting}
+                    disabled={disabled || submitting || !isSelectedQuantityExact}
                     startIcon={<CheckCircleOutlinedIcon />}
                     className="btn-primary-admin"
                     onClick={() => {
+                        if (disabled) return;
                         const parsedAmount = amount ? parseInt(amount.replace(/\D/g, ''), 10) : undefined;
                         onResolve({
                             serialIds: selected,
@@ -600,7 +604,11 @@ export const MissingReturnTicketsPanel = ({
                         py: 0.9,
                     }}
                 >
-                    {submitting ? 'Đang lưu...' : 'Hoàn tất nhóm trả'}
+                    {disabled
+                        ? 'Chưa thể xử lý — phiếu trả chưa sẵn sàng'
+                        : submitting
+                        ? 'Đang lưu...'
+                        : `Xác nhận tình trạng vé (${selected.length}/${requiredQuantity})`}
                 </Button>
             </Stack>
         </Paper>

@@ -9,11 +9,10 @@ import {
 } from './chatQuickReplies.util';
 
 const HUB_LABELS_DEFAULT = [
-  'Xem lịch xổ',
-  'Kết quả',
+  'Gặp nhân viên',
   'Gợi ý vé',
   'Tìm đuôi số',
-  'Gặp nhân viên',
+  'Kết quả',
 ];
 
 describe('resolveContextualQuickReplies', () => {
@@ -22,15 +21,14 @@ describe('resolveContextualQuickReplies', () => {
       { id: 'welcome', sender: 'bot', variant: 'bubble', text: 'Xin chào' },
       { hasCustomerMessages: false }
     );
-    expect(result.chips.map((chip) => chip.label)).toEqual([
-      'Xem lịch xổ',
-      'Tra cứu kết quả',
+    expect(result.chips.map((chip) => chip.label)).toEqual(HUB_LABELS_DEFAULT);
+    expect(result.chips.filter((chip) => chip.primary).map((chip) => chip.label)).toEqual([
+      'Gặp nhân viên',
       'Gợi ý vé',
-      'Hỗ trợ đơn hàng',
     ]);
   });
 
-  it('keeps Xem lịch xổ after schedule result — no restart chip', () => {
+  it('does not expose Xem lịch xổ in hub after schedule result', () => {
     const result = resolveContextualQuickReplies(
       {
         id: '42',
@@ -41,7 +39,7 @@ describe('resolveContextualQuickReplies', () => {
       { hasCustomerMessages: true }
     );
     expect(result.chips.map((chip) => chip.label)).toEqual(HUB_LABELS_DEFAULT);
-    expect(result.chips.find((chip) => chip.id === 'hub-schedule')?.label).toBe('Xem lịch xổ');
+    expect(result.chips.some((chip) => chip.id === 'hub-schedule')).toBe(false);
     expect(result.chips.some((chip) => chip.id === 'hub-schedule-restart')).toBe(false);
   });
 
@@ -103,7 +101,7 @@ describe('resolveContextualQuickReplies', () => {
 });
 
 describe('buildHubActionChips', () => {
-  it('always keeps default labels even when station context exists', () => {
+  it('orders staff then ticket then search then results, without schedule', () => {
     const chips = buildHubActionChips({
       id: '1',
       sender: 'bot',
@@ -112,14 +110,16 @@ describe('buildHubActionChips', () => {
       scheduleRegion: 'MIEN_NAM',
     });
     expect(chips.map((chip) => chip.label)).toEqual(HUB_LABELS_DEFAULT);
+    expect(chips.filter((chip) => chip.primary).map((chip) => chip.id)).toEqual([
+      'hub-staff',
+      'hub-ticket',
+    ]);
+    expect(chips.some((chip) => chip.id === 'hub-schedule')).toBe(false);
   });
 
   it('sends in-chat messages — never navigate actions', () => {
     const chips = buildHubActionChips();
     expect(chips.every((chip) => chip.action === 'send' || chip.action === 'staff')).toBe(true);
-    expect(chips.find((chip) => chip.id === 'hub-schedule')?.message).toBe(
-      'SCHEDULE_SHOW:goal=SCHEDULE:region=MIEN_NAM:scope=all'
-    );
     expect(chips.find((chip) => chip.id === 'hub-results')?.message).toBe(
       'SCHEDULE_SET_GOAL:RESULT'
     );
@@ -127,7 +127,7 @@ describe('buildHubActionChips', () => {
     expect(chips.find((chip) => chip.id === 'hub-search')?.message).toBe(SEARCH_SUFFIX_MESSAGE);
   });
 
-  it('ignores station id for hub schedule/result tokens', () => {
+  it('ignores station id for hub result tokens', () => {
     const chips = buildHubActionChips({
       id: '1',
       sender: 'bot',
@@ -135,9 +135,6 @@ describe('buildHubActionChips', () => {
       scheduleStationName: 'Bạc Liêu',
       scheduleRegion: 'MIEN_NAM',
     });
-    expect(chips.find((chip) => chip.id === 'hub-schedule')?.message).toBe(
-      'SCHEDULE_SHOW:goal=SCHEDULE:region=MIEN_NAM:scope=all'
-    );
     expect(chips.find((chip) => chip.id === 'hub-results')?.message).toBe(
       'SCHEDULE_SET_GOAL:RESULT'
     );

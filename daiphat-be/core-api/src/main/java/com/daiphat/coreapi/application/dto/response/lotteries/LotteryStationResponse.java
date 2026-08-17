@@ -15,6 +15,7 @@ import java.util.UUID;
 public record LotteryStationResponse(
         Long id,
         String name,
+        String code,
         String province,
         String region,
         String type,
@@ -27,6 +28,7 @@ public record LotteryStationResponse(
         @JsonFormat(pattern = "HH:mm")
         LocalTime drawTime,
         LocalDate nextDrawDate,
+        Integer prizeRedemptionOfficialDeadlineDays,
         UUID approvedById,
         LocalDateTime approvedAt,
         String image,

@@ -16,6 +16,8 @@ import com.daiphat.coreapi.application.dto.response.chat.SessionBoundaryResponse
 import com.daiphat.coreapi.application.mapper.chat.ChatApplicationMapper;
 import com.daiphat.coreapi.application.port.in.chat.ConversationServicePort;
 import com.daiphat.coreapi.application.port.in.chat.ChatEscalationPort;
+import com.daiphat.coreapi.application.port.in.chat.ChatLiveAssignmentPort;
+import com.daiphat.coreapi.application.port.in.chat.ChatStaffContextPort;
 import com.daiphat.coreapi.application.port.in.user.UserLookupServicePort;
 import com.daiphat.coreapi.application.port.out.chat.ChatConversationEventPublisherPort;
 import com.daiphat.coreapi.application.port.out.chat.ChatMessagePublisherPort;
@@ -49,6 +51,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -59,6 +62,10 @@ public class ConversationService implements ConversationServicePort {
 
     private static final String DEFAULT_CONVERSATION_TITLE_PREFIX = "Hỗ trợ khách hàng - ";
     private static final String DEFAULT_CONVERSATION_TITLE = "Hỗ trợ khách hàng";
+    private static final Set<String> PLACEHOLDER_CONVERSATION_TITLES = Set.of(
+            "Yêu cầu hỗ trợ từ khách hàng",
+            "Yêu cầu gặp nhân viên"
+    );
     private static final String DEFAULT_INITIAL_MESSAGE = "Xin chào, tôi cần được hỗ trợ.";
     private static final int DEFAULT_TIMELINE_LIMIT = 30;
     private static final int MAX_TIMELINE_LIMIT = 100;
@@ -73,6 +80,8 @@ public class ConversationService implements ConversationServicePort {
     private final ChatBotPort chatBotPort;
     private final ChatEscalationPort chatEscalationPort;
     private final ChatMessageProperties chatMessageProperties;
+    private final ChatLiveAssignmentPort chatLiveAssignmentPort;
+    private final ChatStaffContextPort chatStaffContextPort;
 
     @Override
     @Transactional
@@ -164,8 +173,8 @@ public class ConversationService implements ConversationServicePort {
         UserModel user = userLookupServicePort.findActiveByIdOrThrow(userId);
         ConversationModel conversation = getConversationOrThrow(conversationId);
         assertManagementAccess(conversation, userId, isAdmin(user));
-        if (userId.equals(conversation.getAssignedOperatorId())) {
-            markConversationRead(conversation, userId);
+        if (shouldMarkOperatorReadOnOpen(userId, conversation)) {
+            conversation.markOperatorRead(LocalDateTime.now());
             conversationRepositoryPort.save(conversation);
         }
         return toManagementConversationDetailResponse(conversation);
@@ -177,9 +186,6 @@ public class ConversationService implements ConversationServicePort {
         UserModel user = userLookupServicePort.findActiveByIdOrThrow(userId);
         ConversationModel conversation = getConversationOrThrow(conversationId);
         assertManagementAccess(conversation, userId, isAdmin(user));
-        if (!isAdmin(user) && !userId.equals(conversation.getAssignedOperatorId())) {
-            throw new DomainException(ErrorCode.CONVERSATION_VIEW_DENIED);
-        }
 
         List<MessageModel> allMessages = messageRepositoryPort.findByConversationId(conversationId);
         Optional<LocalDateTime> cutoff = ConversationModel.resolveStaffMessageVisibilityCutoff(
@@ -227,6 +233,12 @@ public class ConversationService implements ConversationServicePort {
     }
 
     @Override
+    @Transactional
+    public List<MessageResponse> getPreviousSessionMessages(UUID userId, Long conversationId) {
+        return chatStaffContextPort.getPreviousSessionMessages(userId, conversationId);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public CustomerChatTimelineResponse getMyChatTimeline(
             UUID userId,
@@ -239,7 +251,7 @@ public class ConversationService implements ConversationServicePort {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public CustomerChatTimelineResponse getCustomerChatTimeline(
             UUID userId,
             UUID customerId,
@@ -261,14 +273,21 @@ public class ConversationService implements ConversationServicePort {
 
         Collection<Long> conversationScope = null;
         if (!isAdmin(user)) {
-            conversationScope = ConversationModel.resolveStaffVisibleConversationIds(
+            Set<Long> visible = ConversationModel.resolveStaffVisibleConversationIds(
                     userId,
                     customerConversations,
                     messageRepositoryPort.findOperatorParticipatedConversationIds(customerId, userId)
             );
+            conversationScope = resolveStaffLiveTimelineScope(customerConversations, visible);
             if (conversationScope.isEmpty()) {
                 throw new DomainException(ErrorCode.CONVERSATION_VIEW_DENIED);
             }
+        }
+
+        // Messenger view loads the customer timeline (not /management/{id}), so mark
+        // read here when staff opens the live thread (first page only).
+        if (beforeCreatedAt == null && beforeId == null) {
+            markStaffReadOnOpen(userId, customerConversations, conversationScope);
         }
 
         return buildCustomerChatTimeline(customerId, limit, beforeCreatedAt, beforeId, conversationScope, false, true);
@@ -459,12 +478,15 @@ public class ConversationService implements ConversationServicePort {
         );
         conversation.waitForOperator();
         ConversationModel savedConversation = conversationRepositoryPort.save(conversation);
-        publishConversationEvent(
-                ConversationSocketEventType.CONVERSATION_ESCALATED,
-                savedConversation,
-                resolvedReason
-        );
-        return toManagementConversationDetailResponse(savedConversation);
+        var assigned = chatLiveAssignmentPort.tryAssignIdleOnlineOperator(savedConversation);
+        if (assigned.isEmpty()) {
+            publishConversationEvent(
+                    ConversationSocketEventType.CONVERSATION_ESCALATED,
+                    savedConversation,
+                    resolvedReason
+            );
+        }
+        return toManagementConversationDetailResponse(getConversationOrThrow(conversationId));
     }
 
     @Override
@@ -476,9 +498,21 @@ public class ConversationService implements ConversationServicePort {
 
         assertCustomerAccess(conversation, customerId);
 
+        if (conversation.getStatus() == ConversationStatus.CLOSED) {
+            return toConversationDetailResponse(conversation);
+        }
+
         if (conversation.getStatus() == ConversationStatus.OPEN
                 && conversation.getAssignedOperatorId() == null) {
             return toConversationDetailResponse(conversation);
+        }
+
+        // Auto-assign can race ahead of the customer UI: FE still shows "Huỷ gặp nhân viên"
+        // while BE is already ACTIVE. Treat cancel as leave-staff in that case.
+        if (conversation.getAssignedOperatorId() != null
+                && (conversation.getStatus() == ConversationStatus.ACTIVE
+                || conversation.getStatus() == ConversationStatus.WAITING_FOR_CUSTOMER)) {
+            return disconnectStaff(customerId, conversationId);
         }
 
         conversation.cancelStaffRequest();
@@ -500,6 +534,7 @@ public class ConversationService implements ConversationServicePort {
                 .orElseThrow(() -> new DomainException(ErrorCode.CONVERSATION_NOT_FOUND));
 
         assertCustomerAccess(conversation, customerId);
+        UUID freedOperatorId = conversation.getAssignedOperatorId();
         conversation.disconnectStaff();
 
         ConversationModel savedConversation = conversationRepositoryPort.save(conversation);
@@ -509,6 +544,7 @@ public class ConversationService implements ConversationServicePort {
                 savedConversation,
                 null
         );
+        chatLiveAssignmentPort.tryDispatchNextForFreedOperator(freedOperatorId, conversationId);
         return toConversationDetailResponse(getConversationOrThrow(savedConversation.getId()));
     }
 
@@ -533,17 +569,8 @@ public class ConversationService implements ConversationServicePort {
             throw new DomainException(ErrorCode.CONVERSATION_CANNOT_ASSIGN);
         }
 
-        UserModel operator = userLookupServicePort.findActiveByIdOrThrow(operatorId);
-        conversation.assignToOperator(operatorId);
-        ConversationModel savedConversation = conversationRepositoryPort.save(conversation);
-        saveSystemDividerMessage(
-                conversationId,
-                ConversationModel.operatorAcceptanceCopy(operator.getFullName())
-        );
-
-        publishConversationEvent(ConversationSocketEventType.CONVERSATION_TAKEN, savedConversation, null);
-        publishConversationEvent(ConversationSocketEventType.CONVERSATION_ASSIGNED, savedConversation, null);
-
+        ConversationModel savedConversation = chatLiveAssignmentPort
+                .assignWaitingConversationToOperator(conversation, operatorId);
         return toManagementConversationDetailResponse(savedConversation);
     }
 
@@ -567,8 +594,9 @@ public class ConversationService implements ConversationServicePort {
 
         publishConversationEvent(ConversationSocketEventType.CONVERSATION_UNASSIGNED, savedConversation, null);
         publishConversationEvent(ConversationSocketEventType.CONVERSATION_ESCALATED, savedConversation, EscalationReason.STAFF_MANUAL);
+        chatLiveAssignmentPort.tryDispatchNextForFreedOperator(operatorId, conversationId);
 
-        return toManagementConversationDetailResponse(savedConversation);
+        return toManagementConversationDetailResponse(getConversationOrThrow(conversationId));
     }
 
     @Override
@@ -587,6 +615,7 @@ public class ConversationService implements ConversationServicePort {
         }
 
         assertCanClose(conversation, operatorId, isAdmin(operator));
+        UUID freedOperatorId = conversation.getAssignedOperatorId();
         ConversationCloseReason reason = request != null && request.reason() != null
                 ? request.reason()
                 : ConversationCloseReason.OTHER;
@@ -594,7 +623,13 @@ public class ConversationService implements ConversationServicePort {
         saveSystemDividerMessage(conversation.getId(), ConversationModel.manualCloseCustomerCopy());
         ConversationModel savedConversation = conversationRepositoryPort.save(conversation);
         publishConversationEvent(ConversationSocketEventType.CONVERSATION_CLOSED, savedConversation, null);
-        return toManagementConversationDetailResponse(savedConversation);
+        // Only the assignee who finished their own live chat should pull the next waiting
+        // customer. Admin closing on behalf of staff must leave the queue for claim —
+        // otherwise other staff see "assigned to another operator" on the next thread.
+        if (freedOperatorId != null && freedOperatorId.equals(operatorId)) {
+            chatLiveAssignmentPort.tryDispatchNextForFreedOperator(freedOperatorId, conversationId);
+        }
+        return toManagementConversationDetailResponse(getConversationOrThrow(conversationId));
     }
 
     @Override
@@ -646,9 +681,11 @@ public class ConversationService implements ConversationServicePort {
             if (!conversation.isCustomerSilentSince(threshold)) {
                 continue;
             }
+            UUID freedOperatorId = conversation.getAssignedOperatorId();
             finalizeAutoConversationClose(conversation);
             ConversationModel savedConversation = conversationRepositoryPort.save(conversation);
             publishConversationEvent(ConversationSocketEventType.CONVERSATION_CLOSED, savedConversation, null);
+            chatLiveAssignmentPort.tryDispatchNextForFreedOperator(freedOperatorId, conversation.getId());
             count++;
         }
         return count;
@@ -825,9 +862,17 @@ public class ConversationService implements ConversationServicePort {
         if (isAdmin) {
             return;
         }
-        if (!conversation.isVisibleInOperatorQueue(userId)) {
+        if (conversation.getStatus() == ConversationStatus.CLOSED || conversation.isDeleted()) {
+            throw new DomainException(ErrorCode.CONVERSATION_ALREADY_CLOSED);
+        }
+        if (conversation.isVisibleInOperatorQueue(userId)) {
+            return;
+        }
+        if (conversation.getAssignedOperatorId() != null
+                && !userId.equals(conversation.getAssignedOperatorId())) {
             throw new DomainException(ErrorCode.CONVERSATION_ASSIGNED_TO_OTHER);
         }
+        throw new DomainException(ErrorCode.CONVERSATION_VIEW_DENIED);
     }
 
     private void assertCanClose(ConversationModel conversation, UUID userId, boolean isAdmin) {
@@ -883,6 +928,8 @@ public class ConversationService implements ConversationServicePort {
                 .conversationId(conversation.getId())
                 .status(conversation.getStatus())
                 .assignedOperatorId(conversation.getAssignedOperatorId())
+                .lastAssignedOperatorId(conversation.getLastAssignedOperatorId())
+                .closedBy(conversation.getClosedBy())
                 .reason(reason)
                 .customerLastReadAt(conversation.getCustomerLastReadAt())
                 .createdAt(LocalDateTime.now())
@@ -950,7 +997,12 @@ public class ConversationService implements ConversationServicePort {
     }
 
     private ConversationDetailResponse toManagementConversationDetailResponse(ConversationModel conversation) {
-        return toConversationDetailResponse(conversation, true);
+        ConversationDetailResponse detail = toConversationDetailResponse(conversation, true);
+        return ConversationDetailResponse.builder()
+                .conversation(detail.conversation())
+                .messages(detail.messages())
+                .context(chatStaffContextPort.build(conversation))
+                .build();
     }
 
     private ConversationDetailResponse toConversationDetailResponse(ConversationModel conversation) {
@@ -969,6 +1021,32 @@ public class ConversationService implements ConversationServicePort {
                 .conversation(enrichSingleConversationResponse(conversation))
                 .messages(messageResponses)
                 .build();
+    }
+
+    /**
+     * Live staff default: current open sessions only. Closed transcripts stay behind
+     * the explicit previous-session endpoint so they are not mixed into infinite scroll.
+     */
+    private Collection<Long> resolveStaffLiveTimelineScope(
+            List<ConversationModel> customerConversations,
+            Set<Long> visible
+    ) {
+        if (visible == null || visible.isEmpty()) {
+            return Set.of();
+        }
+        boolean hasOpenVisible = customerConversations.stream()
+                .anyMatch(conversation -> conversation.getId() != null
+                        && visible.contains(conversation.getId())
+                        && conversation.getStatus() != ConversationStatus.CLOSED);
+        if (!hasOpenVisible) {
+            return visible;
+        }
+        return customerConversations.stream()
+                .filter(conversation -> conversation.getId() != null
+                        && visible.contains(conversation.getId())
+                        && conversation.getStatus() != ConversationStatus.CLOSED)
+                .map(ConversationModel::getId)
+                .collect(Collectors.toSet());
     }
 
     private boolean isMessageVisibleToStaff(
@@ -997,10 +1075,12 @@ public class ConversationService implements ConversationServicePort {
         String operatorName = response.assignedOperatorId() != null
                 ? resolveOperatorNames(List.of(conversation)).get(response.assignedOperatorId())
                 : null;
+        String customerName = resolveCustomerNames(List.of(conversation)).get(conversation.getCustomerId());
         return chatApplicationMapper.enrichConversationResponse(
                 response,
                 operatorName,
-                response.unreadCount()
+                response.unreadCount(),
+                customerName
         );
     }
 
@@ -1076,6 +1156,7 @@ public class ConversationService implements ConversationServicePort {
             boolean includeUnreadCount
     ) {
         Map<UUID, String> operatorNames = resolveOperatorNames(conversations);
+        Map<UUID, String> customerNames = resolveCustomerNames(conversations);
         return conversations.stream()
                 .map(chatApplicationMapper::toConversationResponse)
                 .map(response -> chatApplicationMapper.enrichConversationResponse(
@@ -1083,9 +1164,26 @@ public class ConversationService implements ConversationServicePort {
                         response.assignedOperatorId() != null
                                 ? operatorNames.get(response.assignedOperatorId())
                                 : null,
-                        includeUnreadCount ? resolveUnreadCount(response.id(), userId) : null
+                        includeUnreadCount ? resolveUnreadCount(response.id(), userId) : null,
+                        response.customerId() != null ? customerNames.get(response.customerId()) : null
                 ))
                 .toList();
+    }
+
+    private Map<UUID, String> resolveCustomerNames(List<ConversationModel> conversations) {
+        Map<UUID, String> customerNames = new HashMap<>();
+        conversations.stream()
+                .map(ConversationModel::getCustomerId)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .forEach(customerId -> userLookupServicePort.findById(customerId)
+                        .ifPresent(user -> {
+                            String name = user.getFullName();
+                            if (name != null && !name.isBlank()) {
+                                customerNames.put(customerId, name.trim());
+                            }
+                        }));
+        return customerNames;
     }
 
     private Map<UUID, String> resolveOperatorNames(List<ConversationModel> conversations) {
@@ -1186,6 +1284,39 @@ public class ConversationService implements ConversationServicePort {
         }
     }
 
+    /**
+     * Assigned operator opening their thread, or any staff opening an unassigned
+     * waiting conversation, clears management unread for that conversation.
+     */
+    private boolean shouldMarkOperatorReadOnOpen(UUID userId, ConversationModel conversation) {
+        if (conversation == null || conversation.getStatus() == ConversationStatus.CLOSED) {
+            return false;
+        }
+        if (userId.equals(conversation.getAssignedOperatorId())) {
+            return true;
+        }
+        return conversation.getAssignedOperatorId() == null;
+    }
+
+    private void markStaffReadOnOpen(
+            UUID userId,
+            List<ConversationModel> customerConversations,
+            Collection<Long> conversationScope
+    ) {
+        LocalDateTime readAt = LocalDateTime.now();
+        for (ConversationModel conversation : customerConversations) {
+            if (conversationScope != null && !conversationScope.contains(conversation.getId())) {
+                continue;
+            }
+            // Do not clear another operator's unread when admin only peeks their thread.
+            if (!shouldMarkOperatorReadOnOpen(userId, conversation)) {
+                continue;
+            }
+            conversation.markOperatorRead(readAt);
+            conversationRepositoryPort.save(conversation);
+        }
+    }
+
     private MessageSenderType resolveSenderType(ConversationModel conversation, UUID userId) {
         if (userId.equals(conversation.getCustomerId())) {
             return MessageSenderType.CUSTOMER;
@@ -1198,7 +1329,9 @@ public class ConversationService implements ConversationServicePort {
 
     private String resolveConversationTitle(UserModel customer, InitConversationRequest request) {
         String requestTitle = request != null ? request.title() : null;
-        if (requestTitle != null && !requestTitle.isBlank()) {
+        if (requestTitle != null
+                && !requestTitle.isBlank()
+                && !PLACEHOLDER_CONVERSATION_TITLES.contains(requestTitle.trim())) {
             return requestTitle.trim();
         }
         if (customer.getFullName() != null && !customer.getFullName().isBlank()) {

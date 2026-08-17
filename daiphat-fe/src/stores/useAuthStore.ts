@@ -1,8 +1,26 @@
 import { create } from "zustand";
 import { persist, devtools } from "zustand/middleware";
+import Cookies from "js-cookie";
 
 import { STORAGE_KEYS } from "../constants/storage.constants";
 import { User } from "../types/user.type";
+
+const readCookieAccessToken = () => {
+    if (typeof window === "undefined") return null;
+    const value = Cookies.get(STORAGE_KEYS.TOKEN)?.trim();
+    if (!value || value === "undefined" || value === "null") return null;
+    return value;
+};
+
+/** Cookie `token` → RAM, rồi mở isHydrated. Không đọc localStorage. */
+const markHydratedFromCookie = () => {
+    const current = useAuthStore.getState().token;
+    const cookieToken = readCookieAccessToken();
+    useAuthStore.setState({
+        isHydrated: true,
+        token: current || cookieToken,
+    });
+};
 
 interface AuthState {
     user: User | null;
@@ -91,24 +109,16 @@ export const useAuthStore = create<AuthState>()(
             }),
             {
                 name: STORAGE_KEYS.AUTH,
-                partialize: (state) => ({ 
-                    token: state.token, 
-                    expiresAt: state.expiresAt 
-                }),
-                onRehydrateStorage: () => (state, error) => {
+                version: 2,
+                // Access không persist localStorage — bản sống là cookie `token`.
+                migrate: () => ({}),
+                partialize: () => ({}),
+                onRehydrateStorage: () => (_state, error) => {
                     if (error && typeof window !== "undefined") {
                         console.warn("Auth store rehydration failed", error);
                     }
-                    if (state) {
-                        state.set({ isHydrated: true });
-                        return;
-                    }
-
-                    // Persist supplies no state when browser storage cannot be
-                    // read. Do not leave guards on an endless loading screen.
-                    // The server has no browser storage to recover from.
                     if (typeof window !== "undefined") {
-                        queueMicrotask(() => useAuthStore.setState({ isHydrated: true }));
+                        queueMicrotask(markHydratedFromCookie);
                     }
                 },
             }
@@ -127,10 +137,10 @@ if (typeof window !== "undefined") {
     }).persist;
 
     if (persistApi?.hasHydrated?.()) {
-        useAuthStore.setState({ isHydrated: true });
+        markHydratedFromCookie();
     } else {
         persistApi?.onFinishHydration?.(() => {
-            useAuthStore.setState({ isHydrated: true });
+            markHydratedFromCookie();
         });
     }
 }

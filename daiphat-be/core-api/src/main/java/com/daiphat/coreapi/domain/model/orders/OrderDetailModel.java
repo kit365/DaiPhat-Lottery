@@ -38,7 +38,14 @@ public class OrderDetailModel {
     private boolean hasReplacement = false;
 
     @Builder.Default
-    private OrderDetailStatus status = OrderDetailStatus.ACTIVE;
+    private OrderDetailStatus status = OrderDetailStatus.HANDOVER_IN_PROGRESS;
+
+    /** Why a paid ticket was not accepted by the customer. Never implies a refund. */
+    private String rejectionReason;
+    private LocalDateTime rejectedAt;
+    private UUID rejectedBy;
+    private LocalDateTime handedOverAt;
+    private UUID handedOverBy;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -47,19 +54,45 @@ public class OrderDetailModel {
 
     public void initializeForCreate() {
         if (this.status == null) {
-            this.status = OrderDetailStatus.ACTIVE;
+            this.status = OrderDetailStatus.HANDOVER_IN_PROGRESS;
         }
     }
 
     public void markRefundPending() {
-        ensureStatus(OrderDetailStatus.ACTIVE);
+        if (!canEnterRefundLifecycle()) {
+            throw new DomainException(ErrorCode.ORDER_DETAIL_INVALID_STATUS);
+        }
         this.status = OrderDetailStatus.REFUND_PENDING;
     }
 
-    public void markInactive() {
-        if (this.status == OrderDetailStatus.ACTIVE) {
-            this.status = OrderDetailStatus.INACTIVE;
+    public void markProxyHolding() {
+        if (this.status == OrderDetailStatus.HANDOVER_IN_PROGRESS
+                || this.status == OrderDetailStatus.CANCELLED) {
+            this.status = OrderDetailStatus.PROXY_HOLDING;
         }
+    }
+
+    /** Close an unfulfilled line when its parent order is cancelled without a refund. */
+    public void markCancelled() {
+        if (!isAwaitingHandover()) {
+            throw new DomainException(ErrorCode.ORDER_DETAIL_INVALID_STATUS);
+        }
+        this.status = OrderDetailStatus.CANCELLED;
+    }
+
+    public void openHandover() {
+        ensureStatus(OrderDetailStatus.PROXY_HOLDING);
+        this.status = OrderDetailStatus.HANDOVER_IN_PROGRESS;
+    }
+
+    public void markHandedOver(UUID operatorId, LocalDateTime handedOverAt) {
+        ensureStatus(OrderDetailStatus.HANDOVER_IN_PROGRESS);
+        if (operatorId == null || handedOverAt == null) {
+            throw new DomainException(ErrorCode.INVALID_INPUT);
+        }
+        this.status = OrderDetailStatus.HANDED_OVER;
+        this.handedOverBy = operatorId;
+        this.handedOverAt = handedOverAt;
     }
 
     public void markRefunded() {
@@ -67,9 +100,20 @@ public class OrderDetailModel {
         this.status = OrderDetailStatus.REFUNDED;
     }
 
-    public void restoreActive() {
+    public void markRejectedByCustomer(String reason, UUID operatorId, LocalDateTime rejectedAt) {
+        ensureStatus(OrderDetailStatus.HANDOVER_IN_PROGRESS);
+        if (reason == null || reason.isBlank() || operatorId == null || rejectedAt == null) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "Cần nêu lý do khách từ chối nhận vé.");
+        }
+        this.status = OrderDetailStatus.REJECTED_BY_CUSTOMER;
+        this.rejectionReason = reason.trim();
+        this.rejectedBy = operatorId;
+        this.rejectedAt = rejectedAt;
+    }
+
+    public void restoreToHandoverInProgress() {
         ensureStatus(OrderDetailStatus.REFUND_PENDING);
-        this.status = OrderDetailStatus.ACTIVE;
+        this.status = OrderDetailStatus.HANDOVER_IN_PROGRESS;
     }
 
     public void replaceWith(Long replacementTicketId, Long replacementTicketSerialId) {
@@ -97,6 +141,28 @@ public class OrderDetailModel {
 
     public boolean isRefunded() {
         return this.status == OrderDetailStatus.REFUNDED;
+    }
+
+    public boolean isAwaitingHandover() {
+        return this.status == OrderDetailStatus.PROXY_HOLDING
+                || this.status == OrderDetailStatus.HANDOVER_IN_PROGRESS;
+    }
+
+    public boolean isFinalHandoverState() {
+        return this.status == OrderDetailStatus.HANDED_OVER
+                || this.status == OrderDetailStatus.REJECTED_BY_CUSTOMER
+                || this.status == OrderDetailStatus.REFUNDED;
+    }
+
+    public boolean canEnterRefundLifecycle() {
+        return isAwaitingHandover() || this.status == OrderDetailStatus.REJECTED_BY_CUSTOMER;
+    }
+
+    public boolean contributesToOrderAmount() {
+        // A cancelled payment-timeout order may later be reinstated after its
+        // payment proof is verified. Keep its line value in the order total so
+        // the verified payment is calculated from the original payable amount.
+        return this.status != OrderDetailStatus.REFUNDED;
     }
 
     public int getEffectiveQuantity() {

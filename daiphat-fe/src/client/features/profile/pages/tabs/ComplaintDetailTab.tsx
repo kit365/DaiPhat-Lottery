@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useRouteParams } from "@/hooks/useRouteParams";
 import Link from "next/link";
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { format } from 'date-fns';
 import { ComplaintFormModal } from '../../../../components/support/ComplaintFormModal';
 import { ComplaintStatusBadge } from '../../../../components/support/ComplaintStatusBadge';
@@ -17,6 +17,19 @@ import {
 import { TicketRefType, TicketStatus, TICKET_REF_TYPE_LABELS, canCustomerCancelTicket, findReasonComment } from '../../../../../types/support.type';
 import { AppToast } from '../../../../../utils/toast.util';
 import { UnavailableReferenceState, UNAVAILABLE_REFERENCE_MESSAGE } from '../../../../components/notification/UnavailableReferenceState';
+
+const Field = ({
+    label,
+    children,
+}: {
+    label: string;
+    children: ReactNode;
+}) => (
+    <div className="grid grid-cols-1 sm:grid-cols-[8.5rem_minmax(0,1fr)] gap-1 sm:gap-4 py-3.5 border-b border-[#F4F6F8]">
+        <dt className="text-[13px] text-[#637381] pt-0.5">{label}</dt>
+        <dd className="text-[14px] text-[#212B36] font-medium min-w-0">{children}</dd>
+    </div>
+);
 
 export const ComplaintDetailTab = () => {
     const { id } = useRouteParams();
@@ -52,14 +65,14 @@ export const ComplaintDetailTab = () => {
             'Huỷ khiếu nại'
         );
         if (confirmed) {
-            closeMutation.mutate(ticketId);
+            closeMutation.mutate({ id: ticketId, intent: 'cancel' });
         }
     };
 
     if (isLoading) {
         return (
             <div className="py-16 text-center text-[14px] text-[#637381]">
-                <i className="fa-solid fa-spinner fa-spin mr-2"></i> Đang tải chi tiết...
+                Đang tải chi tiết…
             </div>
         );
     }
@@ -81,252 +94,196 @@ export const ComplaintDetailTab = () => {
     const canCancel = canCustomerCancelTicket(ticket.status);
     const isReadOnly = !canEdit;
 
+    const relatedLink = (() => {
+        if (!ticket.refId || !ticket.refType) return null;
+        if (ticket.refType === TicketRefType.ORDER) {
+            return {
+                href: `/profile/orders/${ticket.refId}`,
+                label: ticket.refId.slice(0, 8).toUpperCase(),
+            };
+        }
+        if (ticket.refType === TicketRefType.REFUND_REQUEST) {
+            return {
+                href: `/profile/refunds/${ticket.refId}`,
+                label: `#${ticket.refId}`,
+            };
+        }
+        return null;
+    })();
+
     return (
-        <div className="flex flex-col gap-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
+        <div className="flex flex-col gap-4 lg:h-[calc(100dvh-188px)]">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 shrink-0">
+                <div className="min-w-0">
                     <button
+                        type="button"
                         onClick={() => router.push('/profile/complaints')}
-                        className="text-[13px] text-[#637381] hover:text-[#ee1314] font-medium flex items-center gap-1.5 mb-2 cursor-pointer"
+                        className="text-[13px] text-[#637381] hover:text-[#212B36] font-medium mb-3 cursor-pointer bg-transparent border-0 p-0"
                     >
-                        <i className="fa-solid fa-arrow-left text-[11px]"></i> Quay lại danh sách
+                        Quay lại danh sách
                     </button>
-                    <div className="flex items-center gap-3 flex-wrap">
-                        <h2 className="client-heading m-0">Khiếu nại #{ticket.id}</h2>
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                        <h1 className="client-heading m-0">{ticket.title}</h1>
                         <ComplaintStatusBadge status={ticket.status} />
                     </div>
-                    <p className="text-[14px] text-[#637381] mt-1">
-                        Tạo lúc {format(new Date(ticket.createdAt), 'dd/MM/yyyy HH:mm')}
+                    <p className="text-[13px] text-[#637381] mt-1.5 tabular-nums">
+                        Khiếu nại #{ticket.id} · Tạo {format(new Date(ticket.createdAt), 'dd/MM/yyyy HH:mm')}
                         {ticket.dueAt && (
-                            <> · Hạn xử lý: {format(new Date(ticket.dueAt), 'dd/MM/yyyy HH:mm')}</>
+                            <> · Hạn {format(new Date(ticket.dueAt), 'dd/MM/yyyy HH:mm')}</>
                         )}
                     </p>
+                    <div className="mt-3">
+                        <ComplaintStatusStepper status={ticket.status} />
+                    </div>
                 </div>
 
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-wrap gap-2 shrink-0">
                     {canEdit && (
                         <button
+                            type="button"
                             onClick={() => setShowEditModal(true)}
-                            className="px-5 py-3 rounded-xl border border-[#2065D1] bg-white text-[#2065D1] font-bold text-[14px] hover:bg-[#F0F5FF] shadow-[0_4px_14px_rgba(16,41,55,0.08)] transition-colors cursor-pointer"
+                            className="h-9 px-4 rounded-xl border border-[#E5E8EB] bg-white text-[#212B36] font-semibold text-[13px] hover:bg-[#F9FAFB] cursor-pointer"
                         >
-                            <i className="fa-solid fa-pen mr-2"></i> Chỉnh sửa
+                            Chỉnh sửa
                         </button>
                     )}
                     {canCancel && (
                         <button
+                            type="button"
                             onClick={handleCancel}
                             disabled={closeMutation.isPending}
-                            className="px-5 py-3 rounded-xl border border-[#ee1314] bg-white text-[#ee1314] font-bold text-[14px] hover:bg-[#FFF4F4] shadow-[0_4px_14px_rgba(16,41,55,0.08)] transition-colors cursor-pointer disabled:opacity-50"
+                            className="h-9 px-4 rounded-xl border border-[#ee1314]/30 bg-white text-[#ee1314] font-semibold text-[13px] hover:bg-[#FFF4F4] cursor-pointer disabled:opacity-50"
                         >
-                            {closeMutation.isPending ? (
-                                <i className="fa-solid fa-spinner fa-spin"></i>
-                            ) : (
-                                <>
-                                    <i className="fa-solid fa-ban mr-2"></i> Huỷ khiếu nại
-                                </>
-                            )}
+                            {closeMutation.isPending && closeMutation.variables?.intent === 'cancel'
+                                ? 'Đang huỷ…'
+                                : 'Huỷ khiếu nại'}
                         </button>
                     )}
                 </div>
             </div>
 
-            <ComplaintStatusStepper status={ticket.status} />
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white rounded-[20px] p-6 lg:p-8 border border-[#E5E8EB] shadow-[0_2px_12px_rgb(0,0,0,0.03)] flex flex-col gap-5">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-[#FFF4F4] text-[#ee1314] flex items-center justify-center text-lg shrink-0">
-                            <i className="fa-solid fa-file-lines"></i>
-                        </div>
-                        <h3 className="text-[18px] font-bold text-[#212B36]">Thông tin khiếu nại</h3>
-                    </div>
-
-                    <div className="flex flex-col border-t border-[#F4F6F8] pt-2">
-                        <div className="flex flex-col sm:flex-row sm:items-start py-4 border-b border-dashed border-[#F4F6F8] gap-1 sm:gap-4">
-                            <div className="sm:w-1/3 text-[14px] text-[#637381] flex items-center gap-2 font-medium">
-                                <i className="fa-solid fa-layer-group w-4 text-center text-[#919EAB]"></i> Danh mục
-                            </div>
-                            <div className="sm:w-2/3 text-[15px] font-semibold text-[#212B36]">{categoryName}</div>
-                        </div>
-                        <div className="flex flex-col sm:flex-row sm:items-start py-4 border-b border-dashed border-[#F4F6F8] gap-1 sm:gap-4">
-                            <div className="sm:w-1/3 text-[14px] text-[#637381] flex items-center gap-2 font-medium">
-                                <i className="fa-solid fa-heading w-4 text-center text-[#919EAB]"></i> Tiêu đề
-                            </div>
-                            <div className="sm:w-2/3 text-[15px] font-semibold text-[#212B36]">{ticket.title}</div>
-                        </div>
-                        <div className="flex flex-col sm:flex-row sm:items-start py-4 border-b border-dashed border-[#F4F6F8] gap-1 sm:gap-4">
-                            <div className="sm:w-1/3 text-[14px] text-[#637381] flex items-center gap-2 mt-0.5 font-medium">
-                                <i className="fa-solid fa-align-left w-4 text-center text-[#919EAB]"></i> Mô tả
-                            </div>
-                            <div className="sm:w-2/3 text-[15px] font-medium text-[#212B36] leading-relaxed whitespace-pre-wrap bg-[#F9FAFB] p-3 rounded-xl border border-[#E5E8EB]">
-                                {ticket.description}
-                            </div>
-                        </div>
-                        {ticket.refId && ticket.refType && (
-                            <div className="flex flex-col sm:flex-row sm:items-center py-4 border-b border-dashed border-[#F4F6F8] gap-1 sm:gap-4">
-                                <div className="sm:w-1/3 text-[14px] text-[#637381] flex items-center gap-2 font-medium">
-                                    <i className="fa-solid fa-link w-4 text-center text-[#919EAB]"></i> 
-                                    {TICKET_REF_TYPE_LABELS[ticket.refType]}
-                                </div>
-                                <div className="sm:w-2/3">
-                                    {ticket.refType === TicketRefType.ORDER ? (
-                                        <Link
-                                            href={`/profile/orders/${ticket.refId}`}
-                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F0F5FF] text-[#2065D1] rounded-lg text-[14px] font-bold hover:bg-[#D0E2FF] transition-colors"
-                                        >
-                                            <i className="fa-solid fa-up-right-from-square text-[12px]"></i>
-                                            Mã đơn #{ticket.refId.slice(0, 8).toUpperCase()}
-                                        </Link>
-                                    ) : ticket.refType === TicketRefType.REFUND_REQUEST ? (
-                                        <Link
-                                            href={`/profile/refunds/${ticket.refId}`}
-                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#FFF4F4] text-[#ee1314] rounded-lg text-[14px] font-bold hover:bg-[#FFE4E4] transition-colors"
-                                        >
-                                            <i className="fa-solid fa-up-right-from-square text-[12px]"></i>
-                                            Mã yêu cầu #{ticket.refId}
-                                        </Link>
-                                    ) : ticket.refType === TicketRefType.PRIZE_CLAIM ? (
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                if (typeof window !== 'undefined') {
-                                                    window.sessionStorage.setItem(
-                                                        `prizePayoutBack:${ticket.refId}`,
-                                                        String(ticket.id)
-                                                    );
-                                                }
-                                                router.push(`/profile/prize-payouts/${ticket.refId}?fromComplaintId=${ticket.id}`);
-                                            }}
-                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#FFF9F3] text-[#B76E00] rounded-lg text-[14px] font-bold hover:bg-[#FFEFD6] transition-colors cursor-pointer"
-                                        >
-                                            <i className="fa-solid fa-up-right-from-square text-[12px]"></i>
-                                            Trả thưởng #{ticket.refId}
-                                        </button>
-                                    ) : (
-                                        <span className="text-[15px] font-semibold text-[#212B36] font-mono bg-[#F4F6F8] px-2 py-1 rounded-md">
-                                            {ticket.refId}
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-                        {isReadOnly && ticket.status !== TicketStatus.CLOSED && (
-                            <p className="text-[13px] text-[#919EAB] italic mt-4 flex items-center gap-2">
-                                <i className="fa-solid fa-circle-info"></i> Thông tin trên không thể chỉnh sửa ở trạng thái hiện tại.
-                            </p>
-                        )}
-                    </div>
-                </div>
-
-                <div className="bg-white rounded-[20px] p-6 lg:p-8 border border-[#E5E8EB] shadow-[0_2px_12px_rgb(0,0,0,0.03)] flex flex-col gap-5">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-[#FFF4F4] text-[#ee1314] flex items-center justify-center text-lg shrink-0">
-                            <i className="fa-solid fa-image"></i>
-                        </div>
-                        <h3 className="text-[18px] font-bold text-[#212B36]">Tệp đính kèm</h3>
-                    </div>
-
-                    {ticket.attachmentUrl ? (
-                        <div className="border-t border-[#F4F6F8] pt-5 flex flex-col items-center">
-                            <a
-                                href={ticket.attachmentUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="block rounded-2xl border border-[#E5E8EB] overflow-hidden hover:border-[#ee1314]/50 transition-all hover:shadow-md w-full bg-[#F4F6F8]"
-                            >
-                                <img
-                                    src={ticket.attachmentUrl}
-                                    alt="Đính kèm"
-                                    className="w-full h-48 sm:h-64 object-contain"
-                                />
-                            </a>
-                            <a
-                                href={ticket.attachmentUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 px-4 py-2 mt-4 bg-[#F0F5FF] text-[#2065D1] rounded-xl text-[14px] font-bold hover:bg-[#D0E2FF] transition-colors"
-                            >
-                                <i className="fa-solid fa-up-right-from-square"></i> Xem ảnh gốc
-                            </a>
-                        </div>
-                    ) : (
-                        <div className="border-t border-[#F4F6F8] pt-8 pb-4 flex flex-col items-center justify-center text-[#919EAB] gap-2">
-                            <i className="fa-solid fa-image text-3xl opacity-50"></i>
-                            <p className="text-[14px]">Chưa có tệp đính kèm</p>
-                        </div>
+            {(ticket.status === TicketStatus.RESOLVED ||
+                ticket.status === TicketStatus.CLOSED ||
+                ticket.status === TicketStatus.REJECTED) && (
+                <div
+                    className={`shrink-0 rounded-xl px-4 py-3 text-[13px] leading-relaxed ${
+                        ticket.status === TicketStatus.REJECTED
+                            ? 'bg-[#FFF4F4] text-[#454F5B]'
+                            : ticket.status === TicketStatus.RESOLVED
+                              ? 'bg-[#F3FAF6] text-[#454F5B]'
+                              : 'bg-[#F4F6F8] text-[#637381]'
+                    }`}
+                >
+                    {ticket.status === TicketStatus.RESOLVED && (
+                        <>
+                            Đã giải quyết
+                            {ticket.resolvedAt
+                                ? ` · ${format(new Date(ticket.resolvedAt), 'dd/MM/yyyy HH:mm')}`
+                                : ''}
+                            . Xác nhận trong phần trao đổi bên phải.
+                        </>
+                    )}
+                    {ticket.status === TicketStatus.CLOSED && (
+                        <>
+                            Khiếu nại đã đóng
+                            {ticket.resolvedAt
+                                ? ` · ${format(new Date(ticket.resolvedAt), 'dd/MM/yyyy HH:mm')}`
+                                : ''}
+                            .
+                        </>
+                    )}
+                    {ticket.status === TicketStatus.REJECTED && (
+                        <>
+                            <span className="font-semibold text-[#212B36]">Đã từ chối</span>
+                            {ticket.resolvedAt
+                                ? ` · ${format(new Date(ticket.resolvedAt), 'dd/MM/yyyy HH:mm')}`
+                                : ''}
+                            {reasonText ? `. ${reasonText}` : '.'}
+                        </>
                     )}
                 </div>
-            </div>
+            )}
 
-            {ticket.status === TicketStatus.RESOLVED && (
-                <div className="bg-[#E4F8ED] rounded-[20px] p-6 lg:p-8 border border-[#1CD162]/20 flex items-start gap-4">
-                    <div className="w-10 h-10 rounded-full bg-[#1CD162] text-white flex items-center justify-center text-lg shrink-0">
-                        <i className="fa-solid fa-check"></i>
-                    </div>
-                    <div>
-                        <h3 className="text-[18px] font-bold text-[#212B36]">Đã giải quyết</h3>
-                        {ticket.resolvedAt && (
-                            <p className="text-[14px] text-[#637381] mt-1">
-                                {format(new Date(ticket.resolvedAt), 'dd/MM/yyyy HH:mm')}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start lg:items-stretch lg:flex-1 lg:min-h-0">
+                <section className="bg-white rounded-[20px] p-5 sm:p-6 border border-[#E5E8EB] shadow-[0_2px_12px_rgb(0,0,0,0.03)] lg:overflow-y-auto lg:min-h-0">
+                    <h2 className="text-[15px] font-bold text-[#212B36] mb-1">Thông tin khiếu nại</h2>
+                    <dl>
+                        <Field label="Danh mục">{categoryName}</Field>
+                        <Field label="Mô tả">
+                            <p className="font-normal leading-relaxed whitespace-pre-wrap text-[#454F5B]">
+                                {ticket.description}
                             </p>
+                        </Field>
+                        {ticket.refId && ticket.refType && (
+                            <Field label={TICKET_REF_TYPE_LABELS[ticket.refType]}>
+                                {relatedLink ? (
+                                    <Link
+                                        href={relatedLink.href}
+                                        className="text-[#ee1314] font-semibold hover:underline"
+                                    >
+                                        {relatedLink.label}
+                                    </Link>
+                                ) : ticket.refType === TicketRefType.PRIZE_CLAIM ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (typeof window !== 'undefined') {
+                                                window.sessionStorage.setItem(
+                                                    `prizePayoutBack:${ticket.refId}`,
+                                                    String(ticket.id)
+                                                );
+                                            }
+                                            router.push(
+                                                `/profile/prize-payouts/${ticket.refId}?fromComplaintId=${ticket.id}`
+                                            );
+                                        }}
+                                        className="text-[#ee1314] font-semibold hover:underline cursor-pointer bg-transparent border-0 p-0"
+                                    >
+                                        #{ticket.refId}
+                                    </button>
+                                ) : (
+                                    <span className="tabular-nums">{ticket.refId}</span>
+                                )}
+                            </Field>
                         )}
-                        <p className="text-[13px] text-[#637381] mt-3">
-                            Vui lòng xác nhận bạn có hài lòng với phương án giải quyết trong phần trao đổi bên dưới.
+                        <Field label="Tệp đính kèm">
+                            {ticket.attachmentUrl ? (
+                                <a
+                                    href={ticket.attachmentUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-2.5 text-[#212B36] font-semibold hover:underline"
+                                >
+                                    <img
+                                        src={ticket.attachmentUrl}
+                                        alt=""
+                                        className="w-12 h-12 rounded-lg object-cover border border-[#E5E8EB] bg-[#F9FAFB]"
+                                    />
+                                    Xem tệp
+                                </a>
+                            ) : (
+                                <span className="font-normal text-[#919EAB]">Không có</span>
+                            )}
+                        </Field>
+                    </dl>
+                    {isReadOnly && ticket.status !== TicketStatus.CLOSED && (
+                        <p className="text-[12px] text-[#919EAB] mt-4">
+                            Không thể chỉnh sửa thông tin ở trạng thái hiện tại.
                         </p>
-                    </div>
-                </div>
-            )}
+                    )}
+                    <p className="text-[12px] text-[#919EAB] tabular-nums mt-4">
+                        Cập nhật {format(new Date(ticket.updatedAt), 'dd/MM/yyyy HH:mm')}
+                    </p>
+                </section>
 
-            {ticket.status === TicketStatus.CLOSED && (
-                <div className="bg-[#F4F6F8] rounded-[20px] p-6 lg:p-8 border border-[#DFE3E8] flex items-start gap-4">
-                    <div className="w-10 h-10 rounded-full bg-[#637381] text-white flex items-center justify-center text-lg shrink-0">
-                        <i className="fa-solid fa-lock"></i>
-                    </div>
-                    <div>
-                        <h3 className="text-[18px] font-bold text-[#212B36]">Đã đóng</h3>
-                        {ticket.resolvedAt && (
-                            <p className="text-[14px] text-[#637381] mt-1">
-                                {format(new Date(ticket.resolvedAt), 'dd/MM/yyyy HH:mm')}
-                            </p>
-                        )}
-                        <p className="text-[13px] text-[#637381] mt-3">
-                            Khiếu nại đã được giải quyết và đóng.
-                        </p>
-                    </div>
-                </div>
-            )}
-
-            {ticket.status === TicketStatus.REJECTED && (
-                <div className="bg-[#FFF0F0] rounded-[20px] p-6 lg:p-8 border border-[#ee1314]/20 flex items-start gap-4">
-                    <div className="w-10 h-10 rounded-full bg-[#B71D18] text-white flex items-center justify-center text-lg shrink-0">
-                        <i className="fa-solid fa-circle-xmark"></i>
-                    </div>
-                    <div>
-                        <h3 className="text-[18px] font-bold text-[#212B36]">Đã từ chối</h3>
-                        {ticket.resolvedAt && (
-                            <p className="text-[14px] text-[#637381] mt-1">
-                                {format(new Date(ticket.resolvedAt), 'dd/MM/yyyy HH:mm')}
-                            </p>
-                        )}
-                        {reasonText && (
-                            <p className="text-[14px] text-[#454F5B] mt-3 whitespace-pre-wrap leading-relaxed">
-                                {reasonText}
-                            </p>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            <ComplaintTimelineChat
-                ticketId={ticket.id}
-                status={ticket.status}
-                hideCommentIds={
-                    ticket.resolvedReasonId != null ? [ticket.resolvedReasonId] : undefined
-                }
-            />
-
-            <div className="text-center text-[13px] text-[#919EAB]">
-                Cập nhật lần cuối: {format(new Date(ticket.updatedAt), 'dd/MM/yyyy HH:mm')}
+                <ComplaintTimelineChat
+                    ticketId={ticket.id}
+                    status={ticket.status}
+                    hideCommentIds={
+                        ticket.resolvedReasonId != null ? [ticket.resolvedReasonId] : undefined
+                    }
+                    className="h-[min(70dvh,640px)] lg:h-full lg:min-h-0"
+                />
             </div>
 
             {canEdit && (

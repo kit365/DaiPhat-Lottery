@@ -259,13 +259,36 @@ class _HomeContentState extends ConsumerState<_HomeContent>
     final homeState = ref.watch(homeLotteryProvider(normalizedDate));
 
     return homeState.when(
-      loading: HomeView.buildSkeleton,
-      error: (error, _) => Center(child: Text('Loi: $error')),
-      data: (data) => _buildLoadedState(data),
+      loading: () => _buildLoadedState(
+        const HomeLotteryData(
+          results: [],
+          availableProvinces: [],
+          isWaitingForResults: true,
+        ),
+        normalizedDate: normalizedDate,
+        isContentLoading: true,
+      ),
+      error: (error, _) => _buildLoadedState(
+        const HomeLotteryData(
+          results: [],
+          availableProvinces: [],
+        ),
+        normalizedDate: normalizedDate,
+        errorMessage: error.toString(),
+      ),
+      data: (data) => _buildLoadedState(
+        data,
+        normalizedDate: normalizedDate,
+      ),
     );
   }
 
-  Widget _buildLoadedState(HomeLotteryData data) {
+  Widget _buildLoadedState(
+    HomeLotteryData data, {
+    required DateTime normalizedDate,
+    bool isContentLoading = false,
+    String? errorMessage,
+  }) {
     if ((_pendingStationName != null && _pendingStationName!.isNotEmpty) ||
         _pendingStationId != null) {
       _applyPendingStationLookup(data);
@@ -310,8 +333,19 @@ class _HomeContentState extends ConsumerState<_HomeContent>
           ),
         ),
         SafeArea(
-          child: CustomScrollView(
-            slivers: [
+          child: RefreshIndicator(
+            color: AppColors.primary,
+            onRefresh: () async {
+              ref.invalidate(homeLotteryProvider(normalizedDate));
+              await ref.read(homeLotteryProvider(normalizedDate).future);
+              if (widget.loginViewModel.isAuthenticated) {
+                await widget.notificationViewModel
+                    .fetchNotifications(refresh: true);
+              }
+            },
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
               SliverToBoxAdapter(
                 child: HomeHeader(
                   loginViewModel: widget.loginViewModel,
@@ -344,29 +378,64 @@ class _HomeContentState extends ConsumerState<_HomeContent>
                 ),
               ),
               const SliverToBoxAdapter(child: SizedBox(height: 28)),
-              SliverToBoxAdapter(
-                child: ResultsCard(
-                  results: displayResults,
-                  displayProvinces: displayProvinces,
-                  isSingleSel: _selectedProvinces.length == 1,
-                  selLabel: _selectedProvinces.length == 1
-                      ? _selectedProvinces.first
-                      : null,
-                  isWaitingForResults: data.isWaitingForResults,
+              if (isContentLoading)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Shimmer.fromColors(
+                      baseColor: Colors.grey[300]!,
+                      highlightColor: Colors.grey[100]!,
+                      child: Container(
+                        height: 220,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+              else if (errorMessage != null)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.cardBorder),
+                      ),
+                      child: Text(
+                        'Không tải được kết quả xổ số.\n$errorMessage',
+                        style: const TextStyle(color: AppColors.textMuted),
+                      ),
+                    ),
+                  ),
+                )
+              else ...[
+                SliverToBoxAdapter(
+                  child: ResultsCard(
+                    results: displayResults,
+                    displayProvinces: displayProvinces,
+                    isSingleSel: _selectedProvinces.length == 1,
+                    selLabel: _selectedProvinces.length == 1
+                        ? _selectedProvinces.first
+                        : null,
+                    isWaitingForResults: data.isWaitingForResults,
+                  ),
                 ),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 24)),
-              SliverToBoxAdapter(
-                child: LotoCard(
-                  provinces: allProvinces,
-                  globalSel: _selectedProvinces.length == 1
-                      ? _selectedProvinces.first
-                      : null,
-                  results: data.results,
+                const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                SliverToBoxAdapter(
+                  child: LotoCard(
+                    provinces: allProvinces,
+                    results: data.results,
+                  ),
                 ),
-              ),
+              ],
               const SliverToBoxAdapter(child: SizedBox(height: 40)),
             ],
+            ),
           ),
         ),
       ],

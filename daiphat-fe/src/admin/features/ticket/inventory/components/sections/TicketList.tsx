@@ -10,6 +10,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Dialog from '@mui/material/Dialog';
 import DialogContent from '@mui/material/DialogContent';
 import { useMemo } from 'react';
+import dayjs from 'dayjs';
 import { useQueryClient } from '@tanstack/react-query';
 import {
     IGridSettings,
@@ -22,18 +23,23 @@ import {
 import { TicketToolbar } from './TicketToolbar';
 import { columnsConfig, columnsInitialState } from '../configs/column.config';
 import { buildCancelSelectColumn } from '../configs/cancelSelectColumn.config';
-import { DATA_GRID_LOCALE_VN } from '../../../../../../shared/components/DataTable/localeText.config';
+import { DATA_GRID_LOCALE_VN } from "@/admin/components/data-grid/localeText.config";
 import type { useTicketInventory } from '../../hooks/useTicketInventory';
 import { useCancelTicketSelection } from '../../../import-batch/hooks/useCancelTicketSelection';
 import { LazyReportSerialFaultPane } from '../../../import-batch/components/sections/LazyReportSerialFaultPane';
 import { QUERY_KEYS } from '../../constants/queryKeys';
 
+const toIsoDate = (d?: string) => {
+    if (!d) return undefined;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+    const parsed = dayjs(d, ['DD/MM/YYYY', 'YYYY-MM-DD'], true);
+    return parsed.isValid() ? parsed.format('YYYY-MM-DD') : d;
+};
+
 declare module '@mui/x-data-grid' {
     interface ToolbarPropsOverrides {
         settings: IGridSettings;
         onSettingsChange: import('react').Dispatch<import('react').SetStateAction<IGridSettings>>;
-        cancelSelectedCount?: number;
-        onCancelTicketsClick?: () => void;
     }
 }
 
@@ -65,17 +71,24 @@ export const TicketList = ({
     const cancelSelection = externalCancelSelection || internalCancelSelection;
 
     const columns = useMemo<GridColDef[]>(
-        () => [
-            buildCancelSelectColumn({
-                selectedSerials: cancelSelection.selectedSerials,
-                totalCancelableSerialsCount: cancelSelection.totalCancelableSerialsCount,
-                onSelectAll: cancelSelection.handleSelectAll,
-                onSelectTicket: cancelSelection.handleSelectTicket,
-                getTicketSelectionState: cancelSelection.getTicketSelectionState,
-            }),
-            ...columnsConfig,
-        ],
+        () => {
+            if (!cancelSelection.isCancelMode) {
+                return columnsConfig;
+            }
+
+            return [
+                buildCancelSelectColumn({
+                    selectedSerials: cancelSelection.selectedSerials,
+                    totalCancelableSerialsCount: cancelSelection.totalCancelableSerialsCount,
+                    onSelectAll: cancelSelection.handleSelectAll,
+                    onSelectTicket: cancelSelection.handleSelectTicket,
+                    getTicketSelectionState: cancelSelection.getTicketSelectionState,
+                }),
+                ...columnsConfig,
+            ];
+        },
         [
+            cancelSelection.isCancelMode,
             cancelSelection.selectedSerials,
             cancelSelection.totalCancelableSerialsCount,
             cancelSelection.handleSelectAll,
@@ -86,7 +99,7 @@ export const TicketList = ({
 
     const handleReportSuccess = () => {
         cancelSelection.closeReportDialog();
-        cancelSelection.clearSelection();
+        cancelSelection.exitCancelMode();
         queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKETS] });
     };
 
@@ -153,9 +166,7 @@ export const TicketList = ({
                                 onClearFilters: clearFilters,
                                 onSearchChange: setSearchFilter,
                                 onDateRangeChange: ({ startDate, endDate }: { startDate: string; endDate: string }) =>
-                                    setDateRangeFilter(startDate || undefined, endDate || undefined),
-                                cancelSelectedCount: cancelSelection.selectedSerials.length,
-                                onCancelTicketsClick: cancelSelection.openReportDialog,
+                                    setDateRangeFilter(toIsoDate(startDate), toIsoDate(endDate)),
                             } as any,
                         }}
                         localeText={DATA_GRID_LOCALE_VN}

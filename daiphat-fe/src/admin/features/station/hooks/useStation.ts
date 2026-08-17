@@ -20,10 +20,27 @@ import {
     confirmSyncStations,
 } from '../services/stationService';
 import { QUERY_KEYS } from '../constants/queryKeys';
+import { publicStationsQueryKeys, QUERY_KEYS as SHARED_QUERY_KEYS } from '@/constants/queryKeys';
 import {
     StationQueryParams,
     UpdateStationRequest,
 } from '../types/station.type';
+
+const invalidateStationQueries = (
+    queryClient: ReturnType<typeof useQueryClient>,
+    stationId?: string | number
+) => {
+    queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.STATIONS] });
+    queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.STATIONS_TODAY] });
+    queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.STATIONS_TOMORROW] });
+    queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.STATIONS_BY_DRAW_DATE] });
+    queryClient.invalidateQueries({ queryKey: publicStationsQueryKeys.today() });
+    queryClient.invalidateQueries({ queryKey: publicStationsQueryKeys.tomorrow() });
+    queryClient.invalidateQueries({ queryKey: [SHARED_QUERY_KEYS.PUBLIC_SCHEDULE_ALL] });
+    if (stationId != null) {
+        queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.STATION_DETAIL, stationId] });
+    }
+};
 
 export const useStations = (params?: StationQueryParams) => {
     return useQuery({
@@ -55,7 +72,7 @@ export const useCreateStation = () => {
     return useMutation({
         mutationFn: createStation,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.STATIONS] });
+            invalidateStationQueries(queryClient);
         },
     });
 };
@@ -73,10 +90,7 @@ export const useUpdateStation = () => {
         }) => updateStation(id, data),
         onSuccess: (response, variables) => {
             if (response.success) {
-                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.STATIONS] });
-                queryClient.invalidateQueries({
-                    queryKey: [QUERY_KEYS.STATION_DETAIL, variables.id],
-                });
+                invalidateStationQueries(queryClient, variables.id);
             }
         },
     });
@@ -88,7 +102,7 @@ export const useDeleteStation = () => {
     return useMutation({
         mutationFn: deleteStation,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.STATIONS] });
+            invalidateStationQueries(queryClient);
         },
     });
 };
@@ -123,9 +137,14 @@ export const useStationsByDrawDate = (drawDate?: string | string[]) => {
 };
 
 export const useUploadStationImage = () => {
+    const queryClient = useQueryClient();
+
     return useMutation({
         mutationFn: ({ id, file }: { id: string | number; file: File }) =>
             uploadStationImage(id, file),
+        onSuccess: (_data, variables) => {
+            invalidateStationQueries(queryClient, variables.id);
+        },
     });
 };
 
@@ -141,7 +160,7 @@ export const useConfirmSyncStations = () => {
     return useMutation({
         mutationFn: confirmSyncStations,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.STATIONS] });
+            invalidateStationQueries(queryClient);
         },
     });
 };

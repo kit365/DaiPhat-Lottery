@@ -13,7 +13,9 @@ import com.daiphat.coreapi.infrastructure.persistence.repository.streetagent.*;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 import java.time.*;
 import java.util.*;
@@ -22,6 +24,9 @@ import java.util.stream.Collectors;
 @Component
 @RequiredArgsConstructor
 public class VendorAllocationRepositoryAdapter implements VendorAllocationRepositoryPort {
+    /** Persistence-only detail; never leak this PostgreSQL constraint name into use cases. */
+    private static final String OPEN_BATCH_CONSTRAINT = "uq_allocation_batch_one_open_per_profile";
+    private static final String ACTIVE_STOCK_CONSTRAINT = "uq_active_agent_ticket_stock";
     private final AllocationBatchRepository batchRepository;
     private final AgentTicketStockRepository agentTicketStockRepository;
     private final LotteryTicketSerialRepository serialRepository;
@@ -43,7 +48,13 @@ public class VendorAllocationRepositoryAdapter implements VendorAllocationReposi
             Collection<AllocationBatchStatus> statuses,
             LocalDate businessDateFrom,
             LocalDate businessDateTo,
+            String search,
+            LocalDate businessDateToday,
             Pageable pageable) {
+        // Sort is applied in the Specification (CASE expressions). Do not also pass Sort on Pageable.
+        Pageable unsorted = pageable.isUnpaged()
+                ? Pageable.unpaged()
+                : PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
         return batchRepository.findAll((root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(cb.isNull(root.get("deletedAt")));
@@ -59,8 +70,48 @@ public class VendorAllocationRepositoryAdapter implements VendorAllocationReposi
             if (businessDateTo != null) {
                 predicates.add(cb.lessThanOrEqualTo(root.get("businessDate"), businessDateTo));
             }
+            if (search != null && !search.isBlank()) {
+                String trimmed = search.trim();
+                String likePattern = "%" + trimmed.toLowerCase() + "%";
+                var profile = root.get("streetAgentProfile");
+                predicates.add(cb.or(
+                        cb.like(cb.lower(root.get("batchCode")), likePattern),
+                        cb.like(cb.lower(cb.concat(
+                                cb.concat(profile.get("lastName"), " "),
+                                profile.get("firstName")
+                        )), likePattern),
+                        cb.like(profile.get("phone"), "%" + trimmed + "%")
+                ));
+            }
+
+            // Count queries must not get ORDER BY.
+            if (query != null
+                    && !Long.class.equals(query.getResultType())
+                    && !long.class.equals(query.getResultType())) {
+                // 0 = open/unsettled (DRAFT/CONFIRMED/RETURN_OPEN), 1 = terminal.
+                var unsettledRank = cb.<Integer>selectCase()
+                        .when(root.get("status").in(
+                                AllocationBatchStatus.DRAFT,
+                                AllocationBatchStatus.CONFIRMED,
+                                AllocationBatchStatus.RETURN_OPEN), 0)
+                        .otherwise(1);
+                if (businessDateToday != null) {
+                    var todayRank = cb.<Integer>selectCase()
+                            .when(cb.equal(root.get("businessDate"), businessDateToday), 0)
+                            .otherwise(1);
+                    query.orderBy(
+                            cb.asc(unsettledRank),
+                            cb.asc(todayRank),
+                            cb.desc(root.get("createdAt")));
+                } else {
+                    query.orderBy(
+                            cb.asc(unsettledRank),
+                            cb.desc(root.get("createdAt")));
+                }
+            }
+
             return cb.and(predicates.toArray(Predicate[]::new));
-        }, pageable).map(this::batchModelSummary);
+        }, unsorted).map(this::batchModelSummary);
     }
 
     public long sumAllocatedForDay(Long profileId, LocalDate date, Collection<AllocationBatchStatus> statuses) { return batchRepository.sumAllocatedForDay(profileId, date, statuses); }
@@ -75,6 +126,14 @@ public class VendorAllocationRepositoryAdapter implements VendorAllocationReposi
     public List<VendorAllocationBatchModel> findOpenDrafts() { return batchRepository.findAllDrafts().stream().map(this::batchModel).toList(); }
 
     public VendorAllocationBatchModel save(VendorAllocationBatchModel model) {
+        try {
+            return saveInternal(model);
+        } catch (DataIntegrityViolationException exception) {
+            throw translateConstraint(exception);
+        }
+    }
+
+    private VendorAllocationBatchModel saveInternal(VendorAllocationBatchModel model) {
         AllocationBatchEntity entity = model.getId() == null ? new AllocationBatchEntity() : batchRepository.findById(model.getId()).orElseThrow();
         entity.setBatchCode(model.getBatchCode()); entity.setBatchType(model.getBatchType()); entity.setBusinessDate(model.getBusinessDate()); entity.setStatus(model.getStatus()); entity.setReservationExpiresAt(model.getReservationExpiresAt()); entity.setRequestedQuantity(model.getRequestedQuantity()); entity.setReserveCountSnapshot(model.getReserveCountSnapshot()); entity.setReservePercentSnapshot(model.getReservePercentSnapshot());
         entity.setFaceValueSnapshot(model.getFaceValueSnapshot()); entity.setVendorUnitPriceSnapshot(model.getVendorUnitPriceSnapshot()); entity.setCommissionRateSnapshot(model.getCommissionRateSnapshot()); entity.setDepositRateSnapshot(model.getDepositRateSnapshot()); entity.setLatePolicySnapshot(model.getLatePolicySnapshot()); entity.setReturnCutoffSnapshot(model.getReturnCutoffSnapshot()); entity.setSupplierReturnCutoffSnapshot(model.getSupplierReturnCutoffSnapshot()); entity.setReturnBufferMinutesSnapshot(model.getReturnBufferMinutesSnapshot()); entity.setEffectiveHandoverDeadlineAt(model.getEffectiveHandoverDeadlineAt()); entity.setAllocatedQuantity(model.getAllocatedQuantity()); entity.setReturnedQuantity(model.getReturnedQuantity()); entity.setSoldQuantity(model.getSoldQuantity()); entity.setDepositRequiredAmount(model.getDepositRequiredAmount()); entity.setDepositReceivedAmount(model.getDepositReceivedAmount()); entity.setGrossCashRemitted(model.getGrossCashRemitted()); entity.setCommissionPayable(model.getCommissionPayable()); entity.setDepositRefundAmount(model.getDepositRefundAmount()); entity.setDepositForfeitedAmount(model.getDepositForfeitedAmount()); entity.setDepositAppliedAmount(model.getDepositAppliedAmount()); entity.setDepositExcessRefundAmount(model.getDepositExcessRefundAmount()); entity.setForcedPurchaseAmount(model.getForcedPurchaseAmount()); entity.setAdditionalAmountDue(model.getAdditionalAmountDue()); entity.setDepositBalanceBefore(model.getDepositBalanceBefore()); entity.setDepositBalanceAfter(model.getDepositBalanceAfter()); entity.setDepositReceivedAt(model.getDepositReceivedAt()); entity.setDepositReceivedBy(model.getDepositReceivedBy()); entity.setSettledAt(model.getSettledAt()); entity.setSettledBy(model.getSettledBy()); entity.setLuckyOverrideReason(model.getLuckyOverrideReason());
@@ -168,6 +227,19 @@ public class VendorAllocationRepositoryAdapter implements VendorAllocationReposi
             });
         }
         return batchModel(batchRepository.save(entity));
+    }
+
+    private RuntimeException translateConstraint(DataIntegrityViolationException exception) {
+        String message = exception.getMostSpecificCause() == null
+                ? null
+                : exception.getMostSpecificCause().getMessage();
+        if (message != null && message.contains(OPEN_BATCH_CONSTRAINT)) {
+            return new DomainException(ErrorCode.VENDOR_ALLOCATION_OPEN_BATCH_EXISTS);
+        }
+        if (message != null && message.contains(ACTIVE_STOCK_CONSTRAINT)) {
+            return new DomainException(ErrorCode.VENDOR_ALLOCATION_SERIAL_INVALID);
+        }
+        return exception;
     }
 
     public void saveSerials(List<VendorAllocationSerialModel> serials) {

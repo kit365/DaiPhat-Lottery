@@ -366,6 +366,16 @@ public enum SystemConfigEnum {
             "{}",
             false
     ),
+    ORDER_PAYMENT_COMPLAINT_REMINDER_ENABLED(
+            ConfigType.ORDER_SETTING,
+            DataType.BOOLEAN,
+            "true",
+            "Bật thông báo nhắc nhân viên khi có chứng từ thanh toán của đơn đã quá thời gian thanh toán.",
+            "Nhắc xử lý khiếu nại thanh toán",
+            null,
+            "{\"allowedValues\":[\"true\",\"false\"]}",
+            true
+    ),
     // Phase 3: snapshotted onto allocation batch at confirm; used for late-return settlement.
     VENDOR_RETURN_CUTOFF(
             ConfigType.VENDOR_SETTING,
@@ -401,9 +411,9 @@ public enum SystemConfigEnum {
             ConfigType.VENDOR_SETTING,
             DataType.INT,
             "200",
-            "Hạn mức vé/ngày mặc định được ghi trong hợp đồng khi tạo vendor mới.",
+            "Giới hạn số vé tối đa cho mỗi phiếu bàn giao, được ghi trong hợp đồng khi tạo người bán vé số mới.",
             "Hạn mức hợp đồng mặc định",
-            "vé/ngày",
+            "vé/phiếu",
             "{\"min\":1,\"max\":100000}",
             true
     ),
@@ -602,7 +612,7 @@ public enum SystemConfigEnum {
             ConfigType.TICKET_RETURN,
             DataType.INT,
             "45",
-            "Thời gian đệm (phút) trước hạn trả vé của nhà cung cấp",
+            "Thời gian đệm (phút) trước hạn trả vé NCC. >0: chỉ được chuẩn bị/kiểm tra trả từ (hạn trả − đệm). =0: cho phép chuẩn bị/kiểm tra ngay trong ngày (đến trước hạn trả).",
             "Thời gian đệm trả vé",
             "phút",
             "{\"min\":0,\"max\":1440}",
@@ -611,31 +621,31 @@ public enum SystemConfigEnum {
     RETURN_REMINDER_TIME(
             ConfigType.TICKET_RETURN,
             DataType.INT,
-            "15",
-            "Thời gian (phút) trước hạn trả vé NCC để nhắc khẩn kiểm tra phiếu trả",
-            "Nhắc kiểm tra trả vé",
+            "10",
+            "Số phút cuối trước hạn trả vé NCC để hối thúc kiểm đếm / bàn giao phiếu trả chưa hoàn tất.",
+            "Giờ hối thúc trả vé",
             "phút",
             "{\"min\":1,\"max\":1440}",
             true
     ),
-    VERIFICATION_DEADLINE(
-            ConfigType.TICKET_RETURN,
-            DataType.TIME,
-            "17:00",
-            "Hạn chót đối chiếu / upload biên lai đối soát trong ngày (sau hạn trả vé NCC)",
-            "Hạn chót đối chiếu",
-            "HH:mm",
-            "{\"min\":\"00:00\",\"max\":\"23:59\"}",
-            true
-    ),
     SETTLEMENT_BUFFER_TIME(
-            ConfigType.TICKET_RETURN,
+            ConfigType.SETTLEMENT_SETTING,
             DataType.INT,
             "120",
-            "Thời gian đệm (phút) sau hạn chót đối chiếu để hoàn tất đối soát và thanh toán NCC",
-            "Thời gian đệm đối soát/thanh toán",
+            "Thời gian đệm (phút) trước giờ thanh toán của từng NCC (paymentCutOffTime). >0: chỉ được đối soát từ (paymentCutOff − đệm). =0: cho phép đối soát ngay trong ngày kỳ.",
+            "Thời gian đệm trước thanh toán",
             "phút",
             "{\"min\":0,\"max\":1440}",
+            true
+    ),
+    SETTLEMENT_PAYMENT_REMINDER_MINUTES(
+            ConfigType.SETTLEMENT_SETTING,
+            DataType.INT,
+            "10",
+            "Số phút cuối trước giờ thanh toán của từng NCC (paymentCutOffTime) để nhắc các kỳ đối soát chưa hoàn tất thanh toán.",
+            "Nhắc thanh toán cuối kỳ",
+            "phút",
+            "{\"min\":1,\"max\":180}",
             true
     ),
     TICKET_AUTO_IMPORT_THRESHOLD(
@@ -646,6 +656,26 @@ public enum SystemConfigEnum {
             "Ngưỡng số lượng vé tự động nhập",
             "vé",
             "{\"min\":1,\"max\":10000}",
+            true
+    ),
+    IMPORT_BATCH_TICKET_LIST_IMAGE_MAX_COUNT(
+            ConfigType.TICKET_IMPORT,
+            DataType.INT,
+            "5",
+            "Số ảnh danh sách vé nhập tối đa được đính trên một phiếu nhập lô.",
+            "Số ảnh danh sách vé nhập tối đa",
+            "ảnh",
+            "{\"min\":1,\"max\":20}",
+            true
+    ),
+    IMPORT_BATCH_TICKET_LIST_IMAGE_MAX_SIZE_MB(
+            ConfigType.TICKET_IMPORT,
+            DataType.INT,
+            "5",
+            "Dung lượng tối đa mỗi ảnh danh sách vé nhập trên phiếu nhập lô.",
+            "Dung lượng tối đa mỗi ảnh danh sách vé",
+            "MB",
+            "{\"min\":1,\"max\":10}",
             true
     ),
     STAFF_INCIDENT_CUTOFF(
@@ -782,8 +812,8 @@ public enum SystemConfigEnum {
             ConfigType.PAYOUT_SETTING,
             DataType.INT,
             "10000000",
-            "Giá trị giải tối đa khách được gửi yêu cầu trả thưởng online (VND)",
-            "Hạn mức trả thưởng online",
+            "Giá trị giải tối đa khách được gửi yêu cầu trả thưởng trực tuyến (VND)",
+            "Hạn mức trả thưởng trực tuyến",
             "VND",
             "{\"min\":0}",
             true
@@ -792,8 +822,8 @@ public enum SystemConfigEnum {
             ConfigType.PAYOUT_SETTING,
             DataType.INT,
             "3",
-            "Số lần tối đa yêu cầu trả thưởng online bị từ chối trước khi bắt buộc đổi thưởng tại đại lý",
-            "Số lần từ chối trả thưởng online tối đa",
+            "Số lần tối đa yêu cầu trả thưởng trực tuyến bị từ chối trước khi bắt buộc đổi thưởng tại đại lý",
+            "Số lần từ chối trả thưởng trực tuyến tối đa",
             "lần",
             "{\"min\":1,\"max\":20}",
             true
@@ -828,10 +858,67 @@ public enum SystemConfigEnum {
             "{}",
             true
     ),
+    PRIZE_PAYOUT_CONTRACT_ADDITIONAL_TERMS(
+            ConfigType.PAYOUT_SETTING,
+            DataType.STRING,
+            "Người nhận cam kết là chủ sở hữu hợp pháp của vé hoặc được ủy quyền hợp lệ; chịu trách nhiệm trước pháp luật nếu thông tin CCCD/CMND không đúng. Đại lý chỉ trả thưởng theo kết quả đối chiếu hệ thống và giấy tờ đã thu thập tại thời điểm lập hợp đồng.",
+            "Điều khoản bổ sung in trên hợp đồng xác nhận trả thưởng (cùng khung pháp lý Bên A với hợp đồng cộng tác bán vé số).",
+            "Điều khoản hợp đồng trả thưởng",
+            null,
+            "{\"allowEmpty\":true,\"maxLength\":4000}",
+            true
+    ),
+    PRIZE_REDEMPTION_OFFICIAL_DEADLINE_DAYS(
+            ConfigType.PAYOUT_SETTING,
+            DataType.INT,
+            "30",
+            "Số ngày hạn lĩnh thưởng với nhà đài kể từ ngày quay (hạn thật). Hạn khách = hạn này trừ số ngày đệm.",
+            "Hạn lĩnh nhà đài (ngày)",
+            "ngày",
+            "{\"min\":1,\"max\":365}",
+            true
+    ),
+    PRIZE_REDEMPTION_BUFFER_DAYS(
+            ConfigType.PAYOUT_SETTING,
+            DataType.INT,
+            "5",
+            "Số ngày đệm nội bộ trước hạn nhà đài. Hạn đổi thưởng hiển thị cho khách = hạn nhà đài − số ngày đệm. Phải nhỏ hơn hạn nhà đài.",
+            "Số ngày đệm hạn đổi thưởng",
+            "ngày",
+            "{\"min\":0,\"max\":364}",
+            true
+    ),
     /**
      * Wall-clock slot length in minutes (aligned from 00:00 Asia/Ho_Chi_Minh).
      * Example: 60 = once per clock hour, 360 = every 6 hours, 1440 = once per calendar day.
      */
+    /**
+     * One JSON blob rather than five separate keys: these settings are only ever
+     * read together by the file importer, and the import dialog shows them as a
+     * single "current configuration" panel.
+     */
+    TICKET_IMPORT_FILE_CONFIG(
+            ConfigType.TICKET_IMPORT,
+            DataType.JSON,
+            // Default fieldAliases mirror ImportBatchFileMappingDetector; Flyway seeds the same JSON.
+            "{\"maxFileSizeMb\":2,\"maxRows\":2000,\"serialSeparator\":\";\","
+                    + "\"storeOriginalFile\":true,\"allowPartialImport\":true,"
+                    + "\"fieldAliases\":{"
+                    + "\"drawDateColumn\":[\"ngayquay\",\"ngayxoso\",\"ngayso\",\"ngay\",\"drawdate\",\"date\"],"
+                    + "\"stationCodeColumn\":[\"madai\",\"manhadai\",\"ma\",\"stationcode\",\"code\"],"
+                    + "\"stationColumn\":[\"nhadai\",\"tendai\",\"dai\",\"tinh\",\"station\",\"lotterystation\"],"
+                    + "\"quantityColumn\":[\"soluong\",\"sl\",\"sove\",\"quantity\",\"qty\",\"amount\"],"
+                    + "\"numbersColumn\":[\"dayso\",\"sove\",\"sodu\",\"conso\",\"numbers\",\"ticketnumber\",\"so\"],"
+                    + "\"serialsColumn\":[\"seri\",\"sori\",\"soseri\",\"danhsachseri\",\"serial\",\"serials\",\"serialnumber\"],"
+                    + "\"ticketImageColumn\":[\"anhve\",\"hinhve\",\"anh\",\"hinh\",\"ticketimg\",\"ticketimage\",\"image\",\"photo\",\"url\"],"
+                    + "\"importCostColumn\":[\"giavon\",\"dongia\",\"giave\",\"importcost\",\"unitprice\",\"price\",\"gia\"]"
+                    + "}}",
+            "Giới hạn và quy ước khi đọc tệp .csv/.xlsx nhập vé, kèm alias tên cột tự nhận diện (dùng chung mọi NCC).",
+            "Cấu hình nhập vé từ tệp",
+            null,
+            "{}",
+            true
+    ),
     FORTUNE_CAST_COOLDOWN_HOURS(
             ConfigType.FORTUNE_SETTING,
             DataType.INT,

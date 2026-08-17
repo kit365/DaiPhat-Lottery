@@ -1,38 +1,98 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     Box,
     Divider
 } from '@mui/material';
 import { PageHeader } from '../../../../components/ui/PageHeader';
 
-import { AiServiceControl, ChatList, ChatWindow, ChatDetails, ChatSidebar } from '../sections';
+import { AiServiceControl, ChatList, ChatWindow, ChatDetails } from '../sections';
 import { useConversations } from '../../hooks/useChat';
-import { useChatOperatorSocket } from '../../hooks/useChatSocket';
-import { Conversation } from '../../../../../types/chat.type';
+import { useAdminChatInboxSocket, useChatOperatorSocket } from '../../hooks/useChatSocket';
+import { Conversation, ConversationStatusEnum } from '../../../../../types/chat.type';
 import { useAuthStore } from '../../../../../stores/useAuthStore';
-import { groupConversationsByCustomer } from '../utils';
+import { AppToast as toast } from '../../../../../utils/toast.util';
+import { findOwnLiveConversation, groupConversationsByCustomer } from '../utils';
 
 export const ChatPage = () => {
     const [viewMode, setViewMode] = useState<'TABLE' | 'MESSENGER'>('TABLE');
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const [showDetails, setShowDetails] = useState(false);
+    const [listPeek, setListPeek] = useState(false);
     const userId = useAuthStore((state) => state.user?.id);
 
     const { data: conversations = [] } = useConversations();
     const groupedConversations = groupConversationsByCustomer(conversations);
+    const ownLiveConversation = findOwnLiveConversation(conversations, userId);
+
+    useEffect(() => {
+        if (!ownLiveConversation) {
+            setListPeek(false);
+            return;
+        }
+        if (ownLiveConversation.status === ConversationStatusEnum.ACTIVE) {
+            setListPeek(false);
+            setSelectedId(ownLiveConversation.id);
+            setViewMode('MESSENGER');
+        }
+    }, [ownLiveConversation?.id, ownLiveConversation?.status]);
+
     useChatOperatorSocket({
         currentUserId: userId,
+        selectedConversationId: selectedId,
         onConversationRemoved: (conversationId) => {
             setSelectedId((prev) => (prev === conversationId ? null : prev));
         },
+        onAssignedToMe: (conversationId) => {
+            setListPeek(false);
+            setSelectedId(conversationId);
+            setViewMode('MESSENGER');
+            setShowDetails(false);
+        },
     });
-    const activeConversation = groupedConversations.find((c: Conversation) => c.id === selectedId)
-        ?? conversations.find((c: Conversation) => c.id === selectedId);
+    useAdminChatInboxSocket({
+        selectedConversationId: selectedId,
+    });
+    const focusedConversationId = !listPeek && ownLiveConversation
+        ? ownLiveConversation.id
+        : selectedId;
+    const activeConversation = groupedConversations.find((c: Conversation) => c.id === focusedConversationId)
+        ?? conversations.find((c: Conversation) => c.id === focusedConversationId);
 
     const handleSelectConversation = (id: number) => {
+        if (ownLiveConversation && id !== ownLiveConversation.id) {
+            toast.info('Hãy xử lý xong khách đang hỗ trợ trước khi mở hội thoại khác.');
+            return;
+        }
+        setListPeek(false);
         setSelectedId(id);
+        setViewMode('MESSENGER');
+        setShowDetails(false);
+    };
+
+    const handleBackToList = () => {
+        setListPeek(Boolean(ownLiveConversation));
+        setViewMode('TABLE');
+        setShowDetails(false);
+        if (!ownLiveConversation) {
+            setSelectedId(null);
+        }
+    };
+
+    const handleSessionEnded = () => {
+        setListPeek(false);
+        setSelectedId(null);
+        setViewMode('TABLE');
+        setShowDetails(false);
+    };
+
+    const handleReturnToLockedChat = () => {
+        if (!ownLiveConversation) {
+            return;
+        }
+        setListPeek(false);
+        setSelectedId(ownLiveConversation.id);
         setViewMode('MESSENGER');
         setShowDetails(false);
     };
@@ -52,9 +112,11 @@ export const ChatPage = () => {
             <ChatList
                 conversations={groupedConversations}
                 onSelectConversation={handleSelectConversation}
-                onToggleMode={() => setViewMode(viewMode === 'TABLE' ? 'MESSENGER' : 'TABLE')}
-                viewMode={viewMode}
-                messengerContent={(filteredConversations) => (
+                viewMode={listPeek ? 'TABLE' : viewMode}
+                chatLocked={Boolean(ownLiveConversation)}
+                lockedConversationId={ownLiveConversation?.id ?? null}
+                onReturnToLockedChat={handleReturnToLockedChat}
+                messengerContent={() => (
                     <Box
                         className="admin-list-card"
                         sx={{
@@ -65,12 +127,6 @@ export const ChatPage = () => {
                             bgcolor: 'var(--palette-background-paper)',
                         }}
                     >
-                        <ChatSidebar
-                            conversations={filteredConversations}
-                            selectedId={selectedId}
-                            onSelect={setSelectedId}
-                        />
-
                         <Box
                             sx={{
                                 flexGrow: 1,
@@ -81,8 +137,10 @@ export const ChatPage = () => {
                             }}
                         >
                             <ChatWindow
-                                conversationId={selectedId}
+                                conversationId={focusedConversationId}
                                 onToggleDetails={() => setShowDetails(!showDetails)}
+                                onBackToList={handleBackToList}
+                                onSessionEnded={handleSessionEnded}
                             />
                         </Box>
 

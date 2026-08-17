@@ -6,24 +6,26 @@ import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.streetagent.StreetAgentProfileResponse;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
+import com.daiphat.coreapi.application.generator.streetagent.StreetAgentContractCodeGenerator;
 import com.daiphat.coreapi.application.mapper.streetagent.StreetAgentProfileApplicationMapper;
+import com.daiphat.coreapi.application.policy.streetagent.VendorAllocationPolicyResolver;
+import com.daiphat.coreapi.application.policy.streetagent.VendorConfidencePolicyResolver;
 import com.daiphat.coreapi.application.port.in.streetagent.StreetAgentProfileServicePort;
 import com.daiphat.coreapi.application.port.in.user.UserServicePort;
 import com.daiphat.coreapi.application.dto.request.user.CreateUserRequest;
 import com.daiphat.coreapi.application.dto.response.user.UserResponse;
-import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.port.out.streetagent.StreetAgentProfileRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.streetagent.StreetAgentProfileStatus;
-import com.daiphat.coreapi.domain.model.enums.settings.SystemConfigEnum;
 import com.daiphat.coreapi.domain.model.streetagent.StreetAgentProfileModel;
 import com.daiphat.coreapi.domain.service.streetagent.VendorDailyCapCalculator;
 import com.daiphat.coreapi.shared.util.PageableUtils;
 import com.daiphat.coreapi.shared.util.SortUtils;
 import com.daiphat.coreapi.shared.util.StatusCountKeys;
 import com.daiphat.coreapi.shared.util.StorageFolderConstants;
+import com.daiphat.coreapi.shared.time.VietnamClock;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -32,7 +34,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -40,7 +41,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.Locale;
-import java.util.UUID;
+import java.time.Clock;
 
 @Service
 @Slf4j
@@ -58,7 +59,9 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
     private final StoragePort storagePort;
     private final VendorConfidencePolicyResolver vendorConfidencePolicyResolver;
     private final UserServicePort userServicePort;
-    private final SystemConfigRepositoryPort systemConfigRepositoryPort;
+    private final VendorAllocationPolicyResolver vendorAllocationPolicyResolver;
+    private final StreetAgentContractCodeGenerator streetAgentContractCodeGenerator;
+    private final VietnamClock vietnamClock;
 
     @Autowired
     public StreetAgentProfileService(
@@ -67,13 +70,31 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
             StoragePort storagePort,
             VendorConfidencePolicyResolver vendorConfidencePolicyResolver,
             UserServicePort userServicePort,
-            SystemConfigRepositoryPort systemConfigRepositoryPort) {
+            VendorAllocationPolicyResolver vendorAllocationPolicyResolver,
+            StreetAgentContractCodeGenerator streetAgentContractCodeGenerator,
+            VietnamClock vietnamClock) {
         this.streetAgentProfileRepositoryPort = streetAgentProfileRepositoryPort;
         this.streetAgentProfileApplicationMapper = streetAgentProfileApplicationMapper;
         this.storagePort = storagePort;
         this.vendorConfidencePolicyResolver = vendorConfidencePolicyResolver;
         this.userServicePort = userServicePort;
-        this.systemConfigRepositoryPort = systemConfigRepositoryPort;
+        this.vendorAllocationPolicyResolver = vendorAllocationPolicyResolver;
+        this.streetAgentContractCodeGenerator = streetAgentContractCodeGenerator;
+        this.vietnamClock = vietnamClock;
+    }
+
+    /** Compatibility constructor for tests and legacy bootstrap code. */
+    public StreetAgentProfileService(
+            StreetAgentProfileRepositoryPort streetAgentProfileRepositoryPort,
+            StreetAgentProfileApplicationMapper streetAgentProfileApplicationMapper,
+            StoragePort storagePort,
+            VendorConfidencePolicyResolver vendorConfidencePolicyResolver,
+            UserServicePort userServicePort,
+            com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort systemConfigRepositoryPort) {
+        this(streetAgentProfileRepositoryPort, streetAgentProfileApplicationMapper, storagePort,
+                vendorConfidencePolicyResolver, userServicePort, new VendorAllocationPolicyResolver(systemConfigRepositoryPort),
+                new StreetAgentContractCodeGenerator(new VietnamClock(Clock.systemUTC())),
+                new VietnamClock(Clock.systemUTC()));
     }
 
     /** Compatibility constructor for focused unit tests that do not exercise cap projection. */
@@ -86,7 +107,9 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
         this.storagePort = storagePort;
         this.vendorConfidencePolicyResolver = null;
         this.userServicePort = null;
-        this.systemConfigRepositoryPort = null;
+        this.vendorAllocationPolicyResolver = null;
+        this.vietnamClock = new VietnamClock(Clock.systemUTC());
+        this.streetAgentContractCodeGenerator = new StreetAgentContractCodeGenerator(vietnamClock);
     }
 
     @Override
@@ -140,7 +163,7 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
         validateContractDates(request);
 
         StreetAgentProfileModel model = streetAgentProfileApplicationMapper.toModel(request);
-        if (userServicePort != null && systemConfigRepositoryPort != null) {
+        if (userServicePort != null && vendorAllocationPolicyResolver != null) {
             // Street agents are managed offline. Keep a 1:1 User only as an
             // identity record, without credentials or access to the system.
             UserResponse vendorUser = userServicePort.createInternalStreetAgent(CreateUserRequest.builder()
@@ -153,8 +176,8 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
             model.setEmail(vendorUser.email());
             // Commission remains system-owned. The contract ceiling defaults from settings,
             // while staff may override it for this signed contract.
-            model.setCommissionRate(decimalConfig(SystemConfigEnum.VENDOR_COMMISSION_RATE));
-            Integer configuredContractCap = integerConfig(SystemConfigEnum.VENDOR_DEFAULT_CONTRACT_MAX_DAILY_CAP);
+            model.setCommissionRate(vendorAllocationPolicyResolver.resolve().commissionRate());
+            Integer configuredContractCap = vendorAllocationPolicyResolver.defaultContractMaxPerBatch();
             model.setContractMaxDailyCap(request.contractMaxDailyCap() != null
                     ? request.contractMaxDailyCap()
                     : configuredContractCap);
@@ -272,15 +295,11 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
         if (!hasNoContractCode || !hasContractTerms) {
             return;
         }
-        String datePart = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE);
-        String reference = UUID.randomUUID().toString().substring(0, 8).toUpperCase(Locale.ROOT);
-        profile.setContractCode("HD-CTV-" + datePart + "-" + reference);
+        profile.setContractCode(streetAgentContractCodeGenerator.nextCode());
     }
 
     private void regenerateContractCode(StreetAgentProfileModel profile) {
-        String datePart = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE);
-        String reference = UUID.randomUUID().toString().substring(0, 8).toUpperCase(Locale.ROOT);
-        profile.setContractCode("HD-CTV-" + datePart + "-" + reference);
+        profile.setContractCode(streetAgentContractCodeGenerator.nextCode());
     }
 
     /**
@@ -292,7 +311,7 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
         if (preserveExplicitInactiveStatus && profile.getStatus() == StreetAgentProfileStatus.INACTIVE) {
             return;
         }
-        profile.setStatus(profile.isVendorAllocationEligible(LocalDate.now())
+        profile.setStatus(profile.isVendorAllocationEligible(vietnamClock.today())
                 ? StreetAgentProfileStatus.ACTIVE
                 : StreetAgentProfileStatus.PENDING);
     }
@@ -307,30 +326,8 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
                 && contractEndDate.isBefore(contractStartDate)) {
             throw new DomainException(ErrorCode.STREET_AGENT_PROFILE_INVALID_CONTRACT_DATE);
         }
-        if (contractEndDate != null && contractEndDate.isBefore(LocalDate.now())) {
+        if (contractEndDate != null && contractEndDate.isBefore(vietnamClock.today())) {
             throw new DomainException(ErrorCode.STREET_AGENT_PROFILE_INVALID_CONTRACT_DATE);
-        }
-    }
-
-    private String config(SystemConfigEnum key) {
-        return systemConfigRepositoryPort.findActiveByConfigKey(key.name())
-                .map(value -> value.getConfigValue())
-                .orElse(key.getDefaultValue());
-    }
-
-    private BigDecimal decimalConfig(SystemConfigEnum key) {
-        try {
-            return new BigDecimal(config(key).trim());
-        } catch (RuntimeException ex) {
-            throw new DomainException(ErrorCode.SYSTEM_CONFIG_VALUE_INVALID);
-        }
-    }
-
-    private int integerConfig(SystemConfigEnum key) {
-        try {
-            return Integer.parseInt(config(key).trim());
-        } catch (RuntimeException ex) {
-            throw new DomainException(ErrorCode.SYSTEM_CONFIG_VALUE_INVALID);
         }
     }
 

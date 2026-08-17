@@ -89,12 +89,23 @@ public class LotteryTicketSerialModel {
         this.damagedReason = null;
     }
 
+    /** Replaced by another serial after a data-entry cancel — not inventory, not sellable. */
+    public boolean isVoided() {
+        return this.ticketCondition != null && this.ticketCondition.isVoided();
+    }
+
+    /** Serials that still exist as physical inventory (VOIDED replacements are excluded). */
+    public boolean isVisibleInventory() {
+        return this.deletedAt == null && !isVoided();
+    }
+
     /** Sellable inventory: in stock, good condition, not linked to a return batch line. */
     public boolean isAvailableForSale() {
         return this.status == LotteryTicketSerialStatus.IN_STOCK
                 && (this.ticketCondition == null || this.ticketCondition == TicketCondition.GOOD)
                 && this.returnBatchLineId == null
-                && this.deletedAt == null;
+                && this.deletedAt == null
+                && !isVoided();
     }
 
     public void reserve(UUID orderId, LocalDateTime expiresAt) {
@@ -118,20 +129,6 @@ public class LotteryTicketSerialModel {
      * Keeps {@code reservedByOrderId} so incident/replace still works during PREPARING.
      * Final {@link #sellOnline()} happens when the order moves to PENDING_PICKUP.
      */
-    public void confirmPaidProxyHolding(UUID orderId) {
-        if (this.status != LotteryTicketSerialStatus.IN_STOCK
-                && this.status != LotteryTicketSerialStatus.RESERVED) {
-            throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
-        }
-        if (this.status == LotteryTicketSerialStatus.IN_STOCK && !isAvailableForSale()) {
-            throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
-        }
-        if (orderId == null) {
-            throw new DomainException(ErrorCode.INVALID_INPUT, "Thiếu mã đơn khi xác nhận giữ hộ vé đã thanh toán.");
-        }
-        assumeProxyHolding(orderId);
-    }
-
     public void sellOnline() {
         ensureNotLockedForPayout();
         // Idempotent: legacy payment already set SOLD before PENDING_PICKUP.
@@ -144,8 +141,7 @@ public class LotteryTicketSerialModel {
             return;
         }
         if (this.status != LotteryTicketSerialStatus.IN_STOCK
-                && this.status != LotteryTicketSerialStatus.RESERVED
-                && this.status != LotteryTicketSerialStatus.PROXY_HOLDING) {
+                && this.status != LotteryTicketSerialStatus.RESERVED) {
             throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
         }
         if (this.status == LotteryTicketSerialStatus.IN_STOCK && !isAvailableForSale()) {
@@ -164,7 +160,14 @@ public class LotteryTicketSerialModel {
     }
 
     public void returnSoldToStock() {
-        if (this.status != LotteryTicketSerialStatus.SOLD) {
+        if (this.status == LotteryTicketSerialStatus.IN_STOCK) {
+            this.reservedAt = null;
+            this.reservationExpiresAt = null;
+            this.reservedByOrderId = null;
+            return;
+        }
+        if (this.status != LotteryTicketSerialStatus.SOLD
+                && this.status != LotteryTicketSerialStatus.RESERVED) {
             throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
         }
         this.status = LotteryTicketSerialStatus.IN_STOCK;
@@ -174,9 +177,11 @@ public class LotteryTicketSerialModel {
     }
 
     public void expire() {
+        if (isVoided()) {
+            return;
+        }
         if (this.status != LotteryTicketSerialStatus.IN_STOCK
-                && this.status != LotteryTicketSerialStatus.RESERVED
-                && this.status != LotteryTicketSerialStatus.PROXY_HOLDING) {
+                && this.status != LotteryTicketSerialStatus.RESERVED) {
             throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
         }
         this.status = LotteryTicketSerialStatus.EXPIRED;
@@ -205,13 +210,27 @@ public class LotteryTicketSerialModel {
         this.damagedEvidenceUrl = null;
     }
 
+    /** Move this physical serial onto another lottery number without cloning. */
+    public void reassignToTicket(Long newTicketId, Long newStationId, LocalDate newDrawDate) {
+        if (newTicketId == null) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "Vé số đích không được để trống.");
+        }
+        this.ticketId = newTicketId;
+        if (newStationId != null) {
+            this.stationId = newStationId;
+        }
+        if (newDrawDate != null) {
+            this.drawDate = newDrawDate;
+        }
+        this.replacedForTicketId = null;
+    }
+
     public boolean isInternalInventoryIncidentStatus() {
         return this.status == LotteryTicketSerialStatus.IN_STOCK;
     }
 
     public boolean isActiveTransactionIncidentStatus() {
-        return this.status == LotteryTicketSerialStatus.RESERVED
-                || this.status == LotteryTicketSerialStatus.PROXY_HOLDING;
+        return this.status == LotteryTicketSerialStatus.RESERVED;
     }
 
     public boolean isIncidentMutableStatus() {
@@ -257,13 +276,6 @@ public class LotteryTicketSerialModel {
         this.reservedAt = LocalDateTime.now();
         this.reservationExpiresAt = expiresAt;
         this.reservedByOrderId = orderId;
-    }
-
-    public void assumeProxyHolding(UUID orderId) {
-        this.status = LotteryTicketSerialStatus.PROXY_HOLDING;
-        this.reservedByOrderId = orderId;
-        this.reservedAt = null;
-        this.reservationExpiresAt = null;
     }
 
     public boolean isEditableStatus() {

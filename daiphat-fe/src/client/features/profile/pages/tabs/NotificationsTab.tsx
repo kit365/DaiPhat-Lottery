@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Bell, Newspaper, ShieldCheck, Check, Trash2, Trophy } from "lucide-react";
+import { Bell, Newspaper, ShieldCheck, Check, Trash2, Trophy, Settings } from "lucide-react";
 import {
     useDeleteAllMyReadNotifications,
     useMarkAllMyNotificationsAsRead,
@@ -13,6 +13,7 @@ import {
 import { NotificationResponse, NOTIFICATION_TYPE } from "../../../../../types/notifications.type";
 import { resolveNotificationNavigation } from "../../../../utils/notification.util";
 import { UnavailableReferenceState } from "../../../../components/notification/UnavailableReferenceState";
+import { ResultNotificationSettingsModal } from "../../../../components/notification/ResultNotificationSettingsModal";
 
 const formatDateTime = (value?: string) => {
     if (!value) return "";
@@ -84,6 +85,7 @@ export const NotificationsTab = () => {
     const pathname = usePathname() ?? '';
     const searchParamsForLocation = useSearchParams();
     const [activeTab, setActiveTab] = useState<'all' | 'unread'>('all');
+    const [settingsOpen, setSettingsOpen] = useState(false);
     const [unavailableMessage, setUnavailableMessage] = useState<string | null>(null);
     const scrollContainerRef = useRef<HTMLDivElement | null>(null);
     const loadMoreRef = useRef<HTMLDivElement | null>(null);
@@ -96,7 +98,7 @@ export const NotificationsTab = () => {
         isFetchingNextPage,
         hasNextPage,
         fetchNextPage,
-    } = useNotifications(7);
+    } = useNotifications();
     const { mutate: markMyNotificationAsRead } = useMarkMyNotificationAsRead();
     const { mutate: markAllMyNotificationsAsRead } = useMarkAllMyNotificationsAsRead();
     const { mutate: deleteAllMyReadNotifications } = useDeleteAllMyReadNotifications();
@@ -115,6 +117,13 @@ export const NotificationsTab = () => {
         }
         setUnavailableMessage(message);
         router.replace(pathname);
+    }, [searchParamsForLocation, pathname, router]);
+
+    useEffect(() => {
+        if (searchParamsForLocation?.get("openSettings") === "1") {
+            setSettingsOpen(true);
+            router.replace(pathname);
+        }
     }, [searchParamsForLocation, pathname, router]);
 
     useEffect(() => {
@@ -157,7 +166,7 @@ export const NotificationsTab = () => {
                     <h2 className="client-heading m-0 mb-1">Thông báo</h2>
                     <p className="text-[14px] text-[#637381]">Xem các thông báo của bạn</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
                     <button
                         onClick={() => deleteAllMyReadNotifications()}
                         className="flex items-center gap-2 px-4 py-2 text-[14px] font-medium text-[#212B36] border border-[#E5E8EB] rounded-xl hover:bg-slate-50 transition-colors bg-white cursor-pointer"
@@ -189,19 +198,28 @@ export const NotificationsTab = () => {
                 </div>
             )}
 
-            {/* Tabs */}
-            <div className="flex gap-6 border-b border-[#E5E8EB] mb-6">
+            {/* Tabs + settings */}
+            <div className="flex items-end justify-between gap-4 border-b border-[#E5E8EB] mb-6">
+                <div className="flex gap-6">
+                    <button
+                        className={`pb-3 text-[15px] font-bold border-b-2 transition-colors cursor-pointer ${activeTab === 'all' ? 'border-[#ee1314] text-[#ee1314]' : 'border-transparent text-[#637381] hover:text-[#212B36]'}`}
+                        onClick={() => setActiveTab('all')}
+                    >
+                        Tất cả
+                    </button>
+                    <button
+                        className={`pb-3 text-[15px] font-bold border-b-2 transition-colors cursor-pointer ${activeTab === 'unread' ? 'border-[#ee1314] text-[#ee1314]' : 'border-transparent text-[#637381] hover:text-[#212B36]'}`}
+                        onClick={() => setActiveTab('unread')}
+                    >
+                        Chưa đọc ({unreadCount})
+                    </button>
+                </div>
                 <button
-                    className={`pb-3 text-[15px] font-bold border-b-2 transition-colors cursor-pointer ${activeTab === 'all' ? 'border-[#ee1314] text-[#ee1314]' : 'border-transparent text-[#637381] hover:text-[#212B36]'}`}
-                    onClick={() => setActiveTab('all')}
+                    type="button"
+                    onClick={() => setSettingsOpen(true)}
+                    className="mb-2 flex items-center gap-2 px-4 py-2 text-[14px] font-medium text-[#212B36] border border-[#E5E8EB] rounded-xl hover:bg-slate-50 transition-colors bg-white cursor-pointer shrink-0"
                 >
-                    Tất cả
-                </button>
-                <button
-                    className={`pb-3 text-[15px] font-bold border-b-2 transition-colors cursor-pointer ${activeTab === 'unread' ? 'border-[#ee1314] text-[#ee1314]' : 'border-transparent text-[#637381] hover:text-[#212B36]'}`}
-                    onClick={() => setActiveTab('unread')}
-                >
-                    Chưa đọc ({unreadCount})
+                    <Settings size={16} className="text-[#637381]" /> Cài đặt
                 </button>
             </div>
 
@@ -322,6 +340,11 @@ export const NotificationsTab = () => {
                     </div>
                 )}
             </div>
+
+            <ResultNotificationSettingsModal
+                isOpen={settingsOpen}
+                onClose={() => setSettingsOpen(false)}
+            />
         </div>
     );
 };

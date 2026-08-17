@@ -32,9 +32,10 @@ export const usePrefetchAdminPagesWhenIdle = (enabled: boolean) => {
             if (cancelled) {
                 return;
             }
-            // Keep the idle warm-up best-effort: a missing route manifest must
-            // never block the admin shell from rendering.
-            (ADMIN_PREFETCH_ROUTE_PRIORITY ?? []).slice(0, 4).forEach((path) => {
+            if (!ADMIN_PREFETCH_ROUTE_PRIORITY?.length) {
+                return;
+            }
+            ADMIN_PREFETCH_ROUTE_PRIORITY.slice(0, 4).forEach((path) => {
                 prefetchAdminRoute(path, prefetchRoute, { loadChunk: false });
             });
         };

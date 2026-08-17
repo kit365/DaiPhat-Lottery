@@ -1,24 +1,17 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import {
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    Button,
-    Typography,
-    FormControlLabel,
-    Checkbox,
-    Box,
-    Stack,
-} from '@mui/material';
-import { Icon } from '@/admin/components/ui/AdminIcon';
+import { useEffect, useRef, useState } from "react";
+import { Alert, Typography, FormControlLabel, Checkbox, Box, Stack } from "@mui/material";
+import { AdminConfirmDialog } from "@/admin/components/ui/AdminConfirmDialog";
+import { Icon } from "@/admin/components/ui/AdminIcon";
 
 interface OrderHandoverConfirmDialogProps {
     open: boolean;
+    existingEvidenceUrl?: string | null;
+    loading?: boolean;
     onClose: () => void;
     onConfirm: () => void;
+    onUploadEvidence: (file: File) => Promise<string>;
 }
 
 /**
@@ -27,98 +20,80 @@ interface OrderHandoverConfirmDialogProps {
  */
 export const OrderHandoverConfirmDialog = ({
     open,
+    existingEvidenceUrl,
+    loading = false,
     onClose,
     onConfirm,
+    onUploadEvidence,
 }: OrderHandoverConfirmDialogProps) => {
     const [acknowledged, setAcknowledged] = useState(false);
+    const [evidenceUrl, setEvidenceUrl] = useState(existingEvidenceUrl || "");
+    const [uploading, setUploading] = useState(false);
+    const [uploadError, setUploadError] = useState<string | null>(null);
+    const inputRef = useRef<HTMLInputElement | null>(null);
 
     useEffect(() => {
         if (open) {
             setAcknowledged(false);
+            setEvidenceUrl(existingEvidenceUrl || "");
+            setUploadError(null);
         }
-    }, [open]);
+    }, [open, existingEvidenceUrl]);
 
-    const handleConfirm = () => {
-        if (!acknowledged) return;
-        onConfirm();
-        onClose();
+    const handleFileChange = async (file?: File) => {
+        if (!file) return;
+        if (!file.type.startsWith("image/")) {
+            setUploadError("Vui lòng chọn file ảnh để lưu bằng chứng bàn giao.");
+            return;
+        }
+        setUploadError(null);
+        setUploading(true);
+        try {
+            setEvidenceUrl(await onUploadEvidence(file));
+        } catch (error: any) {
+            setUploadError(error?.response?.data?.message || error?.message || "Không tải được ảnh bàn giao.");
+        } finally {
+            setUploading(false);
+            if (inputRef.current) inputRef.current.value = "";
+        }
     };
 
+    const canConfirm = acknowledged && Boolean(evidenceUrl.trim()) && !uploading && !loading;
+
     return (
-        <Dialog
+        <AdminConfirmDialog
             open={open}
-            onClose={onClose}
+            title="Xác nhận bàn giao"
             maxWidth="sm"
-            fullWidth
-            PaperProps={{
-                sx: {
-                    borderRadius: 'var(--shape-borderRadius-lg)',
-                    boxShadow: 'var(--customShadows-dialog)',
-                },
+            cancelLabel="Quay lại"
+            confirmLabel="Xác nhận bàn giao"
+            confirmLoadingLabel="Đang lưu..."
+            loading={loading}
+            confirmDisabled={!canConfirm}
+            onClose={onClose}
+            onConfirm={() => {
+                if (!canConfirm) return;
+                onConfirm();
             }}
         >
-            <DialogTitle sx={{ pb: 1.5, pt: 2.5, px: 3 }}>
-                <Stack direction="row" spacing={1.5} alignItems="center">
-                    <Box
-                        sx={{
-                            width: 40,
-                            height: 40,
-                            borderRadius: '10px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            bgcolor: 'var(--palette-warning-lighter)',
-                            color: 'var(--palette-warning-dark)',
-                            flexShrink: 0,
-                        }}
-                    >
-                        <Icon icon="solar:hand-heart-bold-duotone" width={22} />
-                    </Box>
-                    <Typography
-                        variant="h6"
-                        sx={{
-                            fontWeight: 800,
-                            fontSize: '1.05rem',
-                            letterSpacing: 0.4,
-                            textTransform: 'uppercase',
-                            color: 'var(--palette-text-primary)',
-                        }}
-                    >
-                        Xác nhận bàn giao
-                    </Typography>
-                </Stack>
-            </DialogTitle>
-
-            <DialogContent sx={{ px: 3, pb: 1 }}>
-                <Typography
-                    variant="body2"
-                    sx={{
-                        color: 'var(--palette-text-secondary)',
-                        lineHeight: 1.7,
-                        mb: 2.5,
-                    }}
-                >
-                    Yêu cầu khách hàng kiểm tra kỹ số lượng và tình trạng vật lý của vé. Hệ thống{' '}
-                    <Box component="span" sx={{ fontWeight: 800, color: 'var(--palette-error-dark)' }}>
-                        KHÔNG
-                    </Box>{' '}
-                    hỗ trợ hoàn tiền hoặc đổi vé sau khi đã hoàn tất bàn giao.
+            <Stack spacing={2}>
+                <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7 }}>
+                    Yêu cầu khách hàng kiểm tra số lượng và tình trạng vé trước khi staff chốt bàn giao.
                 </Typography>
-
                 <Box
                     sx={{
                         p: 1.5,
-                        borderRadius: '12px',
-                        border: '1px solid var(--palette-divider)',
-                        bgcolor: 'var(--palette-background-neutral)',
+                        borderRadius: "12px",
+                        border: "1px solid var(--palette-divider)",
+                        bgcolor: "var(--palette-background-neutral)",
                     }}
                 >
                     <FormControlLabel
                         sx={{
-                            alignItems: 'flex-start',
+                            alignItems: "flex-start",
                             m: 0,
                             gap: 0.5,
-                            '& .MuiFormControlLabel-label': { pt: 0.25 },
+                            "& .MuiFormControlLabel-label": { pt: 0.25 },
                         }}
                         control={
                             <Checkbox
@@ -129,40 +104,50 @@ export const OrderHandoverConfirmDialog = ({
                             />
                         }
                         label={
-                            <Typography
-                                variant="body2"
-                                sx={{
-                                    fontWeight: 600,
-                                    color: 'var(--palette-text-primary)',
-                                    lineHeight: 1.5,
-                                }}
-                            >
-                                Tôi xác nhận khách hàng đã kiểm tra và đồng ý nhận đủ vé.
+                            <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.5 }}>
+                                Tôi xác nhận khách hàng đã kiểm tra và đã nhận đủ vé.
                             </Typography>
                         }
                     />
                 </Box>
-            </DialogContent>
 
-            <DialogActions sx={{ px: 3, pb: 2.5, pt: 2, gap: 1 }}>
-                <Button
-                    variant="outlined"
-                    color="inherit"
-                    onClick={onClose}
-                    sx={{ minWidth: 96 }}
-                >
-                    Hủy
-                </Button>
-                <Button
-                    variant="contained"
-                    className="btn-primary-admin"
-                    disabled={!acknowledged}
-                    onClick={handleConfirm}
-                    sx={{ minWidth: 140 }}
-                >
-                    Xác nhận hoàn thành
-                </Button>
-            </DialogActions>
-        </Dialog>
+                <Alert severity="info" icon={<Icon icon="solar:camera-add-bold-duotone" />}>
+                    Ảnh bàn giao là bằng chứng đối soát bắt buộc. Có thể chụp hoặc chọn ảnh từ thiết bị.
+                </Alert>
+                <input
+                    ref={inputRef}
+                    hidden
+                    type="file"
+                    accept="image/*"
+                    onChange={(event) => handleFileChange(event.target.files?.[0])}
+                />
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                    <Box
+                        component="button"
+                        type="button"
+                        onClick={() => inputRef.current?.click()}
+                        disabled={uploading || loading}
+                        sx={{
+                            border: "1px dashed var(--palette-divider)",
+                            borderRadius: 1.5,
+                            bgcolor: "transparent",
+                            px: 2,
+                            py: 1,
+                            cursor: "pointer",
+                            fontWeight: 700,
+                            color: "var(--palette-text-primary)",
+                        }}
+                    >
+                        {uploading ? "Đang tải ảnh..." : evidenceUrl ? "Đổi ảnh bàn giao" : "Chụp / tải ảnh"}
+                    </Box>
+                    {evidenceUrl && (
+                        <Typography variant="body2" color="success.main">
+                            Đã lưu ảnh xác nhận
+                        </Typography>
+                    )}
+                </Stack>
+                {uploadError && <Typography color="error" variant="caption">{uploadError}</Typography>}
+            </Stack>
+        </AdminConfirmDialog>
     );
 };

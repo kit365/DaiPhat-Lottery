@@ -3,7 +3,7 @@
 import { usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
-import { Loader2, ShoppingCart, Shuffle, CalendarHeart } from 'lucide-react';
+import { Loader2, ShoppingCart, Shuffle, CalendarHeart, ArrowLeft } from 'lucide-react';
 import { isAxiosError } from 'axios';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuthStore } from '../../../stores/useAuthStore';
@@ -20,6 +20,8 @@ import { formatFortuneDisplayDate, localizeFortuneProseDates } from '../../utils
 import { BottomNav } from '../../components/layout/BottomNav';
 import { FortuneJarScene } from './components/FortuneJarScene';
 import { FortuneStickCard } from './components/FortuneStickCard';
+import { FortuneStageBackdrop } from './components/FortuneStageBackdrop';
+import { FortuneDobPicker } from './components/FortuneDobPicker';
 import {
   EJECT_DURATION_MS,
   SHAKE_DURATION_MS,
@@ -27,6 +29,13 @@ import {
   type FortuneAnimPhase,
   type JarSceneMode,
 } from './fortuneUi';
+import {
+  fireFortuneEjectBurst,
+  originFromElement,
+  rattleDevice,
+  startFortuneResultFireworks,
+  startFortuneShakeSparkles,
+} from './fortuneCelebration';
 
 type CastMode = 'birthdate' | 'random';
 
@@ -102,7 +111,7 @@ function highlightFortuneProse(prose: string, luckyTail?: string) {
       nodes.push(<span key={`t-${key++}`}>{localized.slice(lastIndex, match.index)}</span>);
     }
     nodes.push(
-      <strong key={`b-${key++}`} className="font-bold text-slate-900">
+      <strong key={`b-${key++}`} className="font-bold text-amber-200">
         {match[0]}
       </strong>,
     );
@@ -135,12 +144,12 @@ function ElementPill({ title, value, compact }: { title: string; value?: string 
   const ui = elementUi(value);
   return (
     <span
-      className={`inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-50 border border-slate-200 font-semibold text-slate-700 w-full ${
+      className={`inline-flex items-center justify-center gap-1.5 rounded-xl border border-amber-500/30 bg-[#2A0C0E]/80 font-semibold text-amber-50 w-full ${
         compact ? 'px-2 py-1 text-[11px] rounded-full' : 'px-4 py-3 text-[15px]'
       }`}
     >
-      <span className="text-slate-500 font-medium">{title}:</span>
-      <strong className="text-slate-900">{ui.label}</strong>
+      <span className="text-amber-200/70 font-medium">{title}:</span>
+      <strong className="text-amber-100">{ui.label}</strong>
     </span>
   );
 }
@@ -171,8 +180,14 @@ export function FortuneCastPage() {
   const [sceneKey, setSceneKey] = useState(0);
   const [nextCastCountdownMs, setNextCastCountdownMs] = useState(0);
   const ejectDoneRef = useRef<(() => void) | null>(null);
+  const jarRef = useRef<HTMLDivElement>(null);
+  const fireworksStopRef = useRef<(() => void) | null>(null);
 
-  const alreadyCastToday = hasCastToday || Boolean(result?.alreadyCastToday);
+  // Tạm tắt khóa lượt để test gieo liên tục — nhớ bật lại trước khi ship.
+  const skipDailyLimit = true;
+  const alreadyCastToday = skipDailyLimit
+    ? false
+    : hasCastToday || Boolean(result?.alreadyCastToday);
   const profileHasDob = Boolean(user?.dob);
   const showCastSetup =
     Boolean(token) &&
@@ -295,6 +310,24 @@ export function FortuneCastPage() {
     scrollToTop();
   }, [loadingToday, phase, sceneKey]);
 
+  useEffect(() => {
+    if (phase !== 'shaking') return;
+    const sparkles = startFortuneShakeSparkles(() => originFromElement(jarRef.current, 0.28));
+    return () => sparkles.stop();
+  }, [phase]);
+
+  useEffect(() => {
+    if (phase !== 'ejecting') return;
+    fireFortuneEjectBurst(originFromElement(jarRef.current, 0.22));
+  }, [phase]);
+
+  useEffect(() => {
+    return () => {
+      fireworksStopRef.current?.();
+      fireworksStopRef.current = null;
+    };
+  }, []);
+
   const ensureAuth = () => {
     if (token) return true;
     openLoginModal();
@@ -324,6 +357,7 @@ export function FortuneCastPage() {
     setErrorMessage(null);
     setSceneKey((k) => k + 1);
     setPhase('shaking');
+    rattleDevice([40, 30, 40, 30, 80, 40, 50]);
 
     const apiPromise = castFortune(opts.payload);
 
@@ -333,8 +367,11 @@ export function FortuneCastPage() {
 
       const [castResult] = await Promise.all([apiPromise, waitForEjectComplete()]);
       setResult(castResult);
-      setHasCastToday(true);
+      setHasCastToday(Boolean(castResult.alreadyCastToday));
+      rattleDevice([20, 40, 120]);
       setPhase('result');
+      fireworksStopRef.current?.();
+      fireworksStopRef.current = startFortuneResultFireworks().stop;
     } catch (error) {
       setErrorMessage(extractErrorMessage(error));
       setPhase('error');
@@ -410,82 +447,102 @@ export function FortuneCastPage() {
 
   const CastSetupPanel = () => (
     <div className="w-full text-left">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
-        <div
-          role="button"
-          tabIndex={0}
+      <p className="mb-3 text-center text-[11px] font-bold uppercase tracking-[0.22em] text-[#7a1f22]/80">
+        Chọn cách gieo
+      </p>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <button
+          type="button"
           onClick={() => selectCastMode('random')}
           onKeyDown={(event) => handleCastModeKeyDown(event, 'random')}
-          className={`rounded-2xl border p-4 md:p-5 transition-all cursor-pointer ${
+          className={`relative cursor-pointer overflow-hidden rounded-xl p-4 text-left transition-all md:p-[18px] ${
             castMode === 'random'
-              ? 'border-red-200 bg-red-50/40 shadow-sm ring-1 ring-red-100'
-              : 'border-slate-200 bg-slate-50/60 hover:border-slate-300'
+              ? 'bg-gradient-to-b from-[#8B1A1C] to-[#4A0E10] shadow-[0_0_0_1px_#E8C872,0_12px_28px_rgba(0,0,0,0.35)]'
+              : 'border border-amber-700/25 bg-[#2A0C0E]/70 hover:border-amber-500/45'
           }`}
         >
-          <div className="flex items-center gap-2.5 text-[#6F2A12] font-black text-[14px] md:text-[15px] mb-1.5">
-            <Shuffle className="w-5 h-5 text-[#ee1314]" />
-            GIEO QUẺ NGẪU NHIÊN
+          <span
+            aria-hidden
+            className="pointer-events-none absolute -right-3 -top-4 font-serif text-[72px] leading-none text-amber-400/10"
+          >
+            運
+          </span>
+          <div className="relative flex items-start gap-3">
+            <span
+              className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border ${
+                castMode === 'random'
+                  ? 'border-amber-300 bg-gradient-to-br from-amber-200 to-amber-600 text-[#6B1012]'
+                  : 'border-amber-700/40 bg-black/20 text-amber-400/80'
+              }`}
+            >
+              <Shuffle className="h-4 w-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[13px] font-black tracking-[0.08em] text-amber-100 md:text-[14px]">
+                Gieo ngẫu nhiên
+              </p>
+              <p className="mt-1 text-[12px] leading-snug text-amber-100/65">
+                Để vận khí hôm nay chọn bản mệnh giúp bạn.
+              </p>
+            </div>
           </div>
-          <p className="text-[12px] md:text-[13px] text-slate-600 leading-snug">
-            Hệ thống chọn bản mệnh ngẫu nhiên theo vận khí hôm nay.
-          </p>
-        </div>
+          {castMode === 'random' && (
+            <span className="absolute right-3 top-3 rounded-sm bg-amber-400 px-1.5 py-0.5 text-[9px] font-black tracking-widest text-[#5A1012]">
+              CHỌN
+            </span>
+          )}
+        </button>
 
         <div
           role="button"
           tabIndex={0}
           onClick={() => selectCastMode('birthdate')}
           onKeyDown={(event) => handleCastModeKeyDown(event, 'birthdate')}
-          className={`rounded-2xl border p-4 md:p-5 transition-all cursor-pointer ${
+          className={`relative z-10 cursor-pointer rounded-xl p-4 text-left transition-all md:p-[18px] ${
             castMode === 'birthdate'
-              ? 'border-red-200 bg-red-50/40 shadow-sm ring-1 ring-red-100'
-              : 'border-slate-200 bg-slate-50/60 hover:border-slate-300'
+              ? 'bg-gradient-to-b from-[#8B1A1C] to-[#4A0E10] shadow-[0_0_0_1px_#E8C872,0_12px_28px_rgba(0,0,0,0.35)]'
+              : 'border border-amber-700/25 bg-[#2A0C0E]/70 hover:border-amber-500/45'
           }`}
         >
-          <div className="flex items-center gap-2.5 text-[#6F2A12] font-black text-[14px] md:text-[15px] mb-2">
-            <CalendarHeart className="w-5 h-5 text-[#ee1314]" />
-            GIEO THEO NGÀY SINH
-          </div>
-          <div
-            className="grid grid-cols-3 gap-2"
-            onClick={(event) => {
-              event.stopPropagation();
-              selectCastMode('birthdate');
-            }}
-            onKeyDown={(event) => event.stopPropagation()}
+          <span
+            aria-hidden
+            className="pointer-events-none absolute -right-2 -top-5 font-serif text-[72px] leading-none text-amber-400/10"
           >
-            <input
-              type="number"
-              inputMode="numeric"
-              min={1}
-              max={31}
-              placeholder="Ngày"
-              value={birthDay}
-              onFocus={() => selectCastMode('birthdate')}
-              onChange={(e) => setBirthDay(e.target.value.replace(/\D/g, '').slice(0, 2))}
-              className="w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-[13px] text-center font-bold outline-none focus:border-red-500"
-            />
-            <input
-              type="number"
-              inputMode="numeric"
-              min={1}
-              max={12}
-              placeholder="Tháng"
-              value={birthMonth}
-              onFocus={() => selectCastMode('birthdate')}
-              onChange={(e) => setBirthMonth(e.target.value.replace(/\D/g, '').slice(0, 2))}
-              className="w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-[13px] text-center font-bold outline-none focus:border-red-500"
-            />
-            <input
-              type="number"
-              inputMode="numeric"
-              placeholder="Năm"
-              value={birthYearInput}
-              onFocus={() => selectCastMode('birthdate')}
-              onChange={(e) => setBirthYearInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
-              className="w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-[13px] text-center font-bold outline-none focus:border-red-500"
-            />
+            命
+          </span>
+          {castMode === 'birthdate' && (
+            <span className="absolute right-3 top-3 rounded-sm bg-amber-400 px-1.5 py-0.5 text-[9px] font-black tracking-widest text-[#5A1012]">
+              CHỌN
+            </span>
+          )}
+          <div className="relative mb-3 flex items-start gap-3">
+            <span
+              className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border ${
+                castMode === 'birthdate'
+                  ? 'border-amber-300 bg-gradient-to-br from-amber-200 to-amber-600 text-[#6B1012]'
+                  : 'border-amber-700/40 bg-black/20 text-amber-400/80'
+              }`}
+            >
+              <CalendarHeart className="h-4 w-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[13px] font-black tracking-[0.08em] text-amber-100 md:text-[14px]">
+                Gieo theo ngày sinh
+              </p>
+              <p className="mt-1 text-[12px] leading-snug text-amber-100/65">
+                Luận quẻ đúng bản mệnh của bạn.
+              </p>
+            </div>
           </div>
+          <FortuneDobPicker
+            day={birthDay}
+            month={birthMonth}
+            year={birthYearInput}
+            onDayChange={setBirthDay}
+            onMonthChange={setBirthMonth}
+            onYearChange={setBirthYearInput}
+            onInteract={() => selectCastMode('birthdate')}
+          />
         </div>
       </div>
     </div>
@@ -498,7 +555,7 @@ export function FortuneCastPage() {
         className="pointer-events-none fixed inset-0 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: `url("${CLIENT_PAGE_BACKGROUND}")` }}
       />
-      <div className="pointer-events-none fixed inset-0 bg-gradient-to-b from-white/20 via-transparent to-black/10" />
+      <div className="pointer-events-none fixed inset-0 bg-gradient-to-b from-[#f7e4d8]/50 via-transparent to-[#7a1f22]/20" />
 
       <main className="relative z-1 min-h-[100dvh] pt-20 lg:pt-24 pb-24 lg:pb-10 flex flex-col">
         <div className="max-w-[1280px] mx-auto px-4 xl:px-0 w-full flex-1 flex flex-col min-h-0">
@@ -507,11 +564,12 @@ export function FortuneCastPage() {
             <h1 className="client-heading">Gieo quẻ tài lộc</h1>
           </section>
 
-          <div className="w-full flex-1 flex flex-col min-h-[min(720px,calc(100dvh-11rem))] rounded-[28px] border border-gray-100 bg-white/90 backdrop-blur-[1px] shadow-[0_15px_40px_rgba(0,0,0,0.05)] overflow-hidden">
-          <div className="px-4 py-4 md:px-6 md:py-5 flex-1 flex flex-col min-h-0">
+          <div className="relative w-full flex-1 flex flex-col min-h-[min(720px,calc(100dvh-11rem))] overflow-hidden rounded-[28px] border border-white/40 shadow-[0_20px_50px_rgba(122,31,34,0.22)]">
+          <FortuneStageBackdrop />
+          <div className="relative px-4 py-4 md:px-6 md:py-5 flex-1 flex flex-col min-h-0">
             {loadingToday && phase === 'idle' ? (
-              <div className="flex flex-col flex-1 items-center justify-center gap-3 py-20 text-slate-500">
-                <Loader2 className="w-8 h-8 animate-spin text-[#ee1314]" />
+              <div className="flex flex-col flex-1 items-center justify-center gap-3 py-20 text-[#7a1f22]">
+                <Loader2 className="w-8 h-8 animate-spin text-[#c45a4c]" />
                 <span className="text-sm font-medium">Đang chuẩn bị ống quẻ…</span>
               </div>
             ) : null}
@@ -529,7 +587,7 @@ export function FortuneCastPage() {
                   {(phase === 'idle' || phase === 'error') && (
                     <div className="w-full shrink-0 space-y-3">
                       {!token && (
-                        <p className="text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2">
+                        <p className="rounded-xl border border-amber-600/30 bg-[#2A0C0E]/70 px-4 py-2 text-sm text-amber-100/85">
                           Đăng nhập để gieo quẻ và lưu kết quả trong ngày.
                         </p>
                       )}
@@ -537,21 +595,29 @@ export function FortuneCastPage() {
                       {showCastSetup && <CastSetupPanel />}
 
                       {errorMessage && (
-                        <p className="text-sm text-red-700 font-semibold bg-red-50 border border-red-100 rounded-xl px-4 py-2 w-full max-w-[720px] mx-auto">
+                        <p className="mx-auto w-full max-w-[720px] rounded-xl border border-amber-500/30 bg-[#5A1012]/80 px-4 py-2 text-sm font-semibold text-amber-100">
                           {errorMessage}
                         </p>
                       )}
 
-                      <div className="space-y-0.5 pt-1">
-                        <h2 className="text-base md:text-lg font-black text-slate-900 tracking-tight">Ống quẻ Thần Tài</h2>
-                        <p className="text-[12px] md:text-[13px] text-slate-600 leading-snug">
-                          Lắc ống — số trên que là <strong className="text-red-700">đuôi may mắn</strong> hôm nay.
+                      <div className="space-y-0.5 pt-2">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-[#9b2b2b]">
+                          Thần Tài
+                        </p>
+                        <h2 className="text-base font-black tracking-tight text-[#5A1012] md:text-lg">
+                          Ống quẻ tài lộc
+                        </h2>
+                        <p className="text-[12px] leading-snug text-[#6B1012]/75 md:text-[13px]">
+                          Lắc ống — số trên que là <strong className="text-[#9b2b2b]">đuôi may mắn</strong> hôm nay.
                         </p>
                       </div>
                     </div>
                   )}
 
-                  <div className="relative w-full max-w-[300px] sm:max-w-[340px] lg:max-w-[360px] flex-1 flex items-center justify-center min-h-[280px]">
+                  <div
+                    ref={jarRef}
+                    className="relative w-full max-w-[300px] sm:max-w-[340px] lg:max-w-[360px] flex-1 flex items-center justify-center min-h-[280px]"
+                  >
                     <FortuneJarScene
                       mode={jarMode}
                       winningTail={result?.luckyTail}
@@ -561,12 +627,12 @@ export function FortuneCastPage() {
                   </div>
 
                   {(phase === 'shaking' || phase === 'ejecting') && (
-                    <div className="mt-auto shrink-0 rounded-2xl border border-slate-200 bg-slate-50/80 p-5 space-y-1 w-full max-w-[680px]">
-                      <div className="flex items-center justify-center gap-2 text-slate-800 text-[15px] font-black">
-                        <Loader2 className="w-4 h-4 animate-spin text-[#ee1314]" />
+                    <div className="mt-auto w-full max-w-[680px] shrink-0 space-y-1 rounded-2xl border border-amber-500/25 bg-[#2A0C0E]/80 p-5">
+                      <div className="flex items-center justify-center gap-2 text-[15px] font-black text-amber-50">
+                        <Loader2 className="h-4 w-4 animate-spin text-amber-400" />
                         {phase === 'shaking' ? 'Đang lắc ống quẻ…' : 'Một que đang bay ra…'}
                       </div>
-                      <p className="text-[13px] text-slate-500">
+                      <p className="text-[13px] text-amber-100/65">
                         {phase === 'shaking'
                           ? 'Que xăm đang nhảy trong ống — giữ vững tâm thế.'
                           : 'Que may mắn sắp chạm đất.'}
@@ -586,61 +652,59 @@ export function FortuneCastPage() {
                   className="w-full flex-1 flex flex-col min-h-0"
                 >
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5 items-stretch flex-1 min-h-0">
-                    <div className="rounded-2xl border border-gray-100 bg-white p-5 md:p-7 text-center shadow-[0_4px_20px_rgba(0,0,0,0.03)] h-full min-h-full flex flex-col justify-between gap-5">
+                    <div className="flex h-full min-h-full flex-col justify-between gap-5 rounded-2xl border border-amber-500/25 bg-[#2A0C0E]/75 p-5 text-center md:p-7">
                       <div className="space-y-1.5 shrink-0">
-                        <p className="text-[12px] md:text-[13px] font-extrabold uppercase tracking-[0.18em] text-red-800">
+                        <p className="text-[12px] font-extrabold uppercase tracking-[0.18em] text-amber-400/85 md:text-[13px]">
                           Quẻ xăm tài lộc hôm nay
                         </p>
-                        <h2 className="text-2xl md:text-[28px] font-black text-slate-900 leading-tight">
+                        <h2 className="text-2xl font-black leading-tight text-amber-50 md:text-[28px]">
                           Thẻ may mắn của bạn
                         </h2>
                       </div>
 
                       <FortuneStickCard luckyTail={result.luckyTail} reveal large className="my-0 mx-auto w-full" />
 
-                      <div className="grid grid-cols-2 gap-3 w-full max-w-[420px] mx-auto shrink-0">
+                      <div className="mx-auto grid w-full max-w-[420px] shrink-0 grid-cols-2 gap-3">
                         <ElementPill title="Bản mệnh" value={result.userElement} />
                         <ElementPill title="Hành ngày" value={result.dayElement} />
                       </div>
 
                       <Link
                         href={result.buyPath}
-                        className="w-full inline-flex items-center justify-center gap-2 px-4 py-3.5 md:py-4 rounded-full bg-[#ee1314] text-white font-black text-[15px] md:text-[16px] hover:bg-red-700 text-center shadow-[0_8px_20px_rgba(238,19,20,0.24)] no-underline shrink-0"
+                        className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-full bg-[#ee1314] px-4 py-3.5 text-center text-[15px] font-black text-white no-underline shadow-[0_8px_20px_rgba(238,19,20,0.35)] hover:bg-red-700 md:py-4 md:text-[16px]"
                       >
-                        <ShoppingCart className="w-5 h-5" />
+                        <ShoppingCart className="h-5 w-5" />
                         Mua vé đuôi {result.luckyTail}
                       </Link>
                     </div>
 
-                    <div className="rounded-2xl bg-white border border-gray-100 p-5 md:p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)] h-full min-h-full flex flex-col justify-between gap-4">
-                      {/* 1. Lời luận */}
+                    <div className="flex h-full min-h-full flex-col justify-between gap-4 rounded-2xl border border-amber-500/25 bg-[#2A0C0E]/75 p-5 md:p-6">
                       <div className="shrink-0 space-y-3">
                         <div className="space-y-1">
-                          <p className="text-[12px] font-extrabold uppercase tracking-[0.18em] text-slate-500">
+                          <p className="text-[12px] font-extrabold uppercase tracking-[0.18em] text-amber-400/70">
                             Kết quả hôm nay
                           </p>
-                          <h3 className="text-xl md:text-2xl font-black text-slate-900 leading-tight">
+                          <h3 className="text-xl font-black leading-tight text-amber-50 md:text-2xl">
                             Lời luận quẻ
                           </h3>
                         </div>
-                        <div className="rounded-2xl border border-slate-200 bg-gray-50 p-4 md:p-6">
-                          <p className="text-[15px] md:text-[16px] text-slate-700 leading-[1.85] whitespace-pre-wrap">
+                        <div className="rounded-2xl border border-amber-500/20 bg-[#1A0808]/70 p-4 md:p-6">
+                          <p className="whitespace-pre-wrap text-[15px] leading-[1.85] text-amber-50/85 md:text-[16px]">
                             {highlightFortuneProse(result.prose, result.luckyTail)}
                           </p>
                         </div>
                       </div>
 
-                      {/* 2. Daily limit notice — expands to close gaps with neighbors */}
                       {alreadyCastToday ? (
-                        <div className="rounded-2xl border border-slate-200 bg-gray-50 p-4 md:p-5 text-center shrink-0 flex flex-col items-center gap-2.5">
-                          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                        <div className="flex shrink-0 flex-col items-center gap-2.5 rounded-2xl border border-amber-500/20 bg-[#1A0808]/70 p-4 text-center md:p-5">
+                          <p className="text-[11px] font-bold uppercase tracking-wider text-amber-200/60">
                             Thời gian chờ giữa các lần gieo
                           </p>
-                          <div className="w-full max-w-[280px] rounded-xl border border-red-100 bg-white px-4 py-3 shadow-sm">
-                            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                          <div className="w-full max-w-[280px] rounded-xl border border-amber-500/30 bg-[#3d1012]/80 px-4 py-3">
+                            <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-amber-200/60">
                               Lượt tiếp theo
                             </p>
-                            <p className="text-3xl md:text-4xl font-black tabular-nums text-[#ee1314] tracking-tight">
+                            <p className="text-3xl font-black tabular-nums tracking-tight text-amber-300 md:text-4xl">
                               {formatCountdownHms(nextCastCountdownMs)}
                             </p>
                           </div>
@@ -649,23 +713,23 @@ export function FortuneCastPage() {
                         <button
                           type="button"
                           onClick={() => setPhase('idle')}
-                          className="w-full text-[13px] font-semibold text-slate-600 hover:text-red-700 cursor-pointer shrink-0"
+                          className="inline-flex w-full shrink-0 cursor-pointer items-center justify-center gap-2 rounded-full border-2 border-amber-200 bg-gradient-to-b from-amber-50 to-amber-300 px-4 py-3.5 text-[15px] font-black text-[#6B1012] shadow-[0_8px_20px_rgba(122,31,34,0.22)] transition hover:from-white hover:to-amber-200 md:py-4 md:text-[16px]"
                         >
-                          ← Về ống quẻ
+                          <ArrowLeft className="h-5 w-5" />
+                          Về ống quẻ
                         </button>
                       )}
 
-                      {/* 3. Quẻ gần nhất */}
                       {result.previousCastSummary ? (
-                        <div className="rounded-2xl border border-slate-200 bg-gray-50 p-4 md:p-6 shrink-0 text-center">
-                          <p className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 mb-2">
+                        <div className="shrink-0 rounded-2xl border border-amber-500/20 bg-[#1A0808]/70 p-4 text-center md:p-6">
+                          <p className="mb-2 text-[11px] font-extrabold uppercase tracking-wider text-amber-200/60">
                             Quẻ gần nhất
                           </p>
-                          <p className="text-[16px] font-black text-slate-900">
+                          <p className="text-[16px] font-black text-amber-50">
                             Đuôi may mắn{' '}
-                            <span className="text-red-700">{result.previousCastSummary.luckyTail}</span>
+                            <span className="text-amber-300">{result.previousCastSummary.luckyTail}</span>
                           </p>
-                          <p className="text-[13px] text-slate-500 mt-1">
+                          <p className="mt-1 text-[13px] text-amber-100/55">
                             {formatFortuneDisplayDate(result.previousCastSummary.castDate)}
                             {result.previousCastSummary.userElement
                               ? ` · Mệnh ${elementUi(result.previousCastSummary.userElement).label}`

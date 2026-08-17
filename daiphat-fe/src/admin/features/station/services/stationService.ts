@@ -158,6 +158,31 @@ export const updateStation = async (
     return response.data;
 };
 
+/**
+ * Corrects only a station's weekly draw schedule.
+ *
+ * <p>Deliberately not updateStation: that sends the whole record, and a caller
+ * that never loaded the price or region would blank them. Reached from the
+ * file-import preview when a file names a station on a weekday its schedule does
+ * not cover.
+ */
+export const updateStationSchedule = async (payload: {
+    lotteryStationId: number;
+    /** Backend day names, e.g. MONDAY. */
+    drawDays: string[];
+    drawTime?: string;
+}): Promise<ApiResponse<Station>> => {
+    const response = await apiApp.put(`${BASE_URL}/schedule`, payload);
+    return response.data;
+};
+
+export const bulkUpdateStationPricing = async (
+    items: Array<{ lotteryStationId: number; importCost: number; commissionRate: number }>
+): Promise<ApiResponse<Station[]>> => {
+    const response = await apiApp.put(`${BASE_URL}/pricing`, { items });
+    return response.data;
+};
+
 export const deleteStation = async (
     id: string | number
 ): Promise<ApiResponse<unknown>> => {
@@ -218,6 +243,17 @@ export const uploadStationImage = async (
         },
     });
     return response.data;
+};
+
+/** Asks the backend for a free station code derived from a name. */
+export const suggestStationCode = async (
+    name: string,
+    excludeStationId?: number
+): Promise<string> => {
+    const response = await apiApp.get(`${BASE_URL}/suggest-code`, {
+        params: { name, ...(excludeStationId != null ? { excludeStationId } : {}) },
+    });
+    return response.data?.data ?? '';
 };
 
 export const previewSyncStations = async (

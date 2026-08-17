@@ -1,9 +1,9 @@
-import Cookies from "js-cookie";
 import type { QueryClient } from "@tanstack/react-query";
 
 import type { GetMeResponse } from '@/shared/auth/types/auth.type';
+import { persistAccessToken } from '@/api/authHeaders';
+import { endAuthSession } from '@/api/endAuthSession';
 import { QUERY_KEYS } from "@/constants/queryKeys";
-import { STORAGE_KEYS } from "@/constants/storage.constants";
 import { USER_ROLES } from "@/constants/role.constants";
 import { useAuthStore } from "@/stores/useAuthStore";
 import type { User } from "@/types/user.type";
@@ -14,24 +14,12 @@ export const adminMeQueryKey = (token: string | null) => [QUERY_KEYS.AUTH_ME, to
 
 export function persistAdminAccessToken(accessToken: string, expiresIn?: number): number {
     const ttlSeconds = expiresIn && expiresIn > 0 ? expiresIn : DEFAULT_TOKEN_TTL_SECONDS;
-
-    Cookies.set(STORAGE_KEYS.TOKEN, accessToken, {
-        expires: Math.max(ttlSeconds, 60) / 86400,
-        path: "/",
-    });
-
-    useAuthStore.getState().set({
-        token: accessToken,
-        expiresAt: Date.now() + ttlSeconds * 1000,
-    });
-
+    persistAccessToken(accessToken, ttlSeconds);
     return ttlSeconds;
 }
 
 export function clearAdminAuthSession(): void {
-    useAuthStore.getState().logout();
-    Cookies.remove(STORAGE_KEYS.TOKEN, { path: "/" });
-    Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN, { path: "/" });
+    endAuthSession();
 }
 
 export function seedAdminMeQuery(queryClient: QueryClient, token: string, user: User): void {
@@ -49,6 +37,7 @@ export function completeAdminLoginSession(
     accessToken: string,
     expiresIn?: number,
 ): void {
+    persistAccessToken(accessToken, expiresIn);
     useAuthStore.getState().login(userInfo, accessToken, expiresIn);
     seedAdminMeQuery(queryClient, accessToken, userInfo);
 }
@@ -56,9 +45,8 @@ export function completeAdminLoginSession(
 export function syncUserFromMeResponse(
     response: GetMeResponse | undefined,
     set: (state: Partial<{ user: User | null }>) => void,
-    logout: () => void,
 ): void {
-    if (!response) {
+    if (!response || !useAuthStore.getState().token) {
         return;
     }
 
@@ -74,7 +62,7 @@ export function syncUserFromMeResponse(
     }
 
     if (!isSuccess) {
-        logout();
+        endAuthSession();
     }
 }
 

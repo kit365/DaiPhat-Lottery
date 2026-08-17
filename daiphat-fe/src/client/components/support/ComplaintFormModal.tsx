@@ -11,6 +11,7 @@ import { useGetMyOrders } from '../../hooks/useOrder';
 import { useGetMyRefunds } from '../../hooks/useRefund';
 import {
     useCreateComplaint,
+    useGetOrderComplaintEligibility,
     useGetTicketCategories,
     useUpdateComplaint,
 } from '../../hooks/useSupportTicket';
@@ -56,7 +57,7 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
     const isEditing = !!editingTicket;
 
     const { data: categoriesData } = useGetTicketCategories();
-    const { data: ordersData } = useGetMyOrders({ page: 1, limit: 100 });
+    const { data: ordersData, isLoading: isOrdersLoading } = useGetMyOrders({ page: 1, limit: 100 });
     const { data: refundsData } = useGetMyRefunds({ page: 1, limit: 100 });
     const { data: payoutsData } = useGetMyPrizePayouts({ page: 1, limit: 100 }, isOpen);
     const createMutation = useCreateComplaint();
@@ -69,7 +70,40 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
         return categories.filter(c => !c.code.startsWith('GROUP_'));
     }, [categories]);
 
+    const orders = ordersData?.data?.recordList || [];
+    const refunds = (refundsData?.data?.recordList || []) as RefundRequestResponse[];
+    const payouts = (payoutsData?.data?.recordList || []) as PrizePayoutRequestResponse[];
+
+    const [ticketCategoryId, setTicketCategoryId] = useState<number | ''>('');
+    const [title, setTitle] = useState('');
+    const [description, setDescription] = useState('');
+    const [refId, setRefId] = useState('');
+    const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
+    const [isPrizePayoutModalOpen, setIsPrizePayoutModalOpen] = useState(false);
+
+    const selectedOrder = useMemo(() => orders.find((o) => o.id === refId), [orders, refId]);
+    const selectedRefund = useMemo(() => refunds.find((r) => String(r.id) === refId), [refunds, refId]);
+    const selectedPrizePayout = useMemo(() => payouts.find((p) => String(p.id) === refId), [payouts, refId]);
+
+    const orderIdForEligibility = defaultOrderId || selectedOrder?.id || '';
+    const { data: orderEligibilityData, isLoading: isOrderEligibilityLoading } = useGetOrderComplaintEligibility(
+        orderIdForEligibility,
+        isOpen && !!orderIdForEligibility
+    );
+    const orderEligibility = orderEligibilityData?.data;
+
+    const isGenericCreate =
+        !isEditing && defaultRefundId == null && defaultPrizePayoutId == null && !defaultCategoryCode;
+
     const visibleCategories = useMemo(() => {
+        if (isEditing) {
+            return selectableCategories;
+        }
         if (defaultCategoryCode) {
             return selectableCategories.filter((category) => category.code === defaultCategoryCode);
         }
@@ -79,11 +113,26 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
         if (defaultRefundId != null) {
             return selectableCategories.filter((category) => category.requiredRefType === TicketRefType.REFUND_REQUEST);
         }
-        if (defaultOrderId) {
-            return selectableCategories.filter((category) => category.requiredRefType === TicketRefType.ORDER);
+        if (isGenericCreate && !orderIdForEligibility) {
+            return [];
+        }
+        if (orderIdForEligibility) {
+            if (!orderEligibility?.eligible || !orderEligibility.categoryCode) {
+                return [];
+            }
+            return selectableCategories.filter((category) => category.code === orderEligibility.categoryCode);
         }
         return selectableCategories;
-    }, [selectableCategories, defaultCategoryCode, defaultRefundId, defaultPrizePayoutId, defaultOrderId]);
+    }, [
+        selectableCategories,
+        defaultCategoryCode,
+        defaultRefundId,
+        defaultPrizePayoutId,
+        orderIdForEligibility,
+        orderEligibility,
+        isGenericCreate,
+        isEditing,
+    ]);
 
     const groupedCategories = useMemo(() => {
         const groups: Record<number, { parent: TicketCategoryResponse | undefined; items: TicketCategoryResponse[] }> = {};
@@ -106,23 +155,6 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
         return { groups: Object.values(groups), ungrouped };
     }, [visibleCategories, categories]);
 
-    const orders = ordersData?.data?.recordList || [];
-    const refunds = (refundsData?.data?.recordList || []) as RefundRequestResponse[];
-    const payouts = (payoutsData?.data?.recordList || []) as PrizePayoutRequestResponse[];
-
-    const [ticketCategoryId, setTicketCategoryId] = useState<number | ''>('');
-    const [title, setTitle] = useState('');
-    const [description, setDescription] = useState('');
-    const [refId, setRefId] = useState('');
-    const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
-
-    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-    const dropdownRef = useRef<HTMLDivElement>(null);
-
-    const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
-    const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
-    const [isPrizePayoutModalOpen, setIsPrizePayoutModalOpen] = useState(false);
-
     const selectedCategory = useMemo(
         () => categories.find((c) => c.id === ticketCategoryId),
         [categories, ticketCategoryId]
@@ -131,10 +163,6 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
     const requiredRefType = selectedCategory?.requiredRefType;
     const evidenceRequired =
         requireEvidence || selectedCategory?.code === 'PAYMENT_SYNC_ERROR';
-
-    const selectedOrder = useMemo(() => orders.find(o => o.id === refId), [orders, refId]);
-    const selectedRefund = useMemo(() => refunds.find(r => String(r.id) === refId), [refunds, refId]);
-    const selectedPrizePayout = useMemo(() => payouts.find(p => String(p.id) === refId), [payouts, refId]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -146,25 +174,46 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
             setRefId(editingTicket.refId || '');
             setAttachmentFile(null);
         } else {
-            const preferredCategory =
-                (defaultCategoryCode
-                    ? visibleCategories.find((category) => category.code === defaultCategoryCode)
-                    : undefined) ||
-                visibleCategories[0];
-
-            setTicketCategoryId(preferredCategory?.id || '');
             setTitle('');
             setDescription('');
+            setAttachmentFile(null);
             if (defaultPrizePayoutId != null) {
                 setRefId(String(defaultPrizePayoutId));
+                setTicketCategoryId(visibleCategories[0]?.id || '');
             } else if (defaultRefundId != null) {
                 setRefId(String(defaultRefundId));
+                setTicketCategoryId(visibleCategories[0]?.id || '');
+            } else if (defaultCategoryCode) {
+                setRefId(defaultOrderId || '');
+                setTicketCategoryId(visibleCategories[0]?.id || '');
             } else {
                 setRefId(defaultOrderId || '');
+                setTicketCategoryId('');
             }
-            setAttachmentFile(null);
         }
-    }, [isOpen, editingTicket, categories, visibleCategories, defaultOrderId, defaultRefundId, defaultPrizePayoutId, defaultCategoryCode]);
+    }, [isOpen, editingTicket, defaultOrderId, defaultRefundId, defaultPrizePayoutId, defaultCategoryCode]);
+
+    useEffect(() => {
+        if (!isOpen || isEditing || defaultCategoryCode) return;
+        if (!orderIdForEligibility) return;
+        if (orderEligibility?.eligible && orderEligibility.categoryCode) {
+            const matched = selectableCategories.find((c) => c.code === orderEligibility.categoryCode);
+            if (matched) {
+                setTicketCategoryId(matched.id);
+            }
+            return;
+        }
+        if (orderEligibility && !orderEligibility.eligible) {
+            setTicketCategoryId('');
+        }
+    }, [
+        isOpen,
+        isEditing,
+        defaultCategoryCode,
+        orderIdForEligibility,
+        orderEligibility,
+        selectableCategories,
+    ]);
 
     useEffect(() => {
         if (!isOpen || isEditing || !defaultOrderId || !selectedCategory) return;
@@ -189,8 +238,8 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
         const category = visibleCategories.find((c) => c.id === categoryId);
         if (!category?.requiredRefType) {
             setRefId('');
-        } else if (category.requiredRefType === TicketRefType.ORDER && defaultOrderId) {
-            setRefId(defaultOrderId);
+        } else if (category.requiredRefType === TicketRefType.ORDER && (defaultOrderId || selectedOrder)) {
+            setRefId(defaultOrderId || selectedOrder!.id);
         } else if (category.requiredRefType === TicketRefType.REFUND_REQUEST && defaultRefundId != null) {
             setRefId(String(defaultRefundId));
         } else if (category.requiredRefType === TicketRefType.PRIZE_CLAIM && defaultPrizePayoutId != null) {
@@ -285,9 +334,9 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
     const isPending = createMutation.isPending || updateMutation.isPending;
 
     return (
-        <div className="fixed inset-0 z-[9998] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose}></div>
-            <div className="relative bg-white rounded-[20px] shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="fixed inset-0 z-[9998] flex items-start justify-center p-4 pt-10 sm:pt-16 overflow-y-auto">
+            <div className="absolute inset-0 bg-black/40" onClick={onClose}></div>
+            <div className="relative bg-white rounded-[20px] shadow-2xl w-full max-w-4xl max-h-[calc(100vh-5rem)] flex flex-col overflow-hidden mb-8">
                 <div className="flex items-center justify-between p-6 border-b border-[#E5E8EB] bg-white z-10">
                     <h2 className="text-[18px] font-bold text-[#212B36]">
                         {isEditing ? 'Chỉnh sửa khiếu nại' : 'Tạo khiếu nại mới'}
@@ -304,12 +353,40 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         {/* Cột trái */}
                         <div className="flex flex-col gap-6">
+                            {(isGenericCreate || defaultOrderId || requiredRefType === TicketRefType.ORDER) && (
+                                <div className="flex flex-col gap-2">
+                                    <label className="text-[13px] font-bold text-[#454F5B]">Đơn hàng liên quan *</label>
+                                    {defaultOrderId ? (
+                                        <div className="w-full px-4 py-3 bg-[#F9FAFB] border border-[#E5E8EB] rounded-xl text-[14px] font-semibold text-[#1C252E] tabular-nums">
+                                            #{(selectedOrder?.orderCode || defaultOrderId).toString().slice(0, 8).toUpperCase()}
+                                        </div>
+                                    ) : (
+                                        <SelectOrderModal
+                                            orders={orders}
+                                            isLoading={isOrdersLoading}
+                                            selectedOrderId={refId}
+                                            onSelect={(id) => {
+                                                setRefId(id);
+                                                setTicketCategoryId('');
+                                                setIsDropdownOpen(false);
+                                            }}
+                                        />
+                                    )}
+                                    {orderIdForEligibility && isOrderEligibilityLoading && (
+                                        <p className="text-[12px] text-[#637381]">Đang kiểm tra danh mục phù hợp…</p>
+                                    )}
+                                    {orderIdForEligibility && orderEligibility && !orderEligibility.eligible && (
+                                        <p className="text-[12px] text-[#B76E00]">{orderEligibility.message}</p>
+                                    )}
+                                </div>
+                            )}
+
                             {/* Danh mục Dropdown */}
                             <div className="flex flex-col gap-2" ref={dropdownRef}>
                                 <label className="text-[13px] font-bold text-[#454F5B]">Danh mục *</label>
                                 <div className="relative">
                                     <div
-                                        className={`w-full px-4 py-3 bg-white border ${isDropdownOpen ? 'border-[#ee1314]' : 'border-[#E5E8EB]'} rounded-xl text-[14px] flex items-center justify-between cursor-pointer transition-colors ${isEditing || defaultCategoryCode ? 'bg-[#F4F6F8] cursor-not-allowed opacity-80' : 'hover:border-[#ee1314]'}`}
+                                        className={`w-full px-4 py-3 bg-white border ${isDropdownOpen ? 'border-[#ee1314]' : 'border-[#E5E8EB]'} rounded-xl text-[14px] flex items-center justify-between cursor-pointer transition-colors ${isEditing || defaultCategoryCode ? 'cursor-not-allowed opacity-80' : 'hover:border-[#ee1314]'}`}
                                         onClick={() => {
                                             if (!isEditing && !defaultCategoryCode) {
                                                 setIsDropdownOpen(!isDropdownOpen);
@@ -323,7 +400,11 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
                                                     <span className="text-[#212B36] font-medium">{selectedCategory.name}</span>
                                                 </>
                                             ) : (
-                                                <span className="text-[#919EAB]">Chọn danh mục...</span>
+                                                <span className="text-[#919EAB]">
+                                                    {isGenericCreate && !orderIdForEligibility
+                                                        ? 'Chọn đơn hàng trước…'
+                                                        : 'Chọn danh mục...'}
+                                                </span>
                                             )}
                                         </div>
                                         <i className={`fa-solid fa-chevron-down text-[#919EAB] transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}></i>
@@ -394,45 +475,17 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
                                 {selectedCategory?.description && (
                                     <p className="text-[12px] text-[#919EAB] mt-1">{selectedCategory.description}</p>
                                 )}
-                            </div>
-
-                            {requiredRefType === TicketRefType.ORDER && (
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-[13px] font-bold text-[#454F5B]">Đơn hàng liên quan *</label>
-                                    {defaultOrderId ? (
-                                        <div className="w-full px-4 py-3 bg-[#F4F6F8] border border-[#E5E8EB] rounded-xl text-[14px] text-[#212B36] font-semibold">
-                                            #{(selectedOrder?.orderCode || defaultOrderId).toString()}
-                                        </div>
-                                    ) : (
-                                        <div
-                                            onClick={() => setIsOrderModalOpen(true)}
-                                            className="w-full px-4 py-3 bg-white border border-[#E5E8EB] hover:border-[#ee1314] rounded-xl text-[14px] flex items-center justify-between cursor-pointer transition-colors"
-                                        >
-                                            {selectedOrder ? (
-                                                <div className="flex items-center gap-3">
-                                                    <i className="fa-solid fa-file-invoice text-[#637381]"></i>
-                                                    <div className="flex flex-col">
-                                                        <span className="font-bold text-[#212B36]">
-                                                            #{selectedOrder.id.slice(0, 8).toUpperCase()}
-                                                        </span>
-                                                        <span className="text-[12px] text-[#919EAB]">
-                                                            {selectedOrder.totalAmount?.toLocaleString('vi-VN')}đ
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <span className="text-[#919EAB]">Chọn đơn hàng...</span>
-                                            )}
-                                            <button
-                                                type="button"
-                                                className="px-3 py-1.5 bg-[#F4F6F8] text-[#454F5B] text-[12px] font-bold rounded-lg hover:bg-[#DFE3E8]"
-                                            >
-                                                {selectedOrder ? 'Thay đổi' : 'Chọn'}
-                                            </button>
-                                        </div>
+                                {isGenericCreate && !orderIdForEligibility && (
+                                    <p className="text-[12px] text-[#637381]">
+                                        Chọn đơn hàng trước để chỉ hiện danh mục khiếu nại tương ứng.
+                                    </p>
+                                )}
+                                {isDropdownOpen &&
+                                    groupedCategories.groups.length === 0 &&
+                                    groupedCategories.ungrouped.length === 0 && (
+                                        <p className="text-[12px] text-[#919EAB]">Không có danh mục phù hợp.</p>
                                     )}
-                                </div>
-                            )}
+                            </div>
 
                             {requiredRefType === TicketRefType.REFUND_REQUEST && (
                                 <div className="flex flex-col gap-2">
@@ -440,7 +493,7 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
                                         {TICKET_REF_TYPE_LABELS[requiredRefType]} *
                                     </label>
                                     {defaultRefundId != null ? (
-                                        <div className="w-full px-4 py-3 bg-[#F4F6F8] border border-[#E5E8EB] rounded-xl text-[14px] text-[#212B36] font-semibold">
+                                        <div className="w-full px-4 py-3 bg-white border border-[#E5E8EB] rounded-xl text-[14px] text-[#212B36] font-semibold">
                                             #{defaultRefundId}
                                         </div>
                                     ) : (
@@ -480,7 +533,7 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
                                         {TICKET_REF_TYPE_LABELS[requiredRefType]} *
                                     </label>
                                     {defaultPrizePayoutId != null ? (
-                                        <div className="w-full px-4 py-3 bg-[#F4F6F8] border border-[#E5E8EB] rounded-xl text-[14px] text-[#212B36] font-semibold">
+                                        <div className="w-full px-4 py-3 bg-white border border-[#E5E8EB] rounded-xl text-[14px] text-[#212B36] font-semibold">
                                             #{defaultPrizePayoutId}
                                             {selectedPrizePayout?.requestCode ? ` · ${selectedPrizePayout.requestCode}` : ''}
                                         </div>
@@ -564,7 +617,7 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
                                 />
                             </div>
 
-                            <div className="bg-[#F9FAFB] p-4 rounded-xl border border-[#E5E8EB] shadow-sm">
+                            <div className="bg-white p-4 rounded-xl border border-[#E5E8EB]">
                                 <ImageUploadPreview
                                     value={attachmentFile}
                                     existingUrl={editingTicket?.attachmentUrl}
@@ -605,13 +658,6 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
                     </div>
                 </form>
             </div>
-
-            <SelectOrderModal 
-                isOpen={isOrderModalOpen} 
-                onClose={() => setIsOrderModalOpen(false)} 
-                onSelect={(id) => setRefId(id)} 
-                selectedOrderId={refId}
-            />
 
             <SelectRefundModal 
                 isOpen={isRefundModalOpen} 

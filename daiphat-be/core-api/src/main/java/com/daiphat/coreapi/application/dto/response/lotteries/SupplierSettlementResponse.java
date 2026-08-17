@@ -8,6 +8,7 @@ import lombok.Builder;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -25,6 +26,7 @@ public record SupplierSettlementResponse(
         BigDecimal totalPaidAmount,
         BigDecimal remainingAmount,
         String supplierSettlementReceiptUrl,
+        List<String> paymentEvidenceUrls,
         Boolean isReturnExpired,
         BigDecimal expiredReturnValue,
         SupplierSettlementStatus status,
@@ -43,6 +45,9 @@ public record SupplierSettlementResponse(
         BigDecimal reconciledTicketUnitPrice,
         /** Temporary API alias of {@link #reconciledTicketUnitPrice}. */
         BigDecimal actualTicketPrice,
+        BigDecimal systemTicketImportPrice,
+        BigDecimal actualTicketImportPrice,
+        List<StationCommissionSnapshotResponse> stationCommissionSnapshots,
         BigDecimal initialEstimatedSettlementValue,
         BigDecimal finalSettlementValue,
         BigDecimal actualPaidAmount,
@@ -65,6 +70,10 @@ public record SupplierSettlementResponse(
         Long transactionId,
         LocalDateTime paidAt,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        Integer settlementBufferMinutes,
+        LocalTime paymentCutOffTime,
+        LocalDateTime reconciliationWindowStartAt,
+        Boolean inReconciliationWindow
 ) {
 }

@@ -43,7 +43,7 @@ public class LotteryTicketSerialRepositoryAdapter implements LotteryTicketSerial
 
     @Override
     public Optional<LotteryTicketSerialModel> findFirstByTicketIdOrderByIdAsc(Long ticketId) {
-        return lotteryTicketSerialRepository.findFirstByTicket_IdAndDeletedAtIsNullOrderByIdAsc(ticketId)
+        return lotteryTicketSerialRepository.findFirstVisibleByTicketId(ticketId)
                 .map(lotteryTicketSerialPersistenceMapper::toDomain);
     }
 
@@ -55,6 +55,9 @@ public class LotteryTicketSerialRepositoryAdapter implements LotteryTicketSerial
         }
 
         lotteryTicketSerialRepository.findByTicket_IdInAndDeletedAtIsNullOrderByTicket_IdAscIdAsc(ticketIds)
+                .stream()
+                .filter(entity -> entity.getTicketCondition() == null
+                        || !entity.getTicketCondition().isVoided())
                 .forEach(entity -> serialsByTicketId.putIfAbsent(
                         entity.getTicket().getId(),
                         lotteryTicketSerialPersistenceMapper.toDomain(entity)
@@ -136,6 +139,7 @@ public class LotteryTicketSerialRepositoryAdapter implements LotteryTicketSerial
     public List<LotteryTicketSerialModel> findByTicketIdAndStatuses(Long ticketId, Collection<LotteryTicketSerialStatus> statuses) {
         return lotteryTicketSerialRepository.findByTicket_IdAndStatusInAndDeletedAtIsNull(ticketId, statuses).stream()
                 .map(lotteryTicketSerialPersistenceMapper::toDomain)
+                .filter(LotteryTicketSerialModel::isVisibleInventory)
                 .toList();
     }
 
@@ -143,6 +147,20 @@ public class LotteryTicketSerialRepositoryAdapter implements LotteryTicketSerial
     public List<LotteryTicketSerialModel> findAllByTicketId(Long ticketId) {
         return lotteryTicketSerialRepository.findByTicket_IdAndDeletedAtIsNull(ticketId).stream()
                 .map(lotteryTicketSerialPersistenceMapper::toDomain)
+                .filter(LotteryTicketSerialModel::isVisibleInventory)
+                .toList();
+    }
+
+    @Override
+    public List<LotteryTicketSerialModel> findAllByTicketIds(Collection<Long> ticketIds) {
+        if (ticketIds == null || ticketIds.isEmpty()) {
+            return List.of();
+        }
+        return lotteryTicketSerialRepository
+                .findByTicket_IdInAndDeletedAtIsNullOrderByTicket_IdAscIdAsc(List.copyOf(ticketIds))
+                .stream()
+                .map(lotteryTicketSerialPersistenceMapper::toDomain)
+                .filter(LotteryTicketSerialModel::isVisibleInventory)
                 .toList();
     }
 
@@ -170,6 +188,7 @@ public class LotteryTicketSerialRepositoryAdapter implements LotteryTicketSerial
     public List<LotteryTicketSerialModel> findAllByImportBatchLineId(Long importBatchLineId) {
         return lotteryTicketSerialRepository.findAllByImportBatchLineId(importBatchLineId).stream()
                 .map(lotteryTicketSerialPersistenceMapper::toDomain)
+                .filter(LotteryTicketSerialModel::isVisibleInventory)
                 .toList();
     }
 
@@ -258,6 +277,19 @@ public class LotteryTicketSerialRepositoryAdapter implements LotteryTicketSerial
                     );
                 })
                 .toList();
+    }
+
+    @Override
+    public long countReturnEligibleForSupplierAndDrawDate(
+            Long supplierId,
+            java.time.LocalDate drawDate,
+            Collection<Long> stationIds
+    ) {
+        boolean stationIdsEmpty = stationIds == null || stationIds.isEmpty();
+        Collection<Long> ids = stationIdsEmpty ? List.of(-1L) : stationIds;
+        return lotteryTicketSerialRepository.countReturnEligibleForSupplierAndDrawDate(
+                supplierId, drawDate, ids, stationIdsEmpty
+        );
     }
 
     @Override

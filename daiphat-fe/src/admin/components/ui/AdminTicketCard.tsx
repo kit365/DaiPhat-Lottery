@@ -1,9 +1,14 @@
+"use client";
+
 import React from "react";
 import { Badge, Box, Typography, Stack, Chip, Button } from "@mui/material";
 import ConfirmationNumberOutlinedIcon from "@mui/icons-material/ConfirmationNumberOutlined";
 import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 
 import { adminCountBadgeSx } from "@/admin/utils/badge";
+import { LuckyTicketNumber } from "@/admin/features/street-agent/components/LuckyTicketNumber";
+import { useLuckyPatternConfigs } from "@/admin/features/street-agent/hooks/useLuckyPattern";
+import { luckyBadgeColor } from "@/admin/features/street-agent/utils/luckyNumberHighlight";
 
 export interface AdminTicketCardProps {
     ticketNumbers: string;
@@ -16,6 +21,8 @@ export interface AdminTicketCardProps {
     onClickAction?: () => void;
     actionLabel?: string;
     disabled?: boolean;
+    onDecrement?: () => void;
+    decrementDisabled?: boolean;
 }
 
 const luckyPrimaryChipSx = {
@@ -65,7 +72,10 @@ export const AdminTicketCard: React.FC<AdminTicketCardProps> = ({
     onClickAction,
     actionLabel,
     disabled,
+    onDecrement,
+    decrementDisabled,
 }) => {
+    const { data: luckyPatterns = [] } = useLuckyPatternConfigs();
     const isLuckyTicket = Boolean(isLucky || (luckyBadges && luckyBadges.length > 0));
     const resolvedActionLabel = actionLabel || "Chọn";
     const showTicketIcon = ["Đổi vé", "Chọn", "Chọn serial", "Ẩn serial"].includes(resolvedActionLabel);
@@ -117,20 +127,15 @@ export const AdminTicketCard: React.FC<AdminTicketCardProps> = ({
                 }}
             >
                 <Box sx={{ pl: isLuckyTicket ? 0.5 : 0 }}>
-                    <Typography
-                        variant="h6"
+                    <LuckyTicketNumber
+                        value={ticketNumbers}
+                        fontSize="1.25rem"
                         sx={{
-                            fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-                            fontWeight: 800,
-                            fontSize: "1.25rem",
-                            lineHeight: 1.1,
-                            letterSpacing: "0.06em",
+                            display: "block",
                             color: "text.primary",
                             pr: quantity > 0 ? 2 : 0,
                         }}
-                    >
-                        {ticketNumbers}
-                    </Typography>
+                    />
                     <Typography
                         variant="caption"
                         sx={{
@@ -159,14 +164,22 @@ export const AdminTicketCard: React.FC<AdminTicketCardProps> = ({
                                 sx={luckyPrimaryChipSx}
                             />
                         ) : null}
-                        {luckyBadges?.map((badge, index) => (
+                        {luckyBadges?.map((badge, index) => {
+                            const color = luckyBadgeColor(badge, luckyPatterns);
+                            return (
                             <Chip
                                 key={`${badge}-${index}`}
                                 size="small"
                                 label={badge}
-                                sx={luckyBadgeChipSx}
+                                sx={{
+                                    ...luckyBadgeChipSx,
+                                    bgcolor: `${color}22`,
+                                    color,
+                                    border: `1px solid ${color}59`,
+                                }}
                             />
-                        ))}
+                            );
+                        })}
                     </Stack>
                 ) : null}
 
@@ -187,27 +200,66 @@ export const AdminTicketCard: React.FC<AdminTicketCardProps> = ({
 
                 {onClickAction ? (
                     <Box sx={{ mt: "auto", pt: 0.25 }}>
-                        <Button
-                            size="small"
-                            variant="outlined"
-                            fullWidth
-                            onClick={onClickAction}
-                            disabled={disabled}
-                            startIcon={
-                                showTicketIcon ? (
-                                    <ConfirmationNumberOutlinedIcon sx={{ fontSize: "0.95rem !important" }} />
-                                ) : undefined
-                            }
-                            sx={{
-                                fontSize: "0.7rem",
-                                fontWeight: 700,
-                                py: 0.35,
-                                borderRadius: "8px",
-                                textTransform: "none",
-                            }}
-                        >
-                            {resolvedActionLabel}
-                        </Button>
+                        {onDecrement ? (
+                            <Stack direction="row" spacing={0.5}>
+                                <Button
+                                    size="small"
+                                    variant="outlined"
+                                    onClick={onDecrement}
+                                    disabled={decrementDisabled || quantity <= 0}
+                                    sx={{
+                                        minWidth: 0,
+                                        flex: 1,
+                                        fontSize: "0.7rem",
+                                        fontWeight: 700,
+                                        py: 0.35,
+                                        borderRadius: "8px",
+                                        textTransform: "none",
+                                    }}
+                                >
+                                    −
+                                </Button>
+                                <Button
+                                    size="small"
+                                    variant="outlined"
+                                    onClick={onClickAction}
+                                    disabled={disabled}
+                                    sx={{
+                                        minWidth: 0,
+                                        flex: 1,
+                                        fontSize: "0.7rem",
+                                        fontWeight: 700,
+                                        py: 0.35,
+                                        borderRadius: "8px",
+                                        textTransform: "none",
+                                    }}
+                                >
+                                    +
+                                </Button>
+                            </Stack>
+                        ) : (
+                            <Button
+                                size="small"
+                                variant="outlined"
+                                fullWidth
+                                onClick={onClickAction}
+                                disabled={disabled}
+                                startIcon={
+                                    showTicketIcon ? (
+                                        <ConfirmationNumberOutlinedIcon sx={{ fontSize: "0.95rem !important" }} />
+                                    ) : undefined
+                                }
+                                sx={{
+                                    fontSize: "0.7rem",
+                                    fontWeight: 700,
+                                    py: 0.35,
+                                    borderRadius: "8px",
+                                    textTransform: "none",
+                                }}
+                            >
+                                {resolvedActionLabel}
+                            </Button>
+                        )}
                     </Box>
                 ) : null}
             </Box>

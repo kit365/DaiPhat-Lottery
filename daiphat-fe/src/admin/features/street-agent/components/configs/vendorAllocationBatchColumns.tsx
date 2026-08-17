@@ -13,14 +13,14 @@ import { ALLOCATION_BATCH_STATUS_LABELS, getVendorAllocationBatchStatusBadgeClas
 import { formatDate, formatDateTime } from "../../utils/format";
 
 const CellText = ({ children, className = "admin-cell-text" }: { children: ReactNode; className?: string }) => (
-    <div className="flex h-full w-full items-center">
-        <span className={className}>{children}</span>
+    <div className="flex h-full w-full min-w-0 items-center">
+        <span className={className} title={typeof children === "string" ? children : undefined}>{children}</span>
     </div>
 );
 
 const CellTextCenter = ({ children }: { children: ReactNode }) => (
-    <div className="flex h-full w-full items-center justify-center">
-        <span className="admin-cell-text">{children}</span>
+    <div className="flex h-full w-full min-w-0 items-center justify-center">
+        <span className="admin-cell-text" title={typeof children === "string" ? children : undefined}>{children}</span>
     </div>
 );
 
@@ -32,6 +32,7 @@ const getProfileLabel = (profile?: StreetAgentProfile | null) => {
 
 const workflowStageLabel = (stage: string) => {
     switch (stage) {
+        case "READY_FOR_RETURN": return "Sẵn sàng nhận vé trả";
         case "RETURN_ENTRY": return "Đang nhập vé trả";
         case "INSPECTION": return "Đang kiểm nhận";
         case "READY_FOR_SETTLEMENT": return "Chờ quyết toán";

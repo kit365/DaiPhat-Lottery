@@ -25,7 +25,7 @@ import { PageHeader } from "../../../../components/ui/PageHeader";
 import { Search } from "../../../../components/ui/Search";
 import { prefixAdmin } from "../../../../constants/routes";
 import { useBlogTagsPaged, useCreateBlogTag, useUpdateBlogTag, useDeleteBlogTag } from "../../hooks/useBlogTag";
-import { DATA_GRID_LOCALE_VN } from "../../../../../shared/components/DataTable/localeText.config";
+import { DATA_GRID_LOCALE_VN } from "@/admin/components/data-grid/localeText.config";
 import { dataGridStyles } from "../../../../shared/data-grid";
 import { SortAscendingIcon, SortDescendingIcon, UnsortedIcon } from "../../../../assets/icons";
 import { confirmDelete } from "../../../../utils/swal";

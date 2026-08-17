@@ -28,6 +28,26 @@ class AuthRepository {
     }
 
     _apiClient.setAccessToken(accessToken);
+    await _apiClient.restoreAccessSessionIfNeeded();
+    await _clearStaleSessionIfNeeded();
+  }
+
+  Future<void> _clearStaleSessionIfNeeded() async {
+    if ((_apiClient.accessToken == null || _apiClient.accessToken!.isEmpty) &&
+        !_tokenStorage.hasAccessToken()) {
+      return;
+    }
+
+    try {
+      final user = await _apiService.getCurrentUser();
+      _currentUser = user.copyWith(accessToken: _tokenStorage.getAccessToken() ?? '');
+    } on ApiException catch (error) {
+      if (error.statusCode == 401 || error.statusCode == 403) {
+        await logout();
+      }
+    } catch (_) {
+      // Network hiccup at startup — keep token; protected APIs will retry later.
+    }
   }
 
   Future<User> login(String username, String password) async {
@@ -41,9 +61,11 @@ class AuthRepository {
     return authenticatedUser;
   }
 
-  Future<void> logout() async {
+  Future<void> logout({bool clearCookies = true}) async {
     _apiClient.clearAccessToken();
-    await _apiClient.clearCookies();
+    if (clearCookies) {
+      await _apiClient.clearCookies();
+    }
     await _tokenStorage.clear();
     _currentUser = null;
   }

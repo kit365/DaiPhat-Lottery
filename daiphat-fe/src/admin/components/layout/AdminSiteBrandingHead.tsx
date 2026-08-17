@@ -2,14 +2,15 @@
 
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
+import { CLIENT_FAVICON } from '@/client/constants/clientBannerAssets';
 import { usePublicSystemConfigValues } from '@/client/hooks/usePublicSystemConfigValues';
 import { buildRouteDocumentTitle } from '@/client/constants/routeTitles';
 
 const ADMIN_BRANDING_KEYS = ['SITE_NAME', 'SITE_FAVICON_URL'] as const;
 
 const ADMIN_BRANDING_DEFAULTS = {
-    SITE_NAME: 'ĐẠI PHÁT Admin',
-    SITE_FAVICON_URL: '',
+    SITE_NAME: 'ĐẠI PHÁT',
+    SITE_FAVICON_URL: CLIENT_FAVICON,
 } as const;
 
 /**
@@ -20,7 +21,7 @@ export function AdminSiteBrandingHead() {
     const pathname = usePathname() || '/';
     const values = usePublicSystemConfigValues(ADMIN_BRANDING_KEYS, ADMIN_BRANDING_DEFAULTS);
     const name = values.SITE_NAME;
-    const faviconUrl = values.SITE_FAVICON_URL?.trim() || '';
+    const faviconUrl = values.SITE_FAVICON_URL?.trim() || CLIENT_FAVICON;
 
     useEffect(() => {
         document.title = buildRouteDocumentTitle(pathname, name);

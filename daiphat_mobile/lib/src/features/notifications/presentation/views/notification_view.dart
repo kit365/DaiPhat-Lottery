@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
+import 'package:daiphat_mobile/src/shared/widgets/brand_scrollbar.dart';
 import '../../utils/notification_navigation.dart';
 import '../viewmodels/notification_viewmodel.dart';
 
@@ -249,28 +250,31 @@ class _NotificationViewState extends State<NotificationView> {
     final items = _viewModel.filteredNotifications;
     if (items.isEmpty) return _buildEmpty();
 
-    return RefreshIndicator(
-      color: AppColors.primary,
-      onRefresh: () => _viewModel.fetchNotifications(refresh: true),
-      child: ListView.builder(
-        controller: _scrollController,
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-        itemCount: items.length + (_viewModel.isLoadingMore ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index == items.length) {
-            return const Padding(
-              padding: EdgeInsets.symmetric(vertical: 20),
-              child: Center(
-                child: CircularProgressIndicator(color: AppColors.primary),
-              ),
+    return BrandScrollbar(
+      controller: _scrollController,
+      child: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: () => _viewModel.fetchNotifications(refresh: true),
+        child: ListView.builder(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+          itemCount: items.length + (_viewModel.isLoadingMore ? 1 : 0),
+          itemBuilder: (context, index) {
+            if (index == items.length) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                ),
+              );
+            }
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _buildItem(items[index]),
             );
-          }
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: _buildItem(items[index]),
-          );
-        },
+          },
+        ),
       ),
     );
   }

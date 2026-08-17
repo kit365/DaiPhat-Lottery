@@ -6,7 +6,6 @@ const getBackendBase = () =>
     (
         process.env.BACKEND_UPSTREAM ||
         process.env.NEXT_PUBLIC_API_BASE_URL ||
-        process.env.VITE_API_BASE_URL ||
         'http://localhost:8080'
     ).replace(/\/$/, '');
 
@@ -19,7 +18,7 @@ export async function fetchPublicScheduleServer(
             url.searchParams.set('region', params.region);
         }
 
-        const response = await fetch(url.toString(), { next: { revalidate: 300 } });
+        const response = await fetch(url.toString(), { cache: 'no-store' });
         if (!response.ok) {
             return [];
         }

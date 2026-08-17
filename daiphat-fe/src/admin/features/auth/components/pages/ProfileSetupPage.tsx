@@ -8,13 +8,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { userService } from "@/admin/features/auth/services/user.service";
+import { userService } from "@/shared/auth/services/user.service";
 import { toast } from "react-toastify";
 import { ROUTES } from "@/admin/constants/routes";
 import { PERMISSIONS } from "@/admin/constants/permission.constants";
-import { LogoAdmin } from "@/assets/admin/logo";
 import { useAdminSession } from "@/admin/context/AdminSessionProvider";
-import { useForgotPassword } from "@/admin/features/auth/hooks/use-forgot-password";
+import { useForgotPassword } from "@/shared/auth/hooks/useForgotPassword";
 import { motion } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
 import { 

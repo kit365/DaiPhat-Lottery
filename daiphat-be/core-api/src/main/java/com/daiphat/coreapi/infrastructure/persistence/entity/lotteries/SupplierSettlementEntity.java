@@ -3,6 +3,7 @@ package com.daiphat.coreapi.infrastructure.persistence.entity.lotteries;
 import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementDiscrepancyType;
 import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementReconciliationPhase;
 import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementStatus;
+import com.daiphat.coreapi.domain.model.lotteries.StationCommissionSnapshot;
 import com.daiphat.coreapi.infrastructure.persistence.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -75,6 +76,11 @@ public class SupplierSettlementEntity extends BaseEntity {
     @Column(name = "supplier_settlement_receipt_url", length = 500)
     private String supplierSettlementReceiptUrl;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "payment_evidence_urls", nullable = false, columnDefinition = "jsonb")
+    @Builder.Default
+    private List<String> paymentEvidenceUrls = new ArrayList<>();
+
     @Column(name = "is_return_expired", nullable = false)
     @Builder.Default
     private boolean isReturnExpired = false;
@@ -122,6 +128,24 @@ public class SupplierSettlementEntity extends BaseEntity {
 
     @Column(name = "reconciled_ticket_unit_price", precision = 18, scale = 3)
     private BigDecimal reconciledTicketUnitPrice;
+
+    @Column(name = "system_ticket_import_price", precision = 18, scale = 3)
+    private BigDecimal systemTicketImportPrice;
+
+    @Column(name = "actual_ticket_import_price", precision = 18, scale = 3)
+    private BigDecimal actualTicketImportPrice;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "station_commission_snapshots", columnDefinition = "jsonb", nullable = false)
+    @Builder.Default
+    private List<StationCommissionSnapshot> stationCommissionSnapshots =
+            new ArrayList<>();
+
+    @Column(name = "system_import_quantity_frozen_at")
+    private java.time.LocalDateTime systemImportQuantityFrozenAt;
+
+    @Column(name = "system_return_quantity_frozen_at")
+    private java.time.LocalDateTime systemReturnQuantityFrozenAt;
 
     @Column(name = "initial_estimated_settlement_value", precision = 18, scale = 3)
     private BigDecimal initialEstimatedSettlementValue;

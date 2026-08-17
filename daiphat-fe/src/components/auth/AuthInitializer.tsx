@@ -3,14 +3,48 @@
 import { useEffect } from "react";
 import { STORAGE_KEYS } from "../../constants/storage.constants";
 import { useAuthStore } from "../../stores/useAuthStore";
+import { msUntilAccessRefresh, restoreAccessSessionIfNeeded } from "../../api/sessionBoot";
 
-/**
- * AuthInitializer component
- * This component is mounted at the root level to handle silent authentication re-hydration.
- * It uses the useAuth hook which automatically fetches the user profile if a token exists.
- */
 export const AuthInitializer = () => {
-    const { isHydrated, user, isProfileSetupModalOpen, openProfileSetupModal } = useAuthStore();
+    const { isHydrated, token, user, isProfileSetupModalOpen, openProfileSetupModal } = useAuthStore();
+
+    useEffect(() => {
+        if (!isHydrated) return;
+        void restoreAccessSessionIfNeeded();
+    }, [isHydrated]);
+
+    useEffect(() => {
+        if (!isHydrated || !token) return;
+
+        let cancelled = false;
+        let timer: ReturnType<typeof setTimeout> | undefined;
+
+        const schedule = () => {
+            const delay = msUntilAccessRefresh();
+            if (delay == null) return;
+            timer = setTimeout(() => {
+                if (cancelled) return;
+                void restoreAccessSessionIfNeeded().then(() => {
+                    if (!cancelled) schedule();
+                });
+            }, delay);
+        };
+
+        schedule();
+
+        const onVisible = () => {
+            if (document.visibilityState === "visible") {
+                void restoreAccessSessionIfNeeded();
+            }
+        };
+        document.addEventListener("visibilitychange", onVisible);
+
+        return () => {
+            cancelled = true;
+            if (timer) clearTimeout(timer);
+            document.removeEventListener("visibilitychange", onVisible);
+        };
+    }, [isHydrated, token]);
 
     useEffect(() => {
         if (!user || !isHydrated || isProfileSetupModalOpen) {

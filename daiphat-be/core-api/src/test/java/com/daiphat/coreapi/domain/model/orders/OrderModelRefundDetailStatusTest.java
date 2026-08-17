@@ -18,7 +18,7 @@ class OrderModelRefundDetailStatusTest {
     @DisplayName("cancelByCustomerRefund marks details REFUND_PENDING")
     void cancelByCustomerRefund_marksRefundPending() {
         OrderDetailModel detail = OrderDetailModel.builder()
-                .status(OrderDetailStatus.ACTIVE)
+                .status(OrderDetailStatus.HANDOVER_IN_PROGRESS)
                 .price(BigDecimal.TEN)
                 .build();
         OrderModel order = OrderModel.builder()
@@ -34,10 +34,10 @@ class OrderModelRefundDetailStatusTest {
     }
 
     @Test
-    @DisplayName("cancelAfterPayment keeps INACTIVE for non-refund cancel")
-    void cancelAfterPayment_marksInactive() {
+    @DisplayName("cancelAfterPayment closes an unhanded detail so it cannot be handed over after cancellation")
+    void cancelAfterPayment_closesUnhandedDetail() {
         OrderDetailModel detail = OrderDetailModel.builder()
-                .status(OrderDetailStatus.ACTIVE)
+                .status(OrderDetailStatus.HANDOVER_IN_PROGRESS)
                 .price(BigDecimal.TEN)
                 .build();
         OrderModel order = OrderModel.builder()
@@ -49,14 +49,33 @@ class OrderModelRefundDetailStatusTest {
         order.cancelAfterPayment("Admin hủy");
 
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
-        assertThat(detail.getStatus()).isEqualTo(OrderDetailStatus.INACTIVE);
+        assertThat(detail.getStatus()).isEqualTo(OrderDetailStatus.CANCELLED);
+    }
+
+    @Test
+    @DisplayName("cancelPendingPayment closes reserved detail without entering the refund lifecycle")
+    void cancelPendingPayment_closesReservedDetail() {
+        OrderDetailModel detail = OrderDetailModel.builder()
+                .status(OrderDetailStatus.HANDOVER_IN_PROGRESS)
+                .price(BigDecimal.TEN)
+                .build();
+        OrderModel order = OrderModel.builder()
+                .status(OrderStatus.PENDING_PAYMENT)
+                .orderType(OrderType.ONLINE)
+                .orderDetails(new ArrayList<>(List.of(detail)))
+                .build();
+
+        order.cancelPendingPayment("Quá hạn thanh toán");
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(detail.getStatus()).isEqualTo(OrderDetailStatus.CANCELLED);
     }
 
     @Test
     @DisplayName("cancelAfterPaymentForRefund marks details REFUND_PENDING")
     void cancelAfterPaymentForRefund_marksRefundPending() {
         OrderDetailModel detail = OrderDetailModel.builder()
-                .status(OrderDetailStatus.ACTIVE)
+                .status(OrderDetailStatus.HANDOVER_IN_PROGRESS)
                 .price(BigDecimal.TEN)
                 .build();
         OrderModel order = OrderModel.builder()
@@ -79,7 +98,7 @@ class OrderModelRefundDetailStatusTest {
                 .refundRequestId(1L)
                 .build();
         OrderDetailModel stillActive = OrderDetailModel.builder()
-                .status(OrderDetailStatus.ACTIVE)
+                .status(OrderDetailStatus.HANDOVER_IN_PROGRESS)
                 .price(BigDecimal.TEN)
                 .build();
         OrderModel order = OrderModel.builder()
@@ -93,5 +112,45 @@ class OrderModelRefundDetailStatusTest {
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
         assertThat(alreadyPending.getStatus()).isEqualTo(OrderDetailStatus.REFUND_PENDING);
         assertThat(stillActive.getStatus()).isEqualTo(OrderDetailStatus.REFUND_PENDING);
+    }
+
+    @Test
+    @DisplayName("cancelPaidFulfillmentForRefund works for PREPARING without order type")
+    void cancelPaidFulfillmentForRefund_preparingWithoutType() {
+        OrderDetailModel detail = OrderDetailModel.builder()
+                .status(OrderDetailStatus.HANDOVER_IN_PROGRESS)
+                .price(BigDecimal.TEN)
+                .build();
+        OrderModel order = OrderModel.builder()
+                .status(OrderStatus.PREPARING)
+                .orderDetails(new ArrayList<>(List.of(detail)))
+                .build();
+
+        order.cancelPaidFulfillmentForRefund("Khách hoàn tiền", null);
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(detail.getStatus()).isEqualTo(OrderDetailStatus.REFUND_PENDING);
+    }
+
+    @Test
+    @DisplayName("completeOnlineOrder accepts a refunded line together with handed-over lines")
+    void completeOnlineOrder_allowsPreviouslyRefundedDetail() {
+        OrderDetailModel handedOver = OrderDetailModel.builder()
+                .status(OrderDetailStatus.HANDED_OVER)
+                .price(BigDecimal.TEN)
+                .build();
+        OrderDetailModel refunded = OrderDetailModel.builder()
+                .status(OrderDetailStatus.REFUNDED)
+                .price(BigDecimal.TEN)
+                .build();
+        OrderModel order = OrderModel.builder()
+                .status(OrderStatus.PENDING_PICKUP)
+                .orderType(OrderType.ONLINE)
+                .orderDetails(new ArrayList<>(List.of(handedOver, refunded)))
+                .build();
+
+        order.completeOnlineOrder(java.util.UUID.randomUUID());
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.COMPLETED);
     }
 }

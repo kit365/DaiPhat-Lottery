@@ -14,6 +14,10 @@ public record ChatConversationSocketEvent(
         Long conversationId,
         ConversationStatus status,
         UUID assignedOperatorId,
+        /** Operator who had the live assignment before close/unassign (if any). */
+        UUID lastAssignedOperatorId,
+        /** User who closed the conversation (admin/staff); null for auto-close. */
+        UUID closedBy,
         EscalationReason reason,
         LocalDateTime customerLastReadAt,
         LocalDateTime createdAt

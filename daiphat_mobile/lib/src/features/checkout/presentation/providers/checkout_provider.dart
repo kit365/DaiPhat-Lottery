@@ -5,6 +5,8 @@ import '../../data/transaction_service.dart';
 import '../../models/order_type.dart';
 import '../../models/transaction_type.dart';
 import '../../../cart/providers/cart_provider.dart';
+import 'package:daiphat_mobile/src/shared/providers/api_providers.dart';
+import 'package:daiphat_mobile/src/shared/utils/api_error_message.dart';
 
 // ─── Dependencies ───────────────────────────────────────────────────────────
 
@@ -18,12 +20,38 @@ final transactionServiceProvider = Provider<TransactionService>((ref) {
 
 // ─── Enum options (fetch once) ──────────────────────────────────────────────
 
-final receiveTypesProvider = FutureProvider<List<EnumOption>>((ref) {
-  return ref.watch(orderServiceProvider).getOrderReceiveTypes();
+/// Mobile chỉ hỗ trợ nhận tại quầy + thanh toán online.
+const defaultReceiveTypes = [
+  EnumOption(value: 'COUNTER_PICKUP', label: 'Nhận tại quầy'),
+];
+
+const defaultTransactionTypes = [
+  EnumOption(value: 'ONLINE', label: 'Chuyển khoản'),
+];
+
+final receiveTypesProvider = FutureProvider.autoDispose<List<EnumOption>>((
+  ref,
+) async {
+  try {
+    final types = await ref.watch(orderServiceProvider).getOrderReceiveTypes();
+    if (types.isNotEmpty) return types;
+  } catch (_) {
+    // Fallback để không khóa màn thanh toán khi API/session lỗi tạm thời.
+  }
+  return defaultReceiveTypes;
 });
 
-final transactionTypesProvider = FutureProvider<List<EnumOption>>((ref) {
-  return ref.watch(transactionServiceProvider).getTransactionTypes();
+final transactionTypesProvider = FutureProvider.autoDispose<List<EnumOption>>((
+  ref,
+) async {
+  try {
+    final types =
+        await ref.watch(transactionServiceProvider).getTransactionTypes();
+    if (types.isNotEmpty) return types;
+  } catch (_) {
+    // Fallback: mobile chỉ dùng ONLINE.
+  }
+  return defaultTransactionTypes;
 });
 
 // ─── Checkout state ─────────────────────────────────────────────────────────
@@ -135,6 +163,14 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
       return false;
     }
 
+    final token = ref.read(apiClientProvider).accessToken;
+    if (token == null || token.isEmpty) {
+      state = state.copyWith(
+        errorMessage: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+      );
+      return false;
+    }
+
     state = state.copyWith(isSubmitting: true, errorMessage: null);
 
     try {
@@ -207,7 +243,7 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
     } catch (e) {
       state = state.copyWith(
         isSubmitting: false,
-        errorMessage: e.toString().replaceFirst('Exception: ', ''),
+        errorMessage: toUserFacingApiMessage(e),
       );
       return false;
     }

@@ -41,6 +41,8 @@ public class SupplierSettlementModel {
     private BigDecimal remainingAmount = BigDecimal.ZERO;
     private String supplierSettlementReceiptUrl;
     @Builder.Default
+    private List<String> paymentEvidenceUrls = new ArrayList<>();
+    @Builder.Default
     private boolean isReturnExpired = false;
     @Builder.Default
     private BigDecimal expiredReturnValue = BigDecimal.ZERO;
@@ -59,6 +61,10 @@ public class SupplierSettlementModel {
     private BigDecimal actualReturnTicketValue;
     private BigDecimal originalTicketUnitPrice;
     private BigDecimal reconciledTicketUnitPrice;
+    private BigDecimal systemTicketImportPrice;
+    private BigDecimal actualTicketImportPrice;
+    @Builder.Default
+    private List<StationCommissionSnapshot> stationCommissionSnapshots = new ArrayList<>();
     private BigDecimal initialEstimatedSettlementValue;
     private BigDecimal finalSettlementValue;
     private BigDecimal actualPaidAmount;
@@ -87,6 +93,8 @@ public class SupplierSettlementModel {
     private String reconciliationNote;
     private LocalDateTime matchingConfirmedAt;
     private UUID matchingConfirmedBy;
+    private LocalDateTime systemImportQuantityFrozenAt;
+    private LocalDateTime systemReturnQuantityFrozenAt;
     private LocalDateTime completedAt;
     private UUID completedBy;
 
@@ -189,6 +197,13 @@ public class SupplierSettlementModel {
 
     public boolean hasUnresolvedDiscrepancies() {
         return needsImportResolution() || needsReturnResolution() || needsUnitPriceResolution();
+    }
+
+    public boolean hasPaymentEvidence() {
+        if (paymentEvidenceUrls == null || paymentEvidenceUrls.isEmpty()) {
+            return false;
+        }
+        return paymentEvidenceUrls.stream().anyMatch(url -> url != null && !url.isBlank());
     }
 
     public boolean hasReturnQuantityShortfall() {

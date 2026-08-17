@@ -7,33 +7,29 @@ interface Props extends TypographyProps {
     conversation: Conversation | null | undefined;
 }
 
-export const ConversationTitle: React.FC<Props> = ({ conversation, ...props }) => {
+export const ConversationTitle: React.FC<Props> = ({ conversation, sx, noWrap, ...props }) => {
     const { data: customer } = useAccountDetail(conversation?.customerId);
+    const titleSx = {
+        ...(noWrap
+            ? { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }
+            : {}),
+        ...((sx as object) || {}),
+    };
 
-    if (!conversation) {
-        return <Typography {...props}>Khách hàng</Typography>;
-    }
-    
-    if (!conversation.assignedOperatorId) {
-        return <Typography {...props}>Yêu cầu hỗ trợ từ khách hàng</Typography>;
-    }
-    
-    const embeddedName = conversation.customerName || conversation.customer?.name || conversation.customer?.fullName;
-    if (embeddedName) {
-        return <Typography {...props}>{embeddedName}</Typography>;
-    }
-    
-    if (conversation.title && conversation.title !== 'Yêu cầu hỗ trợ từ khách hàng') {
-        return <Typography {...props}>{conversation.title}</Typography>;
-    }
-
-    if (customer) {
-        return <Typography {...props}>{customer.fullName || `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || `Khách hàng ${conversation.customerId?.substring(0, 4)}`}</Typography>;
-    }
+    const text = (() => {
+        if (!conversation) return 'Khách hàng';
+        const embeddedName = conversation.customerName || conversation.customer?.name || conversation.customer?.fullName;
+        if (embeddedName) return embeddedName;
+        if (conversation.title && conversation.title !== 'Yêu cầu hỗ trợ từ khách hàng') return conversation.title;
+        if (customer) {
+            return customer.fullName || `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || `Khách hàng ${conversation.customerId?.substring(0, 4)}`;
+        }
+        return `Khách hàng ${conversation.customerId?.substring(0, 4)}`;
+    })();
 
     return (
-        <Typography {...props}>
-            Khách hàng {conversation.customerId?.substring(0, 4)}
+        <Typography noWrap={noWrap} sx={titleSx} {...props}>
+            {text}
         </Typography>
     );
 };

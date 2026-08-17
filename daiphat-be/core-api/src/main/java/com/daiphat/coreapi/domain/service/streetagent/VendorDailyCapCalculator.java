@@ -10,8 +10,9 @@ import java.math.RoundingMode;
 public final class VendorDailyCapCalculator {
 
     /**
-     * The contract contains the single agreed daily ceiling. The confidence tier only
-     * controls how much of that ceiling is available operationally on a given day.
+     * The contract contains the single agreed ceiling per active handover. The
+     * confidence tier controls how much of that ceiling is available for the
+     * vendor's currently open handover.
      */
     public static int effective(int contractDailyCap, BigDecimal capPercentage) {
         if (contractDailyCap < 0 || capPercentage == null) {

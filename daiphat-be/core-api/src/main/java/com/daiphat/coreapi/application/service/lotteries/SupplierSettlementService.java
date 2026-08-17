@@ -1,9 +1,11 @@
 package com.daiphat.coreapi.application.service.lotteries;
 
+import com.daiphat.coreapi.application.dto.lotteries.ImportBatchOriginalFileBundle;
 import com.daiphat.coreapi.application.dto.request.lotteries.AddSettlementMonetaryAdjustmentRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.CompleteSettlementReconciliationRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ConfirmSettlementMatchingRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.SettlementMatchingAdjustmentItem;
+import com.daiphat.coreapi.application.dto.request.lotteries.SettlementStationCommissionItem;
 import com.daiphat.coreapi.application.dto.request.lotteries.ResolveImportDiscrepancyRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ResolveReturnDiscrepancyRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ResolveUnitPriceDiscrepancyRequest;
@@ -11,8 +13,12 @@ import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ReturnBatchResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.SettlementCompleteResultResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.SettlementImportFileCheckResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.SettlementImportFileCheckStationSummaryResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.SettlementImportFileCheckTicketResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.SettlementResolvableSerialResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.SettlementStationInventoryResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.SettlementStationPricingResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.SupplierSettlementAdjustmentResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.SupplierSettlementKpisResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.SupplierSettlementOverviewResponse;
@@ -20,12 +26,16 @@ import com.daiphat.coreapi.application.dto.response.lotteries.SupplierSettlement
 import com.daiphat.coreapi.application.mapper.lotteries.ImportBatchApplicationMapper;
 import com.daiphat.coreapi.application.mapper.lotteries.ReturnBatchApplicationMapper;
 import com.daiphat.coreapi.application.mapper.lotteries.SupplierSettlementApplicationMapper;
+import com.daiphat.coreapi.application.port.in.lotteries.ImportBatchFileImportServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketSerialServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.SupplierSettlementServicePort;
+import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchRepositoryPort;
+import com.daiphat.coreapi.application.port.out.lotteries.LotteryStationRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotterySupplierRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.ReturnBatchRepositoryPort;
+import com.daiphat.coreapi.application.port.out.lotteries.SettlementImportedSerialRow;
 import com.daiphat.coreapi.application.port.out.lotteries.SettlementResolvableSerialRow;
 import com.daiphat.coreapi.application.port.out.lotteries.SupplierSettlementAdjustmentRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.SupplierSettlementRepositoryPort;
@@ -51,20 +61,28 @@ import com.daiphat.coreapi.domain.model.enums.user.UserStatus;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionBusinessType;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
+import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchLineStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus;
+import com.daiphat.coreapi.domain.model.lotteries.ImportBatchModel;
+import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotterySupplierModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
 import com.daiphat.coreapi.domain.model.lotteries.SettlementStationInventoryRow;
 import com.daiphat.coreapi.domain.model.lotteries.SupplierSettlementAdjustmentModel;
 import com.daiphat.coreapi.domain.model.lotteries.SettlementDiscrepancyItem;
+import com.daiphat.coreapi.domain.model.lotteries.StationCommissionSnapshot;
 import com.daiphat.coreapi.domain.model.lotteries.SupplierSettlementModel;
 import com.daiphat.coreapi.domain.model.orders.TransactionModel;
 import com.daiphat.coreapi.domain.model.notifications.NotificationModel;
 import com.daiphat.coreapi.shared.util.ImportCostCalculator;
 import com.daiphat.coreapi.shared.util.SortUtils;
+import com.daiphat.coreapi.shared.util.StorageUtils;
 import com.daiphat.coreapi.shared.util.SupplierPaymentCutOffCalculator;
 import com.daiphat.coreapi.shared.util.SupplierSettlementCodeGenerator;
+import com.daiphat.coreapi.shared.util.SupplierTicketIntakeWindowPolicy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -75,9 +93,15 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
+import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -110,18 +134,19 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             SupplierSettlementAdjustmentReasonCode.SHIPPING_FEE,
             SupplierSettlementAdjustmentReasonCode.LATE_PENALTY,
             SupplierSettlementAdjustmentReasonCode.DISCOUNT,
-            SupplierSettlementAdjustmentReasonCode.ROUNDING,
             SupplierSettlementAdjustmentReasonCode.OTHER
     );
 
     static final String AUTO_PAYMENT_DIFFERENCE_NOTE =
             "Chênh lệch thanh toán so với biên lai (phát sinh ngoài kỳ)";
+    private static final int MAX_PAYMENT_EVIDENCE_URLS = 10;
 
     private final SupplierSettlementRepositoryPort supplierSettlementRepositoryPort;
     private final TransactionRepositoryPort transactionRepositoryPort;
     private final SupplierSettlementAdjustmentRepositoryPort supplierSettlementAdjustmentRepositoryPort;
     private final LotterySupplierRepositoryPort lotterySupplierRepositoryPort;
     private final ImportBatchRepositoryPort importBatchRepositoryPort;
+    private final LotteryStationRepositoryPort lotteryStationRepositoryPort;
     private final ReturnBatchRepositoryPort returnBatchRepositoryPort;
     private final LotteryTicketSerialRepositoryPort lotteryTicketSerialRepositoryPort;
     private final LotteryTicketSerialServicePort lotteryTicketSerialServicePort;
@@ -133,6 +158,9 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
     private final NotificationServicePort notificationService;
     private final UserRepositoryPort userRepositoryPort;
     private final SupplierSettlementDiscrepancyInventoryHelper discrepancyInventoryHelper;
+    private final ObjectProvider<ImportBatchFileImportServicePort> importBatchFileImportService;
+    private final StoragePort storagePort;
+    private final SupplierTicketIntakeWindowPolicy intakeWindowPolicy;
     private final Clock clock;
 
     @Override
@@ -183,6 +211,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         );
         settlement.applyTotalImportValue(totalImportValue);
         settlement.applyTotalReturnValue(totalReturnValue);
+        refreshMatchingSystemTotals(settlement, settlementId, totalImportValue, totalReturnValue);
 
         // Determine return cutoff expiration based on supplier's returnCutOffTime and periodFrom
         boolean isReturnExpired = false;
@@ -205,11 +234,12 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         settlement.applyExpiredReturnValue(expiredReturnValue);
 
         BigDecimal remainingAmount = BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE);
-        if (supplierSettlementRepositoryPort.existsCompletedInspectionReturnBatch(settlementId) || isReturnExpired) {
+        if (settlement.getStatus() != SupplierSettlementStatus.CLOSED) {
             BigDecimal paid = settlement.getTotalPaidAmount() != null
                     ? settlement.getTotalPaidAmount()
                     : BigDecimal.ZERO;
-            // If return is expired past supplier cutoff time, supplier refuses return tickets => store must pay full import cost for all tickets (totalReturnValue deduction is forfeited)
+            // Only HANDED_OVER/RECEIVED returns are included in totalReturnValue. Once the cutoff
+            // has passed, even those returns no longer reduce the supplier payable.
             BigDecimal effectiveReturnValue = isReturnExpired
                     ? BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE)
                     : totalReturnValue;
@@ -217,6 +247,10 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             if (remainingAmount.signum() < 0) {
                 remainingAmount = BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE);
             }
+        } else {
+            // Closed settlements are immutable snapshots. The settlement outcome may
+            // legitimately be a supplier credit, but there is never an open payable.
+            remainingAmount = BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE);
         }
         settlement.applyRemainingAmount(remainingAmount);
         if (settlement.getStatus() == SupplierSettlementStatus.CLOSED && settlement.getPaidAt() == null) {
@@ -235,30 +269,116 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         );
     }
 
+    /**
+     * Matching UI reads {@code systemReturnQuantity/Value}, not {@code totalReturnValue}.
+     * Import qty stays live until intake cutoff ({@code returnCutOffTime − buffer});
+     * return qty stays live until {@code returnCutOffTime}. After each cutoff the
+     * last count is persisted and not overwritten.
+     */
+    private void refreshMatchingSystemTotals(
+            SupplierSettlementModel settlement,
+            Long settlementId,
+            BigDecimal totalImportValue,
+            BigDecimal totalReturnValue
+    ) {
+        if (!shouldRefreshMatchingSystemTotals(settlement)) {
+            return;
+        }
+        LotterySupplierModel supplier = settlement.getLotterySupplierId() != null
+                ? lotterySupplierRepositoryPort.findById(settlement.getLotterySupplierId()).orElse(null)
+                : null;
+        LocalDateTime now = LocalDateTime.now(clock);
+        ensureSystemPricingSnapshot(settlement, supplier);
+        mergeMissingStationCommissionSnapshots(settlement, settlementId);
+
+        boolean importLocked = intakeWindowPolicy != null
+                && intakeWindowPolicy.isTicketChangeLocked(supplier, settlement.getPeriodFrom(), now);
+        boolean returnLocked = isReturnCutOffReached(supplier, settlement.getPeriodFrom(), now);
+
+        if (settlement.getSystemImportQuantityFrozenAt() == null) {
+            settlement.setSystemImportQuantity(
+                    (int) supplierSettlementRepositoryPort.countImportedTicketsBySettlementId(settlementId)
+            );
+            if (importLocked) {
+                settlement.setSystemImportQuantityFrozenAt(now);
+                refreshSnapshotImportedQuantities(settlement, settlementId);
+                freezeOriginalNetFromSnapshots(settlement);
+            }
+        }
+        if (settlement.getSystemReturnQuantityFrozenAt() == null) {
+            settlement.setSystemReturnQuantity(
+                    (int) supplierSettlementRepositoryPort.countPreparedReturnTicketsBySettlementId(settlementId)
+            );
+            if (returnLocked) {
+                settlement.setSystemReturnQuantityFrozenAt(now);
+            }
+        }
+
+        int importQty = settlement.getSystemImportQuantity() != null ? settlement.getSystemImportQuantity() : 0;
+        int returnQty = settlement.getSystemReturnQuantity() != null ? settlement.getSystemReturnQuantity() : 0;
+        BigDecimal net = settlement.getOriginalTicketUnitPrice();
+        if (net == null) {
+            freezeOriginalNetFromSnapshots(settlement);
+            net = settlement.getOriginalTicketUnitPrice();
+        }
+        if (net != null) {
+            settlement.setSystemImportValue(
+                    ImportCostCalculator.scaleMoney(net.multiply(BigDecimal.valueOf(importQty)))
+            );
+            settlement.setSystemReturnValue(
+                    ImportCostCalculator.scaleMoney(net.multiply(BigDecimal.valueOf(returnQty)))
+            );
+        } else if (settlement.getMatchingConfirmedAt() == null) {
+            settlement.setSystemImportValue(totalImportValue);
+            settlement.setSystemReturnValue(totalReturnValue);
+        } else {
+            BigDecimal frozenNet = settlement.getOriginalTicketUnitPrice() != null
+                    ? ImportCostCalculator.scaleMoney(settlement.getOriginalTicketUnitPrice())
+                    : null;
+            if (frozenNet != null) {
+                settlement.setSystemImportValue(
+                        ImportCostCalculator.scaleMoney(frozenNet.multiply(BigDecimal.valueOf(importQty)))
+                );
+                settlement.setSystemReturnValue(
+                        ImportCostCalculator.scaleMoney(frozenNet.multiply(BigDecimal.valueOf(returnQty)))
+                );
+            } else {
+                settlement.setSystemImportValue(totalImportValue);
+                settlement.setSystemReturnValue(totalReturnValue);
+            }
+        }
+
+        if (returnLocked) {
+            BigDecimal baselineNet = settlement.getOriginalTicketUnitPrice() != null
+                    ? settlement.getOriginalTicketUnitPrice()
+                    : net;
+            settlement.freezeInitialEstimatedSettlementValue(
+                    computeInitialEstimatedSettlementValue(baselineNet, importQty, returnQty)
+            );
+        }
+    }
+
+    private boolean shouldRefreshMatchingSystemTotals(SupplierSettlementModel settlement) {
+        if (settlement.getStatus() == SupplierSettlementStatus.CLOSED) {
+            return false;
+        }
+        return settlement.getReconciliationPhase() != SupplierSettlementReconciliationPhase.COMPLETED;
+    }
+
     @Override
     @Transactional
     public int updateExpiredSettlements() {
-        LocalDateTime now = LocalDateTime.now(clock);
         List<SupplierSettlementModel> openSettlements = supplierSettlementRepositoryPort.findByStatuses(
                 List.of(SupplierSettlementStatus.OPEN, SupplierSettlementStatus.RECEIPT_OVERDUE)
         );
         int updated = 0;
         for (SupplierSettlementModel settlement : openSettlements) {
-            if (settlement.getLotterySupplierId() != null && settlement.getPeriodFrom() != null) {
-                LotterySupplierModel supplier = lotterySupplierRepositoryPort.findById(settlement.getLotterySupplierId())
-                        .orElse(null);
-                if (supplier != null && supplier.getReturnCutOffTime() != null) {
-                    LocalDateTime cutOffDateTime = LocalDateTime.of(settlement.getPeriodFrom(), supplier.getReturnCutOffTime());
-                    if (now.isAfter(cutOffDateTime)) {
-                        boolean wasExpired = settlement.isReturnExpired();
-                        recalculateAmounts(settlement.getId());
-                        SupplierSettlementModel refreshed = supplierSettlementRepositoryPort.findById(settlement.getId()).orElse(null);
-                        if (refreshed != null && refreshed.isReturnExpired() && !wasExpired) {
-                            updated++;
-                            sendExpiredNotification(refreshed);
-                        }
-                    }
-                }
+            boolean wasExpired = settlement.isReturnExpired();
+            recalculateAmounts(settlement.getId());
+            SupplierSettlementModel refreshed = supplierSettlementRepositoryPort.findById(settlement.getId()).orElse(null);
+            if (refreshed != null && refreshed.isReturnExpired() && !wasExpired) {
+                updated++;
+                sendExpiredNotification(refreshed);
             }
         }
         if (updated > 0) {
@@ -271,35 +391,35 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
     @Transactional
     public int markReceiptOverdueSettlements() {
         LocalDateTime now = LocalDateTime.now(clock);
-        LocalTime verificationDeadline = supplierPaymentCutOffCalculator.resolveVerificationDeadline();
         List<SupplierSettlementModel> openSettlements =
                 supplierSettlementRepositoryPort.findByStatus(SupplierSettlementStatus.OPEN);
         int updated = 0;
         for (SupplierSettlementModel settlement : openSettlements) {
-            if (settlement.getPeriodFrom() == null) {
+            if (settlement.getPeriodFrom() == null || settlement.getLotterySupplierId() == null) {
                 continue;
             }
-            String receiptUrl = settlement.getSupplierSettlementReceiptUrl();
-            if (receiptUrl != null && !receiptUrl.isBlank()) {
+            LotterySupplierModel supplier = lotterySupplierRepositoryPort.findById(settlement.getLotterySupplierId())
+                    .orElse(null);
+            if (supplier == null || supplier.getPaymentCutOffTime() == null) {
                 continue;
             }
-            LocalDateTime deadlineAt = LocalDateTime.of(settlement.getPeriodFrom(), verificationDeadline);
+            LocalTime paymentCutOff = supplier.getPaymentCutOffTime();
+            LocalDateTime deadlineAt = LocalDateTime.of(settlement.getPeriodFrom(), paymentCutOff);
             if (!now.isAfter(deadlineAt)) {
                 continue;
             }
             settlement.setStatus(SupplierSettlementStatus.RECEIPT_OVERDUE);
             SupplierSettlementModel saved = supplierSettlementRepositoryPort.save(settlement);
-            sendReceiptOverdueNotification(saved);
+            sendPaymentOverdueNotification(saved, paymentCutOff);
             updated++;
         }
         if (updated > 0) {
-            log.info("Marked {} supplier settlement(s) as RECEIPT_OVERDUE past verification deadline {}",
-                    updated, verificationDeadline);
+            log.info("Marked {} supplier settlement(s) as payment-overdue past supplier paymentCutOff", updated);
         }
         return updated;
     }
 
-    private void sendReceiptOverdueNotification(SupplierSettlementModel settlement) {
+    private void sendPaymentOverdueNotification(SupplierSettlementModel settlement, LocalTime paymentCutOff) {
         if (settlement == null || notificationService == null || userRepositoryPort == null) {
             return;
         }
@@ -311,9 +431,11 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         if (settlement.getPeriodTo() != null) {
             periodStr = periodStr + " đến " + settlement.getPeriodTo();
         }
-        String title = "Quá hạn upload biên lai đối soát";
+        String cutOffLabel = paymentCutOff != null ? paymentCutOff.toString() : "-";
+        String title = "Trễ hạn thanh toán nhà cung cấp";
         String content = "Kỳ đối soát " + code + " của " + supplierName
-                + " (" + periodStr + ") đã vượt hạn chót đối chiếu mà chưa upload biên lai đối soát.";
+                + " (" + periodStr + ") đã quá giờ thanh toán NCC (" + cutOffLabel
+                + ") mà chưa hoàn tất đối soát / chốt thanh toán.";
 
         userRepositoryPort.findAllByRoleCodes(List.of(RoleConstants.ADMIN)).stream()
                 .filter(u -> u.getStatus() == UserStatus.ACTIVE)
@@ -404,11 +526,51 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             );
         }
         String trimmed = supplierSettlementReceiptUrl != null ? supplierSettlementReceiptUrl.trim() : null;
-        settlement.setSupplierSettlementReceiptUrl(
-                trimmed == null || trimmed.isEmpty() ? null : trimmed
-        );
+        String nextUrl = trimmed == null || trimmed.isEmpty() ? null : trimmed;
+        String previousUrl = settlement.getSupplierSettlementReceiptUrl();
+        if (previousUrl != null && !previousUrl.isBlank()
+                && (nextUrl == null || !previousUrl.trim().equals(nextUrl))) {
+            deleteStoredUrlQuietly(previousUrl);
+        }
+        settlement.setSupplierSettlementReceiptUrl(nextUrl);
         SupplierSettlementModel saved = supplierSettlementRepositoryPort.save(settlement);
         log.info("Updated supplierSettlementReceiptUrl for settlementId={}", settlementId);
+        return supplierSettlementApplicationMapper.toResponse(saved);
+    }
+
+    private void deleteStoredUrlQuietly(String url) {
+        try {
+            String key = StorageUtils.extractStorageKeyFromUrl(url);
+            if (key != null && !key.isBlank()) {
+                storagePort.delete(key);
+            }
+        } catch (Exception ex) {
+            log.warn("Failed to hard-delete stored file for url={}: {}", url, ex.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional
+    public SupplierSettlementResponse updatePaymentEvidenceUrls(
+            Long settlementId,
+            List<String> paymentEvidenceUrls
+    ) {
+        SupplierSettlementModel settlement = supplierSettlementRepositoryPort.findById(settlementId)
+                .orElseThrow(() -> new DomainException(ErrorCode.SUPPLIER_SETTLEMENT_NOT_FOUND));
+        if (settlement.getStatus() == SupplierSettlementStatus.CLOSED
+                || settlement.getReconciliationPhase() == SupplierSettlementReconciliationPhase.COMPLETED) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Không thể cập nhật ảnh thanh toán khi kỳ đối soát đã hoàn tất."
+            );
+        }
+        settlement.setPaymentEvidenceUrls(normalizePaymentEvidenceUrls(paymentEvidenceUrls));
+        SupplierSettlementModel saved = supplierSettlementRepositoryPort.save(settlement);
+        log.info(
+                "Updated paymentEvidenceUrls for settlementId={}, count={}",
+                settlementId,
+                saved.getPaymentEvidenceUrls() != null ? saved.getPaymentEvidenceUrls().size() : 0
+        );
         return supplierSettlementApplicationMapper.toResponse(saved);
     }
 
@@ -423,20 +585,9 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         SupplierSettlementModel settlement = supplierSettlementRepositoryPort.findById(id)
                 .orElseThrow(() -> new DomainException(ErrorCode.SUPPLIER_SETTLEMENT_NOT_FOUND));
 
-        // Prefill live system totals for matching UI when staff has not confirmed yet.
+        // Live HANDED_OVER/RECEIVED serials are already written by recalculateAmounts.
+        // Prefill actuals + matching baseline only before the first confirm.
         if (settlement.getMatchingConfirmedAt() == null) {
-            settlement.setSystemImportQuantity(
-                    (int) supplierSettlementRepositoryPort.countImportedTicketsBySettlementId(id)
-            );
-            settlement.setSystemImportValue(ImportCostCalculator.scaleMoney(
-                    supplierSettlementRepositoryPort.sumImportedCostValueBySettlementId(id)
-            ));
-            settlement.setSystemReturnQuantity(
-                    (int) supplierSettlementRepositoryPort.countPreparedReturnTicketsBySettlementId(id)
-            );
-            settlement.setSystemReturnValue(ImportCostCalculator.scaleMoney(
-                    supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(id)
-            ));
             if (settlement.getActualTicketImportQuantity() == null) {
                 settlement.setActualTicketImportQuantity(settlement.getSystemImportQuantity());
             }
@@ -455,16 +606,20 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
                     settlement.getSystemImportQuantity() != null ? settlement.getSystemImportQuantity() : 0,
                     settlement.getSystemImportValue()
             );
-            settlement.setOriginalTicketUnitPrice(originalUnitPrice);
+            if (settlement.getOriginalTicketUnitPrice() == null) {
+                settlement.setOriginalTicketUnitPrice(originalUnitPrice);
+            }
 
-            // Baseline before any user reconciliation adjustments (preview; not persisted until confirm).
-            // Do NOT mirror baseline into finalSettlementValue — that field is only set after adjustments.
-            BigDecimal baseline = computeInitialEstimatedSettlementValue(
-                    originalUnitPrice,
-                    settlement.getSystemImportQuantity() != null ? settlement.getSystemImportQuantity() : 0,
-                    settlement.getSystemReturnQuantity() != null ? settlement.getSystemReturnQuantity() : 0
-            );
-            settlement.setInitialEstimatedSettlementValue(baseline);
+            if (settlement.getInitialEstimatedSettlementValue() == null) {
+                BigDecimal baseline = computeInitialEstimatedSettlementValue(
+                        settlement.getOriginalTicketUnitPrice() != null
+                                ? settlement.getOriginalTicketUnitPrice()
+                                : originalUnitPrice,
+                        settlement.getSystemImportQuantity() != null ? settlement.getSystemImportQuantity() : 0,
+                        settlement.getSystemReturnQuantity() != null ? settlement.getSystemReturnQuantity() : 0
+                );
+                settlement.setInitialEstimatedSettlementValue(baseline);
+            }
             settlement.setFinalSettlementValue(null);
             settlement.setSettlementDifferenceAmount(BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE));
         } else if (settlement.getInitialEstimatedSettlementValue() == null) {
@@ -514,6 +669,17 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
                         .build())
                 .toList();
 
+        List<SettlementStationPricingResponse> stationPricing = buildStationPricing(
+                settlement,
+                importBatches,
+                inventoryByStation,
+                shouldUseFrozenStationPricing(settlement)
+        );
+        if (settlement.getMatchingConfirmedAt() == null && settlement.getSystemTicketImportPrice() == null) {
+            applyAfterCommissionMatchingBaseline(settlement, stationPricing);
+            settlementResponse = supplierSettlementApplicationMapper.toResponse(settlement);
+        }
+
         int imported = inventoryByStation.stream().mapToInt(SettlementStationInventoryResponse::importedQuantity).sum();
         int sold = inventoryByStation.stream().mapToInt(SettlementStationInventoryResponse::soldQuantity).sum();
         int remaining = inventoryByStation.stream().mapToInt(SettlementStationInventoryResponse::remainingQuantity).sum();
@@ -545,6 +711,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
                 .importBatches(importBatches)
                 .returnBatches(returnBatches)
                 .inventoryByStation(inventoryByStation)
+                .stationPricing(stationPricing)
                 .adjustments(
                         supplierSettlementAdjustmentRepositoryPort.findBySettlementId(id).stream()
                                 .map(this::toAdjustmentResponse)
@@ -561,7 +728,15 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             UUID actorId
     ) {
         SupplierSettlementModel settlement = requireOpenSettlement(settlementId);
+        ensureReconciliationWindowOpen(settlement);
         assertPhaseAllowsMatching(settlement);
+        // A rematch replaces the price evidence; any prior unit-price adjustment must
+        // not leak into the next recalculation.
+        supplierSettlementAdjustmentRepositoryPort.deleteBySettlementIdAndGroupTypeAndReasonCode(
+                settlementId,
+                SupplierSettlementAdjustmentGroupType.IMPORT,
+                SupplierSettlementAdjustmentReasonCode.WRONG_DENOMINATION
+        );
 
         boolean missingImportReceipt = importBatchRepositoryPort.findBySupplierSettlementId(settlementId).stream()
                 .anyMatch(batch -> batch.getInvoiceEvidenceUrl() == null || batch.getInvoiceEvidenceUrl().isBlank());
@@ -572,30 +747,71 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             );
         }
 
-        int systemImportQty = (int) supplierSettlementRepositoryPort.countImportedTicketsBySettlementId(settlementId);
-        BigDecimal systemImportVal = ImportCostCalculator.scaleMoney(
-                supplierSettlementRepositoryPort.sumImportedCostValueBySettlementId(settlementId)
-        );
-        int systemReturnQty = (int) supplierSettlementRepositoryPort.countPreparedReturnTicketsBySettlementId(settlementId);
-        BigDecimal systemReturnVal = ImportCostCalculator.scaleMoney(
-                supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(settlementId)
-        );
+        boolean missingTicketListImages = importBatchRepositoryPort.findBySupplierSettlementId(settlementId).stream()
+                .anyMatch(batch -> batch.getTicketListImageUrls() == null || batch.getTicketListImageUrls().isEmpty());
+        if (missingTicketListImages) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Cần tải ảnh danh sách vé nhập của phiếu nhập lô trước khi xác nhận đối chiếu."
+            );
+        }
+
+        int systemImportQty = settlement.getSystemImportQuantityFrozenAt() != null
+                && settlement.getSystemImportQuantity() != null
+                ? settlement.getSystemImportQuantity()
+                : (int) supplierSettlementRepositoryPort.countImportedTicketsBySettlementId(settlementId);
+        int systemReturnQty = settlement.getSystemReturnQuantityFrozenAt() != null
+                && settlement.getSystemReturnQuantity() != null
+                ? settlement.getSystemReturnQuantity()
+                : (int) supplierSettlementRepositoryPort.countPreparedReturnTicketsBySettlementId(settlementId);
 
         if (request.actualTicketImportQuantity() == null || request.actualReturnTicketQuantity() == null) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "Số lượng nhập và số lượng trả thực tế là bắt buộc.");
         }
         int actualImportQty = request.actualTicketImportQuantity();
         int actualReturnQty = request.actualReturnTicketQuantity();
+        if (actualReturnQty > actualImportQty) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Số lượng vé trả thực tế không được lớn hơn số lượng vé nhập thực tế."
+            );
+        }
 
-        LotterySupplierModel supplier = settlement.getLotterySupplierId() != null
-                ? lotterySupplierRepositoryPort.findById(settlement.getLotterySupplierId()).orElse(null)
-                : null;
+        List<SettlementStationPricingResponse> liveStationPricing = loadStationPricing(
+                settlementId, settlement, shouldUseFrozenStationPricing(settlement)
+        );
+        BigDecimal systemFacePrice = settlement.getSystemTicketImportPrice() != null
+                && settlement.getSystemTicketImportPrice().signum() > 0
+                ? ImportCostCalculator.scaleMoney(settlement.getSystemTicketImportPrice())
+                : resolveSupplierDefaultImportCost(settlement);
+        BigDecimal originalUnitPrice;
+        if (settlement.getOriginalTicketUnitPrice() != null
+                && settlement.getOriginalTicketUnitPrice().signum() > 0
+                && settlement.getSystemImportQuantityFrozenAt() != null) {
+            originalUnitPrice = ImportCostCalculator.scaleMoney(settlement.getOriginalTicketUnitPrice());
+        } else {
+            originalUnitPrice = weightedAverageNetUnitPrice(liveStationPricing);
+            if (originalUnitPrice == null) {
+                originalUnitPrice = systemFacePrice;
+            }
+        }
 
-        BigDecimal originalUnitPrice = resolveOriginalTicketUnitPrice(
+        BigDecimal actualFacePrice = request.actualTicketImportPrice() != null
+                ? ImportCostCalculator.scaleMoney(request.actualTicketImportPrice())
+                : systemFacePrice;
+        if (actualFacePrice.signum() <= 0) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "Giá nhập mỗi vé thực tế phải lớn hơn 0.");
+        }
+
+        List<StationCommissionSnapshot> commissionSnapshots = buildStationCommissionSnapshots(
                 settlement,
-                systemImportQty,
-                systemImportVal,
-                supplier
+                liveStationPricing,
+                request.stationCommissions()
+        );
+        BigDecimal reconciledFromCommissions = weightedAverageNetFromFace(
+                liveStationPricing,
+                actualFacePrice,
+                commissionSnapshots
         );
 
         BigDecimal reconciledUnitPrice = request.reconciledTicketUnitPrice();
@@ -607,9 +823,12 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             );
         }
         if (reconciledUnitPrice == null) {
-            reconciledUnitPrice = originalUnitPrice;
+            reconciledUnitPrice = reconciledFromCommissions != null ? reconciledFromCommissions : originalUnitPrice;
         }
         reconciledUnitPrice = ImportCostCalculator.scaleMoney(reconciledUnitPrice);
+        if (reconciledUnitPrice.signum() <= 0) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "Đơn giá vé đối soát phải lớn hơn 0.");
+        }
 
         BigDecimal actualImportVal = request.actualTicketImportValue() != null
                 ? ImportCostCalculator.scaleMoney(request.actualTicketImportValue())
@@ -618,6 +837,25 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         BigDecimal actualReturnVal = request.actualReturnTicketValue() != null
                 ? ImportCostCalculator.scaleMoney(request.actualReturnTicketValue())
                 : ImportCostCalculator.scaleMoney(reconciledUnitPrice.multiply(BigDecimal.valueOf(actualReturnQty)));
+        BigDecimal expectedImportVal = ImportCostCalculator.scaleMoney(
+                reconciledUnitPrice.multiply(BigDecimal.valueOf(actualImportQty))
+        );
+        BigDecimal expectedReturnVal = ImportCostCalculator.scaleMoney(
+                reconciledUnitPrice.multiply(BigDecimal.valueOf(actualReturnQty))
+        );
+        if (actualImportVal.compareTo(expectedImportVal) != 0 || actualReturnVal.compareTo(expectedReturnVal) != 0) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Giá trị nhập/trả thực tế phải bằng số lượng thực tế × đơn giá vé đối soát."
+            );
+        }
+
+        BigDecimal systemImportVal = ImportCostCalculator.scaleMoney(
+                originalUnitPrice.multiply(BigDecimal.valueOf(systemImportQty))
+        );
+        BigDecimal systemReturnVal = ImportCostCalculator.scaleMoney(
+                originalUnitPrice.multiply(BigDecimal.valueOf(systemReturnQty))
+        );
 
         // Baseline from original/system data — frozen on first confirm, never overwritten on rematch.
         BigDecimal baselineInitial = computeInitialEstimatedSettlementValue(
@@ -665,6 +903,9 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         settlement.setActualReturnTicketValue(actualReturnVal);
         settlement.setOriginalTicketUnitPrice(originalUnitPrice);
         settlement.setReconciledTicketUnitPrice(reconciledUnitPrice);
+        settlement.setSystemTicketImportPrice(systemFacePrice);
+        settlement.setActualTicketImportPrice(actualFacePrice);
+        settlement.setStationCommissionSnapshots(commissionSnapshots);
         settlement.freezeInitialEstimatedSettlementValue(baselineInitial);
         settlement.applyFinalSettlementValue(finalFromMatching);
         settlement.applyActualPaidAmount(request.actualPaidAmount());
@@ -705,6 +946,51 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public SettlementImportFileCheckResponse checkImportFiles(Long settlementId) {
+        SupplierSettlementModel settlement = requireOpenSettlement(settlementId);
+        List<ImportBatchModel> batches = importBatchRepositoryPort.findBySupplierSettlementId(settlementId);
+        List<Long> batchIds = batches.stream().map(ImportBatchModel::getId).toList();
+        Map<Long, String> batchCodes = new LinkedHashMap<>();
+        for (ImportBatchModel batch : batches) {
+            batchCodes.put(batch.getId(), batch.getBatchCode());
+        }
+
+        ImportBatchOriginalFileBundle fileSide = importBatchFileImportService.getObject()
+                .loadOriginalFilesForSettlementBatches(
+                        batchIds,
+                        batchCodes,
+                        settlement.getLotterySupplierId(),
+                        settlement.getPeriodFrom()
+                );
+
+        List<SettlementImportFileCheckTicketResponse> systemTickets =
+                supplierSettlementRepositoryPort.findImportedSerialsForFileCheck(settlementId).stream()
+                        .map(this::toFileCheckTicket)
+                        .toList();
+
+        List<SettlementImportFileCheckTicketResponse> fileTickets = fileSide.tickets();
+        FileCheckDiff diff = diffFileAndSystem(fileTickets, systemTickets);
+        List<SettlementImportFileCheckStationSummaryResponse> summaries = buildFileCheckStationSummaries(
+                fileSide,
+                systemTickets,
+                diff.onlyInSystem(),
+                diff.onlyInFile()
+        );
+
+        return SettlementImportFileCheckResponse.builder()
+                .files(fileSide.files())
+                .fileTickets(fileTickets)
+                .systemTickets(systemTickets)
+                .matchedCount(diff.matchedCount())
+                .onlyInSystem(diff.onlyInSystem())
+                .onlyInFile(diff.onlyInFile())
+                .stationSummaries(summaries)
+                .importsTickets(fileSide.importsTickets())
+                .build();
+    }
+
+    @Override
     @Transactional
     public SupplierSettlementResponse resolveImportDiscrepancy(
             Long settlementId,
@@ -712,7 +998,8 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             UUID actorId
     ) {
         SupplierSettlementModel settlement = requireOpenSettlement(settlementId);
-        if (!settlement.hasDiscrepancyType(SupplierSettlementDiscrepancyType.IMPORT_QUANTITY)) {
+        ensureReconciliationWindowOpen(settlement);
+        if (!settlement.needsImportResolution()) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "Không có chênh lệch số lượng nhập cần xử lý.");
         }
         SettlementDiscrepancyItem importItem = requireDiscrepancyItem(
@@ -722,17 +1009,94 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         boolean hasExcess = request.excessTickets() != null && !request.excessTickets().isEmpty();
         boolean hasExistingFault = request.serialIds() != null && !request.serialIds().isEmpty()
                 && request.ticketCondition() != null;
-        if (importItem.isNegative() && hasExcess) {
+        boolean hasValueAdjustment = request.adjustmentAmount() != null
+                && request.adjustmentAmount().compareTo(BigDecimal.ZERO) != 0;
+        int requiredQuantity = importItem.getDifference() != null
+                ? importItem.getDifference().abs().intValue()
+                : 0;
+        if (request.markResolved() && !hasMissing && !hasExcess
+                && (request.serialIds() == null || request.serialIds().isEmpty())
+                && !hasValueAdjustment) {
             throw new DomainException(
                     ErrorCode.INVALID_INPUT,
-                    "Thiếu nhập (âm): chỉ được ghi LOST/hỏng/hủy hoặc tạo placeholder, không nhập thừa GOOD."
+                    "Cần ghi nhận serial/vé xử lý hoặc một khoản điều chỉnh trước khi xác nhận đã xử lý chênh lệch nhập."
             );
         }
-        if (importItem.isPositive() && (hasMissing || hasExistingFault)) {
+        if (importItem.isNegative() && (hasExcess || hasMissing)) {
             throw new DomainException(
                     ErrorCode.INVALID_INPUT,
-                    "Thừa nhập (dương): chỉ được ghi nhận vé GOOD thừa, không tạo LOST/placeholder."
+                    "Hệ thống ghi thừa nhập (âm): hãy chọn trực tiếp các sê-ri đã được ghi nhận trong ngày để xử lý, không tạo vé mới."
             );
+        }
+        if (importItem.isPositive() && hasExistingFault) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Hệ thống ghi thiếu nhập (dương): chỉ được tạo các vé bổ sung theo nhà đài, không xử lý sê-ri đã tồn tại."
+            );
+        }
+        if (importItem.isNegative() && request.markResolved()) {
+            List<Long> requestedSerialIds = request.serialIds() != null ? request.serialIds() : List.of();
+            long distinctCount = requestedSerialIds.stream().filter(Objects::nonNull).distinct().count();
+            if (!hasExistingFault || distinctCount != requiredQuantity) {
+                throw new DomainException(
+                        ErrorCode.INVALID_INPUT,
+                        "Cần chọn đúng " + requiredQuantity
+                                + " sê-ri đã nhập trong ngày và ghi tình trạng vé để xử lý số vé hệ thống ghi thừa."
+                );
+            }
+            java.util.Set<Long> eligibleSerialIds = supplierSettlementRepositoryPort
+                    .findImportResolvableSerialsBySettlementId(settlementId)
+                    .stream()
+                    .filter(Objects::nonNull)
+                    .map(com.daiphat.coreapi.application.port.out.lotteries.SettlementResolvableSerialRow::serialId)
+                    .collect(java.util.stream.Collectors.toSet());
+            if (!eligibleSerialIds.containsAll(requestedSerialIds)) {
+                throw new DomainException(
+                        ErrorCode.INVALID_INPUT,
+                        "Chỉ được chọn sê-ri thuộc các lô nhập của ngày đối soát và đang ở trạng thái GOOD."
+                );
+            }
+        }
+        if (importItem.isPositive() && hasExcess) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Hệ thống ghi thiếu nhập (dương): hãy phân bổ số vé cần bổ sung theo nhà đài."
+            );
+        }
+        if (hasMissing) {
+            TicketCondition missingCondition = request.ticketCondition() != null
+                    ? request.ticketCondition()
+                    : TicketCondition.LOST;
+            if (missingCondition != TicketCondition.LOST
+                    && missingCondition != TicketCondition.DAMAGED
+                    && missingCondition != TicketCondition.VOIDED
+                    && missingCondition != TicketCondition.UNDER_IMPORTED) {
+                throw new DomainException(
+                        ErrorCode.INVALID_INPUT,
+                        "Tình trạng vé thiếu phải là LOST, DAMAGED, VOIDED hoặc UNDER_IMPORTED."
+                );
+            }
+            if (missingCondition == TicketCondition.DAMAGED
+                    && (request.damagedEvidenceUrl() == null || request.damagedEvidenceUrl().isBlank())) {
+                throw new DomainException(
+                        ErrorCode.INVALID_INPUT,
+                        "Vé hư hỏng / rách bắt buộc đính kèm ảnh minh chứng."
+                );
+            }
+            int placeholderQty = request.missingPlaceholders().stream()
+                    .filter(Objects::nonNull)
+                    .mapToInt(p -> p.quantity() != null ? p.quantity() : 0)
+                    .sum();
+            if (requiredQuantity > 0 && placeholderQty != requiredQuantity) {
+                throw new DomainException(
+                        ErrorCode.INVALID_INPUT,
+                        "Tổng số lượng vé bổ sung theo nhà đài phải đúng "
+                                + requiredQuantity
+                                + " vé (hiện tại: "
+                                + placeholderQty
+                                + ")."
+                );
+            }
         }
         settlement.setReconciliationPhase(SupplierSettlementReconciliationPhase.RESOLVING_IMPORT_DISCREPANCY);
 
@@ -747,8 +1111,18 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         LocalDateTime now = LocalDateTime.now(clock);
 
         if (request.missingPlaceholders() != null && !request.missingPlaceholders().isEmpty()) {
+            TicketCondition missingCondition = request.ticketCondition() != null
+                    ? request.ticketCondition()
+                    : TicketCondition.LOST;
             List<Long> created = discrepancyInventoryHelper.createLostPlaceholders(
-                    settlement, request.missingPlaceholders(), unitCost, actorId, now
+                    settlement,
+                    request.missingPlaceholders(),
+                    unitCost,
+                    actorId,
+                    now,
+                    missingCondition,
+                    request.damagedEvidenceUrl(),
+                    request.note()
             );
             serialIds.addAll(created);
             for (Long serialId : created) {
@@ -814,7 +1188,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
                                 request.ticketCondition(),
                                 faultedBy,
                                 request.note(),
-                                null,
+                                request.damagedEvidenceUrl(),
                                 null,
                                 null
                         ),
@@ -865,7 +1239,8 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             UUID actorId
     ) {
         SupplierSettlementModel settlement = requireOpenSettlement(settlementId);
-        if (!settlement.hasDiscrepancyType(SupplierSettlementDiscrepancyType.RETURN_QUANTITY)) {
+        ensureReconciliationWindowOpen(settlement);
+        if (!settlement.needsReturnResolution()) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "Không có chênh lệch số lượng trả cần xử lý.");
         }
         SettlementDiscrepancyItem returnItem = requireDiscrepancyItem(
@@ -875,17 +1250,74 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         List<String> requestedExcess = request.excessSerialNumbers() != null
                 ? request.excessSerialNumbers()
                 : List.of();
+        int requiredQuantity = returnItem.getDifference() != null
+                ? returnItem.getDifference().abs().intValue()
+                : 0;
+        boolean hasValueAdjustment = request.adjustmentAmount() != null
+                && request.adjustmentAmount().compareTo(BigDecimal.ZERO) != 0;
+        boolean resolveExcessWithoutSerials = request.markResolved()
+                && returnItem.isPositive()
+                && requestedSerialIds.isEmpty()
+                && requestedExcess.isEmpty()
+                && !hasValueAdjustment;
+        if (request.markResolved()
+                && requestedSerialIds.isEmpty()
+                && requestedExcess.isEmpty()
+                && !hasValueAdjustment
+                && !resolveExcessWithoutSerials) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Cần ghi nhận serial trả hoặc một khoản điều chỉnh trước khi xác nhận đã xử lý chênh lệch trả."
+            );
+        }
         if (returnItem.isNegative() && !requestedExcess.isEmpty()) {
             throw new DomainException(
                     ErrorCode.INVALID_INPUT,
-                    "Thiếu trả (âm): chỉ được xử lý sê-ri thiếu (LOST/hỏng/hủy/hết hạn), không nhập trả thừa."
+                    "Hệ thống ghi thừa trả (âm): chỉ được xử lý các sê-ri đã ghi nhận thừa (LOST/hỏng/hủy/hết hạn), không bổ sung sê-ri trả."
             );
         }
         if (returnItem.isPositive() && !requestedSerialIds.isEmpty()) {
             throw new DomainException(
                     ErrorCode.INVALID_INPUT,
-                    "Thừa trả (dương): chỉ được quét sê-ri trả thừa, không xử lý thiếu trả."
+                    "Hệ thống ghi thiếu trả (dương): chỉ được quét bổ sung sê-ri đã trả thực tế, không xử lý sê-ri ghi thừa."
             );
+        }
+        if (returnItem.isNegative() && request.markResolved()) {
+            long distinctCount = requestedSerialIds.stream().filter(Objects::nonNull).distinct().count();
+            if (distinctCount != requiredQuantity) {
+                throw new DomainException(
+                        ErrorCode.INVALID_INPUT,
+                        "Cần chọn đúng " + requiredQuantity
+                                + " sê-ri đang có trong phiếu trả để ghi nhận tình trạng vé không thể trả."
+                );
+            }
+            Set<Long> eligibleSerialIds = supplierSettlementRepositoryPort
+                    .findPreparedReturnSerialsBySettlementId(settlementId)
+                    .stream()
+                    .filter(Objects::nonNull)
+                    .map(SettlementResolvableSerialRow::serialId)
+                    .collect(java.util.stream.Collectors.toSet());
+            if (!eligibleSerialIds.containsAll(requestedSerialIds)) {
+                throw new DomainException(
+                        ErrorCode.INVALID_INPUT,
+                        "Chỉ được chọn sê-ri thuộc phiếu trả của kỳ đối soát và đang ở tình trạng GOOD."
+                );
+            }
+        }
+        if (returnItem.isPositive() && request.markResolved() && !requestedExcess.isEmpty()) {
+            long distinctCount = requestedExcess.stream()
+                    .filter(Objects::nonNull)
+                    .map(String::trim)
+                    .filter(value -> !value.isEmpty())
+                    .distinct()
+                    .count();
+            if (distinctCount != requiredQuantity) {
+                throw new DomainException(
+                        ErrorCode.INVALID_INPUT,
+                        "Cần bổ sung đúng " + requiredQuantity
+                                + " sê-ri từ lô nhập của ngày đối soát vào phiếu trả."
+                );
+            }
         }
         settlement.setReconciliationPhase(SupplierSettlementReconciliationPhase.RESOLVING_RETURN_DISCREPANCY);
 
@@ -955,7 +1387,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             if ("EXPIRED".equals(resolution)) {
                 if (serial.getStatus() == LotteryTicketSerialStatus.IN_STOCK
                         || serial.getStatus() == LotteryTicketSerialStatus.RESERVED
-                        || serial.getStatus() == LotteryTicketSerialStatus.PROXY_HOLDING) {
+                        || serial.getStatus() == LotteryTicketSerialStatus.SOLD) {
                     serial.expire();
                     lotteryTicketSerialRepositoryPort.save(serial);
                 }
@@ -1013,6 +1445,24 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             );
         }
 
+        if (resolveExcessWithoutSerials) {
+            String note = request.note() != null && !request.note().isBlank()
+                    ? request.note()
+                    : "Xác nhận bổ sung " + requiredQuantity
+                            + " vé trả nhưng không còn vé GOOD đủ điều kiện để gắn sê-ri.";
+            saveAdjustment(
+                    settlementId,
+                    null,
+                    SupplierSettlementAdjustmentGroupType.RETURN,
+                    request.reasonCode() != null
+                            ? request.reasonCode()
+                            : SupplierSettlementAdjustmentReasonCode.EXCESS_RETURN,
+                    BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE),
+                    note,
+                    actorId
+            );
+        }
+
         if (request.markResolved()) {
             settlement.setReturnDiscrepancyResolved(true);
         }
@@ -1029,34 +1479,43 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             UUID actorId
     ) {
         SupplierSettlementModel settlement = requireOpenSettlement(settlementId);
-        if (!settlement.hasDiscrepancyType(SupplierSettlementDiscrepancyType.IMPORT_UNIT_PRICE)) {
+        ensureReconciliationWindowOpen(settlement);
+        if (!settlement.needsUnitPriceResolution()) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "Không có chênh lệch giá nhập cần xử lý.");
         }
 
-        BigDecimal original = settlement.getOriginalTicketUnitPrice() != null
-                ? settlement.getOriginalTicketUnitPrice()
-                : BigDecimal.ZERO;
-        BigDecimal reconciled = settlement.getReconciledTicketUnitPrice() != null
-                ? settlement.getReconciledTicketUnitPrice()
-                : original;
         int actualImportQty = settlement.getActualTicketImportQuantity() != null
                 ? settlement.getActualTicketImportQuantity()
                 : 0;
         int actualReturnQty = settlement.getActualReturnTicketQuantity() != null
                 ? settlement.getActualReturnTicketQuantity()
                 : 0;
+        BigDecimal original = settlement.getOriginalTicketUnitPrice();
+        if (original == null || original.signum() <= 0) {
+            original = resolveOriginalTicketUnitPriceFromStations(settlement, settlementId, false);
+        }
+        BigDecimal reconciled = settlement.getReconciledTicketUnitPrice() != null
+                ? settlement.getReconciledTicketUnitPrice()
+                : original;
         BigDecimal amount = ImportCostCalculator.scaleMoney(
                 reconciled.subtract(original).multiply(BigDecimal.valueOf((long) actualImportQty - actualReturnQty))
         );
-        saveAdjustment(
+        supplierSettlementAdjustmentRepositoryPort.deleteBySettlementIdAndGroupTypeAndReasonCode(
                 settlementId,
-                null,
                 SupplierSettlementAdjustmentGroupType.IMPORT,
-                SupplierSettlementAdjustmentReasonCode.WRONG_DENOMINATION,
-                amount,
-                request != null ? request.note() : null,
-                actorId
+                SupplierSettlementAdjustmentReasonCode.WRONG_DENOMINATION
         );
+        if (amount.signum() != 0) {
+            saveAdjustment(
+                    settlementId,
+                    null,
+                    SupplierSettlementAdjustmentGroupType.IMPORT,
+                    SupplierSettlementAdjustmentReasonCode.WRONG_DENOMINATION,
+                    amount,
+                    request != null ? request.note() : null,
+                    actorId
+            );
+        }
 
         if (request == null || request.markResolved()) {
             settlement.setUnitPriceDiscrepancyResolved(true);
@@ -1079,7 +1538,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         if (request.reasonCode() == null || !MONETARY_REASON_CODES.contains(request.reasonCode())) {
             throw new DomainException(
                     ErrorCode.INVALID_INPUT,
-                    "reasonCode phải là SHIPPING_FEE, LATE_PENALTY, DISCOUNT, ROUNDING hoặc OTHER."
+                    "reasonCode phải là SHIPPING_FEE, LATE_PENALTY, DISCOUNT hoặc OTHER."
             );
         }
         if (request.amount() == null) {
@@ -1111,6 +1570,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
     @Transactional
     public SupplierSettlementResponse recalculateReconciliation(Long settlementId, UUID actorId) {
         SupplierSettlementModel settlement = requireOpenSettlement(settlementId);
+        ensureReconciliationWindowOpen(settlement);
         if (settlement.hasUnresolvedDiscrepancies()) {
             throw new DomainException(
                     ErrorCode.INVALID_INPUT,
@@ -1130,16 +1590,34 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         settlement = supplierSettlementRepositoryPort.findById(settlementId)
                 .orElseThrow(() -> new DomainException(ErrorCode.SUPPLIER_SETTLEMENT_NOT_FOUND));
 
-        BigDecimal valueOnly = ImportCostCalculator.scaleMoney(
-                supplierSettlementAdjustmentRepositoryPort.sumValueOnlyAdjustmentsBySettlementId(settlementId)
-        );
-        BigDecimal remaining = settlement.getRemainingAmount() != null
-                ? settlement.getRemainingAmount()
-                : BigDecimal.ZERO;
-        BigDecimal recalculated = ImportCostCalculator.scaleMoney(remaining.add(valueOnly));
-        if (recalculated.signum() < 0) {
-            recalculated = BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE);
+        // Recalculation must stay on the reconciled snapshot, rather than rebuilding the
+        // payable from the live import-batch lines.  The live lines still contain every
+        // serial that was originally entered, including serials subsequently marked as a
+        // system overstatement.  Using them here would overwrite the actual quantity that
+        // the admin already confirmed during matching.
+        int actualImportQuantity = settlement.getActualTicketImportQuantity() != null
+                ? settlement.getActualTicketImportQuantity()
+                : 0;
+        int actualReturnQuantity = settlement.getActualReturnTicketQuantity() != null
+                ? settlement.getActualReturnTicketQuantity()
+                : 0;
+        BigDecimal reconciledUnitPrice = settlement.getReconciledTicketUnitPrice() != null
+                ? settlement.getReconciledTicketUnitPrice()
+                : settlement.getOriginalTicketUnitPrice();
+        if (reconciledUnitPrice == null) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Thiếu đơn giá vé đối soát để tính lại giá trị thanh toán."
+            );
         }
+        BigDecimal ticketNet = ImportCostCalculator.scaleMoney(
+                reconciledUnitPrice.multiply(BigDecimal.valueOf((long) actualImportQuantity - actualReturnQuantity))
+        );
+        // Only explicit monetary adjustments entered at matching are part of the payable.
+        // Import/return resolution rows and WRONG_DENOMINATION are audit records: their
+        // effect is already represented by actual quantities and reconciled unit price.
+        BigDecimal manualSettlementAdjustments = sumSettlementGroupAdjustments(settlementId);
+        BigDecimal recalculated = ImportCostCalculator.scaleMoney(ticketNet.add(manualSettlementAdjustments));
         settlement.applyRecalculatedTotalPaidAmount(recalculated);
         settlement.applyFinalSettlementValue(recalculated);
         if (settlement.getActualPaidAmount() != null
@@ -1160,6 +1638,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             UUID actorId
     ) {
         SupplierSettlementModel settlement = requireOpenSettlement(settlementId);
+        ensureReconciliationWindowOpen(settlement);
         if (settlement.hasUnresolvedDiscrepancies()) {
             throw new DomainException(
                     ErrorCode.INVALID_INPUT,
@@ -1233,6 +1712,13 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
                     .build();
         }
 
+        if (!settlement.hasPaymentEvidence()) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Cần tải ảnh đã thanh toán thành công cho nhà cung cấp trước khi hoàn tất đối soát."
+            );
+        }
+
         if (request != null && request.reconciliationNote() != null && !request.reconciliationNote().isBlank()) {
             settlement.setReconciliationNote(request.reconciliationNote().trim());
         }
@@ -1240,18 +1726,29 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         settlement.setStatus(SupplierSettlementStatus.CLOSED);
         settlement.setCompletedAt(LocalDateTime.now(clock));
         settlement.setCompletedBy(actorId);
+        settlement.setTotalPaidAmount(actualPaid.max(BigDecimal.ZERO));
+        settlement.applyRemainingAmount(BigDecimal.ZERO);
         if (settlement.getPaidAt() == null) {
             settlement.setPaidAt(LocalDateTime.now(clock));
         }
+        String firstEvidenceUrl = settlement.getPaymentEvidenceUrls().stream()
+                .filter(url -> url != null && !url.isBlank())
+                .findFirst()
+                .orElse(null);
         if (settlement.getTransactionId() == null) {
+            boolean supplierRefund = actualPaid.signum() < 0;
             TransactionModel payment = TransactionModel.builder()
-                    .amount(actualPaid)
+                    .amount(actualPaid.abs())
                     .type(TransactionType.OFFLINE)
-                    .transactionType(TransactionBusinessType.SUPPLIER_PAYMENT)
+                    .transactionType(supplierRefund
+                            ? TransactionBusinessType.SUPPLIER_REFUND
+                            : TransactionBusinessType.SUPPLIER_PAYMENT)
                     .status(TransactionStatus.COMPLETED)
                     .paidAt(settlement.getPaidAt())
                     .paymentBy(actorId)
-                    .note("Thanh toán đối soát NCC " + settlement.getSupplierSettlementCode())
+                    .paymentEvidenceUrl(firstEvidenceUrl)
+                    .note((supplierRefund ? "NCC hoàn / ghi có đối soát " : "Thanh toán đối soát NCC ")
+                            + settlement.getSupplierSettlementCode())
                     .build();
             settlement.setTransactionId(transactionRepositoryPort.save(payment).getId());
         }
@@ -1270,6 +1767,30 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
                 .build();
     }
 
+    private List<String> normalizePaymentEvidenceUrls(List<String> urls) {
+        if (urls == null || urls.isEmpty()) {
+            return new ArrayList<>();
+        }
+        List<String> normalized = new ArrayList<>();
+        for (String url : urls) {
+            if (url == null || url.isBlank()) {
+                continue;
+            }
+            String trimmed = url.trim();
+            StorageUtils.validateImageEvidenceUrl(trimmed);
+            if (!normalized.contains(trimmed)) {
+                normalized.add(trimmed);
+            }
+        }
+        if (normalized.size() > MAX_PAYMENT_EVIDENCE_URLS) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Tối đa " + MAX_PAYMENT_EVIDENCE_URLS + " ảnh đã thanh toán cho nhà cung cấp."
+            );
+        }
+        return normalized;
+    }
+
     private SupplierSettlementModel requireOpenSettlement(Long settlementId) {
         SupplierSettlementModel settlement = supplierSettlementRepositoryPort.findById(settlementId)
                 .orElseThrow(() -> new DomainException(ErrorCode.SUPPLIER_SETTLEMENT_NOT_FOUND));
@@ -1278,6 +1799,31 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             throw new DomainException(ErrorCode.INVALID_INPUT, "Kỳ đối soát đã chốt, không thể thao tác.");
         }
         return settlement;
+    }
+
+    private void ensureReconciliationWindowOpen(SupplierSettlementModel settlement) {
+        LocalTime paymentCutOff = null;
+        if (settlement.getLotterySupplierId() != null) {
+            LotterySupplierModel supplier = lotterySupplierRepositoryPort.findById(settlement.getLotterySupplierId())
+                    .orElse(null);
+            if (supplier != null) {
+                paymentCutOff = supplier.getPaymentCutOffTime();
+            }
+        }
+        if (paymentCutOff == null) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Nhà cung cấp chưa cấu hình giờ thanh toán (paymentCutOffTime)."
+            );
+        }
+        LocalDateTime now = LocalDateTime.now(clock);
+        if (!supplierPaymentCutOffCalculator.isReconciliationWindowOpen(
+                settlement.getPeriodFrom(),
+                paymentCutOff,
+                now
+        )) {
+            throw new DomainException(ErrorCode.SUPPLIER_SETTLEMENT_RECONCILIATION_NOT_OPEN);
+        }
     }
 
     private void assertPhaseAllowsMatching(SupplierSettlementModel settlement) {
@@ -1308,6 +1854,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
     /**
      * System baseline before reconciliation adjustments:
      * originalTicketUnitPrice × (systemImportQty − systemReturnQty).
+     * Unit price is NCC face import price after per-station commission.
      */
     private BigDecimal computeInitialEstimatedSettlementValue(
             BigDecimal originalUnitPrice,
@@ -1322,35 +1869,340 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         );
     }
 
+    /**
+     * Matching baseline uses NCC {@code defaultImportCost × (1 − station commission)}, not
+     * {@code lottery_stations.price} and not historical import-line net costs.
+     */
+    private void applyAfterCommissionMatchingBaseline(
+            SupplierSettlementModel settlement,
+            List<SettlementStationPricingResponse> stationPricing
+    ) {
+        BigDecimal stationNet = weightedAverageNetUnitPrice(stationPricing);
+        BigDecimal face = resolveSupplierDefaultImportCost(settlement);
+        settlement.setSystemTicketImportPrice(face);
+        if (stationNet == null) {
+            stationNet = face;
+        }
+        int importQty = settlement.getSystemImportQuantity() != null ? settlement.getSystemImportQuantity() : 0;
+        int returnQty = settlement.getSystemReturnQuantity() != null ? settlement.getSystemReturnQuantity() : 0;
+        BigDecimal previousImportVal = settlement.getSystemImportValue();
+        BigDecimal previousReturnVal = settlement.getSystemReturnValue();
+        BigDecimal importVal = ImportCostCalculator.scaleMoney(stationNet.multiply(BigDecimal.valueOf(importQty)));
+        BigDecimal returnVal = ImportCostCalculator.scaleMoney(stationNet.multiply(BigDecimal.valueOf(returnQty)));
+        settlement.setOriginalTicketUnitPrice(stationNet);
+        settlement.setSystemImportValue(importVal);
+        settlement.setSystemReturnValue(returnVal);
+        if (settlement.getActualTicketImportValue() == null
+                || (previousImportVal != null && settlement.getActualTicketImportValue().compareTo(previousImportVal) == 0)) {
+            settlement.setActualTicketImportValue(importVal);
+        }
+        if (settlement.getActualReturnTicketValue() == null
+                || (previousReturnVal != null && settlement.getActualReturnTicketValue().compareTo(previousReturnVal) == 0)) {
+            settlement.setActualReturnTicketValue(returnVal);
+        }
+        settlement.setInitialEstimatedSettlementValue(
+                computeInitialEstimatedSettlementValue(stationNet, importQty, returnQty)
+        );
+        settlement.setFinalSettlementValue(null);
+        settlement.setSettlementDifferenceAmount(BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE));
+    }
+
+    private List<SettlementStationPricingResponse> loadLiveStationPricing(
+            Long settlementId,
+            SupplierSettlementModel settlement
+    ) {
+        return loadStationPricing(settlementId, settlement, false);
+    }
+
+    private List<SettlementStationPricingResponse> loadStationPricing(
+            Long settlementId,
+            SupplierSettlementModel settlement,
+            boolean useFrozenPricing
+    ) {
+        List<ImportBatchResponse> importBatches = java.util.Optional
+                .ofNullable(importBatchRepositoryPort.findBySupplierSettlementId(settlementId))
+                .orElseGet(List::of)
+                .stream()
+                .map(importBatchApplicationMapper::toResponse)
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        List<SettlementStationInventoryRow> stationRows = java.util.Optional
+                .ofNullable(lotteryTicketSerialRepositoryPort.aggregateInventoryByStationForSettlement(settlementId))
+                .orElseGet(List::of);
+        List<SettlementStationInventoryResponse> inventoryByStation = stationRows.stream()
+                .map(row -> SettlementStationInventoryResponse.builder()
+                        .lotteryStationId(row.lotteryStationId())
+                        .lotteryStationName(row.lotteryStationName())
+                        .importedQuantity((int) row.importedQuantity())
+                        .soldQuantity((int) row.soldQuantity())
+                        .remainingQuantity((int) row.remainingQuantity())
+                        .damagedQuantity((int) row.damagedQuantity())
+                        .lostQuantity((int) row.lostQuantity())
+                        .voidedQuantity((int) row.voidedQuantity())
+                        .returnQuantity((int) row.returnQuantity())
+                        .returnValue(ImportCostCalculator.scaleMoney(row.returnValue()))
+                        .build())
+                .toList();
+        return buildStationPricing(settlement, importBatches, inventoryByStation, useFrozenPricing);
+    }
+
+    private BigDecimal resolveOriginalTicketUnitPriceFromStations(
+            SupplierSettlementModel settlement,
+            Long settlementId,
+            boolean useFrozenPricing
+    ) {
+        if (useFrozenPricing
+                && settlement.getOriginalTicketUnitPrice() != null
+                && settlement.getOriginalTicketUnitPrice().signum() > 0) {
+            return ImportCostCalculator.scaleMoney(settlement.getOriginalTicketUnitPrice());
+        }
+        BigDecimal stationNet = weightedAverageNetUnitPrice(loadLiveStationPricing(settlementId, settlement));
+        if (stationNet != null) {
+            return stationNet;
+        }
+        return resolveSupplierDefaultImportCost(settlement);
+    }
+
+    private BigDecimal weightedAverageNetUnitPrice(List<SettlementStationPricingResponse> rows) {
+        if (rows == null || rows.isEmpty()) {
+            return null;
+        }
+        BigDecimal weighted = BigDecimal.ZERO;
+        long qty = 0;
+        for (SettlementStationPricingResponse row : rows) {
+            if (row == null || row.netUnitPrice() == null || row.importedQuantity() <= 0) {
+                continue;
+            }
+            qty += row.importedQuantity();
+            weighted = weighted.add(row.netUnitPrice().multiply(BigDecimal.valueOf(row.importedQuantity())));
+        }
+        if (qty <= 0) {
+            return null;
+        }
+        return ImportCostCalculator.scaleMoney(
+                weighted.divide(BigDecimal.valueOf(qty), 3, java.math.RoundingMode.HALF_UP)
+        );
+    }
+
+    private BigDecimal weightedAverageNetFromFace(
+            List<SettlementStationPricingResponse> rows,
+            BigDecimal facePrice,
+            List<StationCommissionSnapshot> snapshots
+    ) {
+        if (rows == null || rows.isEmpty() || facePrice == null) {
+            return null;
+        }
+        Map<Long, BigDecimal> actualRateByStation = new LinkedHashMap<>();
+        if (snapshots != null) {
+            for (StationCommissionSnapshot snapshot : snapshots) {
+                if (snapshot != null && snapshot.getLotteryStationId() != null && snapshot.getActualCommissionRate() != null) {
+                    actualRateByStation.put(snapshot.getLotteryStationId(), snapshot.getActualCommissionRate());
+                }
+            }
+        }
+        BigDecimal weighted = BigDecimal.ZERO;
+        long qty = 0;
+        for (SettlementStationPricingResponse row : rows) {
+            if (row == null || row.importedQuantity() <= 0) {
+                continue;
+            }
+            BigDecimal rate = actualRateByStation.getOrDefault(
+                    row.lotteryStationId(),
+                    row.commissionRate() != null ? row.commissionRate() : BigDecimal.ZERO
+            );
+            BigDecimal net;
+            try {
+                net = ImportCostCalculator.fromPriceAndCommission(facePrice, rate);
+            } catch (Exception ex) {
+                net = facePrice;
+            }
+            qty += row.importedQuantity();
+            weighted = weighted.add(net.multiply(BigDecimal.valueOf(row.importedQuantity())));
+        }
+        if (qty <= 0) {
+            return null;
+        }
+        return ImportCostCalculator.scaleMoney(
+                weighted.divide(BigDecimal.valueOf(qty), 3, java.math.RoundingMode.HALF_UP)
+        );
+    }
+
+    /**
+     * Payable unit cost for matching: NCC face import price after per-station commission.
+     * After matching is confirmed, the stored original net is kept until the next rematch.
+     */
     private BigDecimal resolveOriginalTicketUnitPrice(
             SupplierSettlementModel settlement,
             int systemImportQty,
             BigDecimal systemImportVal
     ) {
-        LotterySupplierModel supplier = settlement.getLotterySupplierId() != null
-                ? lotterySupplierRepositoryPort.findById(settlement.getLotterySupplierId()).orElse(null)
-                : null;
-        return resolveOriginalTicketUnitPrice(settlement, systemImportQty, systemImportVal, supplier);
-    }
-
-    private BigDecimal resolveOriginalTicketUnitPrice(
-            SupplierSettlementModel settlement,
-            int systemImportQty,
-            BigDecimal systemImportVal,
-            LotterySupplierModel supplier
-    ) {
-        if (settlement.getOriginalTicketUnitPrice() != null) {
+        boolean confirmedSnapshot = settlement.getMatchingConfirmedAt() != null
+                && settlement.getOriginalTicketUnitPrice() != null;
+        if (confirmedSnapshot) {
             return ImportCostCalculator.scaleMoney(settlement.getOriginalTicketUnitPrice());
-        }
-        if (supplier != null && supplier.getDefaultImportCost() != null) {
-            return ImportCostCalculator.scaleMoney(supplier.getDefaultImportCost());
         }
         if (systemImportQty > 0 && systemImportVal != null && systemImportVal.signum() > 0) {
             return ImportCostCalculator.scaleMoney(
                     systemImportVal.divide(BigDecimal.valueOf(systemImportQty), 3, java.math.RoundingMode.HALF_UP)
             );
         }
+        return resolveSupplierDefaultImportCost(settlement);
+    }
+
+    private BigDecimal resolveSupplierDefaultImportCost(SupplierSettlementModel settlement) {
+        if (settlement != null && settlement.getLotterySupplierId() != null) {
+            LotterySupplierModel supplier = lotterySupplierRepositoryPort.findById(settlement.getLotterySupplierId())
+                    .orElse(null);
+            if (supplier != null && supplier.getDefaultImportCost() != null
+                    && supplier.getDefaultImportCost().signum() > 0) {
+                return ImportCostCalculator.scaleMoney(supplier.getDefaultImportCost());
+            }
+        }
         return ImportCostCalculator.scaleMoney(BigDecimal.valueOf(10_000));
+    }
+
+    private List<StationCommissionSnapshot> buildStationCommissionSnapshots(
+            SupplierSettlementModel settlement,
+            List<SettlementStationPricingResponse> liveRows,
+            List<SettlementStationCommissionItem> requested
+    ) {
+        Map<Long, BigDecimal> actualByStation = new LinkedHashMap<>();
+        if (requested != null) {
+            for (SettlementStationCommissionItem item : requested) {
+                if (item == null || item.lotteryStationId() == null || item.actualCommissionRate() == null) {
+                    continue;
+                }
+                actualByStation.put(item.lotteryStationId(), item.actualCommissionRate());
+            }
+        }
+        Map<Long, BigDecimal> existingSystemByStation = new LinkedHashMap<>();
+        if (settlement != null && settlement.getStationCommissionSnapshots() != null) {
+            for (StationCommissionSnapshot snapshot : settlement.getStationCommissionSnapshots()) {
+                if (snapshot != null && snapshot.getLotteryStationId() != null && snapshot.getSystemCommissionRate() != null) {
+                    existingSystemByStation.put(snapshot.getLotteryStationId(), snapshot.getSystemCommissionRate());
+                }
+            }
+        }
+        List<StationCommissionSnapshot> snapshots = new ArrayList<>();
+        if (liveRows == null) {
+            return snapshots;
+        }
+        for (SettlementStationPricingResponse row : liveRows) {
+            if (row == null || row.lotteryStationId() == null) {
+                continue;
+            }
+            BigDecimal liveRate = row.commissionRate() != null ? row.commissionRate() : BigDecimal.ZERO;
+            BigDecimal systemRate = existingSystemByStation.getOrDefault(row.lotteryStationId(), liveRate);
+            snapshots.add(StationCommissionSnapshot.builder()
+                    .lotteryStationId(row.lotteryStationId())
+                    .importedQuantity(row.importedQuantity())
+                    .systemCommissionRate(systemRate)
+                    .actualCommissionRate(actualByStation.getOrDefault(row.lotteryStationId(), systemRate))
+                    .build());
+        }
+        return snapshots;
+    }
+
+    private List<SettlementStationPricingResponse> buildStationPricing(
+            SupplierSettlementModel settlement,
+            List<ImportBatchResponse> importBatches,
+            List<SettlementStationInventoryResponse> inventoryByStation,
+            boolean useFrozenPricing
+    ) {
+        Map<Long, Integer> quantityByStation = new LinkedHashMap<>();
+        if (importBatches != null) {
+            for (ImportBatchResponse batch : importBatches) {
+                if (batch == null || batch.lines() == null) {
+                    continue;
+                }
+                if (batch.status() == ImportBatchStatus.CANCELLED) {
+                    continue;
+                }
+                for (var line : batch.lines()) {
+                    if (line == null || line.lotteryStationId() == null) {
+                        continue;
+                    }
+                    if (line.status() == ImportBatchLineStatus.CANCELLED) {
+                        continue;
+                    }
+                    int qty = line.totalQuantity() != null && line.totalQuantity() > 0
+                            ? line.totalQuantity()
+                            : (line.declareQuantity() != null ? line.declareQuantity() : 0);
+                    if (qty <= 0) {
+                        continue;
+                    }
+                    quantityByStation.merge(line.lotteryStationId(), qty, Integer::sum);
+                }
+            }
+        }
+        if (quantityByStation.isEmpty() && inventoryByStation != null) {
+            for (SettlementStationInventoryResponse row : inventoryByStation) {
+                if (row == null || row.lotteryStationId() == null || row.importedQuantity() <= 0) {
+                    continue;
+                }
+                quantityByStation.merge(row.lotteryStationId(), row.importedQuantity(), Integer::sum);
+            }
+        }
+        if (quantityByStation.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, LotteryStationModel> stations = lotteryStationRepositoryPort.findByIds(quantityByStation.keySet())
+                .stream()
+                .filter(station -> station.getId() != null)
+                .collect(java.util.stream.Collectors.toMap(LotteryStationModel::getId, station -> station, (a, b) -> a));
+        Map<Long, String> inventoryNames = new LinkedHashMap<>();
+        if (inventoryByStation != null) {
+            for (SettlementStationInventoryResponse row : inventoryByStation) {
+                if (row != null && row.lotteryStationId() != null) {
+                    inventoryNames.put(row.lotteryStationId(), row.lotteryStationName());
+                }
+            }
+        }
+        Map<Long, StationCommissionSnapshot> frozenByStation = new LinkedHashMap<>();
+        if (useFrozenPricing && settlement != null && settlement.getStationCommissionSnapshots() != null) {
+            for (StationCommissionSnapshot snapshot : settlement.getStationCommissionSnapshots()) {
+                if (snapshot != null && snapshot.getLotteryStationId() != null) {
+                    frozenByStation.put(snapshot.getLotteryStationId(), snapshot);
+                }
+            }
+        }
+        BigDecimal facePrice = useFrozenPricing && settlement != null && settlement.getSystemTicketImportPrice() != null
+                && settlement.getSystemTicketImportPrice().signum() > 0
+                ? ImportCostCalculator.scaleMoney(settlement.getSystemTicketImportPrice())
+                : resolveSupplierDefaultImportCost(settlement);
+
+        List<SettlementStationPricingResponse> rows = new ArrayList<>();
+        quantityByStation.forEach((stationId, qty) -> {
+            LotteryStationModel station = stations.get(stationId);
+            StationCommissionSnapshot frozen = frozenByStation.get(stationId);
+            BigDecimal commissionRate = frozen != null && frozen.getSystemCommissionRate() != null
+                    ? frozen.getSystemCommissionRate()
+                    : (station != null && station.getCommissionRate() != null
+                            ? station.getCommissionRate()
+                            : BigDecimal.ZERO);
+            BigDecimal actualCommissionRate = frozen != null && frozen.getActualCommissionRate() != null
+                    ? frozen.getActualCommissionRate()
+                    : commissionRate;
+            BigDecimal net;
+            try {
+                net = ImportCostCalculator.fromPriceAndCommission(facePrice, commissionRate);
+            } catch (Exception ex) {
+                net = facePrice;
+            }
+            String name = station != null && station.getName() != null
+                    ? station.getName()
+                    : inventoryNames.getOrDefault(stationId, "Đài #" + stationId);
+            rows.add(SettlementStationPricingResponse.builder()
+                    .lotteryStationId(stationId)
+                    .lotteryStationName(name)
+                    .importedQuantity(qty)
+                    .importCost(facePrice)
+                    .commissionRate(commissionRate)
+                    .netUnitPrice(net)
+                    .actualCommissionRate(actualCommissionRate)
+                    .build());
+        });
+        return rows;
     }
 
     private SettlementDiscrepancyItem requireDiscrepancyItem(
@@ -1441,82 +2293,16 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             List<SettlementMatchingAdjustmentItem> items,
             BigDecimal actualPaid
     ) {
-        BigDecimal scaledActual = ImportCostCalculator.scaleMoney(actualPaid);
         if (items == null) {
-            BigDecimal paymentDiff = ImportCostCalculator.scaleMoney(scaledActual.subtract(ticketNet));
-            if (paymentDiff.compareTo(BigDecimal.ZERO) != 0) {
-                throw new DomainException(
-                        ErrorCode.INVALID_INPUT,
-                        "Số tiền thực trả trên biên lai khác Sau chênh lệch. "
-                                + "Cần ghi nhận khoản điều chỉnh Khác (phát sinh ngoài kỳ) và nhập tên khoản chi phí."
-                );
-            }
             return null;
         }
-
-        List<SettlementMatchingAdjustmentItem> result = new ArrayList<>();
-        SettlementMatchingAdjustmentItem autoItem = null;
-        BigDecimal manualTotal = BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE);
-        for (SettlementMatchingAdjustmentItem item : items) {
-            if (item == null) {
-                continue;
-            }
-            if (Boolean.TRUE.equals(item.autoGenerated())) {
-                autoItem = item;
-                continue;
-            }
-            result.add(item);
-            if (item.additionalCost() != null) {
-                manualTotal = manualTotal.add(ImportCostCalculator.scaleMoney(item.additionalCost()));
-            }
-        }
-
-        BigDecimal finalBeforeAuto = ImportCostCalculator.scaleMoney(ticketNet.add(manualTotal));
-        BigDecimal paymentDiff = ImportCostCalculator.scaleMoney(scaledActual.subtract(finalBeforeAuto));
-
-        if (paymentDiff.compareTo(BigDecimal.ZERO) == 0) {
-            return result;
-        }
-
-        if (autoItem == null) {
-            throw new DomainException(
-                    ErrorCode.INVALID_INPUT,
-                    "Số tiền thực trả trên biên lai khác Sau chênh lệch. "
-                            + "Cần ghi nhận khoản điều chỉnh Khác (phát sinh ngoài kỳ) và nhập tên khoản chi phí."
-            );
-        }
-        if (autoItem.additionalCostType() != SupplierSettlementAdjustmentReasonCode.OTHER) {
-            throw new DomainException(
-                    ErrorCode.INVALID_INPUT,
-                    "Khoản điều chỉnh chênh lệch thanh toán phải có loại Khác (OTHER)."
-            );
-        }
-        if (autoItem.additionalCost() == null
-                || ImportCostCalculator.scaleMoney(autoItem.additionalCost()).compareTo(paymentDiff) != 0) {
-            throw new DomainException(
-                    ErrorCode.INVALID_INPUT,
-                    "Số tiền khoản điều chỉnh phát sinh ngoài kỳ phải bằng chênh lệch thanh toán (thực trả − sau chênh lệch)."
-            );
-        }
-        String customName = autoItem.additionalCostCustomName() != null
-                ? autoItem.additionalCostCustomName().trim()
-                : "";
-        if (customName.isBlank()) {
-            throw new DomainException(
-                    ErrorCode.INVALID_INPUT,
-                    "Vui lòng nhập tên khoản chi phí phát sinh ngoài kỳ trước khi xác nhận đối chiếu."
-            );
-        }
-        result.add(new SettlementMatchingAdjustmentItem(
-                paymentDiff,
-                SupplierSettlementAdjustmentReasonCode.OTHER,
-                autoItem.additionalCostReason() != null && !autoItem.additionalCostReason().isBlank()
-                        ? autoItem.additionalCostReason().trim()
-                        : AUTO_PAYMENT_DIFFERENCE_NOTE,
-                customName,
-                true
-        ));
-        return result;
+        // Receipt variance is not a settlement adjustment. It is surfaced as a
+        // payment discrepancy after recalculation. Ignore legacy automatic rows
+        // so they cannot force the final settlement total to equal the receipt.
+        return items.stream()
+                .filter(Objects::nonNull)
+                .filter(item -> !Boolean.TRUE.equals(item.autoGenerated()))
+                .toList();
     }
 
     private BigDecimal persistMatchingAdditionalCosts(
@@ -1545,7 +2331,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             if (item.additionalCostType() == null || !MONETARY_REASON_CODES.contains(item.additionalCostType())) {
                 throw new DomainException(
                         ErrorCode.INVALID_INPUT,
-                        "Loại chi phí phát sinh phải là SHIPPING_FEE, LATE_PENALTY, DISCOUNT, ROUNDING hoặc OTHER."
+                        "Loại chi phí phát sinh phải là SHIPPING_FEE, LATE_PENALTY, DISCOUNT hoặc OTHER."
                 );
             }
             if (item.additionalCostReason() == null || item.additionalCostReason().isBlank()) {
@@ -1653,6 +2439,8 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
                     .ticketCondition(row.ticketCondition())
                     .stationName(row.stationName())
                     .importCost(ImportCostCalculator.scaleMoney(row.importCost()))
+                    .importBatchId(row.importBatchId())
+                    .importBatchCode(row.importBatchCode())
                     .build());
         }
         return result;
@@ -1691,6 +2479,8 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
                 .totalReturnValue(BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE))
                 .totalPaidAmount(BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE))
                 .remainingAmount(BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE))
+                .systemTicketImportPrice(resolveSupplierDefaultImportCostFromSupplier(supplier))
+                .stationCommissionSnapshots(buildCreateTimeCommissionSnapshots(drawDate))
                 .status(SupplierSettlementStatus.OPEN)
                 .reconciliationPhase(SupplierSettlementReconciliationPhase.MATCHING)
                 .build();
@@ -1707,6 +2497,199 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         return saved;
     }
 
+    private void ensureSystemPricingSnapshot(SupplierSettlementModel settlement, LotterySupplierModel supplier) {
+        if (settlement == null) {
+            return;
+        }
+        if (settlement.getSystemTicketImportPrice() == null || settlement.getSystemTicketImportPrice().signum() <= 0) {
+            settlement.setSystemTicketImportPrice(resolveSupplierDefaultImportCostFromSupplier(supplier));
+        }
+        if (settlement.getStationCommissionSnapshots() == null || settlement.getStationCommissionSnapshots().isEmpty()) {
+            settlement.setStationCommissionSnapshots(
+                    buildCreateTimeCommissionSnapshots(settlement.getPeriodFrom())
+            );
+        }
+    }
+
+    private BigDecimal resolveSupplierDefaultImportCostFromSupplier(LotterySupplierModel supplier) {
+        if (supplier != null && supplier.getDefaultImportCost() != null && supplier.getDefaultImportCost().signum() > 0) {
+            return ImportCostCalculator.scaleMoney(supplier.getDefaultImportCost());
+        }
+        return ImportCostCalculator.scaleMoney(BigDecimal.valueOf(10_000));
+    }
+
+    private List<StationCommissionSnapshot> buildCreateTimeCommissionSnapshots(LocalDate drawDate) {
+        List<StationCommissionSnapshot> snapshots = new ArrayList<>();
+        for (LotteryStationModel station : stationsForDrawDate(drawDate)) {
+            if (station.getId() == null) {
+                continue;
+            }
+            snapshots.add(StationCommissionSnapshot.builder()
+                    .lotteryStationId(station.getId())
+                    .importedQuantity(0)
+                    .systemCommissionRate(station.getCommissionRate() != null
+                            ? station.getCommissionRate()
+                            : BigDecimal.ZERO)
+                    .actualCommissionRate(null)
+                    .build());
+        }
+        return snapshots;
+    }
+
+    private List<LotteryStationModel> stationsForDrawDate(LocalDate drawDate) {
+        if (drawDate == null || lotteryStationRepositoryPort == null) {
+            return List.of();
+        }
+        List<LotteryStationModel> byNext = lotteryStationRepositoryPort.findByNextDrawDate(drawDate);
+        if (byNext != null && !byNext.isEmpty()) {
+            return byNext.stream()
+                    .filter(station -> station != null && station.getId() != null && station.isActive())
+                    .toList();
+        }
+        List<LotteryStationModel> all = lotteryStationRepositoryPort.findAll();
+        if (all == null || all.isEmpty()) {
+            return List.of();
+        }
+        return all.stream()
+                .filter(station -> station != null && station.getId() != null && station.isActive())
+                .filter(station -> station.getDrawDays() != null
+                        && station.getDrawDays().contains(drawDate.getDayOfWeek()))
+                .toList();
+    }
+
+    private void mergeMissingStationCommissionSnapshots(SupplierSettlementModel settlement, Long settlementId) {
+        if (settlement == null || settlement.getSystemImportQuantityFrozenAt() != null) {
+            return;
+        }
+        Map<Long, StationCommissionSnapshot> existing = new LinkedHashMap<>();
+        if (settlement.getStationCommissionSnapshots() != null) {
+            for (StationCommissionSnapshot snapshot : settlement.getStationCommissionSnapshots()) {
+                if (snapshot != null && snapshot.getLotteryStationId() != null) {
+                    existing.put(snapshot.getLotteryStationId(), snapshot);
+                }
+            }
+        }
+        boolean changed = false;
+        for (LotteryStationModel station : stationsForDrawDate(settlement.getPeriodFrom())) {
+            if (station.getId() == null || existing.containsKey(station.getId())) {
+                continue;
+            }
+            existing.put(station.getId(), StationCommissionSnapshot.builder()
+                    .lotteryStationId(station.getId())
+                    .importedQuantity(0)
+                    .systemCommissionRate(station.getCommissionRate() != null
+                            ? station.getCommissionRate()
+                            : BigDecimal.ZERO)
+                    .actualCommissionRate(null)
+                    .build());
+            changed = true;
+        }
+        List<SettlementStationInventoryRow> rows = lotteryTicketSerialRepositoryPort
+                .aggregateInventoryByStationForSettlement(settlementId);
+        if (rows != null) {
+            for (SettlementStationInventoryRow row : rows) {
+                if (row == null || row.lotteryStationId() == null || existing.containsKey(row.lotteryStationId())) {
+                    continue;
+                }
+                LotteryStationModel station = lotteryStationRepositoryPort.findById(row.lotteryStationId()).orElse(null);
+                existing.put(row.lotteryStationId(), StationCommissionSnapshot.builder()
+                        .lotteryStationId(row.lotteryStationId())
+                        .importedQuantity((int) row.importedQuantity())
+                        .systemCommissionRate(station != null && station.getCommissionRate() != null
+                                ? station.getCommissionRate()
+                                : BigDecimal.ZERO)
+                        .actualCommissionRate(null)
+                        .build());
+                changed = true;
+            }
+        }
+        if (changed) {
+            settlement.setStationCommissionSnapshots(new ArrayList<>(existing.values()));
+        }
+    }
+
+    private void refreshSnapshotImportedQuantities(SupplierSettlementModel settlement, Long settlementId) {
+        if (settlement == null || settlement.getStationCommissionSnapshots() == null) {
+            return;
+        }
+        Map<Long, Integer> qtyByStation = new LinkedHashMap<>();
+        List<SettlementStationInventoryRow> rows = lotteryTicketSerialRepositoryPort
+                .aggregateInventoryByStationForSettlement(settlementId);
+        if (rows != null) {
+            for (SettlementStationInventoryRow row : rows) {
+                if (row != null && row.lotteryStationId() != null) {
+                    qtyByStation.put(row.lotteryStationId(), (int) row.importedQuantity());
+                }
+            }
+        }
+        for (StationCommissionSnapshot snapshot : settlement.getStationCommissionSnapshots()) {
+            if (snapshot == null || snapshot.getLotteryStationId() == null) {
+                continue;
+            }
+            snapshot.setImportedQuantity(qtyByStation.getOrDefault(snapshot.getLotteryStationId(), 0));
+        }
+    }
+
+    private void freezeOriginalNetFromSnapshots(SupplierSettlementModel settlement) {
+        if (settlement == null || settlement.getOriginalTicketUnitPrice() != null) {
+            return;
+        }
+        BigDecimal face = settlement.getSystemTicketImportPrice() != null
+                && settlement.getSystemTicketImportPrice().signum() > 0
+                ? ImportCostCalculator.scaleMoney(settlement.getSystemTicketImportPrice())
+                : resolveSupplierDefaultImportCost(settlement);
+        List<StationCommissionSnapshot> snapshots = settlement.getStationCommissionSnapshots();
+        if (snapshots == null || snapshots.isEmpty()) {
+            return;
+        }
+        BigDecimal weighted = BigDecimal.ZERO;
+        long qty = 0;
+        for (StationCommissionSnapshot snapshot : snapshots) {
+            if (snapshot == null || snapshot.getImportedQuantity() == null || snapshot.getImportedQuantity() <= 0) {
+                continue;
+            }
+            BigDecimal rate = snapshot.getSystemCommissionRate() != null
+                    ? snapshot.getSystemCommissionRate()
+                    : BigDecimal.ZERO;
+            BigDecimal net;
+            try {
+                net = ImportCostCalculator.fromPriceAndCommission(face, rate);
+            } catch (Exception ex) {
+                net = face;
+            }
+            qty += snapshot.getImportedQuantity();
+            weighted = weighted.add(net.multiply(BigDecimal.valueOf(snapshot.getImportedQuantity())));
+        }
+        if (qty <= 0) {
+            return;
+        }
+        settlement.setOriginalTicketUnitPrice(ImportCostCalculator.scaleMoney(
+                weighted.divide(BigDecimal.valueOf(qty), 3, java.math.RoundingMode.HALF_UP)
+        ));
+    }
+
+    private boolean isReturnCutOffReached(LotterySupplierModel supplier, LocalDate periodFrom, LocalDateTime now) {
+        if (supplier == null || supplier.getReturnCutOffTime() == null || periodFrom == null || now == null) {
+            return false;
+        }
+        LocalDateTime cutOff = LocalDateTime.of(periodFrom, supplier.getReturnCutOffTime());
+        return !now.isBefore(cutOff);
+    }
+
+    private boolean shouldUseFrozenStationPricing(SupplierSettlementModel settlement) {
+        if (settlement == null) {
+            return false;
+        }
+        if (settlement.getMatchingConfirmedAt() != null) {
+            return true;
+        }
+        if (settlement.getSystemTicketImportPrice() != null && settlement.getSystemTicketImportPrice().signum() > 0) {
+            return true;
+        }
+        return settlement.getStationCommissionSnapshots() != null
+                && !settlement.getStationCommissionSnapshots().isEmpty();
+    }
+
     private String resolveSortField(String sortBy) {
         if (sortBy == null || sortBy.isBlank()) {
             return "periodFrom";
@@ -1718,5 +2701,144 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             return sortBy;
         }
         return "periodFrom";
+    }
+
+    private SettlementImportFileCheckTicketResponse toFileCheckTicket(SettlementImportedSerialRow row) {
+        return SettlementImportFileCheckTicketResponse.builder()
+                .serialId(row.serialId())
+                .serialNumber(row.serialNumber())
+                .numbers(row.numbers())
+                .lotteryStationId(row.lotteryStationId())
+                .stationName(row.stationName())
+                .importBatchId(row.importBatchId())
+                .importBatchCode(row.importBatchCode())
+                .build();
+    }
+
+    private FileCheckDiff diffFileAndSystem(
+            List<SettlementImportFileCheckTicketResponse> fileTickets,
+            List<SettlementImportFileCheckTicketResponse> systemTickets
+    ) {
+        Map<String, Deque<SettlementImportFileCheckTicketResponse>> byStationSerial = new LinkedHashMap<>();
+        Map<String, Deque<SettlementImportFileCheckTicketResponse>> bySerial = new LinkedHashMap<>();
+        for (SettlementImportFileCheckTicketResponse ticket : fileTickets) {
+            byStationSerial.computeIfAbsent(stationSerialKey(ticket), key -> new ArrayDeque<>()).add(ticket);
+            bySerial.computeIfAbsent(normalizeSerial(ticket.serialNumber()), key -> new ArrayDeque<>()).add(ticket);
+        }
+
+        Set<SettlementImportFileCheckTicketResponse> consumed =
+                java.util.Collections.newSetFromMap(new IdentityHashMap<>());
+        List<SettlementImportFileCheckTicketResponse> onlyInSystem = new ArrayList<>();
+        int matched = 0;
+
+        for (SettlementImportFileCheckTicketResponse system : systemTickets) {
+            SettlementImportFileCheckTicketResponse hit = pollUnconsumed(
+                    byStationSerial.get(stationSerialKey(system)), consumed);
+            if (hit == null) {
+                hit = pollUnconsumed(bySerial.get(normalizeSerial(system.serialNumber())), consumed);
+            }
+            if (hit != null) {
+                consumed.add(hit);
+                matched++;
+            } else {
+                onlyInSystem.add(system);
+            }
+        }
+
+        List<SettlementImportFileCheckTicketResponse> onlyInFile = fileTickets.stream()
+                .filter(ticket -> !consumed.contains(ticket))
+                .toList();
+        return new FileCheckDiff(matched, onlyInSystem, onlyInFile);
+    }
+
+    private SettlementImportFileCheckTicketResponse pollUnconsumed(
+            Deque<SettlementImportFileCheckTicketResponse> queue,
+            Set<SettlementImportFileCheckTicketResponse> consumed
+    ) {
+        if (queue == null) {
+            return null;
+        }
+        while (!queue.isEmpty()) {
+            SettlementImportFileCheckTicketResponse next = queue.poll();
+            if (next != null && !consumed.contains(next)) {
+                return next;
+            }
+        }
+        return null;
+    }
+
+    private List<SettlementImportFileCheckStationSummaryResponse> buildFileCheckStationSummaries(
+            ImportBatchOriginalFileBundle fileSide,
+            List<SettlementImportFileCheckTicketResponse> systemTickets,
+            List<SettlementImportFileCheckTicketResponse> onlyInSystem,
+            List<SettlementImportFileCheckTicketResponse> onlyInFile
+    ) {
+        Map<Long, String> names = new LinkedHashMap<>();
+        Map<Long, Integer> fileQty = new LinkedHashMap<>();
+        Map<Long, Integer> systemQty = new LinkedHashMap<>();
+        Map<Long, Integer> onlySystemQty = new LinkedHashMap<>();
+        Map<Long, Integer> onlyFileQty = new LinkedHashMap<>();
+
+        if (fileSide.importsTickets()) {
+            for (SettlementImportFileCheckTicketResponse ticket : fileSide.tickets()) {
+                Long stationId = ticket.lotteryStationId();
+                names.putIfAbsent(stationId, stationLabel(ticket.stationName()));
+                fileQty.merge(stationId, 1, Integer::sum);
+            }
+        } else {
+            for (ImportBatchOriginalFileBundle.StationQuantity row : fileSide.declaredStationQuantities()) {
+                names.putIfAbsent(row.lotteryStationId(), stationLabel(row.stationName()));
+                fileQty.merge(row.lotteryStationId(), row.quantity(), Integer::sum);
+            }
+        }
+        for (SettlementImportFileCheckTicketResponse ticket : systemTickets) {
+            names.putIfAbsent(ticket.lotteryStationId(), stationLabel(ticket.stationName()));
+            systemQty.merge(ticket.lotteryStationId(), 1, Integer::sum);
+        }
+        for (SettlementImportFileCheckTicketResponse ticket : onlyInSystem) {
+            onlySystemQty.merge(ticket.lotteryStationId(), 1, Integer::sum);
+        }
+        for (SettlementImportFileCheckTicketResponse ticket : onlyInFile) {
+            onlyFileQty.merge(ticket.lotteryStationId(), 1, Integer::sum);
+        }
+
+        if (!fileSide.importsTickets()) {
+            for (Long stationId : names.keySet()) {
+                int system = systemQty.getOrDefault(stationId, 0);
+                int file = fileQty.getOrDefault(stationId, 0);
+                onlySystemQty.put(stationId, Math.max(0, system - file));
+                onlyFileQty.put(stationId, Math.max(0, file - system));
+            }
+        }
+
+        return names.entrySet().stream()
+                .map(entry -> SettlementImportFileCheckStationSummaryResponse.builder()
+                        .lotteryStationId(entry.getKey())
+                        .stationName(entry.getValue())
+                        .fileQty(fileQty.getOrDefault(entry.getKey(), 0))
+                        .systemQty(systemQty.getOrDefault(entry.getKey(), 0))
+                        .onlyInSystemQty(onlySystemQty.getOrDefault(entry.getKey(), 0))
+                        .onlyInFileQty(onlyFileQty.getOrDefault(entry.getKey(), 0))
+                        .build())
+                .toList();
+    }
+
+    private static String stationSerialKey(SettlementImportFileCheckTicketResponse ticket) {
+        return ticket.lotteryStationId() + "|" + normalizeSerial(ticket.serialNumber());
+    }
+
+    private static String normalizeSerial(String serial) {
+        return serial == null ? "" : serial.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private static String stationLabel(String name) {
+        return name == null || name.isBlank() ? "Chưa phân đài" : name;
+    }
+
+    private record FileCheckDiff(
+            int matchedCount,
+            List<SettlementImportFileCheckTicketResponse> onlyInSystem,
+            List<SettlementImportFileCheckTicketResponse> onlyInFile
+    ) {
     }
 }

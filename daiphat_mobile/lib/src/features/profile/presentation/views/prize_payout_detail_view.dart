@@ -223,7 +223,7 @@ class _PrizePayoutDetailViewState extends ConsumerState<PrizePayoutDetailView> {
         children: [
           _row('Mã yêu cầu', payout.requestCode),
           if (showReject)
-            _row('Số lần từ chối online',
+            _row('Số lần từ chối trực tuyến',
                 '${payout.rejectCount} / ${payout.maxOnlineRejectRetry}'),
           _row('Giá trị giải', _money(payout.grossAmount)),
           _row('Thuế TNCN', _money(payout.taxAmount)),

@@ -11,7 +11,6 @@ import {
     Card,
     CardContent,
     CardHeader,
-    Chip,
     Collapse,
     Divider,
     Grid,
@@ -35,7 +34,23 @@ import { prefixAdmin } from '@/admin/constants/routes';
 import { SpinnerLoading } from '@/admin/components/ui/SpinnerLoading';
 import { useOrderDetail } from '@/admin/features/orders/hooks/useOrder';
 import { useCancelOrderWithRefund } from '@/admin/features/refund/hooks/useRefundManagement';
-import { OrderStatus, resolveOrderDetailStatusBadge } from '@/types/order.type';
+import {
+    OrderStatus,
+    getOrderDetailStatusAdminBadgeModifier,
+    resolveOrderDetailStatusBadge,
+} from '@/types/order.type';
+import { AdminStatusBadge } from '@/admin/components/ui/AdminStatusBadge';
+import { AdminKpiCard, AdminKpiCardsGrid } from '@/admin/components/ui/AdminKpiCard';
+import { formatKpiAmount, formatVnd } from '@/admin/utils/currency';
+import {
+    getOrderStatusBadge,
+    getOrderStatusAdminBadgeModifier,
+} from '@/shared/components/StatusBadge/orderStatusMap';
+import { AdminLuckyDisplay } from '@/shared/lucky-number';
+import {
+    TICKET_NUMBERS_LABEL,
+    TICKET_SERIAL_PREFIX,
+} from '@/constants/ticketDisplay.constants';
 import {
     ORDER_CANCEL_REASON_DEFAULTS,
     calculateOrderRefundAmount,
@@ -309,7 +324,7 @@ export function OrderCancelWithRefundPage() {
 
         return (
             <TableRow>
-                <TableCell colSpan={7} sx={{ p: 0, borderBottom: 'none' }}>
+                <TableCell colSpan={6} sx={{ p: 0, borderBottom: 'none' }}>
                     <Collapse in={expandedTicketId === ticketId} timeout="auto" unmountOnExit>
                         <Box
                             sx={{
@@ -345,7 +360,8 @@ export function OrderCancelWithRefundPage() {
                                             borderRadius: 1,
                                         }}
                                     >
-                                        Bộ số {ticket.numbers}
+                                        {TICKET_NUMBERS_LABEL}{' '}
+                                        <AdminLuckyDisplay value={ticket.numbers} ticket component="span" />
                                     </Box>
                                     {ticket.serialNumber && (
                                         <Box
@@ -787,10 +803,9 @@ export function OrderCancelWithRefundPage() {
                                     <InfoField
                                         label="Trạng thái"
                                         value={
-                                            <Chip
-                                                size="small"
-                                                label={order.status}
-                                                sx={{ fontWeight: 700 }}
+                                            <AdminStatusBadge
+                                                label={getOrderStatusBadge(order.status).label}
+                                                modifier={getOrderStatusAdminBadgeModifier(order.status)}
                                             />
                                         }
                                     />
@@ -856,15 +871,6 @@ export function OrderCancelWithRefundPage() {
                                                     borderBottom: 'none',
                                                 }}
                                             >
-                                                Loại vé
-                                            </TableCell>
-                                            <TableCell
-                                                sx={{
-                                                    color: 'var(--palette-text-secondary)',
-                                                    fontWeight: 600,
-                                                    borderBottom: 'none',
-                                                }}
-                                            >
                                                 Giá
                                             </TableCell>
                                             <TableCell
@@ -895,7 +901,7 @@ export function OrderCancelWithRefundPage() {
                                             <TableRow>
                                                 <TableCell
                                                     colSpan={
-                                                        cancelType === 'OUT_OF_STOCK_INCIDENT' ? 7 : 6
+                                                        cancelType === 'OUT_OF_STOCK_INCIDENT' ? 6 : 5
                                                     }
                                                     align="center"
                                                     sx={{ py: 4 }}
@@ -907,12 +913,15 @@ export function OrderCancelWithRefundPage() {
                                             </TableRow>
                                         )}
                                         {tickets.map((ticket) => {
-                                            const badge = resolveOrderDetailStatusBadge(ticket.status);
                                             const state =
                                                 ticket.id != null ? incidents[ticket.id] : undefined;
                                             const isReporting =
                                                 ticket.id != null && expandedTicketId === ticket.id;
                                             const hasStartedFilling = !!state?.faultedBy;
+                                            const activityBadge = resolveOrderDetailStatusBadge(
+                                                ticket.status,
+                                                ticket.statusDisplayName
+                                            );
 
                                             return (
                                                 <React.Fragment key={ticket.id}>
@@ -925,64 +934,26 @@ export function OrderCancelWithRefundPage() {
                                                         }}
                                                     >
                                                         <TableCell align="center">
-                                                            <Stack
-                                                                direction="row"
-                                                                spacing={1.5}
-                                                                alignItems="center"
-                                                                justifyContent="center"
-                                                            >
-                                                                {ticket.ticketImg ? (
-                                                                    <Box
-                                                                        component="img"
-                                                                        src={ticket.ticketImg}
-                                                                        alt={`Vé ${ticket.numbers}`}
-                                                                        sx={{
-                                                                            width: 32,
-                                                                            height: 32,
-                                                                            objectFit: 'contain',
-                                                                            borderRadius: '4px',
-                                                                            bgcolor: 'rgba(0,0,0,0.02)',
-                                                                            boxShadow:
-                                                                                '0 2px 4px rgba(0,0,0,0.05)',
-                                                                            border: '1px solid var(--palette-divider)',
-                                                                        }}
-                                                                    />
-                                                                ) : (
-                                                                    <Avatar
-                                                                        variant="rounded"
-                                                                        sx={{
-                                                                            width: 32,
-                                                                            height: 32,
-                                                                            bgcolor: '#ee1314',
-                                                                            color: 'white',
-                                                                        }}
-                                                                    >
-                                                                        <Icon
-                                                                            icon="solar:ticket-bold-duotone"
-                                                                            width={20}
-                                                                        />
-                                                                    </Avatar>
-                                                                )}
-                                                                <Box sx={{ textAlign: 'left' }}>
+                                                            <Box sx={{ textAlign: 'center' }}>
+                                                                <AdminLuckyDisplay
+                                                                    value={ticket.numbers}
+                                                                    ticket
+                                                                    fontSize="0.875rem"
+                                                                    fontWeight={700}
+                                                                    letterSpacing="0.06em"
+                                                                    sx={{ color: 'var(--palette-text-primary)' }}
+                                                                />
+                                                                {ticket.serialNumber && (
                                                                     <Typography
-                                                                        variant="subtitle2"
-                                                                        sx={{
-                                                                            fontWeight: 700,
-                                                                            color: 'var(--palette-text-primary)',
-                                                                        }}
+                                                                        variant="caption"
+                                                                        color="text.secondary"
+                                                                        component="div"
+                                                                        sx={{ mt: 0.25, lineHeight: 1.4, wordBreak: 'break-all' }}
                                                                     >
-                                                                        {ticket.numbers}
+                                                                        SN: {ticket.serialNumber}
                                                                     </Typography>
-                                                                    {ticket.serialNumber && (
-                                                                        <Typography
-                                                                            variant="caption"
-                                                                            color="text.secondary"
-                                                                        >
-                                                                            SN: {ticket.serialNumber}
-                                                                        </Typography>
-                                                                    )}
-                                                                </Box>
-                                                            </Stack>
+                                                                )}
+                                                            </Box>
                                                         </TableCell>
                                                         <TableCell>
                                                             <Typography
@@ -1009,29 +980,6 @@ export function OrderCancelWithRefundPage() {
                                                                       )
                                                                     : 'N/A'}
                                                             </Typography>
-                                                            <Typography
-                                                                variant="caption"
-                                                                sx={{ color: 'var(--palette-text-disabled)' }}
-                                                            >
-                                                                {ticket.drawDate
-                                                                    ? dayjs(ticket.drawDate)
-                                                                          .locale('vi')
-                                                                          .format('dddd')
-                                                                    : 'N/A'}
-                                                            </Typography>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <Typography
-                                                                variant="subtitle2"
-                                                                sx={{
-                                                                    fontWeight: 600,
-                                                                    color: 'var(--palette-text-primary)',
-                                                                }}
-                                                            >
-                                                                {ticket.ticketType === '—'
-                                                                    ? 'Vé thường'
-                                                                    : ticket.ticketType}
-                                                            </Typography>
                                                         </TableCell>
                                                         <TableCell>
                                                             <Typography
@@ -1047,20 +995,11 @@ export function OrderCancelWithRefundPage() {
                                                                 đ
                                                             </Typography>
                                                         </TableCell>
-                                                        <TableCell>
-                                                            <Typography
-                                                                variant="caption"
-                                                                sx={{
-                                                                    fontWeight: 700,
-                                                                    color: badge.color,
-                                                                    bgcolor: badge.bgcolor,
-                                                                    px: 1,
-                                                                    py: 0.5,
-                                                                    borderRadius: '6px',
-                                                                }}
-                                                            >
-                                                                {badge.label}
-                                                            </Typography>
+                                                        <TableCell align="center">
+                                                            <AdminStatusBadge
+                                                                label={activityBadge.label}
+                                                                modifier={getOrderDetailStatusAdminBadgeModifier(ticket.status)}
+                                                            />
                                                         </TableCell>
                                                         {cancelType === 'OUT_OF_STOCK_INCIDENT' && (
                                                             <TableCell align="right">
@@ -1164,60 +1103,35 @@ export function OrderCancelWithRefundPage() {
                         </SectionCard>
 
                         <SectionCard title="Tóm tắt hoàn tiền" icon="solar:wallet-money-bold-duotone">
-                            <Grid container spacing={2.5}>
-                                <Grid size={{ xs: 12, md: 4 }}>
-                                    <Box
-                                        sx={{
-                                            p: 2.5,
-                                            borderRadius: '12px',
-                                            bgcolor: 'var(--palette-warning-lighter)',
-                                            border: '1px dashed var(--palette-warning-main)',
-                                        }}
-                                    >
-                                        <Typography
-                                            variant="caption"
-                                            sx={{
-                                                color: 'var(--palette-warning-dark)',
-                                                fontWeight: 700,
-                                                display: 'block',
-                                                mb: 0.75,
-                                            }}
-                                        >
-                                            Tổng tiền hoàn dự kiến
-                                        </Typography>
-                                        <Typography
-                                            variant="h5"
-                                            sx={{
-                                                fontWeight: 800,
-                                                color: 'var(--palette-warning-dark)',
-                                            }}
-                                        >
-                                            {new Intl.NumberFormat('vi-VN', {
-                                                style: 'currency',
-                                                currency: 'VND',
-                                            }).format(refundAmount)}
-                                        </Typography>
-                                    </Box>
-                                </Grid>
-                                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                                    <InfoField
-                                        label="Loại hoàn tiền"
-                                        value="Hoàn toàn bộ đơn"
-                                    />
-                                    <Box sx={{ mt: 2 }}>
-                                        <InfoField
-                                            label="Số vé hoàn"
-                                            value={`${tickets.length} vé`}
-                                        />
-                                    </Box>
-                                </Grid>
-                                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                                    <InfoField
-                                        label="Tài khoản nhận hoàn"
-                                        value="Chưa có — khách sẽ cung cấp STK"
-                                    />
-                                </Grid>
-                            </Grid>
+                            <AdminKpiCardsGrid columns={{ xs: 1, sm: 2, md: 3 }}>
+                                <AdminKpiCard
+                                    label="Tổng tiền hoàn dự kiến"
+                                    value={formatKpiAmount(refundAmount)}
+                                    valueTitle={formatVnd(refundAmount)}
+                                    icon="solar:wallet-money-bold-duotone"
+                                    tone="amber"
+                                    accent
+                                    valueSize="compact"
+                                />
+                                <AdminKpiCard
+                                    label="Số vé hoàn"
+                                    value={String(tickets.length)}
+                                    icon="solar:ticket-bold-duotone"
+                                    tone="cyan"
+                                />
+                                <AdminKpiCard
+                                    label="Loại hoàn tiền"
+                                    value="Toàn bộ đơn"
+                                    icon="solar:document-text-bold-duotone"
+                                    tone="blue"
+                                />
+                            </AdminKpiCardsGrid>
+                            <Box sx={{ mt: 1 }}>
+                                <InfoField
+                                    label="Tài khoản nhận hoàn"
+                                    value="Chưa có — khách sẽ cung cấp STK"
+                                />
+                            </Box>
                         </SectionCard>
 
                         <SectionCard title="Chi tiết yêu cầu" icon="solar:document-text-bold-duotone">
@@ -1254,15 +1168,7 @@ export function OrderCancelWithRefundPage() {
                             </Typography>
                         </SectionCard>
 
-                        <Card
-                            elevation={0}
-                            sx={{
-                                p: 2.5,
-                                borderRadius: 'var(--shape-borderRadius-lg)',
-                                border: '1px solid var(--palette-divider)',
-                            }}
-                        >
-                            <Stack direction="row" justifyContent="flex-end" spacing={2}>
+                        <Stack direction="row" justifyContent="flex-end" spacing={2} sx={{ pt: 0.5 }}>
                                 <Button
                                     variant="outlined"
                                     onClick={() =>
@@ -1270,34 +1176,45 @@ export function OrderCancelWithRefundPage() {
                                     }
                                     disabled={cancelMutation.isPending}
                                     sx={{
+                                        height: 36,
+                                        px: 2,
                                         textTransform: 'none',
                                         fontWeight: 700,
                                         borderRadius: '8px',
+                                        color: 'var(--palette-text-secondary)',
+                                        borderColor: 'var(--palette-divider)',
                                     }}
                                 >
                                     Hủy bỏ
                                 </Button>
                                 <Button
                                     variant="contained"
-                                    color="warning"
                                     onClick={handleSubmit}
                                     disabled={!canSubmit}
                                     startIcon={
-                                        <Icon icon="solar:danger-triangle-bold-duotone" />
+                                        <Icon icon="solar:check-circle-bold-duotone" />
                                     }
                                     sx={{
+                                        height: 36,
+                                        px: 2,
                                         textTransform: 'none',
                                         fontWeight: 700,
                                         borderRadius: '8px',
                                         boxShadow: 'none',
+                                        bgcolor: 'var(--palette-grey-800)',
+                                        color: 'common.white',
+                                        '&:hover': { bgcolor: 'var(--palette-grey-900)' },
+                                        '&.Mui-disabled': {
+                                            bgcolor: 'var(--palette-action-disabledBackground)',
+                                            color: 'var(--palette-action-disabled)',
+                                        },
                                     }}
                                 >
                                     {cancelMutation.isPending
                                         ? 'Đang xử lý...'
                                         : 'Xác nhận hủy đơn & tạo hoàn tiền'}
                                 </Button>
-                            </Stack>
-                        </Card>
+                        </Stack>
                     </Stack>
                 </Collapse>
             </Stack>

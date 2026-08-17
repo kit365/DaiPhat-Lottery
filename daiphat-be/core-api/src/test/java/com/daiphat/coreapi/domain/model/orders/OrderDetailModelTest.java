@@ -16,14 +16,41 @@ class OrderDetailModelTest {
     void initializeForCreate_defaultsActive() {
         OrderDetailModel detail = OrderDetailModel.builder().status(null).build();
         detail.initializeForCreate();
-        assertThat(detail.getStatus()).isEqualTo(OrderDetailStatus.ACTIVE);
+        assertThat(detail.getStatus()).isEqualTo(OrderDetailStatus.HANDOVER_IN_PROGRESS);
+    }
+
+    @Test
+    @DisplayName("paid online detail moves from company holding to staff handover")
+    void paidOnlineDetail_movesFromProxyHoldingToHandover() {
+        OrderDetailModel detail = OrderDetailModel.builder()
+                .status(OrderDetailStatus.HANDOVER_IN_PROGRESS)
+                .build();
+
+        detail.markProxyHolding();
+        assertThat(detail.getStatus()).isEqualTo(OrderDetailStatus.PROXY_HOLDING);
+
+        detail.openHandover();
+        assertThat(detail.getStatus()).isEqualTo(OrderDetailStatus.HANDOVER_IN_PROGRESS);
+    }
+
+    @Test
+    @DisplayName("customer rejection requires a reason and keeps a separate audit state")
+    void customerRejection_requiresReason() {
+        OrderDetailModel detail = OrderDetailModel.builder()
+                .status(OrderDetailStatus.HANDOVER_IN_PROGRESS)
+                .build();
+
+        assertThatThrownBy(() -> detail.markRejectedByCustomer(" ", java.util.UUID.randomUUID(), java.time.LocalDateTime.now()))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_INPUT);
     }
 
     @Test
     @DisplayName("ACTIVE → REFUND_PENDING → REFUNDED")
     void refundLifecycle() {
         OrderDetailModel detail = OrderDetailModel.builder()
-                .status(OrderDetailStatus.ACTIVE)
+                .status(OrderDetailStatus.HANDOVER_IN_PROGRESS)
                 .build();
 
         detail.markRefundPending();
@@ -35,30 +62,45 @@ class OrderDetailModelTest {
     }
 
     @Test
-    @DisplayName("REFUND_PENDING can restore to ACTIVE")
-    void restoreActive() {
+    @DisplayName("REFUND_PENDING can restore to handover")
+    void restoreToHandoverInProgress() {
         OrderDetailModel detail = OrderDetailModel.builder()
                 .status(OrderDetailStatus.REFUND_PENDING)
                 .build();
 
-        detail.restoreActive();
-        assertThat(detail.getStatus()).isEqualTo(OrderDetailStatus.ACTIVE);
+        detail.restoreToHandoverInProgress();
+        assertThat(detail.getStatus()).isEqualTo(OrderDetailStatus.HANDOVER_IN_PROGRESS);
     }
 
     @Test
-    @DisplayName("markInactive only transitions from ACTIVE")
-    void markInactive_fromActiveOnly() {
-        OrderDetailModel active = OrderDetailModel.builder()
-                .status(OrderDetailStatus.ACTIVE)
+    @DisplayName("cancelled timeout detail can be restored only by verified payment processing")
+    void cancelledDetail_canReturnToCompanyHoldingWhenPaymentIsVerified() {
+        OrderDetailModel detail = OrderDetailModel.builder()
+                .status(OrderDetailStatus.HANDOVER_IN_PROGRESS)
                 .build();
-        active.markInactive();
-        assertThat(active.getStatus()).isEqualTo(OrderDetailStatus.INACTIVE);
+
+        detail.markCancelled();
+        assertThat(detail.getStatus()).isEqualTo(OrderDetailStatus.CANCELLED);
+
+        detail.markProxyHolding();
+        assertThat(detail.getStatus()).isEqualTo(OrderDetailStatus.PROXY_HOLDING);
+    }
+
+    @Test
+    @DisplayName("only a handover detail can be rejected by the customer")
+    void rejectByCustomer_fromHandoverOnly() {
+        OrderDetailModel active = OrderDetailModel.builder()
+                .status(OrderDetailStatus.HANDOVER_IN_PROGRESS)
+                .build();
+        active.markRejectedByCustomer("Khách chỉ nhận một phần", java.util.UUID.randomUUID(), java.time.LocalDateTime.now());
+        assertThat(active.getStatus()).isEqualTo(OrderDetailStatus.REJECTED_BY_CUSTOMER);
 
         OrderDetailModel pending = OrderDetailModel.builder()
                 .status(OrderDetailStatus.REFUND_PENDING)
                 .build();
-        pending.markInactive();
-        assertThat(pending.getStatus()).isEqualTo(OrderDetailStatus.REFUND_PENDING);
+        assertThatThrownBy(() -> pending.markRejectedByCustomer(
+                "Khách chỉ nhận một phần", java.util.UUID.randomUUID(), java.time.LocalDateTime.now()))
+                .isInstanceOf(DomainException.class);
     }
 
     @Test
@@ -74,7 +116,7 @@ class OrderDetailModelTest {
                 .isEqualTo(ErrorCode.ORDER_DETAIL_INVALID_STATUS);
 
         OrderDetailModel active = OrderDetailModel.builder()
-                .status(OrderDetailStatus.ACTIVE)
+                .status(OrderDetailStatus.HANDOVER_IN_PROGRESS)
                 .build();
         assertThatThrownBy(active::markRefunded)
                 .isInstanceOf(DomainException.class)

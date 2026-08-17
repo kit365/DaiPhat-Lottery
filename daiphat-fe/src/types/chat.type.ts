@@ -60,6 +60,10 @@ export interface ChatConversationSocketEvent {
     conversationId: number;
     status: ConversationStatus;
     assignedOperatorId?: string | null;
+    /** Staff who owned the live chat before close (if any). */
+    lastAssignedOperatorId?: string | null;
+    /** Who closed the conversation; null for auto-close. */
+    closedBy?: string | null;
     reason?: EscalationReason | null;
     customerLastReadAt?: string | null;
     customerName?: string;
@@ -122,6 +126,28 @@ export interface ChatMessageResponse {
 export interface ConversationDetailResponse {
     conversation: ConversationResponse;
     messages: ChatMessageResponse[];
+    context?: StaffConversationContext | null;
+}
+
+export interface PreviousStaffSessionBrief {
+    conversationId: number;
+    closedAt?: string | null;
+    closeReason?: ConversationCloseReason | null;
+    closeReasonLabel?: string | null;
+    operatorId?: string | null;
+    operatorName?: string | null;
+}
+
+export interface StaffOpenWorkItem {
+    type: string;
+    count: number;
+    label: string;
+}
+
+export interface StaffConversationContext {
+    previousSession?: PreviousStaffSessionBrief | null;
+    handoffSummary?: string | null;
+    openWork?: StaffOpenWorkItem[] | null;
 }
 
 export type InitConversationApiResponse = ApiResponse<ConversationDetailResponse>;

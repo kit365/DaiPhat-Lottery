@@ -125,7 +125,7 @@ public class LotteryTicketModel {
             int faultySerialCount,
             LocalTime cutoffTime
     ) {
-        // Display quantity = every non-deleted serial linked to this lottery number.
+        // Display quantity = every non-deleted, non-VOIDED serial linked to this lottery number.
         this.quantity = totalSerialCount;
         // IMPORTING belongs to the import-batch flow and cannot be derived from serials,
         // so only the draw cutoff is allowed to move a ticket out of it.

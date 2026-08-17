@@ -2,6 +2,8 @@ package com.daiphat.coreapi.adapter.in.web.controller.lotteries;
 
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
+import com.daiphat.coreapi.application.dto.request.lotteries.BulkUpdateLotteryStationPricingRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryStationScheduleRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ConfirmSyncLotteryStationsRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryStationRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.SyncLotteryStationsRequest;
@@ -46,6 +48,15 @@ public class LotteryStationController {
             @Valid @RequestBody CreateLotteryStationRequest request) {
         LotteryStationResponse response = lotteryStationServicePort.create(request);
         return ApiResponse.success("Tạo nhà đài thành công.", response);
+    }
+
+    /** Feeds the "generate code" button on the station form. */
+    @GetMapping("/suggest-code")
+    @PreAuthorize("hasAnyAuthority('station:create', 'station:update', 'station:sync', 'provider:create')")
+    public ApiResponse<String> suggestCode(
+            @RequestParam String name,
+            @RequestParam(required = false) Long excludeStationId) {
+        return ApiResponse.success(null, lotteryStationServicePort.suggestCode(name, excludeStationId));
     }
 
     @PostMapping("/sync")
@@ -105,6 +116,29 @@ public class LotteryStationController {
                 .map(String::trim)
                 .collect(Collectors.joining(","));
         return joined.isBlank() ? null : joined;
+    }
+
+    @PutMapping("/pricing")
+    @PreAuthorize("hasAnyAuthority('station:edit', 'provider:edit', 'importBatch:create')")
+    public ApiResponse<List<LotteryStationResponse>> updatePricing(
+            @Valid @RequestBody BulkUpdateLotteryStationPricingRequest request) {
+        return ApiResponse.success(
+                "Đã cập nhật giá nhập / hoa hồng nhà đài.",
+                lotteryStationServicePort.updatePricing(request));
+    }
+
+    /**
+     * Fixes a stale weekly schedule from the file-import preview, which is where
+     * the mismatch surfaces — hence importBatch:create is accepted alongside the
+     * station permissions.
+     */
+    @PutMapping("/schedule")
+    @PreAuthorize("hasAnyAuthority('station:edit', 'provider:edit', 'importBatch:create')")
+    public ApiResponse<LotteryStationResponse> updateSchedule(
+            @Valid @RequestBody UpdateLotteryStationScheduleRequest request) {
+        return ApiResponse.success(
+                "Đã cập nhật lịch quay nhà đài.",
+                lotteryStationServicePort.updateSchedule(request));
     }
 
     @GetMapping("/schedule/today")

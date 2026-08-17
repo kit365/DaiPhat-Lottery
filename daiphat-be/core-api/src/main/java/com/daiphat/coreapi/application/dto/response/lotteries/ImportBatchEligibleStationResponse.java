@@ -9,6 +9,10 @@ import java.math.BigDecimal;
 public record ImportBatchEligibleStationResponse(
         Long lotteryStationId,
         String name,
+        /** Business code; the exact-match column of an import file. */
+        String code,
+        /** "Thứ 2, Thứ 6 · 16:15" — printed on the delivery note beside the station. */
+        String drawSchedule,
         ImportBatchType resolvedBatchType,
         BigDecimal price,
         BigDecimal commissionRate

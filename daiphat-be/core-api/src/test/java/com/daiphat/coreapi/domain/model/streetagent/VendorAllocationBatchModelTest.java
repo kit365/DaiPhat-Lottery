@@ -202,6 +202,56 @@ class VendorAllocationBatchModelTest {
     }
 
     @Test
+    void replace_return_selection_reconciles_staged_serials_without_partial_changes() {
+        LocalDateTime now = LocalDateTime.of(2026, 8, 5, 9, 0);
+        VendorAllocationSerialModel first = serial();
+        VendorAllocationSerialModel second = serial();
+        second.setSerialId(2L);
+        VendorAllocationBatchModel batch = VendorAllocationBatchModel.createDraft("VND-1", 7L, LocalDate.of(2026, 8, 5),
+                now.plusMinutes(15), List.of(first, second), null);
+        first.markReservedByBatch(99L);
+        second.markReservedByBatch(99L);
+        batch.confirmHandover(now, BigDecimal.valueOf(9_000), new BigDecimal("0.10"),
+                VendorLateReturnPolicy.FORFEIT_DEPOSIT, LocalTime.of(15, 0), BigDecimal.valueOf(1_800), BigDecimal.ZERO, UUID.randomUUID());
+        batch.openReturnSession();
+        batch.stageReturnedSerials(List.of(1L));
+
+        batch.replaceStagedReturnedSerials(List.of(2L));
+
+        assertThat(first.getStatus()).isEqualTo(AllocationSerialStatus.HANDED_OVER);
+        assertThat(second.getStatus()).isEqualTo(AllocationSerialStatus.RETURN_PENDING_INSPECTION);
+        assertThatThrownBy(() -> batch.replaceStagedReturnedSerials(List.of(2L, 2L)))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.VENDOR_ALLOCATION_RETURN_SERIAL_INVALID);
+    }
+
+    @Test
+    void reopen_inspection_restores_accepted_and_rejected_serials_to_pending_inspection() {
+        LocalDateTime now = LocalDateTime.of(2026, 8, 5, 9, 0);
+        VendorAllocationSerialModel accepted = serial();
+        VendorAllocationSerialModel rejected = serial();
+        rejected.setSerialId(2L);
+        VendorAllocationBatchModel batch = VendorAllocationBatchModel.createDraft("VND-1", 7L, LocalDate.of(2026, 8, 5),
+                now.plusMinutes(15), List.of(accepted, rejected), null);
+        accepted.markReservedByBatch(99L);
+        rejected.markReservedByBatch(99L);
+        batch.confirmHandover(now, BigDecimal.valueOf(9_000), new BigDecimal("0.10"),
+                VendorLateReturnPolicy.FORFEIT_DEPOSIT, LocalTime.of(15, 0), BigDecimal.valueOf(1_800), BigDecimal.ZERO, UUID.randomUUID());
+        batch.openReturnSession();
+        batch.stageReturnedSerials(List.of(1L, 2L));
+        batch.confirmReturnedSerials(java.util.Map.of(2L, "Rách vé"), now.plusMinutes(5));
+        accepted.restoreAcceptedReturnToStock(true);
+
+        batch.reopenReturnInspection();
+
+        assertThat(accepted.getStatus()).isEqualTo(AllocationSerialStatus.RETURN_PENDING_INSPECTION);
+        assertThat(accepted.getTicketStatus()).isEqualTo(LotteryTicketSerialStatus.WITH_STREET_AGENT);
+        assertThat(rejected.getStatus()).isEqualTo(AllocationSerialStatus.RETURN_PENDING_INSPECTION);
+        assertThat(rejected.getReturnRejectionReason()).isNull();
+    }
+
+    @Test
     void prevents_double_settlement() {
         LocalDateTime now = LocalDateTime.of(2026, 8, 5, 9, 0);
         VendorAllocationSerialModel serial = serial();

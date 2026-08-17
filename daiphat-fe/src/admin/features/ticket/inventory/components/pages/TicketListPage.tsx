@@ -1,69 +1,202 @@
 "use client";
 
+import { useMemo, useState } from 'react';
+import CloseIcon from '@mui/icons-material/Close';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
-import { Stack, Button } from '@mui/material';
+import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
+import { Box, Button, Stack, Tooltip, Typography } from '@mui/material';
+import { useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '../../../../../components/ui/PageHeader';
 import { CanAccess } from '../../../../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../../../../constants/permission.constants';
 import { prefixAdmin } from '../../../../../constants/routes';
 import { useTicketInventory } from '../../hooks/useTicketInventory';
 import { TicketList } from '../sections/TicketList';
+import { QUERY_KEYS } from '../../constants/queryKeys';
 import dayjs from 'dayjs';
 import { IncompleteImportBatchNotification } from '../../../import-batch/components/sections/IncompleteImportBatchNotification';
+import { ImportBatchFileImportDialog } from '../../../import-batch/components/sections/ImportBatchFileImportDialog';
 import { useCancelTicketSelection } from '../../../import-batch/hooks/useCancelTicketSelection';
+import { useTodayImportIntakeSummary } from '../../../import-batch/hooks/useImportBatchIntakeGate';
 
 export const TicketListPage = () => {
-    const parseToISO = (dateStr: string) => {
-        if (!dateStr) return undefined;
-        const parts = dateStr.split('/');
-        return `${parts[2]}-${parts[1]}-${parts[0]}`;
-    };
-
-    const today = dayjs().format('DD/MM/YYYY');
+    const queryClient = useQueryClient();
+    const [fileImportOpen, setFileImportOpen] = useState(false);
+    const todayIso = dayjs().format('YYYY-MM-DD');
 
     const ticketHook = useTicketInventory({
-        drawDateFrom: parseToISO(today),
-        drawDateTo: parseToISO(today),
+        drawDateFrom: todayIso,
+        drawDateTo: todayIso,
     });
 
     const cancelSelection = useCancelTicketSelection(ticketHook.tickets);
+    const hasSelectedSerials = cancelSelection.selectedSerials.length > 0;
+
+    const { allBlockedForToday } = useTodayImportIntakeSummary();
+
+    /**
+     * Why cancelling is unavailable, or null when it is available.
+     *
+     * <p>A ticket may only be cancelled while its draw date's stock is still on
+     * the shelf. Once the return sweep for that date begins the unsold tickets are
+     * being counted and boxed for the supplier, and once the date is past that
+     * count has been handed over — voiding one afterwards would contradict a
+     * figure both sides already signed for.
+     *
+     * <p>Judged from the rows actually on screen. The server decides per ticket,
+     * because the sweep time belongs to each ticket's own supplier; this only
+     * disables the button when every row in view is certainly beyond it, so the
+     * operator is never sent into a dialog that can only fail.
+     */
+    const cancelLockReason = useMemo(() => {
+        const drawDates: string[] = Array.from(
+            new Set<string>(
+                (ticketHook.tickets ?? [])
+                    .map((ticket) => (ticket.drawDate ? String(ticket.drawDate) : ''))
+                    .filter((value: string) => value.length > 0)
+            )
+        );
+        if (drawDates.length === 0) {
+            return null;
+        }
+
+        const stillAhead = drawDates.some((date) => dayjs(date).isAfter(todayIso, 'day'));
+        if (stillAhead) {
+            return null;
+        }
+        const includesToday = drawDates.some((date) => dayjs(date).isSame(todayIso, 'day'));
+        if (includesToday && !allBlockedForToday) {
+            return null;
+        }
+        return includesToday
+            ? 'Đã tới giờ kiểm vé để chuẩn bị trả nhà cung cấp — không hủy được vé của ngày quay hôm nay nữa.'
+            : 'Kỳ quay đã kết thúc và vé đã chốt trả nhà cung cấp — không hủy được vé của ngày quay đã qua.';
+    }, [ticketHook.tickets, allBlockedForToday, todayIso]);
+
+    const handleFileImportSuccess = () => {
+        queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKETS] });
+    };
+
+    const handleCancelPrimaryClick = () => {
+        if (!cancelSelection.isCancelMode) {
+            cancelSelection.enterCancelMode();
+            return;
+        }
+        if (!hasSelectedSerials) {
+            cancelSelection.exitCancelMode();
+            return;
+        }
+        cancelSelection.openReportDialog();
+    };
 
     return (
-        <>
+        <Box className="admin-page" sx={{ maxWidth: 1400, mx: 'auto', p: { xs: 2, md: 3 } }}>
             <PageHeader
                 title="Danh sách vé số"
                 breadcrumbItems={[
-                            { label: 'Bảng điều khiển', to: '/' },
-                            { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
-                            { label: 'Danh sách' },
-                        ]}
+                    { label: 'Bảng điều khiển', to: '/' },
+                    { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
+                    { label: 'Danh sách' },
+                ]}
                 action={
                     <Stack direction="row" spacing={1.5} alignItems="center">
-                    <Button
-                        variant="contained"
-                        color="error"
-                        size="small"
-                        startIcon={<ReportProblemIcon />}
-                        disabled={cancelSelection.selectedSerials.length === 0}
-                        onClick={cancelSelection.openReportDialog}
-                        sx={{
-                            minHeight: '2.25rem',
-                            textTransform: 'none',
-                            fontWeight: 700,
-                            borderRadius: '8px',
-                            boxShadow: 'none',
-                            py: 0.8,
-                            px: 2,
-                            '&.Mui-disabled': {
-                                bgcolor: '#f1f5f9',
-                                color: '#94a3b8',
-                                borderColor: '#cbd5e1',
-                            },
-                        }}
-                    >
-                        Tiến hành hủy vé{cancelSelection.selectedSerials.length > 0 && ` (${cancelSelection.selectedSerials.length})`}
-                    </Button>
-                </Stack>
+                        <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
+                            <Button
+                                variant="outlined"
+                                size="small"
+                                startIcon={<UploadFileOutlinedIcon />}
+                                onClick={() => setFileImportOpen(true)}
+                                sx={{
+                                    minHeight: '2.4rem',
+                                    textTransform: 'none',
+                                    fontWeight: 700,
+                                    borderRadius: '10px',
+                                    borderColor: '#cbd5e1',
+                                    color: '#334155',
+                                    bgcolor: '#ffffff',
+                                    py: 0.8,
+                                    px: 2,
+                                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                                    '&:hover': {
+                                        borderColor: '#94a3b8',
+                                        bgcolor: '#f8fafc',
+                                    },
+                                }}
+                            >
+                                Nhập từ tệp
+                            </Button>
+                        </CanAccess>
+
+                        {hasSelectedSerials && (
+                            <Button
+                                variant="outlined"
+                                color="inherit"
+                                size="small"
+                                startIcon={<CloseIcon />}
+                                onClick={cancelSelection.exitCancelMode}
+                                sx={{
+                                    minHeight: '2.4rem',
+                                    textTransform: 'none',
+                                    fontWeight: 700,
+                                    borderRadius: '10px',
+                                    borderColor: '#cbd5e1',
+                                    color: '#475569',
+                                    bgcolor: '#ffffff',
+                                    py: 0.8,
+                                    px: 2,
+                                    '&:hover': {
+                                        borderColor: '#94a3b8',
+                                        bgcolor: '#f8fafc',
+                                    },
+                                }}
+                            >
+                                Hủy chọn
+                            </Button>
+                        )}
+
+                        <Stack spacing={0.4} alignItems="flex-end">
+                            <Tooltip title={cancelLockReason ?? ''}>
+                                <span>
+                                    <Button
+                                        variant="contained"
+                                        color="error"
+                                        size="small"
+                                        disabled={Boolean(cancelLockReason)}
+                                        startIcon={<ReportProblemIcon />}
+                                        onClick={handleCancelPrimaryClick}
+                                        sx={{
+                                            minHeight: '2.4rem',
+                                            textTransform: 'none',
+                                            fontWeight: 800,
+                                            borderRadius: '10px',
+                                            boxShadow: hasSelectedSerials
+                                                ? '0 4px 12px rgba(239, 68, 68, 0.25)'
+                                                : 'none',
+                                            py: 0.8,
+                                            px: 2.2,
+                                        }}
+                                    >
+                                        {hasSelectedSerials
+                                            ? `Tiến hành hủy vé (${cancelSelection.selectedSerials.length})`
+                                            : 'Hủy vé'}
+                                    </Button>
+                                </span>
+                            </Tooltip>
+                            {cancelLockReason && (
+                                <Typography
+                                    variant="caption"
+                                    sx={{
+                                        color: '#b45309',
+                                        maxWidth: 320,
+                                        textAlign: 'right',
+                                        lineHeight: 1.35,
+                                    }}
+                                >
+                                    {cancelLockReason}
+                                </Typography>
+                            )}
+                        </Stack>
+                    </Stack>
                 }
             />
 
@@ -72,6 +205,12 @@ export const TicketListPage = () => {
             </CanAccess>
 
             <TicketList ticketHook={ticketHook} cancelSelection={cancelSelection} />
-        </>
+
+            <ImportBatchFileImportDialog
+                open={fileImportOpen}
+                onClose={() => setFileImportOpen(false)}
+                onImported={handleFileImportSuccess}
+            />
+        </Box>
     );
 };

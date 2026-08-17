@@ -62,16 +62,16 @@ class LotteryTicketSerialFaultTest {
     }
 
     @Test
-    @DisplayName("markDamaged allows PROXY_HOLDING serial")
-    void markDamaged_allowsProxyHolding() {
+    @DisplayName("markDamaged allows SOLD serial")
+    void markDamaged_allowsSoldSerial() {
         LotteryTicketSerialModel serial = LotteryTicketSerialModel.builder()
-                .status(LotteryTicketSerialStatus.PROXY_HOLDING)
+                .status(LotteryTicketSerialStatus.SOLD)
                 .ticketCondition(TicketCondition.GOOD)
                 .build();
 
         serial.markDamaged(LotteryTicketSerialFaultedBy.INTERNAL_FAULT, "Vé rách");
 
-        assertThat(serial.getStatus()).isEqualTo(LotteryTicketSerialStatus.IN_STOCK);
+        assertThat(serial.getStatus()).isEqualTo(LotteryTicketSerialStatus.SOLD);
         assertThat(serial.getTicketCondition()).isEqualTo(TicketCondition.DAMAGED);
     }
 
@@ -90,25 +90,26 @@ class LotteryTicketSerialFaultTest {
     }
 
     @Test
-    @DisplayName("confirmPaidProxyHolding moves RESERVED to PROXY_HOLDING")
-    void confirmPaidProxyHolding_fromReserved() {
+    @DisplayName("sellOnline moves RESERVED to SOLD and clears the reservation")
+    void sellOnline_fromReserved() {
         UUID orderId = UUID.randomUUID();
         LotteryTicketSerialModel serial = LotteryTicketSerialModel.builder()
                 .status(LotteryTicketSerialStatus.RESERVED)
                 .ticketCondition(TicketCondition.GOOD)
                 .build();
 
-        serial.confirmPaidProxyHolding(orderId);
+        serial.setReservedByOrderId(orderId);
+        serial.sellOnline();
 
-        assertThat(serial.getStatus()).isEqualTo(LotteryTicketSerialStatus.PROXY_HOLDING);
-        assertThat(serial.getReservedByOrderId()).isEqualTo(orderId);
+        assertThat(serial.getStatus()).isEqualTo(LotteryTicketSerialStatus.SOLD);
+        assertThat(serial.getReservedByOrderId()).isNull();
     }
 
     @Test
-    @DisplayName("sellOnline accepts PROXY_HOLDING")
+    @DisplayName("sellOnline accepts SOLD")
     void sellOnline_fromProxyHolding() {
         LotteryTicketSerialModel serial = LotteryTicketSerialModel.builder()
-                .status(LotteryTicketSerialStatus.PROXY_HOLDING)
+                .status(LotteryTicketSerialStatus.SOLD)
                 .ticketCondition(TicketCondition.GOOD)
                 .reservedByOrderId(UUID.randomUUID())
                 .build();
@@ -187,6 +188,43 @@ class LotteryTicketSerialFaultTest {
         assertThat(serial.getStatus()).isEqualTo(LotteryTicketSerialStatus.IN_STOCK);
         assertThat(serial.getTicketCondition()).isEqualTo(TicketCondition.VOIDED);
         assertThat(serial.isAvailableForSale()).isFalse();
+        assertThat(serial.isVoided()).isTrue();
+        assertThat(serial.isVisibleInventory()).isFalse();
         assertThat(serial.isTerminalIncidentStatus()).isTrue();
+    }
+
+    @Test
+    @DisplayName("expire skips VOIDED serials so replaced tickets are not processed")
+    void expire_skipsVoided() {
+        LotteryTicketSerialModel serial = LotteryTicketSerialModel.builder()
+                .status(LotteryTicketSerialStatus.IN_STOCK)
+                .ticketCondition(TicketCondition.VOIDED)
+                .build();
+
+        serial.expire();
+
+        assertThat(serial.getStatus()).isEqualTo(LotteryTicketSerialStatus.IN_STOCK);
+        assertThat(serial.getTicketCondition()).isEqualTo(TicketCondition.VOIDED);
+    }
+
+    @Test
+    @DisplayName("reassignToTicket updates ticketId and clears replacedForTicketId")
+    void reassignToTicket_movesSerialWithoutClone() {
+        LotteryTicketSerialModel serial = LotteryTicketSerialModel.builder()
+                .id(10L)
+                .ticketId(1L)
+                .stationId(5L)
+                .serialNumber("SN-1")
+                .status(LotteryTicketSerialStatus.IN_STOCK)
+                .ticketCondition(TicketCondition.GOOD)
+                .replacedForTicketId(99L)
+                .build();
+
+        serial.reassignToTicket(2L, 5L, java.time.LocalDate.of(2026, 8, 17));
+
+        assertThat(serial.getTicketId()).isEqualTo(2L);
+        assertThat(serial.getSerialNumber()).isEqualTo("SN-1");
+        assertThat(serial.getTicketCondition()).isEqualTo(TicketCondition.GOOD);
+        assertThat(serial.getReplacedForTicketId()).isNull();
     }
 }

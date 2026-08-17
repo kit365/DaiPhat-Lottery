@@ -2,6 +2,7 @@
 
 import { ReactNode, useEffect } from "react";
 import { useAuthStore } from "../../../stores/useAuthStore";
+import { endAuthSession } from "@/api/endAuthSession";
 import { useAdminSession } from "../../context/AdminSessionProvider";
 import { hasAnyPermission, hasPermission, resolveIsAdmin } from "../../utils/permission.util";
 import { toast } from "react-toastify";
@@ -19,7 +20,7 @@ interface Props {
  * Does not block the admin shell — shows fallback/403 in content area only.
  */
 export const PermissionGuard = ({ children, permission, permissions, fallback }: Props) => {
-    const { user, logout, token, isHydrated } = useAuthStore();
+    const { user, token, isHydrated } = useAuthStore();
     const { isUserLoading, isUserError } = useAdminSession();
 
     const isWaitingInitialUser = isHydrated && !!token && !user && isUserLoading;
@@ -41,10 +42,10 @@ export const PermissionGuard = ({ children, permission, permissions, fallback }:
             });
 
             if (isOnlyMember) {
-                logout();
+                endAuthSession();
             }
         }
-    }, [hasAccess, isWaitingInitialUser, isHydrated, user, logout, isOnlyMember, permission, permissions]);
+    }, [hasAccess, isWaitingInitialUser, isHydrated, user, isOnlyMember, permission, permissions]);
 
     if (!isHydrated || isWaitingInitialUser) {
         return <>{fallback ?? <SpinnerLoading message="Đang xác thực quyền truy cập..." />}</>;

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import React, { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { ROUTES } from '@/admin/constants/routes';
 import { Trash2, ChevronRight } from 'lucide-react';
 import { useCartStore, CartItem } from '../../../stores/useCartStore';
@@ -12,16 +13,23 @@ import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import OrderSummary from './components/OrderSummary';
 import { CartQuantityControl } from './components/CartQuantityControl';
 import { validateAndSyncCartStock } from '../../utils/cartStock.util';
+import { warmClientRoute } from '../../utils/prefetchClientPagesWhenIdle';
+import { shouldSkipClientPrefetch } from '../../utils/prefetchImagesWhenIdle';
+import { prefetchCheckoutFormOptions } from './prefetch/prefetchCheckoutFormOptions';
 import { AppToast as toast } from '../../../utils/toast.util';
 import {
   CART_PROMO_BANNERS,
   CLIENT_PAGE_BACKGROUND,
   PROVINCE_ICON_FALLBACK,
-  TICKET_IMAGE_FALLBACK,
 } from '../../constants/clientBannerAssets';
+import { LuckyNumber } from '../../components/ui/LuckyNumber';
+
+const CART_TICKET_GRID =
+    'lg:grid lg:grid-cols-[32px_88px_minmax(0,2.4fr)_120px_120px_132px_72px]';
 
 export const CartPage = () => {
     const router = useRouter();
+    const queryClient = useQueryClient();
     const { items, updateQuantity, removeItem, clearBuyNow } = useCartStore();
     const { token, openLoginModal } = useAuthStore();
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -37,6 +45,16 @@ export const CartPage = () => {
     useEffect(() => {
         setSelectedIds(items.map(i => i.id));
     }, [items.length]);
+
+    // Có vé trong giỏ → warm checkout (route JS + banner) trước khi user bấm thanh toán.
+    useEffect(() => {
+        if (items.length === 0 || shouldSkipClientPrefetch()) {
+            return;
+        }
+
+        warmClientRoute(ROUTES.PUBLIC.CHECKOUT, (path) => router.prefetch(path));
+        void prefetchCheckoutFormOptions(queryClient);
+    }, [items.length, queryClient, router]);
 
     const getMaxStock = (item: CartItem) =>
         typeof item.maxStock === 'number' ? item.maxStock : 999;
@@ -142,9 +160,9 @@ export const CartPage = () => {
                             </div>
 
                             {/* Table Column Headers (Desktop only) */}
-                            <div className="hidden lg:grid grid-cols-[30px_1.5fr_1.5fr_100px_100px_100px_80px] gap-4 mb-4 text-[13px] font-bold text-[#212B36] uppercase items-center border-b border-[#E5E8EB] pb-3">
+                            <div className={`hidden ${CART_TICKET_GRID} gap-4 mb-4 text-[13px] font-bold text-[#212B36] uppercase items-center border-b border-[#E5E8EB] pb-3`}>
                                 <div></div> {/* Checkbox placeholder */}
-                                <div className="text-left">Vé số</div>
+                                <div className="text-center">Vé số</div>
                                 <div className="text-left">Đài & Ngày quay</div>
                                 <div className="text-center">Số lượng</div>
                                 <div className="text-center">Đơn giá</div>
@@ -157,7 +175,7 @@ export const CartPage = () => {
                                     const isSelected = selectedIds.includes(item.id);
                                     
                                     return (
-                                        <div key={item.id} className="flex flex-col lg:grid lg:grid-cols-[30px_1.5fr_1.5fr_100px_100px_100px_80px] gap-4 items-center py-4 border-b border-dashed border-[#E5E8EB] last:border-b-0">
+                                        <div key={item.id} className={`flex flex-col ${CART_TICKET_GRID} gap-4 items-center py-4 border-b border-dashed border-[#E5E8EB] last:border-b-0`}>
                                             {/* Checkbox */}
                                             <div className="flex justify-center w-full lg:w-auto mb-3 lg:mb-0">
                                                 <Checkbox 
@@ -167,9 +185,10 @@ export const CartPage = () => {
                                             </div>
 
                                             {/* Vé số */}
-                                            <div className="flex items-center gap-3">
-                                                <img src={item.ticketImg || TICKET_IMAGE_FALLBACK} alt="Vé" className="w-[80px] h-[50px] object-cover mix-blend-multiply border border-gray-100 rounded shrink-0" />
-                                                <div className="font-bold text-[16px] text-[#212B36] tracking-tight">{item.numbers}</div>
+                                            <div className="flex w-full items-center justify-center text-center">
+                                                <div className="font-bold text-[16px] text-[#212B36] tracking-tight">
+                                                    <LuckyNumber value={item.numbers} ticket className="tracking-tight" />
+                                                </div>
                                             </div>
 
                                             {/* Đài & Ngày quay */}

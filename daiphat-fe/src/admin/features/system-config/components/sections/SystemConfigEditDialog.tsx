@@ -3,27 +3,30 @@
 import {
     Alert,
     Box,
-    Chip,
     Dialog,
     DialogActions,
     DialogContent,
     DialogTitle,
     Stack,
     TextField,
-    ThemeProvider,
     Typography,
-    createTheme,
-    useMediaQuery,
-    useTheme,
     Paper,
     Divider,
 } from '@mui/material';
-import { KeyRound, Clock, User } from 'lucide-react';
+import { Clock, User } from 'lucide-react';
 import dayjs from 'dayjs';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
 import { useEffect, useState } from 'react';
 import { Button } from '../../../../components/ui/Button';
+import { AdminStatusBadge } from '../../../../components/ui/AdminStatusBadge';
+import {
+    AdminConfirmDialog,
+    ADMIN_DIALOG_ACTIONS_SX,
+    ADMIN_DIALOG_CONTENT_SX,
+    ADMIN_DIALOG_PAPER_SX,
+    ADMIN_DIALOG_TITLE_SX,
+} from '../../../../components/ui/AdminConfirmDialog';
 import {
     createUpdateSystemConfigSchema,
     UpdateSystemConfigFormValues,
@@ -40,6 +43,8 @@ import {
     FortuneCooldownDurationEditor,
     isFortuneCooldownConfig,
 } from './FortuneCooldownDurationEditor';
+import { getConfigDataTypeBadgeClass, getConfigTypeBadgeClass } from '../../utils/systemConfigBadge';
+import { SystemConfigJsonEditor } from './SystemConfigJsonEditor';
 
 interface SystemConfigEditDialogProps {
     config: SystemConfigResponse | null;
@@ -56,6 +61,9 @@ const LATE_RETURN_POLICY_LABELS: Record<string, string> = {
 
 const isCommissionTiersConfig = (config: SystemConfigResponse) =>
     config.configKey === 'PRIZE_PAYOUT_COMMISSION_TIERS';
+
+const isPrizePayoutContractTermsConfig = (config: SystemConfigResponse) =>
+    config.configKey === 'PRIZE_PAYOUT_CONTRACT_ADDITIONAL_TERMS';
 
 const VENDOR_TIMING_LABELS: Record<string, string> = {
     VENDOR_RETURN_CUTOFF: 'Giờ cuối người bán vé số trả vé trong ngày',
@@ -101,7 +109,7 @@ const getValueFieldHelper = (config: SystemConfigResponse): string => {
         case ConfigDataType.TIME:
             return 'Định dạng HH:mm (ví dụ: 17:00)';
         case ConfigDataType.BOOLEAN:
-            return 'Chỉ nhận true hoặc false';
+            return 'Chỉ nhận Bật hoặc Tắt';
         case ConfigDataType.JSON:
             return 'Nhập JSON hợp lệ';
         default:
@@ -124,28 +132,7 @@ export const SystemConfigEditDialog = ({
     onSubmit,
     isPending,
 }: SystemConfigEditDialogProps) => {
-    const outerTheme = useTheme();
-    const isMobile = useMediaQuery(outerTheme.breakpoints.down('sm'));
     const useWideDialog = Boolean(config && isCommissionTiersConfig(config));
-    const localTheme = createTheme(outerTheme, {
-        components: {
-            MuiDialog: {
-                styleOverrides: {
-                    paper: {
-                        borderRadius: '16px',
-                        padding: '16px',
-                        width: '100%',
-                        maxWidth: useWideDialog ? '680px' : '560px',
-                        margin: isMobile ? '16px' : '32px',
-                        backgroundImage: 'none',
-                        backgroundColor: outerTheme.palette.background.paper,
-                        boxShadow: 'var(--customShadows-dialog)',
-                    },
-                },
-            },
-        },
-    });
-
     const [confirmData, setConfirmData] = useState<UpdateSystemConfigFormValues | null>(null);
 
     const schema = config
@@ -201,13 +188,19 @@ export const SystemConfigEditDialog = ({
     const displayName = VENDOR_TIMING_LABELS[config.configKey] || config.configName || 'Cập nhật cấu hình';
 
     return (
-        <ThemeProvider theme={localTheme}>
-            <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+        <>
+            <Dialog
+                open={open}
+                onClose={isPending ? undefined : onClose}
+                fullWidth
+                maxWidth={useWideDialog ? 'md' : 'sm'}
+                PaperProps={{ className: 'admin-theme', sx: ADMIN_DIALOG_PAPER_SX }}
+            >
                 <form onSubmit={(event) => { event.preventDefault(); void submitForm(); }}>
-                    <DialogTitle sx={{ pb: 1, fontWeight: 700, fontSize: '1.25rem' }}>
+                    <DialogTitle sx={ADMIN_DIALOG_TITLE_SX}>
                         {displayName}
                     </DialogTitle>
-                    <DialogContent sx={{ py: '20px !important' }}>
+                    <DialogContent sx={ADMIN_DIALOG_CONTENT_SX}>
                         <Stack spacing={3}>
                             {!isVendorTiming && (
                             <Paper
@@ -220,15 +213,6 @@ export const SystemConfigEditDialog = ({
                                 }}
                             >
                                 <Stack spacing={1.5}>
-                                    <Stack direction="row" spacing={1} alignItems="center">
-                                        <KeyRound size={16} color="var(--palette-text-secondary)" />
-                                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, width: 120 }}>
-                                            Khóa cấu hình:
-                                        </Typography>
-                                        <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 600 }}>
-                                            {config.configKey}
-                                        </Typography>
-                                    </Stack>
                                     {config.updatedAt && (
                                         <Stack direction="row" spacing={1} alignItems="center">
                                             <Clock size={16} color="var(--palette-text-secondary)" />
@@ -256,13 +240,11 @@ export const SystemConfigEditDialog = ({
                             )}
 
                             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                                <Chip
-                                    size="small"
+                                <AdminStatusBadge
                                     label={CONFIG_TYPE_LABELS[config.configType] || config.configType}
-                                    color="primary"
+                                    modifier={getConfigTypeBadgeClass(config.configType)}
                                 />
-                                <Chip
-                                    size="small"
+                                <AdminStatusBadge
                                     label={
                                         isCommissionTiersConfig(config)
                                             ? 'Bậc thang %'
@@ -270,17 +252,16 @@ export const SystemConfigEditDialog = ({
                                               ? 'Giờ + phút'
                                               : CONFIG_DATA_TYPE_LABELS[config.dataType] || config.dataType
                                     }
-                                    variant="outlined"
+                                    modifier={getConfigDataTypeBadgeClass(config.dataType)}
                                 />
                                 {config.unit && !isCommissionTiersConfig(config) && (
-                                    <Chip
-                                        size="small"
+                                    <AdminStatusBadge
                                         label={
                                             isFortuneCooldownConfig(config.configKey)
                                                 ? 'Khung giờ đồng hồ'
                                                 : `Đơn vị: ${config.unit}`
                                         }
-                                        variant="outlined"
+                                        modifier="admin-status-badge--draft"
                                     />
                                 )}
                             </Stack>
@@ -343,6 +324,23 @@ export const SystemConfigEditDialog = ({
                                                 value={field.value}
                                                 onChange={field.onChange}
                                                 error={fieldState.error?.message}
+                                            />
+                                        )}
+                                    />
+                                ) : isPrizePayoutContractTermsConfig(config) ? (
+                                    <Controller
+                                        name="configValue"
+                                        control={control}
+                                        render={({ field, fieldState }) => (
+                                            <TextField
+                                                {...field}
+                                                label="Điều khoản bổ sung"
+                                                fullWidth
+                                                multiline
+                                                minRows={4}
+                                                error={!!fieldState.error}
+                                                helperText={fieldState.error?.message || 'In vào Điều 6 của hợp đồng xác nhận trả thưởng. Để trống thì ẩn điều này.'}
+                                                inputProps={{ maxLength: 4000 }}
                                             />
                                         )}
                                     />
@@ -451,8 +449,8 @@ export const SystemConfigEditDialog = ({
                                                 helperText={fieldState.error?.message || getValueFieldHelper(config)}
                                                 SelectProps={{ native: true }}
                                             >
-                                                <option value="true">true</option>
-                                                <option value="false">false</option>
+                                                <option value="true">Bật</option>
+                                                <option value="false">Tắt</option>
                                             </TextField>
                                         )}
                                     />
@@ -461,15 +459,11 @@ export const SystemConfigEditDialog = ({
                                         name="configValue"
                                         control={control}
                                         render={({ field, fieldState }) => (
-                                            <TextField
-                                                {...field}
-                                                label="Giá trị (JSON)"
-                                                fullWidth
-                                                multiline
-                                                minRows={6}
-                                                error={!!fieldState.error}
-                                                helperText={fieldState.error?.message || getValueFieldHelper(config)}
-                                                inputProps={{ style: { fontFamily: 'monospace', fontSize: 13 } }}
+                                            <SystemConfigJsonEditor
+                                                value={field.value}
+                                                onChange={field.onChange}
+                                                error={fieldState.error?.message}
+                                                helperText={getValueFieldHelper(config)}
                                             />
                                         )}
                                     />
@@ -495,10 +489,8 @@ export const SystemConfigEditDialog = ({
                             </Box>
                         </Stack>
                     </DialogContent>
-                    <DialogActions sx={{ pt: 2, px: 3, pb: 2 }}>
-                        <Button onClick={onClose} variant="outlined" color="inherit" disabled={isPending}>
-                            Hủy
-                        </Button>
+                    <DialogActions sx={ADMIN_DIALOG_ACTIONS_SX}>
+                        <Button onClick={onClose} variant="outlined" color="inherit" disabled={isPending} label="Hủy" />
                         <Button
                             type="button"
                             onClick={() => void submitForm()}
@@ -511,35 +503,30 @@ export const SystemConfigEditDialog = ({
                 </form>
             </Dialog>
 
-            <Dialog open={!!confirmData} onClose={() => setConfirmData(null)} maxWidth="sm" fullWidth>
-                <DialogTitle sx={{ pb: 1, fontWeight: 700 }}>Xác nhận thay đổi</DialogTitle>
-                <DialogContent>
-                    <Typography mb={2}>
-                        Bạn có chắc chắn muốn thay đổi <strong>{displayName}</strong>?
-                    </Typography>
-                    <Alert severity="warning">
-                        Thay đổi áp dụng ngay cho phiếu đang giữ và các phiếu tạo sau đó. Phiếu đã bàn giao vẫn giữ mốc đã chốt.
-                    </Alert>
-                </DialogContent>
-                <DialogActions sx={{ pt: 2, px: 3, pb: 2 }}>
-                    <Button onClick={() => setConfirmData(null)} variant="outlined" color="inherit" disabled={isPending}>
-                        Hủy
-                    </Button>
-                    <Button
-                        onClick={() => {
-                            if (confirmData) {
-                                onSubmit(confirmData);
-                                setConfirmData(null);
-                            }
-                        }}
-                        loading={isPending}
-                        label="Xác nhận lưu"
-                        loadingLabel="Đang lưu..."
-                        variant="contained"
-                        color="error"
-                    />
-                </DialogActions>
-            </Dialog>
-        </ThemeProvider>
+            <AdminConfirmDialog
+                open={!!confirmData}
+                title="Xác nhận thay đổi"
+                onClose={() => setConfirmData(null)}
+                onConfirm={() => {
+                    if (confirmData) {
+                        onSubmit(confirmData);
+                        setConfirmData(null);
+                    }
+                }}
+                cancelLabel="Hủy"
+                confirmLabel="Xác nhận lưu"
+                confirmLoadingLabel="Đang lưu..."
+                confirmColor="error"
+                loading={isPending}
+                maxWidth="sm"
+            >
+                <Typography mb={2}>
+                    Bạn có chắc chắn muốn thay đổi <strong>{displayName}</strong>?
+                </Typography>
+                <Alert severity="warning">
+                    Thay đổi áp dụng ngay cho phiếu đang giữ và các phiếu tạo sau đó. Phiếu đã bàn giao vẫn giữ mốc đã chốt.
+                </Alert>
+            </AdminConfirmDialog>
+        </>
     );
 };

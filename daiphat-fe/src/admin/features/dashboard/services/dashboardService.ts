@@ -1,9 +1,164 @@
 import { apiApp } from '@/api';
 import type { ApiResponse } from '@/types/api.type';
+import {
+    DEMO_ECOMMERCE_OVERVIEW,
+    FORCE_ECOMMERCE_DEMO,
+    isEcommerceOverviewEmpty,
+} from './ecommerceDemoData';
 
 const BASE_URL = '/admin/dashboard';
 
-/** Placeholder stats — BE chưa có endpoint dashboard đầy đủ. */
+export interface AdminEcommerceSummary {
+    totalTickets: number;
+    totalOrders: number;
+    monthlyRevenue: number;
+    revenueMonthPercent: number;
+}
+
+export interface AdminEcommerceNamedCount {
+    type: string;
+    label: string;
+    count: number;
+}
+
+export interface AdminEcommerceStationRisk {
+    stationId: string;
+    stationName: string;
+    drawDate: string;
+    sellableQuantity: number;
+    vendorHeldQuantity: number;
+    risk: 'CAO' | 'TRUNG BÌNH' | 'THẤP' | string;
+}
+
+export interface AdminEcommerceRecentOrder {
+    id: string;
+    orderCode: string;
+    customerName: string;
+    total: number;
+    status: string;
+    createdAt: string;
+}
+
+export interface AdminEcommerceTrendPoint {
+    date: string;
+    amount: number;
+}
+
+export interface AdminEcommerceTopStation {
+    stationId: string;
+    stationName: string;
+    soldQuantity: number;
+}
+
+export interface AdminEcommerceTopCustomer {
+    customerName: string;
+    orderCount: number;
+    totalSpent: number;
+}
+
+export interface AdminEcommerceOverview {
+    summary: AdminEcommerceSummary;
+    soldTicketsThisMonth: number;
+    ordersThisMonth: number;
+    allTimeRevenue: number;
+    actionItems: AdminEcommerceNamedCount[];
+    orderDistribution: AdminEcommerceNamedCount[];
+    serialDistribution: AdminEcommerceNamedCount[];
+    dailyRevenue: AdminEcommerceTrendPoint[];
+    topStations: AdminEcommerceTopStation[];
+    topCustomers: AdminEcommerceTopCustomer[];
+    inventoryRisks: AdminEcommerceStationRisk[];
+    recentOrders: AdminEcommerceRecentOrder[];
+}
+
+const EMPTY_ECOMMERCE_SUMMARY: AdminEcommerceSummary = {
+    totalTickets: 0,
+    totalOrders: 0,
+    monthlyRevenue: 0,
+    revenueMonthPercent: 0,
+};
+
+export const EMPTY_ECOMMERCE_OVERVIEW: AdminEcommerceOverview = {
+    summary: EMPTY_ECOMMERCE_SUMMARY,
+    soldTicketsThisMonth: 0,
+    ordersThisMonth: 0,
+    allTimeRevenue: 0,
+    actionItems: [],
+    orderDistribution: [],
+    serialDistribution: [],
+    dailyRevenue: [],
+    topStations: [],
+    topCustomers: [],
+    inventoryRisks: [],
+    recentOrders: [],
+};
+
+const toNumber = (value: unknown) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const normalizeOverview = (raw?: Partial<AdminEcommerceOverview> | null): AdminEcommerceOverview => ({
+    summary: {
+        ...EMPTY_ECOMMERCE_SUMMARY,
+        ...(raw?.summary ?? {}),
+        totalTickets: toNumber(raw?.summary?.totalTickets),
+        totalOrders: toNumber(raw?.summary?.totalOrders),
+        monthlyRevenue: toNumber(raw?.summary?.monthlyRevenue),
+        revenueMonthPercent: toNumber(raw?.summary?.revenueMonthPercent),
+    },
+    soldTicketsThisMonth: toNumber(raw?.soldTicketsThisMonth),
+    ordersThisMonth: toNumber(raw?.ordersThisMonth),
+    allTimeRevenue: toNumber(raw?.allTimeRevenue),
+    actionItems: raw?.actionItems ?? [],
+    orderDistribution: raw?.orderDistribution ?? [],
+    serialDistribution: raw?.serialDistribution ?? [],
+    dailyRevenue: (raw?.dailyRevenue ?? []).map((point) => ({
+        date: point.date,
+        amount: toNumber(point.amount),
+    })),
+    topStations: (raw?.topStations ?? []).map((station) => ({
+        ...station,
+        soldQuantity: toNumber(station.soldQuantity),
+    })),
+    topCustomers: (raw?.topCustomers ?? []).map((customer) => ({
+        ...customer,
+        orderCount: toNumber(customer.orderCount),
+        totalSpent: toNumber(customer.totalSpent),
+    })),
+    inventoryRisks: raw?.inventoryRisks ?? [],
+    recentOrders: raw?.recentOrders ?? [],
+});
+
+export type EcommerceOverviewPayload = {
+    overview: AdminEcommerceOverview;
+    isDemo: boolean;
+};
+
+export const getEcommerceOverview = async (): Promise<ApiResponse<EcommerceOverviewPayload>> => {
+    if (FORCE_ECOMMERCE_DEMO) {
+        return { success: true, data: { overview: DEMO_ECOMMERCE_OVERVIEW, isDemo: true } };
+    }
+
+    try {
+        const response = await apiApp.get<ApiResponse<AdminEcommerceOverview>>(
+            `${BASE_URL}/ecommerce/overview`,
+            { skipGlobalErrorToast: true },
+        );
+        const apiResult = response.data;
+        if (apiResult?.success && apiResult.data) {
+            const overview = normalizeOverview(apiResult.data);
+            if (!isEcommerceOverviewEmpty(overview)) {
+                return { success: true, data: { overview, isDemo: false } };
+            }
+        }
+    } catch {
+        // Backend empty/down — show fixture until live numbers exist.
+    }
+    return { success: true, data: { overview: DEMO_ECOMMERCE_OVERVIEW, isDemo: true } };
+};
+
+/** Legacy payload for dashboard sections that are not part of the KPI rollout yet. */
 const ECOMMERCE_STATS = {
     summary: {
         totalRevenue: 254_780_000,
@@ -194,7 +349,46 @@ const SYSTEM_STATS = {
 
 const mockSuccess = <T>(data: T) => ({ success: true, data });
 
-export const getEcommerceStats = async () => mockSuccess(ECOMMERCE_STATS);
+const withLiveEcommerceSummary = (
+    summary: AdminEcommerceSummary,
+    success: boolean,
+) => ({
+    success,
+    data: {
+        ...ECOMMERCE_STATS,
+        summary: {
+            ...ECOMMERCE_STATS.summary,
+            ...summary,
+            // Recent-source popovers are not part of the real KPI read
+            // model yet; never expose the legacy fixture as live data.
+            recentRevenueSources: [],
+        },
+        recentOrders: [],
+    },
+});
+
+export const getEcommerceStats = async () => {
+    try {
+        const response = await apiApp.get<ApiResponse<AdminEcommerceSummary>>(
+            `${BASE_URL}/ecommerce/summary`,
+            { skipGlobalErrorToast: true },
+        );
+        const apiResult = response.data;
+
+        // Do not fall back to the old mock KPI values. A missing/invalid read model
+        // should be visible as zero rather than presenting fabricated figures.
+        const summary: AdminEcommerceSummary = {
+            ...EMPTY_ECOMMERCE_SUMMARY,
+            ...(apiResult.success && apiResult.data ? apiResult.data : {}),
+        };
+
+        return withLiveEcommerceSummary(summary, apiResult.success === true);
+    } catch {
+        // A dashboard read failure must not resurrect fabricated KPI values or
+        // leave the page in a permanent loading state.
+        return withLiveEcommerceSummary(EMPTY_ECOMMERCE_SUMMARY, false);
+    }
+};
 
 export const getAnalyticsStats = async () => mockSuccess(ANALYTICS_STATS);
 
@@ -206,10 +400,49 @@ export const getDetailedOrderStats = async (_startDate?: string, _endDate?: stri
 export const getDetailedStaffStats = async (_startDate?: string, _endDate?: string) =>
     mockSuccess(ECOMMERCE_STATS);
 
-export const getStaffingStatus = async (date?: string) => {
-    const response = await apiApp.get(`${BASE_URL}/staffing-status`, {
-        params: { date },
-        skipGlobalErrorToast: true,
-    });
-    return response.data as ApiResponse<unknown>;
+/**
+ * KPI cards for ecommerce + revenue report.
+ * Backend currently exposes only {@code GET /admin/dashboard/ecommerce/summary}
+ * (see AdminDashboardController) — there is no `/kpis` route.
+ */
+export const getDashboardKpis = async (): Promise<ApiResponse<AdminEcommerceSummary>> => {
+    try {
+        const response = await apiApp.get<ApiResponse<AdminEcommerceSummary>>(
+            `${BASE_URL}/ecommerce/summary`,
+            { skipGlobalErrorToast: true },
+        );
+        const apiResult = response.data;
+        if (!apiResult?.success || !apiResult.data) {
+            return { success: false, data: EMPTY_ECOMMERCE_SUMMARY };
+        }
+        return {
+            success: true,
+            data: {
+                ...EMPTY_ECOMMERCE_SUMMARY,
+                ...apiResult.data,
+            },
+        };
+    } catch {
+        return { success: false, data: EMPTY_ECOMMERCE_SUMMARY };
+    }
 };
+
+export interface StationTicketRiskItem {
+    stationId: string;
+    stationName: string;
+    drawDate: string;
+    sellableQuantity: number;
+    vendorHeldQuantity: number;
+    risk: 'CAO' | 'TRUNG BÌNH' | 'THẤP';
+}
+
+/**
+ * Sections below are wired in the FE but have no matching admin dashboard
+ * endpoints in core-api yet. Return empty success so the UI shows the empty
+ * state instead of a hard error until BE ships them.
+ */
+export const getActionItems = async () => mockSuccess<unknown[]>([]);
+
+export const getInventoryRisks = async () => mockSuccess<StationTicketRiskItem[]>([]);
+
+export const getReconciliations = async () => mockSuccess<unknown[]>([]);

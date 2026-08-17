@@ -1,8 +1,19 @@
 "use client";
 
-import { Alert, Box, Dialog, DialogActions, DialogContent, DialogTitle, Divider, IconButton, Stack, Typography } from '@mui/material';
+import {
+    Alert,
+    Box,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    Divider,
+    IconButton,
+    Stack,
+    Typography,
+} from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import dayjs from 'dayjs';
 import { Button } from '../../../../../components/ui/Button';
 import { getBatchTypeLabel, getImportModeLabel } from '../../utils/batchTypeLabels';
@@ -31,6 +42,31 @@ interface ImportBatchConfirmDialogProps {
     onConfirm: () => void;
 }
 
+const DIALOG_PAPER_SX = {
+    borderRadius: '16px',
+    boxShadow: 'var(--customShadows-dialog)',
+    border: '1px solid #e2e8f0',
+    overflow: 'hidden',
+};
+
+const SECTION_CARD_SX = {
+    p: 2,
+    borderRadius: '16px',
+    border: '1px solid #e2e8f0',
+    bgcolor: '#f8fafc',
+    boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)',
+};
+
+const SectionCard = ({ title, children }: { title: string; children: ReactNode }) => (
+    <Box sx={SECTION_CARD_SX}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1, color: '#0f172a' }}>
+            {title}
+        </Typography>
+        <Divider sx={{ mb: 1, borderColor: '#e2e8f0' }} />
+        {children}
+    </Box>
+);
+
 const SummaryRow = ({ label, value }: { label: string; value: string }) => (
     <Box
         sx={{
@@ -43,7 +79,7 @@ const SummaryRow = ({ label, value }: { label: string; value: string }) => (
         <Typography variant="body2" color="text.secondary">
             {label}
         </Typography>
-        <Typography variant="body2" sx={{ fontWeight: 600, textAlign: 'right' }}>
+        <Typography variant="body2" sx={{ fontWeight: 600, textAlign: 'right', color: 'var(--palette-text-primary)' }}>
             {value}
         </Typography>
     </Box>
@@ -89,62 +125,82 @@ export const ImportBatchConfirmDialog = ({
 
     return (
         <>
-            <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-                <DialogTitle sx={{ pb: 1, pr: 6 }}>
+            <Dialog
+                open={open}
+                onClose={handleClose}
+                maxWidth="md"
+                fullWidth
+                PaperProps={{
+                    className: 'admin-theme',
+                    sx: DIALOG_PAPER_SX,
+                }}
+            >
+                <DialogTitle
+                    sx={{
+                        pb: 1.5,
+                        pt: 2.5,
+                        px: 3,
+                        pr: 6,
+                        fontWeight: 800,
+                        fontSize: '1.05rem',
+                        color: 'var(--palette-text-primary)',
+                        borderBottom: '1px solid #e2e8f0',
+                    }}
+                >
                     Xác nhận tạo phiếu nhập lô vé
                     <IconButton
                         aria-label="Đóng"
                         onClick={handleClose}
                         disabled={isPending}
-                        sx={{ position: 'absolute', right: 12, top: 12 }}
+                        sx={{
+                            position: 'absolute',
+                            right: 12,
+                            top: 12,
+                            color: 'var(--palette-text-secondary)',
+                        }}
                     >
                         <CloseIcon fontSize="small" />
                     </IconButton>
                 </DialogTitle>
 
-                <DialogContent sx={{ pt: 1 }}>
-                    <Stack spacing={2.5}>
-                        <Box
-                            sx={{
-                                p: 2,
-                                borderRadius: 2,
-                                border: '1px solid',
-                                borderColor: 'divider',
-                                bgcolor: 'var(--palette-background-neutral)',
-                            }}
-                        >
-                            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-                                Thông tin chung
-                            </Typography>
-                            <Divider sx={{ mb: 1 }} />
+                <DialogContent
+                    sx={{
+                        px: 3,
+                        pb: 2.5,
+                        pt: '24px !important',
+                    }}
+                >
+                    <Stack spacing={2}>
+                        <SectionCard title="Thông tin chung">
                             <SummaryRow label="Ngày quay" value={formattedDrawDate} />
                             <SummaryRow label="Nhà cung cấp" value={supplierName || '—'} />
-                            <SummaryRow
-                                label="Loại lô vé cần nhập"
-                                value={getImportModeLabel(importMode)}
-                            />
+                            <SummaryRow label="Loại lô vé cần nhập" value={getImportModeLabel(importMode)} />
                             <SummaryRow
                                 label="Tổng số lượng"
                                 value={`${totalDeclareQuantity.toLocaleString('vi-VN')} vé`}
                             />
-                            <SummaryRow label="Tổng giá trị lô vé nhập" value={formatVnd(totalCostValue)} />
+                            <SummaryRow label="Tổng giá trị" value={formatVnd(totalCostValue)} />
 
                             {showSharedReceipt && (
                                 <Box sx={{ mt: 1.5 }}>
-                                    <Typography variant="caption" color="text.secondary">
+                                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
                                         Biên lai (dùng chung)
                                     </Typography>
                                     {receiptUrl ? (
                                         <Box
                                             onClick={() => setPreviewUrl(receiptUrl)}
                                             sx={{
-                                                mt: 0.5,
-                                                borderRadius: 1,
-                                                border: '1px solid',
-                                                borderColor: 'divider',
+                                                mt: 0.75,
+                                                borderRadius: '10px',
+                                                border: '1px solid #e2e8f0',
                                                 overflow: 'hidden',
                                                 cursor: 'pointer',
                                                 maxWidth: 200,
+                                                bgcolor: '#fff',
+                                                transition: 'box-shadow 0.2s ease',
+                                                '&:hover': {
+                                                    boxShadow: 'var(--customShadows-z8)',
+                                                },
                                             }}
                                         >
                                             <Box
@@ -160,78 +216,84 @@ export const ImportBatchConfirmDialog = ({
                                             />
                                         </Box>
                                     ) : (
-                                        <Typography variant="body2" color="text.secondary">
+                                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                                             Không có ảnh biên lai.
                                         </Typography>
                                     )}
                                 </Box>
                             )}
-                        </Box>
+                        </SectionCard>
 
                         {lines.map((line, index) => {
                             const lineTotal = line.declareQuantity * line.importCost;
 
                             return (
-                                <Box
+                                <SectionCard
                                     key={`${line.stationName}-${index}`}
-                                    sx={{
-                                        p: 2,
-                                        borderRadius: 2,
-                                        border: '1px solid',
-                                        borderColor: 'divider',
-                                    }}
+                                    title={`Dòng ${index + 1}: ${line.stationName || '—'}`}
                                 >
-                                    <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-                                        Dòng {index + 1}: {line.stationName || '—'}
-                                    </Typography>
-                                    <Divider sx={{ mb: 1 }} />
-                                    <SummaryRow
-                                        label="Loại lô"
-                                        value={getBatchTypeLabel(line.batchType)}
-                                    />
+                                    <SummaryRow label="Loại lô" value={getBatchTypeLabel(line.batchType)} />
                                     <SummaryRow
                                         label="Số lượng"
                                         value={`${line.declareQuantity.toLocaleString('vi-VN')} vé`}
                                     />
                                     <SummaryRow label="Giá vốn" value={formatVnd(line.importCost)} />
                                     <SummaryRow label="Tổng dòng" value={formatVnd(lineTotal)} />
-                                </Box>
+                                </SectionCard>
                             );
                         })}
 
-                        <Alert severity="warning" sx={{ borderRadius: 2, alignItems: 'flex-start' }}>
-                            <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                        <Alert
+                            severity="warning"
+                            sx={{
+                                borderRadius: '12px',
+                                alignItems: 'flex-start',
+                                border: '1px solid rgba(255, 171, 0, 0.24)',
+                                bgcolor: 'rgba(255, 171, 0, 0.08)',
+                            }}
+                        >
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
                                 Sau khi xác nhận, phiếu nhập sẽ được tạo và không thể hoàn tác.
-                            </Typography>
-                            <Typography variant="body2">
-                                Vui lòng kiểm tra kỹ thông tin trước khi tiếp tục.
                             </Typography>
                         </Alert>
                     </Stack>
                 </DialogContent>
 
-                <DialogActions sx={{ px: 3, pb: 3, pt: 1 }}>
+                <DialogActions
+                    sx={{
+                        px: 3,
+                        pb: 2.5,
+                        pt: 2,
+                        gap: 1,
+                        borderTop: '1px solid #e2e8f0',
+                        bgcolor: '#f8fafc',
+                    }}
+                >
                     <Button
                         onClick={handleClose}
                         disabled={isPending}
-                        color="inherit"
                         variant="outlined"
-                        sx={{
-                            borderColor: 'divider',
-                            '&:hover': { borderColor: 'text.primary', bgcolor: 'transparent' },
-                        }}
+                        className="btn-outlined-admin"
+                        sx={{ minWidth: 96 }}
                     >
                         Hủy
                     </Button>
                     <Button
                         onClick={onConfirm}
                         variant="contained"
-                        color="primary"
                         className="btn-primary-admin"
                         loading={isPending}
                         disabled={isPending}
                         label="Xác nhận & Lưu"
                         loadingLabel="Đang xử lý..."
+                        sx={{
+                            minWidth: 140,
+                            backgroundColor: '#1C252E !important',
+                            color: '#FFFFFF !important',
+                            '&:hover': {
+                                backgroundColor: '#454F5B !important',
+                            },
+                        }}
                     />
                 </DialogActions>
             </Dialog>

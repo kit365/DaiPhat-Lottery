@@ -1,12 +1,11 @@
 'use client';
 
 import Link from "next/link";
-import { useQuery } from '@tanstack/react-query';
 import { FileText, ChevronRight } from 'lucide-react';
-import { getPublicSystemConfigByKey } from '@/client/services/systemConfigService';
 import { getStaticPage, type StaticPageConfigKey } from '@/client/constants/staticPages';
 import { LoadingSpinner } from '@/client/components/ui/LoadingSpinner';
 import { Breadcrumb } from '@/client/components/ui/Breadcrumb';
+import { usePublicSystemConfig } from '@/client/hooks/useSystemConfig';
 
 type StaticPageContent = { title: string; content: string };
 
@@ -46,14 +45,7 @@ const EmptyState = ({ title }: { title: string }) => (
 );
 
 const PageBody = ({ configKey, title }: { configKey?: StaticPageConfigKey; title: string }) => {
-    const { data, isLoading } = useQuery({
-        queryKey: ['public-system-config', configKey],
-        queryFn: () => getPublicSystemConfigByKey(configKey as string),
-        enabled: Boolean(configKey),
-        staleTime: 5 * 60 * 1000,
-        retry: false,
-        throwOnError: false,
-    });
+    const { data, isLoading } = usePublicSystemConfig(configKey as string, Boolean(configKey));
 
     if (!configKey) {
         return <EmptyState title={title} />;

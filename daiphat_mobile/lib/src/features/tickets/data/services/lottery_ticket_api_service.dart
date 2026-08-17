@@ -18,6 +18,8 @@ class LotteryTicketApiService {
     String? drawDate,
     String? search,
     String? searchMode,
+    List<String>? tailRanges,
+    List<String>? numberTypes,
     String? sortBy,
     String? direction,
   }) async {
@@ -39,6 +41,12 @@ class LotteryTicketApiService {
           (searchMode != null && searchMode.trim().isNotEmpty)
           ? searchMode.trim()
           : 'CONTAINS';
+    }
+    if (tailRanges != null && tailRanges.isNotEmpty) {
+      queryParameters['tailRanges'] = tailRanges;
+    }
+    if (numberTypes != null && numberTypes.isNotEmpty) {
+      queryParameters['numberTypes'] = numberTypes;
     }
     if (sortBy != null && sortBy.trim().isNotEmpty) {
       queryParameters['sortBy'] = sortBy.trim();
@@ -89,5 +97,42 @@ class LotteryTicketApiService {
     }
 
     return apiResponse.data!;
+  }
+
+  /// Đài mở bán theo ngày — không phụ thuộc kết quả search vé.
+  Future<List<String>> getStationNamesForDrawDate(String drawDate) async {
+    final response = await _apiClient.get(
+      '/lottery-stations/schedule',
+      queryParameters: <String, dynamic>{'drawDate': drawDate},
+    );
+
+    final apiResponse = ApiResponse<List<String>>.fromJson(
+      response,
+      (json) {
+        final list = json as List<dynamic>? ?? const [];
+        final names = <String>{};
+        for (final item in list) {
+          if (item is! Map<String, dynamic>) continue;
+          final name =
+              (item['name'] ?? item['province'] ?? item['stationName'] ?? '')
+                  .toString()
+                  .trim();
+          if (name.isNotEmpty) {
+            names.add(name);
+          }
+        }
+        return names.toList();
+      },
+    );
+
+    if (!apiResponse.isSuccess) {
+      throw ApiException(
+        apiResponse.message.isNotEmpty
+            ? apiResponse.message
+            : 'Không thể tải danh sách đài.',
+      );
+    }
+
+    return apiResponse.data ?? const [];
   }
 }

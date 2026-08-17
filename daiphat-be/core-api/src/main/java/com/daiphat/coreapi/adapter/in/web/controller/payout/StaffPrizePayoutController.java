@@ -3,9 +3,11 @@ package com.daiphat.coreapi.adapter.in.web.controller.payout;
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
+import com.daiphat.coreapi.application.dto.document.ContractPdfDocument;
 import com.daiphat.coreapi.application.dto.request.payout.CompletePrizePayoutRequest;
 import com.daiphat.coreapi.application.dto.request.payout.CreateStaffPrizePayoutBatchRequest;
 import com.daiphat.coreapi.application.dto.request.payout.CreateStaffPrizePayoutRequest;
+import com.daiphat.coreapi.application.dto.request.payout.PreviewPrizePayoutConfirmationContractRequest;
 import com.daiphat.coreapi.application.dto.request.payout.RejectPrizePayoutRequest;
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutBatchCreateResponse;
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutLookupResponse;
@@ -14,12 +16,15 @@ import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutPreviewRes
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutRequestResponse;
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutStaffListResponse;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
+import com.daiphat.coreapi.application.port.in.payout.PrizePayoutConfirmationContractServicePort;
 import com.daiphat.coreapi.application.port.in.payout.PrizePayoutStaffServicePort;
 import com.daiphat.coreapi.shared.util.StorageUtils;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
@@ -40,6 +45,7 @@ public class StaffPrizePayoutController {
     private static final String ID_PATH = "/{id}";
 
     private final PrizePayoutStaffServicePort prizePayoutStaffServicePort;
+    private final PrizePayoutConfirmationContractServicePort prizePayoutConfirmationContractServicePort;
 
     @GetMapping
     @PreAuthorize("hasAuthority('prizePayout:view')")
@@ -165,6 +171,29 @@ public class StaffPrizePayoutController {
         return ApiResponse.success(
                 "Tải ảnh giấy tờ người nhận thành công.",
                 prizePayoutStaffServicePort.uploadRecipientIdImage(StorageUtils.toUploadRequest(file)));
+    }
+
+    @PostMapping(value = "/confirmation-contract/preview", produces = MediaType.APPLICATION_PDF_VALUE)
+    @PreAuthorize("hasAuthority('prizePayout:process')")
+    public ResponseEntity<byte[]> previewConfirmationContract(
+            @Valid @RequestBody PreviewPrizePayoutConfirmationContractRequest request) {
+        ContractPdfDocument document = prizePayoutConfirmationContractServicePort.generatePreviewPdf(request);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + document.fileName() + "\"")
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .body(document.content());
+    }
+
+    @GetMapping(value = ID_PATH + "/confirmation-contract/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+    @PreAuthorize("hasAuthority('prizePayout:view')")
+    public ResponseEntity<byte[]> downloadConfirmationContractPdf(@PathVariable Long id) {
+        ContractPdfDocument document = prizePayoutConfirmationContractServicePort.generatePdfForRequest(id);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + document.fileName() + "\"")
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .body(document.content());
     }
 
     @PostMapping(value = "/confirmation-contract/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

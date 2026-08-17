@@ -11,7 +11,7 @@ import { PageHeader } from '../../../../../components/ui/PageHeader';
 import { prefixAdmin } from '../../../../../constants/routes';
 import { useExpiredTickets } from '../../hooks/useExpiredTickets';
 import { dataGridStyles } from '../../../../../shared/data-grid';
-import { DATA_GRID_LOCALE_VN } from '../../../../../../shared/components/DataTable/localeText.config';
+import { DATA_GRID_LOCALE_VN } from "@/admin/components/data-grid/localeText.config";
 import { useScanExpiredTickets } from '../../hooks/useTicket';
 import { toast } from 'react-toastify';
 import { Button } from '../../../../../components/ui/Button';

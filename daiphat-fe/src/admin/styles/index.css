@@ -670,6 +670,7 @@ input:-webkit-autofill:active {
     font-weight: 500 !important;
     color: var(--palette-text-secondary) !important;
     flex-direction: row !important;
+    overflow: visible !important;
 }
 
 .admin-tab.Mui-selected {
@@ -1007,6 +1008,12 @@ input:-webkit-autofill:active {
 }
 
 .admin-cell-text {
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     font-size: 0.875rem;
     font-weight: 500;
     color: var(--palette-text-primary);
@@ -1045,30 +1052,48 @@ input:-webkit-autofill:active {
 }
 
 /* Status badges */
+.admin-status-badge-host {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    min-width: 0;
+    height: 24px;
+    line-height: 1;
+    vertical-align: middle;
+}
+
 .admin-status-badge {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    line-height: 1.5;
-    min-width: 1.5rem;
-    height: 1.5rem;
-    font-size: 0.75rem;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    line-height: 1;
+    height: 24px;
+    min-height: 24px;
+    max-height: 24px;
+    font-size: 0.6875rem;
     font-weight: 700;
-    padding: 0 6px;
+    padding: 0 8px;
     border-radius: 6px;
     background-color: var(--palette-grey-200);
     color: var(--palette-grey-800);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
 }
 
 .admin-status-badge--compact {
     min-width: auto;
+    min-height: 1.125rem;
     height: 1.125rem;
     font-size: 0.6875rem;
     font-weight: 600;
     padding: 0 4px;
     border-radius: 4px;
-    line-height: 1.2;
-    white-space: nowrap;
+    line-height: 1.125rem;
 }
 
 .admin-status-badge--draft {
@@ -1094,6 +1119,46 @@ input:-webkit-autofill:active {
 .admin-status-badge--success {
     background-color: var(--palette-success-lighter);
     color: var(--palette-success-dark);
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    height: 24px;
+    min-height: 24px;
+    max-height: 24px;
+    padding: 0 8px;
+    border-radius: 6px;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+}
+
+.MuiTableCell-root:has(.admin-status-badge-host),
+.MuiTableCell-root:has(.admin-status-badge),
+.MuiTableCell-root:has(.status-badge) {
+    text-align: center !important;
+}
+
+.MuiTableCell-root:has(.admin-status-badge-host) > .MuiBox-root,
+.MuiTableCell-root:has(.admin-status-badge) > .MuiBox-root,
+.MuiTableCell-root:has(.status-badge) > .MuiBox-root {
+    justify-content: center !important;
+    width: 100%;
+}
+
+.MuiDataGrid-cell:has(.admin-status-badge-host),
+.MuiDataGrid-cell:has(.admin-status-badge),
+.MuiDataGrid-cell:has(.status-badge) {
+    justify-content: center !important;
 }
 
 /* DataGrid action menu typography */

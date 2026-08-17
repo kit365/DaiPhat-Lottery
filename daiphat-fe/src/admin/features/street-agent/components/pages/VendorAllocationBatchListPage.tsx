@@ -1,13 +1,9 @@
 "use client";
 
 import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
-import { useAppSearchParams } from "@/hooks/useAppSearchParams";
-import { useEffect, useMemo, useState } from "react";
-import {
-    Alert, Box, Card, Dialog, DialogActions, DialogContent,
-    DialogTitle, Drawer, IconButton, Paper,
-    Stack, TextField, Typography,
-} from "@mui/material";
+import { useCallback, useMemo, useState } from "react";
+import { useQueries } from "@tanstack/react-query";
+import { Alert, Box, Card, Typography } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { SortAscendingIcon, SortDescendingIcon, UnsortedIcon } from "../../../../assets/icons";
 import {
@@ -20,25 +16,21 @@ import {
     dataGridStyles,
     filterPanelStyles,
 } from "../../../../shared/data-grid";
-import { DATA_GRID_LOCALE_VN } from "../../../../../shared/components/DataTable/localeText.config";
-import CloseIcon from "@mui/icons-material/Close";
+import { DATA_GRID_LOCALE_VN } from "@/admin/components/data-grid/localeText.config";
 import { toast } from "react-toastify";
 import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
 import { Title } from "../../../../components/ui/Title";
 import { Button } from "../../../../components/ui/Button";
+import { AdminConfirmDialog } from "../../../../components/ui/AdminConfirmDialog";
 import { ROUTES } from "../../../../constants/routes";
 import { PERMISSIONS } from "../../../../constants/permission.constants";
 import { usePermissions } from "../../../../hooks/usePermission";
-import { useStreetAgentProfiles } from "../../hooks/useStreetAgent";
+import { getStreetAgentProfileById } from "../../services/streetAgentService";
+import { QUERY_KEYS } from "../../constants/queryKeys";
 import {
     useCancelVendorAllocation,
-    useConfirmVendorReturnInspection,
     useOpenVendorAllocationReturnSession,
-    useReturnVendorAllocationSerials,
-    useSettleVendorAllocation,
-    useVendorAllocationBatch,
     useVendorAllocationBatches,
-    useVendorSettlementPreview,
 } from "../../hooks/useVendorAllocation";
 import {
     StreetAgentProfile,
@@ -50,25 +42,12 @@ import {
 } from "../configs/vendorAllocationBatchColumns";
 import { VendorAllocationBatchToolbar } from "../configs/vendorAllocationBatchToolbar";
 import {
-    formatCurrency,
+    parseDisplayDateToApi,
 } from "../../utils/format";
 import { ConfirmVendorDepositDialog } from "../ConfirmVendorDepositDialog";
-import {
-    VendorBatchInfoSection,
-    VendorBatchDepositSnapshotSection,
-    VendorSettlementBreakdown,
-    VendorSettlementConfirmationSummary,
-} from "../sections/VendorBatchDrawerSections";
-import dayjs from "dayjs";
 
 const getApiErrorMessage = (error: any, fallback: string) =>
     error?.response?.data?.message || fallback;
-
-const parseDisplayDateToIso = (dateStr: string) => {
-    if (!dateStr) return undefined;
-    const parsed = dayjs(dateStr, "DD/MM/YYYY", true);
-    return parsed.isValid() ? parsed.format("YYYY-MM-DD") : undefined;
-};
 
 const profileLabel = (p?: StreetAgentProfile | null) => {
     if (!p) return "—";
@@ -78,7 +57,6 @@ const profileLabel = (p?: StreetAgentProfile | null) => {
 
 export const VendorAllocationBatchListPage = () => {
     const router = useAdminRouter();
-    const [searchParams, setSearchParams] = useAppSearchParams();
     const { can } = usePermissions();
     const canEdit = can(PERMISSIONS.STREET_AGENT.EDIT);
     const canManage = can(PERMISSIONS.STREET_AGENT.MANAGE);
@@ -91,58 +69,18 @@ export const VendorAllocationBatchListPage = () => {
     const [profile, setProfile] = useState<StreetAgentProfile | null>(null);
     const [businessDateFrom, setBusinessDateFrom] = useState("");
     const [businessDateTo, setBusinessDateTo] = useState("");
-    const [detailId, setDetailId] = useState<number | null>(() => {
-        const raw = searchParams.get("batchId");
-        const parsed = raw ? Number(raw) : NaN;
-        return Number.isFinite(parsed) ? parsed : null;
-    });
     const [confirmBatch, setConfirmBatch] = useState<VendorAllocationBatch | null>(null);
     const [cancelId, setCancelId] = useState<number | null>(null);
     const [returnSessionId, setReturnSessionId] = useState<number | null>(null);
-    const [selectedSerialIds, setSelectedSerialIds] = useState<number[]>([]);
-    const [scanInput, setScanInput] = useState("");
-    const [previewEnabled, setPreviewEnabled] = useState(false);
-    const [settleConfirmOpen, setSettleConfirmOpen] = useState(false);
-    const [inspectionConfirmOpen, setInspectionConfirmOpen] = useState(false);
-    const [rejectedInspectionSerialIds, setRejectedInspectionSerialIds] = useState<number[]>([]);
-    const [inspectionNote, setInspectionNote] = useState("");
+    const [profileCache, setProfileCache] = useState<Map<number, StreetAgentProfile>>(new Map());
 
-    useEffect(() => {
-        const current = searchParams.get("batchId");
-        const nextId = detailId != null ? String(detailId) : null;
-        if ((current ?? null) === nextId) {
-            return;
-        }
-        const next = new URLSearchParams(searchParams);
-        if (detailId != null) {
-            next.set("batchId", String(detailId));
-        } else {
-            next.delete("batchId");
-        }
-        setSearchParams(next, { replace: true });
-        // Only sync URL when detailId changes; avoid loops from searchParams identity.
-    }, [detailId]);
-
-    useEffect(() => {
-        setSelectedSerialIds([]);
-        setScanInput("");
-        setPreviewEnabled(false);
-        setSettleConfirmOpen(false);
-        setInspectionConfirmOpen(false);
-        setRejectedInspectionSerialIds([]);
-        setInspectionNote("");
-    }, [detailId]);
-
-    const { data: profilesRes, isLoading: isLoadingProfiles } = useStreetAgentProfiles({
-        page: 1,
-        limit: 100,
-    });
-    const profiles = profilesRes?.data?.recordList || [];
-    const profileById = useMemo(() => {
-        const map = new Map<number, StreetAgentProfile>();
-        profiles.forEach((p) => map.set(p.id, p));
-        return map;
-    }, [profiles]);
+    const handleProfilesLoaded = useCallback((profiles: StreetAgentProfile[]) => {
+        setProfileCache((prev) => {
+            const next = new Map(prev);
+            profiles.forEach((item) => next.set(item.id, item));
+            return next;
+        });
+    }, []);
 
     const listParams = {
         page,
@@ -150,43 +88,42 @@ export const VendorAllocationBatchListPage = () => {
         search: search || undefined,
         profileId: profile?.id,
         status: status || undefined,
-        businessDateFrom: parseDisplayDateToIso(businessDateFrom),
-        businessDateTo: parseDisplayDateToIso(businessDateTo),
+        businessDateFrom: parseDisplayDateToApi(businessDateFrom) || undefined,
+        businessDateTo: parseDisplayDateToApi(businessDateTo) || undefined,
     };
 
     const { data: listData, isLoading, error: listError, refetch } = useVendorAllocationBatches(listParams);
     const rows = listData?.recordList || [];
     const total = listData?.pagination?.totalRecords || 0;
 
-    const { data: detailBatch, isLoading: isLoadingDetail, refetch: refetchDetail } =
-        useVendorAllocationBatch(detailId);
-    const pendingInspectionCount = (detailBatch?.serials || []).filter(
-        (serial) => serial.allocationStatus === "RETURN_PENDING_INSPECTION"
-    ).length;
-    const hasLoadedSerials = Array.isArray(detailBatch?.serials);
-    const {
-        data: settlementPreview,
-        isLoading: isLoadingPreview,
-        isFetching: isFetchingPreview,
-        error: previewError,
-        refetch: refetchPreview,
-    } = useVendorSettlementPreview(
-        detailId,
-        previewEnabled &&
-            detailBatch?.status === "RETURN_OPEN" &&
-            hasLoadedSerials &&
-            pendingInspectionCount === 0
-    );
+    const missingProfileIds = useMemo(() => {
+        const ids = new Set(rows.map((row) => row.streetAgentProfileId));
+        if (profile) ids.delete(profile.id);
+        profileCache.forEach((_value, id) => ids.delete(id));
+        return Array.from(ids);
+    }, [profile, profileCache, rows]);
+
+    const missingProfileQueries = useQueries({
+        queries: missingProfileIds.map((id) => ({
+            queryKey: [QUERY_KEYS.STREET_AGENT_PROFILE_DETAIL, id],
+            queryFn: () => getStreetAgentProfileById(id),
+            staleTime: 60_000,
+        })),
+    });
+
+    const profileById = useMemo(() => {
+        const map = new Map(profileCache);
+        if (profile) map.set(profile.id, profile);
+        missingProfileQueries.forEach((query) => {
+            const item = query.data?.data;
+            if (item) map.set(item.id, item);
+        });
+        return map;
+    }, [missingProfileQueries, profile, profileCache]);
 
     const { mutate: cancelDraft, isPending: isCancelling } = useCancelVendorAllocation();
     const { mutate: openReturnSession, isPending: isOpeningReturn } =
         useOpenVendorAllocationReturnSession();
-    const { mutate: submitReturns, isPending: isSubmittingReturns } =
-        useReturnVendorAllocationSerials();
-    const { mutate: confirmReturnInspection, isPending: isConfirmingInspection } =
-        useConfirmVendorReturnInspection();
-    const { mutate: settleBatch, isPending: isSettling } = useSettleVendorAllocation();
-
     const continueDraft = (batch: VendorAllocationBatch) => {
         const params = new URLSearchParams({
             profileId: String(batch.streetAgentProfileId),
@@ -216,135 +153,12 @@ export const VendorAllocationBatchListPage = () => {
                 toast.success(response.message || "Đã mở phiên nhận vé trả.");
                 setReturnSessionId(null);
                 refetch();
-                if (detailId === id) refetchDetail();
-                setDetailId(id);
+                router.push(ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION_BATCH_DETAIL(id));
             },
             onError: (error: any) => {
                 toast.error(getApiErrorMessage(error, "Mở phiên trả vé thất bại"));
             },
         });
-    };
-
-    const handleScanSubmit = () => {
-        const raw = scanInput.trim();
-        if (!raw || !detailBatch?.serials?.length) return;
-        const match = detailBatch.serials.find(
-            (s) => s.serialNumber === raw || String(s.serialId) === raw
-        );
-        if (!match) {
-            toast.error("Không tìm thấy serial trong phiếu này. Quét serialNumber hoặc serialId.");
-            return;
-        }
-        if (match.allocationStatus !== "HANDED_OVER") {
-            toast.error(
-                match.allocationStatus === "RETURNED"
-                    ? "Serial này đã được trả."
-                    : `Serial không thể trả (trạng thái: ${match.allocationStatus}).`
-            );
-            return;
-        }
-        setSelectedSerialIds((prev) =>
-            prev.includes(match.serialId) ? prev : [...prev, match.serialId]
-        );
-        setScanInput("");
-    };
-
-    const handleSubmitReturns = () => {
-        if (!detailId || selectedSerialIds.length === 0) return;
-        submitReturns(
-            { id: detailId, data: { serialIds: selectedSerialIds } },
-            {
-                onSuccess: (response) => {
-                    toast.success(response.message || "Đã tạo phiếu nhận vé trả, chờ kiểm nhận.");
-                    setSelectedSerialIds([]);
-                    setPreviewEnabled(false);
-                    refetchDetail();
-                    refetch();
-                },
-                onError: (error: any) => {
-                    toast.error(getApiErrorMessage(error, "Gửi serial trả thất bại"));
-                },
-            }
-        );
-    };
-
-    const openInspectionConfirmation = () => {
-        if (!detailBatch) return;
-        const pendingSerials = (detailBatch.serials || []).filter(
-            (serial) => serial.allocationStatus === "RETURN_PENDING_INSPECTION"
-        );
-        if (pendingSerials.length === 0) {
-            toast.info("Không có serial nào đang chờ kiểm nhận.");
-            return;
-        }
-        setRejectedInspectionSerialIds([]);
-        setInspectionNote("");
-        setInspectionConfirmOpen(true);
-    };
-
-    const handleConfirmInspection = () => {
-        if (!detailId) return;
-        confirmReturnInspection(
-            {
-                id: detailId,
-                data: {
-                    rejectedSerials: rejectedInspectionSerialIds.map((serialId) => ({
-                        serialId,
-                        reason: inspectionNote.trim(),
-                    })),
-                    note: inspectionNote.trim() || undefined,
-                },
-            },
-            {
-                onSuccess: (response) => {
-                    toast.success(response.message || "Đã hoàn tất kiểm nhận vé trả.");
-                    setInspectionConfirmOpen(false);
-                    setRejectedInspectionSerialIds([]);
-                    setInspectionNote("");
-                    refetchDetail();
-                    refetch();
-                },
-                onError: (error: any) => {
-                    toast.error(getApiErrorMessage(error, "Xác nhận kiểm nhận thất bại"));
-                },
-            }
-        );
-    };
-
-    const handleSettle = () => {
-        if (!detailId || !settlementPreview) return;
-        if (selectedSerialIds.length > 0) {
-            toast.error(
-                `Còn ${selectedSerialIds.length} vé đã chọn chưa gửi trả. Bấm "Gửi trả" trước khi quyết toán.`
-            );
-            return;
-        }
-        settleBatch(
-            {
-                id: detailId,
-                data: {
-                    settlementFingerprint: settlementPreview.settlementFingerprint,
-                    confirmed: true,
-                },
-            },
-            {
-                onSuccess: (response) => {
-                    toast.success(response.message || "Đã quyết toán phiếu bàn giao.");
-                    setSettleConfirmOpen(false);
-                    refetchDetail();
-                    refetch();
-                },
-                onError: (error: any) => {
-                    if (error?.response?.status === 409) {
-                        toast.error("Dữ liệu đã thay đổi, hệ thống đang tính lại...");
-                        setSettleConfirmOpen(false);
-                        refetchPreview();
-                    } else {
-                        toast.error(getApiErrorMessage(error, "Quyết toán thất bại"));
-                    }
-                },
-            }
-        );
     };
 
     const columns = useMemo(
@@ -383,6 +197,7 @@ export const VendorAllocationBatchListPage = () => {
                 </div>
                 <Button
                     variant="contained"
+                    className="btn-primary-admin"
                     onClick={() => router.push(ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION)}
                 >
                     Tạo bàn giao mới
@@ -441,8 +256,6 @@ export const VendorAllocationBatchListPage = () => {
                                     setSearch(value);
                                     setPage(1);
                                 },
-                                profiles,
-                                isLoadingProfiles,
                                 profile,
                                 onProfileChange: (value: StreetAgentProfile | null) => {
                                     setProfile(value);
@@ -461,6 +274,14 @@ export const VendorAllocationBatchListPage = () => {
                                     setBusinessDateTo(endDate);
                                     setPage(1);
                                 },
+                                onClearFilters: () => {
+                                    setProfile(null);
+                                    setStatus('');
+                                    setBusinessDateFrom('');
+                                    setBusinessDateTo('');
+                                    setPage(1);
+                                },
+                                onProfilesLoaded: handleProfilesLoaded,
                             } as any,
                         }}
                         localeText={DATA_GRID_LOCALE_VN}
@@ -489,141 +310,6 @@ export const VendorAllocationBatchListPage = () => {
                 </Box>
             </Card>
 
-            <Drawer
-                anchor="right"
-                open={!!detailId}
-                onClose={() => setDetailId(null)}
-                PaperProps={{ sx: { width: { xs: "100%", sm: 520 } } }}
-            >
-                <Box sx={{ p: 2, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <Typography variant="h6">Chi tiết phiếu</Typography>
-                    <IconButton onClick={() => setDetailId(null)}>
-                        <CloseIcon />
-                    </IconButton>
-                </Box>
-                <Box sx={{ px: 2, pb: 3 }}>
-                    {isLoadingDetail || !detailBatch ? (
-                        <Typography color="text.secondary">Đang tải...</Typography>
-                    ) : (
-                        <Stack spacing={3}>
-                            <VendorBatchInfoSection batch={detailBatch} profile={profileById.get(detailBatch.streetAgentProfileId)} />
-                            <VendorBatchDepositSnapshotSection batch={detailBatch} />
-
-                            {canEdit && detailBatch.status === "RETURN_OPEN" && pendingInspectionCount > 0 && (
-                                <Alert
-                                    severity="warning"
-                                    sx={{ py: 0.5 }}
-                                    action={
-                                        <Button
-                                            size="small"
-                                            color="warning"
-                                            variant="contained"
-                                            onClick={openInspectionConfirmation}
-                                        >
-                                            Kiểm nhận {pendingInspectionCount} vé
-                                        </Button>
-                                    }
-                                >
-                                    Có {pendingInspectionCount} vé đang chờ kiểm nhận thực tế.
-                                </Alert>
-                            )}
-
-                            <Button
-                                variant="contained"
-                                color="primary"
-                                size="large"
-                                onClick={() => router.push(ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION_BATCH_DETAIL(detailId!))}
-                                fullWidth
-                                sx={{ mt: 2 }}
-                            >
-                                Mở trang xử lý phiếu
-                            </Button>
-                        </Stack>
-                    )}
-                </Box>
-            </Drawer>
-
-            <Dialog
-                open={inspectionConfirmOpen}
-                onClose={() => !isConfirmingInspection && setInspectionConfirmOpen(false)}
-                fullWidth
-                maxWidth="sm"
-            >
-                <DialogTitle>Xác nhận kiểm nhận vé trả</DialogTitle>
-                <DialogContent>
-                    <Alert severity="info" sx={{ mb: 2 }}>
-                        Các serial không bị đánh dấu từ chối sẽ được nhận vào phiếu trả. Vé bị từ chối sẽ vẫn tính là đã bán.
-                    </Alert>
-                    <Box sx={{ mb: 2 }}>
-                        <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                            Danh sách {pendingInspectionCount} vé chờ kiểm nhận:
-                        </Typography>
-                        <Stack spacing={1} sx={{ maxHeight: 280, overflowY: "auto", p: 0.5 }}>
-                            {(detailBatch?.serials || []).filter(s => s.allocationStatus === "RETURN_PENDING_INSPECTION").map((s) => {
-                                const rejected = rejectedInspectionSerialIds.includes(s.serialId);
-                                return (
-                                    <Paper
-                                        key={s.serialId}
-                                        variant="outlined"
-                                        sx={{
-                                            p: 1.5,
-                                            display: 'flex',
-                                            justifyContent: 'space-between',
-                                            alignItems: 'center',
-                                            borderColor: rejected ? 'error.main' : 'divider',
-                                            bgcolor: rejected ? 'error.50' : 'transparent',
-                                            opacity: rejected ? 0.75 : 1
-                                        }}
-                                    >
-                                        <Typography variant="body2" sx={{ flex: 1, textDecoration: rejected ? 'line-through' : 'none' }}>
-                                            {s.ticketNumbers} · <Box component="span" sx={{ fontFamily: 'monospace' }}>{s.serialNumber}</Box>
-                                        </Typography>
-                                        <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '8px' }}>
-                                            <Typography variant="body2" color={rejected ? 'error.main' : 'success.main'} fontWeight={600}>
-                                                {rejected ? "Từ chối" : "Nhận"}
-                                            </Typography>
-                                            <input
-                                                type="checkbox"
-                                                checked={rejected}
-                                                onChange={(e) => {
-                                                    if (e.target.checked) {
-                                                        setRejectedInspectionSerialIds(prev => [...prev, s.serialId]);
-                                                    } else {
-                                                        setRejectedInspectionSerialIds(prev => prev.filter(id => id !== s.serialId));
-                                                    }
-                                                }}
-                                            />
-                                        </label>
-                                    </Paper>
-                                );
-                            })}
-                        </Stack>
-                    </Box>
-                    <TextField
-                        size="small"
-                        label="Ghi chú kiểm nhận"
-                        value={inspectionNote}
-                        onChange={(event) => setInspectionNote(event.target.value)}
-                        fullWidth
-                        multiline
-                        minRows={2}
-                        error={rejectedInspectionSerialIds.length > 0 && !inspectionNote.trim()}
-                        helperText={rejectedInspectionSerialIds.length > 0 && !inspectionNote.trim() ? "Bắt buộc nhập lý do khi có vé từ chối." : "Tuỳ chọn nếu nhận đủ."}
-                    />
-                </DialogContent>
-                <DialogActions>
-                    <Button disabled={isConfirmingInspection} onClick={() => setInspectionConfirmOpen(false)}>Hủy</Button>
-                    <Button
-                        loading={isConfirmingInspection}
-                        variant="contained"
-                        onClick={handleConfirmInspection}
-                        disabled={rejectedInspectionSerialIds.length > 0 && !inspectionNote.trim()}
-                    >
-                        Xác nhận kiểm nhận
-                    </Button>
-                </DialogActions>
-            </Dialog>
-
             <ConfirmVendorDepositDialog
                 open={!!confirmBatch}
                 batch={confirmBatch}
@@ -639,69 +325,35 @@ export const VendorAllocationBatchListPage = () => {
                 }}
             />
 
-            <Dialog open={!!cancelId} onClose={() => setCancelId(null)}>
-                <DialogTitle>Hủy phiếu nháp?</DialogTitle>
-                <DialogContent>
+            <AdminConfirmDialog
+                open={!!cancelId}
+                title="Hủy phiếu nháp?"
+                loading={isCancelling}
+                confirmColor="error"
+                confirmLabel="Hủy phiếu"
+                confirmLoadingLabel="Đang hủy..."
+                onClose={() => setCancelId(null)}
+                onConfirm={handleCancel}
+            >
+                <Typography variant="body2" color="text.secondary">
                     Vé đang giữ sẽ được nhả về kho. Thao tác không hoàn tác.
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setCancelId(null)}>Đóng</Button>
-                    <Button
-                        loading={isCancelling}
-                        color="error"
-                        variant="contained"
-                        onClick={handleCancel}
-                    >
-                        Hủy phiếu
-                    </Button>
-                </DialogActions>
-            </Dialog>
+                </Typography>
+            </AdminConfirmDialog>
 
-            <Dialog open={!!returnSessionId} onClose={() => setReturnSessionId(null)}>
-                <DialogTitle>Mở phiên trả vé?</DialogTitle>
-                <DialogContent>
+            <AdminConfirmDialog
+                open={!!returnSessionId}
+                title="Mở phiên trả vé?"
+                loading={isOpeningReturn}
+                confirmLabel="Mở phiên trả"
+                confirmLoadingLabel="Đang mở..."
+                onClose={() => setReturnSessionId(null)}
+                onConfirm={() => returnSessionId && handleOpenReturnSession(returnSessionId)}
+            >
+                <Typography variant="body2" color="text.secondary">
                     Phiếu sẽ chuyển sang trạng thái đang trả vé để quét serial trả về.
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setReturnSessionId(null)}>Đóng</Button>
-                    <Button
-                        loading={isOpeningReturn}
-                        variant="contained"
-                        onClick={() => returnSessionId && handleOpenReturnSession(returnSessionId)}
-                    >
-                        Mở phiên trả
-                    </Button>
-                </DialogActions>
-            </Dialog>
+                </Typography>
+            </AdminConfirmDialog>
 
-            <Dialog open={settleConfirmOpen} onClose={() => setSettleConfirmOpen(false)}>
-                <DialogTitle>Xác nhận quyết toán?</DialogTitle>
-                <DialogContent>
-                    {settlementPreview ? (
-                        <VendorSettlementConfirmationSummary preview={settlementPreview} />
-                    ) : (
-                        <Typography>
-                            Hệ thống sẽ chốt số vé bán/trả và cập nhật số dư cọc theo snapshot của phiếu.
-                        </Typography>
-                    )}
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setSettleConfirmOpen(false)}>Đóng</Button>
-                    <Button
-                        loading={isSettling}
-                        variant="contained"
-                        onClick={handleSettle}
-                        disabled={detailBatch?.status !== "RETURN_OPEN"}
-                        label="Quyết toán"
-                        loadingLabel="Đang quyết toán..."
-                    />
-                </DialogActions>
-            </Dialog>
-
-            <Alert severity="info" sx={{ mt: 2 }}>
-                Phiếu nháp hết hạn sẽ tự chuyển sang &quot;Hết hạn giữ chỗ&quot; và nhả vé theo TTL cấu hình hệ thống.
-                Số liệu quyết toán lấy từ BE — không tính lại trên FE.
-            </Alert>
         </Box>
     );
 };

@@ -15,11 +15,8 @@ import {
     Checkbox, 
     TablePagination, 
     Stack, 
-    Chip,
     Button,
     TextField,
-    InputAdornment,
-    IconButton,
     Breadcrumbs,
     Link as MuiLink,
     Toolbar,
@@ -41,7 +38,8 @@ import {
 import { Icon } from '@/admin/components/ui/AdminIcon';
 import { PageHeader } from '../../../../components/ui/PageHeader';
 import { CounterToolbar } from '../sections/CounterToolbar';
-import { prefixAdmin } from '../../../../constants/routes';
+import { prefixAdmin, ROUTES } from '../../../../constants/routes';
+import { useAdminRouter } from '@/admin/hooks/useAdminRouter';
 import { useTickets } from '../../../ticket/inventory/hooks/useTicket';
 import { LotteryTicketStatus } from '../../../../../constants/lottery.constants';
 import { useStationsByDrawDate } from '../../../station/hooks/useStation';
@@ -52,6 +50,8 @@ import { CounterPaymentQrDialog } from '../sections/CounterPaymentQrDialog';
 import { CreateDirectOrderRequest, OrderReceiveType, DirectOrderTransactionRequest } from '../../../../../types/order.type';
 import { PaymentResult } from '../../../../../types/transaction.type';
 import { toast } from 'react-toastify';
+import { AdminLuckyDisplay } from '@/shared/lucky-number';
+import { CounterTicketPickSection, type CounterSelectedTicket } from '../sections/CounterTicketPickSection';
 import { useSearchCustomers } from '../../../users/hooks/useUsers';
 import {
     defaultSellableDrawDate,
@@ -60,6 +60,15 @@ import {
 
 const PHONE_REGEX = /^(0|84)(3|5|7|8|9)[0-9]{8}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+type CounterCustomerOption = {
+    id?: string;
+    _id?: string;
+    fullName?: string;
+    phone?: string;
+    phoneNumber?: string;
+    email?: string;
+};
 
 const clampSellableDates = (dates: string[]): string[] => {
     const minDate = minSellableDrawDate();
@@ -81,6 +90,7 @@ const mapCounterTicketSort = (sortByUI: string): { sortBy?: string; direction?: 
 };
 
 export const CounterOrderCreatePage = () => {
+    const router = useAdminRouter();
     const [activeStep, setActiveStep] = useState(1);
     const [searchQuery, setSearchQuery] = useState('');
     const [filters, setFilters] = useState<any>(() => ({
@@ -89,7 +99,7 @@ export const CounterOrderCreatePage = () => {
     const [clockTick, setClockTick] = useState(0);
     const [sortByUI, setSortByUI] = useState('default');
     const [settings, setSettings] = useState({ density: 'compact', showColumns: [] });
-    const [selectedTickets, setSelectedTickets] = useState<Record<string, { qty: number, ticket: any }>>({});
+    const [selectedTickets, setSelectedTickets] = useState<Record<string, CounterSelectedTicket>>({});
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
     /** Lưu page trước khi search để restore khi xoá ô tìm kiếm. */
@@ -128,25 +138,39 @@ export const CounterOrderCreatePage = () => {
     }, [customerSearchInput]);
 
     const { data: customers = [], isLoading: isSearchingUsers } = useSearchCustomers(
-        { q: debouncedCustomerSearch, limit: 10 },
+        { q: debouncedCustomerSearch, limit: 20 },
         {
-            enabled: debouncedCustomerSearch.length >= 2,
-            select: (res: any) => (Array.isArray(res?.data) ? res.data : []),
-        } as any
+            select: (res): CounterCustomerOption[] => (Array.isArray(res?.data) ? res.data : []),
+        },
     );
+
+    const customerOptions = useMemo(() => {
+        const list: CounterCustomerOption[] = [...customers];
+        if (
+            customerInfo.customerId
+            && !list.some((user) => String(user.id || user._id) === String(customerInfo.customerId))
+        ) {
+            list.unshift({
+                id: customerInfo.customerId,
+                fullName: customerInfo.name,
+                phone: customerInfo.phone,
+                email: customerInfo.email,
+            });
+        }
+        return list;
+    }, [customers, customerInfo.customerId, customerInfo.name, customerInfo.phone, customerInfo.email]);
 
     const { data: matchedExistingCustomer = null } = useSearchCustomers(
         { q: normalizedCustomerEmail, limit: 10 },
         {
             enabled: !customerInfo.customerId && normalizedCustomerEmail.length >= 3,
-            select: (res: any) => {
+            select: (res): CounterCustomerOption | null => {
                 const users = Array.isArray(res?.data) ? res.data : [];
-                return users.find((user: any) => (user.email || '').trim().toLowerCase() === normalizedCustomerEmail.toLowerCase()) || null;
+                return users.find((user) => (user.email || '').trim().toLowerCase() === normalizedCustomerEmail.toLowerCase()) || null;
             },
-        } as any
+        },
     );
-    const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'BANK' | 'PARTIAL'>('CASH');
-    const [cashAmount, setCashAmount] = useState<string>('');
+    const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'BANK'>('CASH');
     const [openConfirm, setOpenConfirm] = useState(false);
     const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
     const [pendingPaymentOrder, setPendingPaymentOrder] = useState<{
@@ -173,18 +197,6 @@ export const CounterOrderCreatePage = () => {
 
     const { mutate: createOrder, isPending: isCreating } = useCreateOrder();
     const { mutateAsync: processCounterPayment } = useProcessCounterPayment();
-
-    const resetCounterForm = () => {
-        setSelectedTickets({});
-        setCustomerInfo({ customerId: '', name: '', phone: '', email: '', note: '' });
-        setCustomerSearchInput('');
-        setDebouncedCustomerSearch('');
-        setCashAmount('');
-        setPaymentMethod('CASH');
-        setActiveStep(1);
-        setGuestAccountBypassEmail('');
-        setHasCheckedEmailBlur(false);
-    };
 
     const closePaymentDialog = () => {
         setPaymentDialogOpen(false);
@@ -292,30 +304,26 @@ export const CounterOrderCreatePage = () => {
         }
     }, [totalRecords, rowsPerPage, page, canFetchTickets, isTicketsFetching]);
 
-    const groupedTickets = useMemo(() => {
-        const groups: { [key: string]: { stationName: string; stationCode: string; tickets: any[] } } = {};
-        paginatedTickets.forEach((ticket: any) => {
-            const stationName = ticket.station?.name || ticket.stationName || ticket.region?.name || 'Vé số';
-            const stationCode = ticket.station?.province || ticket.region?.code || 'ĐN';
-            const key = `${stationCode}-${stationName}`;
-            if (!groups[key]) {
-                groups[key] = { stationName, stationCode, tickets: [] };
-            }
-            groups[key].tickets.push(ticket);
-        });
-        return Object.values(groups);
-    }, [paginatedTickets]);
-
     const handleQuantityChange = (ticket: any, delta: number, max: number) => {
-        const id = ticket.id || ticket._id;
+        const id = String(ticket.id || ticket._id);
         setSelectedTickets(prev => {
-            const current = prev[id]?.qty || 0;
-            const next = Math.max(0, Math.min(max, current + delta));
+            const currentKeys = prev[id]?.serialKeys || [];
+            let nextKeys = currentKeys;
+            if (delta < 0) {
+                nextKeys = currentKeys.slice(0, Math.max(0, currentKeys.length + delta));
+            } else if (delta > 0) {
+                const room = Math.max(0, max - currentKeys.length);
+                const addCount = Math.min(delta, room);
+                nextKeys = [
+                    ...currentKeys,
+                    ...Array.from({ length: addCount }, (_, index) => `slot-${id}-${currentKeys.length + index}`),
+                ];
+            }
             const updated = { ...prev };
-            if (next === 0) {
+            if (nextKeys.length === 0) {
                 delete updated[id];
             } else {
-                updated[id] = { qty: next, ticket };
+                updated[id] = { qty: nextKeys.length, ticket, serialKeys: nextKeys };
             }
             return updated;
         });
@@ -336,17 +344,8 @@ export const CounterOrderCreatePage = () => {
         }, 0);
     }, [selectedTickets]);
 
-    const parsedCashAmount = parseInt(cashAmount.replace(/\D/g, '')) || 0;
-    const isCashExceeds = paymentMethod === 'PARTIAL' && parsedCashAmount > totalPrice;
-    const remainingTransferAmount = Math.max(0, totalPrice - parsedCashAmount);
-    const isPartialZeroCash = paymentMethod === 'PARTIAL' && (!cashAmount || parsedCashAmount <= 0);
-
-    const isPartialInvalid = paymentMethod === 'PARTIAL'
-        && !isPartialZeroCash
-        && remainingTransferAmount > 0
-        && remainingTransferAmount < 10000;
     const isBankInvalid = paymentMethod === 'BANK' && totalPrice < 10000;
-    const hasPaymentError = isPartialInvalid || isBankInvalid || isCashExceeds || isPartialZeroCash;
+    const hasPaymentError = isBankInvalid;
     
     const isPhoneValid = !normalizedCustomerPhone || PHONE_REGEX.test(normalizedCustomerPhone);
     const isEmailValid = !normalizedCustomerEmail || EMAIL_REGEX.test(normalizedCustomerEmail);
@@ -407,26 +406,12 @@ export const CounterOrderCreatePage = () => {
 
     const handleCreateOrder = () => {
         const transactions: DirectOrderTransactionRequest[] = [];
-        const normalizedPaymentMethod = paymentMethod === 'PARTIAL' && remainingTransferAmount === 0 ? 'CASH' : paymentMethod;
-        const onlineAmount =
-            normalizedPaymentMethod === 'BANK'
-                ? totalPrice
-                : normalizedPaymentMethod === 'PARTIAL'
-                    ? remainingTransferAmount
-                    : 0;
-        const needsOnlinePayment = onlineAmount > 0;
+        const needsOnlinePayment = paymentMethod === 'BANK';
 
-        if (normalizedPaymentMethod === 'CASH') {
+        if (paymentMethod === 'CASH') {
             transactions.push({ type: 'OFFLINE', amount: totalPrice });
-        } else if (normalizedPaymentMethod === 'BANK') {
+        } else {
             transactions.push({ type: 'ONLINE', amount: totalPrice });
-        } else if (normalizedPaymentMethod === 'PARTIAL') {
-            if (parsedCashAmount > 0) {
-                transactions.push({ type: 'OFFLINE', amount: parsedCashAmount });
-            }
-            if (remainingTransferAmount > 0) {
-                transactions.push({ type: 'ONLINE', amount: remainingTransferAmount });
-            }
         }
 
         const items = Object.values(selectedTickets).map(item => ({
@@ -461,20 +446,20 @@ export const CounterOrderCreatePage = () => {
 
                 if (!needsOnlinePayment) {
                     toast.success('Tạo đơn hàng thành công!');
-                    resetCounterForm();
+                    router.push(ROUTES.ADMIN.ORDERS.LIST);
                     return;
                 }
 
                 if (!orderId || !onlineTx?.id) {
                     toast.error('Đã tạo đơn nhưng không tìm thấy giao dịch chuyển khoản. Vào chi tiết đơn để tiếp tục thanh toán.');
-                    resetCounterForm();
+                    router.push(ROUTES.ADMIN.ORDERS.LIST);
                     return;
                 }
 
                 setPendingPaymentOrder({
                     orderId: String(orderId),
                     orderCode: order?.orderCode,
-                    amount: onlineAmount,
+                    amount: totalPrice,
                     transactionId: Number(onlineTx.id),
                 });
                 setPaymentResult(null);
@@ -506,14 +491,14 @@ export const CounterOrderCreatePage = () => {
     const handlePaymentPaid = useCallback(() => {
         toast.success('Thanh toán thành công — đơn đã được tạo!');
         closePaymentDialog();
-        resetCounterForm();
-    }, []);
+        router.push(ROUTES.ADMIN.ORDERS.LIST);
+    }, [router]);
 
     const handlePaymentDialogClose = useCallback(() => {
         toast.info('Đơn đang chờ thanh toán. Bạn có thể mở lại từ danh sách đơn hàng.');
         closePaymentDialog();
-        resetCounterForm();
-    }, []);
+        router.push(ROUTES.ADMIN.ORDERS.LIST);
+    }, [router]);
 
     const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
         setRowsPerPage(parseInt(event.target.value, 10));
@@ -593,123 +578,12 @@ export const CounterOrderCreatePage = () => {
 
 
 
-                    {/* Table */}
-                    <TableContainer sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
-                        <Table size="medium" sx={{ minWidth: 960, height: groupedTickets.length === 0 ? '100%' : 'auto' }}>
-                            <TableHead sx={{ bgcolor: 'var(--palette-background-neutral)' }}>
-                                <TableRow>
-                                    <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Số vé</TableCell>
-                                    <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Ngày mở thưởng</TableCell>
-                                    <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Mệnh giá</TableCell>
-                                    <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Tồn kho</TableCell>
-                                    <TableCell>
-                                        Số lượng mua
-                                    </TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {isTicketsFetching ? (
-                                    <TableRow>
-                                        <TableCell colSpan={5} align="center" sx={{ borderBottom: 'none', py: 10 }}>
-                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
-                                                <CircularProgress size={32} />
-                                            </Box>
-                                        </TableCell>
-                                    </TableRow>
-                                ) : groupedTickets.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={5} align="center" sx={{ borderBottom: 'none', py: 10 }}>
-                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
-                                                <span className="admin-datagrid-empty">Không có dữ liệu</span>
-                                            </Box>
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    groupedTickets.map((group, groupIndex) => (
-                                        <React.Fragment key={group.stationCode + groupIndex}>
-                                            {/* Group Header Row */}
-                                            <TableRow sx={{ bgcolor: 'var(--palette-background-neutral)' }}>
-                                                <TableCell colSpan={5} sx={{ py: 1 }}>
-                                                    <Stack direction="row" alignItems="center" spacing={1.5}>
-                                                        <Box sx={{ 
-                                                            width: 24, height: 24, borderRadius: 1, 
-                                                            bgcolor: 'var(--palette-success-main)', 
-                                                            color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                            fontSize: '0.65rem', fontWeight: 700
-                                                        }}>
-                                                            {group.stationCode}
-                                                        </Box>
-                                                        <Typography sx={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--palette-text-primary)' }}>
-                                                            {group.stationName}
-                                                        </Typography>
-                                                    </Stack>
-                                                </TableCell>
-                                            </TableRow>
-
-                                            {group.tickets.map((row: any) => {
-                                                const qty = selectedTickets[row.id]?.qty || 0;
-                                                const maxQty = row.quantity || 0;
-
-                                                return (
-                                                    <TableRow
-                                                        hover
-                                                        tabIndex={-1}
-                                                        key={row.id}
-                                                        selected={qty > 0}
-                                                        sx={{ '&:hover': { bgcolor: 'var(--palette-action-hover)' } }}
-                                                    >
-                                                        <TableCell sx={{ borderBottom: '1px dashed var(--palette-background-neutral)' }}>
-                                                            <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: 'var(--palette-text-primary)' }}>
-                                                                {row.numbers}
-                                                            </Typography>
-                                                        </TableCell>
-                                                        <TableCell sx={{ borderBottom: '1px dashed var(--palette-background-neutral)', fontSize: '0.875rem', color: 'var(--palette-text-primary)' }}>
-                                                            {row.drawDate || '-'}
-                                                        </TableCell>
-                                                        <TableCell sx={{ borderBottom: '1px dashed var(--palette-background-neutral)', fontSize: '0.875rem', color: 'var(--palette-text-primary)' }}>
-                                                            {(row.price || 10000).toLocaleString('vi-VN')}đ
-                                                        </TableCell>
-                                                        <TableCell sx={{ borderBottom: '1px dashed var(--palette-background-neutral)', fontSize: '0.875rem', color: 'var(--palette-text-primary)', fontWeight: 700 }}>
-                                                            {maxQty}
-                                                        </TableCell>
-                                                        <TableCell sx={{ borderBottom: '1px dashed var(--palette-background-neutral)' }}>
-                                                            <Stack direction="row" alignItems="center" spacing={1}>
-                                                                <Box 
-                                                                    onClick={(e) => { e.stopPropagation(); handleQuantityChange(row, -1, maxQty); }}
-                                                                    sx={{ 
-                                                                        width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                                                                        borderRadius: 1, border: '1px solid var(--palette-action-disabledBackground)',
-                                                                        cursor: qty > 0 ? 'pointer' : 'not-allowed', color: qty > 0 ? 'var(--palette-text-primary)' : 'var(--palette-text-disabled)',
-                                                                        '&:hover': qty > 0 ? { bgcolor: 'var(--palette-action-hover)' } : {}
-                                                                    }}
-                                                                >
-                                                                    -
-                                                                </Box>
-                                                                <Typography sx={{ width: 30, textAlign: 'center', fontWeight: 600 }}>
-                                                                    {qty}
-                                                                </Typography>
-                                                                <Box 
-                                                                    onClick={(e) => { e.stopPropagation(); handleQuantityChange(row, 1, maxQty); }}
-                                                                    sx={{ 
-                                                                        width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                                                                        borderRadius: 1, border: '1px solid var(--palette-action-disabledBackground)',
-                                                                        cursor: qty < maxQty ? 'pointer' : 'not-allowed', color: qty < maxQty ? 'var(--palette-text-primary)' : 'var(--palette-text-disabled)',
-                                                                        '&:hover': qty < maxQty ? { bgcolor: 'var(--palette-action-hover)' } : {}
-                                                                    }}
-                                                                >
-                                                                    +
-                                                                </Box>
-                                                            </Stack>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                );
-                                            })}
-                                        </React.Fragment>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
+                    <CounterTicketPickSection
+                        tickets={paginatedTickets}
+                        isLoading={isTicketsFetching}
+                        selectedTickets={selectedTickets}
+                        onChangeSelected={setSelectedTickets}
+                    />
 
                     <TablePagination
                         component="div"
@@ -766,7 +640,9 @@ export const CounterOrderCreatePage = () => {
                                             
                                             return (
                                                 <TableRow key={id}>
-                                                    <TableCell sx={{ borderBottom: '1px dashed var(--palette-background-neutral)', fontWeight: 600 }}>{ticketNumber}</TableCell>
+                                                    <TableCell sx={{ borderBottom: '1px dashed var(--palette-background-neutral)', fontWeight: 600 }}>
+                                                        <AdminLuckyDisplay value={ticketNumber} ticket />
+                                                    </TableCell>
                                                     <TableCell sx={{ borderBottom: '1px dashed var(--palette-background-neutral)' }}>
                                                         <Typography variant="body2" sx={{ fontWeight: 600 }}>{stationName}</Typography>
                                                         <Typography variant="caption" sx={{ color: 'text.secondary' }}>{drawDate}</Typography>
@@ -818,31 +694,27 @@ export const CounterOrderCreatePage = () => {
                             </Typography>
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                                 <Autocomplete
-                                    options={[
-                                        ...(Array.isArray(customers) ? customers : []),
-                                        ...(customerInfo.customerId ? [{
-                                            id: customerInfo.customerId,
-                                            fullName: customerInfo.name,
-                                            phone: customerInfo.phone,
-                                            email: customerInfo.email
-                                        }] : [])
-                                    ]}
+                                    options={customerOptions}
+                                    filterOptions={(options) => options}
                                     getOptionLabel={(option: any) => {
                                         const parts = [option.fullName || option.name || 'Khách hàng'];
                                         if (option.phone) parts.push(option.phone);
                                         if (option.email) parts.push(option.email);
                                         return parts.join(' - ');
                                     }}
-                                    isOptionEqualToValue={(option: any, value: any) => (option.id || option._id) === (value.id || value._id)}
+                                    isOptionEqualToValue={(option: any, value: any) => String(option.id || option._id) === String(value.id || value._id)}
                                     value={customerInfo.customerId ? { 
                                         id: customerInfo.customerId, 
                                         fullName: customerInfo.name, 
                                         phone: customerInfo.phone, 
                                         email: customerInfo.email 
                                     } : null}
+                                    inputValue={customerSearchInput}
                                     loading={isSearchingUsers}
-                                    onInputChange={(event, newInputValue) => {
-                                        setCustomerSearchInput(newInputValue);
+                                    onInputChange={(event, newInputValue, reason) => {
+                                        if (reason === 'input' || reason === 'clear') {
+                                            setCustomerSearchInput(newInputValue);
+                                        }
                                     }}
                                     onChange={(event, newValue: any) => {
                                         if (newValue) {
@@ -853,16 +725,18 @@ export const CounterOrderCreatePage = () => {
                                                 phone: newValue.phone || '',
                                                 email: newValue.email || ''
                                             }));
+                                            setCustomerSearchInput(newValue.fullName || newValue.name || '');
                                         } else {
                                             setCustomerInfo(prev => ({ ...prev, customerId: '', name: '', phone: '', email: '' }));
+                                            setCustomerSearchInput('');
                                         }
                                     }}
-                                    noOptionsText="Không tìm thấy khách hàng"
+                                    noOptionsText={isSearchingUsers ? 'Đang tìm khách hàng...' : 'Không tìm thấy khách hàng'}
                                     renderInput={(params) => (
                                         <TextField
                                             {...params}
                                             label="Tìm kiếm khách hàng có sẵn (Tên / SĐT / Email)"
-                                            placeholder="Nhập từ 2 ký tự..."
+                                            placeholder="Nhập tên, SĐT hoặc email..."
                                             InputProps={{
                                                 ...params.InputProps,
                                                 endAdornment: (
@@ -927,47 +801,8 @@ export const CounterOrderCreatePage = () => {
                                         >
                                             <MenuItem value="CASH">Tiền mặt</MenuItem>
                                             <MenuItem value="BANK">Chuyển khoản</MenuItem>
-                                            <MenuItem value="PARTIAL">Thanh toán kết hợp</MenuItem>
                                         </Select>
                                     </FormControl>
-
-                                    {paymentMethod === 'PARTIAL' && (
-                                        <Box sx={{ p: 2, bgcolor: 'var(--palette-background-neutral)', borderRadius: 1 }}>
-                                            <TextField 
-                                                fullWidth 
-                                                size="small" 
-                                                label="Khách đưa tiền mặt" 
-                                                placeholder="VD: 150000"
-                                                value={cashAmount}
-                                                onChange={(e) => {
-                                                    const rawValue = e.target.value.replace(/\D/g, '');
-                                                    if (!rawValue) {
-                                                        setCashAmount('');
-                                                    } else {
-                                                        setCashAmount(parseInt(rawValue, 10).toLocaleString('vi-VN'));
-                                                    }
-                                                }}
-                                                InputProps={{
-                                                    endAdornment: <InputAdornment position="end">đ</InputAdornment>,
-                                                }}
-                                                sx={{ mb: 2, bgcolor: 'background.paper' }}
-                                                error={isPartialInvalid || isCashExceeds}
-                                                helperText={
-                                                    isCashExceeds 
-                                                        ? "Tiền mặt không được vượt quá tổng hoá đơn"
-                                                        : (isPartialZeroCash
-                                                            ? "Thanh toán kết hợp cần có phần tiền mặt lớn hơn 0đ"
-                                                            : (isPartialInvalid ? "Số tiền chuyển khoản phải >= 10.000đ" : ""))
-                                                }
-                                            />
-                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 600 }}>Cần chuyển khoản thêm:</Typography>
-                                                <Typography variant="subtitle1" sx={{ color: 'var(--palette-error-main)', fontWeight: 700 }}>
-                                                    {remainingTransferAmount.toLocaleString('vi-VN')}đ
-                                                </Typography>
-                                            </Box>
-                                        </Box>
-                                    )}
 
                                     {isBankInvalid && (
                                         <Typography variant="caption" sx={{ color: 'error.main', mt: 1, display: 'block', textAlign: 'center' }}>
@@ -1061,12 +896,18 @@ export const CounterOrderCreatePage = () => {
                 </DialogActions>
             </Dialog>
 
-            <Dialog open={openConfirm} onClose={() => !isCreating && setOpenConfirm(false)} maxWidth="xs" fullWidth>
+            <Dialog
+                open={openConfirm}
+                onClose={() => !isCreating && setOpenConfirm(false)}
+                maxWidth="xs"
+                fullWidth
+                PaperProps={{ className: 'admin-theme' }}
+            >
                 <DialogTitle sx={{ pb: 2 }}>Xác nhận chốt đơn</DialogTitle>
                 <DialogContent>
                     <DialogContentText>
                         Bạn có chắc chắn muốn chốt đơn hàng này không?
-                        {(paymentMethod === 'BANK' || (paymentMethod === 'PARTIAL' && remainingTransferAmount > 0)) && (
+                        {paymentMethod === 'BANK' && (
                             <> Sau khi xác nhận, hệ thống sẽ hiện mã QR để khách thanh toán.</>
                         )}
                     </DialogContentText>
@@ -1088,7 +929,7 @@ export const CounterOrderCreatePage = () => {
                         <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                             <Typography variant="body2" color="text.secondary">Thanh toán:</Typography>
                             <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                                {paymentMethod === 'CASH' ? 'Tiền mặt' : paymentMethod === 'BANK' ? 'Chuyển khoản' : 'Thanh toán kết hợp'}
+                                {paymentMethod === 'CASH' ? 'Tiền mặt' : 'Chuyển khoản'}
                             </Typography>
                         </Box>
                     </Box>
@@ -1102,6 +943,12 @@ export const CounterOrderCreatePage = () => {
                         variant="contained" 
                         className="btn-primary-admin"
                         disabled={isCreating}
+                        sx={{
+                            bgcolor: '#212B36',
+                            color: '#fff',
+                            '&:hover': { bgcolor: '#161C24' },
+                            '&.Mui-disabled': { bgcolor: 'rgba(145, 158, 171, 0.24)', color: 'rgba(145, 158, 171, 0.8)' },
+                        }}
                     >
                         {isCreating ? 'Đang xử lý...' : 'Xác nhận'}
                     </Button>

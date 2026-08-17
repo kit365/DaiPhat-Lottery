@@ -3,9 +3,11 @@ package com.daiphat.coreapi.application.service.lotteries;
 import com.daiphat.coreapi.application.port.in.lotteries.SupplierSettlementServicePort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotterySupplierRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.ReturnBatchRepositoryPort;
+import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchLineStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotterySupplierModel;
 import com.daiphat.coreapi.domain.model.lotteries.ReturnBatchCancelReason;
+import com.daiphat.coreapi.domain.model.lotteries.ReturnBatchLineModel;
 import com.daiphat.coreapi.domain.model.lotteries.ReturnBatchModel;
 import com.daiphat.coreapi.shared.util.ReturnBatchCutoffTiming;
 import lombok.RequiredArgsConstructor;
@@ -22,8 +24,6 @@ import java.util.List;
 @RequiredArgsConstructor
 @Slf4j
 public class ReturnBatchAutoCancelService {
-
-    private static final String SEED_NOTE_PREFIX = "SEED-RETURN-";
 
     private static final List<ReturnBatchStatus> OPEN_INSPECTION_STATUSES = List.of(
             ReturnBatchStatus.PENDING_INSPECTION,
@@ -47,6 +47,9 @@ public class ReturnBatchAutoCancelService {
                 }
             }
         }
+        for (ReturnBatchModel batch : returnBatchRepositoryPort.findByStatuses(List.of(ReturnBatchStatus.CANCELLED))) {
+            cancelOpenLines(batch);
+        }
         return cancelled;
     }
 
@@ -59,11 +62,17 @@ public class ReturnBatchAutoCancelService {
     }
 
     private boolean cancelIfPastCutoff(ReturnBatchModel batch, LocalDateTime now) {
-        if (batch == null || batch.getStatus() == null || !batch.getStatus().isOpenForInspection()) {
+        if (batch == null || batch.getStatus() == null) {
             return false;
         }
-        // Seeded demo batches must remain PENDING_INSPECTION even after cutoff.
-        if (isSeedReturnBatch(batch)) {
+        if (batch.getStatus().isCancelled()) {
+            cancelOpenLines(batch);
+            return false;
+        }
+        if (!batch.getStatus().isOpenForInspection()) {
+            return false;
+        }
+        if (batch.getNote() != null && batch.getNote().startsWith("SEED-RETURN-")) {
             return false;
         }
         LocalTime cutOff = batch.getReturnCutOffTime();
@@ -80,6 +89,7 @@ public class ReturnBatchAutoCancelService {
         batch.setCancelReason(ReturnBatchCancelReason.CUTOFF_EXCEEDED);
         batch.setCancelledAt(now);
         returnBatchRepositoryPort.save(batch);
+        cancelOpenLines(batch);
         log.info(
                 "Auto-cancelled return batch id={} supplierId={} drawDate={} reason={}",
                 batch.getId(),
@@ -90,8 +100,21 @@ public class ReturnBatchAutoCancelService {
         return true;
     }
 
-    private static boolean isSeedReturnBatch(ReturnBatchModel batch) {
-        String note = batch.getNote();
-        return note != null && note.startsWith(SEED_NOTE_PREFIX);
+    private void cancelOpenLines(ReturnBatchModel batch) {
+        if (batch == null || batch.getId() == null) {
+            return;
+        }
+        int cancelledLines = 0;
+        for (ReturnBatchLineModel line : returnBatchRepositoryPort.findLinesByBatchId(batch.getId())) {
+            if (line.getStatus() != null && line.getStatus().isCancelled()) {
+                continue;
+            }
+            line.setStatus(ReturnBatchLineStatus.CANCELLED);
+            returnBatchRepositoryPort.saveLine(line);
+            cancelledLines++;
+        }
+        if (cancelledLines > 0) {
+            log.info("Cancelled {} return-batch line(s) for batch id={}", cancelledLines, batch.getId());
+        }
     }
 }

@@ -20,10 +20,12 @@ import { validateAndSyncCartStock } from '../../utils/cartStock.util';
 import { PaymentQrDialog } from '../../components/payment/PaymentQrDialog';
 import {
   CLIENT_PAGE_BACKGROUND,
-  PROVINCE_ICON_FALLBACK,
-  TICKET_IMAGE_FALLBACK,
 } from '../../constants/clientBannerAssets';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
+import { LuckyNumber } from '../../components/ui/LuckyNumber';
+
+const CHECKOUT_TICKET_GRID =
+    'lg:grid lg:grid-cols-[88px_minmax(0,2.4fr)_120px_120px_132px_72px]';
 
 export const CheckoutPage = () => {
     const router = useRouter();
@@ -38,7 +40,7 @@ export const CheckoutPage = () => {
         removeBuyNowItem,
         applyBuyNowPurchaseToCart,
     } = useCartStore();
-    const { token, openLoginModal } = useAuthStore();
+    const { token, isHydrated, openLoginModal } = useAuthStore();
     const { user } = useAuth();
 
     // Khoá chế độ mua ngay theo thời điểm vào trang — tránh mất phiên khi clear buyNow sau đặt đơn.
@@ -100,12 +102,13 @@ export const CheckoutPage = () => {
     }, [user]);
 
     React.useEffect(() => {
+        if (!isHydrated) return;
         if (!token) {
             toast.error("Vui lòng đăng nhập để tiếp tục thanh toán");
             openLoginModal();
             router.replace('/cart');
         }
-    }, [token, router, openLoginModal]);
+    }, [isHydrated, token, router, openLoginModal]);
 
     React.useEffect(() => {
         // Mua ngay: không validate/đẩy về giỏ theo giỏ chính — tránh mất phiên mua ngay.
@@ -119,7 +122,6 @@ export const CheckoutPage = () => {
         };
 
         validateCartStock();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isBuyNow]);
 
     React.useEffect(() => {
@@ -376,8 +378,8 @@ export const CheckoutPage = () => {
                             </div>
                             
                             {/* Table Column Headers (Desktop only) */}
-                            <div className="hidden lg:grid grid-cols-[1.5fr_1.5fr_100px_100px_100px_80px] gap-4 mb-4 mt-2 text-[13px] font-bold text-[#212B36] uppercase items-center border-b border-[#E5E8EB] pb-3">
-                                <div className="text-left">Vé số</div>
+                            <div className={`hidden ${CHECKOUT_TICKET_GRID} gap-4 mb-4 mt-2 text-[13px] font-bold text-[#212B36] uppercase items-center border-b border-[#E5E8EB] pb-3`}>
+                                <div className="text-center">Vé số</div>
                                 <div className="text-left">Đài & Ngày quay</div>
                                 <div className="text-center">Số lượng</div>
                                 <div className="text-center">Đơn giá</div>
@@ -387,21 +389,19 @@ export const CheckoutPage = () => {
 
                             <div className="flex flex-col">
                                 {checkoutItems.map((item) => (
-                                    <div key={item.id} className="flex flex-col lg:grid lg:grid-cols-[1.5fr_1.5fr_100px_100px_100px_80px] gap-4 items-center py-4 border-b border-dashed border-[#E5E8EB] last:border-b-0">
+                                    <div key={item.id} className={`flex flex-col ${CHECKOUT_TICKET_GRID} gap-4 items-center py-4 border-b border-dashed border-[#E5E8EB] last:border-b-0`}>
                                         
                                         {/* Vé số */}
-                                        <div className="flex items-center gap-3">
-                                            <img src={item.ticketImg || TICKET_IMAGE_FALLBACK} alt="Vé" className="w-[80px] h-[50px] object-cover mix-blend-multiply border border-gray-100 rounded shrink-0" />
-                                            <div className="font-bold text-[16px] text-[#212B36] tracking-tight">{item.numbers}</div>
+                                        <div className="flex w-full items-center justify-center text-center">
+                                            <div className="font-bold text-[16px] text-[#212B36] tracking-tight">
+                                                <LuckyNumber value={item.numbers} ticket badgePlacement="above" className="tracking-tight" />
+                                            </div>
                                         </div>
 
                                         {/* Đài & Ngày quay */}
                                         <div className="flex flex-col items-start gap-1">
-                                            <div className="flex items-center gap-2">
-                                                <img src={item.provinceIcon || PROVINCE_ICON_FALLBACK} alt="Logo" className="w-5 h-5 rounded-full border border-gray-200" />
-                                                <span className="font-bold text-[13px] text-[#212B36]">{item.province}</span>
-                                            </div>
-                                            <div className="flex items-center gap-1.5 text-[12px] text-[#637381] pl-7">
+                                            <span className="font-bold text-[13px] text-[#212B36]">{item.province}</span>
+                                            <div className="flex items-center gap-1.5 text-[12px] text-[#637381]">
                                                 <span className="font-medium text-[#212B36]">{item.date}</span>
                                                 <span>•</span>
                                                 <span>{item.time}</span>

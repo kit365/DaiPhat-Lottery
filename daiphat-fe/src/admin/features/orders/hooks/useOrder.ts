@@ -8,11 +8,16 @@ import {
     getOrderDetail,
     updateOrderStatus,
     createOrder,
+    uploadOrderHandoverEvidence,
+    confirmOrderHandover,
+    reviewPaymentTimeoutComplaint,
+    getPendingPaymentTimeoutComplaintCount,
 } from "../services/orderService";
 import { OrderFilterParams } from '../../../../types/order.type';
 import { QUERY_KEYS } from '../constants/queryKeys';
-import { QUERY_KEYS as GLOBAL_QUERY_KEYS } from '../../../../constants/queryKeys';
 import { QUERY_KEYS as TICKET_QUERY_KEYS } from '../../ticket/inventory/constants/queryKeys';
+import { QUERY_KEYS as NOTIFICATION_QUERY_KEYS } from '../../notifications/constants/queryKeys';
+import { QUERY_KEYS as REFUND_QUERY_KEYS } from '../../refund/constants/queryKeys';
 import { getSystemConfigs } from '../../system-config/services/systemConfigService';
 import { ConfigType } from '../../system-config/types/system-config';
 import { SYSTEM_CONFIG_KEYS } from '../../system-config/hooks/useSystemConfig';
@@ -21,6 +26,9 @@ import { hasPermission } from '../../../utils/permission.util';
 import { PERMISSIONS } from '../../../constants/permission.constants';
 import { ADMIN_BADGE_POLL_MS } from '../../../hooks/adminBadgePoll';
 import { useAdminDeferredQueries } from '../../../hooks/useAdminDeferredQueries';
+import { refundAdminApi } from '../../refund/services/refundService';
+import { QUERY_STALE_TIMES } from '@/shared/react-query';
+import type { ConfirmOrderHandoverRequest } from '../types/order.type';
 
 type AdminOrderListFilters = OrderFilterParams & { limit?: number };
 
@@ -159,8 +167,61 @@ export const useUpdateOrderStatus = () => {
         onSuccess: (_data, variables) => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ORDERS] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ORDER_DETAIL, variables.id] });
-            queryClient.invalidateQueries({ queryKey: [GLOBAL_QUERY_KEYS.ADMIN_NOTIFICATIONS] });
+            queryClient.invalidateQueries({ queryKey: [NOTIFICATION_QUERY_KEYS.NOTIFICATIONS] });
         },
+    });
+};
+
+export const useUploadOrderHandoverEvidence = () => {
+    return useMutation({
+        mutationFn: ({ id, file }: { id: string; file: File }) => uploadOrderHandoverEvidence(id, file),
+    });
+};
+
+export const useConfirmOrderHandover = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, data }: { id: string; data: ConfirmOrderHandoverRequest }) =>
+            confirmOrderHandover(id, data),
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ORDERS] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ORDER_DETAIL, variables.id] });
+            queryClient.invalidateQueries({ queryKey: [NOTIFICATION_QUERY_KEYS.NOTIFICATIONS] });
+        },
+    });
+};
+
+export const useReviewPaymentTimeoutComplaint = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ id, approved, reason }: { id: string; approved: boolean; reason?: string }) =>
+            reviewPaymentTimeoutComplaint(id, { approved, reason }),
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ORDERS] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ORDER_DETAIL, variables.id] });
+            queryClient.invalidateQueries({ queryKey: [NOTIFICATION_QUERY_KEYS.NOTIFICATIONS] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ORDERS, 'payment-timeout-complaints-count'] });
+        },
+    });
+};
+
+export const usePendingPaymentTimeoutComplaintCount = () => {
+    const { user, token } = useAuthStore();
+    const deferred = useAdminDeferredQueries();
+    const canView = Boolean(token) && Boolean(user) && hasPermission(user, PERMISSIONS.ORDER.VIEW);
+
+    return useQuery({
+        queryKey: [QUERY_KEYS.ORDERS, 'payment-timeout-complaints-count'],
+        queryFn: getPendingPaymentTimeoutComplaintCount,
+        enabled: canView && deferred,
+        refetchOnWindowFocus: canView && deferred,
+        refetchInterval: (query) => {
+            if (!canView || !deferred || query.state.error) return false;
+            return ADMIN_BADGE_POLL_MS;
+        },
+        staleTime: ADMIN_BADGE_POLL_MS / 2,
+        retry: false,
     });
 };
 
@@ -182,7 +243,7 @@ export const usePreparingOrderCount = () => {
     const canView = Boolean(token) && Boolean(user) && hasPermission(user, PERMISSIONS.ORDER.VIEW);
 
     const onlineQuery = useQuery({
-        queryKey: [GLOBAL_QUERY_KEYS.ADMIN_ORDERS, 'preparing-count', 'ONLINE'],
+        queryKey: [QUERY_KEYS.ORDERS, 'preparing-count', 'ONLINE'],
         queryFn: () => getOrders(
             { page: 1, size: 1, orderType: 'ONLINE' },
             { skipGlobalErrorToast: true }
@@ -199,7 +260,7 @@ export const usePreparingOrderCount = () => {
     });
 
     const directQuery = useQuery({
-        queryKey: [GLOBAL_QUERY_KEYS.ADMIN_ORDERS, 'preparing-count', 'DIRECT'],
+        queryKey: [QUERY_KEYS.ORDERS, 'preparing-count', 'DIRECT'],
         queryFn: () => getOrders(
             { page: 1, size: 1, orderType: 'DIRECT' },
             { skipGlobalErrorToast: true }
@@ -230,7 +291,7 @@ export const usePreparingOrderCount = () => {
     return {
         /** ONLINE PREPARING — badge for "Danh sách đơn". */
         onlinePreparingCount,
-        /** DIRECT PREPARING — badge for "Đơn tại quầy". */
+        /** DIRECT PREPARING — badge for "Tạo đơn tại quầy". */
         directPreparingCount,
         /** Combined total for parent "Đơn hàng". */
         preparingCount,
@@ -331,4 +392,13 @@ export const useOrderDrawCutoff = (preparingCount = 0) => {
         preparingCount,
         now,
     };
+};
+
+export const useOrderRefundsForInspection = (orderId?: string, enabled = false) => {
+    return useQuery({
+        queryKey: [REFUND_QUERY_KEYS.ADMIN_REFUNDS, { orderId, page: 1, limit: 20 }],
+        queryFn: () => refundAdminApi.getStaffRefunds({ orderId, page: 1, limit: 20 }),
+        enabled: !!orderId && enabled,
+        staleTime: QUERY_STALE_TIMES.badge,
+    });
 };

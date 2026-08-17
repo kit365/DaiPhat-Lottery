@@ -1,4 +1,5 @@
 import { apiApp } from '@/api';
+import { withAuthHeaders } from '@/api/authHeaders';
 import type { ApiResponse } from '@/types/api.type';
 import type {
     CompletePrizePayoutRequest,
@@ -13,12 +14,56 @@ import type {
     RejectPrizePayoutRequest,
 } from '@/types/prize-payout.type';
 import type { UserBankAccountResponse } from '@/types/refund.type';
+import { mapContractPdfErrorMessage } from '@/admin/shared/contracts';
 
 const STAFF_BASE = '/staff/prize-payout-requests';
 
 const getUploadErrorMessage = (error: unknown, fallback: string) => {
     const err = error as { response?: { data?: { message?: string } }; message?: string };
     return err?.response?.data?.message || err?.message || fallback;
+};
+
+const blobRequestConfig = () =>
+    ({
+        ...withAuthHeaders(),
+        responseType: 'blob' as const,
+        skipGlobalErrorToast: true,
+    }) as Parameters<typeof apiApp.get>[1] & { skipGlobalErrorToast?: boolean };
+
+const openPdfBlob = async (blob: Blob, fileName: string): Promise<void> => {
+    const contentType = String(blob.type || '').toLowerCase();
+    if (!contentType.includes('pdf')) {
+        let message = 'Không mở được hợp đồng PDF';
+        try {
+            const parsed = JSON.parse(await blob.text());
+            if (parsed?.message) message = parsed.message;
+            if (parsed?.errorCode) {
+                message = mapContractPdfErrorMessage(
+                    `${parsed.errorCode} ${parsed.message || ''}`,
+                    message,
+                );
+            } else {
+                message = mapContractPdfErrorMessage(message);
+            }
+        } catch {
+            // keep default
+        }
+        throw new Error(mapContractPdfErrorMessage(message));
+    }
+    const objectUrl = URL.createObjectURL(blob);
+    const opened = window.open(objectUrl, '_blank');
+    if (opened) {
+        opened.opener = null;
+        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+        return;
+    }
+    const anchor = document.createElement('a');
+    anchor.href = objectUrl;
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
 };
 
 export const prizePayoutAdminApi = {
@@ -131,6 +176,20 @@ export const prizePayoutAdminApi = {
             throw new Error(response.data?.message || 'Không nhận được URL ảnh từ server');
         }
         return url;
+    },
+
+    openConfirmationContractPreview: async (payload: {
+        orderDetailIds: number[];
+        recipientFullName: string;
+        recipientIdNumber: string;
+    }): Promise<void> => {
+        const response = await apiApp.post(`${STAFF_BASE}/confirmation-contract/preview`, payload, blobRequestConfig());
+        await openPdfBlob(response.data as Blob, 'hop-dong-xac-nhan-tra-thuong.pdf');
+    },
+
+    openConfirmationContractPdf: async (id: number): Promise<void> => {
+        const response = await apiApp.get(`${STAFF_BASE}/${id}/confirmation-contract/pdf`, blobRequestConfig());
+        await openPdfBlob(response.data as Blob, `hop-dong-xac-nhan-tra-thuong-${id}.pdf`);
     },
 
     getCustomerBankAccounts: async (userId: string): Promise<ApiResponse<UserBankAccountResponse[]>> => {

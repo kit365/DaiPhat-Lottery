@@ -52,8 +52,8 @@ public class RefundTicketItemResolver {
 
         return order.getOrderDetails().stream()
                 .filter(detail -> detailIdFilter == null || detailIdFilter.contains(detail.getId()))
-                .filter(detail -> detail.getStatus() == OrderDetailStatus.ACTIVE
-                        || detail.getStatus() == OrderDetailStatus.INACTIVE
+                .filter(detail -> detail.getStatus() == OrderDetailStatus.HANDOVER_IN_PROGRESS
+                        || detail.getStatus() == OrderDetailStatus.REJECTED_BY_CUSTOMER
                         || detail.getStatus() == OrderDetailStatus.REFUND_PENDING
                         || detail.getStatus() == OrderDetailStatus.REFUNDED)
                 .map(detail -> toRefundTicketItem(detail, ticketsById, serialsById))

@@ -3,8 +3,10 @@
 import { ContentPagesTab } from "../ContentPagesTab";
 import { SettingsPageShell } from "./SettingsPageShell";
 
-export const ContentSettingsPage = () => (
-    <SettingsPageShell title="Quản lý trang tĩnh">
-        <ContentPagesTab />
-    </SettingsPageShell>
-);
+export const ContentSettingsPage = () => {
+    return (
+        <SettingsPageShell title="Trang thông tin">
+            <ContentPagesTab />
+        </SettingsPageShell>
+    );
+};

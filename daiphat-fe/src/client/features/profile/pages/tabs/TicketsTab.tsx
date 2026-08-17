@@ -3,8 +3,13 @@
 import Link from "next/link";
 import React, { useEffect, useMemo, useState } from 'react';
 import { scrollToTop } from '../../../../../utils/scroll.util';
-import dayjs from 'dayjs';
-import { formatVietnameseDrawDate } from '../../../../utils/vietnameseDate.util';
+import {
+    formatVietnameseDateTime,
+    formatVietnameseDrawDate,
+    normalizeDrawDateIso,
+} from '../../../../utils/vietnameseDate.util';
+import { todayIsoVn } from '../../../../utils/sellableDrawDate.util';
+import { ClientDatePicker } from '../../../../components/ui/ClientDatePicker';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Pagination } from '../../../../components/common/Pagination';
 import { useStationsByDrawDate } from '@/client/hooks/useStationSchedule';
@@ -22,11 +27,20 @@ import {
     SERIAL_PAYOUT_STATE_LABELS,
 } from '../../../../../types/prize-payout.type';
 import { PrizePayoutRequestModal } from '../../../../components/prize-payout/PrizePayoutRequestModal';
+import { AdminKpiCard, AdminKpiCardsGrid } from '@/admin/components/ui/AdminKpiCard';
+import { LuckyNumber } from '../../../../components/ui/LuckyNumber';
+import { MaskedIcon } from '../../../../components/ui/MaskedIcon';
 import { AppToast as toast } from '../../../../../utils/toast.util';
 import { ROUTES } from '@/admin/constants/routes';
+import {
+    TICKET_NUMBERS_LABEL,
+    TICKET_SERIAL_PREFIX,
+    TICKET_WIN_AMOUNT_LABEL,
+} from '@/constants/ticketDisplay.constants';
 
 type StatusTab = 'Tất cả' | 'Chờ quay số' | 'Trúng thưởng' | 'Không trúng';
 type WonRedeemSubFilter = 'ALL' | 'UNREDEEMED' | 'REDEEMED';
+type UnredeemedClaimFilter = 'ONLINE' | 'COUNTER';
 
 const STATUS_TAB_TO_API: Record<StatusTab, TicketDrawResultStatus | undefined> = {
     'Tất cả': undefined,
@@ -40,6 +54,14 @@ const WON_REDEEM_SUB_FILTERS: { key: WonRedeemSubFilter; label: string }[] = [
     { key: 'UNREDEEMED', label: 'Chưa đổi thưởng' },
     { key: 'REDEEMED', label: 'Đã đổi thưởng' },
 ];
+
+const UNREDEEMED_CLAIM_FILTERS: { key: UnredeemedClaimFilter; label: string }[] = [
+    { key: 'ONLINE', label: 'Trực tuyến' },
+    { key: 'COUNTER', label: 'Tại quầy' },
+];
+
+const ISSUER_LOCKED_SORT_SCORE = 1_000_000;
+const UNREDEEMED_FETCH_SIZE = 500;
 
 const STATUS_UI: Record<
     TicketDrawResultStatus,
@@ -71,24 +93,341 @@ const STATUS_UI: Record<
 const formatMoney = (value?: number) =>
     value == null ? '—' : `${Number(value).toLocaleString('vi-VN')}đ`;
 
+const CLIENT_NAVBAR_ICONS =
+    'https://pub-c5e31b5cdafb419fb247a8ac2e78df7a.r2.dev/public/assets/icons/navbar';
+
+const kpiNavbarIcon = (file: string) => (
+    <MaskedIcon src={`${CLIENT_NAVBAR_ICONS}/${file}`} size={24} />
+);
+
+const renderTicketNumbersOnly = (
+    numbers: string,
+    numbersClassName: string
+) => <LuckyNumber value={numbers} ticket className={numbersClassName} />;
+
+const renderTicketNumbersWithSerial = (
+    ticket: PurchasedTicket,
+    numbersClassName: string,
+    serialClassName = 'text-[11px] text-slate-400 font-semibold tracking-tight',
+    centered = false
+) => (
+    <div className={`flex flex-col gap-0.5 ${centered ? 'items-center text-center' : ''}`}>
+        <LuckyNumber value={ticket.numbers} ticket className={numbersClassName} />
+        {ticket.serialNumber && (
+            <span className={serialClassName}>
+                {TICKET_SERIAL_PREFIX}: {ticket.serialNumber}
+            </span>
+        )}
+    </div>
+);
+
+type PurchasedTicketGroup = {
+    key: string;
+    numbers: string;
+    stationName?: string;
+    drawDate: string;
+    price: number;
+    serials: PurchasedTicket[];
+    wonAmount: number;
+    wonSerialCount: number;
+};
+
+const normalizeTicketNumbers = (value?: string) => (value || '').replace(/\D/g, '');
+
+/** Gộp theo đài + ngày quay + vé số — BE trả từng serial là một order detail. */
+const buildTicketGroupKey = (ticket: PurchasedTicket) =>
+    [
+        normalizeDrawDateIso(ticket.drawDate),
+        normalizeStationName(ticket.stationName),
+        normalizeTicketNumbers(ticket.numbers),
+    ].join('|');
+
+const buildTicketGroups = (tickets: PurchasedTicket[]): PurchasedTicketGroup[] => {
+    const map = new Map<string, PurchasedTicket[]>();
+    tickets.forEach((ticket) => {
+        const key = buildTicketGroupKey(ticket);
+        const list = map.get(key) ?? [];
+        list.push(ticket);
+        map.set(key, list);
+    });
+
+    return Array.from(map.entries()).map(([key, serials]) => {
+        const sortedSerials = [...serials].sort((a, b) =>
+            (a.serialNumber || a.numbers).localeCompare(b.serialNumber || b.numbers, 'vi')
+        );
+        const first = sortedSerials[0];
+        const wonAmount = sortedSerials.reduce(
+            (acc, item) => acc + (item.drawResultStatus === 'WON' ? item.prizeAmount || 0 : 0),
+            0
+        );
+        const wonSerialCount = sortedSerials.filter((item) => item.drawResultStatus === 'WON').length;
+
+        return {
+            key,
+            numbers: first.numbers,
+            stationName: first.stationName,
+            drawDate: first.drawDate,
+            price: first.price,
+            serials: sortedSerials,
+            wonAmount,
+            wonSerialCount,
+        };
+    });
+};
+
+const SERIAL_ACTION_CHIP =
+    'inline-flex items-center justify-center min-w-[124px] h-9 px-3 rounded-xl text-[12.5px] font-extrabold whitespace-nowrap no-underline box-border';
+
+const SERIAL_DETAIL_BTN =
+    'inline-flex items-center justify-center min-w-[88px] h-9 px-4 rounded-xl text-[12.5px] font-bold whitespace-nowrap bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-colors cursor-pointer';
+
+const serialPayoutChipLabel = (
+    payoutDisplay: ReturnType<typeof resolveTicketPayoutDisplay>,
+): string => {
+    if (!payoutDisplay) return 'Đã đổi thưởng';
+    if (payoutDisplay.status === 'COMPLETED') return 'Đã đổi thưởng';
+    if (payoutDisplay.status === 'PENDING') return 'Đang xử lý';
+    if (payoutDisplay.status === 'IN_PERSON_ONLY' || payoutDisplay.status === 'MANUAL_RESOLUTION') {
+        return 'Đổi tại đại lý';
+    }
+    if (payoutDisplay.status === 'REJECTED') return 'Bị từ chối';
+    if (payoutDisplay.status === 'CANCELLED') return 'Đã hủy';
+    return payoutDisplay.label;
+};
+
+const getSerialRowPrizeOrStatus = (ticket: PurchasedTicket) => {
+    const ui = STATUS_UI[ticket.drawResultStatus] ?? STATUS_UI.PENDING_DRAW;
+
+    if (ticket.drawResultStatus === 'WON' && ticket.matchedPrizeDisplayName) {
+        return (
+            <div className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-black bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-500 text-amber-950 border border-amber-300/60 uppercase tracking-wide whitespace-nowrap">
+                <i className="fa-solid fa-star text-[10px]"></i>
+                {ticket.matchedPrizeDisplayName}
+            </div>
+        );
+    }
+
+    if (ticket.drawResultStatus === 'PENDING_DRAW') {
+        return (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-bold bg-amber-50 text-amber-600 border border-amber-200/80 whitespace-nowrap">
+                {ui.label}
+            </span>
+        );
+    }
+
+    return (
+        <span className="inline-flex px-3 py-1.5 rounded-full text-[12px] font-bold bg-slate-100 text-slate-500 border border-slate-200 whitespace-nowrap">
+            {ui.label}
+        </span>
+    );
+};
+const getGroupStatusBadge = (group: PurchasedTicketGroup) => {
+    if (group.wonSerialCount > 0) {
+        return (
+            <div className="px-3 py-1 rounded-full text-[12px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200/80 shadow-xs whitespace-nowrap">
+                {group.wonSerialCount} trúng / {group.serials.length} vé
+            </div>
+        );
+    }
+
+    const allLost = group.serials.every((item) => item.drawResultStatus === 'LOST');
+    if (allLost) {
+        return (
+            <div className="px-3 py-1 rounded-full text-[12px] font-bold bg-slate-100 text-slate-500 border border-slate-200 shadow-xs whitespace-nowrap">
+                Không trúng
+            </div>
+        );
+    }
+
+    const pendingCount = group.serials.filter((item) => item.drawResultStatus === 'PENDING_DRAW').length;
+    return (
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-extrabold bg-amber-50 text-amber-600 border border-amber-200/80 shadow-xs whitespace-nowrap">
+            <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+            </span>
+            Chờ quay ({pendingCount}/{group.serials.length})
+        </div>
+    );
+};
+
 /** Always "Thứ 2, dd/mm/yyyy" — never English Monday from dayjs `dddd`. */
 const formatDrawDate = formatVietnameseDrawDate;
 
-const formatDateTime = (value?: string) =>
-    value ? dayjs(value).format('DD/MM/YYYY - HH:mm:ss') : '—';
+const MS_PER_DAY = 86_400_000;
 
-/** Tách số vé thành từng cặp 2 chữ số nếu đủ chẵn (VD: 68 11 00), ngược lại tách từng ký tự. */
-const splitTicketNumbers = (numbers?: string): string[] => {
-    const digits = (numbers || '').replace(/\D/g, '');
-    if (!digits) return [];
-    if (digits.length % 2 === 0 && digits.length >= 2 && digits.length <= 12) {
-        const pairs: string[] = [];
-        for (let i = 0; i < digits.length; i += 2) {
-            pairs.push(digits.slice(i, i + 2));
-        }
-        return pairs;
+/** Calendar days from today (VN) until a draw-date deadline (today = 0). */
+function calendarDaysUntilDeadline(deadline?: string | null): number | null {
+    const iso = normalizeDrawDateIso(deadline);
+    if (!iso) return null;
+    const todayMs = Date.parse(`${todayIsoVn()}T00:00:00+07:00`);
+    const deadlineMs = Date.parse(`${iso}T00:00:00+07:00`);
+    if (!Number.isFinite(todayMs) || !Number.isFinite(deadlineMs)) return null;
+    return Math.round((deadlineMs - todayMs) / MS_PER_DAY);
+}
+
+function resolveIssuerDaysRemaining(ticket: PurchasedTicket): number | null {
+    if (ticket.daysRemainingToIssuer != null) return ticket.daysRemainingToIssuer;
+    return calendarDaysUntilDeadline(ticket.issuerRedemptionDeadline);
+}
+
+function formatDaysRemainingLabel(days: number, channel: 'online' | 'counter'): string {
+    const suffix = channel === 'online' ? 'đổi trực tuyến' : 'đổi tại quầy';
+    if (days === 0) return `Hết hạn ${suffix} trong hôm nay`;
+    if (days === 1) return `Còn 1 ngày ${suffix}`;
+    return `Còn ${days} ngày ${suffix}`;
+}
+
+/**
+ * WITHIN: "Còn X ngày đổi trực tuyến" + date.
+ * URGENT: "Còn X ngày đổi tại quầy" + date (no "Hết hạn trực tuyến / Hạn chính thức").
+ * LOCKED: fully expired.
+ */
+function resolveCustomerRedemptionRemaining(ticket: PurchasedTicket): {
+    primary: string;
+    secondary: string;
+    tone: 'ok' | 'soon' | 'expired';
+} | null {
+    if (!ticket.customerRedemptionDeadline && !ticket.issuerRedemptionDeadline) return null;
+
+    const issuerUntil = ticket.issuerRedemptionDeadline
+        ? formatDrawDate(ticket.issuerRedemptionDeadline)
+        : null;
+    const issuerDays = resolveIssuerDaysRemaining(ticket);
+
+    if (ticket.redemptionZone === 'PAST_ISSUER_LOCKED') {
+        return {
+            primary: 'Hết hạn trả thưởng',
+            secondary: issuerUntil ?? '',
+            tone: 'expired',
+        };
     }
-    return digits.split('');
+
+    const customerDays = calendarDaysUntilDeadline(ticket.customerRedemptionDeadline);
+    const expiredOnline = ticket.redemptionZone === 'PAST_CUSTOMER_URGENT'
+        || (customerDays != null && customerDays < 0);
+
+    if (expiredOnline) {
+        if (issuerDays != null && issuerDays >= 0) {
+            return {
+                primary: formatDaysRemainingLabel(issuerDays, 'counter'),
+                secondary: issuerUntil ?? '',
+                tone: issuerDays <= 3 ? 'soon' : 'ok',
+            };
+        }
+        return {
+            primary: 'Hết hạn trả thưởng',
+            secondary: issuerUntil ?? '',
+            tone: 'expired',
+        };
+    }
+
+    const until = ticket.customerRedemptionDeadline
+        ? formatDrawDate(ticket.customerRedemptionDeadline)
+        : '';
+    if (customerDays != null) {
+        return {
+            primary: formatDaysRemainingLabel(customerDays, 'online'),
+            secondary: until,
+            tone: customerDays <= 7 ? 'soon' : 'ok',
+        };
+    }
+    return { primary: until, secondary: '', tone: 'ok' };
+}
+
+function isWithinCustomerWindow(ticket: PurchasedTicket) {
+    return ticket.redemptionZone == null || ticket.redemptionZone === 'WITHIN_CUSTOMER';
+}
+
+/** Vé còn hạn khách và đi kênh online (kể cả đang chờ duyệt). */
+function isOnlineUnredeemedClaim(ticket: PurchasedTicket) {
+    if (ticket.drawResultStatus !== 'WON') return false;
+    if (!isWithinCustomerWindow(ticket)) return false;
+    return ticket.canClaimOnline === true || ticket.claimChannel === 'ONLINE';
+}
+
+function isCounterUnredeemedClaim(ticket: PurchasedTicket) {
+    return ticket.drawResultStatus === 'WON' && !isOnlineUnredeemedClaim(ticket);
+}
+
+function isPrizeRedeemed(ticket: PurchasedTicket) {
+    return ticket.payoutState === 'PAID_OUT' || ticket.activePayoutStatus === 'COMPLETED';
+}
+
+/**
+ * List order for winning tickets:
+ *  0  still unredeemed, within 7 days of customer deadline (soonest first)
+ * 50  hết hạn đổi online — still counter-eligible (least overdue / nearest date first)
+ * 100 still unredeemed, more than 7 days left
+ * 200 hết hạn trả thưởng (issuer locked) — always last among unredeemed
+ * 300 already redeemed
+ */
+function redemptionListRank(ticket: PurchasedTicket) {
+    if (ticket.drawResultStatus === 'PENDING_DRAW') return 150;
+    if (ticket.drawResultStatus === 'LOST') return 350;
+    if (ticket.drawResultStatus !== 'WON') return 400;
+    if (isPrizeRedeemed(ticket)) return 300;
+    if (ticket.redemptionZone === 'PAST_ISSUER_LOCKED') return 200;
+    const days = calendarDaysUntilDeadline(ticket.customerRedemptionDeadline);
+    const expiredOnline = ticket.redemptionZone === 'PAST_CUSTOMER_URGENT'
+        || (days != null && days < 0);
+    if (expiredOnline) return 50;
+    if (days != null && days <= 7) return 0;
+    return 100;
+}
+
+function dateSortValue(iso?: string | null) {
+    if (!iso) return ISSUER_LOCKED_SORT_SCORE;
+    const ms = Date.parse(iso);
+    return Number.isFinite(ms) ? ms : ISSUER_LOCKED_SORT_SCORE;
+}
+
+function redemptionListTieBreak(ticket: PurchasedTicket) {
+    const customerDays = calendarDaysUntilDeadline(ticket.customerRedemptionDeadline);
+    const issuerDays = resolveIssuerDaysRemaining(ticket);
+    const rank = redemptionListRank(ticket);
+    if (rank === 50) {
+        // Urgent: soonest issuer deadline first.
+        return issuerDays == null ? ISSUER_LOCKED_SORT_SCORE : issuerDays;
+    }
+    if (rank === 0 || rank === 100) {
+        return customerDays == null ? ISSUER_LOCKED_SORT_SCORE - 1 : customerDays;
+    }
+    if (rank === 200) {
+        return issuerDays == null ? 0 : issuerDays;
+    }
+    if (rank === 150) {
+        return dateSortValue(normalizeDrawDateIso(ticket.drawDate));
+    }
+    return -dateSortValue(ticket.purchasedAt);
+}
+
+function compareRedemptionUrgency(a: PurchasedTicket, b: PurchasedTicket) {
+    const byRank = redemptionListRank(a) - redemptionListRank(b);
+    if (byRank !== 0) return byRank;
+    const byTie = redemptionListTieBreak(a) - redemptionListTieBreak(b);
+    if (byTie !== 0) return byTie;
+    return (a.serialNumber || a.numbers).localeCompare(b.serialNumber || b.numbers, 'vi');
+}
+
+function sortGroupsByRedemptionUrgency(groups: PurchasedTicketGroup[]) {
+    return groups
+        .map((group) => ({
+            ...group,
+            serials: [...group.serials].sort(compareRedemptionUrgency),
+        }))
+        .sort((left, right) => {
+            const leftHead = left.serials[0];
+            const rightHead = right.serials[0];
+            if (!leftHead || !rightHead) return 0;
+            return compareRedemptionUrgency(leftHead, rightHead);
+        });
+}
+
+const REMAINING_TONE_CLASS: Record<'ok' | 'soon' | 'expired', string> = {
+    ok: 'text-slate-900',
+    soon: 'text-amber-700',
+    expired: 'text-rose-600',
 };
 
 const ticketKey = (ticket: PurchasedTicket) =>
@@ -102,34 +441,36 @@ const normalizeStationName = (value?: string) =>
         .replace(/\s+/g, ' ')
         .trim();
 
-const normalizeDrawDateIso = (raw?: string) => {
-    if (!raw) return '';
-    const matched = raw.match(/\d{4}-\d{2}-\d{2}/);
-    if (matched?.[0]) return matched[0];
-    return dayjs(raw).format('YYYY-MM-DD');
-};
-
 export const TicketsTab = () => {
     const [page, setPage] = useState(1);
     const [activeTab, setActiveTab] = useState<StatusTab>('Tất cả');
     const [wonRedeemFilter, setWonRedeemFilter] = useState<WonRedeemSubFilter>('ALL');
+    const [unredeemedClaimFilter, setUnredeemedClaimFilter] = useState<UnredeemedClaimFilter>('ONLINE');
     const [searchCode, setSearchCode] = useState('');
     const [fromDate, setFromDate] = useState('');
     const [toDate, setToDate] = useState('');
+    const [fromDateOpen, setFromDateOpen] = useState(false);
+    const [toDateOpen, setToDateOpen] = useState(false);
     const [selectedTicket, setSelectedTicket] = useState<PurchasedTicket | null>(null);
     const [payoutModalOpen, setPayoutModalOpen] = useState(false);
+    const [payoutTicket, setPayoutTicket] = useState<PurchasedTicket | null>(null);
+    const [expandedGroupKeys, setExpandedGroupKeys] = useState<Set<string>>(new Set());
 
+    const todayIso = todayIsoVn();
     const pageSize = 10;
     const apiStatus = STATUS_TAB_TO_API[activeTab];
+    const clientUnredeemedView = activeTab === 'Trúng thưởng' && wonRedeemFilter === 'UNREDEEMED';
+    const clientUrgencySortView = activeTab === 'Tất cả'
+        || (activeTab === 'Trúng thưởng' && wonRedeemFilter !== 'REDEEMED');
     const redeemedParam =
         activeTab === 'Trúng thưởng' && wonRedeemFilter !== 'ALL'
             ? wonRedeemFilter === 'REDEEMED'
             : undefined;
-    const hasInvalidDateRange = Boolean(fromDate && toDate && dayjs(fromDate).isAfter(dayjs(toDate)));
+    const hasInvalidDateRange = Boolean(fromDate && toDate && fromDate > toDate);
 
     const { data, isLoading, isFetching, isError, error, refetch } = usePurchasedTicketLookup({
-        page,
-        size: pageSize,
+        page: clientUrgencySortView ? 1 : page,
+        size: clientUrgencySortView ? UNREDEEMED_FETCH_SIZE : pageSize,
         status: apiStatus,
         redeemed: redeemedParam,
         fromDate: fromDate || undefined,
@@ -142,19 +483,64 @@ export const TicketsTab = () => {
     });
 
     const tickets = (data?.data?.recordList ?? []) as PurchasedTicket[];
+    const ticketGroups = useMemo(() => {
+        const source = clientUnredeemedView
+            ? tickets.filter((ticket) =>
+                unredeemedClaimFilter === 'ONLINE'
+                    ? isOnlineUnredeemedClaim(ticket)
+                    : isCounterUnredeemedClaim(ticket)
+            )
+            : tickets;
+        const groups = buildTicketGroups(source);
+        return clientUrgencySortView ? sortGroupsByRedemptionUrgency(groups) : groups;
+    }, [tickets, clientUnredeemedView, clientUrgencySortView, unredeemedClaimFilter]);
+
+    const pagedTicketGroups = useMemo(() => {
+        if (!clientUrgencySortView) return ticketGroups;
+        const from = (page - 1) * pageSize;
+        return ticketGroups.slice(from, from + pageSize);
+    }, [ticketGroups, clientUrgencySortView, page, pageSize]);
+
     const pagination = normalizePagination(data?.data?.pagination, page, pageSize);
-    const totalPages = pagination.totalPages;
-    const totalRecords = pagination.totalRecords;
+    const totalPages = clientUrgencySortView
+        ? Math.max(1, Math.ceil(ticketGroups.length / pageSize))
+        : pagination.totalPages;
+    const totalRecords = clientUrgencySortView ? ticketGroups.length : pagination.totalRecords;
+
+    useEffect(() => {
+        setExpandedGroupKeys(new Set(pagedTicketGroups.map((group) => group.key)));
+    }, [pagedTicketGroups]);
+
+    useEffect(() => {
+        if (page > totalPages) setPage(1);
+    }, [page, totalPages]);
 
     const ticketTabs: StatusTab[] = ['Tất cả', 'Chờ quay số', 'Trúng thưởng', 'Không trúng'];
 
     // Calculators for top metrics summary
     const pendingCount = tickets.filter(t => t.drawResultStatus === 'PENDING_DRAW').length;
-    const wonCount = tickets.filter(t => t.drawResultStatus === 'WON').length;
     const totalWonAmount = tickets.reduce((acc, t) => acc + (t.drawResultStatus === 'WON' ? (t.prizeAmount || 0) : 0), 0);
 
     const openDetail = (ticket: PurchasedTicket) => setSelectedTicket(ticket);
     const closeDetail = () => setSelectedTicket(null);
+
+    const toggleGroup = (groupKey: string) => {
+        setExpandedGroupKeys((prev) => {
+            const next = new Set(prev);
+            if (next.has(groupKey)) {
+                next.delete(groupKey);
+            } else {
+                next.add(groupKey);
+            }
+            return next;
+        });
+    };
+
+    const openPayoutForTicket = (ticket: PurchasedTicket, event?: React.MouseEvent) => {
+        event?.stopPropagation();
+        setPayoutTicket(ticket);
+        setPayoutModalOpen(true);
+    };
 
     useEffect(() => {
         scrollToTop();
@@ -182,96 +568,13 @@ export const TicketsTab = () => {
         }
     };
 
-    const getStatusBadge = (ticket: PurchasedTicket, variant: 'list' | 'detail' = 'list') => {
-        const ui = STATUS_UI[ticket.drawResultStatus] ?? STATUS_UI.PENDING_DRAW;
-
-        if (ticket.drawResultStatus === 'PENDING_DRAW') {
-            const possession = resolveTicketPossessionDisplay(ticket);
-            return (
-                <div className="flex flex-col items-start md:items-end gap-1.5">
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-extrabold bg-amber-50 text-amber-600 border border-amber-200/80 shadow-xs">
-                        <span className="relative flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-                        </span>
-                        {ui.label}
-                        <i className="fa-solid fa-clock text-[10px] ml-0.5"></i>
-                    </div>
-                    {possession && (
-                        <div
-                            className={`px-2.5 py-1 rounded-lg text-[11.5px] font-bold border flex items-center gap-1.5 ${possession.className}`}
-                        >
-                            <i className={`${possession.icon} text-[10px]`}></i>
-                            {possession.label}
-                        </div>
-                    )}
-                </div>
-            );
-        }
-
-        if (ticket.drawResultStatus === 'WON') {
-            const payoutDisplay = resolveTicketPayoutDisplay(ticket);
-            const containerClassName =
-                variant === 'detail'
-                    ? 'flex flex-wrap items-center gap-2 md:justify-end'
-                    : 'flex flex-col items-start md:items-end gap-1.5';
-            return (
-                <div className={containerClassName}>
-                    {ticket.matchedPrizeDisplayName && (
-                        <div className="px-3 py-1 rounded-xl text-[12.5px] font-black bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-500 text-amber-950 shadow-sm border border-amber-300/60 inline-flex items-center gap-1.5 uppercase tracking-wide whitespace-nowrap">
-                            <i className="fa-solid fa-star text-[11px]"></i>
-                            {ticket.matchedPrizeDisplayName}
-                        </div>
-                    )}
-                    {payoutDisplay && (
-                        <div
-                            className={`px-2.5 py-1 rounded-lg text-[11.5px] font-bold border inline-flex items-center gap-1.5 whitespace-nowrap ${payoutDisplay.className}`}
-                        >
-                            <i className={`${payoutDisplay.icon} text-[10px]`}></i>
-                            {payoutDisplay.label}
-                        </div>
-                    )}
-                    {(() => {
-                        const possession = resolveTicketPossessionDisplay(ticket);
-                        if (!possession) return null;
-                        return (
-                            <div
-                                className={`px-2.5 py-1 rounded-lg text-[11.5px] font-bold border inline-flex items-center gap-1.5 whitespace-nowrap ${possession.className}`}
-                            >
-                                <i className={`${possession.icon} text-[10px]`}></i>
-                                {possession.label}
-                            </div>
-                        );
-                    })()}
-                </div>
-            );
-        }
-
-        const possession = resolveTicketPossessionDisplay(ticket);
-        return (
-            <div className="flex flex-col items-start md:items-end gap-1.5">
-                <div className="px-3 py-1 rounded-full text-[12px] font-bold bg-slate-100 text-slate-500 border border-slate-200 shadow-xs">
-                    {ui.label}
-                </div>
-                {possession && (
-                    <div
-                        className={`px-2.5 py-1 rounded-lg text-[11.5px] font-bold border flex items-center gap-1.5 ${possession.className}`}
-                    >
-                        <i className={`${possession.icon} text-[10px]`}></i>
-                        {possession.label}
-                    </div>
-                )}
-            </div>
-        );
-    };
-
     // DETAIL VIEW (Vé chi tiết dạng cuống xé kỹ thuật số sang trọng)
     if (selectedTicket) {
         const ui = STATUS_UI[selectedTicket.drawResultStatus] ?? STATUS_UI.PENDING_DRAW;
-        const numberParts = splitTicketNumbers(selectedTicket.numbers);
         const isWon = selectedTicket.drawResultStatus === 'WON';
         const isEligibleForPayout = canRequestPrizePayout(selectedTicket);
         const ineligibilityReason = !isEligibleForPayout ? getPrizePayoutIneligibilityMessage(selectedTicket) : null;
+        const redemptionRemaining = isWon ? resolveCustomerRedemptionRemaining(selectedTicket) : null;
         const drawDateIso = selectedTicketDrawDateIso;
         const matchedStationId = matchedStationForSelectedTicket?.id ?? matchedStationForSelectedTicket?._id;
         const resultLookupUrl = (() => {
@@ -315,75 +618,33 @@ export const TicketsTab = () => {
                     <div className={`h-3 bg-gradient-to-r ${isWon ? 'from-amber-400 via-amber-500 to-orange-500' : selectedTicket.drawResultStatus === 'PENDING_DRAW' ? 'from-amber-400 via-orange-500 to-amber-500' : 'from-slate-300 to-slate-400'}`}></div>
 
                     <div className="p-6 md:p-8 flex flex-col gap-6">
-                        {/* Header Row */}
-                        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 pb-6 border-b border-dashed border-slate-200">
-                            <div className="flex items-center gap-4 md:gap-5">
-                                <div
-                                    className={`w-16 h-16 md:w-20 md:h-20 rounded-2xl flex items-center justify-center shrink-0 shadow-md ${
-                                        isWon
-                                            ? 'bg-gradient-to-br from-amber-400 via-amber-500 to-orange-500 text-white'
-                                            : selectedTicket.drawResultStatus === 'PENDING_DRAW'
-                                            ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white'
-                                            : 'bg-gradient-to-br from-slate-100 to-slate-200 text-slate-600'
-                                    }`}
-                                >
-                                    <i className={`fa-solid ${isWon ? 'fa-trophy' : selectedTicket.drawResultStatus === 'PENDING_DRAW' ? 'fa-ticket-simple' : 'fa-ticket'} text-[30px] md:text-[36px]`}></i>
-                                </div>
-                                <div className="flex flex-col">
-                                    <div className="flex flex-wrap items-center gap-2 mb-1">
-                                        <h3 className="text-[20px] md:text-[24px] font-black text-slate-900 m-0 tracking-tight">
-                                            {selectedTicket.stationName || 'Vé số Đại Phát'}
-                                        </h3>
-                                    </div>
-                                    <div className="mb-1">
-                                        {getStatusBadge(selectedTicket, 'detail')}
-                                    </div>
-                                    <p className="text-[13px] md:text-[14px] text-slate-500 m-0 font-medium">
-                                        📅 Ngày mở thưởng: <span className="text-slate-800 font-bold">{formatDrawDate(selectedTicket.drawDate)}</span>
-                                    </p>
-                                </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6 items-center pb-6 border-b border-dashed border-slate-200">
+                            <div className="flex flex-col items-center md:items-start text-center md:text-left">
+                                <h3 className="text-[18px] md:text-[20px] font-black text-slate-900 m-0 tracking-tight mb-1.5">
+                                    {selectedTicket.stationName || 'Vé số Đại Phát'}
+                                </h3>
+                                <div className="mb-1.5">{getSerialRowPrizeOrStatus(selectedTicket)}</div>
+                                <p className="text-[12px] md:text-[13px] text-slate-500 m-0 font-medium">
+                                    Ngày mở thưởng:{' '}
+                                    <span className="text-slate-800 font-bold">
+                                        {formatDrawDate(selectedTicket.drawDate)}
+                                    </span>
+                                </p>
                             </div>
 
-                            <div className="flex items-center justify-between w-full md:w-auto md:justify-end gap-6 bg-slate-50 md:bg-slate-50/80 p-4 md:px-6 md:py-3.5 rounded-2xl border border-slate-100">
-                                <div className="flex flex-col">
-                                    <span className="text-[11px] uppercase tracking-wider text-slate-400 font-bold mb-0.5">Mã serial vé</span>
-                                    <span className="text-[18px] md:text-[22px] font-black tracking-tight text-red-600">
-                                        {selectedTicket.serialNumber || selectedTicket.numbers}
-                                    </span>
-                                </div>
-                                <div className="h-8 w-[1px] bg-slate-200"></div>
-                                <div className="flex flex-col items-end md:items-start">
-                                    <span className="text-[11px] uppercase tracking-wider text-slate-400 font-bold mb-0.5">Giá vé</span>
-                                    <span className="text-[16px] md:text-[18px] font-extrabold text-slate-900">
-                                        {formatMoney(selectedTicket.price)}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* 3D Glossy Numbers Display Section */}
-                        <div className="flex flex-col gap-3">
-                            <span className="text-[13px] text-slate-500 font-bold uppercase tracking-wider">Bộ số dự thưởng</span>
-                            <div className="flex items-center gap-2.5 md:gap-4 flex-wrap bg-slate-50/80 p-4 md:p-6 rounded-2xl border border-slate-200/60 shadow-inner">
-                                {numberParts.length > 0 ? (
-                                    numberParts.map((num, i) => (
-                                        <motion.div
-                                            key={`${num}-${i}`}
-                                            whileHover={{ scale: 1.1, y: -2 }}
-                                            className={`w-12 h-12 md:w-16 md:h-16 rounded-full flex items-center justify-center text-[18px] md:text-[24px] font-black tracking-tight ${
-                                                isWon
-                                                    ? 'bg-gradient-to-b from-amber-300 via-amber-400 to-amber-500 text-amber-950 shadow-[0_6px_16px_rgba(245,158,11,0.4),inset_0_2px_4px_rgba(255,255,255,0.9)] border-2 border-amber-300'
-                                                    : 'bg-gradient-to-b from-white via-slate-100 to-slate-200 text-slate-900 shadow-[0_4px_12px_rgba(0,0,0,0.12),inset_0_2px_3px_rgba(255,255,255,1)] border border-slate-300/80'
-                                            }`}
-                                        >
-                                            {num}
-                                        </motion.div>
-                                    ))
-                                ) : (
-                                    <span className="text-[24px] font-black tracking-wider text-red-600">
-                                        {selectedTicket.numbers}
-                                    </span>
+                            <div className="flex flex-col items-center text-center px-2">
+                                {renderTicketNumbersWithSerial(
+                                    selectedTicket,
+                                    `text-[22px] md:text-[28px] font-black tracking-tight ${isWon ? 'text-amber-950' : 'text-slate-900'}`,
+                                    'text-[11px] md:text-[12px] text-slate-500 font-bold break-all',
+                                    true
                                 )}
+                            </div>
+
+                            <div className="flex flex-col items-center md:items-end text-center md:text-right">
+                                <span className="text-[18px] md:text-[20px] font-extrabold text-slate-900 tabular-nums">
+                                    {formatMoney(selectedTicket.price)}
+                                </span>
                             </div>
                         </div>
 
@@ -405,7 +666,7 @@ export const TicketsTab = () => {
                                 <div className="bg-slate-50/70 rounded-2xl p-4 border border-slate-200/70 flex flex-col gap-3">
                                     <div className="flex items-center justify-between text-[14px]">
                                         <span className="text-slate-500 font-medium">Thời gian mua vé</span>
-                                        <span className="text-slate-900 font-bold">{formatDateTime(selectedTicket.purchasedAt)}</span>
+                                        <span className="text-slate-900 font-bold">{formatVietnameseDateTime(selectedTicket.purchasedAt)}</span>
                                     </div>
                                     <div className="h-[1px] bg-slate-200/60"></div>
 
@@ -429,6 +690,23 @@ export const TicketsTab = () => {
                                                 <span className="text-slate-500 font-medium">Tổng tiền trúng thưởng</span>
                                                 <span className="text-amber-600 font-black text-[17px]">
                                                     {formatMoney(selectedTicket.prizeAmount)}
+                                                </span>
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {redemptionRemaining && (
+                                        <>
+                                            <div className="h-[1px] bg-slate-200/60"></div>
+                                            <div className="flex items-start justify-between gap-3 text-[14px]">
+                                                <span className="text-slate-500 font-medium">Thời gian còn lại đổi thưởng</span>
+                                                <span className={`font-bold text-right ${REMAINING_TONE_CLASS[redemptionRemaining.tone]}`}>
+                                                    {redemptionRemaining.primary}
+                                                    {redemptionRemaining.secondary ? (
+                                                        <span className="block text-[12px] font-semibold text-slate-500 mt-0.5">
+                                                            {redemptionRemaining.secondary}
+                                                        </span>
+                                                    ) : null}
                                                 </span>
                                             </div>
                                         </>
@@ -461,9 +739,17 @@ export const TicketsTab = () => {
                                                             <i className={`${possession.icon} text-[11px]`}></i>
                                                             {possession.label}
                                                         </span>
-                                                        {selectedTicket.actualPickedUpAt ? (
+                                                        {possession.status === 'PICKED_UP'
+                                                        && (selectedTicket.handedOverAt || selectedTicket.actualPickedUpAt) ? (
                                                             <span className="text-[12px] text-slate-500 font-medium">
-                                                                Lấy lúc {formatDateTime(selectedTicket.actualPickedUpAt)}
+                                                                Lấy lúc {formatVietnameseDateTime(
+                                                                    selectedTicket.handedOverAt
+                                                                        ?? selectedTicket.actualPickedUpAt!
+                                                                )}
+                                                            </span>
+                                                        ) : possession.status === 'REJECTED' && selectedTicket.rejectedAt ? (
+                                                            <span className="text-[12px] text-slate-500 font-medium">
+                                                                Từ chối lúc {formatVietnameseDateTime(selectedTicket.rejectedAt)}
                                                             </span>
                                                         ) : possession.hint ? (
                                                             <span className="text-[12px] text-slate-500 font-medium max-w-[220px]">
@@ -496,6 +782,27 @@ export const TicketsTab = () => {
                         {/* Prize payout action box for winning tickets */}
                         {isWon && (() => {
                             const payoutDisplay = resolveTicketPayoutDisplay(selectedTicket);
+                            const isPayoutCompleted = payoutDisplay?.status === 'COMPLETED';
+                            const isPayoutInProgress = payoutDisplay?.status === 'PENDING';
+                            const payoutRequestHref = selectedTicket.activePayoutRequestId
+                                ? `/profile/prize-payouts/${selectedTicket.activePayoutRequestId}`
+                                : null;
+
+                                const remainingBannerLine = redemptionRemaining
+                                ? redemptionRemaining.tone === 'expired'
+                                    ? redemptionRemaining.primary
+                                    : `${redemptionRemaining.primary}${redemptionRemaining.secondary ? ` (${redemptionRemaining.secondary.toLowerCase()})` : ''}.`
+                                : null;
+                            const congratulationCopy = isEligibleForPayout
+                                ? `Bạn có thể gửi yêu cầu trả thưởng trực tuyến. Tiền sẽ được chuyển sau khi nhân viên duyệt.${remainingBannerLine ? ` ${remainingBannerLine}` : ''}`
+                                : isPayoutCompleted
+                                    ? 'Yêu cầu trả thưởng đã được duyệt và hoàn tất.'
+                                    : isPayoutInProgress
+                                        ? 'Yêu cầu trả thưởng của bạn đang được xử lý.'
+                                        : selectedTicket.claimChannel === 'IN_PERSON' || selectedTicket.canClaimOnline === false
+                                            ? 'Vé này cần mang đến đại lý để đổi thưởng trực tiếp.'
+                                            : 'Tiền thưởng sẽ được chuyển tới tài khoản ngân hàng của bạn sau khi yêu cầu được duyệt.';
+
                             return (
                             <div className="bg-gradient-to-r from-amber-50 via-amber-100/50 to-amber-50 rounded-2xl p-5 border border-amber-200/80 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
                                 <div className="flex items-start gap-3">
@@ -505,11 +812,7 @@ export const TicketsTab = () => {
                                     <div>
                                         <h4 className="text-amber-950 font-black text-[16px] mb-0.5">Chúc mừng bạn đã trúng thưởng!</h4>
                                         <p className="text-slate-600 text-[13px] m-0">
-                                            {isEligibleForPayout
-                                                ? 'Bạn có thể gửi yêu cầu trả thưởng online. Tiền sẽ được chuyển sau khi nhân viên duyệt.'
-                                                : selectedTicket.claimChannel === 'IN_PERSON' || selectedTicket.canClaimOnline === false
-                                                    ? 'Vé này cần mang đến đại lý để đổi thưởng trực tiếp.'
-                                                    : 'Tiền thưởng sẽ được chuyển tới tài khoản ngân hàng của bạn sau khi yêu cầu được duyệt.'}
+                                            {congratulationCopy}
                                         </p>
                                     </div>
                                 </div>
@@ -518,34 +821,36 @@ export const TicketsTab = () => {
                                     <button
                                         type="button"
                                         onClick={() => setPayoutModalOpen(true)}
-                                        className="w-full md:w-auto px-6 py-3 bg-gradient-to-r from-amber-500 via-amber-600 to-orange-600 text-white font-black rounded-xl text-[14px] shadow-md shadow-amber-500/20 hover:shadow-lg hover:brightness-105 transition-all cursor-pointer whitespace-nowrap"
+                                        className="w-full md:w-auto min-w-[200px] justify-center px-6 py-3 bg-gradient-to-r from-amber-500 via-amber-600 to-orange-600 text-white font-black rounded-xl text-[14px] shadow-md shadow-amber-500/20 hover:shadow-lg hover:brightness-105 transition-all cursor-pointer whitespace-nowrap"
                                     >
                                         🏆 Yêu cầu trả thưởng ngay
                                     </button>
-                                ) : selectedTicket.activePayoutRequestId ? (
+                                ) : isPayoutInProgress && payoutRequestHref ? (
                                     <Link
-                                        href={`/profile/prize-payouts/${selectedTicket.activePayoutRequestId}`}
-                                        className="text-amber-700 font-bold text-[14px] hover:underline no-underline"
+                                        href={payoutRequestHref}
+                                        className="inline-flex items-center justify-center w-full md:w-auto min-w-[200px] px-6 py-3 bg-violet-50 text-violet-700 font-black rounded-xl text-[14px] border border-violet-200 no-underline whitespace-nowrap"
                                     >
-                                        Xem yêu cầu đang xử lý →
+                                        Đang xử lý
                                     </Link>
-                                ) : (
-                                    <div className="flex flex-col items-start md:items-end gap-1">
-                                        {payoutDisplay && (
-                                            <div
-                                                className={`px-3 py-1.5 rounded-xl text-[12.5px] font-bold border flex items-center gap-1.5 ${payoutDisplay.className}`}
+                                ) : isPayoutCompleted ? (
+                                    <div className="flex flex-col items-stretch md:items-end gap-1.5 w-full md:w-auto min-w-[200px]">
+                                        <span className="inline-flex items-center justify-center px-6 py-3 bg-emerald-50 text-emerald-700 font-black rounded-xl text-[14px] border border-emerald-200 whitespace-nowrap">
+                                            Đã đổi thưởng
+                                        </span>
+                                        {payoutRequestHref ? (
+                                            <Link
+                                                href={payoutRequestHref}
+                                                className="text-emerald-700 font-bold text-[13px] hover:underline no-underline text-center md:text-right"
                                             >
-                                                <i className={`${payoutDisplay.icon} text-[12px]`}></i>
-                                                {payoutDisplay.label}
-                                            </div>
-                                        )}
-                                        {ineligibilityReason && (
-                                            <span className="text-[12px] text-slate-500 font-medium">
-                                                {ineligibilityReason}
-                                            </span>
-                                        )}
+                                                Xem yêu cầu đã hoàn tất →
+                                            </Link>
+                                        ) : null}
                                     </div>
-                                )}
+                                ) : ineligibilityReason ? (
+                                    <span className="text-[12px] text-slate-500 font-medium md:text-right max-w-[240px]">
+                                        {ineligibilityReason}
+                                    </span>
+                                ) : null}
                             </div>
                             );
                         })()}
@@ -584,53 +889,27 @@ export const TicketsTab = () => {
     // MAIN TICKETS LIST VIEW
     return (
         <div className="flex flex-col gap-6 font-['Public_Sans',sans-serif]">
-            {/* Top Metrics Dashboard Bar */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {/* Total Tickets Card */}
-                <div className="bg-white rounded-2xl p-4 md:p-5 border border-slate-200/80 shadow-[0_4px_20px_rgba(0,0,0,0.03)] flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center shrink-0 border border-red-100 shadow-xs">
-                        <i className="fa-solid fa-ticket-simple text-[22px]"></i>
-                    </div>
-                    <div className="flex flex-col">
-                        <span className="text-[12px] font-bold text-slate-400 uppercase tracking-wider">Tổng số vé đã mua</span>
-                        <span className="text-[22px] font-black text-slate-900">{totalRecords} <span className="text-[13px] font-semibold text-slate-500">vé</span></span>
-                    </div>
-                </div>
-
-                {/* Pending Draw Card */}
-                <div className="bg-white rounded-2xl p-4 md:p-5 border border-amber-200/80 shadow-[0_4px_20px_rgba(245,158,11,0.04)] flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-100 shadow-xs relative">
-                        <i className="fa-solid fa-clock text-[22px]"></i>
-                        <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
-                        </span>
-                    </div>
-                    <div className="flex flex-col">
-                        <span className="text-[12px] font-bold text-amber-700/80 uppercase tracking-wider">Đang chờ quay số</span>
-                        <span className="text-[22px] font-black text-amber-600">{pendingCount} <span className="text-[13px] font-semibold text-amber-700/70">vé</span></span>
-                    </div>
-                </div>
-
-                {/* Won Tickets Card */}
-                <div className="bg-white rounded-2xl p-4 md:p-5 border border-amber-300 shadow-[0_4px_20px_rgba(245,158,11,0.08)] flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 via-amber-500 to-orange-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-amber-500/25">
-                        <i className="fa-solid fa-trophy text-[22px]"></i>
-                    </div>
-                    <div className="flex flex-col min-w-0">
-                        <span className="text-[12px] font-bold text-amber-900 uppercase tracking-wider">Vé trúng thưởng</span>
-                        <span className="text-[22px] font-black text-amber-700 leading-tight">
-                            {wonCount}{' '}
-                            <span className="text-[13px] font-semibold text-slate-600">vé</span>
-                            {totalWonAmount > 0 && (
-                                <span className="text-[13px] font-black text-amber-800 ml-1">
-                                    ({formatMoney(totalWonAmount)})
-                                </span>
-                            )}
-                        </span>
-                    </div>
-                </div>
-            </div>
+            <AdminKpiCardsGrid columns={{ xs: 1, sm: 2, md: 3 }} sx={{ mb: 0 }}>
+                <AdminKpiCard
+                    label="Tổng số vé đã mua"
+                    value={`${totalRecords.toLocaleString('vi-VN')} vé`}
+                    icon={kpiNavbarIcon('ic-invoice.svg')}
+                    tone="rose"
+                />
+                <AdminKpiCard
+                    label="Đang chờ quay số"
+                    value={`${pendingCount.toLocaleString('vi-VN')} vé`}
+                    icon={kpiNavbarIcon('ic-dashboard.svg')}
+                    tone="amber"
+                />
+                <AdminKpiCard
+                    label={TICKET_WIN_AMOUNT_LABEL}
+                    value={totalWonAmount > 0 ? formatMoney(totalWonAmount) : '0đ'}
+                    valueSize="compact"
+                    icon={<i className="fa-solid fa-trophy text-[22px]" />}
+                    tone="green"
+                />
+            </AdminKpiCardsGrid>
 
             {/* Filter Tabs & Search Header Container */}
             <div className="bg-white border border-slate-200/90 rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] overflow-hidden">
@@ -675,38 +954,35 @@ export const TicketsTab = () => {
 
                 <div className="flex flex-col lg:flex-row lg:items-end gap-3 px-4 md:px-5 py-3.5 border-b border-slate-100 bg-white">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full lg:max-w-[460px]">
-                        <div className="flex flex-col gap-1">
-                            <label htmlFor="ticketFromDate" className="text-[12px] font-bold text-slate-500 uppercase tracking-wide">
-                                Từ ngày
-                            </label>
-                            <input
-                                id="ticketFromDate"
-                                type="date"
-                                value={fromDate}
-                                max={toDate || undefined}
-                                onChange={(e) => {
-                                    setFromDate(e.target.value);
-                                    setPage(1);
-                                }}
-                                className="h-[42px] w-full px-3 border border-slate-200 bg-white rounded-xl text-[13.5px] outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/10 transition-all font-semibold text-slate-800 shadow-xs"
-                            />
-                        </div>
-                        <div className="flex flex-col gap-1">
-                            <label htmlFor="ticketToDate" className="text-[12px] font-bold text-slate-500 uppercase tracking-wide">
-                                Đến ngày
-                            </label>
-                            <input
-                                id="ticketToDate"
-                                type="date"
-                                value={toDate}
-                                min={fromDate || undefined}
-                                onChange={(e) => {
-                                    setToDate(e.target.value);
-                                    setPage(1);
-                                }}
-                                className="h-[42px] w-full px-3 border border-slate-200 bg-white rounded-xl text-[13.5px] outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/10 transition-all font-semibold text-slate-800 shadow-xs"
-                            />
-                        </div>
+                        <ClientDatePicker
+                            label="Từ ngày"
+                            value={fromDate}
+                            maxDate={toDate || todayIso}
+                            allowClear
+                            open={fromDateOpen}
+                            onOpenChange={setFromDateOpen}
+                            onOpen={() => setToDateOpen(false)}
+                            onChange={(ymd) => {
+                                setFromDate(ymd);
+                                setPage(1);
+                            }}
+                            className="w-full"
+                        />
+                        <ClientDatePicker
+                            label="Đến ngày"
+                            value={toDate}
+                            minDate={fromDate || undefined}
+                            maxDate={todayIso}
+                            allowClear
+                            open={toDateOpen}
+                            onOpenChange={setToDateOpen}
+                            onOpen={() => setFromDateOpen(false)}
+                            onChange={(ymd) => {
+                                setToDate(ymd);
+                                setPage(1);
+                            }}
+                            className="w-full"
+                        />
                     </div>
 
                     {/* Search Code / Numbers */}
@@ -754,34 +1030,68 @@ export const TicketsTab = () => {
                 )}
 
                 {activeTab === 'Trúng thưởng' && (
-                    <div className="flex items-center gap-2 px-4 md:px-5 py-3 border-b border-slate-100 bg-amber-50/45 overflow-x-auto no-scrollbar">
-                        <span className="text-[12px] font-black text-amber-800/80 uppercase tracking-wide whitespace-nowrap mr-1">
-                            Lọc đổi thưởng:
-                        </span>
-                        {WON_REDEEM_SUB_FILTERS.map((item) => {
-                            const isActive = wonRedeemFilter === item.key;
-                            return (
-                                <button
-                                    key={item.key}
-                                    type="button"
-                                    onClick={() => {
-                                        setWonRedeemFilter(item.key);
-                                        setPage(1);
-                                    }}
-                                    className={`px-3 py-1.5 rounded-full text-[12.5px] font-extrabold whitespace-nowrap border transition-all cursor-pointer ${
-                                        isActive
-                                            ? item.key === 'REDEEMED'
-                                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
-                                                : item.key === 'UNREDEEMED'
-                                                    ? 'bg-violet-600 text-white border-violet-600 shadow-sm'
-                                                    : 'bg-amber-600 text-white border-amber-600 shadow-sm'
-                                            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:text-slate-900'
-                                    }`}
-                                >
-                                    {item.label}
-                                </button>
-                            );
-                        })}
+                    <div className="flex flex-col gap-2 px-4 md:px-5 py-3 border-b border-slate-100 bg-amber-50/45">
+                        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+                            <span className="text-[12px] font-black text-amber-800/80 uppercase tracking-wide whitespace-nowrap mr-1">
+                                Lọc đổi thưởng:
+                            </span>
+                            {WON_REDEEM_SUB_FILTERS.map((item) => {
+                                const isActive = wonRedeemFilter === item.key;
+                                return (
+                                    <button
+                                        key={item.key}
+                                        type="button"
+                                        onClick={() => {
+                                            setWonRedeemFilter(item.key);
+                                            if (item.key === 'UNREDEEMED') {
+                                                setUnredeemedClaimFilter('ONLINE');
+                                            }
+                                            setPage(1);
+                                        }}
+                                        className={`px-3 py-1.5 rounded-full text-[12.5px] font-extrabold whitespace-nowrap border transition-all cursor-pointer ${
+                                            isActive
+                                                ? item.key === 'REDEEMED'
+                                                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                                                    : item.key === 'UNREDEEMED'
+                                                        ? 'bg-violet-600 text-white border-violet-600 shadow-sm'
+                                                        : 'bg-amber-600 text-white border-amber-600 shadow-sm'
+                                                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:text-slate-900'
+                                        }`}
+                                    >
+                                        {item.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        {wonRedeemFilter === 'UNREDEEMED' && (
+                            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+                                <span className="text-[11px] font-black text-slate-500 uppercase tracking-wide whitespace-nowrap mr-1">
+                                    Kênh:
+                                </span>
+                                {UNREDEEMED_CLAIM_FILTERS.map((item) => {
+                                    const isActive = unredeemedClaimFilter === item.key;
+                                    return (
+                                        <button
+                                            key={item.key}
+                                            type="button"
+                                            onClick={() => {
+                                                setUnredeemedClaimFilter(item.key);
+                                                setPage(1);
+                                            }}
+                                            className={`px-3 py-1 rounded-full text-[12px] font-bold whitespace-nowrap border transition-all cursor-pointer ${
+                                                isActive
+                                                    ? item.key === 'ONLINE'
+                                                        ? 'bg-sky-600 text-white border-sky-600 shadow-sm'
+                                                        : 'bg-slate-800 text-white border-slate-800 shadow-sm'
+                                                    : 'bg-white/80 text-slate-600 border-slate-200 hover:border-slate-300 hover:text-slate-900'
+                                            }`}
+                                        >
+                                            {item.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -808,190 +1118,300 @@ export const TicketsTab = () => {
                             <i className="fa-solid fa-circle-notch fa-spin text-[32px] text-red-600"></i>
                             <span>Đang tải danh sách vé số...</span>
                         </div>
-                    ) : tickets.length === 0 ? (
+                    ) : (clientUnredeemedView ? ticketGroups.length === 0 : tickets.length === 0) ? (
                         <div className="py-20 text-center text-slate-500 flex flex-col items-center justify-center">
                             <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 text-[28px] mb-4">
                                 <i className="fa-solid fa-ticket-simple"></i>
                             </div>
-                            <p className="font-extrabold text-[16px] text-slate-800 m-0">Chưa tìm thấy vé số nào</p>
-                            <p className="text-[13px] mt-1 text-slate-400">Vé bạn mua hoặc tìm kiếm sẽ xuất hiện tại đây.</p>
+                            <p className="font-extrabold text-[16px] text-slate-800 m-0">
+                                {clientUnredeemedView
+                                    ? unredeemedClaimFilter === 'ONLINE'
+                                        ? 'Không có vé đổi thưởng trực tuyến'
+                                        : 'Không có vé đổi thưởng tại quầy'
+                                    : 'Chưa tìm thấy vé số nào'}
+                            </p>
+                            <p className="text-[13px] mt-1 text-slate-400">
+                                {clientUnredeemedView
+                                    ? unredeemedClaimFilter === 'ONLINE'
+                                        ? 'Vé còn hạn đổi trực tuyến sẽ hiện ở đây, sắp theo hạn gần nhất.'
+                                        : 'Vé cần mang ra đại lý (kể cả đã hết hạn trực tuyến) sẽ hiện ở đây.'
+                                    : 'Vé bạn mua hoặc tìm kiếm sẽ xuất hiện tại đây.'}
+                            </p>
+                            {!clientUnredeemedView && (
                             <Link
                                 href={ROUTES.PUBLIC.TICKETS}
                                 className="inline-flex mt-4 px-6 py-2.5 bg-gradient-to-r from-red-600 to-rose-600 text-white font-extrabold rounded-xl text-[14px] no-underline shadow-md shadow-red-600/20 hover:brightness-110 transition-all"
                             >
                                 Mua vé ngay
                             </Link>
+                            )}
                         </div>
                     ) : (
                         <AnimatePresence mode="popLayout">
-                            {tickets.map((ticket, index) => {
-                                const ui = STATUS_UI[ticket.drawResultStatus] ?? STATUS_UI.PENDING_DRAW;
-                                const numberParts = splitTicketNumbers(ticket.numbers);
-                                const isWon = ticket.drawResultStatus === 'WON';
+                            {pagedTicketGroups.map((group, index) => {
+                                const isExpanded = expandedGroupKeys.has(group.key);
+                                const hasWonSerial = group.wonSerialCount > 0;
 
                                 return (
                                     <motion.div
-                                        key={ticketKey(ticket)}
+                                        key={group.key}
                                         layout
                                         initial={{ opacity: 0, y: 12 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0, scale: 0.95 }}
-                                        whileHover={{ y: -2 }}
                                         transition={{ duration: 0.2, delay: index * 0.03 }}
-                                        onClick={() => openDetail(ticket)}
-                                        className="relative p-4 md:p-5 hover:bg-slate-50/80 transition-all duration-200 cursor-pointer group flex flex-col md:flex-row items-stretch md:items-center gap-4 md:gap-6 border-b border-slate-100 last:border-0"
+                                        className="relative border-b border-slate-100 last:border-0"
                                     >
-                                        {/* Left & Right Notch Effect for ticket stub feel */}
-                                        <div className="absolute -left-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-[#F8F9FA] border-r border-slate-200 hidden md:block z-10"></div>
-                                        <div className="absolute -right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-[#F8F9FA] border-l border-slate-200 hidden md:block z-10"></div>
+                                        <button
+                                            type="button"
+                                            onClick={() => toggleGroup(group.key)}
+                                            className="relative w-full p-4 md:p-5 hover:bg-slate-50/80 transition-all duration-200 cursor-pointer group flex flex-col md:flex-row items-stretch md:items-center gap-4 md:gap-6 bg-transparent border-none text-left"
+                                        >
+                                            <div className="absolute -left-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-[#F8F9FA] border-r border-slate-200 hidden md:block z-10"></div>
+                                            <div className="absolute -right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-[#F8F9FA] border-l border-slate-200 hidden md:block z-10"></div>
 
-                                        {/* Mobile Top Header */}
-                                        <div className="flex md:hidden items-start justify-between w-full">
-                                            <div className="flex items-center gap-3">
-                                                <div
-                                                    className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 border shadow-xs ${
-                                                        isWon
-                                                            ? 'bg-gradient-to-br from-amber-400 via-amber-500 to-orange-500 text-white border-amber-300'
-                                                            : 'bg-amber-50 text-amber-600 border-amber-200'
-                                                    }`}
-                                                >
-                                                    <i className={`fa-solid ${isWon ? 'fa-trophy' : 'fa-ticket-simple'} text-[18px]`}></i>
-                                                </div>
-                                                <div className="flex flex-col">
+                                            <div className="flex md:hidden items-start justify-between w-full gap-3">
+                                                <div className="flex flex-col min-w-0">
                                                     <h4 className="text-[15px] font-black text-slate-900 mb-0.5">
-                                                        {ticket.stationName || 'Vé số'}
+                                                        {group.stationName || 'Vé số'}
                                                     </h4>
                                                     <p className="text-[12px] text-slate-400 font-medium">
-                                                        Ngày mở thưởng: {formatDrawDate(ticket.drawDate)}
+                                                        Ngày mở thưởng: {formatDrawDate(group.drawDate)}
                                                     </p>
                                                 </div>
+                                                {getGroupStatusBadge(group)}
                                             </div>
-                                            <div>{getStatusBadge(ticket)}</div>
-                                        </div>
 
-                                        {/* Desktop Station Header */}
-                                        <div className="hidden md:flex items-center gap-4 min-w-[220px]">
-                                            <div
-                                                className={`w-13 h-13 rounded-2xl flex items-center justify-center shrink-0 border shadow-xs transition-transform group-hover:scale-105 ${
-                                                    isWon
-                                                        ? 'bg-gradient-to-br from-amber-400 via-amber-500 to-orange-500 text-white border-amber-300/60 shadow-amber-500/20'
-                                                        : ticket.drawResultStatus === 'PENDING_DRAW'
-                                                        ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white border-amber-300/50'
-                                                        : 'bg-slate-100 text-slate-600 border-slate-200'
-                                                }`}
-                                            >
-                                                <i className={`fa-solid ${isWon ? 'fa-trophy text-amber-100' : 'fa-ticket-simple'} text-[22px]`}></i>
-                                            </div>
-                                            <div className="flex flex-col">
+                                            <div className="hidden md:flex flex-col min-w-[180px]">
                                                 <h4 className="text-[15.5px] font-black text-slate-900 mb-0.5 group-hover:text-red-600 transition-colors tracking-tight">
-                                                    {ticket.stationName || 'Vé số'}
+                                                    {group.stationName || 'Vé số'}
                                                 </h4>
                                                 <p className="text-[12px] text-slate-500 font-medium m-0">
-                                                    Ngày mở thưởng: <span className="font-bold text-slate-700">{formatDrawDate(ticket.drawDate)}</span>
+                                                    Ngày mở thưởng:{' '}
+                                                    <span className="font-bold text-slate-700">
+                                                        {formatDrawDate(group.drawDate)}
+                                                    </span>
                                                 </p>
                                             </div>
-                                        </div>
 
-                                        {/* Serial Number */}
-                                        <div className="hidden md:flex flex-col w-[160px]">
-                                            <span className="text-[10.5px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">
-                                                Mã vé
-                                            </span>
-                                            <span className="text-[15px] font-black tracking-tight text-red-600">
-                                                {ticket.serialNumber || ticket.numbers}
-                                            </span>
-                                        </div>
-
-                                        {/* 3D Glossy Lottery Ball Numbers */}
-                                        <div className="hidden md:flex flex-col flex-1">
-                                            <span className="text-[10.5px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">
-                                                Bộ số
-                                            </span>
-                                            <div className="flex items-center gap-1.5 flex-wrap">
-                                                {numberParts.length > 0 ? (
-                                                    numberParts.map((num, i) => (
-                                                        <div
-                                                            key={`${num}-${i}`}
-                                                            className={`w-9 h-9 rounded-full flex items-center justify-center text-[13.5px] font-black tracking-tight transition-transform group-hover:scale-105 ${
-                                                                isWon
-                                                                    ? 'bg-gradient-to-b from-amber-300 via-amber-400 to-amber-500 text-amber-950 shadow-[0_3px_8px_rgba(245,158,11,0.35),inset_0_1px_2px_rgba(255,255,255,0.8)] border border-amber-300'
-                                                                    : 'bg-gradient-to-b from-white via-slate-100 to-slate-200 text-slate-900 shadow-[0_3px_6px_rgba(0,0,0,0.08),inset_0_1px_2px_rgba(255,255,255,1)] border border-slate-300/80'
-                                                            }`}
-                                                        >
-                                                            {num}
-                                                        </div>
-                                                    ))
-                                                ) : (
-                                                    <span className="text-[16px] font-black tracking-wider text-slate-900">
-                                                        {ticket.numbers}
-                                                    </span>
+                                            <div className="hidden md:flex flex-col flex-1 min-w-[140px]">
+                                                <span className="text-[10.5px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">
+                                                    {TICKET_NUMBERS_LABEL}
+                                                </span>
+                                                {renderTicketNumbersOnly(
+                                                    group.numbers,
+                                                    `text-[16px] font-black tracking-wider ${hasWonSerial ? 'text-amber-950' : 'text-slate-900'}`
                                                 )}
                                             </div>
-                                        </div>
 
-                                        {/* Price */}
-                                        <div className="hidden md:flex flex-col w-[110px] shrink-0">
-                                            <span className="text-[10.5px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">
-                                                Giá vé
-                                            </span>
-                                            <span className="text-[15px] font-extrabold text-slate-900">
-                                                {formatMoney(ticket.price)}
-                                            </span>
-                                        </div>
-
-                                        {/* Status Badge Desktop */}
-                                        <div className="hidden md:flex flex-col items-end min-w-[160px] shrink-0">
-                                            <span className="text-[10.5px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">
-                                                Trạng thái
-                                            </span>
-                                            {getStatusBadge(ticket)}
-                                        </div>
-
-                                        {/* Mobile Details Container */}
-                                        <div className="flex md:hidden flex-col gap-3 bg-slate-50/90 rounded-2xl p-3.5 w-full border border-slate-200/80">
-                                            <div className="flex justify-between items-center border-b border-slate-200/60 pb-2">
-                                                <div className="flex flex-col">
-                                                    <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
-                                                        Mã vé
-                                                    </span>
-                                                    <span className="text-[14px] font-black text-red-600">
-                                                        {ticket.serialNumber || ticket.numbers}
-                                                    </span>
-                                                </div>
-                                                <div className="flex flex-col items-end">
-                                                    <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
-                                                        Giá vé
-                                                    </span>
-                                                    <span className="text-[14px] font-extrabold text-slate-900">
-                                                        {formatMoney(ticket.price)}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <div className="flex flex-col gap-1.5">
-                                                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
-                                                    Bộ số
+                                            <div className="hidden md:flex flex-col w-[88px] shrink-0">
+                                                <span className="text-[10.5px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">
+                                                    Số lượng
                                                 </span>
-                                                <div className="flex items-center gap-1.5 flex-wrap">
-                                                    {numberParts.map((num, i) => (
-                                                        <div
-                                                            key={`${num}-${i}`}
-                                                            className={`w-8 h-8 rounded-full flex items-center justify-center text-[13px] font-black ${
-                                                                isWon
-                                                                    ? 'bg-gradient-to-b from-amber-300 via-amber-400 to-amber-500 text-amber-950 shadow-xs border border-amber-300'
-                                                                    : 'bg-white shadow-xs border border-slate-200 text-slate-900'
-                                                            }`}
-                                                        >
-                                                            {num}
-                                                        </div>
-                                                    ))}
+                                                <span className="text-[15px] font-extrabold text-slate-900">
+                                                    {group.serials.length} vé
+                                                </span>
+                                            </div>
+
+                                            <div className="hidden md:flex flex-col w-[110px] shrink-0">
+                                                <span className="text-[10.5px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">
+                                                    Giá vé
+                                                </span>
+                                                <span className="text-[15px] font-extrabold text-slate-900">
+                                                    {formatMoney(group.price)}
+                                                </span>
+                                            </div>
+
+                                            <div className="hidden md:flex flex-col w-[120px] shrink-0">
+                                                <span className="text-[10.5px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">
+                                                    {TICKET_WIN_AMOUNT_LABEL}
+                                                </span>
+                                                <span
+                                                    className={`text-[15px] font-extrabold ${
+                                                        group.wonAmount > 0 ? 'text-amber-600' : 'text-slate-400'
+                                                    }`}
+                                                >
+                                                    {group.wonAmount > 0 ? formatMoney(group.wonAmount) : '—'}
+                                                </span>
+                                            </div>
+
+                                            <div className="hidden md:flex flex-col items-end min-w-[160px] shrink-0">
+                                                <span className="text-[10.5px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">
+                                                    Trạng thái
+                                                </span>
+                                                {getGroupStatusBadge(group)}
+                                            </div>
+
+                                            <div className="flex md:hidden flex-col gap-3 bg-slate-50/90 rounded-2xl p-3.5 w-full border border-slate-200/80">
+                                                <div className="flex justify-between items-start gap-3 border-b border-slate-200/60 pb-2">
+                                                    <div className="flex flex-col min-w-0">
+                                                        <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
+                                                            {TICKET_NUMBERS_LABEL}
+                                                        </span>
+                                                        {renderTicketNumbersOnly(
+                                                            group.numbers,
+                                                            `text-[14px] font-black ${hasWonSerial ? 'text-amber-950' : 'text-slate-900'}`
+                                                        )}
+                                                    </div>
+                                                    <div className="flex flex-col items-end shrink-0">
+                                                        <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
+                                                            Số lượng
+                                                        </span>
+                                                        <span className="text-[14px] font-extrabold text-slate-900">
+                                                            {group.serials.length} vé
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
+                                                        {TICKET_WIN_AMOUNT_LABEL}
+                                                    </span>
+                                                    <span
+                                                        className={`text-[14px] font-extrabold ${
+                                                            group.wonAmount > 0 ? 'text-amber-600' : 'text-slate-400'
+                                                        }`}
+                                                    >
+                                                        {group.wonAmount > 0 ? formatMoney(group.wonAmount) : '—'}
+                                                    </span>
                                                 </div>
                                             </div>
-                                        </div>
 
-                                        {/* Arrow indicator */}
-                                        <div className="hidden md:flex items-center justify-center text-slate-300 group-hover:text-red-600 group-hover:translate-x-1 transition-all shrink-0 pl-1">
-                                            <i className="fa-solid fa-chevron-right text-[13px]"></i>
-                                        </div>
+                                            <div className="flex md:hidden items-center justify-between w-full pt-1 text-[12px] font-bold text-slate-500">
+                                                <span>{isExpanded ? 'Thu gọn serial' : 'Xem danh sách serial'}</span>
+                                                <i
+                                                    className={`fa-solid fa-chevron-down text-[12px] transition-transform duration-200 ${
+                                                        isExpanded ? 'rotate-180 text-red-600' : ''
+                                                    }`}
+                                                ></i>
+                                            </div>
+
+                                            <div className="hidden md:flex items-center justify-center text-slate-300 group-hover:text-red-600 transition-all shrink-0 pl-1">
+                                                <i
+                                                    className={`fa-solid fa-chevron-down text-[13px] transition-transform duration-200 ${
+                                                        isExpanded ? 'rotate-180 text-red-600' : ''
+                                                    }`}
+                                                ></i>
+                                            </div>
+                                        </button>
+
+                                        <AnimatePresence initial={false}>
+                                            {isExpanded && (
+                                                <motion.div
+                                                    initial={{ height: 0, opacity: 0 }}
+                                                    animate={{ height: 'auto', opacity: 1 }}
+                                                    exit={{ height: 0, opacity: 0 }}
+                                                    transition={{ duration: 0.2 }}
+                                                    className="overflow-hidden"
+                                                >
+                                                    <div className="px-4 md:px-5 pb-4 md:pb-5 pt-0">
+                                                        <div className="rounded-2xl border border-slate-200/90 bg-slate-50/80 p-3 md:p-4 flex flex-col gap-2">
+                                                            {group.serials.map((serial) => {
+                                                                const isWon = serial.drawResultStatus === 'WON';
+                                                                const canRedeem = canRequestPrizePayout(serial);
+                                                                const payoutDisplay = isWon
+                                                                    ? resolveTicketPayoutDisplay(serial)
+                                                                    : null;
+
+                                                                return (
+                                                                    <div
+                                                                        key={ticketKey(serial)}
+                                                                        className="grid grid-cols-1 md:grid-cols-[minmax(0,1.5fr)_minmax(120px,0.8fr)_minmax(110px,0.7fr)_minmax(228px,auto)] gap-3 md:gap-4 md:items-center rounded-xl border border-slate-200/80 bg-white px-3.5 py-3 shadow-xs"
+                                                                    >
+                                                                        <div className="min-w-0 flex flex-col gap-0.5 justify-center">
+                                                                            <span className="text-[13px] font-bold text-red-600 font-mono tracking-tight break-all">
+                                                                                {TICKET_SERIAL_PREFIX}:{' '}
+                                                                                {serial.serialNumber || serial.numbers}
+                                                                            </span>
+                                                                            {isWon && (() => {
+                                                                                const remaining = resolveCustomerRedemptionRemaining(serial);
+                                                                                if (!remaining) return null;
+                                                                                return (
+                                                                                    <span className={`text-[11px] font-semibold ${REMAINING_TONE_CLASS[remaining.tone]}`}>
+                                                                                        {remaining.primary}
+                                                                                        {remaining.secondary ? ` · ${remaining.secondary}` : ''}
+                                                                                    </span>
+                                                                                );
+                                                                            })()}
+                                                                        </div>
+
+                                                                        <div className="flex items-center md:justify-center">
+                                                                            {getSerialRowPrizeOrStatus(serial)}
+                                                                        </div>
+
+                                                                        <div
+                                                                            className={`flex items-center md:justify-center text-[14px] font-extrabold tabular-nums ${
+                                                                                isWon && serial.prizeAmount != null
+                                                                                    ? 'text-amber-600'
+                                                                                    : 'text-slate-400'
+                                                                            }`}
+                                                                        >
+                                                                            {isWon && serial.prizeAmount != null
+                                                                                ? formatMoney(serial.prizeAmount)
+                                                                                : '—'}
+                                                                        </div>
+
+                                                                        <div className="flex items-center justify-start md:justify-end gap-2 shrink-0 w-full">
+                                                                            {canRedeem ? (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={(event) =>
+                                                                                        openPayoutForTicket(serial, event)
+                                                                                    }
+                                                                                    className={`${SERIAL_ACTION_CHIP} bg-gradient-to-r from-amber-500 via-amber-600 to-orange-600 text-white shadow-sm hover:brightness-105 transition-all cursor-pointer border-none`}
+                                                                                >
+                                                                                    Đổi thưởng
+                                                                                </button>
+                                                                            ) : isWon ? (
+                                                                                serial.activePayoutRequestId && (
+                                                                                    payoutDisplay?.status === 'PENDING'
+                                                                                    || payoutDisplay?.status === 'COMPLETED'
+                                                                                ) ? (
+                                                                                    <Link
+                                                                                        href={`/profile/prize-payouts/${serial.activePayoutRequestId}`}
+                                                                                        onClick={(event) => event.stopPropagation()}
+                                                                                        className={`${SERIAL_ACTION_CHIP} border ${
+                                                                                            payoutDisplay?.status === 'COMPLETED'
+                                                                                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                                                                : 'bg-violet-50 text-violet-700 border-violet-200'
+                                                                                        }`}
+                                                                                    >
+                                                                                        {serialPayoutChipLabel(payoutDisplay)}
+                                                                                    </Link>
+                                                                                ) : (
+                                                                                    <span
+                                                                                        className={`${SERIAL_ACTION_CHIP} border ${
+                                                                                            payoutDisplay?.className
+                                                                                            ?? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                                                        }`}
+                                                                                    >
+                                                                                        {serialPayoutChipLabel(payoutDisplay)}
+                                                                                    </span>
+                                                                                )
+                                                                            ) : (
+                                                                                <span
+                                                                                    className={`${SERIAL_ACTION_CHIP} invisible pointer-events-none`}
+                                                                                    aria-hidden
+                                                                                />
+                                                                            )}
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={(event) => {
+                                                                                    event.stopPropagation();
+                                                                                    openDetail(serial);
+                                                                                }}
+                                                                                className={SERIAL_DETAIL_BTN}
+                                                                            >
+                                                                                Chi tiết
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
                                     </motion.div>
                                 );
                             })}
@@ -1012,6 +1432,17 @@ export const TicketsTab = () => {
                     </div>
                 )}
             </div>
+
+            {payoutTicket && (
+                <PrizePayoutRequestModal
+                    isOpen={payoutModalOpen}
+                    onClose={() => {
+                        setPayoutModalOpen(false);
+                        setPayoutTicket(null);
+                    }}
+                    ticket={payoutTicket}
+                />
+            )}
         </div>
     );
 };

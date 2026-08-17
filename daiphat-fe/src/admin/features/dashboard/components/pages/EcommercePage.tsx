@@ -1,233 +1,369 @@
 "use client";
 
-import { Grid, Box, Typography, Button, Divider, Menu, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TableContainer, Avatar } from "@mui/material"
-import WelcomeWidget from "@/admin/components/dashboard/WelcomeWidget";
-import SummaryWidget from "@/admin/components/dashboard/SummaryWidget";
+import {
+    Grid,
+    Box,
+    Typography,
+    Button,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableRow,
+    TableContainer,
+    CircularProgress,
+    Chip,
+} from "@mui/material";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import DashboardCard from "@/admin/components/dashboard/DashboardCard";
-import { useAuthStore } from "@/stores/useAuthStore";
-import { Icon } from '@/admin/components/ui/AdminIcon';
-import { useState, useEffect } from "react";
-import { getEcommerceStats } from "@/admin/features/dashboard/services/dashboardService";
-import Chart from '@/components/ApexChartCompat';
+import { ROUTES } from "@/admin/constants/routes";
+import { EllipsisText } from "@/admin/components/ui/EllipsisText";
+import { AdminDatePicker } from "@/admin/components/ui/AdminDatePicker";
+import Chart from "@/components/ApexChartCompat";
+import type { ApexOptions } from "apexcharts";
+import { useAdminDashboard } from "@/admin/features/dashboard/hooks/useAdminDashboard";
+import type {
+    AdminDashboardKpis,
+    AdminDashboardDailyRevenuePoint,
+    AdminDashboardSerialStatus,
+    AdminDashboardTopStation,
+    AdminDashboardRecentOrder,
+    AdminDashboardReconciliation,
+} from "@/admin/features/dashboard/types/admin-dashboard.type";
+import dayjs from "dayjs";
 
-const SalesByCategory = ({ data }: { data: any[] }) => {
-    const total = data?.reduce((acc, curr) => acc + curr.total, 0) || 0;
-    const labels = data?.map(item => item.label) || ['Trống', 'Trống'];
-    const series = data?.map(item => (total > 0 ? (item.total / total) * 100 : 0)) || [0, 0];
+const VI_NUMBER_FORMATTER = new Intl.NumberFormat("vi-VN");
 
-    const chartOptions: any = {
-        chart: { type: 'radialBar' },
-        labels: labels,
-        stroke: { lineCap: 'round' },
-        plotOptions: {
-            radialBar: {
-                hollow: { size: '40%' },
-                track: {
-                    background: 'rgba(145, 158, 171, 0.08)',
-                    strokeWidth: '100%',
+const formatCount = (value: number | null | undefined) =>
+    VI_NUMBER_FORMATTER.format(value ?? 0);
+
+const formatCurrency = (value: number | null | undefined) =>
+    `${VI_NUMBER_FORMATTER.format(value ?? 0)}\u00A0đ`;
+
+const getBusinessDate = () =>
+    new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).format(new Date());
+
+const getTopStationsFromDate = (businessDate: string) =>
+    dayjs(businessDate).subtract(13, "day").format("YYYY-MM-DD");
+
+const DashboardDateFilter = ({
+    fromDate,
+    toDate,
+    onFromDateChange,
+    onToDateChange,
+    error,
+}: {
+    fromDate: string;
+    toDate: string;
+    onFromDateChange: (value: string) => void;
+    onToDateChange: (value: string) => void;
+    error?: string;
+}) => (
+    <DashboardCard sx={{ p: 2.5 }}>
+        <Box sx={{ display: "flex", alignItems: { xs: "stretch", lg: "center" }, justifyContent: "space-between", gap: 2, flexDirection: { xs: "column", lg: "row" } }}>
+            <Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                    Khoảng ngày kinh doanh
+                </Typography>
+                <Typography variant="body2" sx={{ color: "var(--palette-text-secondary)" }}>
+                    Chọn khoảng thời gian để xem số liệu bán vé, doanh thu và các biểu đồ liên quan.
+                </Typography>
+            </Box>
+            <Box sx={{ display: "flex", gap: 1.5, width: { xs: "100%", lg: 500 }, flexShrink: 0, flexWrap: { xs: "wrap", sm: "nowrap" } }}>
+                <AdminDatePicker
+                    label="Từ ngày"
+                    value={fromDate}
+                    onChange={onFromDateChange}
+                    max={toDate || undefined}
+                    required
+                    allowInput
+                    error={Boolean(error)}
+                />
+                <AdminDatePicker
+                    label="Đến ngày"
+                    value={toDate}
+                    onChange={onToDateChange}
+                    min={fromDate || undefined}
+                    max={getBusinessDate()}
+                    required
+                    allowInput
+                    error={Boolean(error)}
+                    helperText={error}
+                    helperTextColor="error"
+                />
+            </Box>
+        </Box>
+    </DashboardCard>
+);
+
+const SERIAL_COLORS = ["#22C55E", "#FFAB00", "#00B8D9", "#8E33FF", "#FF5630", "#637381"];
+
+type ChipTone = { bg: string; color: string };
+
+const toneForLabel = (label: string): ChipTone => {
+    const s = (label || "").toLowerCase();
+    if (s.includes("cao") || s.includes("hủy") || s.includes("hết hạn") || s.includes("hết vé") || s.includes("cần xử")) {
+        return { bg: "rgba(255, 86, 48, 0.16)", color: "#B71D18" };
+    }
+    if (s.includes("trung bình") || s.includes("chờ kiểm")) {
+        return { bg: "rgba(255, 171, 0, 0.16)", color: "#B76E00" };
+    }
+    if (s.includes("hoàn") || s.includes("thấp") || s.includes("đã bán") || s.includes("trong kho")) {
+        return { bg: "rgba(34, 197, 94, 0.16)", color: "#118D57" };
+    }
+    if (s.includes("chờ") || s.includes("chuẩn bị") || s.includes("giữ") || s.includes("thanh toán")) {
+        return { bg: "rgba(0, 184, 217, 0.16)", color: "#006C9C" };
+    }
+    return { bg: "rgba(145, 158, 171, 0.16)", color: "#637381" };
+};
+
+const StatusChip = ({ label }: { label: string }) => {
+    const tone = toneForLabel(label);
+    return (
+        <Chip
+            label={label || "—"}
+            size="small"
+            title={label || "—"}
+            sx={{
+                height: 24,
+                maxWidth: "100%",
+                fontWeight: 700,
+                fontSize: "0.7rem",
+                bgcolor: tone.bg,
+                color: tone.color,
+                "& .MuiChip-label": {
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    px: 1,
                 },
-                dataLabels: {
-                    name: {
-                        fontSize: '0.875rem',
-                        fontWeight: 600,
-                        color: 'var(--palette-text-secondary)',
-                        offsetY: -10,
-                    },
-                    value: {
-                        fontSize: '1.25rem',
-                        fontWeight: 700,
-                        color: 'var(--palette-text-primary)',
-                        offsetY: 5,
-                        formatter: (val: number) => `${val.toFixed(2)}%`,
-                    },
-                    total: {
-                        show: true,
-                        label: 'Tổng thu',
-                        formatter: () => {
-                            if (total >= 1000000) return (total / 1000000).toFixed(1) + 'M';
-                            if (total >= 1000) return (total / 1000).toFixed(1) + 'K';
-                            return total.toString();
-                        },
-                    }
-                }
-            }
-        },
-        colors: ['#FF3030', '#ffab00', '#00b8d9'],
-        legend: { show: false }
-    };
-
-    return (
-        <DashboardCard>
-            <Box sx={{ p: 3, pb: 0 }}>
-                <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1.125rem' }}>Doanh số theo danh mục</Typography>
-            </Box>
-
-            <Box sx={{ height: 320, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Chart options={chartOptions} series={series} type="radialBar" width={300} height={300} />
-            </Box>
-
-            <Divider sx={{ borderStyle: 'dashed' }} />
-
-            <Box sx={{ p: 3, display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap' }}>
-                {labels.map((label: string, index: number) => (
-                    <Box key={`${label}-${index}`} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: chartOptions.colors[index] }} />
-                        <Typography sx={{ fontSize: '0.813rem', fontWeight: 600, color: 'var(--palette-text-secondary)' }}>{label}</Typography>
-                    </Box>
-                ))}
-            </Box>
-        </DashboardCard>
+            }}
+        />
     );
 };
 
-const YearlySales = ({ data }: { data: number[] }) => {
-    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+const tableHeadSx = {
+    "& th": {
+        borderBottom: "1px dashed var(--palette-divider)",
+        color: "var(--palette-text-secondary)",
+        fontWeight: 600,
+        fontSize: "0.75rem",
+        whiteSpace: "nowrap",
+    },
+};
 
-    const open = Boolean(anchorEl);
-    const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-        setAnchorEl(event.currentTarget);
-    };
-    const handleClose = (year?: string) => {
-        if (year && typeof year === 'string') setSelectedYear(year);
-        setAnchorEl(null);
-    };
+const tableRowSx = {
+    "& td": {
+        borderBottom: "1px dashed var(--palette-divider)",
+        py: 1.5,
+        whiteSpace: "nowrap",
+        verticalAlign: "middle",
+    },
+};
 
-    const chartOptions: any = {
-        chart: {
-            type: 'area',
-            toolbar: { show: false },
-            zoom: { enabled: false },
-        },
-        dataLabels: { enabled: false },
-        stroke: { curve: 'smooth', width: 3 },
-        fill: {
-            type: 'gradient',
-            gradient: {
-                shadeIntensity: 1,
-                opacityFrom: 0.4,
-                opacityTo: 0,
-                stops: [0, 100]
-            }
-        },
+const EmptyCard = ({ title, message }: { title?: string; message: string }) => (
+    <DashboardCard sx={{ height: "100%", minHeight: 220, p: 3, display: "flex", flexDirection: "column" }}>
+        {title ? (
+            <Typography variant="h6" sx={{ fontWeight: 600, fontSize: "1.125rem", mb: 2 }}>
+                {title}
+            </Typography>
+        ) : null}
+        <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Typography variant="body2" sx={{ color: "var(--palette-text-secondary)", fontWeight: 500 }}>
+                {message}
+            </Typography>
+        </Box>
+    </DashboardCard>
+);
+
+const DailyRevenueChart = ({ data, loading }: { data: AdminDashboardDailyRevenuePoint[]; loading: boolean }) => {
+    if (loading) {
+        return <EmptyCard title="Doanh thu 14 ngày gần nhất" message="Đang tải dữ liệu doanh thu" />;
+    }
+    if (data.length === 0) {
+        return <EmptyCard title="Doanh thu 14 ngày" message="Chưa có giao dịch hoàn tất" />;
+    }
+
+    const chartOptions: ApexOptions = {
+        chart: { type: "area", toolbar: { show: false }, fontFamily: "inherit" },
         xaxis: {
-            categories: ['Thg 1', 'Thg 2', 'Thg 3', 'Thg 4', 'Thg 5', 'Thg 6', 'Thg 7', 'Thg 8', 'Thg 9', 'Thg 10', 'Thg 11', 'Thg 12'],
+            categories: data.map((point) => point.date),
+            axisBorder: { show: false },
+            axisTicks: { show: false },
+            labels: { style: { colors: "var(--palette-text-secondary)", fontSize: "11px" } },
         },
-        yaxis: { labels: { show: true } },
-        grid: { strokeDashArray: 3, borderColor: 'var(--palette-divider)' },
-        legend: { show: false },
-        colors: ['#FF3030'],
+        yaxis: {
+            labels: {
+                formatter: (val: number) => (val >= 1_000_000 ? `${(val / 1_000_000).toFixed(1)}tr` : formatCount(val)),
+                style: { colors: "var(--palette-text-secondary)", fontSize: "11px" },
+            },
+        },
+        colors: ["#22C55E"],
+        dataLabels: { enabled: false },
+        stroke: { curve: "straight", width: 3 },
+        fill: { type: "gradient", gradient: { shadeIntensity: 1, opacityFrom: 0.38, opacityTo: 0.02, stops: [0, 100] } },
+        grid: { strokeDashArray: 3, borderColor: "var(--palette-divider)" },
+        tooltip: { y: { formatter: (val: number) => formatCurrency(val) } },
+        markers: { size: 3, strokeWidth: 0, hover: { size: 5 } },
     };
 
-    const series = [
-        { name: 'Doanh thu', data: Array.isArray(data) ? data : Array(12).fill(0) }
-    ];
-
     return (
-        <DashboardCard sx={{ p: 3, pb: '20px' }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+        <DashboardCard sx={{ p: 3, height: "100%" }}>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2 }}>
                 <Box>
-                    <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1.125rem' }}>Doanh s? h�ng nam</Typography>
-                    <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)', mt: 0.5 }}>
-                        <span style={{ fontWeight: 600, color: 'var(--palette-success-main)' }}>(+43%)</span> so v?i nam ngo�i
+                    <Typography variant="h6" sx={{ fontWeight: 600, fontSize: "1.125rem" }}>
+                        Doanh thu 14 ngày gần nhất
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: "var(--palette-text-secondary)" }}>
+                        Đơn hàng hoàn tất theo ngày kinh doanh
                     </Typography>
                 </Box>
-                <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={handleClick}
-                    endIcon={<Icon icon={open ? "eva:chevron-up-fill" : "eva:chevron-down-fill"} />}
-                    sx={{
-                        color: 'inherit',
-                        height: '34px',
-                        textTransform: 'none',
-                        fontWeight: 600,
-                        border: 'solid 1px rgba(145, 158, 171, 0.24)',
-                    }}
-                >
-                    {selectedYear}
-                </Button>
-                <Menu
-                    anchorEl={anchorEl}
-                    open={open}
-                    onClose={() => handleClose()}
-                    anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                    transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-                    PaperProps={{ sx: { mt: 1, borderRadius: '12px', minWidth: 100, p: 0.5 } }}
-                >
-                    {['2023', '2024', '2025'].map((year) => (
-                        <MenuItem
-                            key={year}
-                            selected={year === selectedYear}
-                            onClick={() => handleClose(year)}
-                            sx={{ borderRadius: '8px', mb: 0.5 }}
-                        >
-                            {year}
-                        </MenuItem>
-                    ))}
-                </Menu>
+                <Typography sx={{ fontFamily: "Barlow, sans-serif", fontWeight: 700, color: "#118D57" }}>
+                    {formatCurrency(data.reduce((sum, point) => sum + point.amount, 0))}
+                </Typography>
             </Box>
-
-            <Box sx={{ display: 'flex', gap: 3, mb: 3 }}>
-                <Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                        <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: 'var(--palette-primary-main)' }} />
-                        <Typography sx={{ fontSize: '0.813rem', fontWeight: 500, color: 'var(--palette-text-secondary)' }}>Doanh thu</Typography>
-                    </Box>
-                    <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                        {(Array.isArray(data) ? data.reduce((a: number, b: number) => a + b, 0) : 0).toLocaleString()}đ
-                    </Typography>
-                </Box>
-            </Box>
-
-            <Chart options={chartOptions} series={series} type="area" height={280} />
+            <Chart options={chartOptions} series={[{ name: "Doanh thu", data: data.map((point) => point.amount) }]} type="area" height={280} />
         </DashboardCard>
     );
 };
 
-const TopCustomers = ({ customers }: { customers: any[] }) => {
+interface TopStationsLeaderboardProps {
+    data: AdminDashboardTopStation[];
+    loading: boolean;
+}
+
+const TopStationsLeaderboard = ({
+    data,
+    loading,
+}: TopStationsLeaderboardProps) => {
+    const sorted = [...data]
+        .sort((a, b) => (b.soldQuantity || 0) - (a.soldQuantity || 0))
+        .slice(0, 5);
+    const maxSold = Math.max(...sorted.map((item) => item.soldQuantity || 0), 1);
+
     return (
-        <DashboardCard sx={{ p: 0 }}>
-            <Box sx={{ p: 3, pb: 3 }}>
-                <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1.125rem' }}>Kh�ch h�ng th�n thi?t</Typography>
+        <DashboardCard sx={{ p: 3 }}>
+            <Box
+                sx={{
+                    display: "flex",
+                    alignItems: { xs: "stretch", lg: "flex-start" },
+                    justifyContent: "space-between",
+                    gap: 2,
+                    flexDirection: { xs: "column", lg: "row" },
+                    mb: 2,
+                }}
+            >
+                <Box>
+                    <Typography variant="h6" sx={{ fontWeight: 600, fontSize: "1.125rem", mb: 0.5 }}>
+                        Đài có số vé bán nhiều nhất
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: "var(--palette-text-secondary)" }}>
+                        Xếp hạng số vé đã bán trong khoảng ngày kinh doanh đã chọn
+                    </Typography>
+                </Box>
             </Box>
-            <TableContainer>
-                <Table sx={{ minWidth: 640 }}>
-                    <TableHead sx={{ bgcolor: 'var(--palette-background-neutral)' }}>
-                        <TableRow>
-                            <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.875rem', borderBottom: 'none' }}>Kh�ch h�ng</TableCell>
-                            <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.875rem', borderBottom: 'none' }}>S? don</TableCell>
-                            <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.875rem', borderBottom: 'none' }}>Chi ti�u</TableCell>
-                            <TableCell align="right" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.875rem', borderBottom: 'none' }}>X?p h?ng</TableCell>
+
+            {loading ? (
+                <Box sx={{ minHeight: 160, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Typography variant="body2" sx={{ color: "var(--palette-text-secondary)", fontWeight: 500 }}>
+                        Đang tải dữ liệu theo đài…
+                    </Typography>
+                </Box>
+            ) : data.length === 0 ? (
+                <Box sx={{ minHeight: 160, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Typography variant="body2" sx={{ color: "var(--palette-text-secondary)", fontWeight: 500 }}>
+                        Chưa có vé bán trong khoảng ngày này.
+                    </Typography>
+                </Box>
+            ) : (
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 1.75 }}>
+                    {sorted.map((item, index) => {
+                        const soldQuantity = item.soldQuantity || 0;
+                        const width = `${Math.max((soldQuantity / maxSold) * 100, soldQuantity > 0 ? 3 : 0)}%`;
+                        return (
+                            <Box key={item.stationId || item.stationName} sx={{ display: "grid", gridTemplateColumns: { xs: "24px minmax(100px, 0.7fr) minmax(100px, 2fr) 78px", sm: "28px 180px minmax(160px, 1fr) 90px" }, gap: 1.25, alignItems: "center" }}>
+                                <Typography variant="body2" sx={{ color: "var(--palette-text-secondary)", fontWeight: 700 }}>
+                                    {index + 1}
+                                </Typography>
+                                <EllipsisText sx={{ fontWeight: 600, fontSize: "0.875rem" }}>
+                                    {item.stationName || "Không rõ đài"}
+                                </EllipsisText>
+                                <Box sx={{ height: 10, borderRadius: 99, bgcolor: "rgba(0, 184, 217, 0.12)", overflow: "hidden" }} aria-label={`${item.stationName}: ${formatCount(soldQuantity)} vé`}>
+                                    <Box sx={{ width, height: "100%", borderRadius: 99, bgcolor: "#00B8D9" }} />
+                                </Box>
+                                <Typography variant="body2" sx={{ textAlign: "right", fontWeight: 700, whiteSpace: "nowrap" }}>
+                                    {formatCount(soldQuantity)} vé
+                                </Typography>
+                            </Box>
+                        );
+                    })}
+                </Box>
+            )}
+        </DashboardCard>
+    );
+};
+
+const reconciliationStatusLabel = (status: string) => {
+    const normalized = (status || "").toUpperCase();
+    if (normalized.includes("COMPLETED") || normalized.includes("RESOLVED") || normalized.includes("DONE")) {
+        return "Đã xử lý";
+    }
+    if (normalized.includes("DISCREPANCY") || normalized.includes("MISMATCH")) {
+        return "Có chênh lệch";
+    }
+    if (normalized.includes("MATCHING") || normalized.includes("OPEN") || normalized.includes("PENDING")) {
+        return "Đang xử lý";
+    }
+    return status || "Đang xử lý";
+};
+
+const ReconciliationTable = ({ data, loading }: { data: AdminDashboardReconciliation[]; loading: boolean }) => {
+    if (loading) {
+        return <EmptyCard title="Đối soát cần theo dõi" message="Đang tải dữ liệu đối soát" />;
+    }
+    if (data.length === 0) {
+        return <EmptyCard title="Đối soát cần theo dõi" message="Không có chênh lệch cần xử lý" />;
+    }
+
+    return (
+        <DashboardCard sx={{ height: "100%" }}>
+            <Box sx={{ p: 3, pb: 2 }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, fontSize: "1.125rem" }}>
+                    Đối soát cần theo dõi
+                </Typography>
+                <Typography variant="caption" sx={{ color: "var(--palette-text-secondary)" }}>
+                    Các kỳ đang có chênh lệch hoặc cần hoàn tất
+                </Typography>
+            </Box>
+            <TableContainer sx={{ px: 3, pb: 3, overflowX: "auto" }}>
+                <Table size="small" sx={{ minWidth: 620 }}>
+                    <TableHead>
+                        <TableRow sx={tableHeadSx}>
+                            <TableCell>Đối tượng</TableCell>
+                            <TableCell>Kỳ đối soát</TableCell>
+                            <TableCell align="right">Chênh lệch</TableCell>
+                            <TableCell>Trạng thái</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {customers?.map((customer, index) => (
-                            <TableRow key={customer._id} sx={{ '&:hover': { bgcolor: 'var(--palette-action-hover)' } }}>
-                                <TableCell sx={{ borderBottom: 'dashed 1px var(--palette-divider)' }}>
-                                    <Stack direction="row" alignItems="center" spacing={2}>
-                                        <Avatar src={customer.avatar} sx={{ width: 40, height: 40 }} />
-                                        <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>{customer.fullName}</Typography>
-                                    </Stack>
+                        {data.map((item) => (
+                            <TableRow key={item.settlementId ?? `${item.subjectType}-${item.subjectName}-${item.periodFrom}`} sx={tableRowSx}>
+                                <TableCell sx={{ fontWeight: 600, fontSize: "0.813rem", maxWidth: 210 }}>
+                                    <EllipsisText sx={{ fontWeight: 600, fontSize: "0.813rem" }}>
+                                        {item.subjectName || "Đối soát"}
+                                    </EllipsisText>
                                 </TableCell>
-                                <TableCell sx={{ borderBottom: 'dashed 1px var(--palette-divider)', fontWeight: 600 }}>{customer.totalOrders ?? 0}</TableCell>
-                                <TableCell sx={{ borderBottom: 'dashed 1px var(--palette-divider)', fontWeight: 600 }}>{(customer.totalSpent ?? 0).toLocaleString()}đ</TableCell>
-                                <TableCell align="right" sx={{ borderBottom: 'dashed 1px var(--palette-divider)' }}>
-                                    <Box
-                                        sx={{
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            borderRadius: '6px',
-                                            px: 1,
-                                            fontSize: '0.75rem',
-                                            fontWeight: 700,
-                                            color: index < 3 ? 'var(--palette-success-dark)' : 'var(--palette-text-secondary)',
-                                            bgcolor: index < 3 ? 'rgba(34, 197, 94, 0.16)' : 'rgba(145, 158, 171, 0.16)',
-                                        }}
-                                    >
-                                        #{index + 1}
-                                    </Box>
+                                <TableCell sx={{ fontSize: "0.75rem", color: "var(--palette-text-secondary)", whiteSpace: "nowrap" }}>
+                                    {item.periodFrom || item.periodTo
+                                        ? `${item.periodFrom ?? "—"} – ${item.periodTo ?? "—"}`
+                                        : "—"}
+                                </TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 700, fontSize: "0.813rem", whiteSpace: "nowrap" }}>
+                                    {formatCurrency(item.discrepancyAmount)}
+                                </TableCell>
+                                <TableCell>
+                                    <StatusChip label={reconciliationStatusLabel(item.status)} />
                                 </TableCell>
                             </TableRow>
                         ))}
@@ -238,186 +374,235 @@ const TopCustomers = ({ customers }: { customers: any[] }) => {
     );
 };
 
-export const EcommercePage = () => {
-    const { user } = useAuthStore();
-    const [activeIndex, setActiveIndex] = useState(0);
-    const [stats, setStats] = useState<any>(null);
+const SerialStatusDonut = ({ data, loading }: { data: AdminDashboardSerialStatus[]; loading: boolean }) => {
+    if (loading) {
+        return <EmptyCard title="Phân bố serial vé" message="Đang tải dữ liệu serial" />;
+    }
+    if (data.length === 0) {
+        return <EmptyCard title="Tồn serial" message="Chưa có serial trong kho" />;
+    }
 
-    useEffect(() => {
-        const fetchStats = async () => {
-            try {
-                const response = await getEcommerceStats();
-                if (response.success) {
-                    setStats(response.data);
-                }
-            } catch (error) {
-                console.error("Failed to fetch ecommerce stats:", error);
-            }
-        };
-        fetchStats();
-    }, []);
+    const sorted = [...data]
+        .filter((item) => (item.count || 0) > 0)
+        .sort((a, b) => (b.count || 0) - (a.count || 0));
+    if (sorted.length === 0) {
+        return <EmptyCard title="Trạng thái serial vé" message="Chưa có serial trong kho" />;
+    }
 
-    const featuredTickets = [
-        {
-            name: "Urban Explorer Sneakers",
-            description: "NEW",
-            image: "https://pub-c5e31b5cdafb419fb247a8ac2e78df7a.r2.dev/public/assets/images/mock/cover/cover-1.webp",
+    const total = sorted.reduce((sum, item) => sum + (item.count || 0), 0);
+    const chartOptions: ApexOptions = {
+        chart: { type: "donut", toolbar: { show: false }, fontFamily: "inherit" },
+        colors: SERIAL_COLORS,
+        dataLabels: { enabled: false },
+        legend: { position: "bottom", fontSize: "12px", fontWeight: 600 },
+        labels: sorted.map((item) => item.label || item.status),
+        stroke: { width: 2 },
+        plotOptions: {
+            pie: {
+                donut: {
+                    size: "72%",
+                    labels: {
+                        show: true,
+                        name: { show: true, fontSize: "12px", color: "var(--palette-text-secondary)" },
+                        value: { show: true, fontSize: "20px", fontWeight: 700, color: "var(--palette-text-primary)", formatter: (value: string) => `${formatCount(Number(value))} vé` },
+                        total: {
+                            show: true,
+                            label: "Tổng serial",
+                            fontSize: "12px",
+                            color: "var(--palette-text-secondary)",
+                            formatter: () => `${formatCount(total)} vé`,
+                        },
+                    },
+                },
+            },
         },
-        {
-            name: "Retro Runner Shoes",
-            description: "HOT",
-            image: "https://pub-c5e31b5cdafb419fb247a8ac2e78df7a.r2.dev/public/assets/images/mock/cover/cover-2.webp",
-        },
-        {
-            name: "Classic Leather Boots",
-            description: "CLASSIC",
-            image: "https://pub-c5e31b5cdafb419fb247a8ac2e78df7a.r2.dev/public/assets/images/mock/cover/cover-3.webp",
-        }
-    ];
-
-    const handleNext = () => setActiveIndex((prev) => (prev + 1) % featuredTickets.length);
-    const handlePrev = () => setActiveIndex((prev) => (prev - 1 + featuredTickets.length) % featuredTickets.length);
+        tooltip: { y: { formatter: (value: number) => `${formatCount(value)} vé` } },
+    };
 
     return (
-        <Grid
-            container
-            sx={{
-                '--Grid-columns': 12,
-                '--Grid-columnSpacing': 'calc(3 * var(--spacing))',
-                '--Grid-rowSpacing': 'calc(3 * var(--spacing))',
-                flexFlow: 'wrap',
-                minWidth: '0px',
-                boxSizing: 'border-box',
-                display: 'flex',
-                gap: 'var(--Grid-rowSpacing) var(--Grid-columnSpacing)',
-                '& > *': {
-                    '--Grid-parent-rowSpacing': 'calc(3 * var(--spacing))',
-                    '--Grid-parent-columnSpacing': 'calc(3 * var(--spacing))',
-                    '--Grid-parent-columns': 12,
-                }
-            }}
-        >
-            <Grid
-                sx={{
-                    flexGrow: 0,
-                    flexBasis: 'auto',
-                    width: 'calc(100% * 8 / var(--Grid-parent-columns) - (var(--Grid-parent-columns) - 8) * (var(--Grid-parent-columnSpacing) / var(--Grid-parent-columns)))',
-                }}
-            >
-                <WelcomeWidget
-                    title={`Chào mừng quay trở lại 👋\n` + (user?.fullName || 'Admin')}
-                    description="Hôm nay có gì mới? Hãy kiểm tra các chỉ số kinh doanh và lịch đặt gần đây."
-                    img="https://pub-c5e31b5cdafb419fb247a8ac2e78df7a.r2.dev/public/assets/illustrations/characters/character-present.webp"
+        <DashboardCard sx={{ p: 3, height: "100%" }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, fontSize: "1.125rem" }}>
+                Trạng thái serial vé
+            </Typography>
+            <Typography variant="caption" sx={{ color: "var(--palette-text-secondary)", display: "block", mb: 1 }}>
+                Tỷ trọng serial trong toàn bộ kho
+            </Typography>
+            <Chart options={chartOptions} series={sorted.map((item) => item.count || 0)} type="donut" height={300} />
+        </DashboardCard>
+    );
+};
+
+const RecentOrdersTable = ({ data, loading }: { data: AdminDashboardRecentOrder[]; loading: boolean }) => {
+    if (loading) {
+        return <EmptyCard title="Đơn hàng gần đây" message="Đang tải dữ liệu đơn hàng" />;
+    }
+    if (data.length === 0) {
+        return <EmptyCard title="Đơn hàng gần đây" message="Chưa có đơn hàng" />;
+    }
+
+    return (
+        <DashboardCard>
+            <Box sx={{ p: 3, pb: 2 }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, fontSize: "1.125rem" }}>
+                    Đơn hàng gần đây
+                </Typography>
+            </Box>
+            <TableContainer sx={{ px: 3, pb: 3, overflowX: "auto" }}>
+                <Table size="small" sx={{ minWidth: 640 }}>
+                    <TableHead>
+                        <TableRow sx={tableHeadSx}>
+                            <TableCell>Mã đơn</TableCell>
+                            <TableCell>Khách hàng</TableCell>
+                            <TableCell>Trạng thái</TableCell>
+                            <TableCell align="right">Tổng tiền</TableCell>
+                            <TableCell align="right">Thời gian</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {data.map((item) => (
+                            <TableRow key={item.id || item.orderCode} sx={tableRowSx}>
+                                <TableCell sx={{ fontWeight: 700, fontSize: "0.813rem", fontFamily: "Barlow, sans-serif", maxWidth: 140 }}>
+                                    <EllipsisText sx={{ fontWeight: 700, fontSize: "0.813rem", fontFamily: "Barlow, sans-serif" }}>
+                                        {item.orderCode || "—"}
+                                    </EllipsisText>
+                                </TableCell>
+                                <TableCell sx={{ fontSize: "0.813rem", maxWidth: 180 }}>
+                                    <EllipsisText sx={{ fontSize: "0.813rem" }}>{item.customerName}</EllipsisText>
+                                </TableCell>
+                                <TableCell>
+                                    <StatusChip label={item.status} />
+                                </TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 700, fontSize: "0.813rem", whiteSpace: "nowrap" }}>
+                                    {formatCurrency(item.total)}
+                                </TableCell>
+                                <TableCell align="right" sx={{ fontSize: "0.75rem", color: "var(--palette-text-secondary)", whiteSpace: "nowrap" }}>
+                                    {item.createdAt ? dayjs(item.createdAt).format("DD/MM HH:mm") : "—"}
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </TableContainer>
+        </DashboardCard>
+    );
+};
+
+const KpiCard = ({ title, value, detail, loading }: { title: string; value: string; detail: string; loading: boolean }) => (
+    <DashboardCard sx={{ p: 2.5, minHeight: 126, display: "flex", flexDirection: "column" }}>
+        <Typography variant="body2" color="text.secondary">{title}</Typography>
+        <Box sx={{ minHeight: 40, display: "flex", alignItems: "center" }}>
+            {loading ? <CircularProgress size={22} /> : <Typography variant="h5" sx={{ fontWeight: 700 }}>{value}</Typography>}
+        </Box>
+        <Typography variant="caption" color="text.secondary">{detail}</Typography>
+    </DashboardCard>
+);
+
+const KpiGrid = ({ data, loading }: { data?: AdminDashboardKpis; loading: boolean }) => {
+    return (
+        <Grid container spacing={3} alignItems="stretch">
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}><KpiCard title="Vé đã bán" value={`${formatCount(data?.soldTicketQuantity)} vé`} detail="Theo ngày kinh doanh hiện tại" loading={loading} /></Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}><KpiCard title="Doanh thu bán vé" value={formatCurrency(data?.ticketSalesRevenue)} detail="Tổng tiền từ vé đã bán" loading={loading} /></Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}><KpiCard title="Chênh lệch đối soát đang mở" value={formatCurrency(data?.reconciliationAmount)} detail="Khoản cần xử lý, không phải doanh thu" loading={loading} /></Grid>
+        </Grid>
+    );
+};
+
+export const EcommercePage = () => {
+    const router = useRouter();
+    const initialBusinessDate = getBusinessDate();
+    const [businessDateFrom, setBusinessDateFrom] = useState(() => getTopStationsFromDate(initialBusinessDate));
+    const [businessDateTo, setBusinessDateTo] = useState(initialBusinessDate);
+
+    const topStationsDateOutOfBusinessRange = Boolean(
+        (businessDateFrom && businessDateFrom > businessDateTo) ||
+        (businessDateTo && businessDateTo > getBusinessDate()),
+    );
+    const topStationsRangeTooLong = Boolean(
+        businessDateFrom &&
+        businessDateTo &&
+        dayjs(businessDateTo).diff(dayjs(businessDateFrom), "day") > 365,
+    );
+    const topStationsDateRangeError = topStationsDateOutOfBusinessRange
+        ? businessDateTo > getBusinessDate()
+            ? "Ngày kết thúc không được sau ngày hiện tại."
+            : "Ngày bắt đầu không được sau ngày kết thúc."
+        : topStationsRangeTooLong
+            ? "Chỉ có thể xem tối đa 366 ngày trong một lần."
+            : undefined;
+
+    // Existing dashboard APIs use businessDate as their single-date anchor;
+    // use the selected end date until their range-aware contracts are added.
+    const businessDate = businessDateTo;
+
+    const {
+        kpis,
+        serialStatus,
+        topStations,
+        recentOrders,
+        dailyRevenue,
+        reconciliations,
+    } = useAdminDashboard(businessDate, {
+        includeActionItems: false,
+        includeDailyRevenue: true,
+        includeReconciliations: false,
+        topStationsFromDate: businessDateFrom,
+        topStationsToDate: businessDateTo,
+        topStationsEnabled: !topStationsDateRangeError,
+    });
+    const dashboardQueries = [
+        kpis,
+        serialStatus,
+        topStations,
+        recentOrders,
+        dailyRevenue,
+        reconciliations,
+    ];
+    const isRefreshing = dashboardQueries.some((query) => query.isFetching);
+
+    return (
+        <Grid container spacing={3} alignItems="stretch">
+            <Grid size={12}>
+                <DashboardDateFilter
+                    fromDate={businessDateFrom}
+                    toDate={businessDateTo}
+                    onFromDateChange={setBusinessDateFrom}
+                    onToDateChange={setBusinessDateTo}
+                    error={topStationsDateRangeError}
                 />
             </Grid>
 
-            {/* Featured Ticket Slide */}
-            <Grid
-                sx={{
-                    flexGrow: 0,
-                    flexBasis: 'auto',
-                    width: 'calc(100% * 4 / var(--Grid-parent-columns) - (var(--Grid-parent-columns) - 4) * (var(--Grid-parent-columnSpacing) / var(--Grid-parent-columns)))',
-                }}
-            >
-                <DashboardCard
-                    sx={{
-                        backgroundColor: 'var(--palette-common-black)',
-                        height: '320px',
-                        overflow: 'hidden',
-                        position: 'relative'
-                    }}
+            <Grid size={12}>
+                <KpiGrid data={kpis.data} loading={kpis.isLoading} />
+            </Grid>
+
+            <Grid size={12}>
+                <DailyRevenueChart data={dailyRevenue.data ?? []} loading={dailyRevenue.isLoading} />
+            </Grid>
+
+            <Grid size={12}>
+                <SerialStatusDonut data={serialStatus.data ?? []} loading={serialStatus.isLoading} />
+            </Grid>
+
+            <Grid size={12}>
+                <TopStationsLeaderboard
+                    data={topStations.data ?? []}
+                    loading={topStations.isLoading}
+                />
+            </Grid>
+
+            <Grid size={12}>
+                <RecentOrdersTable data={recentOrders.data ?? []} loading={recentOrders.isLoading} />
+            </Grid>
+
+            <Grid size={12} sx={{ display: "flex", justifyContent: "flex-end" }}>
+                <Button
+                    variant="text"
+                    onClick={() => router.push(ROUTES.ADMIN.REPORTS.REVENUE)}
+                    sx={{ fontWeight: 600 }}
+                    disabled={isRefreshing}
                 >
-                    <div className="m-auto max-w-full overflow-hidden relative h-full">
-                        <ul
-                            className="flex list-none p-0 m-0 h-full transition-transform duration-500 ease-in-out"
-                            style={{ transform: `translate3d(-${activeIndex * 100}%, 0px, 0px)` }}
-                        >
-                            {featuredTickets.map((item, index) => (
-                                <li key={index} className="block relative min-w-0 flex-[0_0_100%] h-full">
-                                    <Box sx={{ position: 'relative', height: '100%', width: '100%' }}>
-                                        <div className="absolute bottom-0 z-[9] w-full p-[calc(3*var(--spacing))] flex flex-col gap-[var(--spacing)] text-[var(--palette-common-white)]">
-                                            <span className="m-0 font-bold text-[0.75rem] uppercase text-[var(--palette-success-light)]">
-                                                {item.description}
-                                            </span>
-                                            <Typography
-                                                variant="h5"
-                                                sx={{
-                                                    fontWeight: 700,
-                                                    fontSize: '1.25rem',
-                                                    overflow: 'hidden',
-                                                    textOverflow: 'ellipsis',
-                                                    whiteSpace: 'nowrap',
-                                                    color: 'inherit',
-                                                }}
-                                            >
-                                                {item.name}
-                                            </Typography>
-                                        </div>
-                                        <Box
-                                            sx={{
-                                                position: 'absolute',
-                                                top: 0, left: 0, right: 0, bottom: 0,
-                                                background: 'linear-gradient(to bottom, rgba(22, 28, 36, 0) 0%, rgba(22, 28, 36, 1) 100%)',
-                                                zIndex: 8
-                                            }}
-                                        />
-                                        <img src={item.image} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                    </Box>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                    <div className="flex items-center absolute top-[calc(1.5*var(--spacing))] right-[calc(1.5*var(--spacing))] z-[9] text-[var(--palette-common-white)]">
-                        <button type="button" onClick={handlePrev} className="inline-flex items-center justify-center relative bg-transparent cursor-pointer rounded-full p-[var(--spacing)] border-none transition-all duration-250 ease-[cubic-bezier(0.4,0,0.6,1)] hover:bg-[rgba(255,255,255,0.08)]">
-                            <Icon icon="eva:chevron-left-fill" width={20} />
-                        </button>
-                        <button type="button" onClick={handleNext} className="inline-flex items-center justify-center relative bg-transparent cursor-pointer rounded-full p-[var(--spacing)] border-none transition-all duration-250 ease-[cubic-bezier(0.4,0,0.6,1)] hover:bg-[rgba(255,255,255,0.08)]">
-                            <Icon icon="eva:chevron-right-fill" width={20} />
-                        </button>
-                    </div>
-                </DashboardCard>
-            </Grid>
-
-            {/* Stats Summary Section */}
-            <Grid sx={{ flexGrow: 0, flexBasis: 'auto', width: 'calc(100% * 4 / var(--Grid-parent-columns) - (var(--Grid-parent-columns) - 4) * (var(--Grid-parent-columnSpacing) / var(--Grid-parent-columns)))' }}>
-                <SummaryWidget title="Tổng sản phẩm" total={stats?.summary?.totalTickets?.toString() || "0"} percent={0} color="#FF3030" chartData={[25, 66, 41, 89, 63, 25, 44, 12]} />
-            </Grid>
-            <Grid sx={{ flexGrow: 0, flexBasis: 'auto', width: 'calc(100% * 4 / var(--Grid-parent-columns) - (var(--Grid-parent-columns) - 4) * (var(--Grid-parent-columnSpacing) / var(--Grid-parent-columns)))' }}>
-                <SummaryWidget
-                    title="T?ng don h�ng"
-                    total={stats?.summary?.totalOrders?.toString() || "0"}
-                    percent={0}
-                    color="#ffab00"
-                    chartData={[15, 32, 45, 32, 56, 32, 44, 55]}
-                    recentSources={stats?.recentOrders?.map((o: any) => ({
-                        id: o._id,
-                        label: o.userId?.fullName || o.fullName || "Kh�ch h�ng",
-                        amount: o.total - (o.shipping?.fee || 0),
-                        time: o.createdAt,
-                        type: 'order'
-                    }))}
-                />
-            </Grid>
-            <Grid sx={{ flexGrow: 0, flexBasis: 'auto', width: 'calc(100% * 4 / var(--Grid-parent-columns) - (var(--Grid-parent-columns) - 4) * (var(--Grid-parent-columnSpacing) / var(--Grid-parent-columns)))' }}>
-                <SummaryWidget
-                    title="Doanh thu th�ng"
-                    total={(stats?.summary?.monthlyRevenue?.toLocaleString() || "0") + "d"}
-                    percent={stats?.summary?.revenueMonthPercent || 0}
-                    color="#00b8d9"
-                    chartData={[56, 44, 32, 45, 32, 15, 25, 12]}
-                    recentSources={stats?.summary?.recentRevenueSources}
-                />
-            </Grid>
-
-            <Grid sx={{ flexGrow: 0, flexBasis: 'auto', width: 'calc(100% * 4 / var(--Grid-parent-columns) - (var(--Grid-parent-columns) - 4) * (var(--Grid-parent-columnSpacing) / var(--Grid-parent-columns)))' }}>
-                <SalesByCategory data={stats?.topCategories} />
-            </Grid>
-            <Grid sx={{ flexGrow: 0, flexBasis: 'auto', width: 'calc(100% * 8 / var(--Grid-parent-columns) - (var(--Grid-parent-columns) - 8) * (var(--Grid-parent-columnSpacing) / var(--Grid-parent-columns)))' }}>
-                <YearlySales data={stats?.yearlyRevenueChart?.total ?? stats?.yearlyRevenueChart} />
-            </Grid>
-
-            <Grid sx={{ flexGrow: 0, flexBasis: 'auto', width: 'calc(100% * 8 / var(--Grid-parent-columns) - (var(--Grid-parent-columns) - 8) * (var(--Grid-parent-columnSpacing) / var(--Grid-parent-columns)))' }}>
-                <TopCustomers customers={stats?.topCustomers} />
+                    Xem báo cáo doanh thu & đối soát →
+                </Button>
             </Grid>
         </Grid>
     );

@@ -55,6 +55,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.lenient;
@@ -121,6 +122,9 @@ class LotteryTicketServiceTest {
     private com.daiphat.coreapi.application.port.in.lotteries.SupplierSettlementServicePort supplierSettlementServicePort;
 
     @Mock
+    private ReturnBatchImportSyncService returnBatchImportSyncService;
+
+    @Mock
     private com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort orderRepositoryPort;
 
     @Mock
@@ -145,6 +149,7 @@ class LotteryTicketServiceTest {
                 importBatchLineRepositoryPort,
                 importBatchDraftExpiryService,
                 supplierSettlementServicePort,
+                returnBatchImportSyncService,
                 lotteryStationServicePort,
                 lotteryTicketApplicationMapper,
                 lotteryTicketSerialService,
@@ -257,8 +262,10 @@ class LotteryTicketServiceTest {
                 .build();
 
         lenient().when(lotteryTicketSerialService.findAllByTicketId(any())).thenReturn(List.of());
+        lenient().when(lotteryTicketSerialService.findAllByTicketIds(any())).thenReturn(List.of());
         lenient().when(lotteryTicketSerialService.findFirstByTicketId(any())).thenReturn(Optional.empty());
         lenient().when(lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(any())).thenReturn(Map.of());
+        lenient().when(lotteryTicketSerialService.countSerialsByTicketIds(any())).thenReturn(Map.of());
         lenient().when(lotteryTicketSerialService.countAvailableSerialsByTicketIds(any())).thenReturn(Map.of());
         lenient().when(lotteryTicketApplicationMapper.toResponseDetail(any(), anyList(), nullable(String.class), nullable(String.class), anyInt()))
                 .thenReturn(mappedResponse);
@@ -365,6 +372,7 @@ class LotteryTicketServiceTest {
                 any(PageRequest.class), eq(stationB), eq(List.of(stationB)), any(), any(), any(), any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(ticketB1, ticketB2), PageRequest.of(0, 5), 30));
         when(lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(anyList())).thenReturn(Map.of());
+        when(lotteryTicketSerialService.findAllByTicketIds(any())).thenReturn(List.of());
         when(lotteryTicketSerialService.countSerialsByTicketIds(anyList())).thenReturn(Map.of());
         when(lotteryTicketApplicationMapper.toResponse(any(), any(), any(), any(), anyInt())).thenReturn(mappedResponse);
 
@@ -974,7 +982,9 @@ class LotteryTicketServiceTest {
         LotteryTicketResponse response = lotteryTicketService.create(createRequest, IMPORTED_BY_ID);
 
         assertThat(response).isNotNull();
-        verify(lotteryTicketSerialService).upsertSerialForTicket(any(), any(), eq(IMPORTED_BY_ID), eq(IMPORT_BATCH_ID), eq(IMPORT_BATCH_LINE_ID));
+        // The request carries no input source, so serials keep the manual default.
+        verify(lotteryTicketSerialService).upsertSerialForTicket(
+                any(), any(), eq(IMPORTED_BY_ID), eq(IMPORT_BATCH_ID), eq(IMPORT_BATCH_LINE_ID), isNull());
         verify(lotteryTicketRepositoryPort, org.mockito.Mockito.atLeastOnce()).save(any());
     }
 
@@ -1357,7 +1367,7 @@ class LotteryTicketServiceTest {
     // ============================================================
 
     @Test
-    @DisplayName("[DP-XXX] expireDueTickets: Bỏ qua vé chưa hết hạn và phát sự kiện khi có serial PROXY_HOLDING")
+    @DisplayName("[DP-XXX] expireDueTickets: Bỏ qua vé chưa hết hạn và phát sự kiện khi có serial SOLD")
     void expireDueTickets_coversBranches() {
         LotteryTicketModel notExpired = new LotteryTicketModel();
         notExpired.setId(101L);
@@ -1375,8 +1385,6 @@ class LotteryTicketServiceTest {
         when(lotteryTicketRepositoryPort.findExpirableTickets(any(), any()))
                 .thenReturn(List.of(notExpired, expiredWithProxySerials));
         when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
-        when(lotteryTicketSerialService.countByStatuses(
-                eq(102L), eq(List.of(LotteryTicketSerialStatus.PROXY_HOLDING)))).thenReturn(1L);
         when(lotteryTicketRepositoryPort.save(any())).thenAnswer(i -> i.getArgument(0));
 
         int count = lotteryTicketService.expireDueTickets();
@@ -1386,11 +1394,7 @@ class LotteryTicketServiceTest {
         verify(lotteryTicketSerialService).expireActiveSerials(102L);
         verify(lotteryTicketRepositoryPort, times(1)).save(expiredWithProxySerials);
 
-        ArgumentCaptor<LotteryTicketProxyExpiredEvent> eventCaptor =
-                ArgumentCaptor.forClass(LotteryTicketProxyExpiredEvent.class);
-        verify(applicationEventPublisher).publishEvent(eventCaptor.capture());
-        assertThat(eventCaptor.getValue().ticketId()).isEqualTo(102L);
-        assertThat(eventCaptor.getValue().ticketNumber()).isEqualTo(NUMBERS);
+        verify(applicationEventPublisher, never()).publishEvent(any());
     }
 
     @Test
@@ -1488,13 +1492,15 @@ class LotteryTicketServiceTest {
     }
 
     @Test
-    @DisplayName("[DP-325] REPLACE_DIGITS: Void serial cũ (DATA_ENTRY_FAULT), soft-delete vé cũ, tạo serial mới với replacedForTicketId")
-    void replaceDigits_softDeletesOldTicketAndSetsReplaceTicketId() {
+    @DisplayName("[DP-325] REPLACE_DIGITS: Chuyển ticketId của serial cũ sang dãy mới, không clone, không VOID, soft-delete vé cũ")
+    void replaceDigits_reassignsSerialsToNewTicketWithoutClone() {
         LotteryTicketSerialModel serial = LotteryTicketSerialModel.builder()
                 .id(1L)
                 .ticketId(TICKET_ID)
                 .serialNumber(SERIAL_NUMBER)
                 .status(LotteryTicketSerialStatus.IN_STOCK)
+                .stationId(PRODUCT_ID)
+                .drawDate(existingModel.getDrawDate())
                 .build();
         LotteryTicketModel newTicket = LotteryTicketModel.builder()
                 .id(REPLACEMENT_TICKET_ID)
@@ -1532,26 +1538,26 @@ class LotteryTicketServiceTest {
         lotteryTicketService.replaceDigits(TICKET_ID, request, IMPORTED_BY_ID);
 
         assertThat(existingModel.isDeleted()).isTrue();
+        assertThat(serial.getTicketId()).isEqualTo(REPLACEMENT_TICKET_ID);
+        assertThat(serial.getSerialNumber()).isEqualTo(SERIAL_NUMBER);
+        assertThat(serial.getReplacedForTicketId()).isNull();
+        assertThat(serial.getTicketCondition()).isNotEqualTo(
+                com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.VOIDED);
         verify(lotteryTicketSerialRepositoryPort).save(argThat(s ->
-                s.getTicketCondition() == com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.VOIDED
-                        && s.getStatus() == LotteryTicketSerialStatus.IN_STOCK
-                        && s.getFaultedBy() == com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialFaultedBy.DATA_ENTRY_FAULT));
-        verify(lotteryTicketSerialRepositoryPort).save(argThat(s ->
-                s.getTicketId().equals(REPLACEMENT_TICKET_ID) && Long.valueOf(1L).equals(s.getReplacedForTicketId())));
-        // Old ticket is loaded once up front, then soft-deleted — never recomputed afterwards.
+                s.getTicketId().equals(REPLACEMENT_TICKET_ID)
+                        && SERIAL_NUMBER.equals(s.getSerialNumber())
+                        && s.getReplacedForTicketId() == null));
         verify(lotteryTicketRepositoryPort, times(1)).findById(TICKET_ID);
         verify(lotteryTicketRepositoryPort, atLeastOnce()).findById(REPLACEMENT_TICKET_ID);
         verify(lotteryStationServicePort, atLeastOnce()).recalculateInventory(PRODUCT_ID);
     }
 
     @Test
-    @DisplayName("[DP-325] EXPIRE_DUE_TICKETS: Không phát sự kiện proxy khi không có serial PROXY_HOLDING")
-    void expireDueTickets_withoutProxySerials_doesNotPublishEvent() {
+    @DisplayName("[DP-325] EXPIRE_DUE_TICKETS: không phát sự kiện bàn giao cũ")
+    void expireDueTickets_doesNotPublishLegacyHandoverEvent() {
         productModel.setDrawTime(LocalTime.MIN);
         when(lotteryTicketRepositoryPort.findExpirableTickets(any(), anyList())).thenReturn(List.of(existingModel));
         when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
-        when(lotteryTicketSerialService.countByStatuses(
-                eq(TICKET_ID), eq(List.of(LotteryTicketSerialStatus.PROXY_HOLDING)))).thenReturn(0L);
         when(lotteryTicketRepositoryPort.save(any())).thenReturn(savedModel);
 
         int count = lotteryTicketService.expireDueTickets();

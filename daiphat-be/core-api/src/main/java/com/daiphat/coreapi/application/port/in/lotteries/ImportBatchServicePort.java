@@ -5,6 +5,8 @@ import com.daiphat.coreapi.application.dto.request.lotteries.ImportBatchClassifi
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateImportBatchRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateImportBatchLineRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
+import com.daiphat.coreapi.application.dto.storage.StorageResult;
+import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchBlockedStationResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchClassificationPreviewResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchEligibleStationResponse;
@@ -34,6 +36,14 @@ public interface ImportBatchServicePort {
      * Works for completed/imported batches (settlement reconciliation fill-in).
      */
     ImportBatchResponse attachInvoiceEvidence(Long id, String invoiceEvidenceUrl);
+
+    /** Upload invoice evidence (image or document file). */
+    StorageResult uploadInvoiceEvidence(UploadRequest request);
+
+    /** Upload ticket-list evidence (image or document file). */
+    StorageResult uploadTicketListImage(UploadRequest request);
+
+    ImportBatchResponse attachTicketListImages(Long id, List<String> urls);
 
     Optional<ImportBatchResponse> getActiveDraft(UUID operatorId);
 

@@ -11,12 +11,14 @@ import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryResultStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.SerialPayoutState;
+import com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.order.TicketDrawResultStatus;
 import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutChannel;
 import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutOwnershipVerificationLevel;
 import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutRequestStatus;
 import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutTicketOrigin;
+import com.daiphat.coreapi.domain.model.enums.payout.PrizeRedemptionZone;
 import com.daiphat.coreapi.domain.model.enums.settings.SystemConfigEnum;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryResultDetailModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryResultModel;
@@ -56,12 +58,12 @@ public class PrizePayoutEligibilityService {
 
     /** Still held by agent (or expired while held). */
     private static final EnumSet<LotteryTicketSerialStatus> ONLINE_HELD_SERIAL_STATUSES = EnumSet.of(
-            LotteryTicketSerialStatus.PROXY_HOLDING,
+            LotteryTicketSerialStatus.SOLD,
             LotteryTicketSerialStatus.EXPIRED);
 
     /** IN_PERSON also allows tickets already handed to the customer. */
     private static final EnumSet<LotteryTicketSerialStatus> IN_PERSON_SERIAL_STATUSES = EnumSet.of(
-            LotteryTicketSerialStatus.PROXY_HOLDING,
+            LotteryTicketSerialStatus.SOLD,
             LotteryTicketSerialStatus.EXPIRED,
             LotteryTicketSerialStatus.SOLD);
 
@@ -73,6 +75,7 @@ public class PrizePayoutEligibilityService {
     private final PrizePayoutRequestRepositoryPort prizePayoutRequestRepositoryPort;
     private final PrizePayoutCalculationService prizePayoutCalculationService;
     private final SystemConfigRepositoryPort systemConfigRepositoryPort;
+    private final PrizeRedemptionDeadlineService prizeRedemptionDeadlineService;
 
     public record PrizeMatchContext(
             TicketDrawResultStatus drawResultStatus,
@@ -141,7 +144,7 @@ public class PrizePayoutEligibilityService {
             if (order.getUser() == null) {
                 throw new DomainException(
                         ErrorCode.PRIZE_PAYOUT_NOT_ELIGIBLE,
-                        "Vé online thiếu chủ sở hữu trên hệ thống — không thể trả thưởng tự động đối chiếu.");
+                        "Vé trực tuyến thiếu chủ sở hữu trên hệ thống — không thể trả thưởng tự động đối chiếu.");
             }
             return new OwnershipVerificationContext(
                     origin,
@@ -275,7 +278,7 @@ public class PrizePayoutEligibilityService {
             if (order == null || order.getOrderType() != OrderType.ONLINE) {
                 throw new DomainException(
                         ErrorCode.PRIZE_PAYOUT_REQUIRES_IN_PERSON,
-                        "Vé không mua online qua hệ thống — vui lòng đến đại lý đổi thưởng.");
+                        "Vé không mua trực tuyến qua hệ thống — vui lòng đến đại lý đổi thưởng.");
             }
             if (!ONLINE_HELD_SERIAL_STATUSES.contains(serial.getStatus())) {
                 throw new DomainException(
@@ -285,10 +288,11 @@ public class PrizePayoutEligibilityService {
             BigDecimal onlineMax = prizePayoutCalculationService.resolveOnlineMaxAmount();
             throw new DomainException(
                     ErrorCode.PRIZE_PAYOUT_REQUIRES_IN_PERSON,
-                    "Giá trị giải vượt hạn mức trả thưởng online ("
+                    "Giá trị giải vượt hạn mức trả thưởng trực tuyến ("
                             + onlineMax.toPlainString()
                             + "đ) — vui lòng đến đại lý đổi thưởng.");
         }
+        enforceCustomerRedemptionWindow(detail, serial);
     }
 
     @Transactional(readOnly = true)
@@ -337,6 +341,14 @@ public class PrizePayoutEligibilityService {
 
     @Transactional(readOnly = true)
     public void validateStaffInPersonCreate(OrderDetailEntity detail, LotteryTicketSerialEntity serial) {
+        validateStaffInPersonCreate(detail, serial, false);
+    }
+
+    @Transactional(readOnly = true)
+    public void validateStaffInPersonCreate(
+            OrderDetailEntity detail,
+            LotteryTicketSerialEntity serial,
+            boolean acknowledgeLateRedemption) {
         validateCommonBlocking(serial);
         if (!IN_PERSON_SERIAL_STATUSES.contains(serial.getStatus())) {
             throw new DomainException(
@@ -345,6 +357,48 @@ public class PrizePayoutEligibilityService {
         }
         PrizeMatchContext match = resolvePrizeMatch(detail, serial);
         ensureWonWithAmount(match);
+        enforceStaffRedemptionWindow(detail, serial, acknowledgeLateRedemption);
+    }
+
+    public PrizeRedemptionDeadlineService.RedemptionDeadlines resolveRedemptionDeadlines(
+            OrderDetailEntity detail,
+            LotteryTicketSerialEntity serial) {
+        LotteryTicketEntity ticket = serial != null ? serial.getTicket() : null;
+        if (ticket == null && detail != null && detail.getLotteryTicketSerial() != null) {
+            ticket = detail.getLotteryTicketSerial().getTicket();
+        }
+        if (ticket == null || ticket.getDrawDate() == null) {
+            throw new DomainException(ErrorCode.PRIZE_PAYOUT_NOT_ELIGIBLE, "Thiếu ngày quay để tính hạn đổi thưởng.");
+        }
+        Long stationId = ticket.getStation() != null ? ticket.getStation().getId() : null;
+        return prizeRedemptionDeadlineService.resolve(ticket.getDrawDate(), stationId);
+    }
+
+    private void enforceCustomerRedemptionWindow(OrderDetailEntity detail, LotteryTicketSerialEntity serial) {
+        PrizeRedemptionDeadlineService.RedemptionDeadlines deadlines = resolveRedemptionDeadlines(detail, serial);
+        if (deadlines.zone() == PrizeRedemptionZone.WITHIN_CUSTOMER) {
+            return;
+        }
+        if (deadlines.zone() == PrizeRedemptionZone.PAST_ISSUER_LOCKED) {
+            throw new DomainException(ErrorCode.PRIZE_PAYOUT_ISSUER_REDEMPTION_EXPIRED);
+        }
+        throw new DomainException(ErrorCode.PRIZE_PAYOUT_CUSTOMER_REDEMPTION_EXPIRED);
+    }
+
+    private void enforceStaffRedemptionWindow(
+            OrderDetailEntity detail,
+            LotteryTicketSerialEntity serial,
+            boolean acknowledgeLateRedemption) {
+        PrizeRedemptionDeadlineService.RedemptionDeadlines deadlines = resolveRedemptionDeadlines(detail, serial);
+        if (deadlines.zone() == PrizeRedemptionZone.WITHIN_CUSTOMER) {
+            return;
+        }
+        if (deadlines.zone() == PrizeRedemptionZone.PAST_ISSUER_LOCKED) {
+            throw new DomainException(ErrorCode.PRIZE_PAYOUT_ISSUER_REDEMPTION_EXPIRED);
+        }
+        if (!acknowledgeLateRedemption) {
+            throw new DomainException(ErrorCode.PRIZE_PAYOUT_LATE_REDEMPTION_ACK_REQUIRED);
+        }
     }
 
     /** @deprecated Prefer validateCustomerOnlineCreate / validateStaffInPersonCreate. */
@@ -417,6 +471,11 @@ public class PrizePayoutEligibilityService {
     }
 
     private void validateCommonBlocking(LotteryTicketSerialEntity serial) {
+        if (serial.getTicketCondition() != null && serial.getTicketCondition() == TicketCondition.VOIDED) {
+            throw new DomainException(
+                    ErrorCode.PRIZE_PAYOUT_NOT_ELIGIBLE,
+                    "Vé đã bị hủy do nhập sai và được thay thế — không thể trả thưởng trên sê-ri này.");
+        }
         SerialPayoutState payoutState = serial.getPayoutState() != null ? serial.getPayoutState() : SerialPayoutState.NONE;
         if (payoutState == SerialPayoutState.PAID_OUT) {
             throw new DomainException(ErrorCode.PRIZE_PAYOUT_ALREADY_REQUESTED, "Vé đã được trả thưởng.");

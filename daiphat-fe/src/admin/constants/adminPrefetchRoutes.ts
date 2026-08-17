@@ -3,16 +3,28 @@
 import { ROUTES } from './routes';
 import { registerAdminPageChunkLoader } from '../lib/adminPagePrefetchRegistry';
 
-/**
- * Small, stable set of high-traffic destinations warmed after the admin shell
- * becomes idle. Keep this list intentionally short; sidebar hover handles the
- * remaining routes on demand.
- */
+/** Các trang admin hay mở nhất — prefetch khi shell idle. */
 export const ADMIN_PREFETCH_ROUTE_PRIORITY = [
     ROUTES.ADMIN.DASHBOARD.ROOT,
     ROUTES.ADMIN.TICKETS.LIST,
     ROUTES.ADMIN.ORDERS.LIST,
     ROUTES.ADMIN.IMPORT_BATCH.LIST,
+    ROUTES.ADMIN.IMPORT_BATCH.CREATE,
+    ROUTES.ADMIN.TICKETS.PROVIDER,
+    ROUTES.ADMIN.SUPPLIER.LIST,
+    ROUTES.ADMIN.CHAT,
+    ROUTES.ADMIN.REFUNDS.LIST,
+    ROUTES.ADMIN.PRIZE_PAYOUTS.LIST,
+    ROUTES.ADMIN.SUPPORT_TICKETS.LIST,
+    ROUTES.ADMIN.RETURN_BATCH.LIST,
+    ROUTES.ADMIN.SUPPLIER_SETTLEMENT.LIST,
+    ROUTES.ADMIN.DASHBOARD.SYSTEM,
+    ROUTES.ADMIN.DASHBOARD.ECOMMERCE,
+    ROUTES.ADMIN.BLOGS.LIST,
+    ROUTES.ADMIN.ACCOUNTS.USER.LIST,
+    ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST,
+    ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST,
+    ROUTES.ADMIN.ROLES.LIST,
 ] as const;
 
 /** Map route → dynamic import chunk, dùng khi hover sidebar / sau login. */
@@ -48,22 +60,19 @@ const registerAdminPageChunkLoaders = () => {
         [ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST, () => import('@/admin/features/street-agent/components/pages/StreetAgentListPage')],
         [ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION, () => import('@/admin/features/street-agent/components/pages/VendorAllocationPage')],
         [ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION_BATCHES, () => import('@/admin/features/street-agent/components/pages/VendorAllocationBatchListPage')],
+        [ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.REPORTS, () => import('@/admin/features/street-agent/components/pages/StreetAgentReportPage')],
         [ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LUCKY_PATTERNS, () => import('@/admin/features/street-agent/components/pages/LuckyPatternConfigPage')],
         [ROUTES.ADMIN.ROLES.LIST, () => import('@/admin/features/role/components/pages/RoleListPage')],
-        [ROUTES.ADMIN.REVIEWS, () => import('@/admin/features/review/components/pages/ReviewListPage')],
         [ROUTES.ADMIN.DASHBOARD.SETTINGS.SYSTEM_CONFIG, () => import('@/admin/features/system-config/components/pages/SystemConfigListPage')],
         [ROUTES.ADMIN.NOTIFICATIONS, () => import('@/admin/features/notifications/components/pages/NotificationListPage')],
         [ROUTES.ADMIN.DASHBOARD.SETTINGS.GENERAL, () => import('@/admin/features/settings/components/pages/GeneralSettingsPage')],
         [ROUTES.ADMIN.DASHBOARD.SETTINGS.POLICIES, () => import('@/admin/features/settings/components/pages/PoliciesSettingsPage')],
         [ROUTES.ADMIN.DASHBOARD.SETTINGS.PAGES, () => import('@/admin/features/settings/components/pages/ContentSettingsPage')],
-        [ROUTES.ADMIN.DASHBOARD.SETTINGS.APP_PASSWORD, () => import('@/admin/features/settings/components/pages/AppPasswordSettingsPage')],
+        [ROUTES.ADMIN.DASHBOARD.SETTINGS.CONTRACTS, () => import('@/admin/features/settings/components/pages/ContractsSettingsPage')],
         [ROUTES.ADMIN.DASHBOARD.STATISTICS.GENERAL, () => import('@/admin/features/dashboard/components/statistics/GeneralStatisticsPage')],
         [ROUTES.ADMIN.DASHBOARD.STATISTICS.ORDERS, () => import('@/admin/features/dashboard/components/statistics/OrderStatisticsPage')],
         ['/admin/dashboard/statistics/staff', () => import('@/admin/features/dashboard/components/statistics/StaffStatisticsPage')],
         [ROUTES.ADMIN.PROFILE, () => import('@/admin/features/users/components/pages/ProfilePage')],
-        ['/admin/department/list', () => import('@/admin/features/hr/components/pages/DepartmentListPage')],
-        ['/admin/shift/list', () => import('@/admin/features/hr/components/pages/ShiftListPage')],
-        ['/admin/schedule-calendar', () => import('@/admin/features/hr/components/pages/ScheduleCalendarPage')],
     ];
 
     loaders.forEach(([path, loader]) => registerAdminPageChunkLoader(path, loader));

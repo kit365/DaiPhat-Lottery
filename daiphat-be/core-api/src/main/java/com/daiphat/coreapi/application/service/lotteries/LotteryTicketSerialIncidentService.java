@@ -72,9 +72,9 @@ public class LotteryTicketSerialIncidentService {
             UUID actorId
     ) {
         if (priorStatus == LotteryTicketSerialStatus.IN_STOCK) {
-            handleInternalInventoryAfterFault(faultedSerial, request, actorId);
+            handleInternalInventoryAfterFault(faultedSerial, priorOrderId, request, actorId);
         } else if (priorStatus == LotteryTicketSerialStatus.RESERVED
-                || priorStatus == LotteryTicketSerialStatus.PROXY_HOLDING) {
+                || priorStatus == LotteryTicketSerialStatus.SOLD) {
             handleActiveTransactionAfterFault(
                     faultedSerial,
                     priorStatus,
@@ -89,6 +89,7 @@ public class LotteryTicketSerialIncidentService {
 
     private void handleInternalInventoryAfterFault(
             LotteryTicketSerialModel faultedSerial,
+            UUID priorOrderId,
             ReportSerialFaultRequest request,
             UUID actorId
     ) {
@@ -104,6 +105,9 @@ public class LotteryTicketSerialIncidentService {
                 request,
                 actorId,
                 null);
+        if (priorOrderId != null) {
+            cancelOrderWithFullRefund(faultedSerial, priorOrderId, request, actorId);
+        }
     }
 
     private void handleActiveTransactionAfterFault(
@@ -116,15 +120,15 @@ public class LotteryTicketSerialIncidentService {
     ) {
         if (request.faultedBy() == LotteryTicketSerialFaultedBy.DATA_ENTRY_FAULT
                 && request.ticketCondition() == TicketCondition.VOIDED) {
-            OrderDetailModel detail = resolveActiveOrderDetail(faultedSerial);
             createReplacementSerialIfRequested(
                     faultedSerial,
-                    priorStatus,
-                    priorReservationExpiresAt,
-                    priorOrderId,
+                    LotteryTicketSerialStatus.IN_STOCK,
+                    null,
+                    null,
                     request,
                     actorId,
-                    detail);
+                    null);
+            cancelOrderWithFullRefund(faultedSerial, priorOrderId, request, actorId);
             return;
         }
 
@@ -141,7 +145,7 @@ public class LotteryTicketSerialIncidentService {
     /**
      * After the faulted serial is already marked DAMAGED/LOST, returns true when the order
      * has no remaining allocated serials still holding stock for delivery
-     * (RESERVED / PROXY_HOLDING / SOLD).
+     * (RESERVED / SOLD).
      */
     private boolean isLastActiveAllocatedSerialOnOrder(
             LotteryTicketSerialModel faultedSerial,
@@ -167,7 +171,7 @@ public class LotteryTicketSerialIncidentService {
         }
 
         for (OrderDetailModel detail : order.getOrderDetails()) {
-            if (detail.getStatus() != OrderDetailStatus.ACTIVE) {
+            if (!detail.isAwaitingHandover()) {
                 continue;
             }
             for (Long serialId : resolveAllocatedSerialIds(detail)) {
@@ -180,7 +184,6 @@ public class LotteryTicketSerialIncidentService {
                 }
                 LotteryTicketSerialStatus status = serial.getStatus();
                 if (status == LotteryTicketSerialStatus.RESERVED
-                        || status == LotteryTicketSerialStatus.PROXY_HOLDING
                         || status == LotteryTicketSerialStatus.SOLD) {
                     return false;
                 }
@@ -206,12 +209,13 @@ public class LotteryTicketSerialIncidentService {
                 .ticketId(faultedSerial.getTicketId())
                 .importBatchId(faultedSerial.getImportBatchId())
                 .importBatchLineId(faultedSerial.getImportBatchLineId())
-                .ticketImg(request.replacementTicketImg())
+                .ticketImg(request.replacementTicketImg() != null && !request.replacementTicketImg().isBlank()
+                        ? request.replacementTicketImg()
+                        : faultedSerial.getTicketImg())
                 .serialNumber(request.replacementSerialNumber().trim())
                 .stationId(faultedSerial.getStationId())
                 .drawDate(faultedSerial.getDrawDate())
                 .inputSource(InputSource.MANUAL)
-                .replacedForTicketId(faultedSerial.getId())
                 .build();
         replacement.initializeImport(actorId);
 
@@ -219,8 +223,8 @@ public class LotteryTicketSerialIncidentService {
             UUID orderId = priorOrderId != null ? priorOrderId : orderDetail.getOrderId();
             if (priorStatus == LotteryTicketSerialStatus.RESERVED && orderId != null) {
                 replacement.assumeReservedForOrder(orderId, priorReservationExpiresAt);
-            } else if (priorStatus == LotteryTicketSerialStatus.PROXY_HOLDING && orderId != null) {
-                replacement.assumeProxyHolding(orderId);
+            } else if (priorStatus == LotteryTicketSerialStatus.SOLD && orderId != null) {
+                replacement.sellOnline();
             }
         }
 
@@ -320,7 +324,7 @@ public class LotteryTicketSerialIncidentService {
         }
         Set<Long> ticketIdsToSync = new HashSet<>();
         for (OrderDetailModel detail : order.getOrderDetails()) {
-            if (detail.getStatus() != OrderDetailStatus.ACTIVE) {
+            if (!detail.isAwaitingHandover()) {
                 continue;
             }
             for (Long serialId : resolveAllocatedSerialIds(detail)) {

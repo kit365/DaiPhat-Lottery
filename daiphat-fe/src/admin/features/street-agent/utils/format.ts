@@ -1,30 +1,45 @@
 export const formatCurrency = (value?: number | null) => {
     if (value == null) return "—";
-    return `${new Intl.NumberFormat("vi-VN").format(value)}đ`;
+    return `${new Intl.NumberFormat("vi-VN").format(value)}\u00A0đ`;
 };
 
 export const formatVnd = (value?: number | null) => {
     if (value == null) return "—";
-    return `${new Intl.NumberFormat("vi-VN").format(value)}đ`;
+    return `${new Intl.NumberFormat("vi-VN").format(value)}\u00A0đ`;
 };
 
-export const formatConfidencePoints = (score?: number | null, tier?: string | null) => {
-    if (score == null && !tier) return "—";
-    const points =
-        score == null
-            ? null
-            : score <= 1
-              ? Math.round(score * 100)
-              : Math.round(score);
-    const pointsLabel = points == null ? "—" : `${points} điểm`;
-    return tier ? `${pointsLabel} · ${tier}` : pointsLabel;
+/**
+ * Operator-facing unit for vendor allocation limits. The API still exposes
+ * legacy `*DailyCap` keys, but the rule limits one open handover only.
+ */
+export const formatVendorHandoverLimit = (value?: number | null) => {
+    if (value == null) return "—";
+    return `${new Intl.NumberFormat("vi-VN").format(value)} vé/phiếu`;
 };
 
+export const formatConfidencePoints = (score?: number | null, _tier?: string | null) => {
+    if (score == null) return "—";
+    const points = score <= 1 ? Math.round(score * 100) : Math.round(score);
+    return `${points} điểm`;
+};
+
+/** ISO `YYYY-MM-DD` → display `DD/MM/YYYY` (DateRangePicker / UI). */
 export const formatDate = (value?: string | null) => {
     if (!value) return "—";
     const [year, month, day] = value.split("-");
     if (!year || !month || !day) return value;
     return `${day}/${month}/${year}`;
+};
+
+/**
+ * Display `DD/MM/YYYY` (from DateRangePicker) → API `YYYY-MM-DD`.
+ * Inverse of {@link formatDate}.
+ */
+export const parseDisplayDateToApi = (value?: string | null) => {
+    if (!value) return "";
+    const [day, month, year] = value.split("/");
+    if (!year || !month || !day) return "";
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 };
 
 const VIETNAM_TIME_ZONE = "Asia/Ho_Chi_Minh";
@@ -41,6 +56,9 @@ const todayInVietnam = () => {
 
     return `${get("year")}-${get("month")}-${get("day")}`;
 };
+
+/** Today in Vietnam as `DD/MM/YYYY` for DateRangePicker defaults. */
+export const todayDisplayDate = () => formatDate(todayInVietnam());
 
 export type StreetAgentPendingNotice = {
     message: string;

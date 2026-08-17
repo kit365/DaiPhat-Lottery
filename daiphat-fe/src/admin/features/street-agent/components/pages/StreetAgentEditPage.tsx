@@ -18,10 +18,11 @@ import {
 } from "../../schemas/street-agent.schema";
 import { ROUTES } from "../../../../constants/routes";
 import { toast } from "react-toastify";
-import { Alert, Box, Dialog, DialogActions, DialogContent, DialogTitle, Stack, Typography } from "@mui/material";
+import { Alert, Box, Stack, Typography } from "@mui/material";
 import { uploadAdminImage } from "@/admin/shared/services/upload.service";
 import Link from "@/admin/components/navigation/AdminLink";
 import { Button } from "../../../../components/ui/Button";
+import { AdminConfirmDialog } from "../../../../components/ui/AdminConfirmDialog";
 import { StreetAgentProfileForm } from "../sections/StreetAgentProfileForm";
 import { getStreetAgentOnboardingResumePath } from "../../services/streetAgentService";
 import {
@@ -454,51 +455,36 @@ export const StreetAgentEditPage = () => {
                 }}
             />
 
-            <Dialog
+            <AdminConfirmDialog
                 open={contractChangeConfirmOpen}
+                title="Cập nhật điều khoản hợp đồng?"
+                maxWidth="sm"
+                loading={isPending}
+                cancelLabel="Quay lại"
+                confirmLabel="Lưu và cập nhật bản ký"
+                confirmLoadingLabel="Đang lưu..."
                 onClose={() => {
                     if (!isPending) {
                         setContractChangeConfirmOpen(false);
                         setPendingContractUpdate(null);
                     }
                 }}
-                fullWidth
-                maxWidth="sm"
+                onConfirm={() => {
+                    if (!pendingContractUpdate) return;
+                    setContractChangeConfirmOpen(false);
+                    submitProfileUpdate(pendingContractUpdate);
+                    setPendingContractUpdate(null);
+                }}
             >
-                <DialogTitle>Cập nhật điều khoản hợp đồng?</DialogTitle>
-                <DialogContent>
-                    <Typography variant="body1" sx={{ mb: 1.5 }}>
-                        Bạn đang thay đổi ngày hiệu lực hoặc hạn mức ghi trên hợp đồng đã ký.
+                <Stack spacing={1.5}>
+                    <Typography variant="body1">
+                        Bạn đang thay đổi ngày hiệu lực hoặc giới hạn ghi trên hợp đồng đã ký.
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                         Sau khi lưu, bản ký hiện tại sẽ không còn khớp, hồ sơ chuyển về trạng thái chờ xử lý và bạn sẽ được đưa về bước tải bản ký mới.
                     </Typography>
-                </DialogContent>
-                <DialogActions sx={{ px: 3, pb: 2.5 }}>
-                    <Button
-                        variant="outlined"
-                        color="inherit"
-                        label="Hủy"
-                        onClick={() => {
-                            setContractChangeConfirmOpen(false);
-                            setPendingContractUpdate(null);
-                        }}
-                        disabled={isPending}
-                    />
-                    <Button
-                        variant="contained"
-                        label="Lưu và cập nhật bản ký"
-                        loading={isPending}
-                        loadingLabel="Đang lưu..."
-                        onClick={() => {
-                            if (!pendingContractUpdate) return;
-                            setContractChangeConfirmOpen(false);
-                            submitProfileUpdate(pendingContractUpdate);
-                            setPendingContractUpdate(null);
-                        }}
-                    />
-                </DialogActions>
-            </Dialog>
+                </Stack>
+            </AdminConfirmDialog>
 
             <ContractDocumentViewerDialog
                 open={viewSignedOpen}

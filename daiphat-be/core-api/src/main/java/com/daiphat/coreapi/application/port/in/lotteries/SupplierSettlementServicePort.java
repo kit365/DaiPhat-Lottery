@@ -8,6 +8,7 @@ import com.daiphat.coreapi.application.dto.request.lotteries.ResolveReturnDiscre
 import com.daiphat.coreapi.application.dto.request.lotteries.ResolveUnitPriceDiscrepancyRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.SettlementCompleteResultResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.SettlementImportFileCheckResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.SettlementResolvableSerialResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.SupplierSettlementAdjustmentResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.SupplierSettlementOverviewResponse;
@@ -52,7 +53,8 @@ public interface SupplierSettlementServicePort {
     int updateExpiredSettlements();
 
     /**
-     * Transition OPEN settlements past VERIFICATION_DEADLINE with missing receipt to RECEIPT_OVERDUE
+     * Transition OPEN settlements past supplier {@code paymentCutOffTime} that are still
+     * unfinished (not CLOSED) to RECEIPT_OVERDUE and notify admins of late payment.
      * and notify Admin once (idempotent via status gate).
      */
     int markReceiptOverdueSettlements();
@@ -82,6 +84,12 @@ public interface SupplierSettlementServicePort {
      */
     SupplierSettlementResponse updateReceiptUrl(Long settlementId, String supplierSettlementReceiptUrl);
 
+    /**
+     * Replace the list of photos proving the supplier has been paid.
+     * Empty list clears all evidence. Not allowed after the settlement is CLOSED.
+     */
+    SupplierSettlementResponse updatePaymentEvidenceUrls(Long settlementId, List<String> paymentEvidenceUrls);
+
     SupplierSettlementResponse confirmMatching(
             Long settlementId,
             ConfirmSettlementMatchingRequest request,
@@ -91,6 +99,8 @@ public interface SupplierSettlementServicePort {
     List<SettlementResolvableSerialResponse> listMissingReturnTickets(Long settlementId);
 
     List<SettlementResolvableSerialResponse> listImportResolvableTickets(Long settlementId);
+
+    SettlementImportFileCheckResponse checkImportFiles(Long settlementId);
 
     SupplierSettlementResponse resolveImportDiscrepancy(
             Long settlementId,

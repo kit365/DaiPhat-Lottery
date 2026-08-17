@@ -19,7 +19,7 @@ import { ROUTES } from '../../../../../constants/routes';
 import { LazyReportSerialFaultPane } from '../../../import-batch/components/sections/LazyReportSerialFaultPane';
 import type { CancelSelectedSerial } from '../../../import-batch/hooks/useCancelTicketSelection';
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
-import { isFaultyTicketCondition, normalizeSerialStatus } from '../../../import-batch/utils/serialIncidentWorkflow';
+import { normalizeSerialStatus } from '../../../import-batch/utils/serialIncidentWorkflow';
 import {
     useConfirmReturnInspection,
     useInspectableReturnSerials,
@@ -27,6 +27,7 @@ import {
 } from '../../hooks/useReturnBatch';
 import type { InspectableReturnSerial, ReturnDeliveryMode } from '../../types/returnBatch.type';
 import { RETURN_BATCH_INSPECTION_EXPIRED_MESSAGE } from '../../types/returnBatch.type';
+import { getInspectableTicketConditionLabel, isReturnSelectableSerial } from '../../utils/returnInspectableSerial';
 
 const showInspectionExpiredPopup = () =>
     Swal.fire({
@@ -36,12 +37,6 @@ const showInspectionExpiredPopup = () =>
         confirmButtonColor: '#1C252E',
         confirmButtonText: 'OK',
     });
-
-const isReturnSelectableSerial = (serial: InspectableReturnSerial): boolean => {
-    if (serial.status !== 'IN_STOCK') return false;
-    if (isFaultyTicketCondition(serial.ticketCondition)) return false;
-    return true;
-};
 
 const toCancelSelectedSerial = (serial: InspectableReturnSerial): CancelSelectedSerial => ({
     id: serial.serialId,
@@ -150,7 +145,7 @@ const CollapsibleInspectTicketRow = ({
                 </TableCell>
                 <TableCell align="center" sx={{ py: 1.5 }}>
                     <Chip
-                        label={firstSerial?.ticketCondition === 'GOOD' ? 'Tốt' : firstSerial?.ticketCondition || 'Tốt'}
+                        label={getInspectableTicketConditionLabel(firstSerial)}
                         size="small"
                         variant="outlined"
                         color={firstSerial?.ticketCondition === 'GOOD' ? 'success' : 'warning'}
@@ -234,7 +229,7 @@ const CollapsibleInspectTicketRow = ({
                             </TableCell>
                             <TableCell align="center" sx={{ py: 1 }}>
                                 <Chip
-                                    label={s.ticketCondition === 'GOOD' ? 'Tốt' : s.ticketCondition || 'Tốt'}
+                                    label={getInspectableTicketConditionLabel(s)}
                                     size="small"
                                     variant="outlined"
                                     color={s.ticketCondition === 'GOOD' ? 'success' : 'warning'}
@@ -268,7 +263,23 @@ export const ReturnBatchInspectPage = () => {
     const confirmInspection = useConfirmReturnInspection();
 
     const inspectionExpired = Boolean(batch?.inspectionExpired || batch?.status === 'CANCELLED');
-    const mutationsBlocked = inspectionExpired;
+    const inspectionNotOpen = Boolean(batch && !inspectionExpired && batch.inInspectionWindow === false);
+    const mutationsBlocked = inspectionExpired || inspectionNotOpen;
+
+    useEffect(() => {
+        if (!batch || isBatchLoading) {
+            return;
+        }
+        if (inspectionExpired) {
+            toast.warning('Đã quá hạn trả vé. Chỉ có thể xem chi tiết phiếu trả.');
+            router.replace(ROUTES.ADMIN.RETURN_BATCH.DETAIL(batch.id));
+            return;
+        }
+        if (inspectionNotOpen) {
+            toast.info('Chưa đến giờ chuẩn bị/kiểm tra vé trả.');
+            router.replace(ROUTES.ADMIN.RETURN_BATCH.DETAIL(batch.id));
+        }
+    }, [batch, isBatchLoading, inspectionExpired, inspectionNotOpen, router]);
 
     const [deliveryMode, setDeliveryMode] = useState<ReturnDeliveryMode>('RETAILER_DELIVERS');
     const [selectedSerialIds, setSelectedSerialIds] = useState<Set<number>>(new Set());
@@ -700,7 +711,7 @@ export const ReturnBatchInspectPage = () => {
                                 >
                                     <Stack direction="row" spacing={1.5} alignItems="center">
                                         <Chip
-                                            label={`${inStockCount} vé kho`}
+                                            label={`${inStockCount} vé ế còn lại`}
                                             color="primary"
                                             size="small"
                                             sx={{ fontWeight: 700, borderRadius: '6px' }}

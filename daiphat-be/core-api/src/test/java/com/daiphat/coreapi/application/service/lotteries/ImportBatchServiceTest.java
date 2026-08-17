@@ -98,6 +98,12 @@ class ImportBatchServiceTest {
     @Mock
     private com.daiphat.coreapi.application.port.in.lotteries.SupplierSettlementServicePort supplierSettlementServicePort;
     @Mock
+    private com.daiphat.coreapi.application.port.out.file.StoragePort storagePort;
+    @Mock
+    private com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort systemConfigRepositoryPort;
+    @Mock
+    private com.daiphat.coreapi.shared.util.SupplierTicketIntakeWindowPolicy intakeWindowPolicy;
+    @Mock
     private Clock clock;
 
     @InjectMocks
@@ -2022,6 +2028,36 @@ class ImportBatchServiceTest {
         assertThat(removedLine.getDeclareQuantity()).isEqualTo(15);
         assertThat(removedLine.getImportCost()).isEqualByComparingTo(new BigDecimal("9500.000"));
         assertThat(removedLine.getStatus()).isEqualTo(ImportBatchLineStatus.OPEN);
+    }
+
+    @Test
+    @DisplayName("attachInvoiceEvidence replaces existing URL for settlement matching")
+    void attachInvoiceEvidence_replacesExistingUrl() {
+        fixedClock(LocalDateTime.of(2026, 8, 17, 19, 0));
+        ImportBatchModel batch = ImportBatchModel.builder()
+                .id(10L)
+                .status(ImportBatchStatus.IMPORTED)
+                .invoiceEvidenceUrl("https://cdn.example/old.jpg")
+                .build();
+        when(importBatchRepositoryPort.findById(10L)).thenReturn(Optional.of(batch));
+        when(importBatchRepositoryPort.save(any(ImportBatchModel.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(importBatchApplicationMapper.toResponse(any(ImportBatchModel.class)))
+                .thenAnswer(invocation -> {
+                    ImportBatchModel saved = invocation.getArgument(0);
+                    return ImportBatchResponse.builder()
+                            .id(saved.getId())
+                            .invoiceEvidenceUrl(saved.getInvoiceEvidenceUrl())
+                            .build();
+                });
+
+        ImportBatchResponse response = importBatchService.attachInvoiceEvidence(
+                10L,
+                "https://cdn.example/new.jpg"
+        );
+
+        assertThat(response.invoiceEvidenceUrl()).isEqualTo("https://cdn.example/new.jpg");
+        assertThat(batch.getInvoiceEvidenceUrl()).isEqualTo("https://cdn.example/new.jpg");
+        verify(importBatchRepositoryPort).save(batch);
     }
 
     private void fixedClock(LocalDateTime dateTime) {

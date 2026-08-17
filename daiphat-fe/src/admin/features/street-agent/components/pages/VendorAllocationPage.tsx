@@ -6,16 +6,15 @@ import { ReactNode, useEffect, useMemo, useState } from "react";
 import { useSidebar } from "../../../../context/sidebar/useSidebar";
 import {
     Alert,
-    Autocomplete,
     Box,
     Card,
     Checkbox,
     Chip,
     CircularProgress,
     Divider,
-    Drawer,
     FormControlLabel,
     IconButton,
+    MenuItem,
     Stack,
     Table,
     TableBody,
@@ -32,7 +31,6 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 import CloseIcon from "@mui/icons-material/Close";
-import dayjs from "dayjs";
 import { toast } from "react-toastify";
 import { PageHeader } from "../../../../components/ui/PageHeader";
 import { Button } from '../../../../components/ui/Button';
@@ -60,13 +58,19 @@ import {
     CONFIDENCE_TIER_LABELS,
 } from "../configs/constants";
 import { formatCountdown, formatCurrency, formatDate } from "../../utils/format";
+import {
+    minVendorAllocationBusinessDate,
+    resolveVendorAllocationBusinessDate,
+} from "../../utils/vendorAllocationBusinessDate";
 import { getMetricChipSx } from "@/admin/utils/badge";
 import { useVendorSettingsDefaults } from "../../hooks/useVendorSettingsDefaults";
 import { ConfirmVendorDepositDialog } from "../ConfirmVendorDepositDialog";
 import { AdminTicketCard } from "../../../../components/ui/AdminTicketCard";
+import { AdminLuckyDisplay } from "@/shared/lucky-number";
 import { StationCapacityBadges } from "../sections/StationCapacityBadges";
 import { AdminDatePicker } from "../../../../components/ui/AdminDatePicker";
 import { VendorAllocationStationDrawer } from "../sections/VendorAllocationStationDrawer";
+import { todayIsoVn } from "@/client/utils/sellableDrawDate.util";
 
 const fieldSx = {
     "& .MuiOutlinedInput-root": {
@@ -86,6 +90,9 @@ const ALLOCATION_SELECTION_MODE_OPTIONS: { value: AllocationSelectionMode; label
 const ticketKey = (stationId: number, ticketNumbers: string): TicketKey =>
     `${stationId}::${ticketNumbers}`;
 
+const formatVendorSelectLabel = (item: StreetAgentProfile) =>
+    `${item.lastName || ""} ${item.firstName || ""}`.trim() + (item.phone ? ` — ${item.phone}` : "");
+
 const getSuggestedSerialIds = (suggestion: VendorAllocationSuggestion | undefined) =>
     suggestion?.stations?.flatMap((station) =>
         station.tickets.flatMap((ticket) =>
@@ -103,8 +110,8 @@ const getApiErrorMessage = (error: any, fallback: string) => {
 };
 
 const SHORTAGE_REASON_LABELS: Record<string, string> = {
-    DAILY_CAP_LIMIT: "Đã dùng hết số vé được phép giao trong ngày.",
-    DAILY_CAP_EXHAUSTED: "Đã dùng hết số vé được phép giao trong ngày.",
+    DAILY_CAP_LIMIT: "Phiếu đang mở đã đạt giới hạn giao vé.",
+    DAILY_CAP_EXHAUSTED: "Phiếu đang mở đã đạt giới hạn giao vé.",
     INSUFFICIENT_STATION_CAPACITY: "Kho không đủ vé thường sau khi chừa phần bán tại quầy.",
     NO_DRAWING_STATION: "Ngày này không có đài xổ phù hợp.",
     NO_ELIGIBLE_TICKET: "Không còn vé hợp lệ để giao.",
@@ -171,8 +178,8 @@ const mapReasonDetail = (detail: NonNullable<VendorAllocationSuggestion["reasonD
         case "DAILY_CAP_LIMIT":
         case "DAILY_CAP_EXHAUSTED":
             return detail.remainingDailyCap == null || detail.remainingDailyCap <= 0
-                ? "Đã dùng hết số vé được phép giao trong ngày. Hôm nay không thể giao thêm vé."
-                : `Hôm nay người bán vé số chỉ còn được giao ${detail.remainingDailyCap} vé.`;
+                ? "Phiếu đang mở đã đạt giới hạn giao vé. Hoàn tất hoặc hủy phiếu này trước khi tạo phiếu mới."
+                : `Phiếu đang mở chỉ còn có thể thêm ${detail.remainingDailyCap} vé.`;
         case "INSUFFICIENT_STATION_CAPACITY":
             if (detail.requestedQuantity != null && detail.vendorCapacity != null) {
                 return `Kho chỉ có thể giao ${detail.vendorCapacity}/${detail.requestedQuantity} vé sau khi chừa vé cho quầy.`;
@@ -220,6 +227,85 @@ const DisabledWithTooltip = ({
     );
 };
 
+const ManualPickSlot = ({
+    disabled,
+    onPick,
+}: {
+    disabled: boolean;
+    onPick: () => void;
+}) => (
+    <Box
+        role="button"
+        tabIndex={disabled ? -1 : 0}
+        aria-label="Chọn vé thủ công"
+        aria-disabled={disabled}
+        onClick={() => {
+            if (!disabled) onPick();
+        }}
+        onKeyDown={(event) => {
+            if (disabled) return;
+            if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onPick();
+            }
+        }}
+        sx={{
+            width: 156,
+            minHeight: 90,
+            px: 1.5,
+            py: 1.25,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 0.75,
+            borderRadius: 2,
+            border: "1px solid",
+            borderColor: "divider",
+            bgcolor: "background.paper",
+            boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+            cursor: disabled ? "not-allowed" : "pointer",
+            opacity: disabled ? 0.55 : 1,
+            outline: "none",
+            transition: "border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease",
+            "&:hover": disabled
+                ? undefined
+                : {
+                      borderColor: "text.primary",
+                      bgcolor: "action.hover",
+                      boxShadow: "0 2px 8px rgba(28, 37, 46, 0.08)",
+                  },
+            "&:focus-visible": {
+                borderColor: "text.primary",
+                boxShadow: "0 0 0 2px rgba(28, 37, 46, 0.18)",
+            },
+        }}
+    >
+        <Box
+            sx={{
+                width: 32,
+                height: 32,
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                bgcolor: "rgba(145, 158, 171, 0.12)",
+                color: "text.primary",
+            }}
+        >
+            <AddIcon sx={{ fontSize: 18 }} />
+        </Box>
+        <Box sx={{ textAlign: "center" }}>
+            <Typography sx={{ fontSize: "0.8125rem", fontWeight: 700, lineHeight: 1.2, color: "text.primary" }}>
+                Chọn vé
+            </Typography>
+            <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mt: 0.25, lineHeight: 1.2 }}>
+                Chưa có vé
+            </Typography>
+        </Box>
+    </Box>
+);
+
 const isVendorOpenBatchBlockedMessage = (message?: string | null) =>
     !!message &&
     /phiếu bàn giao/i.test(message) &&
@@ -250,8 +336,8 @@ export const VendorAllocationPage = () => {
     const { isOpen: isSidebarOpen } = useSidebar();
 
     const [profile, setProfile] = useState<StreetAgentProfile | null>(null);
-    const [businessDate, setBusinessDate] = useState(
-        () => searchParams.get("businessDate") || dayjs().format("YYYY-MM-DD")
+    const [businessDate, setBusinessDate] = useState(() =>
+        resolveVendorAllocationBusinessDate(searchParams.get("businessDate"))
     );
     const [selectedSerialIds, setSelectedSerialIds] = useState<number[]>([]);
     const [requestedQuantity, setRequestedQuantity] = useState<number | null>(null);
@@ -326,10 +412,32 @@ export const VendorAllocationPage = () => {
         draftBatch?.status === "DRAFT"
     );
 
+    const returnCutoff = vendorDefaults.returnCutoff || vendorDefaults.timing.returnCutoff;
+    const minBusinessDate = useMemo(
+        () => minVendorAllocationBusinessDate(returnCutoff, new Date(nowMs)),
+        [returnCutoff, nowMs]
+    );
+    const businessDateCutoffHelperText = useMemo(() => {
+        if (!returnCutoff || minBusinessDate <= todayIsoVn(new Date(nowMs))) {
+            return undefined;
+        }
+        const cutoffLabel = returnCutoff.match(/^(\d{1,2}:\d{2})/)?.[1] || returnCutoff;
+        return `Đã qua giờ chốt trả vé (${cutoffLabel}) — không thể chọn hôm nay.`;
+    }, [returnCutoff, minBusinessDate, nowMs]);
+
     useEffect(() => {
         const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
         return () => window.clearInterval(timer);
     }, []);
+
+    // Keep selection aligned with BE: past VN days + today after VENDOR_RETURN_CUTOFF are closed.
+    // Do not rewrite a draft's business date while a reservation is open.
+    useEffect(() => {
+        if (draftId || hasActiveDraft) return;
+        if (businessDate && businessDate < minBusinessDate) {
+            setBusinessDate(minBusinessDate);
+        }
+    }, [businessDate, minBusinessDate, draftId, hasActiveDraft]);
 
     useEffect(() => {
         if (hydratedProfileFromUrl || isLoadingProfiles || profiles.length === 0) return;
@@ -455,6 +563,8 @@ export const VendorAllocationPage = () => {
     const totalSelected = selectedSerialIds.length;
     const remainingCap =
         suggestion?.remainingDailyCap != null ? suggestion.remainingDailyCap : null;
+    const availableForCurrentBatch =
+        remainingCap ?? profile?.remainingDailyCap ?? profile?.effectiveDailyCap ?? null;
     const allowedQuantity = suggestion?.allowedQuantity ?? 0;
 
     const hasSelectableInventory = useMemo(() => {
@@ -528,7 +638,7 @@ export const VendorAllocationPage = () => {
             return;
         }
         if (remainingCap != null && selectedSerialIds.length > remainingCap) {
-            toast.error(`Số vé chọn vượt hạn mức còn lại (${remainingCap})`);
+            toast.error(`Số vé chọn vượt số lượng còn có thể thêm vào phiếu (${remainingCap})`);
             return;
         }
         if (selectedSerialIds.length !== allowedQuantity) {
@@ -677,8 +787,13 @@ export const VendorAllocationPage = () => {
                             ) : undefined
                         }
                     >
-                        Phiếu {draftBatch.batchCode} đang giữ {draftBatch.allocatedQuantity} vé. Còn lại theo hạn mức:{" "}
-                        {draftBatch.remainingDailyCap}. Hết hạn giữ chỗ sau <strong>{countdown}</strong>
+                        Phiếu {draftBatch.batchCode} đang giữ{" "}
+                        <AdminLuckyDisplay
+                            component="span"
+                            value={`${draftBatch.allocatedQuantity} vé`}
+                            fontWeight={700}
+                        />
+                        . Hết hạn giữ chỗ sau <strong>{countdown}</strong>
                         {isExpired ? " (đã hết hạn)." : "."}
                     </Alert>
                 )}
@@ -706,22 +821,28 @@ export const VendorAllocationPage = () => {
                         Chọn đại lý & ngày kinh doanh
                     </Typography>
                     <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "2fr 1fr" }, gap: 2 }}>
-                        <Autocomplete
-                            options={profiles}
-                            loading={isLoadingProfiles}
-                            value={profile}
-                            onChange={(_event, value) => setProfile(value)}
-                            getOptionLabel={(option) =>
-                                `${option.lastName || ""} ${option.firstName || ""}`.trim() +
-                                (option.phone ? ` — ${option.phone}` : "")
-                            }
-                            isOptionEqualToValue={(a, b) => a.id === b.id}
-                            loadingText="Đang tải danh sách…"
-                            noOptionsText="Không tìm thấy người bán vé số"
-                            renderInput={(params) => (
-                                <TextField {...params} label="Người bán vé số *" sx={fieldSx} />
-                            )}
-                        />
+                        <TextField
+                            select
+                            fullWidth
+                            label="Người bán vé số *"
+                            value={profile?.id ? String(profile.id) : ""}
+                            onChange={(event) => {
+                                const nextId = event.target.value;
+                                setProfile(profiles.find((item) => String(item.id) === nextId) || null);
+                            }}
+                            disabled={isLoadingProfiles}
+                            helperText={isLoadingProfiles ? "Đang tải danh sách…" : undefined}
+                            sx={fieldSx}
+                        >
+                            <MenuItem value="">
+                                <em>Chọn người bán vé số</em>
+                            </MenuItem>
+                            {profiles.map((item) => (
+                                <MenuItem key={item.id} value={String(item.id)}>
+                                    {formatVendorSelectLabel(item)}
+                                </MenuItem>
+                            ))}
+                        </TextField>
                         <DisabledWithTooltip
                             title={businessDateDisabledReason}
                             disabled={!!businessDateDisabledReason}
@@ -730,8 +851,15 @@ export const VendorAllocationPage = () => {
                             <AdminDatePicker
                                 label="Ngày kinh doanh"
                                 value={businessDate}
-                                onChange={setBusinessDate}
+                                required
+                                onChange={(next) => {
+                                    if (!next || next < minBusinessDate) return;
+                                    setBusinessDate(next);
+                                }}
+                                min={minBusinessDate}
                                 disabled={!!businessDateDisabledReason}
+                                helperText={businessDateDisabledReason ? undefined : businessDateCutoffHelperText}
+                                helperTextColor="warning"
                             />
                         </DisabledWithTooltip>
                     </Box>
@@ -745,7 +873,7 @@ export const VendorAllocationPage = () => {
                             />
                             <Chip
                                 size="small"
-                                label={`Hạn mức còn lại: ${remainingCap ?? profile.remainingDailyCap ?? profile.effectiveDailyCap ?? "—"}`}
+                                label={`Có thể giao trong phiếu này: ${availableForCurrentBatch == null ? "—" : `${availableForCurrentBatch} vé`}`}
                                 sx={getMetricChipSx("info")}
                             />
                             {Number(profile.depositBalance ?? 0) > 0 && (
@@ -805,7 +933,13 @@ export const VendorAllocationPage = () => {
                                             whiteSpace: "nowrap",
                                         }}
                                     >
-                                        Đã chọn {totalSelected}/{suggestion?.allowedQuantity ?? 0}:
+                                        Đã chọn{" "}
+                                        <AdminLuckyDisplay
+                                            component="span"
+                                            value={`${totalSelected}/${suggestion?.allowedQuantity ?? 0}`}
+                                            fontWeight={700}
+                                        />
+                                        :
                                     </Typography>
                                     <DisabledWithTooltip
                                         title={selectionModeDisabledReason}
@@ -875,7 +1009,7 @@ export const VendorAllocationPage = () => {
 
                     {profile && suggestion && !draftId && hasSelectableInventory && suggestion.allowedQuantity > 0 && (
                         <Stack spacing={1.5} sx={{ mb: 3 }}>
-                            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25} alignItems={{ xs: "stretch", sm: "center" }} flexWrap="wrap" useFlexGap>
+                            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25} alignItems={{ xs: "stretch", sm: "flex-end" }} flexWrap="wrap" useFlexGap>
                                 <TextField
                                     type="number"
                                     label="Số vé muốn giao"
@@ -886,11 +1020,20 @@ export const VendorAllocationPage = () => {
                                         const value = Number(event.target.value);
                                         setRequestedQuantityDraft(Number.isFinite(value) && value > 0 ? value : null);
                                     }}
-                                    sx={{ ...fieldSx, width: { xs: "100%", sm: 220 }, minWidth: { sm: 200 } }}
+                                    sx={{
+                                        ...fieldSx,
+                                        width: { xs: "100%", sm: 220 },
+                                        minWidth: { sm: 200 },
+                                        "& .MuiOutlinedInput-root": {
+                                            borderRadius: "var(--shape-borderRadius)",
+                                            fontSize: "0.875rem",
+                                            height: 56,
+                                            minHeight: 56,
+                                        },
+                                    }}
                                     disabled={isFetchingSuggestion}
                                 />
                                 <Button
-                                    size="small"
                                     variant="contained"
                                     loading={isFetchingSuggestion}
                                     loadingLabel="Đang cập nhật…"
@@ -900,7 +1043,13 @@ export const VendorAllocationPage = () => {
                                         requestedQuantityDraft === requestedQuantity
                                     }
                                     onClick={applyRequestedQuantity}
-                                    sx={{ alignSelf: { xs: "stretch", sm: "center" }, minHeight: 40, whiteSpace: "nowrap" }}
+                                    sx={{
+                                        alignSelf: { xs: "stretch", sm: "flex-end" },
+                                        height: "56px !important",
+                                        minHeight: "56px !important",
+                                        px: "20px !important",
+                                        whiteSpace: "nowrap",
+                                    }}
                                 >
                                     Áp dụng
                                 </Button>
@@ -913,7 +1062,7 @@ export const VendorAllocationPage = () => {
                                             if (val !== null) setFaceValue(val);
                                         }}
                                         size="small"
-                                        sx={{ height: 40 }}
+                                        sx={{ height: 56, alignSelf: { xs: "stretch", sm: "flex-end" } }}
                                         disabled={isFetchingSuggestion}
                                     >
                                         {suggestion.availableFaceValues.map(fv => (
@@ -925,16 +1074,50 @@ export const VendorAllocationPage = () => {
                                 )}
                             </Stack>
                             {suggestion.shortfallQuantity > 0 && (
-                                <Alert severity="warning">
-                                    <Stack spacing={0.25}>
-                                        <Typography variant="body2">
-                                            Chỉ có thể bàn giao {suggestion.allowedQuantity}/{suggestion.requestedQuantity} vé.
-                                        </Typography>
-                                        {suggestionReasonMessages.map((message) => (
-                                            <Typography key={message} variant="body2">{message}</Typography>
-                                        ))}
+                                <Alert severity="warning" sx={{ alignItems: "flex-start" }}>
+                                    <Stack spacing={1.25} sx={{ width: "100%", minWidth: 0 }}>
+                                        <Stack spacing={0.5}>
+                                            <Typography variant="body2">
+                                                Chỉ có thể bàn giao{" "}
+                                                <AdminLuckyDisplay
+                                                    component="span"
+                                                    value={`${suggestion.allowedQuantity}/${suggestion.requestedQuantity} vé`}
+                                                    fontWeight={700}
+                                                />
+                                                .
+                                            </Typography>
+                                            {suggestionReasonMessages.map((message) => (
+                                                <Typography key={message} variant="body2">
+                                                    {message}
+                                                </Typography>
+                                            ))}
+                                        </Stack>
+                                        <FormControlLabel
+                                            sx={{
+                                                m: 0,
+                                                alignItems: "flex-start",
+                                                gap: 1,
+                                                "& .MuiCheckbox-root": { p: 0.25, mt: 0.125 },
+                                            }}
+                                            control={
+                                                <Checkbox
+                                                    size="small"
+                                                    checked={acceptShortfall}
+                                                    onChange={(_, checked) => setAcceptShortfall(checked)}
+                                                />
+                                            }
+                                            label={
+                                                <Typography variant="body2" component="span">
+                                                    Đồng ý bàn giao{" "}
+                                                    <AdminLuckyDisplay
+                                                        component="span"
+                                                        value={`${suggestion.allowedQuantity}/${suggestion.requestedQuantity} vé`}
+                                                        fontWeight={700}
+                                                    />
+                                                </Typography>
+                                            }
+                                        />
                                     </Stack>
-                                    <FormControlLabel sx={{ display: "block", mt: 0.5 }} control={<Checkbox checked={acceptShortfall} onChange={(_, checked) => setAcceptShortfall(checked)} />} label={`Đồng ý bàn giao ${suggestion.allowedQuantity}/${suggestion.requestedQuantity} vé`} />
                                 </Alert>
                             )}
                         </Stack>
@@ -952,16 +1135,24 @@ export const VendorAllocationPage = () => {
                         <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
                             <CircularProgress />
                         </Box>
-                    ) : !hasSelectableInventory || suggestion?.allowedQuantity === 0 ? (
-                        <Alert severity={suggestionBlockedMessage ? "warning" : "info"}>
-                            <Stack spacing={0.25}>
-                                {suggestionReasonMessages.map((message) => (
-                                    <Typography key={message} variant="body2">{message}</Typography>
-                                ))}
-                            </Stack>
-                        </Alert>
                     ) : (
                         <Stack spacing={3}>
+                            {(!hasSelectableInventory || suggestion?.allowedQuantity === 0) && (
+                                <Alert severity={suggestionBlockedMessage ? "warning" : "info"}>
+                                    <Stack spacing={0.25}>
+                                        {suggestionReasonMessages.map((message) => (
+                                            <Typography key={message} variant="body2">{message}</Typography>
+                                        ))}
+                                    </Stack>
+                                </Alert>
+                            )}
+                            {!suggestion?.stations?.length ? (
+                                <Box sx={{ py: 8, textAlign: "center" }}>
+                                    <Typography className="admin-datagrid-empty">
+                                        Không có danh sách vé để bàn giao cho ngày này.
+                                    </Typography>
+                                </Box>
+                            ) : null}
                             {suggestion?.stations?.map((station) => {
                                 const pickedTickets = station.tickets.filter((ticket) => {
                                     const key = ticketKey(station.stationId, ticket.ticketNumbers);
@@ -992,56 +1183,28 @@ export const VendorAllocationPage = () => {
                                             <StationCapacityBadges
                                                 vendorCapacity={station.vendorCapacity}
                                                 agencyReserve={station.effectiveAgencyReserveQuantity}
+                                                luckyQuantity={station.luckyQuantity}
                                             />
                                         </Stack>
 
                                         {station.vendorCapacity === 0 ? (
                                             <Typography variant="body2" color="text.disabled" sx={{ fontStyle: "italic" }}>
-                                                Hết vé (Đã chừa quầy)
+                                                Không có vé để bàn giao cho đài này.
                                             </Typography>
                                         ) : !hasPicked ? (
                                             <DisabledWithTooltip
                                                 title={manualPickDisabledReason}
                                                 disabled={!!manualPickDisabledReason}
                                             >
-                                                <Box
-                                                    sx={{
-                                                        border: "1px dashed",
-                                                        borderColor: "divider",
-                                                        borderRadius: 2,
-                                                        p: 2,
-                                                        display: "inline-flex",
-                                                        flexDirection: "column",
-                                                        alignItems: "center",
-                                                        justifyContent: "center",
-                                                        minWidth: 156,
-                                                        bgcolor: "action.hover",
-                                                        cursor: manualPickDisabledReason ? "not-allowed" : "pointer",
-                                                        opacity: manualPickDisabledReason ? 0.6 : 1,
-                                                        transition: "border-color 0.2s",
-                                                        "&:hover": manualPickDisabledReason
-                                                            ? undefined
-                                                            : { borderColor: "primary.main" },
-                                                    }}
-                                                    onClick={() => {
-                                                        if (manualPickDisabledReason) return;
+                                                <ManualPickSlot
+                                                    disabled={!!manualPickDisabledReason}
+                                                    onPick={() => {
                                                         setSelectionMode("MANUAL");
                                                         setSelectedSerialIds([]);
                                                         setDrawerStation(station);
                                                         setDrawerTicketNumber(null);
                                                     }}
-                                                >
-                                                    <Typography variant="caption" color="text.secondary" mb={1}>
-                                                        Chưa chọn vé
-                                                    </Typography>
-                                                    <Button
-                                                        size="small"
-                                                        variant="outlined"
-                                                        disabled={!!manualPickDisabledReason}
-                                                    >
-                                                        Chọn thủ công
-                                                    </Button>
-                                                </Box>
+                                                />
                                             </DisabledWithTooltip>
                                         ) : (
                                             <Stack direction="row" flexWrap="wrap" gap={2}>
@@ -1077,19 +1240,6 @@ export const VendorAllocationPage = () => {
                                 );
                             })}
                         </Stack>
-                    )}
-
-                    {hasLuckySelected && canOverrideLucky && !draftId && (
-                        <TextField
-                            sx={{ ...fieldSx, mt: 3 }}
-                            fullWidth
-                            multiline
-                            minRows={2}
-                            label="Lý do override số đẹp"
-                            value={luckyOverrideReason}
-                            onChange={(e) => setLuckyOverrideReason(e.target.value)}
-                            helperText="Bắt buộc khi chọn vé số đẹp. Cần quyền streetAgent:manage."
-                        />
                     )}
 
                     {draftBatch && draftBatch.status !== "DRAFT" && (

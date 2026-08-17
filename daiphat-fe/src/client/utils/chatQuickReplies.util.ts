@@ -1,6 +1,5 @@
 import {
   buildSetGoalMessage,
-  buildShowScheduleMessage,
 } from './scheduleToken.util';
 import { ROUTES } from '@/admin/constants/routes';
 
@@ -63,27 +62,16 @@ export const isSuggestTicketsMessage = (raw: string | null | undefined): boolean
 
 /**
  * Hub actions cố định ở footer — luôn cùng nhãn mặc định, không đổi theo đài.
+ * Không có chip "Xem lịch xổ" (chỉ hiện khi khách hỏi lịch trong hội thoại).
  * Mọi action (trừ staff) gửi tin trong chat, không navigate ra trang khác.
  */
 export const buildHubActionChips = (
   _message: ChatQuickReplyMessageContext | null | undefined = null
 ): QuickReplyChip[] => [
   {
-    id: 'hub-schedule',
-    label: 'Xem lịch xổ',
-    action: 'send',
-    message: buildShowScheduleMessage({
-      goal: 'SCHEDULE',
-      region: 'MIEN_NAM',
-      scope: 'all',
-    }),
-    primary: true,
-  },
-  {
-    id: 'hub-results',
-    label: 'Kết quả',
-    action: 'send',
-    message: buildSetGoalMessage('RESULT'),
+    id: 'hub-staff',
+    label: 'Gặp nhân viên',
+    action: 'staff',
     primary: true,
   },
   {
@@ -91,6 +79,7 @@ export const buildHubActionChips = (
     label: 'Gợi ý vé',
     action: 'send',
     message: SUGGEST_TICKETS_MESSAGE,
+    primary: true,
   },
   {
     id: 'hub-search',
@@ -99,42 +88,39 @@ export const buildHubActionChips = (
     message: SEARCH_SUFFIX_MESSAGE,
   },
   {
-    id: 'hub-staff',
-    label: 'Gặp nhân viên',
-    action: 'staff',
+    id: 'hub-results',
+    label: 'Kết quả',
+    action: 'send',
+    message: buildSetGoalMessage('RESULT'),
   },
 ];
 
 const welcomeQuickReplies = (): ContextualQuickReplies => ({
   chips: [
     {
-      id: 'welcome-schedule',
-      label: 'Xem lịch xổ',
-      action: 'send',
-      message: buildShowScheduleMessage({
-        goal: 'SCHEDULE',
-        region: 'MIEN_NAM',
-        scope: 'all',
-      }),
+      id: 'welcome-staff',
+      label: 'Gặp nhân viên',
+      action: 'staff',
       primary: true,
-    },
-    {
-      id: 'welcome-result',
-      label: 'Tra cứu kết quả',
-      action: 'send',
-      message: buildSetGoalMessage('RESULT'),
     },
     {
       id: 'welcome-ticket',
       label: 'Gợi ý vé',
       action: 'send',
       message: SUGGEST_TICKETS_MESSAGE,
+      primary: true,
     },
     {
-      id: 'welcome-order',
-      label: 'Hỗ trợ đơn hàng',
+      id: 'welcome-search',
+      label: 'Tìm đuôi số',
       action: 'send',
-      message: 'Tôi cần hỗ trợ đơn hàng',
+      message: SEARCH_SUFFIX_MESSAGE,
+    },
+    {
+      id: 'welcome-result',
+      label: 'Kết quả',
+      action: 'send',
+      message: buildSetGoalMessage('RESULT'),
     },
   ],
 });
@@ -183,7 +169,7 @@ export const ticketSuggestFollowUpChips = (
 
 /**
  * Footer chips: hub luôn hiện (trừ AI tắt / welcome lần đầu).
- * Chip lịch luôn là "Xem lịch xổ" (logic lịch miền nam) — không thay bằng restart.
+ * Lịch xổ không nằm trong hub — khách hỏi thì bot mới mở flow lịch.
  */
 export const resolveContextualQuickReplies = (
   lastBotMessage: ChatQuickReplyMessageContext | null | undefined,

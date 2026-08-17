@@ -117,9 +117,6 @@ export const PERMISSIONS = {
     NOTIFICATION: {
         VIEW: "notification:view",
     },
-    REVIEW: {
-        VIEW: "review:view",
-    },
     SUPPORT_TICKET: {
         VIEW: "supportTicket:view",
         PROCESS: "supportTicket:process",

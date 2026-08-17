@@ -6,9 +6,7 @@ import {
     TICKET_WITHOUT_SERIAL_MESSAGE,
     findDuplicateNumberSectionIndices,
     findDuplicateSerialPaths,
-    findMissingSerialImagePaths,
     findSectionRelationshipIssues,
-    SERIAL_IMAGE_REQUIRED_MESSAGE,
 } from '../utils/ticketSerialValidation';
 import { SECTION_QUANTITY_MIN_MESSAGE } from '../utils/ticketSectionQuantity';
 import {
@@ -64,12 +62,19 @@ const withTicketSectionRefinements = <T extends z.ZodTypeAny>(schema: T) =>
                 });
             });
 
-            findMissingSerialImagePaths(sections).forEach(({ sectionIndex, serialIndex }) => {
-                ctx.addIssue({
-                    code: z.ZodIssueCode.custom,
-                    message: SERIAL_IMAGE_REQUIRED_MESSAGE,
-                    path: ['ticketSections', sectionIndex, 'serials', serialIndex, 'ticketImg'],
-                });
+            sections.forEach((section: any, sectionIndex: number) => {
+                if (section.quantity != null) {
+                    const filledSerials = (section.serials ?? []).filter(
+                        (s: any) => (s?.id != null && String(s.id).trim() !== '') || !!s?.serialNumber?.trim()
+                    ).length;
+                    if (section.quantity < filledSerials) {
+                        ctx.addIssue({
+                            code: z.ZodIssueCode.custom,
+                            message: `Số lượng vé (${section.quantity}) không được nhỏ hơn số dòng sê-ri đã nhập (${filledSerials}). Vui lòng xóa bớt dòng sê-ri thừa.`,
+                            path: ['ticketSections', sectionIndex, 'quantity'],
+                        });
+                    }
+                }
             });
 
             const relationshipIssues = findSectionRelationshipIssues(sections);

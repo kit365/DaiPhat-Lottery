@@ -2,54 +2,90 @@ package com.daiphat.coreapi.application.service.streetagent;
 
 import com.daiphat.coreapi.application.dto.document.ContractPdfDocument;
 import com.daiphat.coreapi.application.dto.document.StreetAgentContractTemplateData;
+import com.daiphat.coreapi.application.policy.streetagent.VendorAllocationPolicyResolver;
 import com.daiphat.coreapi.application.port.in.streetagent.StreetAgentContractServicePort;
+import com.daiphat.coreapi.application.port.out.contract.ContractRepositoryPort;
 import com.daiphat.coreapi.application.port.out.document.ContractPdfRendererPort;
+import com.daiphat.coreapi.application.port.out.document.StreetAgentContractHtmlRendererPort;
 import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
 import com.daiphat.coreapi.application.port.out.streetagent.StreetAgentProfileRepositoryPort;
+import com.daiphat.coreapi.application.service.contract.ContractArticleInterpolator;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.contract.ContractModel;
+import com.daiphat.coreapi.domain.model.enums.contract.ContractType;
 import com.daiphat.coreapi.domain.model.enums.settings.SystemConfigEnum;
 import com.daiphat.coreapi.domain.model.enums.streetagent.VendorLateReturnPolicy;
 import com.daiphat.coreapi.domain.model.settings.SystemConfigModel;
 import com.daiphat.coreapi.domain.model.streetagent.StreetAgentProfileModel;
-import lombok.RequiredArgsConstructor;
+import com.daiphat.coreapi.shared.time.VietnamClock;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.thymeleaf.context.Context;
-import org.thymeleaf.spring6.SpringTemplateEngine;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.text.NumberFormat;
-import java.time.LocalDate;
+import java.time.Clock;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
+import java.util.Map;
 
 @Service
-@RequiredArgsConstructor
 public class StreetAgentContractService implements StreetAgentContractServicePort {
 
     private static final Locale VIETNAMESE = Locale.forLanguageTag("vi-VN");
     private static final DateTimeFormatter DISPLAY_DATE = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-    private static final String TEMPLATE = "streetagent/contract";
 
     private final StreetAgentProfileRepositoryPort streetAgentProfileRepositoryPort;
+    private final ContractRepositoryPort contractRepositoryPort;
     private final SystemConfigRepositoryPort systemConfigRepositoryPort;
-    private final SpringTemplateEngine templateEngine;
+    private final StreetAgentContractHtmlRendererPort contractHtmlRendererPort;
     private final ContractPdfRendererPort contractPdfRendererPort;
+    private final VietnamClock vietnamClock;
+    private final VendorAllocationPolicyResolver vendorAllocationPolicyResolver;
+
+    @Autowired
+    public StreetAgentContractService(
+            StreetAgentProfileRepositoryPort streetAgentProfileRepositoryPort,
+            ContractRepositoryPort contractRepositoryPort,
+            SystemConfigRepositoryPort systemConfigRepositoryPort,
+            StreetAgentContractHtmlRendererPort contractHtmlRendererPort,
+            ContractPdfRendererPort contractPdfRendererPort,
+            VietnamClock vietnamClock,
+            VendorAllocationPolicyResolver vendorAllocationPolicyResolver) {
+        this.streetAgentProfileRepositoryPort = streetAgentProfileRepositoryPort;
+        this.contractRepositoryPort = contractRepositoryPort;
+        this.systemConfigRepositoryPort = systemConfigRepositoryPort;
+        this.contractHtmlRendererPort = contractHtmlRendererPort;
+        this.contractPdfRendererPort = contractPdfRendererPort;
+        this.vietnamClock = vietnamClock;
+        this.vendorAllocationPolicyResolver = vendorAllocationPolicyResolver;
+    }
+
+    /** Compatibility constructor for focused service tests. */
+    public StreetAgentContractService(
+            StreetAgentProfileRepositoryPort streetAgentProfileRepositoryPort,
+            ContractRepositoryPort contractRepositoryPort,
+            SystemConfigRepositoryPort systemConfigRepositoryPort,
+            StreetAgentContractHtmlRendererPort contractHtmlRendererPort,
+            ContractPdfRendererPort contractPdfRendererPort) {
+        this(streetAgentProfileRepositoryPort, contractRepositoryPort, systemConfigRepositoryPort,
+                contractHtmlRendererPort, contractPdfRendererPort, new VietnamClock(Clock.systemUTC()),
+                new VendorAllocationPolicyResolver(systemConfigRepositoryPort));
+    }
 
     @Override
     @Transactional(readOnly = true)
     public ContractPdfDocument generatePdf(Long profileId) {
         StreetAgentContractTemplateData contract = loadContract(profileId, false);
-        byte[] content = contractPdfRendererPort.renderPdf(render(contract));
+        byte[] content = contractPdfRendererPort.renderPdf(contractHtmlRendererPort.render(contract));
         return new ContractPdfDocument(content, pdfFileName(contract.contractCode()));
     }
 
     @Override
     @Transactional(readOnly = true)
     public String renderPrintHtml(Long profileId) {
-        return render(loadContract(profileId, true));
+        return contractHtmlRendererPort.render(loadContract(profileId, true));
     }
 
     private StreetAgentContractTemplateData loadContract(Long profileId, boolean showPrintAction) {
@@ -57,14 +93,46 @@ public class StreetAgentContractService implements StreetAgentContractServicePor
                 .orElseThrow(() -> new DomainException(ErrorCode.STREET_AGENT_PROFILE_NOT_FOUND));
         requireCompleteContract(profile);
 
-        BigDecimal commissionRate = decimalConfig(SystemConfigEnum.VENDOR_COMMISSION_RATE);
+        VendorAllocationPolicyResolver.AllocationPolicy allocationPolicy = vendorAllocationPolicyResolver.resolve();
+        BigDecimal commissionRate = allocationPolicy.commissionRate();
         BigDecimal faceValue = BigDecimal.valueOf(10_000);
-        BigDecimal unitPrice = faceValue.multiply(BigDecimal.ONE.subtract(commissionRate)).setScale(0, RoundingMode.HALF_UP);
-        BigDecimal depositRate = decimalConfig(SystemConfigEnum.VENDOR_DEPOSIT_RATE);
-        VendorLateReturnPolicy lateReturnPolicy = VendorLateReturnPolicy.valueOf(
-                stringConfig(SystemConfigEnum.VENDOR_LATE_RETURN_POLICY));
+        BigDecimal unitPrice = vendorAllocationPolicyResolver.vendorUnitPrice(faceValue, commissionRate);
+        BigDecimal depositRate = allocationPolicy.depositRate();
+        VendorLateReturnPolicy lateReturnPolicy = VendorLateReturnPolicy.valueOf(allocationPolicy.lateReturnPolicy());
 
+        String contractStartDate = profile.getContractStartDate().format(DISPLAY_DATE);
+        String contractEndDate = profile.getContractEndDate().format(DISPLAY_DATE);
+        String contractMaxDailyCap = formatNumber(profile.getContractMaxDailyCap()) + " vé/phiếu bàn giao";
+        String commission = commission(commissionRate);
+        String vendorUnitPrice = formatCurrency(unitPrice) + "/vé";
+        String depositRateLabel = formatPercent(depositRate) + " trên tổng giá trị vendor của mỗi phiếu bàn giao";
+        String depositFormula = "Tiền cọc = số vé xác nhận bàn giao × " + formatCurrency(unitPrice)
+                + " × " + formatPercent(depositRate) + ".";
+        String returnCutoff = stringConfig(SystemConfigEnum.VENDOR_RETURN_CUTOFF);
+        String lateReturnPolicyLabel = latePolicyLabel(lateReturnPolicy);
+        String lateReturnSettlement = latePolicySettlement(lateReturnPolicy);
+
+        ContractModel template = requireTemplate();
         return new StreetAgentContractTemplateData(
+                template.getTitle(),
+                template.getSubtitle(),
+                template.getPartyARoleLabel(),
+                template.getPartyBRoleLabel(),
+                template.getPartyASignatureLabel(),
+                template.getPartyBSignatureLabel(),
+                template.getFooterNote(),
+                ContractArticleInterpolator.interpolate(template, Map.of(
+                        "contractStartDate", contractStartDate,
+                        "contractEndDate", contractEndDate,
+                        "contractMaxDailyCap", contractMaxDailyCap,
+                        "commission", commission,
+                        "vendorUnitPrice", vendorUnitPrice,
+                        "depositRate", depositRateLabel,
+                        "depositFormula", depositFormula,
+                        "returnCutoff", returnCutoff,
+                        "lateReturnPolicy", lateReturnPolicyLabel,
+                        "lateReturnSettlement", lateReturnSettlement
+                )),
                 stringConfig(SystemConfigEnum.SITE_NAME),
                 optionalConfig(SystemConfigEnum.SITE_LOGO_URL),
                 displayOptional(SystemConfigEnum.SITE_PHONE),
@@ -83,26 +151,24 @@ public class StreetAgentContractService implements StreetAgentContractServicePor
                 dash(profile.getContactWard()),
                 dash(profile.getCoverageArea()),
                 profile.getContractCode().trim(),
-                LocalDate.now().format(DISPLAY_DATE),
-                profile.getContractStartDate().format(DISPLAY_DATE),
-                profile.getContractEndDate().format(DISPLAY_DATE),
-                formatNumber(profile.getContractMaxDailyCap()) + " vé/ngày",
-                commission(commissionRate),
-                formatCurrency(unitPrice) + "/vé",
-                formatPercent(depositRate) + " trên tổng giá trị vendor của mỗi phiếu bàn giao",
-                "Tiền cọc = số vé xác nhận bàn giao × " + formatCurrency(unitPrice)
-                        + " × " + formatPercent(depositRate) + ".",
-                stringConfig(SystemConfigEnum.VENDOR_RETURN_CUTOFF),
-                latePolicyLabel(lateReturnPolicy),
-                latePolicySettlement(lateReturnPolicy),
+                vietnamClock.today().format(DISPLAY_DATE),
+                contractStartDate,
+                contractEndDate,
+                contractMaxDailyCap,
+                commission,
+                vendorUnitPrice,
+                depositRateLabel,
+                depositFormula,
+                returnCutoff,
+                lateReturnPolicyLabel,
+                lateReturnSettlement,
                 showPrintAction
         );
     }
 
-    private String render(StreetAgentContractTemplateData contract) {
-        Context context = new Context(VIETNAMESE);
-        context.setVariable("contract", contract);
-        return templateEngine.process(TEMPLATE, context);
+    private ContractModel requireTemplate() {
+        return contractRepositoryPort.findDefaultByType(ContractType.STREET_AGENT_SALES)
+                .orElseThrow(() -> new DomainException(ErrorCode.CONTRACT_TEMPLATE_NOT_FOUND));
     }
 
     private void requireCompleteContract(StreetAgentProfileModel profile) {

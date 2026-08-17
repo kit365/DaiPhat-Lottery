@@ -79,7 +79,7 @@ public interface OrderApplicationMapper {
     @Mapping(target = "replacedByTicketId", ignore = true)
     @Mapping(target = "replacedByTicketSerialId", ignore = true)
     @Mapping(target = "price", source = "price")
-    @Mapping(target = "status", expression = "java(OrderDetailStatus.ACTIVE)")
+    @Mapping(target = "status", expression = "java(OrderDetailStatus.HANDOVER_IN_PROGRESS)")
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "createdBy", ignore = true)

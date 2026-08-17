@@ -14,7 +14,6 @@ import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchLineEnt
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchReductionTicketResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketSerialResponse;
-import com.daiphat.coreapi.application.event.LotteryTicketProxyExpiredEvent;
 import com.daiphat.coreapi.application.mapper.lotteries.LotteryTicketApplicationMapper;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketSerialServicePort;
@@ -77,8 +76,6 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             );
     private static final List<LotteryTicketSerialStatus> SOLD_SERIAL_STATUSES =
             List.of(LotteryTicketSerialStatus.SOLD);
-    private static final List<LotteryTicketSerialStatus> PROXY_HELD_SERIAL_STATUSES =
-            List.of(LotteryTicketSerialStatus.PROXY_HOLDING);
 
     private final LotteryTicketRepositoryPort lotteryTicketRepositoryPort;
     private final LotteryTicketSerialRepositoryPort lotteryTicketSerialRepositoryPort;
@@ -86,6 +83,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     private final ImportBatchLineRepositoryPort importBatchLineRepositoryPort;
     private final ImportBatchDraftExpiryService importBatchDraftExpiryService;
     private final SupplierSettlementServicePort supplierSettlementServicePort;
+    private final ReturnBatchImportSyncService returnBatchImportSyncService;
     private final LotteryStationServicePort lotteryStationServicePort;
     private final LotteryTicketApplicationMapper lotteryTicketApplicationMapper;
     private final LotteryTicketSerialServicePort lotteryTicketSerialService;
@@ -137,7 +135,8 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                         serialReq,
                         importedById,
                         importBatchId,
-                        importBatchLineId
+                        importBatchLineId,
+                        request.inputSource()
                 )
         );
 
@@ -183,6 +182,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                             .numbers(section.numbers())
                             .serials(section.serials())
                             .isAutoSave(request.isAutoSave())
+                            .inputSource(request.inputSource())
                             .build(),
                     importedById
             ));
@@ -323,17 +323,26 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     ) {
         Map<Long, String> stationNameCache = new HashMap<>();
         List<Long> ticketIds = tickets.stream().map(LotteryTicketModel::getId).toList();
-        Map<Long, LotteryTicketSerialModel> serialsByTicketId =
+        Map<Long, LotteryTicketSerialModel> representativeByTicketId =
                 lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(ticketIds);
         Map<Long, Long> serialQuantityByTicketId =
                 lotteryTicketSerialService.countSerialsByTicketIds(ticketIds);
+        Map<Long, List<LotteryTicketSerialModel>> serialsByTicketId = lotteryTicketSerialService
+                .findAllByTicketIds(ticketIds)
+                .stream()
+                .collect(Collectors.groupingBy(LotteryTicketSerialModel::getTicketId));
         List<LotteryTicketResponse> responses = tickets.stream()
-                .map(ticket -> mapToResponse(
-                        ticket,
-                        serialsByTicketId.get(ticket.getId()),
-                        stationNameCache,
-                        serialQuantityByTicketId.getOrDefault(ticket.getId(), 0L).intValue()
-                ))
+                .map(ticket -> {
+                    List<LotteryTicketSerialModel> ticketSerials =
+                            serialsByTicketId.getOrDefault(ticket.getId(), List.of());
+                    ticket.setSerials(ticketSerials);
+                    return mapToResponse(
+                            ticket,
+                            representativeByTicketId.get(ticket.getId()),
+                            stationNameCache,
+                            serialQuantityByTicketId.getOrDefault(ticket.getId(), 0L).intValue()
+                    );
+                })
                 .toList();
         return PageResponse.from(responses, totalElements, page, size);
     }
@@ -765,14 +774,6 @@ public class LotteryTicketService implements LotteryTicketServicePort {
 
     @Override
     @Transactional
-    public void markProxyHoldingForPaidOrder(Long ticketSerialId, UUID orderId) {
-        LotteryTicketSerialModel serial = lotteryTicketSerialService.getByIdOrThrow(ticketSerialId);
-        lotteryTicketSerialService.markProxyHoldingForPaidOrder(ticketSerialId, orderId);
-        recomputeTicketAggregate(serial.getTicketId());
-    }
-
-    @Override
-    @Transactional
     public void releaseReservationForOrder(Long ticketSerialId) {
         LotteryTicketSerialModel serial = lotteryTicketSerialService.getByIdOrThrow(ticketSerialId);
         LotteryTicketModel ticket = getTicketOrThrow(serial.getTicketId());
@@ -799,19 +800,10 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             if (!ticket.isExpired(station.getDrawTime())) {
                 continue;
             }
-            // Proxy holding is tracked per serial, so capture it before the serials expire.
-            boolean hadProxyHeldSerials =
-                    lotteryTicketSerialService.countByStatuses(ticket.getId(), PROXY_HELD_SERIAL_STATUSES) > 0;
             lotteryTicketSerialService.expireActiveSerials(ticket.getId());
             ticket.expire();
             lotteryTicketRepositoryPort.save(ticket);
             syncStationInventory(ticket.getStationId());
-            if (hadProxyHeldSerials) {
-                eventPublisher.publishEvent(LotteryTicketProxyExpiredEvent.builder()
-                        .ticketId(ticket.getId())
-                        .ticketNumber(ticket.getNumbers())
-                        .build());
-            }
             expiredCount++;
         }
         return expiredCount;
@@ -1039,6 +1031,10 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             refreshedBatch.getActiveLines().forEach(line ->
                     activateImportBatchLineTickets(line.getId())
             );
+            returnBatchImportSyncService.refreshOpenPrimarySupplierReturn(
+                    refreshedBatch.getSupplierId(),
+                    refreshedBatch.getDrawDate()
+            );
             ticket = getTicketOrThrow(ticket.getId());
             syncStationInventory(ticket.getStationId());
             return ticket;
@@ -1231,9 +1227,10 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         }
         long availableSerialCount = lotteryTicketSerialService.countAvailableSerials(ticketId);
         List<LotteryTicketSerialModel> allSerials = lotteryTicketSerialService.findAllByTicketId(ticketId);
-        int totalSerialCount = allSerials.size();
+        int totalSerialCount = (int) allSerials.stream().filter(LotteryTicketSerialModel::isVisibleInventory).count();
         int soldSerialCount = (int) lotteryTicketSerialService.countByStatuses(ticketId, SOLD_SERIAL_STATUSES);
         int faultySerialCount = (int) allSerials.stream()
+                .filter(LotteryTicketSerialModel::isVisibleInventory)
                 .filter(serial -> serial.getTicketCondition() != null && serial.getTicketCondition().isIncidentReported())
                 .count();
         ticket.syncAggregateState(
@@ -1366,6 +1363,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         }
 
         List<LotteryTicketSerialModel> unreported = serials.stream()
+                .filter(serial -> !serial.isVoided())
                 .filter(serial -> serial.getTicketCondition() == null
                         || !serial.getTicketCondition().isIncidentReported())
                 .toList();
@@ -1424,35 +1422,28 @@ public class LotteryTicketService implements LotteryTicketServicePort {
 
         List<LotteryTicketSerialModel> oldSerials = lotteryTicketSerialService.findAllByTicketId(oldTicket.getId());
         for (LotteryTicketSerialModel oldSerial : oldSerials) {
-            if (oldSerial.getTicketCondition() == null
-                    || !oldSerial.getTicketCondition().isIncidentReported()) {
-                oldSerial.markVoided(com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialFaultedBy.DATA_ENTRY_FAULT, "Hủy do nhập sai dãy số (thay bằng dãy số " + newNumbers + ")");
-                lotteryTicketSerialRepositoryPort.save(oldSerial);
+            if (oldSerial.isVoided()) {
+                continue;
             }
-
-            boolean alreadyExists = lotteryTicketSerialRepositoryPort
-                    .existsByTicketIdAndSerialNumber(savedNewTicket.getId(), oldSerial.getSerialNumber());
-
-            if (!alreadyExists) {
-                LotteryTicketSerialModel newSerial = LotteryTicketSerialModel.builder()
-                        .ticketId(savedNewTicket.getId())
-                        .importBatchId(oldSerial.getImportBatchId())
-                        .importBatchLineId(oldSerial.getImportBatchLineId())
-                        .ticketImg(request.newTicketImg() != null && !request.newTicketImg().isBlank() ? request.newTicketImg() : oldSerial.getTicketImg())
-                        .serialNumber(oldSerial.getSerialNumber())
-                        .stationId(savedNewTicket.getStationId())
-                        .drawDate(savedNewTicket.getDrawDate())
-                        .inputSource(oldSerial.getInputSource())
-                        .status(LotteryTicketSerialStatus.IN_STOCK)
-                        .replacedForTicketId(oldSerial.getId())
-                        .build();
-                newSerial.initializeImport(editorId);
-                lotteryTicketSerialRepositoryPort.save(newSerial);
+            if (oldSerial.getStatus() == LotteryTicketSerialStatus.SOLD
+                    || oldSerial.getStatus() == LotteryTicketSerialStatus.WITH_STREET_AGENT) {
+                throw new DomainException(
+                        ErrorCode.LOTTERY_TICKET_INVALID_STATUS,
+                        "Không thể đổi dãy số khi còn sê-ri " + oldSerial.getSerialNumber()
+                                + " ở trạng thái " + oldSerial.getStatus().getDisplayName() + ".");
             }
+            oldSerial.reassignToTicket(
+                    savedNewTicket.getId(),
+                    savedNewTicket.getStationId(),
+                    savedNewTicket.getDrawDate());
+            if (request.newTicketImg() != null && !request.newTicketImg().isBlank()) {
+                oldSerial.setTicketImg(request.newTicketImg());
+            }
+            lotteryTicketSerialRepositoryPort.save(oldSerial);
         }
 
-        // Cancel the mistyped lottery number via soft delete; serial VOIDED conditions keep the audit trail, and the
-        // replacement serials point back through replaced_for_ticket_id.
+        // Soft-delete the mistyped lottery number. Serials keep the same ids and serial
+        // numbers; only ticket_id (and denormalized station/draw) is updated.
         oldTicket.softDelete();
         lotteryTicketRepositoryPort.save(oldTicket);
 

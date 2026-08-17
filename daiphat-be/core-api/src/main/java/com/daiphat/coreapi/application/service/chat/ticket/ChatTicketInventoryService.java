@@ -11,12 +11,14 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 /**
@@ -49,6 +51,8 @@ public class ChatTicketInventoryService {
     private static final int MATCH_MAX_PAGES = 5;
     private static final int SUGGEST_PAGE_SIZE = 40;
     private static final int SUGGEST_MAX_PAGES = 15;
+    /** Candidate pool size before random pick — avoids always returning the lowest numbers. */
+    private static final int SUGGEST_POOL_SIZE = 120;
 
     private final LotteryTicketServicePort lotteryTicketServicePort;
 
@@ -69,7 +73,8 @@ public class ChatTicketInventoryService {
 
     /**
      * Suggest tickets for chat, optionally skipping IDs already shown (e.g. "Gợi ý khác").
-     * When every remaining ticket was excluded, wraps around from the start.
+     * Picks randomly from a pool of sellable tickets. When every remaining ticket was
+     * excluded, wraps around from a fresh pool.
      */
     public List<LotteryTicketResponse> findAvailable(
             String search,
@@ -83,14 +88,11 @@ public class ChatTicketInventoryService {
 
         List<LotteryTicketResponse> picked = collectAvailable(search, stationId, drawDate, target, excluded);
         if (!picked.isEmpty() || excluded.isEmpty()) {
-            return picked.stream().limit(target).toList();
+            return picked;
         }
 
-        // All remaining tickets were already suggested — start a fresh cycle from the top.
-        return collectAvailable(search, stationId, drawDate, target, Set.of())
-                .stream()
-                .limit(target)
-                .toList();
+        // All remaining tickets were already suggested — start a fresh cycle.
+        return collectAvailable(search, stationId, drawDate, target, Set.of());
     }
 
     private List<LotteryTicketResponse> collectAvailable(
@@ -102,10 +104,10 @@ public class ChatTicketInventoryService {
     ) {
         String resolvedDrawDate = resolveDrawDateFilter(drawDate);
         String resolvedSearch = (search == null || search.isBlank()) ? null : search.trim();
-        List<LotteryTicketResponse> picked = new ArrayList<>(target);
+        List<LotteryTicketResponse> pool = new ArrayList<>(Math.min(SUGGEST_POOL_SIZE, SUGGEST_PAGE_SIZE));
 
         try {
-            for (int page = 1; page <= SUGGEST_MAX_PAGES && picked.size() < target; page++) {
+            for (int page = 1; page <= SUGGEST_MAX_PAGES && pool.size() < SUGGEST_POOL_SIZE; page++) {
                 PageResponse<LotteryTicketResponse> response = lotteryTicketServicePort.getPublicTickets(
                         page,
                         SUGGEST_PAGE_SIZE,
@@ -128,8 +130,8 @@ public class ChatTicketInventoryService {
                     if (id != null && excluded.contains(id)) {
                         continue;
                     }
-                    picked.add(ticket);
-                    if (picked.size() >= target) {
+                    pool.add(ticket);
+                    if (pool.size() >= SUGGEST_POOL_SIZE) {
                         break;
                     }
                 }
@@ -141,7 +143,12 @@ public class ChatTicketInventoryService {
             log.warn("Failed to query public tickets for chat inventory search={}", resolvedSearch, ex);
             return List.of();
         }
-        return picked;
+
+        if (pool.isEmpty()) {
+            return List.of();
+        }
+        Collections.shuffle(pool, ThreadLocalRandom.current());
+        return pool.size() <= target ? List.copyOf(pool) : List.copyOf(pool.subList(0, target));
     }
 
     private static Set<Long> toExcludeSet(Collection<Long> excludeIds) {
@@ -225,7 +232,7 @@ public class ChatTicketInventoryService {
      * Empty đuôi/đầu search must not show unrelated fallback tickets — that misleads the customer.
      */
     public TicketInventoryReply formatReply(List<LotteryTicketResponse> primary, String search, boolean isSearch) {
-        return formatReply(primary, search, isSearch, null);
+        return formatReply(primary, search, isSearch, null, false);
     }
 
     public TicketInventoryReply formatReply(
@@ -234,11 +241,21 @@ public class ChatTicketInventoryService {
             boolean isSearch,
             String matchMode
     ) {
+        return formatReply(primary, search, isSearch, matchMode, false);
+    }
+
+    public TicketInventoryReply formatReply(
+            List<LotteryTicketResponse> primary,
+            String search,
+            boolean isSearch,
+            String matchMode,
+            boolean suggestAgain
+    ) {
         String mode = normalizeMatchMode(matchMode, search);
         String matchLabel = matchLabel(mode);
 
         if (primary != null && !primary.isEmpty()) {
-            String display = buildPrimaryDisplay(primary.size(), search, isSearch, matchLabel);
+            String display = buildPrimaryDisplay(primary.size(), search, isSearch, matchLabel, suggestAgain);
             return new TicketInventoryReply(withLeadingDisplay(display, toToken(primary)), display);
         }
 
@@ -354,10 +371,19 @@ public class ChatTicketInventoryService {
         return json.toString();
     }
 
-    private static String buildPrimaryDisplay(int count, String search, boolean isSearch, String matchLabel) {
+    private static String buildPrimaryDisplay(
+            int count,
+            String search,
+            boolean isSearch,
+            String matchLabel,
+            boolean suggestAgain
+    ) {
         if (isSearch && search != null && !search.isBlank()) {
             return "Dưới đây là " + count + " vé đang bán khớp " + matchLabel + " " + search.trim()
                     + " dành cho quý khách:";
+        }
+        if (suggestAgain) {
+            return "Dưới đây là " + count + " vé khác đang bán cho kỳ quay sắp tới dành cho quý khách:";
         }
         return "Dưới đây là " + count + " vé đang bán cho kỳ quay sắp tới dành cho quý khách:";
     }

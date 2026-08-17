@@ -1,5 +1,6 @@
 import { PageResponse } from './api.type';
-import { PurchasedTicket } from './lottery-ticket.type';
+import { LotteryTicketSerialStatus, PurchasedTicket } from './lottery-ticket.type';
+import { getOrderTypeLabel, OrderType } from './order.type';
 
 export enum PrizePayoutRequestStatus {
     PENDING = 'PENDING',
@@ -20,12 +21,7 @@ export type PrizePayoutOwnershipVerificationLevel =
 
 export type SerialPayoutState = 'NONE' | 'PAYOUT_PENDING' | 'PAID_OUT';
 
-export type LotteryTicketSerialStatus =
-    | 'IN_STOCK'
-    | 'RESERVED'
-    | 'PROXY_HOLDING'
-    | 'SOLD'
-    | 'EXPIRED';
+export type { LotteryTicketSerialStatus };
 
 export type TicketCondition = 'GOOD' | 'DAMAGED' | 'LOST' | 'VOIDED';
 
@@ -156,7 +152,16 @@ export interface PrizePayoutLookupItem {
     alreadyRequested?: boolean;
     /** Serial payout lock state from BE (NONE | PAYOUT_PENDING | PAID_OUT). */
     payoutState?: SerialPayoutState;
+    customerRedemptionDeadline?: string | null;
+    issuerRedemptionDeadline?: string | null;
+    redemptionZone?: PrizeRedemptionZone | null;
+    daysRemainingToIssuer?: number | null;
 }
+
+export type PrizeRedemptionZone =
+    | 'WITHIN_CUSTOMER'
+    | 'PAST_CUSTOMER_URGENT'
+    | 'PAST_ISSUER_LOCKED';
 
 export interface PrizePayoutLookupResponse {
     items: PrizePayoutLookupItem[];
@@ -191,6 +196,7 @@ export interface CreateStaffPrizePayoutRequest {
     manualOwnershipConfirmed?: boolean;
     transferEvidenceUrl?: string;
     confirmationContractUrl?: string;
+    acknowledgeLateRedemption?: boolean;
 }
 
 export interface CreateStaffPrizePayoutBatchRequest {
@@ -208,6 +214,7 @@ export interface CreateStaffPrizePayoutBatchRequest {
     manualOwnershipConfirmed?: boolean;
     transferEvidenceUrl?: string;
     confirmationContractUrl?: string;
+    acknowledgeLateRedemption?: boolean;
 }
 
 
@@ -258,19 +265,45 @@ export const PRIZE_PAYOUT_STATUS_MAP: Record<
 };
 
 export const PRIZE_PAYOUT_CHANNEL_LABELS: Record<PrizePayoutChannel, string> = {
-    ONLINE: 'Online',
+    ONLINE: 'Trực tuyến',
     IN_PERSON: 'Tại quầy',
 };
 
 export const PRIZE_PAYOUT_TICKET_ORIGIN_LABELS: Record<PrizePayoutTicketOrigin, string> = {
-    INTERNAL_ONLINE: 'Vé online',
+    INTERNAL_ONLINE: 'Vé trực tuyến',
     INTERNAL_OFFLINE: 'Vé mua tại quầy',
 };
 
+/** Suy ra loại đơn (Online / Tại quầy) từ orderType hoặc channel/ticketOrigin. */
+export function resolvePrizePayoutOrderType(
+    detail: Pick<PrizePayoutRequestResponse, 'orderType' | 'channel' | 'ticketOrigin'>
+): OrderType | null {
+    if (detail.orderType === OrderType.ONLINE) {
+        return OrderType.ONLINE;
+    }
+    if (detail.orderType === OrderType.DIRECT) {
+        return OrderType.DIRECT;
+    }
+    if (detail.channel === 'ONLINE' || detail.ticketOrigin === 'INTERNAL_ONLINE') {
+        return OrderType.ONLINE;
+    }
+    if (detail.channel === 'IN_PERSON' || detail.ticketOrigin === 'INTERNAL_OFFLINE') {
+        return OrderType.DIRECT;
+    }
+    return null;
+}
+
+export function resolvePrizePayoutOrderTypeLabel(
+    detail: Pick<PrizePayoutRequestResponse, 'orderType' | 'channel' | 'ticketOrigin'>
+): string {
+    const orderType = resolvePrizePayoutOrderType(detail);
+    return orderType ? getOrderTypeLabel(orderType) : '—';
+}
+
 export const PRIZE_PAYOUT_VERIFICATION_LABELS: Record<PrizePayoutOwnershipVerificationLevel, string> = {
     AUTO_MATCHED: 'Đã xác minh hệ thống',
-    CUSTOMER_LINKED: 'Vé quầy — có KH trên đơn',
-    MANUAL_ONLY: 'Vé quầy — không KH / xác minh thủ công',
+    CUSTOMER_LINKED: 'Vé tại quầy — có KH trên đơn',
+    MANUAL_ONLY: 'Vé tại quầy — không KH / xác minh thủ công',
 };
 
 export const PRIZE_PAYOUT_PAYMENT_METHOD_LABELS: Record<PrizePayoutPaymentMethod, string> = {
@@ -291,6 +324,7 @@ export const SERIAL_STATUS_LABELS: Record<LotteryTicketSerialStatus, string> = {
     PROXY_HOLDING: 'Đại lý giữ hộ',
     SOLD: 'Đã bán',
     EXPIRED: 'Đã hết hạn kỳ quay',
+    WITH_STREET_AGENT: 'Đang giao người bán dạo',
 };
 
 export const TICKET_CONDITION_LABELS: Record<TicketCondition, string> = {
@@ -301,7 +335,12 @@ export const TICKET_CONDITION_LABELS: Record<TicketCondition, string> = {
 };
 
 /** Tình trạng nhận vé vật lý — đã lấy hay còn giữ tại đại lý. */
-export type TicketPossessionStatus = 'PICKED_UP' | 'HELD_AT_AGENT' | 'RESERVED' | 'OTHER';
+export type TicketPossessionStatus =
+    | 'PICKED_UP'
+    | 'HELD_AT_AGENT'
+    | 'RESERVED'
+    | 'REJECTED'
+    | 'OTHER';
 
 export interface TicketPossessionDisplay {
     status: TicketPossessionStatus;
@@ -312,25 +351,51 @@ export interface TicketPossessionDisplay {
 }
 
 export const resolveTicketPossessionDisplay = (
-    ticket: Pick<PurchasedTicket, 'serialStatus' | 'actualPickedUpAt'>
+    ticket: Pick<
+        PurchasedTicket,
+        'serialStatus' | 'actualPickedUpAt' | 'orderDetailStatus' | 'handedOverAt' | 'rejectedAt'
+    >
 ): TicketPossessionDisplay | null => {
-    // Serial possession wins over order-level pickup (orders can mix held + picked tickets).
-    if (ticket.serialStatus === 'PROXY_HOLDING') {
+    // Order-detail handover status is authoritative (serial stays SOLD after payment).
+    if (ticket.orderDetailStatus === 'REJECTED_BY_CUSTOMER') {
         return {
-            status: 'HELD_AT_AGENT',
-            label: 'Đại lý đang giữ hộ',
-            hint: 'Vé chưa được bạn lấy tại quầy',
-            className: 'bg-amber-50 text-amber-700 border-amber-200',
-            icon: 'fa-solid fa-store',
+            status: 'REJECTED',
+            label: 'Khách từ chối nhận',
+            hint: 'Vé vẫn được đại lý giữ — liên hệ hỗ trợ nếu cần',
+            className: 'bg-rose-50 text-rose-700 border-rose-200',
+            icon: 'fa-solid fa-hand',
         };
     }
-    if (ticket.serialStatus === 'SOLD' || ticket.actualPickedUpAt) {
+    if (ticket.orderDetailStatus === 'HANDED_OVER' || ticket.handedOverAt || ticket.actualPickedUpAt) {
         return {
             status: 'PICKED_UP',
             label: 'Đã lấy vé',
             hint: 'Bạn đã nhận vé vật lý tại đại lý',
             className: 'bg-sky-50 text-sky-700 border-sky-200',
             icon: 'fa-solid fa-hand-holding',
+        };
+    }
+    if (
+        ticket.orderDetailStatus === 'PROXY_HOLDING'
+        || ticket.orderDetailStatus === 'HANDOVER_IN_PROGRESS'
+        || ticket.serialStatus === 'PROXY_HOLDING'
+    ) {
+        return {
+            status: 'HELD_AT_AGENT',
+            label: ticket.orderDetailStatus === 'HANDOVER_IN_PROGRESS'
+                ? 'Đang bàn giao'
+                : 'Đại lý đang giữ hộ',
+            hint: 'Vé chưa được bạn lấy tại quầy',
+            className: 'bg-amber-50 text-amber-700 border-amber-200',
+            icon: 'fa-solid fa-store',
+        };
+    }
+    if (ticket.orderDetailStatus === 'REFUND_PENDING' || ticket.orderDetailStatus === 'REFUNDED') {
+        return {
+            status: 'OTHER',
+            label: ticket.orderDetailStatus === 'REFUNDED' ? 'Đã hoàn tiền' : 'Chờ hoàn tiền',
+            className: 'bg-slate-50 text-slate-600 border-slate-200',
+            icon: 'fa-solid fa-rotate-left',
         };
     }
     if (ticket.serialStatus === 'RESERVED') {
@@ -351,18 +416,34 @@ export const resolveTicketPossessionDisplay = (
             icon: 'fa-solid fa-store',
         };
     }
-    if (!ticket.serialStatus) {
+    // Paid serial without a handover decision yet — still at the counter, not picked up.
+    if (ticket.serialStatus === 'SOLD') {
+        return {
+            status: 'HELD_AT_AGENT',
+            label: 'Đại lý đang giữ hộ',
+            hint: 'Vé chưa được bạn lấy tại quầy',
+            className: 'bg-amber-50 text-amber-700 border-amber-200',
+            icon: 'fa-solid fa-store',
+        };
+    }
+    if (!ticket.serialStatus && !ticket.orderDetailStatus) {
         return null;
     }
     return {
         status: 'OTHER',
-        label: SERIAL_STATUS_LABELS[ticket.serialStatus] ?? ticket.serialStatus,
+        label: ticket.serialStatus
+            ? (SERIAL_STATUS_LABELS[ticket.serialStatus] ?? ticket.serialStatus)
+            : (ticket.orderDetailStatus ?? 'Khác'),
         className: 'bg-slate-50 text-slate-600 border-slate-200',
         icon: 'fa-solid fa-ticket',
     };
 };
 
-const PAYOUT_ELIGIBLE_SERIAL_STATUSES: LotteryTicketSerialStatus[] = ['PROXY_HOLDING', 'EXPIRED'];
+const PAYOUT_ELIGIBLE_SERIAL_STATUSES: LotteryTicketSerialStatus[] = [
+    'SOLD',
+    'PROXY_HOLDING',
+    'EXPIRED',
+];
 
 export type TicketPayoutDisplayStatus =
     | 'NOT_REQUESTED'
@@ -450,8 +531,11 @@ export const resolveTicketPayoutDisplay = (
 
 export const canRequestPrizePayout = (ticket: PurchasedTicket) => {
     const status = ticket.activePayoutStatus as PrizePayoutRequestStatus | undefined;
+    const withinCustomerWindow = ticket.redemptionZone == null
+        || ticket.redemptionZone === 'WITHIN_CUSTOMER';
     return ticket.drawResultStatus === 'WON'
         && ticket.canClaimOnline === true
+        && withinCustomerWindow
         && ticket.serialStatus != null
         && PAYOUT_ELIGIBLE_SERIAL_STATUSES.includes(ticket.serialStatus)
         && (ticket.payoutState == null || ticket.payoutState === 'NONE')
@@ -475,7 +559,24 @@ export const getPrizePayoutIneligibilityMessage = (ticket: PurchasedTicket): str
         return null;
     }
     if (status === PrizePayoutRequestStatus.MANUAL_RESOLUTION) {
-        return 'Yêu cầu trả thưởng online đã bị từ chối quá số lần cho phép — vui lòng đến đại lý đổi thưởng.';
+        return 'Yêu cầu trả thưởng trực tuyến đã bị từ chối quá số lần cho phép — vui lòng đến đại lý đổi thưởng.';
+    }
+    if (ticket.redemptionZone === 'PAST_ISSUER_LOCKED') {
+        return 'Đã hết hạn trả thưởng — không thể đổi thưởng.';
+    }
+    if (ticket.redemptionZone === 'PAST_CUSTOMER_URGENT') {
+        const days = ticket.daysRemainingToIssuer;
+        if (days != null && days >= 0) {
+            const dayLabel = days === 0
+                ? 'hôm nay'
+                : days === 1
+                    ? '1 ngày'
+                    : `${days} ngày`;
+            return days === 0
+                ? 'Đã hết hạn đổi thưởng trực tuyến. Vui lòng mang vé đến đại lý trong hôm nay trước khi hết hạn chính thức.'
+                : `Đã hết hạn đổi thưởng trực tuyến. Vui lòng mang vé đến đại lý trong ${dayLabel} tới (còn hạn lĩnh nhà đài).`;
+        }
+        return 'Đã hết hạn đổi thưởng trực tuyến. Vui lòng mang vé đến đại lý nếu còn trong hạn lĩnh nhà đài.';
     }
     if (ticket.canClaimOnline === false || ticket.claimChannel === 'IN_PERSON') {
         return 'Vé này bắt buộc đổi thưởng trực tiếp tại đại lý.';

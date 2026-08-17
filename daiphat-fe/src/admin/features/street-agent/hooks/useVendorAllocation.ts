@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import {
     cancelVendorAllocation,
     confirmVendorReturnInspection,
+    confirmVendorNoReturn,
     confirmVendorAllocation,
     createVendorAllocationDraft,
     getOpenVendorAllocationBatch,
@@ -15,14 +16,18 @@ import {
     listVendorAllocationBatches,
     openVendorAllocationReturnSession,
     removeVendorAllocationReturnSerial,
+    replaceVendorAllocationReturns,
+    reopenVendorReturnInspection,
     returnVendorAllocationSerials,
     settleVendorAllocation,
 } from "../services/vendorAllocationService";
 import {
     ConfirmVendorAllocationPayload,
     ConfirmVendorReturnInspectionPayload,
+    ConfirmVendorNoReturnPayload,
     CreateVendorAllocationDraftPayload,
     ReturnVendorAllocationSerialsPayload,
+    ReplaceVendorAllocationReturnsPayload,
     SettleVendorAllocationPayload,
     VendorAllocationBatch,
     VendorAllocationBatchListParams,
@@ -199,6 +204,10 @@ export const useVendorSettlementPreview = (
         queryFn: () => getVendorAllocationSettlementPreview(id!),
         enabled: enabled && !!id,
         select: (response) => response.data,
+        retry: (failureCount, error: any) => {
+            if (error?.response?.status === 409) return false;
+            return failureCount < 2;
+        },
     });
 };
 
@@ -257,6 +266,17 @@ export const useReturnVendorAllocationSerials = () => {
     });
 };
 
+export const useReplaceVendorAllocationReturns = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, data }: { id: number | string; data: ReplaceVendorAllocationReturnsPayload }) =>
+            replaceVendorAllocationReturns(id, data),
+        onSuccess: (_response, variables) => {
+            invalidateVendorAllocationQueries(queryClient, variables.id);
+        },
+    });
+};
+
 export const useRemoveVendorAllocationReturnSerial = () => {
     const queryClient = useQueryClient();
     return useMutation({
@@ -284,20 +304,38 @@ export const useConfirmVendorReturnInspection = () => {
     });
 };
 
+export const useConfirmVendorNoReturn = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, data }: { id: number | string; data?: ConfirmVendorNoReturnPayload }) =>
+            confirmVendorNoReturn(id, data),
+        onSuccess: (_response, variables) => {
+            invalidateVendorAllocationQueries(queryClient, variables.id);
+        },
+    });
+};
+
+export const useReopenVendorReturnInspection = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (id: number | string) => reopenVendorReturnInspection(id),
+        onSuccess: (_response, id) => {
+            invalidateVendorAllocationQueries(queryClient, id);
+        },
+    });
+};
+
 export const useSettleVendorAllocation = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: ({ id, data }: { id: number | string; data: SettleVendorAllocationPayload }) => settleVendorAllocation(id, data),
         onSuccess: (_response, variables) => {
-            // A settled batch cannot be previewed again. Avoid invalidating an
-            // active preview query during the status transition, which would
-            // otherwise race the batch refetch and surface a harmless SAG_007.
-            invalidateVendorAllocationQueries(queryClient, variables.id, {
-                includeSettlementPreview: false,
-            });
-            queryClient.removeQueries({
+            queryClient.cancelQueries({
                 queryKey: [QUERY_KEYS.VENDOR_ALLOCATION_SETTLEMENT_PREVIEW, variables.id],
                 exact: true,
+            });
+            invalidateVendorAllocationQueries(queryClient, variables.id, {
+                includeSettlementPreview: false,
             });
         },
     });

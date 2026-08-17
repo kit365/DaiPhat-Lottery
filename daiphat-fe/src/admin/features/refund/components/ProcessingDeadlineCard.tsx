@@ -49,7 +49,10 @@ export const ProcessingDeadlineCard = ({
         return () => window.clearInterval(timer);
     }, [status, processingDeadlineAt, processingUrgency, secondsLeft]);
 
-    if (processingUrgency === RefundProcessingUrgency.NOT_APPLICABLE) {
+    if (
+        processingUrgency === RefundProcessingUrgency.NOT_APPLICABLE
+        || processingUrgency === RefundProcessingUrgency.ON_TIME
+    ) {
         return null;
     }
 

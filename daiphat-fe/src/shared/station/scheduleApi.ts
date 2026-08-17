@@ -58,23 +58,33 @@ const getBackendBase = () => {
     const upstream =
         process.env.BACKEND_UPSTREAM ||
         process.env.NEXT_PUBLIC_API_BASE_URL ||
-        process.env.VITE_API_BASE_URL ||
         'http://localhost:8080';
     return upstream.replace(/\/$/, '');
 };
 
 const apiRoot = () => `${getBackendBase()}${API_PREFIX}${API_VERSION}`;
 
-async function fetchScheduleJson<T>(path: string, params?: Record<string, string>): Promise<T> {
-    const url = new URL(`${apiRoot()}${path}`);
+const buildScheduleRequestUrl = (path: string, params?: Record<string, string>): string => {
+    const pathname = `${apiRoot()}${path}`;
+    const url =
+        typeof window !== 'undefined' && !getBackendBase()
+            ? new URL(pathname, window.location.origin)
+            : new URL(pathname);
+
     if (params) {
         Object.entries(params).forEach(([key, value]) => {
             if (value) url.searchParams.set(key, value);
         });
     }
 
-    const response = await fetch(url.toString(), {
-        ...(typeof window === 'undefined' ? { next: { revalidate: 60 } } : { credentials: 'include' }),
+    return url.toString();
+};
+
+async function fetchScheduleJson<T>(path: string, params?: Record<string, string>): Promise<T> {
+    const response = await fetch(buildScheduleRequestUrl(path, params), {
+        ...(typeof window === 'undefined'
+            ? { cache: 'no-store' as const }
+            : { credentials: 'include' as const, cache: 'no-store' as const }),
     });
 
     if (!response.ok) {

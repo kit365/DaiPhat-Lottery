@@ -45,6 +45,12 @@ public class OrderModel {
     private LocalDateTime cancelledAt;
     private String cancelReason;
     private OrderCancelType cancelType;
+    private String handoverEvidenceUrl;
+    private String paymentComplaintEvidenceUrl;
+    private LocalDateTime paymentComplaintSubmittedAt;
+    private LocalDateTime paymentComplaintResolvedAt;
+    private UUID paymentComplaintResolvedBy;
+    private String paymentComplaintResolutionReason;
     private LocalDateTime actualPickedUpAt;
     private UUID pickedUpBy;
     private LocalDateTime createdAt;
@@ -75,6 +81,60 @@ public class OrderModel {
         this.cancelType = null;
     }
 
+    /**
+     * A customer may only dispute an automatic online-payment timeout.  The
+     * original cancellation metadata is deliberately retained while staff
+     * verifies the evidence, so the audit trail is never rewritten.
+     */
+    public void submitPaymentTimeoutComplaint(String evidenceUrl, LocalDateTime submittedAt) {
+        ensureStatus(OrderStatus.CANCELLED);
+        if (this.cancelType != OrderCancelType.SYSTEM_PAYMENT_TIMEOUT) {
+            throw new DomainException(ErrorCode.ORDER_INVALID_STATUS);
+        }
+        if (evidenceUrl == null || evidenceUrl.isBlank()) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Không thể lưu ảnh chứng từ thanh toán. Vui lòng chọn lại ảnh và thử lại."
+            );
+        }
+        if (submittedAt == null) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Thiếu thời điểm gửi khiếu nại thanh toán."
+            );
+        }
+        this.status = OrderStatus.PAYMENT_COMPLAINT_PENDING;
+        this.paymentComplaintEvidenceUrl = evidenceUrl.trim();
+        this.paymentComplaintSubmittedAt = submittedAt;
+        this.paymentComplaintResolvedAt = null;
+        this.paymentComplaintResolvedBy = null;
+        this.paymentComplaintResolutionReason = null;
+    }
+
+    /** Marks the complaint approved after a completed verification transaction was attached. */
+    public void approvePaymentTimeoutComplaint(LocalDateTime resolvedAt) {
+        ensureStatus(OrderStatus.PAYMENT_COMPLAINT_PENDING);
+        if (resolvedAt == null) {
+            throw new DomainException(ErrorCode.INVALID_INPUT);
+        }
+        this.status = OrderStatus.PAID;
+        this.paymentComplaintResolvedAt = resolvedAt;
+        this.cancelledAt = null;
+        this.cancelReason = null;
+        this.cancelType = null;
+    }
+
+    /** Rejecting returns to the original timeout cancellation, retaining proof for audit. */
+    public void rejectPaymentTimeoutComplaint(String reason, LocalDateTime resolvedAt) {
+        ensureStatus(OrderStatus.PAYMENT_COMPLAINT_PENDING);
+        if (reason == null || reason.isBlank() || resolvedAt == null) {
+            throw new DomainException(ErrorCode.INVALID_INPUT);
+        }
+        this.status = OrderStatus.CANCELLED;
+        this.paymentComplaintResolutionReason = reason.trim();
+        this.paymentComplaintResolvedAt = resolvedAt;
+    }
+
     public void markPreparing() {
         ensureStatus(OrderStatus.PAID);
         this.status = OrderStatus.PREPARING;
@@ -83,6 +143,11 @@ public class OrderModel {
     public void markPendingPickup() {
         ensureStatus(OrderStatus.PREPARING);
         this.status = OrderStatus.PENDING_PICKUP;
+        if (this.orderDetails != null) {
+            this.orderDetails.stream()
+                    .filter(detail -> detail.getStatus() == com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.PROXY_HOLDING)
+                    .forEach(OrderDetailModel::openHandover);
+        }
     }
 
     public void completeDirectOrder(UUID operatorId) {
@@ -96,6 +161,9 @@ public class OrderModel {
     public void completeOnlineOrder(UUID pickedUpBy) {
         ensureOrderType(OrderType.ONLINE);
         ensureStatus(OrderStatus.PENDING_PICKUP);
+        if (this.orderDetails == null || this.orderDetails.stream().anyMatch(detail -> !detail.isFinalHandoverState())) {
+            throw new DomainException(ErrorCode.ORDER_INVALID_STATUS, "Cần hoàn tất bàn giao hoặc ghi nhận từ chối cho từng vé.");
+        }
         this.status = OrderStatus.COMPLETED;
         this.pickedUpBy = pickedUpBy;
         this.actualPickedUpAt = LocalDateTime.now();
@@ -126,7 +194,14 @@ public class OrderModel {
     }
 
     public void cancelAfterPaymentForRefund(String cancelReason, OrderCancelType cancelType) {
-        ensureOrderType(OrderType.ONLINE);
+        cancelPaidFulfillmentForRefund(cancelReason, cancelType);
+    }
+
+    /**
+     * Customer/staff refund cancel for PAID / PREPARING / PENDING_PICKUP.
+     * Does not require ONLINE vs DIRECT — PayOS online orders are PREPARING after pay.
+     */
+    public void cancelPaidFulfillmentForRefund(String cancelReason, OrderCancelType cancelType) {
         ensurePaidFulfillmentStatus();
         cancel(cancelReason, true, cancelType);
     }
@@ -180,8 +255,7 @@ public class OrderModel {
     public void recalculateTotalAmount() {
         if (this.orderDetails != null) {
             this.totalAmount = this.orderDetails.stream()
-                    .filter(d -> d.getStatus() == com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.ACTIVE
-                              || d.getStatus() == com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.REFUND_PENDING)
+                    .filter(OrderDetailModel::contributesToOrderAmount)
                     .map(OrderDetailModel::getLineSubtotal)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
         }
@@ -203,11 +277,12 @@ public class OrderModel {
             if (forRefund) {
                 // Skip details already REFUND_PENDING / REFUNDED from a prior partial refund.
                 this.orderDetails.stream()
-                        .filter(detail -> detail.getStatus()
-                                == com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.ACTIVE)
+                        .filter(OrderDetailModel::canEnterRefundLifecycle)
                         .forEach(OrderDetailModel::markRefundPending);
             } else {
-                this.orderDetails.forEach(OrderDetailModel::markInactive);
+                this.orderDetails.stream()
+                        .filter(OrderDetailModel::isAwaitingHandover)
+                        .forEach(OrderDetailModel::markCancelled);
             }
         }
     }

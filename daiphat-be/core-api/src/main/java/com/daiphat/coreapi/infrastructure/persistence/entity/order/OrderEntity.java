@@ -72,7 +72,7 @@ public class OrderEntity {
     private List<TransactionEntity> transactions;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, length = 40)
     private OrderStatus status;
 
     @Column(name = "expected_pickup_at")
@@ -87,6 +87,25 @@ public class OrderEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "cancel_type", length = 50)
     private OrderCancelType cancelType;
+
+    @Column(name = "handover_evidence_url", length = 500)
+    private String handoverEvidenceUrl;
+
+    @Column(name = "payment_complaint_evidence_url", length = 500)
+    private String paymentComplaintEvidenceUrl;
+
+    @Column(name = "payment_complaint_submitted_at")
+    private LocalDateTime paymentComplaintSubmittedAt;
+
+    @Column(name = "payment_complaint_resolved_at")
+    private LocalDateTime paymentComplaintResolvedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "payment_complaint_resolved_by")
+    private UserEntity paymentComplaintResolvedBy;
+
+    @Column(name = "payment_complaint_resolution_reason", length = 500)
+    private String paymentComplaintResolutionReason;
 
     @Column(name = "actual_picked_up_at")
     private LocalDateTime actualPickedUpAt;

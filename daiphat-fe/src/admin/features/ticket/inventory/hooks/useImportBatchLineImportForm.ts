@@ -2,13 +2,15 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FieldErrors, useFieldArray, useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import { useRegions } from '../../../region/hooks/useRegion';
 import { useStations } from '../../../station/hooks/useStation';
 import { QUERY_KEYS as IMPORT_BATCH_QUERY_KEYS } from '../../import-batch/constants/queryKeys';
 import { useImportBatchDetail, useImportBatchLineEntryTickets } from '../../import-batch/hooks/useImportBatch';
+import { useImportBatchIntakeGate } from '../../import-batch/hooks/useImportBatchIntakeGate';
+import { useActiveSuppliers } from '../../../supplier';
 import type { ImportBatchLine } from '../../import-batch/types/importBatch.type';
 import {
     getImportBatchLineCancelledAlertMessage,
@@ -26,6 +28,7 @@ import {
 import {
     countPendingFilledSerials,
     extractPendingDraftSections,
+    isPersistedSerial,
     mergePersistedAndDraftSections,
 } from '../utils/ticketLineFormHydration';
 import {
@@ -97,16 +100,28 @@ export const useImportBatchLineImportForm = ({
     const isApplyingLineRef = useRef(false);
     const autoSaveTimerRef = useRef<number | undefined>(undefined);
     const isAutoSavingRef = useRef(false);
+    const [missingImageConfirmOpen, setMissingImageConfirmOpen] = useState(false);
+    const [missingImageCount, setMissingImageCount] = useState(0);
+    const pendingSubmitDataRef = useRef<CreateTicketFormValues | null>(null);
 
     const { data: importBatchDetail, isLoading: isBatchLoading } = useImportBatchDetail(
         enabled ? batchId || undefined : undefined
     );
+    const { data: activeSuppliers = [] } = useActiveSuppliers();
+    const { evaluate: evaluateIntake } = useImportBatchIntakeGate();
 
     const resolvedBatch =
         importBatchDetail && batchId && String(importBatchDetail.id) === String(batchId)
             ? importBatchDetail
             : null;
     const batchLines = resolvedBatch?.lines ?? [];
+    const intakeGate = useMemo(() => {
+        if (!resolvedBatch?.supplierId || !resolvedBatch.drawDate) {
+            return null;
+        }
+        const supplier = activeSuppliers.find((entry) => entry.id === resolvedBatch.supplierId);
+        return evaluateIntake(supplier, resolvedBatch.drawDate);
+    }, [activeSuppliers, evaluateIntake, resolvedBatch]);
 
     const { data: providersRes } = useStations({ limit: 1000 });
     const providers = (providersRes as { data?: { recordList?: Array<{ id?: number; _id?: number; name?: string; region?: string }> } })?.data?.recordList || [];
@@ -584,9 +599,119 @@ export const useImportBatchLineImportForm = ({
         }
     }, []);
 
+    const executeSubmit = useCallback(
+        async (data: CreateTicketFormValues) => {
+            if (!selectedLine || !resolvedBatch) {
+                toast.error('Vui lòng chọn nhà đài trong phiếu nhập lô');
+                return;
+            }
+
+            const imported = selectedLine.totalQuantity ?? 0;
+            const declared = selectedLine.declareQuantity ?? 0;
+            const remaining = Math.max(0, declared - imported);
+            const filledSerials = countPendingFilledSerials(data.ticketSections);
+
+            const payload = buildImportBatchLineSubmitPayload(data, {
+                drawDate: resolvedBatch.drawDate,
+                isAutoSave: false,
+                requireTicketImages: false,
+            });
+
+            if (!payload || filledSerials === 0) {
+                toast.error('Vui lòng nhập ít nhất một dãy số kèm số sê-ri.');
+                return;
+            }
+
+            try {
+                const res = await bulkCreateAsync({ data: payload, skipGlobalErrorToast: true });
+                if (res.success) {
+                    toast.success('Nhập vé số thành công!');
+                    await refreshFormAfterPersist(
+                        String(selectedLine.id),
+                        selectedLine,
+                        filledSerials,
+                        remaining
+                    );
+                    onSuccess?.();
+                } else {
+                    toast.error(res.message || 'Nhập vé số thất bại');
+                }
+            } catch (err: unknown) {
+                const apiErr = err as {
+                    response?: { data?: { message?: string } };
+                    message?: string;
+                };
+                if (isTicketNumberLengthApiError(err)) {
+                    const message =
+                        apiErr?.response?.data?.message || getTicketNumberLengthMessage(numberLengthRules);
+                    const sections = getValues('ticketSections');
+                    sections.forEach((_, sectionIndex) => {
+                        setError(`ticketSections.${sectionIndex}.numbers`, {
+                            type: 'length',
+                            message,
+                        });
+                    });
+                    scrollToNumberField(0);
+                    return;
+                }
+                if (isDuplicateNumbersApiError(err)) {
+                    const sections = getValues('ticketSections');
+                    const indices = findDuplicateNumberSectionIndices(sections);
+                    applyDuplicateNumberFieldErrors(indices, setError);
+                    if (indices.length > 0) {
+                        scrollToNumberField(indices[0]);
+                    }
+                    return;
+                }
+                if (isSerialDuplicateApiError(err)) {
+                    const sections = getValues('ticketSections');
+                    const paths = findSerialPathsForApiFailure(sections);
+                    applySerialDuplicateFieldErrors(paths, setError);
+                    if (paths.length > 0) {
+                        scrollToSerialField(paths[0].sectionIndex, paths[0].serialIndex);
+                    }
+                    return;
+                }
+                if (isQuotaExceededApiError(err)) {
+                    const sections = getValues('ticketSections');
+                    const overflowPaths = findQuotaOverflowSerialPaths(
+                        sections,
+                        Math.max(0, declared - imported)
+                    );
+                    applyQuotaOverflowFieldErrors(overflowPaths, setError);
+                    if (overflowPaths.length > 0) {
+                        scrollToSerialField(overflowPaths[0].sectionIndex, overflowPaths[0].serialIndex);
+                    } else {
+                        toast.error(
+                            apiErr?.response?.data?.message ||
+                                'Số lượng vé nhập vượt quá số lượng khai báo của dòng phiếu.'
+                        );
+                    }
+                    return;
+                }
+                toast.error(apiErr?.response?.data?.message || apiErr?.message || 'Đã xảy ra lỗi khi nhập vé số');
+            }
+        },
+        [
+            bulkCreateAsync,
+            getValues,
+            numberLengthRules,
+            onSuccess,
+            refreshFormAfterPersist,
+            resolvedBatch,
+            selectedLine,
+            setError,
+        ]
+    );
+
     const onSubmit = async (data: CreateTicketFormValues) => {
         if (!selectedLine || !resolvedBatch) {
             toast.error('Vui lòng chọn nhà đài trong phiếu nhập lô');
+            return;
+        }
+
+        if (intakeGate?.blocked || intakeGate?.notYetAllowed) {
+            toast.error(intakeGate.message ?? 'Không thể nhập vé vào phiếu này lúc này.');
             return;
         }
 
@@ -634,13 +759,27 @@ export const useImportBatchLineImportForm = ({
             return;
         }
 
-        const missingImagePaths = findMissingSerialImagePaths(data.ticketSections);
-        if (missingImagePaths.length > 0) {
-            applyMissingSerialImageFieldErrors(missingImagePaths, setError);
-            scrollToSerialImageField(
-                missingImagePaths[0].sectionIndex,
-                missingImagePaths[0].serialIndex
+        // Check if any section has quantity less than filled serial count
+        const quantityMismatchIndex = data.ticketSections.findIndex((section) => {
+            const filledCount = (section.serials ?? []).filter(
+                (s) => isPersistedSerial(s) || !!s?.serialNumber?.trim()
+            ).length;
+            return section.quantity != null && section.quantity < filledCount;
+        });
+
+        if (quantityMismatchIndex >= 0) {
+            const section = data.ticketSections[quantityMismatchIndex];
+            const filledCount = (section.serials ?? []).filter(
+                (s) => isPersistedSerial(s) || !!s?.serialNumber?.trim()
+            ).length;
+            setError(`ticketSections.${quantityMismatchIndex}.quantity`, {
+                type: 'quantity',
+                message: `Số lượng vé (${section.quantity}) không được nhỏ hơn số dòng sê-ri đã nhập (${filledCount}). Vui lòng xóa bớt dòng sê-ri thừa.`,
+            });
+            toast.error(
+                `Dãy số #${quantityMismatchIndex + 1}: Số lượng vé (${section.quantity}) nhỏ hơn số dòng sê-ri đã nhập (${filledCount}). Vui lòng bấm xóa dòng sê-ri thừa.`
             );
+            scrollToNumberField(quantityMismatchIndex);
             return;
         }
 
@@ -672,87 +811,30 @@ export const useImportBatchLineImportForm = ({
             );
         }
 
-        const payload = buildImportBatchLineSubmitPayload(data, {
-            drawDate: resolvedBatch.drawDate,
-            isAutoSave: false,
-            requireTicketImages: true,
-        });
-
-        if (!payload || filledSerials === 0) {
-            toast.error('Vui lòng nhập ít nhất một dãy số kèm số sê-ri.');
+        // Check if any serial is missing image: if so, prompt user confirmation dialog
+        const missingImagePaths = findMissingSerialImagePaths(data.ticketSections);
+        if (missingImagePaths.length > 0) {
+            pendingSubmitDataRef.current = data;
+            setMissingImageCount(missingImagePaths.length);
+            setMissingImageConfirmOpen(true);
             return;
         }
 
-        try {
-            const res = await bulkCreateAsync({ data: payload, skipGlobalErrorToast: true });
-            if (res.success) {
-                toast.success('Nhập vé số thành công!');
-                await refreshFormAfterPersist(
-                    String(selectedLine.id),
-                    selectedLine,
-                    filledSerials,
-                    remaining
-                );
-                onSuccess?.();
-            } else {
-                toast.error(res.message || 'Nhập vé số thất bại');
-            }
-        } catch (err: unknown) {
-            const apiErr = err as {
-                response?: { data?: { message?: string } };
-                message?: string;
-            };
-            if (isTicketNumberLengthApiError(err)) {
-                const message =
-                    apiErr?.response?.data?.message || getTicketNumberLengthMessage(numberLengthRules);
-                const sections = getValues('ticketSections');
-                sections.forEach((_, sectionIndex) => {
-                    setError(`ticketSections.${sectionIndex}.numbers`, {
-                        type: 'length',
-                        message,
-                    });
-                });
-                scrollToNumberField(0);
-                return;
-            }
-            if (isDuplicateNumbersApiError(err)) {
-                const sections = getValues('ticketSections');
-                const indices = findDuplicateNumberSectionIndices(sections);
-                applyDuplicateNumberFieldErrors(indices, setError);
-                if (indices.length > 0) {
-                    scrollToNumberField(indices[0]);
-                }
-                return;
-            }
-            if (isSerialDuplicateApiError(err)) {
-                const sections = getValues('ticketSections');
-                const paths = findSerialPathsForApiFailure(sections);
-                applySerialDuplicateFieldErrors(paths, setError);
-                if (paths.length > 0) {
-                    scrollToSerialField(paths[0].sectionIndex, paths[0].serialIndex);
-                }
-                return;
-            }
-            if (isQuotaExceededApiError(err)) {
-                const sections = getValues('ticketSections');
-                const overflowPaths = findQuotaOverflowSerialPaths(
-                    sections,
-                    Math.max(0, declared - imported)
-                );
-                applyQuotaOverflowFieldErrors(overflowPaths, setError);
-                if (overflowPaths.length > 0) {
-                    scrollToSerialField(overflowPaths[0].sectionIndex, overflowPaths[0].serialIndex);
-                } else {
-                    toast.error(
-                        apiErr?.response?.data?.message ||
-                            'Số lượng vé nhập vượt quá số lượng khai báo của dòng phiếu.'
-                    );
-                }
-                return;
-            }
-            toast.error(apiErr?.response?.data?.message || apiErr?.message || 'Đã xảy ra lỗi khi nhập vé số');
-        }
+        await executeSubmit(data);
     };
+
+    const handleConfirmMissingImageSubmit = useCallback(async () => {
+        if (!pendingSubmitDataRef.current) return;
+        const dataToSubmit = pendingSubmitDataRef.current;
+        setMissingImageConfirmOpen(false);
+        pendingSubmitDataRef.current = null;
+        await executeSubmit(dataToSubmit);
+    }, [executeSubmit]);
+
+    const handleCancelMissingImageSubmit = useCallback(() => {
+        setMissingImageConfirmOpen(false);
+        pendingSubmitDataRef.current = null;
+    }, []);
 
     const dialogLine: ImportBatchLine | null = activeLine;
 
@@ -760,6 +842,7 @@ export const useImportBatchLineImportForm = ({
         resolvedBatch,
         batchLines,
         dialogLine,
+        intakeGate,
         isBatchLoading,
         isPending,
         resolveStationName,
@@ -775,5 +858,9 @@ export const useImportBatchLineImportForm = ({
         handleSerialFieldChange,
         handleRemoveSerial,
         handleNumbersFieldChange,
+        missingImageConfirmOpen,
+        missingImageCount,
+        onConfirmMissingImageSubmit: handleConfirmMissingImageSubmit,
+        onCancelMissingImageSubmit: handleCancelMissingImageSubmit,
     };
 };

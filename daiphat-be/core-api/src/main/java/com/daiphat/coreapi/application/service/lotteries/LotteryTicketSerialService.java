@@ -4,6 +4,8 @@ import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicket
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryTicketSerialRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ReportSerialFaultRequest;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketSerialServicePort;
+import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchRepositoryPort;
+import com.daiphat.coreapi.application.port.out.lotteries.LotterySupplierRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
@@ -12,8 +14,11 @@ import com.daiphat.coreapi.domain.model.enums.lottery.InputSource;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialFaultedBy;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition;
+import com.daiphat.coreapi.domain.model.lotteries.ImportBatchModel;
+import com.daiphat.coreapi.domain.model.lotteries.LotterySupplierModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
+import com.daiphat.coreapi.application.service.streetagent.LuckySerialTagger;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
@@ -21,10 +26,12 @@ import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
 import com.daiphat.coreapi.shared.util.EnumOptionUtils;
 import com.daiphat.coreapi.shared.util.StorageUtils;
 import com.daiphat.coreapi.shared.util.StorageFolderConstants;
+import com.daiphat.coreapi.shared.util.SupplierTicketIntakeWindowPolicy;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -37,13 +44,18 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
     private static final List<LotteryTicketSerialStatus> AVAILABLE_STATUSES = List.of(LotteryTicketSerialStatus.IN_STOCK);
     private static final List<LotteryTicketSerialStatus> EXPIRABLE_STATUSES = List.of(
             LotteryTicketSerialStatus.IN_STOCK,
-            LotteryTicketSerialStatus.PROXY_HOLDING
+            LotteryTicketSerialStatus.SOLD
     );
 
     private final LotteryTicketSerialRepositoryPort lotteryTicketSerialRepositoryPort;
     private final StoragePort storagePort;
     private final OrderRepositoryPort orderRepositoryPort;
     private final LotteryTicketSerialIncidentService serialIncidentService;
+    private final LuckySerialTagger luckySerialTagger;
+    private final ImportBatchRepositoryPort importBatchRepositoryPort;
+    private final LotterySupplierRepositoryPort lotterySupplierRepositoryPort;
+    private final SupplierTicketIntakeWindowPolicy intakeWindowPolicy;
+    private final Clock clock;
 
     @Override
     @Transactional
@@ -52,7 +64,8 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
             CreateLotteryTicketSerialRequest request,
             UUID importedById,
             Long importBatchId,
-            Long importBatchLineId
+            Long importBatchLineId,
+            InputSource inputSource
     ) {
         String normalizedSerial = request.serialNumber().trim();
         if (lotteryTicketSerialRepositoryPort.existsByTicketIdAndSerialNumber(ticket.getId(), normalizedSerial)) {
@@ -67,10 +80,11 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
                 .serialNumber(normalizedSerial)
                 .stationId(ticket.getStationId())
                 .drawDate(ticket.getDrawDate())
-                .inputSource(InputSource.MANUAL)
+                .inputSource(inputSource == null ? InputSource.MANUAL : inputSource)
                 .replacedForTicketId(request.replacedForTicketId())
                 .build();
         serial.initializeImport(importedById);
+        luckySerialTagger.apply(serial, ticket.getNumbers());
         return lotteryTicketSerialRepositoryPort.save(serial);
     }
 
@@ -125,6 +139,9 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
         }
 
         for (LotteryTicketSerialModel existing : existingSerials) {
+            if (existing.isVoided()) {
+                continue;
+            }
             if (requestedIds.contains(existing.getId())) {
                 continue;
             }
@@ -156,24 +173,6 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
     public LotteryTicketSerialModel markSold(Long ticketSerialId) {
         LotteryTicketSerialModel serial = getByIdOrThrow(ticketSerialId);
         serial.sellOnline();
-        return lotteryTicketSerialRepositoryPort.save(serial);
-    }
-
-    @Override
-    public LotteryTicketSerialModel markProxyHoldingForPaidOrder(Long ticketSerialId, UUID orderId) {
-        LotteryTicketSerialModel serial = getByIdOrThrow(ticketSerialId);
-        if (serial.getStatus() == LotteryTicketSerialStatus.PROXY_HOLDING) {
-            if (orderId != null) {
-                serial.assumeProxyHolding(orderId);
-            }
-            return lotteryTicketSerialRepositoryPort.save(serial);
-        }
-        if (serial.getStatus() == LotteryTicketSerialStatus.SOLD) {
-            // Legacy: payment used to mark SOLD immediately — keep link for inspection.
-            serial.assumeProxyHolding(orderId);
-            return lotteryTicketSerialRepositoryPort.save(serial);
-        }
-        serial.confirmPaidProxyHolding(orderId);
         return lotteryTicketSerialRepositoryPort.save(serial);
     }
 
@@ -233,6 +232,9 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
     @Override
     public void expireActiveSerials(Long ticketId) {
         lotteryTicketSerialRepositoryPort.findByTicketIdAndStatuses(ticketId, EXPIRABLE_STATUSES).forEach(serial -> {
+            if (serial.isVoided()) {
+                return;
+            }
             serial.expire();
             lotteryTicketSerialRepositoryPort.save(serial);
         });
@@ -266,6 +268,11 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
     @Override
     public List<LotteryTicketSerialModel> findAllByTicketId(Long ticketId) {
         return lotteryTicketSerialRepositoryPort.findAllByTicketId(ticketId);
+    }
+
+    @Override
+    public List<LotteryTicketSerialModel> findAllByTicketIds(Collection<Long> ticketIds) {
+        return lotteryTicketSerialRepositoryPort.findAllByTicketIds(ticketIds);
     }
 
     @Override
@@ -336,10 +343,56 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
         }
     }
 
-    @Override
-    @Transactional
+    /**
+     * Refuses a status change once the return sweep for this ticket's draw date
+     * has begun.
+     *
+     * <p>Same moment that closes ticket intake: from then on the unsold stock is
+     * being counted and boxed for the supplier, so voiding a ticket would
+     * contradict a figure that is already being handed over. Past draw dates stay
+     * frozen for the same reason — that count was signed for long ago.
+     */
+    private void validateShelfStillOpen(LotteryTicketSerialModel serial) {
+        LocalDate drawDate = serial.getDrawDate();
+        if (drawDate == null) {
+            return;
+        }
+        LotterySupplierModel supplier = resolveSupplier(serial);
+        LocalDateTime now = LocalDateTime.now(clock);
+        if (intakeWindowPolicy.isTicketChangeLocked(supplier, drawDate, now)) {
+            // Reason passed as an argument, not as the internal-message overload:
+            // that one keeps the ErrorCode's own text for the user, which here
+            // would talk about creating an import batch rather than cancelling a
+            // ticket. LOTTERY_TICKET_CANCEL_WINDOW_CLOSED is "%s" so the operator
+            // reads the hour that actually closed the shelf.
+            throw new DomainException(
+                    ErrorCode.LOTTERY_TICKET_CANCEL_WINDOW_CLOSED,
+                    null,
+                    intakeWindowPolicy.ticketChangeLockedMessage(supplier, drawDate, now));
+        }
+    }
+
+    /**
+     * The supplier this ticket came from, or null when the trail is missing.
+     *
+     * <p>A null supplier only softens the same-day rule to "never closes"; a past
+     * draw date is refused either way, so a broken trail cannot unlock a settled
+     * period.
+     */
+    private LotterySupplierModel resolveSupplier(LotteryTicketSerialModel serial) {
+        if (serial.getImportBatchId() == null) {
+            return null;
+        }
+        return importBatchRepositoryPort.findById(serial.getImportBatchId())
+                .map(ImportBatchModel::getSupplierId)
+                .flatMap(lotterySupplierRepositoryPort::findById)
+                .orElse(null);
+    }
+
     public LotteryTicketSerialModel reportFault(Long id, ReportSerialFaultRequest request, UUID actorId) {
         LotteryTicketSerialModel serial = getByIdOrThrow(id);
+
+        validateShelfStillOpen(serial);
 
         if (serial.isTerminalIncidentStatus()) {
             throw new DomainException(

@@ -77,7 +77,7 @@ export const NotificationDropdown = () => {
     hasNextPage,
     fetchNextPage,
     remainingCount,
-  } = useNotifications(4);
+  } = useNotifications();
   const { mutate: markMyNotificationAsRead } = useMarkMyNotificationAsRead();
   const { mutate: markAllMyNotificationsAsRead } = useMarkAllMyNotificationsAsRead();
   const { mutate: deleteAllMyReadNotifications } = useDeleteAllMyReadNotifications();
@@ -163,7 +163,10 @@ export const NotificationDropdown = () => {
               </button>
               <button
                 className="w-full px-4 py-2 text-left text-[14px] text-[#212B36] hover:bg-slate-50 flex items-center gap-2 transition-colors cursor-pointer"
-                onClick={() => setIsMenuOpen(false)}
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  router.push("/profile/notifications?openSettings=1");
+                }}
               >
                 <Settings size={16} className="text-[#637381]" /> Cài đặt thông báo
               </button>

@@ -48,6 +48,7 @@ export const mapEntryTicketsToSections = (tickets: EntryTicket[] = []): FormSect
         }
         const serials = (ticket.serials ?? [])
             .filter((serial) => normalizeSerial(serial.serialNumber))
+            .filter((serial) => String((serial as { ticketCondition?: string }).ticketCondition || '').toUpperCase() !== 'VOIDED')
             .map((serial) => ({
                 id: serial.id,
                 serialNumber: (serial.serialNumber ?? '').trim(),

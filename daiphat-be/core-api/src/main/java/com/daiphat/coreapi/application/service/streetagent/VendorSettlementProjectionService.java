@@ -2,6 +2,7 @@ package com.daiphat.coreapi.application.service.streetagent;
 
 import com.daiphat.coreapi.application.port.in.streetagent.VendorDailyReportFinalizationUseCase;
 import com.daiphat.coreapi.application.port.in.streetagent.VendorSettlementProjectionServicePort;
+import com.daiphat.coreapi.application.policy.streetagent.VendorConfidencePolicyResolver;
 import com.daiphat.coreapi.application.port.out.streetagent.VendorSettlementProjectionRepositoryPort;
 import com.daiphat.coreapi.application.port.out.streetagent.VendorSettlementProjectionRepositoryPort.ReportDetailRecord;
 import com.daiphat.coreapi.application.port.out.streetagent.VendorSettlementProjectionRepositoryPort.ReportRecord;
@@ -17,6 +18,7 @@ import com.daiphat.coreapi.domain.service.streetagent.VendorConfidenceCalculator
 import com.daiphat.coreapi.domain.service.streetagent.VendorDailySalesCashCalculator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -37,6 +39,7 @@ public class VendorSettlementProjectionService
     private final VendorConfidencePolicyResolver confidencePolicyResolver;
 
     @Override
+    @Transactional
     public ProjectionLinks projectOnSettle(
             VendorAllocationBatchModel batch,
             StreetAgentProfileModel profile,
@@ -50,12 +53,14 @@ public class VendorSettlementProjectionService
     }
 
     @Override
+    @Transactional
     public int finalizeOpenReports(LocalDate reportDate) {
         return finalize(projectionRepositoryPort.findOpenReportsForDate(reportDate));
     }
 
     /** Closes all overdue reports once every batch for the report date is terminal. */
     @Override
+    @Transactional
     public int finalizeOverdueReports(LocalDate today) {
         return finalize(projectionRepositoryPort.findOpenReportsBefore(today));
     }

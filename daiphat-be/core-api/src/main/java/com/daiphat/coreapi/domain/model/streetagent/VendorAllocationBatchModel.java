@@ -190,6 +190,52 @@ public class VendorAllocationBatchModel {
         serial.removeFromStreetAgentReturnInspection();
     }
 
+    /** Reconciles the persisted inspection draft with the complete selection from the operator. */
+    public void replaceStagedReturnedSerials(Collection<Long> serialIds) {
+        if (status != AllocationBatchStatus.RETURN_OPEN || serialIds == null) {
+            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_INVALID_STATE);
+        }
+        Set<Long> selectedIds = new HashSet<>(serialIds);
+        if (selectedIds.size() != serialIds.size()) {
+            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_RETURN_SERIAL_INVALID);
+        }
+        Map<Long, VendorAllocationSerialModel> serialById = serials.stream()
+                .collect(java.util.stream.Collectors.toMap(VendorAllocationSerialModel::getSerialId, value -> value));
+        for (Long serialId : selectedIds) {
+            VendorAllocationSerialModel serial = serialById.get(serialId);
+            if (serial == null || (serial.getStatus() != AllocationSerialStatus.HANDED_OVER
+                    && serial.getStatus() != AllocationSerialStatus.RETURN_PENDING_INSPECTION)) {
+                throw new DomainException(ErrorCode.VENDOR_ALLOCATION_RETURN_SERIAL_INVALID);
+            }
+        }
+        serials.stream()
+                .filter(serial -> serial.getStatus() == AllocationSerialStatus.RETURN_PENDING_INSPECTION)
+                .filter(serial -> !selectedIds.contains(serial.getSerialId()))
+                .forEach(VendorAllocationSerialModel::removeFromStreetAgentReturnInspection);
+        selectedIds.stream()
+                .map(serialById::get)
+                .filter(serial -> serial.getStatus() == AllocationSerialStatus.HANDED_OVER)
+                .forEach(VendorAllocationSerialModel::stageStreetAgentReturn);
+    }
+
+    public void reopenReturnInspection() {
+        if (status != AllocationBatchStatus.RETURN_OPEN) {
+            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_INVALID_STATE);
+        }
+        if (serials.stream().anyMatch(serial -> serial.getStatus() != AllocationSerialStatus.HANDED_OVER
+                && !serial.canReopenStreetAgentReturnInspection())) {
+            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_INVALID_STATE);
+        }
+        serials.forEach(serial -> {
+            if (serial.getStatus() == AllocationSerialStatus.RETURNED) {
+                serial.reopenAcceptedStreetAgentReturn();
+            } else if (serial.getStatus() == AllocationSerialStatus.RETURN_REJECTED) {
+                serial.reopenRejectedStreetAgentReturn();
+            }
+        });
+        recalculateQuantities();
+    }
+
     /**
      * Kept only for callers compiled before the two-step vendor return receipt flow.
      * New use-cases must stage the physical tickets, then confirm the inspection.
@@ -201,8 +247,14 @@ public class VendorAllocationBatchModel {
     }
 
     public void confirmReturnedSerials(Collection<Long> rejectedSerialIds, LocalDateTime returnedAt) {
-        Map<Long, String> reasons = rejectedSerialIds == null ? Map.of() : rejectedSerialIds.stream()
-                .collect(java.util.stream.Collectors.toMap(id -> id, ignored -> "Từ chối khi kiểm nhận"));
+        Map<Long, String> reasons = new LinkedHashMap<>();
+        if (rejectedSerialIds != null) {
+            for (Long id : rejectedSerialIds) {
+                if (id == null || reasons.putIfAbsent(id, "Từ chối khi kiểm nhận") != null) {
+                    throw new DomainException(ErrorCode.VENDOR_ALLOCATION_RETURN_SERIAL_INVALID);
+                }
+            }
+        }
         confirmReturnedSerials(reasons, returnedAt);
     }
 
@@ -230,6 +282,20 @@ public class VendorAllocationBatchModel {
                         serial.returnFromStreetAgent(returnedAt);
                     }
                 });
+        recalculateQuantities();
+    }
+
+    /**
+     * Closes an inspection when the vendor explicitly confirms that no ticket was returned.
+     * Keeping this separate from normal inspection prevents an empty request from being
+     * mistaken for a successful physical receipt.
+     */
+    public void confirmNoReturnedTickets() {
+        if (status != AllocationBatchStatus.RETURN_OPEN
+                || serials == null || serials.isEmpty()
+                || serials.stream().anyMatch(serial -> serial.getStatus() != AllocationSerialStatus.HANDED_OVER)) {
+            throw new DomainException(ErrorCode.VENDOR_ALLOCATION_INVALID_STATE);
+        }
         recalculateQuantities();
     }
 

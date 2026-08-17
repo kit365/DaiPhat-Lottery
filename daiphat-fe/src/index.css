@@ -43,6 +43,18 @@ body {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
+  .truncate-hover {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .status-badge {
+    max-height: 24px;
+    box-sizing: border-box;
+  }
 }
 
 .swal2-container {

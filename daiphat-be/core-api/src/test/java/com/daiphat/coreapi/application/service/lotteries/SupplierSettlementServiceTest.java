@@ -5,8 +5,10 @@ import com.daiphat.coreapi.application.dto.response.lotteries.SupplierSettlement
 import com.daiphat.coreapi.application.mapper.lotteries.ImportBatchApplicationMapper;
 import com.daiphat.coreapi.application.mapper.lotteries.ReturnBatchApplicationMapper;
 import com.daiphat.coreapi.application.mapper.lotteries.SupplierSettlementApplicationMapper;
+import com.daiphat.coreapi.application.port.in.lotteries.ImportBatchFileImportServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketSerialServicePort;
 import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchRepositoryPort;
+import com.daiphat.coreapi.application.port.out.lotteries.LotteryStationRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotterySupplierRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.ReturnBatchRepositoryPort;
@@ -14,13 +16,18 @@ import com.daiphat.coreapi.application.port.out.lotteries.SupplierSettlementAdju
 import com.daiphat.coreapi.application.port.out.lotteries.SupplierSettlementRepositoryPort;
 import com.daiphat.coreapi.application.port.in.notification.NotificationServicePort;
 import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
+import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementReconciliationPhase;
 import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementStatus;
 import com.daiphat.coreapi.domain.model.enums.user.UserStatus;
 import com.daiphat.coreapi.domain.model.UserModel;
+import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotterySupplierModel;
+import com.daiphat.coreapi.domain.model.lotteries.StationCommissionSnapshot;
 import com.daiphat.coreapi.domain.model.lotteries.SupplierSettlementModel;
 import com.daiphat.coreapi.shared.util.SupplierPaymentCutOffCalculator;
 import com.daiphat.coreapi.shared.util.SupplierSettlementCodeGenerator;
+import com.daiphat.coreapi.shared.util.SupplierTicketIntakeWindowPolicy;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,11 +35,13 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
 
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.List;
@@ -40,6 +49,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -62,6 +72,8 @@ class SupplierSettlementServiceTest {
     @Mock
     private LotteryTicketSerialRepositoryPort lotteryTicketSerialRepositoryPort;
     @Mock
+    private LotteryStationRepositoryPort lotteryStationRepositoryPort;
+    @Mock
     private LotteryTicketSerialServicePort lotteryTicketSerialServicePort;
     @Mock
     private SupplierSettlementApplicationMapper supplierSettlementApplicationMapper;
@@ -78,6 +90,10 @@ class SupplierSettlementServiceTest {
     @Mock
     private UserRepositoryPort userRepositoryPort;
     @Mock
+    private ObjectProvider<ImportBatchFileImportServicePort> importBatchFileImportService;
+    @Mock
+    private SupplierTicketIntakeWindowPolicy intakeWindowPolicy;
+    @Mock
     private Clock clock;
 
     @InjectMocks
@@ -85,10 +101,18 @@ class SupplierSettlementServiceTest {
 
     private static final ZoneId ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
+    @BeforeEach
+    void stubClockAndStations() {
+        fixedClock(LocalDate.of(2026, 7, 31), LocalTime.of(10, 0));
+        lenient().when(lotteryStationRepositoryPort.findByNextDrawDate(any())).thenReturn(List.of());
+        lenient().when(lotteryStationRepositoryPort.findAll()).thenReturn(List.of());
+        lenient().when(intakeWindowPolicy.isTicketChangeLocked(any(), any(), any())).thenReturn(false);
+    }
+
     private void fixedClock(LocalDate date, LocalTime time) {
         Instant instant = date.atTime(time).atZone(ZONE).toInstant();
-        when(clock.instant()).thenReturn(instant);
-        when(clock.getZone()).thenReturn(ZONE);
+        lenient().when(clock.instant()).thenReturn(instant);
+        lenient().when(clock.getZone()).thenReturn(ZONE);
     }
 
     @Test
@@ -141,7 +165,43 @@ class SupplierSettlementServiceTest {
         assertThat(saved.getPeriodTo()).isEqualTo(drawDate.plusDays(5));
         assertThat(saved.getSupplierSettlementCode()).isEqualTo("DS-20260731-0001");
         assertThat(saved.getStatus()).isEqualTo(SupplierSettlementStatus.OPEN);
+        assertThat(saved.getSystemTicketImportPrice()).isEqualByComparingTo("10000.000");
         assertThat(result.getId()).isEqualTo(11L);
+    }
+
+    @Test
+    @DisplayName("create snapshots NCC import price and per-station commission")
+    void findOrCreate_snapshotsImportPriceAndStationCommission() {
+        LocalDate drawDate = LocalDate.of(2026, 7, 31);
+        LotterySupplierModel supplier = LotterySupplierModel.builder()
+                .id(7L)
+                .paymentTermDays(0)
+                .defaultImportCost(new BigDecimal("9500"))
+                .build();
+        when(supplierSettlementRepositoryPort.findBySupplierIdAndPeriodFrom(7L, drawDate))
+                .thenReturn(Optional.empty());
+        when(supplierSettlementCodeGenerator.generateCode(drawDate)).thenReturn("DS-20260731-0003");
+        when(lotteryStationRepositoryPort.findByNextDrawDate(drawDate)).thenReturn(List.of(
+                LotteryStationModel.builder()
+                        .id(21L)
+                        .name("Cà Mau")
+                        .isActive(true)
+                        .commissionRate(new BigDecimal("0.12"))
+                        .build()
+        ));
+        when(supplierSettlementRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        supplierSettlementService.findOrCreateForImport(supplier, drawDate);
+
+        ArgumentCaptor<SupplierSettlementModel> captor = ArgumentCaptor.forClass(SupplierSettlementModel.class);
+        verify(supplierSettlementRepositoryPort).save(captor.capture());
+        SupplierSettlementModel saved = captor.getValue();
+        assertThat(saved.getSystemTicketImportPrice()).isEqualByComparingTo("9500.000");
+        assertThat(saved.getStationCommissionSnapshots()).hasSize(1);
+        assertThat(saved.getStationCommissionSnapshots().get(0).getLotteryStationId()).isEqualTo(21L);
+        assertThat(saved.getStationCommissionSnapshots().get(0).getSystemCommissionRate())
+                .isEqualByComparingTo("0.12");
+        assertThat(saved.getStationCommissionSnapshots().get(0).getActualCommissionRate()).isNull();
     }
 
     @Test
@@ -165,7 +225,7 @@ class SupplierSettlementServiceTest {
     }
 
     @Test
-    @DisplayName("before inspection complete, remaining payable stays 0 even when import value is set")
+    @DisplayName("before handover, remaining payable is import value minus paid")
     void recalculate_beforeInspection_remainingIsZero() {
         SupplierSettlementModel settlement = SupplierSettlementModel.builder()
                 .id(5L)
@@ -178,7 +238,6 @@ class SupplierSettlementServiceTest {
                 .thenReturn(new BigDecimal("9500.5"));
         when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(5L))
                 .thenReturn(BigDecimal.ZERO);
-        when(supplierSettlementRepositoryPort.existsCompletedInspectionReturnBatch(5L)).thenReturn(false);
         when(supplierSettlementRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         supplierSettlementService.recalculateTotalImportValue(5L);
@@ -186,7 +245,7 @@ class SupplierSettlementServiceTest {
         ArgumentCaptor<SupplierSettlementModel> captor = ArgumentCaptor.forClass(SupplierSettlementModel.class);
         verify(supplierSettlementRepositoryPort).save(captor.capture());
         assertThat(captor.getValue().getTotalImportValue()).isEqualByComparingTo("9500.500");
-        assertThat(captor.getValue().getRemainingAmount()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(captor.getValue().getRemainingAmount()).isEqualByComparingTo("9400.500");
     }
 
     @Test
@@ -202,7 +261,6 @@ class SupplierSettlementServiceTest {
                 .thenReturn(new BigDecimal("10000.000"));
         when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(5L))
                 .thenReturn(new BigDecimal("1500.250"));
-        when(supplierSettlementRepositoryPort.existsCompletedInspectionReturnBatch(5L)).thenReturn(true);
         when(supplierSettlementRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         supplierSettlementService.recalculateTotalReturnValue(5L);
@@ -213,6 +271,65 @@ class SupplierSettlementServiceTest {
         assertThat(captor.getValue().getTotalReturnValue()).isEqualByComparingTo("1500.250");
         // remaining = 10000 - 1500.250 - 500 = 7999.750
         assertThat(captor.getValue().getRemainingAmount()).isEqualByComparingTo("7999.750");
+    }
+
+    @Test
+    @DisplayName("handover after matching confirm still refreshes system return qty/value")
+    void recalculate_afterMatchingConfirm_refreshesSystemReturnTotals() {
+        SupplierSettlementModel settlement = SupplierSettlementModel.builder()
+                .id(5L)
+                .status(SupplierSettlementStatus.OPEN)
+                .reconciliationPhase(SupplierSettlementReconciliationPhase.DISCREPANCY_DETECTED)
+                .matchingConfirmedAt(LocalDateTime.of(2026, 8, 14, 10, 0))
+                .systemReturnQuantity(0)
+                .systemReturnValue(BigDecimal.ZERO)
+                .actualReturnTicketQuantity(0)
+                .totalPaidAmount(BigDecimal.ZERO)
+                .build();
+        when(supplierSettlementRepositoryPort.findById(5L)).thenReturn(Optional.of(settlement));
+        when(supplierSettlementRepositoryPort.sumImportedCostValueBySettlementId(5L))
+                .thenReturn(new BigDecimal("7684.000"));
+        when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(5L))
+                .thenReturn(new BigDecimal("1020.000"));
+        when(supplierSettlementRepositoryPort.countImportedTicketsBySettlementId(5L)).thenReturn(904L);
+        when(supplierSettlementRepositoryPort.countPreparedReturnTicketsBySettlementId(5L)).thenReturn(120L);
+        when(supplierSettlementRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        supplierSettlementService.recalculateTotalReturnValue(5L);
+
+        ArgumentCaptor<SupplierSettlementModel> captor = ArgumentCaptor.forClass(SupplierSettlementModel.class);
+        verify(supplierSettlementRepositoryPort).save(captor.capture());
+        assertThat(captor.getValue().getSystemImportQuantity()).isEqualTo(904);
+        assertThat(captor.getValue().getSystemReturnQuantity()).isEqualTo(120);
+        assertThat(captor.getValue().getSystemReturnValue()).isEqualByComparingTo("1020.000");
+        assertThat(captor.getValue().getActualReturnTicketQuantity()).isZero();
+    }
+
+    @Test
+    @DisplayName("completed settlement keeps frozen matching system return snapshot")
+    void recalculate_completedSettlement_keepsSystemReturnSnapshot() {
+        SupplierSettlementModel settlement = SupplierSettlementModel.builder()
+                .id(5L)
+                .status(SupplierSettlementStatus.OPEN)
+                .reconciliationPhase(SupplierSettlementReconciliationPhase.COMPLETED)
+                .matchingConfirmedAt(LocalDateTime.of(2026, 8, 14, 10, 0))
+                .systemReturnQuantity(0)
+                .systemReturnValue(BigDecimal.ZERO)
+                .totalPaidAmount(BigDecimal.ZERO)
+                .build();
+        when(supplierSettlementRepositoryPort.findById(5L)).thenReturn(Optional.of(settlement));
+        when(supplierSettlementRepositoryPort.sumImportedCostValueBySettlementId(5L))
+                .thenReturn(new BigDecimal("7684.000"));
+        when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(5L))
+                .thenReturn(new BigDecimal("1020.000"));
+        when(supplierSettlementRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        supplierSettlementService.recalculateTotalReturnValue(5L);
+
+        ArgumentCaptor<SupplierSettlementModel> captor = ArgumentCaptor.forClass(SupplierSettlementModel.class);
+        verify(supplierSettlementRepositoryPort).save(captor.capture());
+        assertThat(captor.getValue().getSystemReturnQuantity()).isZero();
+        verify(supplierSettlementRepositoryPort, never()).countPreparedReturnTicketsBySettlementId(any());
     }
 
     @Test
@@ -245,7 +362,6 @@ class SupplierSettlementServiceTest {
         when(supplierSettlementRepositoryPort.findById(5L)).thenReturn(Optional.of(settlement));
         when(supplierSettlementRepositoryPort.sumImportedCostValueBySettlementId(5L)).thenReturn(BigDecimal.ZERO);
         when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(5L)).thenReturn(BigDecimal.ZERO);
-        when(supplierSettlementRepositoryPort.existsCompletedInspectionReturnBatch(5L)).thenReturn(false);
         when(supplierSettlementRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(supplierSettlementApplicationMapper.toResponse(any())).thenReturn(settlementResponse);
         when(importBatchRepositoryPort.findBySupplierSettlementId(5L)).thenReturn(List.of());
@@ -267,14 +383,28 @@ class SupplierSettlementServiceTest {
         assertThat(overview.kpis().remainingPayableAmount()).isEqualByComparingTo(BigDecimal.ZERO);
     }
 
+    /** A supplier whose money is due at 17:00 on the settlement day. */
+    private LotterySupplierModel supplierWithPaymentCutOff(LocalTime paymentCutOff) {
+        return LotterySupplierModel.builder()
+                .id(9L)
+                .name("Minh Chính")
+                .paymentCutOffTime(paymentCutOff)
+                .build();
+    }
+
     @Test
-    @DisplayName("markReceiptOverdue transitions OPEN past verification deadline without receipt")
+    @DisplayName("markReceiptOverdue transitions OPEN past that supplier's own payment cut-off")
     void markReceiptOverdue_marksOnce() {
+        // The deadline is not a fixed hour any more: it is this supplier's
+        // paymentCutOffTime on the settlement day, so the supplier record is what
+        // decides, and 17:01 is one minute past it.
         fixedClock(LocalDate.of(2026, 8, 8), LocalTime.of(17, 1));
-        when(supplierPaymentCutOffCalculator.resolveVerificationDeadline()).thenReturn(LocalTime.of(17, 0));
+        when(lotterySupplierRepositoryPort.findById(9L))
+                .thenReturn(Optional.of(supplierWithPaymentCutOff(LocalTime.of(17, 0))));
 
         SupplierSettlementModel overdueCandidate = SupplierSettlementModel.builder()
                 .id(21L)
+                .lotterySupplierId(9L)
                 .supplierName("Minh Chính")
                 .supplierSettlementCode("DS-20260808-0001")
                 .periodFrom(LocalDate.of(2026, 8, 8))
@@ -299,29 +429,122 @@ class SupplierSettlementServiceTest {
     }
 
     @Test
-    @DisplayName("markReceiptOverdue skips settlements that already have receipt or are before deadline")
+    @DisplayName("markReceiptOverdue skips settlements before the cut-off or with no supplier to read it from")
     void markReceiptOverdue_skipsNonCandidates() {
         fixedClock(LocalDate.of(2026, 8, 8), LocalTime.of(16, 0));
-        when(supplierPaymentCutOffCalculator.resolveVerificationDeadline()).thenReturn(LocalTime.of(17, 0));
+        when(lotterySupplierRepositoryPort.findById(9L))
+                .thenReturn(Optional.of(supplierWithPaymentCutOff(LocalTime.of(17, 0))));
 
-        SupplierSettlementModel withReceipt = SupplierSettlementModel.builder()
+        // An hour before this supplier's cut-off: still in time to pay.
+        SupplierSettlementModel beforeDeadline = SupplierSettlementModel.builder()
                 .id(22L)
+                .lotterySupplierId(9L)
                 .periodFrom(LocalDate.of(2026, 8, 8))
-                .supplierSettlementReceiptUrl("https://cdn.example/receipt.jpg")
                 .status(SupplierSettlementStatus.OPEN)
                 .build();
-        SupplierSettlementModel beforeDeadline = SupplierSettlementModel.builder()
+        // No supplier linked, so there is no cut-off to judge it against; marking
+        // it overdue would be an accusation the data cannot support.
+        SupplierSettlementModel withoutSupplier = SupplierSettlementModel.builder()
                 .id(23L)
                 .periodFrom(LocalDate.of(2026, 8, 8))
                 .status(SupplierSettlementStatus.OPEN)
                 .build();
         when(supplierSettlementRepositoryPort.findByStatus(SupplierSettlementStatus.OPEN))
-                .thenReturn(List.of(withReceipt, beforeDeadline));
+                .thenReturn(List.of(beforeDeadline, withoutSupplier));
 
         int updated = supplierSettlementService.markReceiptOverdueSettlements();
 
         assertThat(updated).isZero();
         verify(supplierSettlementRepositoryPort, never()).save(any());
         verify(notificationService, never()).createNotification(any());
+    }
+
+    @Test
+    @DisplayName("after intake cutoff, import qty is last-updated then frozen")
+    void recalculate_afterIntakeCutoff_freezesImportQuantity() {
+        LocalDate drawDate = LocalDate.of(2026, 7, 31);
+        fixedClock(drawDate, LocalTime.of(14, 0));
+        when(intakeWindowPolicy.isTicketChangeLocked(any(), any(), any())).thenReturn(true);
+        when(lotterySupplierRepositoryPort.findById(7L)).thenReturn(Optional.of(
+                LotterySupplierModel.builder()
+                        .id(7L)
+                        .defaultImportCost(new BigDecimal("10000"))
+                        .returnCutOffTime(LocalTime.of(16, 0))
+                        .build()
+        ));
+        SupplierSettlementModel settlement = SupplierSettlementModel.builder()
+                .id(5L)
+                .lotterySupplierId(7L)
+                .periodFrom(drawDate)
+                .status(SupplierSettlementStatus.OPEN)
+                .systemTicketImportPrice(new BigDecimal("10000.000"))
+                .stationCommissionSnapshots(List.of(
+                        StationCommissionSnapshot.builder()
+                                .lotteryStationId(21L)
+                                .importedQuantity(0)
+                                .systemCommissionRate(new BigDecimal("0.10"))
+                                .build()
+                ))
+                .totalPaidAmount(BigDecimal.ZERO)
+                .build();
+        when(supplierSettlementRepositoryPort.findById(5L)).thenReturn(Optional.of(settlement));
+        when(supplierSettlementRepositoryPort.sumImportedCostValueBySettlementId(5L))
+                .thenReturn(new BigDecimal("14880.000"));
+        when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(5L)).thenReturn(BigDecimal.ZERO);
+        when(supplierSettlementRepositoryPort.countImportedTicketsBySettlementId(5L)).thenReturn(1488L);
+        when(supplierSettlementRepositoryPort.countPreparedReturnTicketsBySettlementId(5L)).thenReturn(0L);
+        when(lotteryTicketSerialRepositoryPort.aggregateInventoryByStationForSettlement(5L)).thenReturn(List.of());
+        when(supplierSettlementRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        supplierSettlementService.recalculateAmounts(5L);
+
+        assertThat(settlement.getSystemImportQuantity()).isEqualTo(1488);
+        assertThat(settlement.getSystemImportQuantityFrozenAt()).isNotNull();
+
+        supplierSettlementService.recalculateAmounts(5L);
+        assertThat(settlement.getSystemImportQuantity()).isEqualTo(1488);
+    }
+
+    @Test
+    @DisplayName("at returnCutOffTime, return qty is last-updated and provisional amount is persisted")
+    void recalculate_atReturnCutoff_freezesReturnQuantityAndProvisional() {
+        LocalDate drawDate = LocalDate.of(2026, 7, 31);
+        fixedClock(drawDate, LocalTime.of(16, 0));
+        when(intakeWindowPolicy.isTicketChangeLocked(any(), any(), any())).thenReturn(true);
+        when(lotterySupplierRepositoryPort.findById(7L)).thenReturn(Optional.of(
+                LotterySupplierModel.builder()
+                        .id(7L)
+                        .defaultImportCost(new BigDecimal("10000"))
+                        .returnCutOffTime(LocalTime.of(16, 0))
+                        .build()
+        ));
+        SupplierSettlementModel settlement = SupplierSettlementModel.builder()
+                .id(5L)
+                .lotterySupplierId(7L)
+                .periodFrom(drawDate)
+                .status(SupplierSettlementStatus.OPEN)
+                .systemImportQuantity(100)
+                .systemImportQuantityFrozenAt(LocalDateTime.of(drawDate, LocalTime.of(14, 0)))
+                .systemTicketImportPrice(new BigDecimal("10000.000"))
+                .originalTicketUnitPrice(new BigDecimal("9000.000"))
+                .totalPaidAmount(BigDecimal.ZERO)
+                .build();
+        when(supplierSettlementRepositoryPort.findById(5L)).thenReturn(Optional.of(settlement));
+        when(supplierSettlementRepositoryPort.sumImportedCostValueBySettlementId(5L))
+                .thenReturn(new BigDecimal("900000.000"));
+        when(supplierSettlementRepositoryPort.sumPreparedReturnValueBySettlementId(5L))
+                .thenReturn(new BigDecimal("108000.000"));
+        when(supplierSettlementRepositoryPort.countPreparedReturnTicketsBySettlementId(5L)).thenReturn(12L);
+        when(supplierSettlementRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        supplierSettlementService.recalculateAmounts(5L);
+
+        assertThat(settlement.getSystemReturnQuantity()).isEqualTo(12);
+        assertThat(settlement.getSystemReturnQuantityFrozenAt()).isNotNull();
+        assertThat(settlement.getInitialEstimatedSettlementValue()).isEqualByComparingTo("792000.000");
+
+        supplierSettlementService.recalculateAmounts(5L);
+        assertThat(settlement.getSystemReturnQuantity()).isEqualTo(12);
+        assertThat(settlement.getInitialEstimatedSettlementValue()).isEqualByComparingTo("792000.000");
     }
 }

@@ -33,6 +33,8 @@ public class ImportBatchModel {
     private Long supplierSettlementId;
     private ImportBatchImportMode importMode;
     private String invoiceEvidenceUrl;
+    @Builder.Default
+    private List<String> ticketListImageUrls = new ArrayList<>();
     private UUID importedBy;
     private LocalDateTime importedAt;
     @Builder.Default

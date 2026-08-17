@@ -26,16 +26,15 @@ import {
     Typography,
 } from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { getImportBatchReductionTickets } from '../../services/importBatchService';
+import { useImportBatchReductionTickets } from '../../hooks/useImportBatch';
 import type { ImportBatchLineStatus, ImportBatchReductionTicket } from '../../types/importBatch.type';
-import { QUERY_KEYS } from '../../constants/queryKeys';
 import { sumSelectedTicketSerialCount } from '../../utils/importBatchDeclareQuantityReduction';
 import { canRedistributeImportBatchLineDeclareQuantity } from '../../utils/importBatchHeaderEdit';
 import {
     formatViInteger,
     parseNonNegativeIntegerInput,
 } from '../../../../supplier';
+import { AdminLuckyDisplay } from '@/shared/lucky-number';
 
 export type LineDeclareRedistributionRow = {
     id: number;
@@ -92,12 +91,7 @@ export const ImportBatchLineDeclareQuantityReductionDialog = ({
     const [importedMatchDecision, setImportedMatchDecision] =
         useState<ImportedMatchDecision>(null);
 
-    const { data: reductionData, isLoading, isError, refetch } = useQuery({
-        queryKey: [QUERY_KEYS.IMPORT_BATCH_REDUCTION_TICKETS, batchId],
-        queryFn: () => getImportBatchReductionTickets(batchId),
-        enabled: open && !!batchId,
-        select: (res) => res.data ?? null,
-    });
+    const { data: reductionData, isLoading, isError, refetch } = useImportBatchReductionTickets(batchId, open);
 
     const targetLineTickets = useMemo(() => {
         const line = reductionData?.lines?.find((item) => item.lineId === lineId);
@@ -407,7 +401,9 @@ export const ImportBatchLineDeclareQuantityReductionDialog = ({
                                                             onChange={() => toggleTicket(ticket)}
                                                         />
                                                     </TableCell>
-                                                    <TableCell>{ticket.numbers || '—'}</TableCell>
+                                                    <TableCell>
+                                                        <AdminLuckyDisplay value={ticket.numbers} ticket />
+                                                    </TableCell>
                                                     <TableCell>
                                                         {ticket.serialNumber || '—'}
                                                     </TableCell>

@@ -83,7 +83,7 @@ class ReturnBatchAutoGenerationServiceTest {
                 .thenReturn(new SimpleTransactionStatus());
         org.mockito.Mockito.doNothing().when(transactionManager).commit(any());
         org.mockito.Mockito.doNothing().when(transactionManager).rollback(any());
-        when(returnBatchCodeGenerator.generateHeaderCode(any())).thenAnswer(invocation -> {
+        when(returnBatchCodeGenerator.generateHeaderCode(any(LocalDate.class))).thenAnswer(invocation -> {
             LocalDate drawDate = invocation.getArgument(0);
             return "PT-" + drawDate.format(java.time.format.DateTimeFormatter.BASIC_ISO_DATE) + "-0001";
         });
@@ -135,7 +135,7 @@ class ReturnBatchAutoGenerationServiceTest {
                 .thenReturn(List.of(10L, 11L));
         when(importBatchLineRepositoryPort.findEligibleStationIdsBySupplierAndDrawDate(2L, DRAW_DATE))
                 .thenReturn(List.of(20L));
-        when(returnBatchRepositoryPort.findBySupplierAndDrawDate(any(), eq(DRAW_DATE)))
+        when(returnBatchRepositoryPort.findPrimarySupplierReturnBySupplierAndDrawDate(any(), eq(DRAW_DATE)))
                 .thenReturn(Optional.empty());
         when(supplierSettlementServicePort.findOrCreateForImport(any(), eq(DRAW_DATE)))
                 .thenAnswer(inv -> {
@@ -172,7 +172,7 @@ class ReturnBatchAutoGenerationServiceTest {
         when(importBatchRepositoryPort.existsNonCancelledBySupplierAndDrawDate(1L, DRAW_DATE)).thenReturn(true);
         when(importBatchLineRepositoryPort.findEligibleStationIdsBySupplierAndDrawDate(1L, DRAW_DATE))
                 .thenReturn(List.of(10L));
-        when(returnBatchRepositoryPort.findBySupplierAndDrawDate(1L, DRAW_DATE))
+        when(returnBatchRepositoryPort.findPrimarySupplierReturnBySupplierAndDrawDate(1L, DRAW_DATE))
                 .thenReturn(Optional.of(ReturnBatchModel.builder()
                         .id(99L)
                         .lotterySupplierId(1L)
@@ -219,13 +219,25 @@ class ReturnBatchAutoGenerationServiceTest {
     }
 
     @Test
+    @DisplayName("buffer 0 opens from start of draw day")
+    void isPastAutoCreateTrigger_zeroBuffer() {
+        LocalDateTime earlyMorning = LocalDateTime.of(DRAW_DATE, LocalTime.of(0, 0));
+        LocalDateTime beforeDay = LocalDateTime.of(DRAW_DATE.minusDays(1), LocalTime.of(23, 59));
+
+        assertThat(ReturnBatchAutoGenerationService.isPastAutoCreateTrigger(
+                LocalTime.of(16, 0), DRAW_DATE, earlyMorning, 0)).isTrue();
+        assertThat(ReturnBatchAutoGenerationService.isPastAutoCreateTrigger(
+                LocalTime.of(16, 0), DRAW_DATE, beforeDay, 0)).isFalse();
+    }
+
+    @Test
     @DisplayName("enriches PENDING batch with missing stations on rerun")
     void generate_enrichesMissingStations() {
         when(lotterySupplierRepositoryPort.findAllActive()).thenReturn(List.of(minhChinh));
         when(importBatchRepositoryPort.existsNonCancelledBySupplierAndDrawDate(1L, DRAW_DATE)).thenReturn(true);
         when(importBatchLineRepositoryPort.findEligibleStationIdsBySupplierAndDrawDate(1L, DRAW_DATE))
                 .thenReturn(List.of(10L, 11L));
-        when(returnBatchRepositoryPort.findBySupplierAndDrawDate(1L, DRAW_DATE))
+        when(returnBatchRepositoryPort.findPrimarySupplierReturnBySupplierAndDrawDate(1L, DRAW_DATE))
                 .thenReturn(Optional.of(ReturnBatchModel.builder()
                         .id(99L)
                         .lotterySupplierId(1L)
@@ -245,4 +257,5 @@ class ReturnBatchAutoGenerationServiceTest {
         assertThat(lineCaptor.getValue().getLotteryStationId()).isEqualTo(11L);
         verify(returnBatchRepositoryPort, never()).save(any());
     }
+
 }

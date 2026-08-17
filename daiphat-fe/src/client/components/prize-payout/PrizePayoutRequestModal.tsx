@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { PurchasedTicket } from '../../../types/lottery-ticket.type';
 import { formatPrizePayoutCurrency, PrizePayoutPreviewResponse } from '../../../types/prize-payout.type';
 import { useGetBankAccounts } from '../../hooks/useBankAccount';
@@ -9,6 +10,7 @@ import { useCreatePrizePayout } from '../../hooks/usePrizePayout';
 import { BankAccountFormModal } from '../refund/BankAccountFormModal';
 import { prizePayoutService } from '../../services/prizePayoutService';
 import dayjs from 'dayjs';
+import { LuckyNumber } from '../ui/LuckyNumber';
 
 interface PrizePayoutRequestModalProps {
     isOpen: boolean;
@@ -49,12 +51,21 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
     }, [isOpen, ticket.orderDetailId, ticket.serialId]);
 
     useEffect(() => {
+        if (!isOpen) return;
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = previousOverflow;
+        };
+    }, [isOpen]);
+
+    useEffect(() => {
         if (bankAccountId === '' && bankAccounts.length === 1) {
             setBankAccountId(bankAccounts[0].id);
         }
     }, [bankAccounts, bankAccountId]);
 
-    if (!isOpen) return null;
+    if (!isOpen || typeof document === 'undefined') return null;
 
     const handleSubmit = () => {
         if (bankAccountId === '') return;
@@ -81,8 +92,8 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
     const commission = preview?.commissionAmount;
     const net = preview?.netAmount;
 
-    return (
-        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
+    return createPortal(
+        <div className="fixed inset-0 z-[9998] flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
             <div className="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto">
                 <div className="flex items-center justify-between p-5 border-b border-[#E5E8EB]">
                     <h3 className="text-[18px] font-bold text-[#212B36]">Yêu cầu trả thưởng</h3>
@@ -116,7 +127,7 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-[#637381]">Dãy số</span>
-                                <span className="font-bold tracking-wider">{ticket.numbers}</span>
+                                <LuckyNumber value={ticket.numbers} ticket className="font-bold tracking-wider" />
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-[#637381]">Giải</span>
@@ -234,6 +245,7 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
                 isOpen={showBankForm}
                 onClose={() => setShowBankForm(false)}
             />
-        </div>
+        </div>,
+        document.body
     );
 };

@@ -2,15 +2,17 @@
 
 import Link from "@/admin/components/navigation/AdminLink";
 import { NavGroup } from "./NavGroup";
-import { menuManagementData, menuOverviewData, menuDevelopmentData } from "../../../constants/sideBar";
+import { menuManagementData, menuOverviewData } from "../../../constants/sideBar";
 import { IconButton } from "@mui/material";
 import { ArrowIcon } from "../../../assets/icons";
 import { useSidebar } from "../../../context/sidebar/useSidebar";
 import { ROUTES } from "../../../constants/routes";
 import { SiteLogo } from "@/client/components/layout/SiteLogo";
+import { useSiteBranding } from "@/client/hooks/useSiteBranding";
 
 export const SideBar = () => {
     const { isOpen, toggleSidebar } = useSidebar();
+    const { name } = useSiteBranding();
 
     return (
         <div className={`flex fixed top-0 left-0 flex-col z-[1200] h-full bg-white border-r border-[#919eab1f] transition-[width] duration-[120ms] ease-linear ${isOpen ? 'w-[300px]' : 'w-[88px]'}`}>
@@ -33,13 +35,20 @@ export const SideBar = () => {
                 <ArrowIcon sx={{ fontSize: "0.625rem", rotate: isOpen ? "90deg" : "270deg" }} />
             </IconButton>
 
-            {/* Logo */}
-            <div className={isOpen
-                ? "pl-[24px] pt-[20px] pb-[8px]"
-                : "py-[20px] flex justify-center"
-            }>
-                <Link href={ROUTES.ADMIN.DASHBOARD.ROOT} className="inline-block w-[40px] h-[40px]">
-                    <SiteLogo className="w-10 h-10 rounded" imgClassName="w-full h-full object-contain" />
+            <div className="flex shrink-0 overflow-hidden py-5 pl-5 pr-2">
+                <Link
+                    href={ROUTES.ADMIN.DASHBOARD.ROOT}
+                    className="flex min-w-0 items-center gap-3 no-underline"
+                >
+                    <SiteLogo
+                        className="h-9 w-9 shrink-0 rounded-lg"
+                        imgClassName="h-full w-full object-contain bg-white"
+                    />
+                    {isOpen ? (
+                        <span className="truncate text-[15px] font-extrabold tracking-tight text-[#ee1314]">
+                            {name}
+                        </span>
+                    ) : null}
                 </Link>
             </div>
 
@@ -49,7 +58,6 @@ export const SideBar = () => {
                         <ul>
                             <NavGroup title="Tổng quan" data={menuOverviewData} />
                             <NavGroup title="Quản lý" data={menuManagementData} />
-                            <NavGroup title="Phát triển" data={menuDevelopmentData} />
                         </ul>
                     </nav>
                 </div>

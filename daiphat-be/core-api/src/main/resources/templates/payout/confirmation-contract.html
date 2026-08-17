@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title th:text="'Hợp đồng ' + ${contract.contractCode}">Hợp đồng xác nhận trả thưởng vé số</title>
+    <style>
+        @page { size: A4; margin: 18mm 16mm 18mm 16mm; }
+        * { box-sizing: border-box; }
+        body { color: #17212b; font-family: 'Noto Sans'; font-size: 10.5pt; line-height: 1.52; margin: 0; }
+        .bold, strong, h1, h2, h3, th, .party-title { font-family: 'Noto Sans Bold'; font-weight: normal; }
+        .country { text-align: center; margin-bottom: 18px; }
+        .country p { margin: 0; }
+        .country .line { border-top: 1px solid #17212b; margin: 5px auto 0; width: 180px; }
+        .document-header { display: table; width: 100%; margin-bottom: 20px; }
+        .brand { display: table-cell; vertical-align: middle; width: 68%; }
+        .brand-logo { float: left; height: 42px; margin-right: 10px; max-width: 112px; object-fit: contain; }
+        .brand-name { font-family: 'Noto Sans Bold'; font-size: 14pt; }
+        .brand-meta { color: #4b5563; font-size: 8.5pt; }
+        .contract-code { display: table-cell; text-align: right; vertical-align: middle; font-size: 9pt; }
+        h1 { font-size: 16pt; margin: 10px 0 4px; text-align: center; text-transform: uppercase; }
+        .subtitle { margin: 0 0 22px; text-align: center; }
+        h2 { border-bottom: 1px solid #cfd8dc; font-size: 11pt; margin: 20px 0 9px; padding-bottom: 4px; text-transform: uppercase; }
+        p { margin: 6px 0; }
+        .info-table, .ticket-table { border-collapse: collapse; margin: 8px 0; width: 100%; }
+        .info-table th, .info-table td, .ticket-table th, .ticket-table td {
+            border: 1px solid #aeb8c0; padding: 6px 8px; vertical-align: top; word-wrap: break-word; overflow-wrap: anywhere;
+        }
+        .info-table th { background: #f3f6f8; text-align: left; width: 31%; }
+        .ticket-table th { background: #f3f6f8; font-size: 8.5pt; text-align: left; }
+        .ticket-table td { font-size: 8.5pt; }
+        .ticket-table .num { text-align: right; white-space: nowrap; }
+        .article { margin-top: 13px; page-break-inside: avoid; }
+        .article-title { font-family: 'Noto Sans Bold'; margin-bottom: 3px; }
+        ol, ul { margin: 4px 0 8px 18px; padding-left: 14px; }
+        li { margin: 4px 0; }
+        ul.policy-list { list-style: disc; margin-top: 2px; margin-bottom: 10px; }
+        ul.policy-list li { margin: 5px 0; }
+        .prewrap { white-space: pre-wrap; }
+        .signatures { display: table; margin-top: 42px; page-break-inside: avoid; width: 100%; }
+        .signature { display: table-cell; text-align: center; width: 50%; }
+        .signature-space { height: 92px; }
+        .actions { margin: 18px 0; text-align: center; }
+        .actions button { background: #0f5ea8; border: 0; border-radius: 4px; color: #fff; cursor: pointer; padding: 8px 16px; }
+        @media print { .actions { display: none; } }
+    </style>
+</head>
+<body>
+<div class="country">
+    <p class="bold">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</p>
+    <p class="bold">Độc lập - Tự do - Hạnh phúc</p>
+    <div class="line"></div>
+</div>
+
+<div class="document-header">
+    <div class="brand">
+        <img class="brand-logo" th:if="${!#strings.isEmpty(contract.siteLogoUrl)}" th:src="${contract.siteLogoUrl}" alt="Logo"/>
+        <div class="brand-name" th:text="${contract.siteName}">ĐẠI PHÁT</div>
+        <div class="brand-meta" th:text="${contract.siteAddress}">Địa chỉ</div>
+        <div class="brand-meta"><span th:text="${contract.sitePhone}">SĐT</span> · <span th:text="${contract.siteEmail}">Email</span></div>
+    </div>
+    <div class="contract-code">
+        <div class="bold">Số hợp đồng</div>
+        <div th:text="${contract.contractCode}">HD-TT-001</div>
+        <div th:text="'Ngày lập: ' + ${contract.contractIssuedDate}">Ngày lập</div>
+    </div>
+</div>
+
+<h1 th:text="${contract.title}">Hợp đồng xác nhận trả thưởng vé số</h1>
+<p class="subtitle" th:text="${contract.subtitle}">Về việc chi trả giải thưởng cho vé số kiến thiết đã mua</p>
+
+<div class="actions" th:if="${contract.showPrintAction}"><button onclick="window.print()">In hợp đồng</button></div>
+
+<p><span th:text="${contract.contractSigningPlace}">Địa điểm lập hợp đồng</span>, ngày <span th:text="${contract.contractIssuedDate}">01/01/2026</span>, các bên thống nhất lập hợp đồng với nội dung sau:</p>
+
+<h2>Thông tin các bên</h2>
+<table class="info-table">
+    <tr><th th:text="${contract.partyARoleLabel}">Bên A - Đại lý trả thưởng</th><td th:text="${contract.siteLegalName}">ĐẠI PHÁT</td></tr>
+    <tr><th>Mã số thuế / ĐKKD</th><td th:text="${contract.siteTaxCode}">—</td></tr>
+    <tr><th>Người đại diện / Chức danh</th><td><span th:text="${contract.siteLegalRepresentative}">—</span> / <span th:text="${contract.siteLegalRepresentativeTitle}">—</span></td></tr>
+    <tr><th>Địa chỉ liên hệ</th><td th:text="${contract.siteAddress}">—</td></tr>
+    <tr><th>Điện thoại / Email</th><td><span th:text="${contract.sitePhone}">—</span> / <span th:text="${contract.siteEmail}">—</span></td></tr>
+    <tr><th th:text="${contract.partyBRoleLabel}">Bên B - Người nhận thưởng</th><td th:text="${contract.recipientFullName}">Nguyễn Văn A</td></tr>
+    <tr><th>Số CCCD / CMND</th><td th:text="${contract.recipientIdNumber}">000000000000</td></tr>
+    <tr><th>Số điện thoại</th><td th:text="${contract.recipientPhone}">—</td></tr>
+</table>
+
+<div class="article" th:each="article : ${contract.articles}">
+    <div class="article-title" th:text="${article.title}">Điều</div>
+    <div th:if="${article.body}" th:utext="${article.body}"></div>
+    <th:block th:if="${article.prizeTicketTable}">
+    <table class="ticket-table">
+        <thead>
+        <tr>
+            <th>Đơn / Đài / Ngày quay</th>
+            <th>Số vé / Sê-ri</th>
+            <th>Giải</th>
+            <th class="num">Giá trị giải</th>
+            <th class="num">Thuế</th>
+            <th class="num">HH đại lý</th>
+            <th class="num">Thực nhận</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="line : ${contract.tickets}">
+            <td>
+                <div th:text="${line.orderCode}">DH-001</div>
+                <div th:text="${line.stationName}">Đài</div>
+                <div th:text="${line.drawDate}">01/01/2026</div>
+            </td>
+            <td>
+                <div th:text="${line.ticketNumbers}">123456</div>
+                <div th:text="${line.serialNumber}">S0001</div>
+            </td>
+            <td th:text="${line.prizeName}">Đặc biệt</td>
+            <td class="num" th:text="${line.grossAmount}">0</td>
+            <td class="num" th:text="${line.taxAmount}">0</td>
+            <td class="num" th:text="${line.commissionAmount}">0</td>
+            <td class="num" th:text="${line.netAmount}">0</td>
+        </tr>
+        </tbody>
+    </table>
+    <p>
+        Tổng giá trị giải: <strong th:text="${contract.totalGrossAmount}">0 đ</strong>.
+        Thuế TNCN: <strong th:text="${contract.totalTaxAmount}">0 đ</strong>.
+        Hoa hồng đại lý: <strong th:text="${contract.totalCommissionAmount}">0 đ</strong>.
+        Số tiền thực nhận: <strong th:text="${contract.totalNetAmount}">0 đ</strong>.
+    </p>
+    </th:block>
+</div>
+
+<div class="signatures">
+    <div class="signature"><div class="party-title" th:text="${contract.partyASignatureLabel}">ĐẠI DIỆN BÊN A</div><div th:text="${contract.siteLegalRepresentativeTitle}">(Chức danh)</div><div class="signature-space"></div><div class="bold" th:text="${contract.siteLegalRepresentative}">Họ tên người đại diện</div></div>
+    <div class="signature"><div class="party-title" th:text="${contract.partyBSignatureLabel}">BÊN B - NGƯỜI NHẬN THƯỞNG</div><div>(Ký, ghi rõ họ tên)</div><div class="signature-space"></div><div class="bold" th:text="${contract.recipientFullName}">Nguyễn Văn A</div></div>
+</div>
+</body>
+</html>

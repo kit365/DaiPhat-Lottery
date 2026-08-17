@@ -37,6 +37,8 @@ class AppTheme {
         backgroundColor: AppColors.surface,
         foregroundColor: AppColors.ink,
         elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
         centerTitle: true,
       ),
       inputDecorationTheme: InputDecorationTheme(

@@ -12,6 +12,7 @@ import 'package:daiphat_mobile/src/features/profile/data/models/purchased_ticket
 import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/prize_payout_request_sheet.dart';
 import 'package:daiphat_mobile/src/features/profile/utils/ticket_display_utils.dart';
+import 'package:daiphat_mobile/src/features/profile/utils/rebuy_ticket.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 
@@ -109,6 +110,8 @@ class _TicketDetailBody extends ConsumerWidget {
             ],
             const SizedBox(height: 16),
             _buildViewDrawResultButton(context, ref),
+            const SizedBox(height: 10),
+            _buildRebuyButton(context),
           ],
         ),
       ),
@@ -132,6 +135,30 @@ class _TicketDetailBody extends ConsumerWidget {
           foregroundColor: AppColors.textMain,
           backgroundColor: const Color(0xFFF1F5F9),
           side: BorderSide.none,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRebuyButton(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton.icon(
+        onPressed: () => openRebuyTicket(context, ticket),
+        icon: const Icon(Icons.add_shopping_cart_rounded, size: 18),
+        label: Text(
+          'Mua lại bộ số này',
+          style: GoogleFonts.publicSans(
+            fontWeight: FontWeight.w800,
+            fontSize: 14,
+          ),
+        ),
+        style: FilledButton.styleFrom(
+          backgroundColor: AppColors.primary,
           padding: const EdgeInsets.symmetric(vertical: 14),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -403,6 +430,16 @@ class _TicketDetailBody extends ConsumerWidget {
                     currencyFmt.format(ticket.prizeAmount),
                     valueColor: const Color(0xFFF59E0B),
                   ),
+                if (isWon && (ticket.customerRedemptionDeadline != null ||
+                        ticket.issuerRedemptionDeadline != null))
+                  _buildInfoRow(
+                    'Thời gian còn lại đổi thưởng',
+                    _redemptionRemainingLabel(ticket),
+                    valueColor: ticket.redemptionZone == 'PAST_CUSTOMER_URGENT' ||
+                            ticket.redemptionZone == 'PAST_ISSUER_LOCKED'
+                        ? const Color(0xFFBE123C)
+                        : const Color(0xFFB45309),
+                  ),
                 if (isWon && ticket.payoutState != null)
                   _buildInfoRow(
                     'Trạng thái trả thưởng',
@@ -515,7 +552,7 @@ class _TicketDetailBody extends ConsumerWidget {
           const SizedBox(height: 10),
           Text(
             isEligible
-                ? 'Bạn có thể gửi yêu cầu trả thưởng online. Tiền sẽ được chuyển sau khi nhân viên duyệt.'
+                ? 'Bạn có thể gửi yêu cầu trả thưởng trực tuyến. Tiền sẽ được chuyển sau khi nhân viên duyệt.'
                 : ticket.canClaimOnline == false || ticket.claimChannel == 'IN_PERSON'
                     ? 'Vé này cần mang đến đại lý để đổi thưởng trực tiếp.'
                     : 'Tiền thưởng sẽ được chuyển tới tài khoản ngân hàng sau khi yêu cầu được duyệt.',
@@ -677,6 +714,57 @@ class _TicketDetailBody extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  String _redemptionRemainingLabel(PurchasedTicket ticket) {
+    final issuerUntil = ticket.issuerRedemptionDeadline == null
+        ? null
+        : _formatDrawDate(ticket.issuerRedemptionDeadline!);
+    final issuerDays = ticket.daysRemainingToIssuer;
+
+    if (ticket.redemptionZone == 'PAST_ISSUER_LOCKED') {
+      return issuerUntil == null
+          ? 'Hết hạn trả thưởng'
+          : 'Hết hạn trả thưởng · $issuerUntil';
+    }
+    if (ticket.redemptionZone == 'PAST_CUSTOMER_URGENT') {
+      if (issuerDays != null && issuerDays >= 0) {
+        final dayPart = _daysChannelLabel(issuerDays, counter: true);
+        return issuerUntil == null ? dayPart : '$dayPart · $issuerUntil';
+      }
+      return issuerUntil == null
+          ? 'Hết hạn trả thưởng'
+          : 'Hết hạn trả thưởng · $issuerUntil';
+    }
+    if (ticket.customerRedemptionDeadline != null) {
+      final days = _calendarDaysUntil(ticket.customerRedemptionDeadline!);
+      final until = _formatDrawDate(ticket.customerRedemptionDeadline!);
+      if (days != null) {
+        final dayPart = _daysChannelLabel(days, counter: false);
+        return '$dayPart · $until';
+      }
+      return 'Còn hạn đổi trực tuyến · $until';
+    }
+    return issuerUntil ?? '';
+  }
+
+  String _daysChannelLabel(int days, {required bool counter}) {
+    final suffix = counter ? 'đổi tại quầy' : 'đổi trực tuyến';
+    if (days == 0) return 'Hết hạn $suffix trong hôm nay';
+    if (days == 1) return 'Còn 1 ngày $suffix';
+    return 'Còn $days ngày $suffix';
+  }
+
+  int? _calendarDaysUntil(String deadline) {
+    try {
+      final d = DateTime.parse(deadline);
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final end = DateTime(d.year, d.month, d.day);
+      return end.difference(today).inDays;
+    } catch (_) {
+      return null;
+    }
   }
 
   String _formatDrawDate(String value) {

@@ -50,22 +50,33 @@ class ImportBatchStationEligibilityResolverTest {
         when(importBatchLineRepositoryPort.existsDraftLineForStationAndDrawDate(1L, TOMORROW)).thenReturn(false);
     }
 
+    /**
+     * A past draw date is never selectable here, whichever import mode is asked
+     * for.
+     *
+     * <p>This resolver serves the two screens where a human picks stations for a
+     * new batch: manual declaration and file import. Neither may reach back into a
+     * draw that has already happened.
+     *
+     * <p>POST_DRAW_SUPPLEMENT is not the exception it looks like. Supplementary
+     * batches are not picked on a screen at all - they are created by
+     * SupplierSettlementDiscrepancyInventoryHelper when reconciliation finds the
+     * system holding fewer tickets than the supplier's receipt shows, and that
+     * path writes through the repository without ever consulting this resolver.
+     * So granting the mode eligibility here would widen the two human-facing
+     * screens and change nothing about settlement.
+     */
     @Test
-    @DisplayName("past draw date is eligible only for POST_DRAW_SUPPLEMENT")
-    void isEligibleForSelection_pastDrawDate_postDrawOnly() {
+    @DisplayName("a past draw date is never selectable, whichever import mode is asked for")
+    void isEligibleForSelection_pastDrawDate_neverSelectable() {
         LocalDate pastFriday = TODAY.minusDays(3);
-        assertThat(resolver.isEligibleForSelection(
-                station,
-                pastFriday,
-                LocalDateTime.of(TODAY, LocalTime.of(10, 0)),
-                ImportBatchImportMode.POST_DRAW_SUPPLEMENT
-        )).isTrue();
-        assertThat(resolver.isEligibleForSelection(
-                station,
-                pastFriday,
-                LocalDateTime.of(TODAY, LocalTime.of(10, 0)),
-                ImportBatchImportMode.IN_DAY
-        )).isFalse();
+        LocalDateTime now = LocalDateTime.of(TODAY, LocalTime.of(10, 0));
+
+        for (ImportBatchImportMode mode : ImportBatchImportMode.values()) {
+            assertThat(resolver.isEligibleForSelection(station, pastFriday, now, mode))
+                    .as("mode %s must not make a past draw date selectable", mode)
+                    .isFalse();
+        }
     }
 
     @Test

@@ -17,7 +17,6 @@ public enum SupplierSettlementAdjustmentReasonCode {
     SHIPPING_FEE("Phí vận chuyển"),
     LATE_PENALTY("Phạt chậm"),
     DISCOUNT("Chiết khấu / giảm trừ"),
-    ROUNDING("Làm tròn"),
     OTHER("Khác");
 
     private final String label;

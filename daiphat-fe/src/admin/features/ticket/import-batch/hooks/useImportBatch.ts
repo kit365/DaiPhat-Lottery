@@ -13,7 +13,9 @@ import {
     getImportBatchesWithoutLines,
     getEligibleImportBatchStations,
     getImportBatchTimePolicy,
+    getImportBatchFileJobs,
     getImportBatchLineEntryTickets,
+    getImportBatchReductionTickets,
     pauseImportBatchLine,
     resumeImportBatchLine,
     updateImportBatch,
@@ -25,8 +27,36 @@ import type {
     ImportBatchType,
     UpdateImportBatchPayload,
 } from '../types/importBatch.type';
-import { QUERY_KEYS } from '../constants/queryKeys';
+import { QUERY_KEYS, importBatchQueryKeys } from '../constants/queryKeys';
 import type { ImportBatchImportMode } from '../utils/batchTypeLabels';
+import { QUERY_STALE_TIMES } from '@/shared/react-query';
+
+/**
+ * History of file-import runs. Paged server-side because the list only grows.
+ */
+export const useImportBatchFileJobs = (enabled = true) => {
+    const [page, setPage] = useState(1);
+    const [size, setSize] = useState(10);
+
+    const query = useQuery({
+        queryKey: [QUERY_KEYS.IMPORT_BATCH_FILE_JOBS, page, size],
+        queryFn: () => getImportBatchFileJobs({ page, size }),
+        enabled,
+        placeholderData: keepPreviousData,
+        staleTime: 10_000,
+    });
+
+    return {
+        jobs: query.data?.data?.recordList ?? [],
+        pagination: (query.data?.data as any)?.pagination,
+        isLoading: query.isLoading,
+        refetch: query.refetch,
+        page,
+        size,
+        setPage,
+        setLimit: setSize,
+    };
+};
 
 export const useActiveImportBatchDraft = (enabled = true) => {
     return useQuery({
@@ -315,5 +345,23 @@ export const useEligibleImportBatchStations = (
         enabled: !!drawDate && !!importMode,
         select: (res) => res.data ?? { eligible: [], blocked: [] },
         staleTime: 10_000,
+    });
+};
+
+export const useImportBatchDraftBanner = (enabled = true) => {
+    return useQuery({
+        queryKey: importBatchQueryKeys.draftBanner(),
+        queryFn: () => getImportBatches({ page: 1, size: 1, status: 'DRAFT' }),
+        enabled,
+        staleTime: QUERY_STALE_TIMES.badge,
+    });
+};
+
+export const useImportBatchReductionTickets = (batchId: number, enabled: boolean) => {
+    return useQuery({
+        queryKey: importBatchQueryKeys.reductionTickets(batchId),
+        queryFn: () => getImportBatchReductionTickets(batchId),
+        enabled: enabled && !!batchId,
+        select: (res) => res.data ?? null,
     });
 };

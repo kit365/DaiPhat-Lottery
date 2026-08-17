@@ -5,7 +5,9 @@ import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.application.dto.request.streetagent.CreateVendorAllocationDraftRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.ConfirmVendorAllocationRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.ReturnVendorAllocationSerialsRequest;
+import com.daiphat.coreapi.application.dto.request.streetagent.ReplaceVendorAllocationReturnsRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.ConfirmVendorReturnInspectionRequest;
+import com.daiphat.coreapi.application.dto.request.streetagent.ConfirmVendorNoReturnRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.SettleVendorAllocationRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.streetagent.VendorAllocationBatchResponse;
@@ -71,11 +73,13 @@ public class VendorAllocationController {
             @RequestParam(required = false) Collection<AllocationBatchStatus> status,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate businessDateFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate businessDateTo,
+            @RequestParam(required = false) String search,
             @RequestParam(defaultValue = DEFAULT_PAGE) int page,
             @RequestParam(defaultValue = DEFAULT_LIMIT) int size) {
         return ApiResponse.success(
                 null,
-                vendorAllocationServicePort.list(profileId, status, businessDateFrom, businessDateTo, page, size));
+                vendorAllocationServicePort.list(
+                        profileId, status, businessDateFrom, businessDateTo, search, page, size));
     }
 
     @PostMapping("/drafts")
@@ -126,6 +130,15 @@ public class VendorAllocationController {
         return ApiResponse.success("Đã ghi nhận vé trả.", vendorAllocationServicePort.recordReturns(id, request));
     }
 
+    @PutMapping("/{id}/returns")
+    @PreAuthorize("hasAuthority('streetAgent:edit')")
+    public ApiResponse<VendorAllocationBatchResponse> replaceReturns(
+            @PathVariable Long id,
+            @Valid @RequestBody ReplaceVendorAllocationReturnsRequest request) {
+        return ApiResponse.success("Đã cập nhật danh sách vé chờ kiểm nhận.",
+                vendorAllocationServicePort.replaceReturns(id, request));
+    }
+
     @DeleteMapping("/{id}/returns/{serialId}")
     @PreAuthorize("hasAuthority('streetAgent:edit')")
     public ApiResponse<VendorAllocationBatchResponse> removeReturn(
@@ -144,6 +157,24 @@ public class VendorAllocationController {
         return ApiResponse.success("Đã xác nhận kiểm nhận vé trả.",
                 vendorAllocationServicePort.confirmReturnInspection(
                         id, request != null ? request : new ConfirmVendorReturnInspectionRequest(null, null), principal.getId()));
+    }
+
+    @PostMapping("/{id}/return-inspection/confirm-no-return")
+    @PreAuthorize("hasAuthority('streetAgent:edit')")
+    public ApiResponse<VendorAllocationBatchResponse> confirmNoReturnedTickets(
+            @PathVariable Long id,
+            @RequestBody(required = false) ConfirmVendorNoReturnRequest request,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        return ApiResponse.success("Đã xác nhận người bán vé số không trả vé.",
+                vendorAllocationServicePort.confirmNoReturnedTickets(
+                        id, request == null ? new ConfirmVendorNoReturnRequest(null) : request, principal.getId()));
+    }
+
+    @PostMapping("/{id}/return-inspection/reopen")
+    @PreAuthorize("hasAuthority('streetAgent:edit')")
+    public ApiResponse<VendorAllocationBatchResponse> reopenReturnInspection(@PathVariable Long id) {
+        return ApiResponse.success("Đã mở lại bước kiểm nhận vé trả.",
+                vendorAllocationServicePort.reopenReturnInspection(id));
     }
 
     @GetMapping("/{id}/settlement-preview")

@@ -6,13 +6,11 @@ import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 
 class LotoCard extends StatefulWidget {
   final List<String> provinces;
-  final String? globalSel;
   final List<LotteryResult> results;
 
   const LotoCard({
     super.key,
     required this.provinces,
-    required this.globalSel,
     required this.results,
   });
 
@@ -24,29 +22,23 @@ class _LotoCardState extends State<LotoCard> {
   String? _province;
 
   @override
-  void initState() {
-    super.initState();
-    _province = widget.globalSel;
-  }
-
-  @override
   void didUpdateWidget(LotoCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.globalSel != widget.globalSel) {
-      setState(() => _province = widget.globalSel);
+    if (_province != null && !widget.provinces.contains(_province)) {
+      setState(() => _province = null);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final effectiveProvince = _province ??
-        widget.globalSel ??
-        (widget.provinces.isNotEmpty ? widget.provinces.first : null);
-    final selectedResult = widget.results.cast<LotteryResult?>().firstWhere(
-          (item) => item?.province == effectiveProvince,
-          orElse: () => widget.results.isNotEmpty ? widget.results.first : null,
-        );
-    final rows = selectedResult?.lotoRows ?? const <LotoRowData>[];
+    final filteredResults = _province == null
+        ? widget.results
+        : widget.results
+            .where((item) => item.province == _province)
+            .toList();
+    final rows = calculateLotoRows(
+      filteredResults.expand((item) => item.allPrizeNumbers),
+    );
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -111,7 +103,7 @@ class _LotoCardState extends State<LotoCard> {
                       items: [
                         const DropdownMenuItem<String?>(
                           value: null,
-                          child: Text('Tat ca dai'),
+                          child: Text('Tất cả đài'),
                         ),
                         ...widget.provinces.map(
                           (province) => DropdownMenuItem<String?>(

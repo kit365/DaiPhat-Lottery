@@ -6,6 +6,10 @@ on:
       - feature/dp-5-infs
     paths:
       - "daiphat-ai/**"
+      # ticket-vision has its own (much heavier) image and workflow --
+      # see ticket-vision-deploy.yml. Excluded so a change there doesn't
+      # needlessly rebuild and redeploy chat-bot.
+      - "!daiphat-ai/services/ticket-vision/**"
       - ".github/workflows/ai-deploy.yml"
       - ".github/workflows/component-deploy.yml"
   workflow_dispatch:

@@ -7,6 +7,7 @@ import com.daiphat.coreapi.application.port.out.lotteries.LotterySupplierReposit
 import com.daiphat.coreapi.application.port.out.lotteries.ReturnBatchRepositoryPort;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchLineStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchType;
 import com.daiphat.coreapi.domain.model.lotteries.LotterySupplierModel;
 import com.daiphat.coreapi.domain.model.lotteries.ReturnBatchLineModel;
 import com.daiphat.coreapi.domain.model.lotteries.ReturnBatchModel;
@@ -145,7 +146,8 @@ public class ReturnBatchAutoGenerationService {
             return false;
         }
 
-        var existingOpt = returnBatchRepositoryPort.findBySupplierAndDrawDate(supplier.getId(), drawDate);
+        var existingOpt = returnBatchRepositoryPort
+                .findPrimarySupplierReturnBySupplierAndDrawDate(supplier.getId(), drawDate);
         if (existingOpt.isPresent()) {
             ReturnBatchModel existing = existingOpt.get();
             if (existing.getStatus() != null && existing.getStatus().allowsAutoEnrichment()) {
@@ -164,6 +166,7 @@ public class ReturnBatchAutoGenerationService {
         ReturnBatchModel header = ReturnBatchModel.builder()
                 .batchCode(returnBatchCodeGenerator.generateHeaderCode(drawDate))
                 .lotterySupplierId(supplier.getId())
+                .returnBatchType(ReturnBatchType.SUPPLIER_RETURN)
                 .drawDate(drawDate)
                 .supplierSettlementId(settlement.getId())
                 .note("Tự động tạo theo lịch trả vé NCC")
@@ -197,8 +200,10 @@ public class ReturnBatchAutoGenerationService {
             LocalDateTime now,
             int bufferMinutes
     ) {
-        LocalDateTime triggerAt = LocalDateTime.of(drawDate, returnCutOffTime)
-                .minusMinutes(Math.max(0, bufferMinutes));
+        // buffer = 0 → allow preparing / auto-create from start of draw day.
+        LocalDateTime triggerAt = bufferMinutes <= 0
+                ? LocalDateTime.of(drawDate, LocalTime.MIN)
+                : LocalDateTime.of(drawDate, returnCutOffTime).minusMinutes(bufferMinutes);
         return !now.isBefore(triggerAt);
     }
 

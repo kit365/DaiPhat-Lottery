@@ -1,6 +1,8 @@
 package com.daiphat.coreapi.infrastructure.persistence.repository.order;
 
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionBusinessType;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.TransactionEntity;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,12 +15,48 @@ import java.util.UUID;
 
 public interface TransactionRepository extends JpaRepository<TransactionEntity, Long> {
 
+    @Query("""
+            select coalesce(sum(t.amount), 0)
+            from TransactionEntity t
+            where t.status = :status
+              and (
+                  t.transactionType = :businessType
+                  or (
+                      t.transactionType is null
+                      and t.order is not null
+                      and t.type <> :refundType
+                  )
+              )
+              and coalesce(t.paidAt, t.createdAt) >= :fromInclusive
+              and coalesce(t.paidAt, t.createdAt) < :toExclusive
+            """)
+    java.math.BigDecimal sumCompletedOrderPayments(
+            @Param("fromInclusive") LocalDateTime fromInclusive,
+            @Param("toExclusive") LocalDateTime toExclusive,
+            @Param("status") TransactionStatus status,
+            @Param("businessType") TransactionBusinessType businessType,
+            @Param("refundType") TransactionType refundType
+    );
+
+    default java.math.BigDecimal sumCompletedOrderPayments(
+            LocalDateTime fromInclusive,
+            LocalDateTime toExclusive) {
+        return sumCompletedOrderPayments(
+                fromInclusive,
+                toExclusive,
+                TransactionStatus.COMPLETED,
+                TransactionBusinessType.ORDER_PAYMENT,
+                TransactionType.REFUND
+        );
+    }
+
     @Query(value = """
             SELECT COALESCE(paid_at, updated_at, created_at)
             FROM transactions
             WHERE order_id = :orderId
               AND status = 'COMPLETED'
-              AND type <> 'REFUND'
+              AND type IS DISTINCT FROM 'REFUND'
+              AND transaction_type IS DISTINCT FROM 'ORDER_REFUND'
             ORDER BY COALESCE(paid_at, updated_at, created_at) DESC
             LIMIT 1
             """, nativeQuery = true)

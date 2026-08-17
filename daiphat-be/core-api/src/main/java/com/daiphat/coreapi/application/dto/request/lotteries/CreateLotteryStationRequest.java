@@ -16,6 +16,9 @@ public record CreateLotteryStationRequest(
         @NotBlank(message = "Tên sản phẩm không được để trống")
         String name,
 
+        /** Leave blank to have the system derive it from the name. */
+        String code,
+
         String province,
         String region,
 
@@ -34,6 +37,11 @@ public record CreateLotteryStationRequest(
         @NotNull(message = "Giờ quay không được để trống")
         @JsonFormat(pattern = "HH:mm")
         LocalTime drawTime,
+
+        /** Null = use global PRIZE_REDEMPTION_OFFICIAL_DEADLINE_DAYS. */
+        @jakarta.validation.constraints.Min(1)
+        @jakarta.validation.constraints.Max(365)
+        Integer prizeRedemptionOfficialDeadlineDays,
 
         // Hiển thị
         String image,

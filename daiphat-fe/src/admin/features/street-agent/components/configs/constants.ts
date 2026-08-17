@@ -35,7 +35,7 @@ export const BLOCKED_REASON_LABELS: Record<string, string> = {
     DRAW_TIME_PASSED: 'Đã qua giờ xổ — không còn vé để bàn giao',
     DATE_NOT_SCHEDULED: 'Ngày này không có đài xổ',
     NO_ELIGIBLE_INVENTORY: 'Không còn vé hợp lệ trong kho',
-    DAILY_CAP_EXHAUSTED: 'Hạn mức giao vé trong ngày đã dùng hết',
+    DAILY_CAP_EXHAUSTED: 'Phiếu đang mở đã đạt giới hạn giao vé',
 };
 
 export const ALLOCATION_BATCH_STATUS_LABELS: Record<string, string> = {

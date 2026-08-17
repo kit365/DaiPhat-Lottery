@@ -3,7 +3,9 @@ import { ApiResponse, PageResponse } from '../../../../types/api.type';
 import {
     ConfirmVendorAllocationPayload,
     ConfirmVendorReturnInspectionPayload,
+    ConfirmVendorNoReturnPayload,
     CreateVendorAllocationDraftPayload,
+    ReplaceVendorAllocationReturnsPayload,
     ReturnVendorAllocationSerialsPayload,
     VendorAllocationBatch,
     VendorAllocationBatchListParams,
@@ -66,6 +68,7 @@ export const listVendorAllocationBatches = async (
             status: params.status,
             businessDateFrom: params.businessDateFrom,
             businessDateTo: params.businessDateTo,
+            search: params.search || undefined,
             page: params.page ?? 1,
             size: params.size ?? 10,
         },
@@ -130,6 +133,14 @@ export const returnVendorAllocationSerials = async (
     return response.data;
 };
 
+export const replaceVendorAllocationReturns = async (
+    id: number | string,
+    data: ReplaceVendorAllocationReturnsPayload
+): Promise<ApiResponse<VendorAllocationBatch>> => {
+    const response = await apiApp.put(`${BASE_URL}/${id}/returns`, data);
+    return response.data;
+};
+
 export const removeVendorAllocationReturnSerial = async (
     id: number | string,
     serialId: number | string
@@ -143,6 +154,21 @@ export const confirmVendorReturnInspection = async (
     data: ConfirmVendorReturnInspectionPayload
 ): Promise<ApiResponse<VendorAllocationBatch>> => {
     const response = await apiApp.post(`${BASE_URL}/${id}/return-inspection/confirm`, data);
+    return response.data;
+};
+
+export const confirmVendorNoReturn = async (
+    id: number | string,
+    data: ConfirmVendorNoReturnPayload = {}
+): Promise<ApiResponse<VendorAllocationBatch>> => {
+    const response = await apiApp.post(`${BASE_URL}/${id}/return-inspection/confirm-no-return`, data);
+    return response.data;
+};
+
+export const reopenVendorReturnInspection = async (
+    id: number | string
+): Promise<ApiResponse<VendorAllocationBatch>> => {
+    const response = await apiApp.post(`${BASE_URL}/${id}/return-inspection/reopen`);
     return response.data;
 };
 

@@ -18,13 +18,17 @@ export const TICKET_STATUS_OPTIONS: TicketStatusOption[] = [
 export const TICKET_STATUS_TRANSITIONS: Record<string, string[]> = {};
 
 export const normalizeTicketStatus = (status?: string | null): string => {
-    if (!status) return "";
-    return status.toUpperCase().replace(/-/g, "_");
+    if (status == null || status === "") return "";
+    return String(status).toUpperCase().replace(/-/g, "_");
 };
 
 export const getTicketStatusLabel = (status?: string | null): string => {
     const normalized = normalizeTicketStatus(status);
-    return TICKET_STATUS_OPTIONS.find((opt) => opt.value === normalized)?.label || status || "";
+    return (
+        TICKET_STATUS_OPTIONS.find((opt) => opt.value === normalized)?.label ||
+        (typeof status === "string" ? status : "") ||
+        ""
+    );
 };
 
 /** Lọc trạng thái vé số — chỉ các giá trị thực sự có trong danh sách vé hiện tại. */

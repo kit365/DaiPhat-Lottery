@@ -6,23 +6,21 @@ import {
     getPublicStationsToday,
     getPublicStationsTomorrow,
 } from '@/shared/station/scheduleApi';
-
-const QUERY_KEYS = {
-    STATIONS_TODAY: 'public-stations-today',
-    STATIONS_TOMORROW: 'public-stations-tomorrow',
-    STATIONS_BY_DRAW_DATE: 'public-stations-by-draw-date',
-} as const;
+import { publicStationsQueryKeys } from '@/constants/queryKeys';
+import { detailQueryDefaults } from '@/shared/react-query/createAppQueryClient';
 
 export const useStationsToday = () =>
     useQuery({
-        queryKey: [QUERY_KEYS.STATIONS_TODAY],
+        queryKey: publicStationsQueryKeys.today(),
         queryFn: () => getPublicStationsToday(),
+        ...detailQueryDefaults,
     });
 
 export const useStationsTomorrow = () =>
     useQuery({
-        queryKey: [QUERY_KEYS.STATIONS_TOMORROW],
+        queryKey: publicStationsQueryKeys.tomorrow(),
         queryFn: () => getPublicStationsTomorrow(),
+        ...detailQueryDefaults,
     });
 
 export const useStationsByDrawDate = (drawDate?: string | string[]) => {
@@ -33,9 +31,10 @@ export const useStationsByDrawDate = (drawDate?: string | string[]) => {
           : [];
 
     return useQuery({
-        queryKey: [QUERY_KEYS.STATIONS_BY_DRAW_DATE, drawDates],
+        queryKey: publicStationsQueryKeys.byDrawDate(drawDates),
         queryFn: () => getPublicStationsByDrawDate(drawDates),
         enabled: drawDates.length > 0,
         placeholderData: keepPreviousData,
+        ...detailQueryDefaults,
     });
 };

@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { prizePayoutAdminApi } from "@/admin/features/prize-payout/services/prizePayoutService";
-import { QUERY_KEYS } from '@/constants/queryKeys';
+import { QUERY_KEYS } from '@/admin/features/prize-payout/constants/queryKeys';
 import {
     CompletePrizePayoutRequest,
     CreateStaffPrizePayoutBatchRequest,
@@ -12,9 +12,17 @@ import {
     RejectPrizePayoutRequest,
 } from '@/types/prize-payout.type';
 import { invalidateAdminBadgeCounts } from '@/admin/utils/invalidateAdminBadgeCounts';
+import { QUERY_STALE_TIMES } from '@/shared/react-query';
 
-const getErrorMessage = (error: any, fallback: string) =>
-    error?.response?.data?.message || error.message || fallback;
+const getErrorMessage = (error: unknown, fallback: string) => {
+    const err = error as { response?: { data?: { message?: string } }; message?: string };
+    return err?.response?.data?.message || err?.message || fallback;
+};
+
+type PrizePayoutLookupStation = {
+    id: number;
+    name: string;
+};
 
 export const useGetStaffPrizePayouts = (params: GetStaffPrizePayoutsParams) => {
     return useQuery({
@@ -125,6 +133,30 @@ export const useRejectPrizePayout = () => {
                 toast.error(response.message || 'Không thể từ chối yêu cầu');
             }
         },
-        onError: (error: any) => toast.error(getErrorMessage(error, 'Lỗi kết nối')),
+        onError: (error: unknown) => toast.error(getErrorMessage(error, 'Lỗi kết nối')),
+    });
+};
+
+export const usePrizePayoutLookupStations = (drawDate: string, enabled: boolean) => {
+    return useQuery({
+        queryKey: [QUERY_KEYS.ADMIN_PRIZE_PAYOUT_LOOKUP_STATIONS, drawDate],
+        queryFn: async (): Promise<PrizePayoutLookupStation[]> => {
+            const res = await prizePayoutAdminApi.lookupStationsByDrawDate(drawDate);
+            return (res.data || []).map((row) => ({
+                id: row.id,
+                name: row.name,
+            }));
+        },
+        enabled: enabled && !!drawDate,
+        placeholderData: (previous) => previous,
+    });
+};
+
+export const usePrizePayoutCustomerBankAccounts = (customerId: string | number | null) => {
+    return useQuery({
+        queryKey: [QUERY_KEYS.ADMIN_CUSTOMER_BANK_ACCOUNTS, customerId],
+        queryFn: () => prizePayoutAdminApi.getCustomerBankAccounts(String(customerId!)),
+        enabled: customerId != null && customerId !== '',
+        staleTime: QUERY_STALE_TIMES.badge,
     });
 };

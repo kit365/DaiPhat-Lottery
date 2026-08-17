@@ -7,7 +7,7 @@ import React, { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../../hooks/useAuth";
 import { useAuthStore } from "../../../../stores/useAuthStore";
-import { useNotifications } from "../../../hooks/useNotifications";
+import { useNotificationUnreadCount } from "../../../hooks/useNotifications";
 import { useMyRefundPendingCount } from "../../../hooks/useMyRefundPendingCount";
 import { useMyPrizePayoutPendingCount } from "../../../hooks/usePrizePayout";
 import { useMySupportTicketActiveCount } from "../../../hooks/useMySupportTicketActiveCount";
@@ -15,7 +15,7 @@ import { PROFILE_BANNERS } from "../../../constants/clientBannerAssets";
 import { ROUTES } from '@/admin/constants/routes';
 import { Breadcrumb } from "../../../../client/components/ui/Breadcrumb";
 
-type TabId = 'overview' | 'info' | 'tickets' | 'orders' | 'refunds' | 'prizePayouts' | 'complaints' | 'bankAccounts' | 'notifications' | 'resultNotifications' | 'settings' | 'favorites';
+type TabId = 'info' | 'tickets' | 'orders' | 'refunds' | 'prizePayouts' | 'complaints' | 'bankAccounts' | 'notifications' | 'settings';
 
 interface TabConfig {
     id: TabId;
@@ -26,7 +26,7 @@ interface TabConfig {
 }
 
 const TABS: TabConfig[] = [
-    { id: 'overview', path: '/profile/overview', label: 'Tổng quan', icon: 'fa-solid fa-border-all' },
+    // { id: 'overview', path: '/profile/overview', label: 'Tổng quan', icon: 'fa-solid fa-border-all' },
     { id: 'info', path: '/profile/info', label: 'Tài khoản cá nhân', icon: 'fa-regular fa-user' },
     { id: 'tickets', path: '/profile/tickets', label: 'Vé của tôi', icon: 'fa-solid fa-ticket-simple' },
     { id: 'orders', path: '/profile/orders', label: 'Đơn hàng của tôi', icon: 'fa-solid fa-file-invoice-dollar' },
@@ -34,16 +34,14 @@ const TABS: TabConfig[] = [
     { id: 'prizePayouts', path: '/profile/prize-payouts', label: 'Yêu cầu trả thưởng', icon: 'fa-solid fa-trophy' },
     { id: 'complaints', path: '/profile/complaints', label: 'Khiếu nại / Hỗ trợ', icon: 'fa-solid fa-headset' },
     { id: 'bankAccounts', path: '/profile/bank-accounts', label: 'Tài khoản ngân hàng', icon: 'fa-solid fa-building-columns' },
-    { id: 'favorites', path: '/profile/favorites', label: 'Số yêu thích', icon: 'fa-regular fa-star' },
     { id: 'notifications', path: '/profile/notifications', label: 'Thông báo', icon: 'fa-regular fa-bell' },
-    { id: 'resultNotifications', path: '/profile/result-notifications', label: 'Nhận thông báo', icon: 'fa-solid fa-trophy' },
     { id: 'settings', path: '/profile/settings', label: 'Bảo mật', icon: 'fa-solid fa-shield-halved' },
 ];
 
 export const ProfilePage = ({ children }: { children?: React.ReactNode }) => {
     const { user, isUserLoading, handleUploadAvatar, uploadAvatarMutation, logout } = useAuth();
     const { token, isHydrated, openLoginModal } = useAuthStore();
-    const { unreadCount } = useNotifications(4);
+    const { unreadCount } = useNotificationUnreadCount();
     const { pendingCount: pendingRefundCount } = useMyRefundPendingCount();
     const { data: pendingPayoutRes } = useMyPrizePayoutPendingCount();
     const pendingPayoutCount = pendingPayoutRes?.data ?? 0;
@@ -134,7 +132,7 @@ export const ProfilePage = ({ children }: { children?: React.ReactNode }) => {
                         <Breadcrumb 
                             items={[
                                 { label: 'Trang chủ', to: '/' },
-                                { label: 'Tài khoản', to: '/profile/overview' },
+                                { label: 'Tài khoản', to: '/profile/info' },
                                 { label: activeTabObj.label }
                             ]} 
                         />
@@ -187,9 +185,9 @@ export const ProfilePage = ({ children }: { children?: React.ReactNode }) => {
 
                                     {/* Info */}
                                     <div className="relative z-10 w-full px-4 flex flex-col items-center">
-                                        <h2 className="text-[18px] font-black text-[#212B36] mb-2">{user.fullName || user.username}</h2>
-                                        <p className="text-[12px] font-medium text-[#454F5B] mb-0.5">{user.email || 'john.doe@gmail.com'}</p>
-                                        <p className="text-[12px] font-medium text-[#454F5B]">{user.phone || 'Chưa cập nhật'}</p>
+                                        <h2 className="text-[20px] font-black text-[#212B36] mb-2">{user.fullName || user.username}</h2>
+                                        <p className="text-[13px] font-medium text-[#454F5B] mb-0.5">{user.email || 'john.doe@gmail.com'}</p>
+                                        <p className="text-[13px] font-medium text-[#454F5B]">{user.phone || 'Chưa cập nhật'}</p>
                                     </div>
                                 </div>
 
@@ -202,16 +200,16 @@ export const ProfilePage = ({ children }: { children?: React.ReactNode }) => {
                                                 <Link
                                                     key={tab.id}
                                                     href={tab.path}
-                                                    className={`relative flex items-center justify-between px-6 py-3 text-[13px] font-medium transition-all outline-none cursor-pointer text-left overflow-hidden group
+                                                    className={`relative flex items-center justify-between px-6 py-3.5 text-[15px] font-medium transition-all outline-none cursor-pointer text-left overflow-hidden group
                                                     ${isActive ? 'bg-gradient-to-r from-[#FFF4F4] to-white text-[#c80f11]' : 'text-[#454F5B] hover:bg-[#FAFBFC] hover:text-[#212B36]'}
                                                 `}
                                                 >
                                                     <div className="flex items-center gap-3 relative z-10">
-                                                        <i className={`${tab.icon} w-5 text-center text-[16px] transition-colors ${isActive ? 'text-[#c80f11]' : 'text-[#919EAB] group-hover:text-[#454F5B]'}`}></i>
+                                                        <i className={`${tab.icon} w-5 text-center text-[17px] transition-colors ${isActive ? 'text-[#c80f11]' : 'text-[#919EAB] group-hover:text-[#454F5B]'}`}></i>
                                                         <span>{tab.label}</span>
                                                     </div>
                                                     {tab.badge != null && tab.badge > 0 && (
-                                                        <span className="bg-[#ee1314] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] h-[18px] inline-flex items-center justify-center relative z-10 shrink-0 ml-2">
+                                                        <span className="bg-[#ee1314] text-white text-[11px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] h-[20px] inline-flex items-center justify-center relative z-10 shrink-0 ml-2">
                                                             {tab.badge > 99 ? '99+' : tab.badge}
                                                         </span>
                                                     )}
@@ -240,7 +238,7 @@ export const ProfilePage = ({ children }: { children?: React.ReactNode }) => {
                             </div>
 
                             {/* Support Widget */}
-                            {(pathname === ROUTES.PUBLIC.PROFILE.ROOT || pathname === ROUTES.PUBLIC.PROFILE.OVERVIEW) && (
+                            {(pathname === ROUTES.PUBLIC.PROFILE.ROOT || pathname === ROUTES.PUBLIC.PROFILE.INFO) && (
                                 <div
                                     className="rounded-[20px] p-5 relative overflow-hidden flex flex-col justify-center min-h-[140px] bg-cover bg-center shadow-sm"
                                     style={{ backgroundImage: `url('${PROFILE_BANNERS[3]}')` }}

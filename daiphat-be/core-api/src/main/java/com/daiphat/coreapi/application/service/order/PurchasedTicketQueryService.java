@@ -9,10 +9,12 @@ import com.daiphat.coreapi.application.port.out.payout.PrizePayoutRequestReposit
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryResultRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.PurchasedTicketQueryRepositoryPort;
 import com.daiphat.coreapi.application.service.payout.PrizePayoutEligibilityService;
+import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryResultStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.SerialPayoutState;
 import com.daiphat.coreapi.domain.model.enums.order.TicketDrawResultStatus;
 import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutChannel;
+import com.daiphat.coreapi.domain.model.enums.payout.PrizeRedemptionZone;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryResultDetailModel;
 import com.daiphat.coreapi.domain.model.lotteries.PrizeStructureModel;
 import com.daiphat.coreapi.domain.model.payout.PrizePayoutRequestModel;
@@ -180,14 +182,30 @@ public class PurchasedTicketQueryService implements PurchasedTicketQueryPort {
 
         PrizePayoutChannel claimChannel = null;
         boolean canClaimOnline = false;
+        LocalDate customerRedemptionDeadline = null;
+        LocalDate issuerRedemptionDeadline = null;
+        PrizeRedemptionZone redemptionZone = null;
+        Integer daysRemainingToIssuer = null;
         if (drawResultStatus == TicketDrawResultStatus.WON && prizeAmount != null) {
             claimChannel = prizePayoutEligibilityService.resolveClaimChannel(detail, serial, prizeAmount);
             boolean onlineLocked = prizePayoutEligibilityService.isOnlineClaimLocked(serial.getId());
             if (onlineLocked) {
                 claimChannel = PrizePayoutChannel.IN_PERSON;
             }
+            try {
+                var deadlines = prizePayoutEligibilityService.resolveRedemptionDeadlines(detail, serial);
+                customerRedemptionDeadline = deadlines.customerDeadlineDate();
+                issuerRedemptionDeadline = deadlines.issuerDeadlineDate();
+                redemptionZone = deadlines.zone();
+                daysRemainingToIssuer = deadlines.daysRemainingToIssuer();
+            } catch (DomainException ignored) {
+                // Still return the ticket row without deadline metadata.
+            }
+            boolean withinCustomerWindow = redemptionZone == null
+                    || redemptionZone == PrizeRedemptionZone.WITHIN_CUSTOMER;
             canClaimOnline = claimChannel == PrizePayoutChannel.ONLINE
                     && !onlineLocked
+                    && withinCustomerWindow
                     && (payoutState == SerialPayoutState.NONE)
                     && (latestRequest == null
                     || (latestRequest.getStatus() != com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutRequestStatus.PENDING
@@ -202,6 +220,7 @@ public class PurchasedTicketQueryService implements PurchasedTicketQueryPort {
                 .serialId(serial.getId())
                 .serialNumber(serial.getSerialNumber())
                 .serialStatus(serial.getStatus())
+                .orderDetailStatus(detail.getStatus())
                 .payoutState(payoutState)
                 .numbers(ticket.getNumbers())
                 .stationName(stationName)
@@ -216,9 +235,16 @@ public class PurchasedTicketQueryService implements PurchasedTicketQueryPort {
                 .activePayoutStatus(latestRequest != null ? latestRequest.getStatus() : null)
                 .orderType(order.getOrderType())
                 .receiveType(order.getReceiveType())
-                .actualPickedUpAt(order.getActualPickedUpAt())
+                // Prefer line handover time so mixed orders do not mark rejected lines as picked up.
+                .actualPickedUpAt(detail.getHandedOverAt())
+                .handedOverAt(detail.getHandedOverAt())
+                .rejectedAt(detail.getRejectedAt())
                 .claimChannel(claimChannel)
                 .canClaimOnline(canClaimOnline)
+                .customerRedemptionDeadline(customerRedemptionDeadline)
+                .issuerRedemptionDeadline(issuerRedemptionDeadline)
+                .redemptionZone(redemptionZone)
+                .daysRemainingToIssuer(daysRemainingToIssuer)
                 .build();
     }
 

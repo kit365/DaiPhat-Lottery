@@ -102,6 +102,7 @@ public interface LotteryTicketApplicationMapper {
         List<LotteryTicketSerialResponse> serialResponses = null;
         if (model.getSerials() != null) {
             serialResponses = model.getSerials().stream()
+                .filter(LotteryTicketSerialModel::isVisibleInventory)
                 .map(this::toSerialResponse)
                 .toList();
         }

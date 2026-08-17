@@ -6,7 +6,6 @@
   "scripts": {
     "dev": "next dev -p 5173",
     "dev:turbo": "next dev --turbo -p 5173",
-    "dev:clean": "node ./scripts/clean-next.mjs && next dev -p 5173",
     "build": "next build",
     "start": "next start -p 5173",
     "lint": "next lint"
@@ -18,11 +17,6 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
-    "@fullcalendar/daygrid": "^6.1.20",
-    "@fullcalendar/interaction": "^6.1.20",
-    "@fullcalendar/list": "^6.1.20",
-    "@fullcalendar/react": "^6.1.20",
-    "@fullcalendar/timegrid": "^6.1.20",
     "@hookform/resolvers": "^5.2.2",
     "@mui/icons-material": "^7.3.2",
     "@mui/material": "^7.3.2",
@@ -42,8 +36,10 @@
     "@types/sockjs-client": "^1.5.4",
     "apexcharts": "^5.6.0",
     "axios": "^1.13.2",
+    "canvas-confetti": "^1.9.4",
     "date-fns": "^4.4.0",
     "dayjs": "^1.11.19",
+    "exceljs": "^4.4.0",
     "framer-motion": "^12.23.24",
     "immer": "^10.2.0",
     "js-cookie": "^3.0.5",
@@ -67,6 +63,7 @@
   "devDependencies": {
     "@eslint/js": "^9.36.0",
     "@next/bundle-analyzer": "^15.5.23",
+    "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^24.10.1",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

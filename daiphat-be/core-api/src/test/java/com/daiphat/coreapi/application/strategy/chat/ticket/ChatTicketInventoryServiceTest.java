@@ -56,7 +56,7 @@ class ChatTicketInventoryServiceTest {
     }
 
     @Test
-    void findAvailable_skipsExcludedIdsAndReturnsNextTickets() {
+    void findAvailable_skipsExcludedIdsAndReturnsRemainingTickets() {
         String sellable = defaultSellableDate();
         when(lotteryTicketServicePort.getPublicTickets(
                 eq(1), eq(40), isNull(), isNull(), eq(sellable), isNull(), eq("numbers"), eq("asc")
@@ -77,8 +77,29 @@ class ChatTicketInventoryServiceTest {
                 null, null, "today", 5, List.of(1L, 2L, 3L, 4L, 5L)
         );
 
-        assertThat(result).extracting(LotteryTicketResponse::id).containsExactly(6L, 7L);
-        assertThat(result).extracting(LotteryTicketResponse::numbers).containsExactly("020036", "020043");
+        assertThat(result).extracting(LotteryTicketResponse::id).containsExactlyInAnyOrder(6L, 7L);
+        assertThat(result).extracting(LotteryTicketResponse::numbers).containsExactlyInAnyOrder("020036", "020043");
+    }
+
+    @Test
+    void findAvailable_picksRandomSubsetInsteadOfSequentialOrder() {
+        String sellable = defaultSellableDate();
+        List<LotteryTicketResponse> inventory = new java.util.ArrayList<>();
+        for (long id = 1; id <= 40; id++) {
+            inventory.add(ticket(String.format("%06d", 700_000 + id), id, "A"));
+        }
+        when(lotteryTicketServicePort.getPublicTickets(
+                eq(1), eq(40), isNull(), isNull(), eq(sellable), isNull(), eq("numbers"), eq("asc")
+        )).thenReturn(pageOf(inventory, true));
+
+        List<LotteryTicketResponse> first = service.findAvailable(null, null, "today", 5);
+        List<LotteryTicketResponse> second = service.findAvailable(null, null, "today", 5);
+
+        assertThat(first).hasSize(5);
+        assertThat(second).hasSize(5);
+        // Not the first five numbers in ascending order (sequential bug).
+        assertThat(first).extracting(LotteryTicketResponse::numbers)
+                .isNotEqualTo(List.of("700001", "700002", "700003", "700004", "700005"));
     }
 
     @Test

@@ -54,7 +54,13 @@ public interface OrderDetailRepository extends JpaRepository<OrderDetailEntity, 
             select od
             from OrderDetailEntity od
             join fetch od.order o
-            where od.status = com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.ACTIVE
+            where od.status in (
+                    com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.HANDOVER_IN_PROGRESS,
+                    com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.PROXY_HOLDING)
+              and o.status in (
+                    com.daiphat.coreapi.domain.model.enums.order.OrderStatus.PAID,
+                    com.daiphat.coreapi.domain.model.enums.order.OrderStatus.PREPARING,
+                    com.daiphat.coreapi.domain.model.enums.order.OrderStatus.PENDING_PICKUP)
               and (
                     od.lotteryTicketSerial.id = :serialId
                     or od.replacedByTicketSerial.id = :serialId
@@ -73,7 +79,13 @@ public interface OrderDetailRepository extends JpaRepository<OrderDetailEntity, 
             left join fetch st.station
             left join fetch rst.station
             left join fetch o.user
-            where od.status = com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.ACTIVE
+            where od.status in (
+                    com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.HANDOVER_IN_PROGRESS,
+                    com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.PROXY_HOLDING)
+              and o.status in (
+                    com.daiphat.coreapi.domain.model.enums.order.OrderStatus.PAID,
+                    com.daiphat.coreapi.domain.model.enums.order.OrderStatus.PREPARING,
+                    com.daiphat.coreapi.domain.model.enums.order.OrderStatus.PENDING_PICKUP)
               and (
                     lower(s.serialNumber) = lower(:serialNumber)
                     or lower(rs.serialNumber) = lower(:serialNumber)
@@ -92,7 +104,13 @@ public interface OrderDetailRepository extends JpaRepository<OrderDetailEntity, 
             left join fetch st.station
             left join fetch rst.station
             left join fetch o.user
-            where od.status = com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.ACTIVE
+            where od.status in (
+                    com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.HANDOVER_IN_PROGRESS,
+                    com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.PROXY_HOLDING)
+              and o.status in (
+                    com.daiphat.coreapi.domain.model.enums.order.OrderStatus.PAID,
+                    com.daiphat.coreapi.domain.model.enums.order.OrderStatus.PREPARING,
+                    com.daiphat.coreapi.domain.model.enums.order.OrderStatus.PENDING_PICKUP)
               and lower(o.orderCode) = lower(:orderCode)
             """)
     List<OrderDetailEntity> findActiveByOrderCode(@Param("orderCode") String orderCode);
@@ -108,7 +126,13 @@ public interface OrderDetailRepository extends JpaRepository<OrderDetailEntity, 
             left join fetch st.station
             left join fetch rst.station
             left join fetch o.user
-            where od.status = com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.ACTIVE
+            where od.status in (
+                    com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.HANDOVER_IN_PROGRESS,
+                    com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.PROXY_HOLDING)
+              and o.status in (
+                    com.daiphat.coreapi.domain.model.enums.order.OrderStatus.PAID,
+                    com.daiphat.coreapi.domain.model.enums.order.OrderStatus.PREPARING,
+                    com.daiphat.coreapi.domain.model.enums.order.OrderStatus.PENDING_PICKUP)
               and (
                     (s.stationId = :stationId and s.drawDate = :drawDate and lower(s.serialNumber) = lower(:serialNumber))
                     or (rs.stationId = :stationId and rs.drawDate = :drawDate and lower(rs.serialNumber) = lower(:serialNumber))

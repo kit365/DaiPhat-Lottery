@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from 'react';
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient, type UseQueryOptions } from '@tanstack/react-query';
 import {
     createSupplier,
     getActiveSuppliers,
@@ -11,18 +11,29 @@ import {
 } from '../services/supplierService';
 import type {
     CreateLotterySupplierPayload,
+    LotterySupplier,
     SupplierListParams,
     UpdateLotterySupplierPayload,
 } from '../types/supplier.type';
 import { QUERY_KEYS } from '../constants/queryKeys';
 import { useServerPagination } from '../../../shared/data-grid/useServerPagination';
+import type { ApiResponse, PageResponse } from '@/types/api.type';
+
+type SuppliersQueryOptions = Omit<
+    UseQueryOptions<
+        ApiResponse<PageResponse<LotterySupplier>>,
+        Error,
+        PageResponse<LotterySupplier> | undefined
+    >,
+    'queryKey' | 'queryFn' | 'select'
+>;
 
 /** List theo params — cùng pattern `useStations(params)`. */
-export const useSuppliers = (params?: SupplierListParams, options?: any) => {
+export const useSuppliers = (params?: SupplierListParams, options?: SuppliersQueryOptions) => {
     return useQuery({
         queryKey: [QUERY_KEYS.SUPPLIERS, params],
         queryFn: () => getSuppliers(params),
-        select: (res: any) => res.data,
+        select: (res: ApiResponse<PageResponse<LotterySupplier>>) => res.data,
         ...options,
     });
 };
@@ -41,7 +52,7 @@ export const useSupplierDetail = (id?: string | number) => {
         queryKey: [QUERY_KEYS.SUPPLIER_DETAIL, id],
         queryFn: () => getSupplierById(id!),
         enabled: !!id,
-        select: (res: any) => res.data ?? null,
+        select: (res: ApiResponse<LotterySupplier>) => res.data ?? null,
     });
 };
 

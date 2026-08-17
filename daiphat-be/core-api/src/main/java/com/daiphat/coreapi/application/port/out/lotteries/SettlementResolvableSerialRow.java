@@ -11,6 +11,8 @@ public record SettlementResolvableSerialRow(
         LotteryTicketSerialStatus status,
         TicketCondition ticketCondition,
         String stationName,
-        BigDecimal importCost
+        BigDecimal importCost,
+        Long importBatchId,
+        String importBatchCode
 ) {
 }

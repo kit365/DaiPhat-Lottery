@@ -55,7 +55,7 @@ public class PrizePayoutEventListener {
             case APPROVED -> "Yêu cầu trả thưởng đã duyệt";
             case COMPLETED -> "Trả thưởng thành công";
             case REJECTED -> "Yêu cầu trả thưởng bị từ chối";
-            case MANUAL_RESOLUTION -> "Trả thưởng online bị khóa";
+            case MANUAL_RESOLUTION -> "Trả thưởng trực tuyến bị khóa";
             case CANCELLED -> "Yêu cầu trả thưởng đã hủy";
         };
     }
