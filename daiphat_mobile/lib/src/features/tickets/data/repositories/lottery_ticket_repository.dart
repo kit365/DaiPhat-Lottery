@@ -30,6 +30,8 @@ class LotteryTicketRepository {
     int size = defaultPageSize,
     String? drawDate,
     String? search,
+    List<String>? tailRanges,
+    List<String>? numberTypes,
   }) async {
     final response = await _apiService.getPublicLotteryTickets(
       page: page,
@@ -37,6 +39,8 @@ class LotteryTicketRepository {
       drawDate: drawDate,
       search: search,
       searchMode: 'CONTAINS',
+      tailRanges: tailRanges,
+      numberTypes: numberTypes,
     );
 
     // Ưu tiên cờ isLast từ API; fallback theo totalRecords.
@@ -54,5 +58,9 @@ class LotteryTicketRepository {
 
   Future<LotteryTicket> fetchTicketDetail(int id) {
     return _apiService.getLotteryTicketDetail(id);
+  }
+
+  Future<List<String>> fetchStationNamesForDrawDate(String drawDate) {
+    return _apiService.getStationNamesForDrawDate(drawDate);
   }
 }
