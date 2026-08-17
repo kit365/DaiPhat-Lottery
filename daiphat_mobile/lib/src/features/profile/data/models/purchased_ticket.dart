@@ -25,6 +25,10 @@ class PurchasedTicket {
   final String? actualPickedUpAt;
   final String? claimChannel;
   final bool? canClaimOnline;
+  final String? customerRedemptionDeadline;
+  final String? issuerRedemptionDeadline;
+  final String? redemptionZone;
+  final int? daysRemainingToIssuer;
 
   const PurchasedTicket({
     required this.orderId,
@@ -51,6 +55,10 @@ class PurchasedTicket {
     this.actualPickedUpAt,
     this.claimChannel,
     this.canClaimOnline,
+    this.customerRedemptionDeadline,
+    this.issuerRedemptionDeadline,
+    this.redemptionZone,
+    this.daysRemainingToIssuer,
   });
 
   factory PurchasedTicket.fromJson(Map<String, dynamic> json) {
@@ -81,6 +89,10 @@ class PurchasedTicket {
       actualPickedUpAt: json['actualPickedUpAt']?.toString(),
       claimChannel: json['claimChannel']?.toString(),
       canClaimOnline: json['canClaimOnline'] as bool?,
+      customerRedemptionDeadline: json['customerRedemptionDeadline']?.toString(),
+      issuerRedemptionDeadline: json['issuerRedemptionDeadline']?.toString(),
+      redemptionZone: json['redemptionZone']?.toString(),
+      daysRemainingToIssuer: json['daysRemainingToIssuer'] as int?,
     );
   }
 
