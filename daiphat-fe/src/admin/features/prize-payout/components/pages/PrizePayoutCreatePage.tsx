@@ -39,6 +39,8 @@ import {
     formatPrizePayoutCurrency,
     PrizePayoutLookupItem,
     PrizePayoutPaymentMethod,
+    PrizeRedemptionZone,
+    PRIZE_PAYOUT_PAYMENT_METHOD_LABELS,
     PRIZE_PAYOUT_TICKET_ORIGIN_LABELS,
     PRIZE_PAYOUT_VERIFICATION_LABELS,
     SERIAL_PAYOUT_STATE_LABELS,
@@ -56,10 +58,21 @@ import { Station } from '@/admin/features/station/types/station.type';
 import { TransferEvidencePreview } from '@/admin/features/refund/components/TransferEvidencePreview';
 import { UploadSingleFile } from '@/admin/components/upload/UploadSingleFile';
 import { AppToast as toast } from '@/utils/toast.util';
+import { AdminConfirmDialog } from '@/admin/components/ui/AdminConfirmDialog';
+import {
+    ContractDocumentViewerDialog,
+    mapContractPdfErrorMessage,
+    SignedContractSaveDialog,
+    SignedContractUploadDialog,
+} from '@/admin/shared/contracts';
 import {
     clearPrizePayoutCreateDraft,
     writePrizePayoutCreateDraft,
 } from '../../utils/prizePayoutCreateDraftStorage';
+import {
+    CASH_DENOMINATION_INVALID_MESSAGE,
+    isValidCashDenominationAmount,
+} from '../../utils/cashDenomination';
 import {
     MoneySummary,
     SectionCard,
@@ -73,6 +86,9 @@ const SIGNED_CONTRACT_ACCEPT = {
     'image/png': ['.png'],
     'application/pdf': ['.pdf'],
 } as const;
+
+const SIGNED_DOC_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
+const SIGNED_DOC_MAX_SIZE = 10 * 1024 * 1024;
 
 const headerButtonSx = {
     height: 36,
@@ -156,10 +172,16 @@ export const PrizePayoutCreatePage = () => {
     const [uploadingTransferEvidence, setUploadingTransferEvidence] = useState(false);
     const [uploadingContract, setUploadingContract] = useState(false);
     const [printingContract, setPrintingContract] = useState(false);
+    const [previewSignedFile, setPreviewSignedFile] = useState<File | null>(null);
+    const [pendingSignedFile, setPendingSignedFile] = useState<File | null>(null);
+    const [saveSignedConfirmOpen, setSaveSignedConfirmOpen] = useState(false);
+    const [viewSignedOpen, setViewSignedOpen] = useState(false);
     const [manualConfirmed, setManualConfirmed] = useState(false);
     const [paymentMethod, setPaymentMethod] = useState<PrizePayoutPaymentMethod>('CASH');
     const [cashAmount, setCashAmount] = useState('');
     const [cashHandedConfirmed, setCashHandedConfirmed] = useState(false);
+    const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
+    const [lateRedemptionAck, setLateRedemptionAck] = useState(false);
 
     const selectedItems = useMemo(
         () => lookupItems.filter((item) => selectedIds.includes(item.orderDetailId)),
@@ -236,9 +258,60 @@ export const PrizePayoutCreatePage = () => {
                 recipientIdNumber: recipientIdNumber.trim(),
             });
         } catch (error) {
-            toast.error(error instanceof Error ? error.message : 'Không mở được hợp đồng PDF');
+            toast.error(
+                mapContractPdfErrorMessage(
+                    error instanceof Error ? error.message : undefined,
+                ),
+            );
         } finally {
             setPrintingContract(false);
+        }
+    };
+
+    const handlePendingSignedFileChange = (value: File | string | null) => {
+        if (!value || typeof value === 'string') {
+            setPreviewSignedFile(null);
+            if (!value) {
+                setPendingSignedFile(null);
+                setConfirmationContractUrl('');
+            }
+            return;
+        }
+
+        if (!SIGNED_DOC_TYPES.includes(value.type)) {
+            toast.error('Chỉ chấp nhận PDF, JPG hoặc PNG.');
+            setPreviewSignedFile(null);
+            return;
+        }
+        if (value.size > SIGNED_DOC_MAX_SIZE) {
+            toast.error('File quá lớn. Tối đa 10MB.');
+            setPreviewSignedFile(null);
+            return;
+        }
+
+        setPreviewSignedFile(value);
+    };
+
+    const handleStageSignedFile = (file: File) => {
+        setPendingSignedFile(file);
+        setPreviewSignedFile(null);
+        setConfirmationContractUrl('');
+    };
+
+    const handleConfirmSignedUpload = async (file: File) => {
+        try {
+            setUploadingContract(true);
+            const url = await prizePayoutAdminApi.uploadConfirmationContract(file);
+            setConfirmationContractUrl(url);
+            setPendingSignedFile(null);
+            setSaveSignedConfirmOpen(false);
+            toast.success('Đã tải bản hợp đồng đã ký.');
+        } catch (error) {
+            toast.error(
+                error instanceof Error ? error.message : 'Upload bản ký thất bại',
+            );
+        } finally {
+            setUploadingContract(false);
         }
     };
 
@@ -252,8 +325,24 @@ export const PrizePayoutCreatePage = () => {
     const remainingTransferAmount = Math.max(0, totalNet - parsedCashAmount);
     const isCashExceeds = paymentMethod === 'COMBINED' && parsedCashAmount > totalNet;
     const isPartialZeroCash = paymentMethod === 'COMBINED' && (!cashAmount || parsedCashAmount <= 0);
+    const isCashDenominationInvalid = paymentMethod === 'COMBINED'
+        && !isPartialZeroCash
+        && !isCashExceeds
+        && !isValidCashDenominationAmount(parsedCashAmount);
     const needsBankFields = paymentMethod === 'TRANSFER'
         || (paymentMethod === 'COMBINED' && remainingTransferAmount > 0 && !isCashExceeds && !isPartialZeroCash);
+
+    const selectedRedemptionZone = useMemo((): PrizeRedemptionZone | null => {
+        if (selectedItems.length === 0) return null;
+        const zones = selectedItems.map((item) => item.redemptionZone).filter(Boolean) as PrizeRedemptionZone[];
+        if (zones.includes('PAST_ISSUER_LOCKED')) return 'PAST_ISSUER_LOCKED';
+        if (zones.includes('PAST_CUSTOMER_URGENT')) return 'PAST_CUSTOMER_URGENT';
+        if (zones.includes('WITHIN_CUSTOMER') || zones.length === 0) return 'WITHIN_CUSTOMER';
+        return null;
+    }, [selectedItems]);
+
+    const hasLockedRedemption = selectedRedemptionZone === 'PAST_ISSUER_LOCKED';
+    const hasUrgentRedemption = selectedRedemptionZone === 'PAST_CUSTOMER_URGENT';
 
     const applySuggestedBankAccount = (acc: (typeof suggestedBankAccounts)[0]) => {
         setBankAccountNumber(acc.bankAccountNo || '');
@@ -422,60 +511,67 @@ export const PrizePayoutCreatePage = () => {
         );
     };
 
-    const handleCreate = () => {
+    const validateCreateInputs = (): boolean => {
         if (selectedItems.length === 0) {
             toast.error('Chọn ít nhất một vé trúng thưởng');
-            return;
+            return false;
         }
         if (!hasMatchProof) {
             toast.error('Thiếu bằng chứng đối chiếu số trên vé / KQXS');
-            return;
+            return false;
         }
         if (needsManualConfirm && !manualConfirmed) {
             toast.error('Cần đánh dấu xác nhận đã đối chiếu giấy tờ + vé gốc');
-            return;
+            return false;
         }
         if (!recipientFullName.trim() || !recipientIdNumber.trim()) {
             toast.error('Vui lòng nhập họ tên người nhận và số CCCD');
-            return;
+            return false;
         }
         if (!/^\d{9,12}$/.test(recipientIdNumber.trim())) {
             toast.error('Số CCCD/CMND phải có từ 9 đến 12 chữ số');
-            return;
+            return false;
         }
         if (needsIdImage && (!recipientIdImageUrl.trim() || !recipientIdImageBackUrl.trim())) {
             toast.error('Cần ảnh CCCD mặt trước và mặt sau');
-            return;
+            return false;
         }
         if (!confirmationContractUrl.trim()) {
             toast.error('Cần tải lên hợp đồng xác nhận trả thưởng');
-            return;
+            return false;
         }
         if (paymentMethod === 'COMBINED') {
             if (isPartialZeroCash) {
                 toast.error('Thanh toán kết hợp cần có phần tiền mặt lớn hơn 0đ');
-                return;
+                return false;
             }
             if (isCashExceeds) {
                 toast.error('Tiền mặt không được vượt quá tổng thực nhận');
-                return;
+                return false;
+            }
+            if (isCashDenominationInvalid) {
+                toast.error(CASH_DENOMINATION_INVALID_MESSAGE);
+                return false;
             }
             if (!cashHandedConfirmed) {
                 toast.error(`Cần xác nhận đã đưa ${parsedCashAmount.toLocaleString('vi-VN')}đ tiền mặt cho khách`);
-                return;
+                return false;
             }
         }
         if (needsBankFields && !transferReady) {
             const accountNoError = validateBankAccountNo(bankAccountNumber);
             setBankAccountNumberError(accountNoError);
             toast.error(accountNoError || 'Nhập đầy đủ thông tin chuyển khoản');
-            return;
+            return false;
         }
         if (needsBankFields && !transferEvidenceUrl.trim()) {
             toast.error('Cần tải ảnh biên lai chuyển khoản');
-            return;
+            return false;
         }
+        return true;
+    };
 
+    const submitCreate = () => {
         const normalizedMethod: PrizePayoutPaymentMethod =
             paymentMethod === 'COMBINED' && remainingTransferAmount === 0 ? 'CASH' : paymentMethod;
 
@@ -498,11 +594,14 @@ export const PrizePayoutCreatePage = () => {
                 manualOwnershipConfirmed: manualConfirmed || needsManualConfirm,
                 transferEvidenceUrl: needsBankFields ? transferEvidenceUrl.trim() : undefined,
                 confirmationContractUrl: confirmationContractUrl.trim(),
+                acknowledgeLateRedemption: hasUrgentRedemption ? lateRedemptionAck : undefined,
             },
             {
                 onSuccess: (response) => {
                     if (response.success && response.data?.claims?.length) {
                         const firstId = response.data.claims[0].id;
+                        setCompleteConfirmOpen(false);
+                        setLateRedemptionAck(false);
                         clearPrizePayoutCreateDraft();
                         toast.success('Đã hoàn tất trả thưởng tại quầy');
                         router.push(`/${prefixAdmin}/prize-payouts/detail/${firstId}`);
@@ -510,6 +609,16 @@ export const PrizePayoutCreatePage = () => {
                 },
             }
         );
+    };
+
+    const handleCreate = () => {
+        if (!validateCreateInputs()) return;
+        if (hasLockedRedemption) {
+            toast.error('Đã quá hạn lĩnh thưởng với nhà đài — không thể trả thưởng cho vé này.');
+            return;
+        }
+        setLateRedemptionAck(false);
+        setCompleteConfirmOpen(true);
     };
 
     const lookupReady = lookupMode === 'ORDER'
@@ -523,12 +632,19 @@ export const PrizePayoutCreatePage = () => {
         || !hasMatchProof
         || createMutation.isPending
         || !identityDocsReady
-        || (paymentMethod === 'COMBINED' && (!cashHandedConfirmed || isPartialZeroCash || isCashExceeds))
+        || hasLockedRedemption
+        || (paymentMethod === 'COMBINED' && (
+            !cashHandedConfirmed
+            || isPartialZeroCash
+            || isCashExceeds
+            || isCashDenominationInvalid
+        ))
         || (needsBankFields && (!transferReady || !transferEvidenceUrl.trim()));
 
     const submitBlockerHint = (() => {
         if (selectedItems.length === 0) return 'Chọn ít nhất một vé trúng thưởng.';
         if (!hasMatchProof) return 'Thiếu đối chiếu số trên vé / KQXS.';
+        if (hasLockedRedemption) return 'Vé đã quá hạn lĩnh nhà đài — không thể trả thưởng.';
         if (!identityDocsReady) {
             if (!recipientFullName.trim() || !isRecipientIdValid) return 'Nhập họ tên và CCCD (9–12 số).';
             if (needsIdImage && (!recipientIdImageUrl.trim() || !recipientIdImageBackUrl.trim())) {
@@ -538,8 +654,13 @@ export const PrizePayoutCreatePage = () => {
             if (needsManualConfirm && !manualConfirmed) return 'Xác nhận đã đối chiếu giấy tờ & vé gốc.';
             return 'Hoàn tất định danh trước khi thanh toán.';
         }
-        if (paymentMethod === 'COMBINED' && (isPartialZeroCash || isCashExceeds || !cashHandedConfirmed)) {
-            return 'Xác nhận phần tiền mặt kết hợp.';
+        if (hasUrgentRedemption) {
+            return 'Vé quá hạn khách — cần xác nhận ưu tiên lĩnh khi hoàn tất.';
+        }
+        if (paymentMethod === 'COMBINED' && (isPartialZeroCash || isCashExceeds || isCashDenominationInvalid || !cashHandedConfirmed)) {
+            return isCashDenominationInvalid
+                ? CASH_DENOMINATION_INVALID_MESSAGE
+                : 'Xác nhận phần tiền mặt kết hợp.';
         }
         if (needsBankFields && !transferReady) return 'Nhập đầy đủ ngân hàng / STK / chủ TK chính chủ.';
         if (needsBankFields && !transferEvidenceUrl.trim()) return 'Tải ảnh biên lai chuyển khoản.';
@@ -952,10 +1073,6 @@ export const PrizePayoutCreatePage = () => {
                         {selectedItems.length > 0 && (
                             <SectionCard title="4. Hợp đồng xác nhận trả thưởng" icon="solar:document-bold-duotone">
                                 <Stack spacing={1.5}>
-                                    <Alert severity="info" sx={{ borderRadius: '10px' }}>
-                                        In hợp đồng từ hệ thống (cùng thông tin pháp lý Bên A với hợp đồng cộng tác bán vé số),
-                                        đưa khách ký, rồi tải bản đã ký (PDF/ảnh).
-                                    </Alert>
                                     <Button
                                         variant="outlined"
                                         startIcon={
@@ -965,27 +1082,73 @@ export const PrizePayoutCreatePage = () => {
                                         }
                                         disabled={!canPrintContract || printingContract || createMutation.isPending}
                                         onClick={() => void handlePrintContract()}
-                                        sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px', alignSelf: 'flex-start' }}
+                                        sx={{
+                                            alignSelf: 'flex-start',
+                                            textTransform: 'none',
+                                            fontWeight: 700,
+                                            borderRadius: '8px',
+                                        }}
                                     >
                                         {printingContract ? 'Đang tạo hợp đồng...' : 'Xem / In hợp đồng'}
                                     </Button>
-                                    <UploadSingleFile
-                                        value={confirmationContractUrl}
-                                        onChange={setConfirmationContractUrl}
-                                        customUpload={prizePayoutAdminApi.uploadConfirmationContract}
-                                        autoUpload
-                                        onUploadingChange={setUploadingContract}
-                                        disabled={uploadingContract || createMutation.isPending}
-                                        label="Bản hợp đồng đã ký"
-                                        required
-                                        compact
-                                        accept={SIGNED_CONTRACT_ACCEPT}
-                                    />
-                                    {confirmationContractUrl && (
-                                        <Box sx={{ mt: 0.5, maxHeight: 160, overflow: 'hidden', borderRadius: 1 }}>
-                                            <TransferEvidencePreview imageUrl={confirmationContractUrl} title="Hợp đồng" showCaption />
-                                        </Box>
+                                    {!canPrintContract && (
+                                        <Typography variant="caption" color="text.secondary">
+                                            Nhập họ tên và số CCCD người nhận để mở in hợp đồng.
+                                        </Typography>
                                     )}
+                                    <UploadSingleFile
+                                        label="Bản hợp đồng đã ký"
+                                        value={pendingSignedFile}
+                                        onChange={handlePendingSignedFileChange}
+                                        useRawFile
+                                        disabled={uploadingContract || createMutation.isPending}
+                                        maxFileSizeMb={10}
+                                        required={!confirmationContractUrl.trim()}
+                                        accept={SIGNED_CONTRACT_ACCEPT}
+                                        onPreview={() => {
+                                            if (pendingSignedFile) setPreviewSignedFile(pendingSignedFile);
+                                        }}
+                                    />
+                                    {pendingSignedFile ? (
+                                        <Stack direction="row" justifyContent="flex-end" sx={{ width: '100%' }}>
+                                            <Button
+                                                variant="contained"
+                                                onClick={() => setSaveSignedConfirmOpen(true)}
+                                                disabled={uploadingContract || createMutation.isPending}
+                                                sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px' }}
+                                            >
+                                                Lưu bản ký vào phiếu trả thưởng
+                                            </Button>
+                                        </Stack>
+                                    ) : null}
+                                    {confirmationContractUrl ? (
+                                        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                                            <Typography variant="body2" color="success.main" sx={{ fontWeight: 600 }}>
+                                                Đã gắn bản hợp đồng đã ký
+                                            </Typography>
+                                            <Button
+                                                variant="outlined"
+                                                size="small"
+                                                startIcon={<Icon icon="solar:document-bold-duotone" />}
+                                                onClick={() => setViewSignedOpen(true)}
+                                                sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px' }}
+                                            >
+                                                Xem bản đã ký
+                                            </Button>
+                                            <Button
+                                                variant="text"
+                                                size="small"
+                                                color="inherit"
+                                                onClick={() => {
+                                                    setConfirmationContractUrl('');
+                                                    setPendingSignedFile(null);
+                                                }}
+                                                sx={{ textTransform: 'none' }}
+                                            >
+                                                Gỡ bản ký
+                                            </Button>
+                                        </Stack>
+                                    ) : null}
                                 </Stack>
                             </SectionCard>
                         )}
@@ -997,13 +1160,26 @@ export const PrizePayoutCreatePage = () => {
                     <Stack spacing={2.5} sx={{ width: '100%' }}>
                         {/* Money Summary Card */}
                         {selectedItems.length > 0 ? (
-                            <MoneySummary
-                                gross={totalGross}
-                                commission={totalCommission}
-                                tax={totalTax}
-                                net={totalNet}
-                                ticketCount={selectedItems.length}
-                            />
+                            <>
+                                <MoneySummary
+                                    gross={totalGross}
+                                    commission={totalCommission}
+                                    tax={totalTax}
+                                    net={totalNet}
+                                    ticketCount={selectedItems.length}
+                                />
+                                {hasLockedRedemption && (
+                                    <Alert severity="error" sx={{ borderRadius: '10px' }}>
+                                        Vé đã <strong>quá hạn lĩnh nhà đài</strong> — không thể hoàn tất trả thưởng.
+                                    </Alert>
+                                )}
+                                {hasUrgentRedemption && (
+                                    <Alert severity="warning" sx={{ borderRadius: '10px' }}>
+                                        Vé đã <strong>quá hạn đổi thưởng của khách</strong> nhưng còn trong hạn nhà đài.
+                                        Cần xác nhận ưu tiên mang đi lĩnh khi hoàn tất.
+                                    </Alert>
+                                )}
+                            </>
                         ) : (
                             <SectionCard title="Tổng tiền thưởng" icon="solar:wallet-money-bold-duotone">
                                 <Box sx={{ py: 4, textCenter: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
@@ -1065,7 +1241,7 @@ export const PrizePayoutCreatePage = () => {
                                                 fullWidth
                                                 size="small"
                                                 label="Chi tiền mặt tại quầy"
-                                                placeholder="VD: 10000000"
+                                                placeholder="VD: 1.000.000"
                                                 value={cashAmount}
                                                 onChange={(e) => {
                                                     const rawValue = e.target.value.replace(/\D/g, '');
@@ -1080,13 +1256,15 @@ export const PrizePayoutCreatePage = () => {
                                                     endAdornment: <InputAdornment position="end">đ</InputAdornment>,
                                                 }}
                                                 sx={{ mb: 1.5, bgcolor: 'background.paper' }}
-                                                error={isCashExceeds || isPartialZeroCash}
+                                                error={isCashExceeds || isPartialZeroCash || isCashDenominationInvalid}
                                                 helperText={
                                                     isCashExceeds
                                                         ? 'Tiền mặt không được vượt quá tổng thực nhận'
                                                         : (isPartialZeroCash
                                                             ? 'Thanh toán kết hợp cần có phần tiền mặt lớn hơn 0đ'
-                                                            : '')
+                                                            : (isCashDenominationInvalid
+                                                                ? CASH_DENOMINATION_INVALID_MESSAGE
+                                                                : 'Chỉ nhập số tiền theo mệnh giá 1.000đ (vd: 1.000, 5.000, 10.000…)'))
                                                 }
                                             />
                                             {!cashHandedConfirmed ? (
@@ -1094,7 +1272,7 @@ export const PrizePayoutCreatePage = () => {
                                                     variant="contained"
                                                     color="warning"
                                                     fullWidth
-                                                    disabled={isPartialZeroCash || isCashExceeds}
+                                                    disabled={isPartialZeroCash || isCashExceeds || isCashDenominationInvalid}
                                                     onClick={() => setCashHandedConfirmed(true)}
                                                     sx={{ fontWeight: 700, textTransform: 'none', borderRadius: '8px', boxShadow: 'none' }}
                                                 >
@@ -1250,7 +1428,11 @@ export const PrizePayoutCreatePage = () => {
                                         fullWidth
                                         onClick={handleCreate}
                                         disabled={submitDisabled || anyUploading}
-                                        startIcon={createMutation.isPending ? <CircularProgress size={16} color="inherit" /> : <Icon icon="solar:check-read-bold-duotone" />}
+                                        startIcon={
+                                            createMutation.isPending
+                                                ? <CircularProgress size={16} color="inherit" />
+                                                : undefined
+                                        }
                                         sx={{ height: 40, fontWeight: 700, textTransform: 'none', borderRadius: '8px', boxShadow: 'none' }}
                                     >
                                         {createMutation.isPending ? 'Đang hoàn tất…' : 'Hoàn tất trả thưởng tại quầy'}
@@ -1262,6 +1444,124 @@ export const PrizePayoutCreatePage = () => {
                 </Grid>
 
             </Grid>
+
+            <ContractDocumentViewerDialog
+                open={viewSignedOpen}
+                url={confirmationContractUrl}
+                title="Bản hợp đồng đã ký"
+                fileName="hop-dong-xac-nhan-tra-thuong-da-ky"
+                onClose={() => setViewSignedOpen(false)}
+            />
+
+            <SignedContractUploadDialog
+                open={!!previewSignedFile}
+                file={previewSignedFile}
+                uploading={false}
+                onClose={() => setPreviewSignedFile(null)}
+                onConfirm={handleStageSignedFile}
+                hint="File mới chỉ được giữ tạm trên trang. Bạn sẽ xác nhận tải lên hệ thống ở bước tiếp theo."
+            />
+
+            <SignedContractSaveDialog
+                open={saveSignedConfirmOpen}
+                file={pendingSignedFile}
+                saving={uploadingContract}
+                onClose={() => setSaveSignedConfirmOpen(false)}
+                onConfirm={() => {
+                    if (pendingSignedFile) void handleConfirmSignedUpload(pendingSignedFile);
+                }}
+                description="Chỉ sau khi xác nhận, bản ký mới được tải lên và gắn vào phiếu trả thưởng tại quầy."
+                confirmLabel="Tải bản ký lên"
+            />
+
+            <AdminConfirmDialog
+                open={completeConfirmOpen}
+                title="Xác nhận hoàn tất trả thưởng?"
+                maxWidth="sm"
+                loading={createMutation.isPending}
+                cancelLabel="Quay lại kiểm tra"
+                confirmLabel="Xác nhận hoàn tất"
+                confirmLoadingLabel="Đang hoàn tất…"
+                confirmDisabled={hasUrgentRedemption && !lateRedemptionAck}
+                onClose={() => {
+                    if (!createMutation.isPending) {
+                        setCompleteConfirmOpen(false);
+                        setLateRedemptionAck(false);
+                    }
+                }}
+                onConfirm={submitCreate}
+            >
+                <Stack spacing={1.5}>
+                    <Typography variant="body2" color="text.secondary">
+                        Vui lòng kiểm tra lại thông tin đã nhập trước khi hoàn tất. Thao tác này không thể hoàn tác trên quầy.
+                    </Typography>
+                    {hasUrgentRedemption && (
+                        <Alert severity="warning" sx={{ borderRadius: '10px' }}>
+                            Vé đã quá hạn đổi thưởng của khách. Chỉ tiếp tục nếu sẽ ưu tiên mang đi lĩnh trước hạn nhà đài.
+                        </Alert>
+                    )}
+                    <Box
+                        sx={{
+                            p: 1.75,
+                            borderRadius: '12px',
+                            bgcolor: 'var(--palette-background-neutral)',
+                            border: '1px solid var(--palette-divider)',
+                        }}
+                    >
+                        <Stack spacing={1}>
+                            <Typography variant="body2">
+                                <strong>Người nhận:</strong> {recipientFullName.trim() || '-'}
+                            </Typography>
+                            <Typography variant="body2">
+                                <strong>CCCD/CMND:</strong> {recipientIdNumber.trim() || '-'}
+                            </Typography>
+                            <Typography variant="body2">
+                                <strong>Số vé:</strong> {selectedItems.length}
+                            </Typography>
+                            <Typography variant="body2">
+                                <strong>Thực nhận:</strong> {formatPrizePayoutCurrency(totalNet)}
+                            </Typography>
+                            <Typography variant="body2">
+                                <strong>Thanh toán:</strong>{' '}
+                                {PRIZE_PAYOUT_PAYMENT_METHOD_LABELS[
+                                    paymentMethod === 'COMBINED' && remainingTransferAmount === 0
+                                        ? 'CASH'
+                                        : paymentMethod
+                                ]}
+                                {paymentMethod === 'COMBINED' && remainingTransferAmount > 0
+                                    ? ` (tiền mặt ${formatPrizePayoutCurrency(parsedCashAmount)} + CK ${formatPrizePayoutCurrency(remainingTransferAmount)})`
+                                    : ''}
+                            </Typography>
+                            {needsBankFields && (
+                                <Typography variant="body2">
+                                    <strong>Chuyển khoản:</strong>{' '}
+                                    {(selectedBank?.shortName || selectedBank?.name || '-')}
+                                    {' · '}
+                                    {bankAccountNumber.trim() || '-'}
+                                    {' · '}
+                                    {accountHolderName.trim().toUpperCase() || '-'}
+                                </Typography>
+                            )}
+                        </Stack>
+                    </Box>
+                    {hasUrgentRedemption && (
+                        <FormControlLabel
+                            control={
+                                <Checkbox
+                                    checked={lateRedemptionAck}
+                                    onChange={(e) => setLateRedemptionAck(e.target.checked)}
+                                    color="warning"
+                                />
+                            }
+                            label={
+                                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                    Đã hiểu vé sát/hết hạn khách — ưu tiên mang đi lĩnh trước hạn nhà đài
+                                </Typography>
+                            }
+                        />
+                    )}
+                </Stack>
+            </AdminConfirmDialog>
         </Box>
     );
 };
