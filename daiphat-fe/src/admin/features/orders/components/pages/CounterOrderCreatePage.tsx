@@ -61,6 +61,15 @@ import {
 const PHONE_REGEX = /^(0|84)(3|5|7|8|9)[0-9]{8}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+type CounterCustomerOption = {
+    id?: string;
+    _id?: string;
+    fullName?: string;
+    phone?: string;
+    phoneNumber?: string;
+    email?: string;
+};
+
 const clampSellableDates = (dates: string[]): string[] => {
     const minDate = minSellableDrawDate();
     const next = (Array.isArray(dates) ? dates : []).filter((d) => d >= minDate);
@@ -131,15 +140,15 @@ export const CounterOrderCreatePage = () => {
     const { data: customers = [], isLoading: isSearchingUsers } = useSearchCustomers(
         { q: debouncedCustomerSearch, limit: 20 },
         {
-            select: (res: any) => (Array.isArray(res?.data) ? res.data : []),
-        } as any
+            select: (res): CounterCustomerOption[] => (Array.isArray(res?.data) ? res.data : []),
+        },
     );
 
     const customerOptions = useMemo(() => {
-        const list = Array.isArray(customers) ? [...customers] : [];
+        const list: CounterCustomerOption[] = [...customers];
         if (
             customerInfo.customerId
-            && !list.some((user: any) => String(user.id || user._id) === String(customerInfo.customerId))
+            && !list.some((user) => String(user.id || user._id) === String(customerInfo.customerId))
         ) {
             list.unshift({
                 id: customerInfo.customerId,
@@ -155,11 +164,11 @@ export const CounterOrderCreatePage = () => {
         { q: normalizedCustomerEmail, limit: 10 },
         {
             enabled: !customerInfo.customerId && normalizedCustomerEmail.length >= 3,
-            select: (res: any) => {
+            select: (res): CounterCustomerOption | null => {
                 const users = Array.isArray(res?.data) ? res.data : [];
-                return users.find((user: any) => (user.email || '').trim().toLowerCase() === normalizedCustomerEmail.toLowerCase()) || null;
+                return users.find((user) => (user.email || '').trim().toLowerCase() === normalizedCustomerEmail.toLowerCase()) || null;
             },
-        } as any
+        },
     );
     const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'BANK'>('CASH');
     const [openConfirm, setOpenConfirm] = useState(false);
