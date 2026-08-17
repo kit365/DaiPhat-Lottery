@@ -5,6 +5,7 @@ import type {
     LotterySupplier,
     SupplierListParams,
     UpdateLotterySupplierPayload,
+    UpdateLotterySupplierProfilePayload,
 } from '../types/supplier.type';
 
 const BASE_URL = '/lottery-suppliers';
@@ -48,5 +49,19 @@ export const updateSupplier = async (
     payload: UpdateLotterySupplierPayload
 ): Promise<ApiResponse<LotterySupplier>> => {
     const response = await apiApp.put(`${BASE_URL}/${id}`, payload);
+    return response.data;
+};
+
+/**
+ * Corrects a supplier's identifying details only.
+ *
+ * <p>Deliberately not updateSupplier: that payload also carries the intake hours,
+ * payment cut-off, type and active flag, which the file-import screen never
+ * loads — sending it from there would overwrite the supplier's timing rules.
+ */
+export const updateSupplierProfile = async (
+    payload: UpdateLotterySupplierProfilePayload
+): Promise<ApiResponse<LotterySupplier>> => {
+    const response = await apiApp.put(`${BASE_URL}/profile`, payload);
     return response.data;
 };

@@ -37,6 +37,8 @@ public record ImportBatchFileGroupResponse(
          * Stations whose prices in the file disagree with the station record.
          * Non-empty means the group is blocked until an operator reconciles them.
          */
-        List<ImportBatchFilePricingMismatchResponse> pricingMismatches
+        List<ImportBatchFilePricingMismatchResponse> pricingMismatches,
+        /** Stations named in the file whose weekly schedule excludes this draw date. */
+        List<ImportBatchFileScheduleMismatchResponse> scheduleMismatches
 ) {
 }

@@ -242,9 +242,13 @@ class _JarPane extends StatelessWidget {
     final shaking = viewModel.phase == FortuneAnimPhase.shaking ||
         viewModel.phase == FortuneAnimPhase.ejecting;
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-      children: [
+    return RefreshIndicator(
+      color: const Color(0xFFE8C872),
+      onRefresh: () => viewModel.loadToday(),
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        children: [
         if (!isAuthenticated)
           _Banner(
             text: 'Đăng nhập để gieo quẻ và lưu kết quả trong ngày.',
@@ -376,6 +380,7 @@ class _JarPane extends StatelessWidget {
             ),
           ),
       ],
+    ),
     );
   }
 }
@@ -398,9 +403,13 @@ class _ResultPane extends StatelessWidget {
     return Column(
       children: [
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-            children: [
+          child: RefreshIndicator(
+            color: const Color(0xFFE8C872),
+            onRefresh: () => viewModel.loadToday(),
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              children: [
               Text(
                 'QUẺ XĂM TÀI LỘC HÔM NAY',
                 textAlign: TextAlign.center,
@@ -565,6 +574,7 @@ class _ResultPane extends StatelessWidget {
                 ),
               ],
             ],
+          ),
           ),
         ),
         Padding(

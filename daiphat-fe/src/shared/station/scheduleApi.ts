@@ -82,7 +82,9 @@ const buildScheduleRequestUrl = (path: string, params?: Record<string, string>):
 
 async function fetchScheduleJson<T>(path: string, params?: Record<string, string>): Promise<T> {
     const response = await fetch(buildScheduleRequestUrl(path, params), {
-        ...(typeof window === 'undefined' ? { next: { revalidate: 60 } } : { credentials: 'include' }),
+        ...(typeof window === 'undefined'
+            ? { cache: 'no-store' as const }
+            : { credentials: 'include' as const, cache: 'no-store' as const }),
     });
 
     if (!response.ok) {

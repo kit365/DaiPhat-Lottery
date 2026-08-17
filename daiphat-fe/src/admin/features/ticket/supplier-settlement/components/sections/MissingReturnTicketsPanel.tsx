@@ -43,6 +43,8 @@ interface MissingReturnTicketsPanelProps {
     difference?: number;
     loading?: boolean;
     submitting?: boolean;
+    /** Block resolve actions when return-batches are not yet handed over. */
+    disabled?: boolean;
     onResolve: (payload: {
         serialIds?: number[];
         resolution: 'EXPIRED' | 'LOST' | 'DAMAGED' | 'VOIDED';
@@ -65,6 +67,7 @@ export const MissingReturnTicketsPanel = ({
     difference,
     loading,
     submitting,
+    disabled = false,
     onResolve,
 }: MissingReturnTicketsPanelProps) => {
     const [selected, setSelected] = useState<number[]>([]);
@@ -557,9 +560,10 @@ export const MissingReturnTicketsPanel = ({
             <Stack direction="row" spacing={1.5} justifyContent="flex-end" alignItems="center">
                 <Button
                     variant="outlined"
-                    disabled={submitting || selected.length === 0 || !isSelectedQuantityExact}
+                    disabled={disabled || submitting || selected.length === 0 || !isSelectedQuantityExact}
                     startIcon={<SaveOutlinedIcon />}
                     onClick={() => {
+                        if (disabled) return;
                         const parsedAmount = amount ? parseInt(amount.replace(/\D/g, ''), 10) : undefined;
                         onResolve({
                             serialIds: selected,
@@ -583,10 +587,11 @@ export const MissingReturnTicketsPanel = ({
                 </Button>
                 <Button
                     variant="contained"
-                    disabled={submitting || !isSelectedQuantityExact}
+                    disabled={disabled || submitting || !isSelectedQuantityExact}
                     startIcon={<CheckCircleOutlinedIcon />}
                     className="btn-primary-admin"
                     onClick={() => {
+                        if (disabled) return;
                         const parsedAmount = amount ? parseInt(amount.replace(/\D/g, ''), 10) : undefined;
                         onResolve({
                             serialIds: selected,
@@ -605,7 +610,9 @@ export const MissingReturnTicketsPanel = ({
                         py: 0.9,
                     }}
                 >
-                    {submitting
+                    {disabled
+                        ? 'Chưa thể xử lý — phiếu trả chưa sẵn sàng'
+                        : submitting
                         ? 'Đang lưu...'
                         : `Xác nhận tình trạng vé (${selected.length}/${requiredQuantity})`}
                 </Button>

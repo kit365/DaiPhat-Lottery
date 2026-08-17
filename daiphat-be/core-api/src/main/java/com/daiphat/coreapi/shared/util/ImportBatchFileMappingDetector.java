@@ -1,6 +1,8 @@
 package com.daiphat.coreapi.shared.util;
 
 import com.daiphat.coreapi.application.dto.request.lotteries.ImportBatchFileMappingRequest;
+import com.daiphat.coreapi.shared.util.tabular.TabularFileParser;
+import com.daiphat.coreapi.shared.util.tabular.TabularRow;
 import com.daiphat.coreapi.shared.util.tabular.TabularTable;
 import org.springframework.stereotype.Component;
 
@@ -8,10 +10,12 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -126,11 +130,129 @@ public class ImportBatchFileMappingDetector {
         return merged;
     }
 
+    /**
+     * How far down a file the header row is still looked for. A business delivery
+     * note opens with a letterhead and a party block, but never a page of them.
+     */
+    private static final int MAX_HEADER_ROW_SCAN = 20;
+
+    /**
+     * Fields that only a real header row carries. A letterhead line may happen to
+     * contain "ngay" or "dai"; it will not also name a serial or a quantity column.
+     */
+    private static final List<String> HEADER_EVIDENCE_FIELDS = List.of(
+            "serialsColumn", "numbersColumn", "quantityColumn",
+            "stationColumn", "stationCodeColumn", "drawDateColumn"
+    );
+
+    /** A row must name at least this many mapping fields to be taken as the header. */
+    private static final int MIN_HEADER_EVIDENCE = 3;
+
     public ImportBatchFileMappingRequest detect(TabularTable table) {
         return detect(table, defaultAliasDictionary());
     }
 
+    /**
+     * Finds which row actually carries the column labels, for files that open with
+     * a letterhead instead of the table.
+     *
+     * <p>The table must have been parsed with header row 0, so that every row of
+     * the file is still visible here: index 0 means its first non-blank row is the
+     * header, index n means n rows must be skipped before the table starts.
+     *
+     * <p>Scoring beats "first row wins" because a letterhead row is wide and vague
+     * while a header row names several distinct fields at once. Row 0 keeps the
+     * benefit of the doubt on a tie, so a plain export is never re-interpreted.
+     *
+     * @return 0-based index among the file's non-blank rows
+     */
+    public int detectHeaderRowIndex(TabularTable table, Map<String, List<String>> aliases) {
+        Map<String, List<String>> resolved = aliases == null || aliases.isEmpty()
+                ? defaultAliasDictionary()
+                : aliases;
+
+        int bestIndex = 0;
+        int bestScore = headerEvidence(table.headers(), resolved);
+        if (bestScore >= MIN_HEADER_EVIDENCE) {
+            return 0;
+        }
+
+        int limit = Math.min(table.rows().size(), MAX_HEADER_ROW_SCAN);
+        for (int offset = 0; offset < limit; offset++) {
+            int score = headerEvidence(positionalCells(table.rows().get(offset)), resolved);
+            if (score > bestScore) {
+                bestScore = score;
+                // Row 0 of the table is the file's second non-blank row.
+                bestIndex = offset + 1;
+            }
+        }
+        return bestScore >= MIN_HEADER_EVIDENCE ? bestIndex : 0;
+    }
+
+    /**
+     * How many distinct mapping fields this row's cells could name.
+     *
+     * <p>Exact alias hits only - deliberately stricter than {@link #firstMatch},
+     * which may settle for a substring once the header row is already known. Here
+     * the row's identity is still in question, and loose matching mistakes prose
+     * for labels: "Mẫu số" contains the station-code alias "ma", a company name
+     * ending in "... Đại Phát" contains the station alias "dai". A real header
+     * cell is the label and nothing else, so requiring the whole cell to be the
+     * alias costs nothing and rules those out.
+     */
+    private int headerEvidence(List<String> cells, Map<String, List<String>> aliases) {
+        if (cells == null || cells.isEmpty()) {
+            return 0;
+        }
+        Set<String> normalizedCells = new HashSet<>();
+        for (String cell : cells) {
+            String normalized = VietnameseTextNormalizer.normalizeHeader(cell);
+            if (!normalized.isEmpty()) {
+                normalizedCells.add(normalized);
+            }
+        }
+
+        int score = 0;
+        for (String field : HEADER_EVIDENCE_FIELDS) {
+            List<String> fieldAliases = aliases.get(field);
+            if (fieldAliases != null && fieldAliases.stream().anyMatch(normalizedCells::contains)) {
+                score++;
+            }
+        }
+        return score;
+    }
+
+    /**
+     * Reads a row back as an ordered cell list. Positional keys survive whatever
+     * the header row happened to be called, which is exactly what is needed while
+     * the real header is still unknown.
+     */
+    private List<String> positionalCells(TabularRow row) {
+        List<String> cells = new ArrayList<>();
+        for (int index = 0; index < TabularFileParser.MAX_COLUMNS; index++) {
+            String value = row.values().get(TabularTable.positionalKey(index));
+            if (value == null) {
+                break;
+            }
+            cells.add(value);
+        }
+        return cells;
+    }
+
     public ImportBatchFileMappingRequest detect(TabularTable table, Map<String, List<String>> aliases) {
+        return detect(table, aliases, 0);
+    }
+
+    /**
+     * @param headerRowIndex where the header row was found, echoed back into the
+     *                       mapping so every later parse of the same file skips the
+     *                       letterhead the same way
+     */
+    public ImportBatchFileMappingRequest detect(
+            TabularTable table,
+            Map<String, List<String>> aliases,
+            int headerRowIndex
+    ) {
         Map<String, List<String>> resolved = aliases == null || aliases.isEmpty()
                 ? defaultAliasDictionary()
                 : aliases;
@@ -143,7 +265,7 @@ public class ImportBatchFileMappingDetector {
                 ));
 
         return ImportBatchFileMappingRequest.builder()
-                .headerRowIndex(0)
+                .headerRowIndex(Math.max(headerRowIndex, 0))
                 .delimiter(table.appliedDelimiter())
                 .charset(table.appliedCharset())
                 .drawDateColumn(firstMatch(byNormalizedHeader, resolved.get("drawDateColumn")))

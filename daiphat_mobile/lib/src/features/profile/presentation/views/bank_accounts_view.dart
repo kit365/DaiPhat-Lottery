@@ -9,6 +9,7 @@ import 'package:daiphat_mobile/src/features/profile/presentation/providers/profi
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/bank_account_form_page.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
+import 'package:daiphat_mobile/src/shared/widgets/brand_scrollbar.dart';
 import '../viewmodels/bank_accounts_viewmodel.dart';
 
 class BankAccountsView extends ConsumerStatefulWidget {
@@ -20,6 +21,7 @@ class BankAccountsView extends ConsumerStatefulWidget {
 
 class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
   late final BankAccountsViewModel _viewModel;
+  final _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -30,6 +32,7 @@ class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
   @override
   void dispose() {
     _viewModel.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -160,16 +163,20 @@ class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
           }
           if (_viewModel.accounts.isEmpty) return _buildEmpty();
 
-          return RefreshIndicator(
-            color: AppColors.primary,
-            onRefresh: _viewModel.load,
-            child: ListView.builder(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 90),
-              itemCount: _viewModel.accounts.length,
-              itemBuilder: (context, index) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _buildCard(_viewModel.accounts[index]),
+          return BrandScrollbar(
+            controller: _scrollController,
+            child: RefreshIndicator(
+              color: AppColors.primary,
+              onRefresh: _viewModel.load,
+              child: ListView.builder(
+                controller: _scrollController,
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 90),
+                itemCount: _viewModel.accounts.length,
+                itemBuilder: (context, index) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _buildCard(_viewModel.accounts[index]),
+                ),
               ),
             ),
           );

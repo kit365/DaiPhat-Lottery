@@ -13,6 +13,7 @@ public final class StorageFolderConstants {
     public static final String STATION_IMAGE_FOLDER = "lottery-stations";
     public static final String TICKET_IMAGE_FOLDER = "lottery-tickets";
     public static final String IMPORT_BATCH_TICKET_LIST_FOLDER = "import-batch-ticket-list";
+    public static final String IMPORT_BATCH_INVOICE_FOLDER = "import-batch-invoices";
     public static final String SUPPORT_TICKET_FOLDER = "support-tickets";
     public static final String REFUND_TRANSFER_EVIDENCE_FOLDER = "refund-transfers";
     public static final String PRIZE_PAYOUT_TRANSFER_EVIDENCE_FOLDER = "prize-payout-transfers";

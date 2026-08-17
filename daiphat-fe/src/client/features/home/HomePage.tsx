@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState, useCallback } from "react";
 
 import dynamic from 'next/dynamic';
 
@@ -60,6 +60,14 @@ export const HomePage = ({ initialData }: { initialData?: HomeServerInitialData 
   } = useLottery(initialData);
 
   const activeDigit = hoveredDigit || selectedDigit;
+  const [lotoHighlightProvince, setLotoHighlightProvince] = useState('ALL');
+  const lotoHighlightScope = useMemo(
+    () => (lotoHighlightProvince !== 'ALL' ? [lotoHighlightProvince] : undefined),
+    [lotoHighlightProvince]
+  );
+  const handleLotoProvinceFilterChange = useCallback((province: string) => {
+    setLotoHighlightProvince(province);
+  }, []);
   const singleProvince = selectedProvinces.length > 0 ? selectedProvinces[0] : '';
   const singleData = lotteryData.length > 0 ? lotteryData[0] : null;
   const isAllProvinceSelected = availableProvinces.length > 0 && selectedProvinces.length === availableProvinces.length;
@@ -261,6 +269,7 @@ export const HomePage = ({ initialData }: { initialData?: HomeServerInitialData 
                     setSelectedDigit={setSelectedDigit}
                     activeDigit={activeDigit}
                     setHoveredDigit={setHoveredDigit}
+                    highlightScopeProvinces={lotoHighlightScope}
                     statusMessage={resultStatusMessage}
                   />
                 ) : shouldShowEmptyState ? (
@@ -297,6 +306,7 @@ export const HomePage = ({ initialData }: { initialData?: HomeServerInitialData 
             hoveredDigit={hoveredDigit}
             onDigitSelect={(digit) => setSelectedDigit(digit === selectedDigit ? null : digit)}
             onDigitHover={setHoveredDigit}
+            onLotoProvinceFilterChange={handleLotoProvinceFilterChange}
           />
         </div>
       </main>

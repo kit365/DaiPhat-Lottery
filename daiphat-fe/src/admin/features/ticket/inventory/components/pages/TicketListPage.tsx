@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import CloseIcon from '@mui/icons-material/Close';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
 import { Box, Button, Stack } from '@mui/material';
@@ -28,9 +29,22 @@ export const TicketListPage = () => {
     });
 
     const cancelSelection = useCancelTicketSelection(ticketHook.tickets);
+    const hasSelectedSerials = cancelSelection.selectedSerials.length > 0;
 
     const handleFileImportSuccess = () => {
         queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKETS] });
+    };
+
+    const handleCancelPrimaryClick = () => {
+        if (!cancelSelection.isCancelMode) {
+            cancelSelection.enterCancelMode();
+            return;
+        }
+        if (!hasSelectedSerials) {
+            cancelSelection.exitCancelMode();
+            return;
+        }
+        cancelSelection.openReportDialog();
     };
 
     return (
@@ -71,29 +85,52 @@ export const TicketListPage = () => {
                             </Button>
                         </CanAccess>
 
+                        {hasSelectedSerials && (
+                            <Button
+                                variant="outlined"
+                                color="inherit"
+                                size="small"
+                                startIcon={<CloseIcon />}
+                                onClick={cancelSelection.exitCancelMode}
+                                sx={{
+                                    minHeight: '2.4rem',
+                                    textTransform: 'none',
+                                    fontWeight: 700,
+                                    borderRadius: '10px',
+                                    borderColor: '#cbd5e1',
+                                    color: '#475569',
+                                    bgcolor: '#ffffff',
+                                    py: 0.8,
+                                    px: 2,
+                                    '&:hover': {
+                                        borderColor: '#94a3b8',
+                                        bgcolor: '#f8fafc',
+                                    },
+                                }}
+                            >
+                                Hủy chọn
+                            </Button>
+                        )}
+
                         <Button
                             variant="contained"
                             color="error"
                             size="small"
                             startIcon={<ReportProblemIcon />}
-                            disabled={cancelSelection.selectedSerials.length === 0}
-                            onClick={cancelSelection.openReportDialog}
+                            onClick={handleCancelPrimaryClick}
                             sx={{
                                 minHeight: '2.4rem',
                                 textTransform: 'none',
                                 fontWeight: 800,
                                 borderRadius: '10px',
-                                boxShadow: cancelSelection.selectedSerials.length > 0 ? '0 4px 12px rgba(239, 68, 68, 0.25)' : 'none',
+                                boxShadow: hasSelectedSerials ? '0 4px 12px rgba(239, 68, 68, 0.25)' : 'none',
                                 py: 0.8,
                                 px: 2.2,
-                                '&.Mui-disabled': {
-                                    bgcolor: '#f1f5f9',
-                                    color: '#94a3b8',
-                                    borderColor: '#cbd5e1',
-                                },
                             }}
                         >
-                            Tiến hành hủy vé{cancelSelection.selectedSerials.length > 0 && ` (${cancelSelection.selectedSerials.length})`}
+                            {hasSelectedSerials
+                                ? `Tiến hành hủy vé (${cancelSelection.selectedSerials.length})`
+                                : 'Hủy vé'}
                         </Button>
                     </Stack>
                 }

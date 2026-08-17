@@ -15,7 +15,7 @@ import { PROFILE_BANNERS } from "../../../constants/clientBannerAssets";
 import { ROUTES } from '@/admin/constants/routes';
 import { Breadcrumb } from "../../../../client/components/ui/Breadcrumb";
 
-type TabId = 'overview' | 'info' | 'tickets' | 'orders' | 'refunds' | 'prizePayouts' | 'complaints' | 'bankAccounts' | 'notifications' | 'resultNotifications' | 'settings' | 'favorites';
+type TabId = 'info' | 'tickets' | 'orders' | 'refunds' | 'prizePayouts' | 'complaints' | 'bankAccounts' | 'notifications' | 'settings';
 
 interface TabConfig {
     id: TabId;
@@ -26,7 +26,7 @@ interface TabConfig {
 }
 
 const TABS: TabConfig[] = [
-    { id: 'overview', path: '/profile/overview', label: 'Tổng quan', icon: 'fa-solid fa-border-all' },
+    // { id: 'overview', path: '/profile/overview', label: 'Tổng quan', icon: 'fa-solid fa-border-all' },
     { id: 'info', path: '/profile/info', label: 'Tài khoản cá nhân', icon: 'fa-regular fa-user' },
     { id: 'tickets', path: '/profile/tickets', label: 'Vé của tôi', icon: 'fa-solid fa-ticket-simple' },
     { id: 'orders', path: '/profile/orders', label: 'Đơn hàng của tôi', icon: 'fa-solid fa-file-invoice-dollar' },
@@ -34,9 +34,7 @@ const TABS: TabConfig[] = [
     { id: 'prizePayouts', path: '/profile/prize-payouts', label: 'Yêu cầu trả thưởng', icon: 'fa-solid fa-trophy' },
     { id: 'complaints', path: '/profile/complaints', label: 'Khiếu nại / Hỗ trợ', icon: 'fa-solid fa-headset' },
     { id: 'bankAccounts', path: '/profile/bank-accounts', label: 'Tài khoản ngân hàng', icon: 'fa-solid fa-building-columns' },
-    { id: 'favorites', path: '/profile/favorites', label: 'Số yêu thích', icon: 'fa-regular fa-star' },
     { id: 'notifications', path: '/profile/notifications', label: 'Thông báo', icon: 'fa-regular fa-bell' },
-    { id: 'resultNotifications', path: '/profile/result-notifications', label: 'Nhận thông báo', icon: 'fa-solid fa-trophy' },
     { id: 'settings', path: '/profile/settings', label: 'Bảo mật', icon: 'fa-solid fa-shield-halved' },
 ];
 
@@ -134,7 +132,7 @@ export const ProfilePage = ({ children }: { children?: React.ReactNode }) => {
                         <Breadcrumb 
                             items={[
                                 { label: 'Trang chủ', to: '/' },
-                                { label: 'Tài khoản', to: '/profile/overview' },
+                                { label: 'Tài khoản', to: '/profile/info' },
                                 { label: activeTabObj.label }
                             ]} 
                         />
@@ -240,7 +238,7 @@ export const ProfilePage = ({ children }: { children?: React.ReactNode }) => {
                             </div>
 
                             {/* Support Widget */}
-                            {(pathname === ROUTES.PUBLIC.PROFILE.ROOT || pathname === ROUTES.PUBLIC.PROFILE.OVERVIEW) && (
+                            {(pathname === ROUTES.PUBLIC.PROFILE.ROOT || pathname === ROUTES.PUBLIC.PROFILE.INFO) && (
                                 <div
                                     className="rounded-[20px] p-5 relative overflow-hidden flex flex-col justify-center min-h-[140px] bg-cover bg-center shadow-sm"
                                     style={{ backgroundImage: `url('${PROFILE_BANNERS[3]}')` }}

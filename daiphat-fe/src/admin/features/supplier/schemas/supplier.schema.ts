@@ -51,7 +51,10 @@ export const supplierFormSchema = z
             .string()
             .trim()
             .regex(drawTimePattern, 'Hạn trả vé phải theo định dạng HH:mm'),
-        paymentCutOffTime: z.string().optional(),
+        paymentCutOffTime: z
+            .string()
+            .trim()
+            .regex(drawTimePattern, 'Giờ thanh toán NCC phải theo định dạng HH:mm'),
         isActive: z.boolean(),
     })
     .superRefine((data, ctx) => {
@@ -61,6 +64,15 @@ export const supplierFormSchema = z
                     code: z.ZodIssueCode.custom,
                     message: 'Hạn trả vé phải sau giờ bắt đầu cho phép nhập vé',
                     path: ['returnCutOffTime'],
+                });
+            }
+        }
+        if (data.returnCutOffTime && data.paymentCutOffTime) {
+            if (data.paymentCutOffTime <= data.returnCutOffTime) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: 'Giờ thanh toán NCC phải sau hạn trả vé',
+                    path: ['paymentCutOffTime'],
                 });
             }
         }

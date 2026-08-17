@@ -1,5 +1,6 @@
 import { PageResponse } from './api.type';
 import { PurchasedTicket } from './lottery-ticket.type';
+import { getOrderTypeLabel, OrderType } from './order.type';
 
 export enum PrizePayoutRequestStatus {
     PENDING = 'PENDING',
@@ -266,6 +267,32 @@ export const PRIZE_PAYOUT_TICKET_ORIGIN_LABELS: Record<PrizePayoutTicketOrigin, 
     INTERNAL_ONLINE: 'Vé online',
     INTERNAL_OFFLINE: 'Vé mua tại quầy',
 };
+
+/** Suy ra loại đơn (Online / Tại quầy) từ orderType hoặc channel/ticketOrigin. */
+export function resolvePrizePayoutOrderType(
+    detail: Pick<PrizePayoutRequestResponse, 'orderType' | 'channel' | 'ticketOrigin'>
+): OrderType | null {
+    if (detail.orderType === OrderType.ONLINE) {
+        return OrderType.ONLINE;
+    }
+    if (detail.orderType === OrderType.DIRECT) {
+        return OrderType.DIRECT;
+    }
+    if (detail.channel === 'ONLINE' || detail.ticketOrigin === 'INTERNAL_ONLINE') {
+        return OrderType.ONLINE;
+    }
+    if (detail.channel === 'IN_PERSON' || detail.ticketOrigin === 'INTERNAL_OFFLINE') {
+        return OrderType.DIRECT;
+    }
+    return null;
+}
+
+export function resolvePrizePayoutOrderTypeLabel(
+    detail: Pick<PrizePayoutRequestResponse, 'orderType' | 'channel' | 'ticketOrigin'>
+): string {
+    const orderType = resolvePrizePayoutOrderType(detail);
+    return orderType ? getOrderTypeLabel(orderType) : '—';
+}
 
 export const PRIZE_PAYOUT_VERIFICATION_LABELS: Record<PrizePayoutOwnershipVerificationLevel, string> = {
     AUTO_MATCHED: 'Đã xác minh hệ thống',

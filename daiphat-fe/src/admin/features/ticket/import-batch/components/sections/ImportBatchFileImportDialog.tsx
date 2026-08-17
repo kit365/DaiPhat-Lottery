@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
@@ -38,6 +38,7 @@ import {
     stepConnectorClasses,
     StepLabel,
     Stepper,
+    Tooltip,
     styled,
     Table,
     TableBody,
@@ -49,8 +50,6 @@ import {
 } from '@mui/material';
 import dayjs from 'dayjs';
 import { toast } from 'react-toastify';
-import { ADMIN_DIALOG_ACTIONS_SX } from '../../../../../components/ui/AdminConfirmDialog';
-import { Button as LoadingButton } from '../../../../../components/ui/Button';
 import { useActiveSuppliers } from '../../../../supplier';
 import {
     commitImportBatchFile,
@@ -58,6 +57,8 @@ import {
     previewImportBatchFile,
     saveImportBatchFileMappingProfile,
     saveLotteryStationAlias,
+    uploadImportBatchInvoiceEvidence,
+    uploadImportBatchTicketListImage,
 } from '../../services/importBatchService';
 import type {
     ImportBatchFileGroup,
@@ -66,13 +67,20 @@ import type {
     ImportBatchFilePreviewResult,
     ImportBatchFileRow,
     ImportBatchFilePricingMismatch,
+    ImportBatchFileScheduleMismatch,
 } from '../../types/importBatch.type';
 import { mappingImportsTickets } from '../../types/importBatch.type';
 import { ImportBatchFileColumnTagger } from './ImportBatchFileColumnTagger';
 import { ImportBatchFileConfigDialog } from './ImportBatchFileConfigDialog';
 import { ImportBatchFilePricingDialog } from './ImportBatchFilePricingDialog';
+import { ImportBatchFileSupplierIdentityPanel } from './ImportBatchFileSupplierIdentityPanel';
+import { ImportBatchFileScheduleDialog } from './ImportBatchFileScheduleDialog';
+import { ImportBatchFileSupplierDialog } from './ImportBatchFileSupplierDialog';
 import { ImportBatchFileMappingProfilePanel } from './ImportBatchFileMappingProfilePanel';
-import { downloadImportBatchProgressCsv } from '../../utils/importBatchProgressExport';
+import {
+    downloadImportBatchProgressCsv,
+    type ImportBatchProgressStationPricing,
+} from '../../utils/importBatchProgressExport';
 import { formatImportCost } from '../../utils/importCostCalculator';
 import {
     collectAnomalies,
@@ -82,10 +90,25 @@ import {
 import {
     IMPORT_BATCH_FILE_ACCEPT,
     downloadImportBatchFileTemplate,
+    type ImportBatchTemplateDay,
+    type ImportBatchTemplateIssuer,
 } from '../../utils/importBatchFileTemplate';
-import { useEligibleImportBatchStations } from '../../hooks/useImportBatch';
+import { usePublicSystemConfigValues } from '@/client/hooks/usePublicSystemConfigValues';
+import { useStationsByDrawDate } from '../../../../station/hooks/useStation';
 import { useImportBatchIntakeGate } from '../../hooks/useImportBatchIntakeGate';
 import { AdminLuckyDisplay } from '@/shared/lucky-number';
+import type { Station } from '../../../../station/types/station.type';
+import { UploadSingleFile } from '@/admin/components/upload/UploadSingleFile';
+import type { Accept } from 'react-dropzone';
+
+const IMPORT_EVIDENCE_ACCEPT: Accept = {
+    'image/*': ['.jpg', '.jpeg', '.png', '.webp', '.gif'],
+    'application/pdf': ['.pdf'],
+    'text/csv': ['.csv'],
+    'application/vnd.ms-excel': ['.xls'],
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+    'application/vnd.ms-excel.sheet.macroEnabled.12': ['.xlsm'],
+};
 
 type ImportBatchFileImportDialogProps = {
     open: boolean;
@@ -94,6 +117,38 @@ type ImportBatchFileImportDialogProps = {
 };
 
 const STEPS = ['Chọn tệp & Nhà cung cấp', 'Gán cột dữ liệu', 'Xem trước & Tạo phiếu'];
+
+/**
+ * The receiving party, printed on every document this screen produces. Read from
+ * the public config endpoint rather than the settings API: warehouse staff run
+ * this screen without settings permissions.
+ */
+const ISSUER_CONFIG_KEYS = [
+    'SITE_LEGAL_NAME',
+    'SITE_TAX_CODE',
+    'SITE_ADDRESS',
+    'SITE_PHONE',
+    'SITE_EMAIL',
+] as const;
+
+const ISSUER_CONFIG_DEFAULTS: Record<(typeof ISSUER_CONFIG_KEYS)[number], string> = {
+    SITE_LEGAL_NAME: 'ĐẠI PHÁT',
+    SITE_TAX_CODE: '',
+    SITE_ADDRESS: '',
+    SITE_PHONE: '',
+    SITE_EMAIL: '',
+};
+
+/** Shared by the template download buttons so they read as one set of options. */
+const TEMPLATE_BUTTON_SX = {
+    borderRadius: '10px',
+    textTransform: 'none',
+    fontWeight: 700,
+    fontSize: '0.8125rem',
+    borderColor: '#cbd5e1',
+    color: '#334155',
+    '&:hover': { borderColor: '#94a3b8', bgcolor: '#f8fafc' },
+} as const;
 
 const formatDate = (value?: string) => (value ? dayjs(value).format('DD/MM/YYYY') : '—');
 
@@ -132,11 +187,15 @@ export const ImportBatchFileImportDialog = ({
 }: ImportBatchFileImportDialogProps) => {
     const { data: activeSuppliers = [] } = useActiveSuppliers();
     const { evaluate: evaluateIntake } = useImportBatchIntakeGate();
-    // Pre-fills the downloadable template with the stations actually drawing today,
-    // so the operator can type straight into it instead of looking codes up.
-    const { data: eligibleStations } = useEligibleImportBatchStations(
-        dayjs().format('YYYY-MM-DD'),
-        'IN_DAY'
+    // The draw schedule, not the import-eligibility list. A delivery note must
+    // name every station that drew that day; eligibility is a different question
+    // and answers it too narrowly here - it rejects past dates outright and drops
+    // stations already sitting in a draft batch, both of which really did deliver
+    // tickets. Yesterday needs its own call because the southern schedule differs
+    // by weekday.
+    const { data: todayStations } = useStationsByDrawDate(dayjs().format('YYYY-MM-DD'));
+    const { data: yesterdayStations } = useStationsByDrawDate(
+        dayjs().subtract(1, 'day').format('YYYY-MM-DD')
     );
 
     const [step, setStep] = useState(0);
@@ -151,26 +210,14 @@ export const ImportBatchFileImportDialog = ({
     const [rememberMapping, setRememberMapping] = useState(true);
     const [configOpen, setConfigOpen] = useState(false);
     const [pricingOpen, setPricingOpen] = useState(false);
+    const [scheduleOpen, setScheduleOpen] = useState(false);
+    const [supplierEditOpen, setSupplierEditOpen] = useState(false);
     const [profileRefreshToken, setProfileRefreshToken] = useState(0);
-
-    const selectedSupplier = useMemo(
-        () => activeSuppliers.find((supplier) => supplier.id === supplierId),
-        [activeSuppliers, supplierId]
-    );
-    const todayDrawDate = dayjs().format('YYYY-MM-DD');
-    const todayIntake = useMemo(
-        () => evaluateIntake(selectedSupplier, todayDrawDate),
-        [evaluateIntake, selectedSupplier, todayDrawDate]
-    );
-    const isDrawDateIntakeBlocked = useCallback(
-        (drawDate?: string | null) => {
-            if (!drawDate || !selectedSupplier) {
-                return false;
-            }
-            return evaluateIntake(selectedSupplier, drawDate).blocked;
-        },
-        [evaluateIntake, selectedSupplier]
-    );
+    const [invoiceEvidenceUrl, setInvoiceEvidenceUrl] = useState('');
+    const [ticketListEvidenceUrl, setTicketListEvidenceUrl] = useState('');
+    const [useOriginalFileAsTicketListEvidence, setUseOriginalFileAsTicketListEvidence] = useState(true);
+    const [isInvoiceUploading, setIsInvoiceUploading] = useState(false);
+    const [isTicketListUploading, setIsTicketListUploading] = useState(false);
 
     /**
      * The same station can be flagged on several draw dates; the correction is
@@ -188,6 +235,119 @@ export const ImportBatchFileImportDialog = ({
         return [...byStation.values()];
     }, [preview]);
 
+    /**
+     * A station can be off-schedule on several draw dates at once; the required
+     * weekdays are merged so one correction covers every date in the file.
+     */
+    const scheduleMismatches = useMemo(() => {
+        const byStation = new Map<number, ImportBatchFileScheduleMismatch>();
+        (preview?.groups ?? []).forEach((group) => {
+            (group.scheduleMismatches ?? []).forEach((item) => {
+                const existing = byStation.get(item.lotteryStationId);
+                if (!existing) {
+                    byStation.set(item.lotteryStationId, item);
+                    return;
+                }
+                const required = [
+                    ...new Set([...existing.requiredDrawDays, ...item.requiredDrawDays]),
+                ];
+                byStation.set(item.lotteryStationId, {
+                    ...existing,
+                    drawDate: `${existing.drawDate}, ${item.drawDate}`,
+                    requiredDrawDays: required,
+                    suggestedDrawDays: [
+                        ...new Set([...existing.currentDrawDays, ...required]),
+                    ],
+                });
+            });
+        });
+        return [...byStation.values()];
+    }, [preview]);
+
+    const selectedSupplier = useMemo(
+        () => activeSuppliers.find((supplier) => supplier.id === supplierId),
+        [activeSuppliers, supplierId]
+    );
+    const todayDrawDate = dayjs().format('YYYY-MM-DD');
+    const todayIntake = useMemo(
+        () => evaluateIntake(selectedSupplier, todayDrawDate),
+        [evaluateIntake, selectedSupplier, todayDrawDate]
+    );
+    const isDrawDateIntakeBlocked = useCallback(
+        (drawDate?: string | null) =>
+            Boolean(drawDate && selectedSupplier && evaluateIntake(selectedSupplier, drawDate).blocked),
+        [evaluateIntake, selectedSupplier]
+    );
+
+    const issuerConfig = usePublicSystemConfigValues(ISSUER_CONFIG_KEYS, ISSUER_CONFIG_DEFAULTS);
+    const templateIssuer: ImportBatchTemplateIssuer = useMemo(
+        () => ({
+            legalName: issuerConfig.SITE_LEGAL_NAME,
+            taxCode: issuerConfig.SITE_TAX_CODE,
+            address: issuerConfig.SITE_ADDRESS,
+            phone: issuerConfig.SITE_PHONE,
+            email: issuerConfig.SITE_EMAIL,
+        }),
+        [issuerConfig]
+    );
+
+    /** The letterhead is checked back on upload, so the template is issued by name. */
+    const templateSupplier = useMemo(
+        () =>
+            selectedSupplier && {
+                name: selectedSupplier.name,
+                code: selectedSupplier.code,
+                taxCode: selectedSupplier.taxCode,
+                contactName: selectedSupplier.contactName,
+                contactPhone: selectedSupplier.contactPhone,
+                contactEmail: selectedSupplier.contactEmail,
+                address: selectedSupplier.address,
+            },
+        [selectedSupplier]
+    );
+
+    const toTemplateStations = (stations?: Station[]) =>
+        (stations ?? []).map((station) => ({
+            name: station.name,
+            code: station.code,
+            price: station.price,
+            commissionRate: station.commissionRate,
+            drawSchedule: station.drawSchedule,
+        }));
+
+    /**
+     * Station facts the preview response does not repeat per row. Read from the
+     * draw schedule so the reconciliation report names the same prices and
+     * schedule the delivery note does.
+     */
+    const stationPricing = useMemo(() => {
+        const byId: Record<number, ImportBatchProgressStationPricing> = {};
+        [...(todayStations ?? []), ...(yesterdayStations ?? [])].forEach((station) => {
+            byId[Number(station.id)] = {
+                drawSchedule: station.drawSchedule,
+                salePrice: station.price,
+                commissionPercent:
+                    station.commissionRate != null ? station.commissionRate * 100 : undefined,
+            };
+        });
+        return byId;
+    }, [todayStations, yesterdayStations]);
+
+    const todayTemplateDay: ImportBatchTemplateDay = {
+        drawDate: dayjs().format('DD/MM/YYYY'),
+        stations: toTemplateStations(todayStations),
+    };
+    const yesterdayTemplateDay: ImportBatchTemplateDay = {
+        drawDate: dayjs().subtract(1, 'day').format('DD/MM/YYYY'),
+        stations: toTemplateStations(yesterdayStations),
+    };
+
+    /**
+     * The letterhead check is per file, so every draw-date group repeats the same
+     * verdict. Read it from the preview root and show it once.
+     */
+    const supplierIdentity = preview?.supplierIdentity;
+
     const headerOptions = inspectResult?.detectedHeaders ?? [];
     const importsTickets = mappingImportsTickets(mapping);
     const mappingReady =
@@ -204,6 +364,11 @@ export const ImportBatchFileImportDialog = ({
         setPreview(null);
         setSelectedDates([]);
         setForceCreateDates([]);
+        setInvoiceEvidenceUrl('');
+        setTicketListEvidenceUrl('');
+        setUseOriginalFileAsTicketListEvidence(true);
+        setIsInvoiceUploading(false);
+        setIsTicketListUploading(false);
     };
 
     const handleClose = () => {
@@ -264,10 +429,7 @@ export const ImportBatchFileImportDialog = ({
             setPreview(result);
             setMapping(result.appliedMapping);
             setSelectedDates(
-                result.groups
-                    .filter(isGroupSelectable)
-                    .map((group) => group.drawDate as string)
-                    .filter((drawDate) => !isDrawDateIntakeBlocked(drawDate))
+                result.groups.filter(isGroupSelectable).map((group) => group.drawDate as string)
             );
             setStep(2);
         } catch {
@@ -312,15 +474,29 @@ export const ImportBatchFileImportDialog = ({
             );
             return;
         }
+        if (!invoiceEvidenceUrl.trim()) {
+            toast.warning('Vui lòng tải lên tệp / ảnh biên lai nhập trước khi tạo phiếu.');
+            return;
+        }
+        if (isInvoiceUploading || isTicketListUploading) {
+            toast.warning('Đang tải tệp chứng từ — vui lòng đợi hoàn tất.');
+            return;
+        }
 
         setBusy(true);
         try {
+            const ticketListImageUrls = ticketListEvidenceUrl.trim()
+                ? [ticketListEvidenceUrl.trim()]
+                : [];
             const response = await commitImportBatchFile(file, {
                 supplierId,
                 fileHash: preview.fileHash,
                 mapping,
                 drawDates: selectedDates,
                 forceCreateDrawDates: forceCreateDates,
+                invoiceEvidenceUrl: invoiceEvidenceUrl.trim(),
+                ticketListImageUrls,
+                useOriginalFileAsTicketListEvidence,
             });
             const result = response.data;
             if (!result) {
@@ -363,8 +539,13 @@ export const ImportBatchFileImportDialog = ({
             onImported?.();
             reset();
             onClose();
-        } catch {
-            toast.error('Không tạo được phiếu nhập từ tệp.');
+        } catch (err: unknown) {
+            const message =
+                (err as { response?: { data?: { message?: string } }; message?: string })?.response?.data
+                    ?.message ||
+                (err as { message?: string })?.message ||
+                'Không tạo được phiếu nhập từ tệp.';
+            toast.error(message);
         } finally {
             setBusy(false);
         }
@@ -393,14 +574,13 @@ export const ImportBatchFileImportDialog = ({
     return (
         <Dialog
             open={open}
-            onClose={busy ? undefined : handleClose}
+            onClose={handleClose}
             maxWidth="lg"
             fullWidth
             PaperProps={{
-                className: 'admin-theme',
                 sx: {
-                    borderRadius: '16px',
-                    boxShadow: 'var(--customShadows-dialog, 0px 24px 48px -8px rgba(0, 0, 0, 0.16))',
+                    borderRadius: '20px',
+                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
                     border: '1px solid #e2e8f0',
                     overflow: 'hidden',
                 },
@@ -408,72 +588,68 @@ export const ImportBatchFileImportDialog = ({
         >
             {/* Header */}
             <DialogTitle
-                component="div"
                 sx={{
-                    m: 0,
-                    px: 2.5,
-                    py: 2,
+                    px: 3,
+                    py: 2.5,
                     borderBottom: '1px solid #f1f5f9',
                     bgcolor: '#ffffff',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    gap: 1.5,
                 }}
             >
-                <Stack direction="row" spacing={1.25} alignItems="center">
+                <Stack direction="row" spacing={1.75} alignItems="center">
                     <Box
                         sx={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: '10px',
+                            width: 44,
+                            height: 44,
+                            borderRadius: '12px',
                             bgcolor: '#fef2f2',
                             color: '#FF3030',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
+                            boxShadow: '0 2px 8px rgba(255, 48, 48, 0.15)',
                         }}
                     >
-                        <UploadFileOutlinedIcon fontSize="small" />
+                        <UploadFileOutlinedIcon fontSize="medium" />
                     </Box>
                     <Box>
-                        <Typography variant="subtitle1" fontWeight={800} sx={{ color: '#0f172a', lineHeight: 1.2 }}>
+                        <Typography variant="h6" fontWeight={800} sx={{ color: '#0f172a', lineHeight: 1.2 }}>
                             Nhập lô vé từ tệp
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                            Excel (.xlsx) hoặc CSV
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25, fontSize: '0.85rem' }}>
+                            Tải lên tệp Excel (.xlsx) hoặc CSV để tự động tạo phiếu và nhập kho vé
                         </Typography>
                     </Box>
                 </Stack>
 
                 <IconButton
+                    size="small"
                     onClick={handleClose}
                     disabled={busy}
-                    aria-label="Đóng"
-                    size="small"
-                    sx={{ color: 'text.secondary', flexShrink: 0 }}
+                    sx={{
+                        color: '#94a3b8',
+                        bgcolor: '#f8fafc',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '10px',
+                        '&:hover': { bgcolor: '#f1f5f9', color: '#334155' },
+                    }}
                 >
                     <CloseIcon fontSize="small" />
                 </IconButton>
             </DialogTitle>
 
-            <DialogContent
-                sx={{
-                    px: { xs: 2, md: 2.5 },
-                    pb: { xs: 2, md: 2.5 },
-                    pt: '20px !important',
-                    bgcolor: '#f8fafc',
-                }}
-            >
+            <DialogContent sx={{ p: { xs: 2.5, md: 3.5 }, bgcolor: '#f8fafc' }}>
                 {/* Stepper */}
                 <Box
                     sx={{
-                        mb: 2,
-                        px: { xs: 1, sm: 2 },
-                        py: 1.5,
+                        mb: 3.5,
+                        p: 2.5,
                         bgcolor: '#ffffff',
-                        borderRadius: '12px',
+                        borderRadius: '16px',
                         border: '1px solid #e2e8f0',
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
                     }}
                 >
                     <Stepper activeStep={step} connector={<CustomStepConnector />}>
@@ -512,9 +688,8 @@ export const ImportBatchFileImportDialog = ({
                                         <Typography
                                             variant="body2"
                                             sx={{
-                                                fontWeight: isActive ? 700 : 500,
+                                                fontWeight: isActive ? 800 : 600,
                                                 color: isActive ? '#0f172a' : '#64748b',
-                                                fontSize: { xs: '0.75rem', sm: '0.8125rem' },
                                             }}
                                         >
                                             {label}
@@ -528,216 +703,276 @@ export const ImportBatchFileImportDialog = ({
 
                 {/* ── STEP 0: Chọn tệp & Nhà cung cấp ── */}
                 {step === 0 && (
-                    <Stack spacing={2}>
-                        <Alert
-                            severity="info"
-                            icon={<InfoOutlinedIcon fontSize="small" />}
+                    <Stack spacing={3}>
+                        {/* Information Guidelines Card */}
+                        <Box
                             sx={{
-                                borderRadius: '10px',
-                                py: 0.75,
-                                '& .MuiAlert-message': { fontSize: '0.8125rem', lineHeight: 1.5 },
+                                p: 2.5,
+                                borderRadius: '16px',
+                                bgcolor: '#eff6ff',
+                                border: '1px solid #bfdbfe',
+                                display: 'flex',
+                                gap: 2,
+                                alignItems: 'flex-start',
                             }}
                         >
-                            Chỉ nhập kỳ quay <strong>hôm nay</strong> và <strong>ngày mai</strong>.
-                            Tệp có dãy số + sê-ri sẽ nhập vé luôn; chỉ có số lượng thì tạo phiếu khai báo trước.
-                        </Alert>
+                            <Box
+                                sx={{
+                                    color: '#2563eb',
+                                    p: 0.75,
+                                    bgcolor: '#dbeafe',
+                                    borderRadius: '10px',
+                                    display: 'flex',
+                                }}
+                            >
+                                <InfoOutlinedIcon fontSize="small" />
+                            </Box>
+                            <Box sx={{ flex: 1 }}>
+                                <Typography variant="subtitle2" fontWeight={800} color="#1e40af" sx={{ mb: 0.5 }}>
+                                    Lưu ý quan trọng khi nhập tệp
+                                </Typography>
+                                <Typography variant="body2" color="#1e3a8a" sx={{ fontSize: '0.875rem', lineHeight: 1.6 }}>
+                                    • <b>Phạm vi ngày quay:</b> Nhập từ tệp chỉ tạo phiếu cho <b>ngày quay hôm nay</b>, và phải trước giờ kiểm vé chuẩn bị trả của nhà cung cấp. Ngày đã qua hoặc chưa tới sẽ bị bỏ qua — tệp cho ngày mai hãy tải lại vào đúng ngày đó.<br />
+                                    • <b>Chế độ nhập vé:</b> Nếu tệp có cột <b>dãy số</b> và <b>danh sách sê-ri</b> (phân cách bằng dấu <b>;</b>), hệ thống sẽ tạo phiếu và nhập luôn vé vào kho. Nếu chỉ có cột <b>số lượng</b> thì hệ thống sẽ tạo phiếu khai báo trước.
+                                </Typography>
+                            </Box>
+                        </Box>
 
+                        {/* Supplier Selection */}
                         <Paper
                             elevation={0}
                             sx={{
-                                p: 2,
-                                borderRadius: '12px',
+                                p: 3,
+                                borderRadius: '16px',
                                 border: '1px solid #e2e8f0',
                                 bgcolor: '#ffffff',
                             }}
                         >
-                            <Stack spacing={2}>
-                                <TextField
-                                    select
-                                    required
-                                    size="small"
-                                    label="Nhà cung cấp"
-                                    value={supplierId || ''}
-                                    onChange={(event) => setSupplierId(Number(event.target.value))}
-                                    fullWidth
-                                    sx={{
-                                        '& .MuiOutlinedInput-root': {
-                                            borderRadius: '10px',
-                                            bgcolor: '#ffffff',
-                                        },
-                                    }}
-                                >
-                                    {activeSuppliers.map((supplier) => (
-                                        <MenuItem key={supplier.id} value={supplier.id}>
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                <Typography fontWeight={600} fontSize="0.875rem">
-                                                    {supplier.name}
-                                                </Typography>
-                                                <Chip
-                                                    size="small"
-                                                    label={supplier.code}
-                                                    sx={{ height: 20, fontSize: '0.7rem' }}
-                                                />
-                                            </Box>
-                                        </MenuItem>
-                                    ))}
-                                </TextField>
+                            <Typography variant="subtitle2" fontWeight={800} color="#0f172a" sx={{ mb: 2 }}>
+                                1. Chọn nhà cung cấp *
+                            </Typography>
+                            <TextField
+                                select
+                                required
+                                label="Nhà cung cấp"
+                                value={supplierId || ''}
+                                onChange={(event) => setSupplierId(Number(event.target.value))}
+                                fullWidth
+                                sx={{
+                                    '& .MuiOutlinedInput-root': {
+                                        borderRadius: '12px',
+                                        bgcolor: '#ffffff',
+                                    },
+                                }}
+                            >
+                                {activeSuppliers.map((supplier) => (
+                                    <MenuItem key={supplier.id} value={supplier.id}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <Typography fontWeight={600}>{supplier.name}</Typography>
+                                            <Chip size="small" label={supplier.code} sx={{ height: 22, fontSize: '0.75rem' }} />
+                                        </Box>
+                                    </MenuItem>
+                                ))}
+                            </TextField>
 
-                                {(todayIntake.blocked || todayIntake.notYetAllowed) && (
-                                    <Alert severity={todayIntake.blocked ? 'error' : 'warning'} sx={{ py: 0 }}>
-                                        {todayIntake.message}
-                                    </Alert>
-                                )}
+                            {supplierId > 0 && (todayIntake.blocked || todayIntake.notYetAllowed) && (
+                                <Alert severity={todayIntake.blocked ? 'error' : 'warning'} sx={{ mt: 2 }}>
+                                    {todayIntake.message}
+                                </Alert>
+                            )}
 
-                                <Box
-                                    component="label"
-                                    sx={{
-                                        border: '1.5px dashed #cbd5e1',
-                                        borderRadius: '10px',
-                                        px: 2,
-                                        py: 1.75,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 1.5,
-                                        bgcolor: file ? '#f0fdf4' : '#f8fafc',
-                                        cursor: !supplierId || busy ? 'not-allowed' : 'pointer',
-                                        opacity: !supplierId ? 0.55 : 1,
-                                        transition: 'border-color 0.2s, background-color 0.2s',
-                                        '&:hover': !supplierId || busy
-                                            ? {}
-                                            : { borderColor: '#FF3030', bgcolor: '#fef2f2' },
-                                    }}
-                                >
-                                    <input
-                                        hidden
-                                        type="file"
-                                        accept={IMPORT_BATCH_FILE_ACCEPT}
-                                        disabled={!supplierId || busy}
-                                        onChange={(event) =>
-                                            handleFileChosen(event.target.files?.[0] ?? null)
-                                        }
-                                    />
+                            <Box sx={{ mt: 2 }}>
+                                <ImportBatchFileMappingProfilePanel
+                                    supplierId={supplierId}
+                                    refreshToken={profileRefreshToken}
+                                />
+                            </Box>
+                        </Paper>
 
-                                    {busy ? (
-                                        <>
-                                            <CircularProgress size={22} sx={{ color: '#FF3030', flexShrink: 0 }} />
-                                            <Typography variant="body2" fontWeight={600} color="#475569">
-                                                Đang phân tích tệp...
+                        {/* File Upload Zone */}
+                        <Paper
+                            elevation={0}
+                            sx={{
+                                p: 3,
+                                borderRadius: '16px',
+                                border: '1px solid #e2e8f0',
+                                bgcolor: '#ffffff',
+                            }}
+                        >
+                            <Typography variant="subtitle2" fontWeight={800} color="#0f172a" sx={{ mb: 2 }}>
+                                2. Tải lên tệp dữ liệu *
+                            </Typography>
+
+                            <Box
+                                component="label"
+                                sx={{
+                                    border: '2px dashed #cbd5e1',
+                                    borderRadius: '16px',
+                                    p: 4,
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    bgcolor: file ? '#f0fdf4' : !supplierId ? '#f8fafc' : '#f8fafc',
+                                    cursor: !supplierId || busy ? 'not-allowed' : 'pointer',
+                                    opacity: !supplierId ? 0.6 : 1,
+                                    transition: 'all 0.2s',
+                                    textAlign: 'center',
+                                    '&:hover': !supplierId || busy ? {} : {
+                                        borderColor: '#FF3030',
+                                        bgcolor: '#fef2f2',
+                                    },
+                                }}
+                            >
+                                <input
+                                    hidden
+                                    type="file"
+                                    accept={IMPORT_BATCH_FILE_ACCEPT}
+                                    disabled={!supplierId || busy}
+                                    onChange={(event) =>
+                                        handleFileChosen(event.target.files?.[0] ?? null)
+                                    }
+                                />
+
+                                {busy ? (
+                                    <Stack alignItems="center" spacing={1.5}>
+                                        <CircularProgress size={36} sx={{ color: '#FF3030' }} />
+                                        <Typography variant="body2" fontWeight={700} color="#475569">
+                                            Đang phân tích tệp dữ liệu...
+                                        </Typography>
+                                    </Stack>
+                                ) : file ? (
+                                    <Stack alignItems="center" spacing={1}>
+                                        <Box
+                                            sx={{
+                                                width: 52,
+                                                height: 52,
+                                                borderRadius: '14px',
+                                                bgcolor: '#dcfce7',
+                                                color: '#16a34a',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                            }}
+                                        >
+                                            <InsertDriveFileOutlinedIcon fontSize="large" />
+                                        </Box>
+                                        <Typography variant="subtitle1" fontWeight={800} color="#0f172a">
+                                            {file.name}
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary">
+                                            {(file.size / 1024).toFixed(1)} KB · Nhấn để đổi tệp khác
+                                        </Typography>
+                                    </Stack>
+                                ) : (
+                                    <Stack alignItems="center" spacing={1.5}>
+                                        <Box
+                                            sx={{
+                                                width: 56,
+                                                height: 56,
+                                                borderRadius: '16px',
+                                                bgcolor: '#fee2e2',
+                                                color: '#FF3030',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                            }}
+                                        >
+                                            <CloudUploadOutlinedIcon fontSize="large" />
+                                        </Box>
+                                        <Box>
+                                            <Typography variant="subtitle1" fontWeight={800} color="#0f172a">
+                                                {!supplierId ? 'Vui lòng chọn nhà cung cấp trước' : 'Kéo thả tệp hoặc bấm vào đây để chọn'}
                                             </Typography>
-                                        </>
-                                    ) : file ? (
-                                        <>
-                                            <Box
-                                                sx={{
-                                                    width: 36,
-                                                    height: 36,
-                                                    borderRadius: '8px',
-                                                    bgcolor: '#dcfce7',
-                                                    color: '#16a34a',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    flexShrink: 0,
-                                                }}
-                                            >
-                                                <InsertDriveFileOutlinedIcon fontSize="small" />
-                                            </Box>
-                                            <Box sx={{ minWidth: 0 }}>
-                                                <Typography
-                                                    variant="body2"
-                                                    fontWeight={700}
-                                                    color="#0f172a"
-                                                    noWrap
-                                                >
-                                                    {file.name}
-                                                </Typography>
-                                                <Typography variant="caption" color="text.secondary">
-                                                    {(file.size / 1024).toFixed(1)} KB · Bấm để đổi tệp
-                                                </Typography>
-                                            </Box>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Box
-                                                sx={{
-                                                    width: 36,
-                                                    height: 36,
-                                                    borderRadius: '8px',
-                                                    bgcolor: '#fee2e2',
-                                                    color: '#FF3030',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    flexShrink: 0,
-                                                }}
-                                            >
-                                                <CloudUploadOutlinedIcon fontSize="small" />
-                                            </Box>
-                                            <Box sx={{ minWidth: 0 }}>
-                                                <Typography variant="body2" fontWeight={700} color="#0f172a">
-                                                    {!supplierId
-                                                        ? 'Chọn nhà cung cấp trước khi tải tệp'
-                                                        : 'Chọn tệp Excel (.xlsx) hoặc CSV'}
-                                                </Typography>
-                                                <Typography variant="caption" color="text.secondary">
-                                                    Kéo thả hoặc bấm để chọn từ máy
-                                                </Typography>
-                                            </Box>
-                                        </>
-                                    )}
-                                </Box>
-
-                                <Stack
-                                    direction="row"
-                                    spacing={1}
-                                    alignItems="center"
-                                    flexWrap="wrap"
-                                    useFlexGap
-                                >
-                                    <Button
-                                        variant="outlined"
-                                        size="small"
-                                        startIcon={<DownloadOutlinedIcon />}
-                                        onClick={() =>
-                                            void downloadImportBatchFileTemplate(
-                                                (eligibleStations?.eligible ?? []).map((station) => ({
-                                                    name: station.name,
-                                                    price: station.price,
-                                                    commissionRate: station.commissionRate,
-                                                }))
-                                            )
-                                        }
-                                        sx={{
-                                            borderRadius: '8px',
-                                            textTransform: 'none',
-                                            fontWeight: 600,
-                                            fontSize: '0.8125rem',
-                                        }}
-                                    >
-                                        Tải mẫu tệp
-                                    </Button>
-                                    <Button
-                                        variant="text"
-                                        size="small"
-                                        startIcon={<SettingsOutlinedIcon />}
-                                        onClick={() => setConfigOpen(true)}
-                                        sx={{
-                                            textTransform: 'none',
-                                            fontWeight: 600,
-                                            fontSize: '0.8125rem',
-                                            color: '#64748b',
-                                        }}
-                                    >
-                                        Quy tắc đọc tệp
-                                    </Button>
-                                </Stack>
-
-                                {supplierId > 0 && (
-                                    <ImportBatchFileMappingProfilePanel
-                                        supplierId={supplierId}
-                                        refreshToken={profileRefreshToken}
-                                    />
+                                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                                Hỗ trợ định dạng Microsoft Excel (.xlsx) hoặc CSV (.csv)
+                                            </Typography>
+                                        </Box>
+                                    </Stack>
                                 )}
+                            </Box>
+
+                            {/* Template & Helper Buttons */}
+                            <Stack
+                                direction="row"
+                                spacing={1.5}
+                                alignItems="center"
+                                flexWrap="wrap"
+                                sx={{ mt: 2.5, pt: 2, borderTop: '1px solid #f1f5f9' }}
+                            >
+                                <Typography variant="caption" fontWeight={700} color="text.secondary">
+                                    Tệp mẫu chuẩn:
+                                </Typography>
+                                <Tooltip
+                                    title={`Vé của ${todayTemplateDay.stations.length} đài quay hôm nay (${todayTemplateDay.drawDate})`}
+                                >
+                                    <span>
+                                        <Button
+                                            variant="outlined"
+                                            size="small"
+                                            startIcon={<DownloadOutlinedIcon />}
+                                            disabled={!supplierId}
+                                            onClick={() =>
+                                                void downloadImportBatchFileTemplate(
+                                                    [todayTemplateDay],
+                                                    templateSupplier || undefined,
+                                                    templateIssuer
+                                                )
+                                            }
+                                            sx={TEMPLATE_BUTTON_SX}
+                                        >
+                                            Mẫu nhập vé chi tiết
+                                        </Button>
+                                    </span>
+                                </Tooltip>
+
+                                <Tooltip
+                                    title={
+                                        yesterdayTemplateDay.stations.length === 0
+                                            ? 'Hôm qua không có đài nào quay số'
+                                            : `Gộp 2 ngày quay: ${yesterdayTemplateDay.drawDate} (${yesterdayTemplateDay.stations.length} đài) và ${todayTemplateDay.drawDate} (${todayTemplateDay.stations.length} đài). Ngày hôm qua nằm ngoài phạm vi tạo phiếu nên sẽ bị bỏ qua khi nhập.`
+                                    }
+                                >
+                                    <span>
+                                        <Button
+                                            variant="outlined"
+                                            size="small"
+                                            startIcon={<DownloadOutlinedIcon />}
+                                            disabled={
+                                                !supplierId ||
+                                                yesterdayTemplateDay.stations.length === 0
+                                            }
+                                            onClick={() =>
+                                                void downloadImportBatchFileTemplate(
+                                                    [yesterdayTemplateDay, todayTemplateDay],
+                                                    templateSupplier || undefined,
+                                                    templateIssuer
+                                                )
+                                            }
+                                            sx={TEMPLATE_BUTTON_SX}
+                                        >
+                                            Mẫu hôm qua + hôm nay
+                                        </Button>
+                                    </span>
+                                </Tooltip>
+
+                                <Box sx={{ flex: 1 }} />
+
+                                <Button
+                                    variant="text"
+                                    size="small"
+                                    startIcon={<SettingsOutlinedIcon />}
+                                    onClick={() => setConfigOpen(true)}
+                                    sx={{
+                                        borderRadius: '10px',
+                                        textTransform: 'none',
+                                        fontWeight: 700,
+                                        color: '#64748b',
+                                        '&:hover': { bgcolor: '#f1f5f9' },
+                                    }}
+                                >
+                                    Xem quy tắc đọc tệp
+                                </Button>
                             </Stack>
                         </Paper>
                     </Stack>
@@ -867,6 +1102,42 @@ export const ImportBatchFileImportDialog = ({
                 {/* ── STEP 2: Xem trước & Tạo phiếu ── */}
                 {step === 2 && preview && (
                     <Stack spacing={3}>
+                        {supplierIdentity && selectedSupplier && (
+                            <ImportBatchFileSupplierIdentityPanel
+                                identity={supplierIdentity}
+                                supplierName={selectedSupplier.name}
+                                onEditSupplier={() => setSupplierEditOpen(true)}
+                            />
+                        )}
+
+                        {scheduleMismatches.length > 0 && (
+                            <Alert
+                                severity="error"
+                                sx={{ borderRadius: '12px' }}
+                                action={
+                                    <Button
+                                        size="small"
+                                        variant="contained"
+                                        color="error"
+                                        onClick={() => setScheduleOpen(true)}
+                                        sx={{ textTransform: 'none', fontWeight: 700 }}
+                                    >
+                                        Sửa lịch quay
+                                    </Button>
+                                }
+                            >
+                                <Typography variant="body2" fontWeight={700}>
+                                    {scheduleMismatches.length} nhà đài không có lịch quay vào ngày
+                                    quay ghi trong tệp
+                                </Typography>
+                                <Typography variant="caption">
+                                    Các đài này có trong hệ thống nhưng lịch quay hằng tuần không bao
+                                    gồm thứ của ngày quay, nên vé của họ bị bỏ qua. Nếu đài thực sự có
+                                    quay, hãy bổ sung thứ còn thiếu rồi xem trước lại.
+                                </Typography>
+                            </Alert>
+                        )}
+
                         {pricingMismatches.length > 0 && (
                             <Alert
                                 severity="error"
@@ -1001,7 +1272,15 @@ export const ImportBatchFileImportDialog = ({
                                 variant="outlined"
                                 size="small"
                                 startIcon={<FactCheckOutlinedIcon />}
-                                onClick={() => downloadImportBatchProgressCsv(preview, mapping, file?.name)}
+                                onClick={() =>
+                                    downloadImportBatchProgressCsv(preview, mapping, file?.name, {
+                                        issuerName: templateIssuer.legalName,
+                                        supplierName: selectedSupplier?.name,
+                                        supplierCode: selectedSupplier?.code,
+                                        supplierTaxCode: selectedSupplier?.taxCode,
+                                        stationPricing,
+                                    })
+                                }
                                 sx={{
                                     borderRadius: '10px',
                                     textTransform: 'none',
@@ -1049,6 +1328,81 @@ export const ImportBatchFileImportDialog = ({
                         <Paper
                             elevation={0}
                             sx={{
+                                p: 2.5,
+                                borderRadius: '14px',
+                                border: '1px solid #e2e8f0',
+                                bgcolor: '#ffffff',
+                            }}
+                        >
+                            <Typography variant="subtitle2" fontWeight={800} color="#0f172a" sx={{ mb: 0.5 }}>
+                                Chứng từ đính kèm phiếu nhập
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+                                Tải biên lai và danh sách vé (ảnh hoặc tệp PDF/Excel/CSV) — dùng chung cho mọi ngày
+                                quay được chọn. Không cần chụp lại nếu đã có file từ NCC.
+                            </Typography>
+                            <Stack spacing={2.5}>
+                                <Box>
+                                    <Typography variant="body2" fontWeight={700} color="#334155" sx={{ mb: 1 }}>
+                                        Biên lai nhập *
+                                    </Typography>
+                                    <UploadSingleFile
+                                        label="Tải tệp / ảnh biên lai"
+                                        value={invoiceEvidenceUrl}
+                                        onChange={(url) =>
+                                            setInvoiceEvidenceUrl(typeof url === 'string' ? url : '')
+                                        }
+                                        autoUpload
+                                        required
+                                        accept={IMPORT_EVIDENCE_ACCEPT}
+                                        customUpload={uploadImportBatchInvoiceEvidence}
+                                        onUploadingChange={setIsInvoiceUploading}
+                                        disabled={busy}
+                                        maxFileSizeMb={15}
+                                    />
+                                </Box>
+                                <Box>
+                                    <Typography variant="body2" fontWeight={700} color="#334155" sx={{ mb: 1 }}>
+                                        Danh sách vé nhập
+                                    </Typography>
+                                    <FormControlLabel
+                                        control={
+                                            <Checkbox
+                                                checked={useOriginalFileAsTicketListEvidence}
+                                                onChange={(event) =>
+                                                    setUseOriginalFileAsTicketListEvidence(event.target.checked)
+                                                }
+                                                disabled={busy}
+                                                sx={{ color: '#FF3030', '&.Mui-checked': { color: '#FF3030' } }}
+                                            />
+                                        }
+                                        label={
+                                            <Typography variant="body2" color="#475569">
+                                                Dùng tệp đang nhập (CSV/Excel) làm danh sách vé đính kèm phiếu
+                                            </Typography>
+                                        }
+                                        sx={{ mb: 1, ml: 0 }}
+                                    />
+                                    <UploadSingleFile
+                                        label="Tải thêm tệp / ảnh danh sách vé (tuỳ chọn)"
+                                        value={ticketListEvidenceUrl}
+                                        onChange={(url) =>
+                                            setTicketListEvidenceUrl(typeof url === 'string' ? url : '')
+                                        }
+                                        autoUpload
+                                        accept={IMPORT_EVIDENCE_ACCEPT}
+                                        customUpload={uploadImportBatchTicketListImage}
+                                        onUploadingChange={setIsTicketListUploading}
+                                        disabled={busy}
+                                        maxFileSizeMb={15}
+                                    />
+                                </Box>
+                            </Stack>
+                        </Paper>
+
+                        <Paper
+                            elevation={0}
+                            sx={{
                                 p: 2,
                                 borderRadius: '12px',
                                 bgcolor: '#f8fafc',
@@ -1075,50 +1429,115 @@ export const ImportBatchFileImportDialog = ({
             </DialogContent>
 
             {/* Footer Actions */}
-            <DialogActions sx={ADMIN_DIALOG_ACTIONS_SX}>
-                {step === 1 && (
-                    <>
-                        <LoadingButton
-                            variant="outlined"
-                            color="inherit"
-                            onClick={() => setStep(0)}
-                            disabled={busy}
-                            startIcon={<ArrowBackIcon />}
-                            label="Chọn lại tệp"
-                        />
-                        <LoadingButton
-                            variant="contained"
-                            className="btn-primary-admin"
-                            onClick={() => runPreview()}
-                            disabled={!mappingReady}
-                            loading={busy}
-                            endIcon={!busy ? <ArrowForwardIcon /> : undefined}
-                            label="Xem trước"
-                        />
-                    </>
-                )}
+            <DialogActions
+                sx={{
+                    px: 3,
+                    py: 2.25,
+                    borderTop: '1px solid #e2e8f0',
+                    bgcolor: '#ffffff',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                }}
+            >
+                <Button
+                    onClick={handleClose}
+                    disabled={busy}
+                    sx={{
+                        textTransform: 'none',
+                        fontWeight: 700,
+                        color: '#64748b',
+                        borderRadius: '10px',
+                        px: 2.5,
+                        '&:hover': { bgcolor: '#f1f5f9' },
+                    }}
+                >
+                    Hủy bỏ
+                </Button>
 
-                {step === 2 && (
-                    <>
-                        <LoadingButton
-                            variant="outlined"
-                            color="inherit"
-                            onClick={() => setStep(1)}
-                            disabled={busy}
-                            startIcon={<ArrowBackIcon />}
-                            label="Sửa gán cột"
-                        />
-                        <LoadingButton
-                            variant="contained"
-                            className="btn-primary-admin"
-                            onClick={handleCommit}
-                            disabled={selectedDates.length === 0 || selectedDates.some(isDrawDateIntakeBlocked)}
-                            loading={busy}
-                            startIcon={!busy ? <CheckCircleIcon /> : undefined}
-                            label={`Tạo ${selectedDates.length} phiếu nhập`}
-                        />
-                    </>
-                )}
+                <Stack direction="row" spacing={1.5}>
+                    {step === 1 && (
+                        <>
+                            <Button
+                                onClick={() => setStep(0)}
+                                disabled={busy}
+                                startIcon={<ArrowBackIcon />}
+                                sx={{
+                                    textTransform: 'none',
+                                    fontWeight: 700,
+                                    color: '#334155',
+                                    borderRadius: '10px',
+                                    px: 2.5,
+                                    border: '1px solid #cbd5e1',
+                                }}
+                            >
+                                Chọn lại tệp
+                            </Button>
+                            <Button
+                                variant="contained"
+                                onClick={() => runPreview()}
+                                disabled={busy || !mappingReady}
+                                endIcon={busy ? <CircularProgress size={16} color="inherit" /> : <ArrowForwardIcon />}
+                                sx={{
+                                    textTransform: 'none',
+                                    fontWeight: 800,
+                                    borderRadius: '10px',
+                                    px: 3,
+                                    bgcolor: '#FF3030',
+                                    color: '#ffffff',
+                                    boxShadow: '0 4px 12px rgba(255, 48, 48, 0.25)',
+                                    '&:hover': { bgcolor: '#e02828' },
+                                }}
+                            >
+                                Xem trước
+                            </Button>
+                        </>
+                    )}
+
+                    {step === 2 && (
+                        <>
+                            <Button
+                                onClick={() => setStep(1)}
+                                disabled={busy}
+                                startIcon={<ArrowBackIcon />}
+                                sx={{
+                                    textTransform: 'none',
+                                    fontWeight: 700,
+                                    color: '#334155',
+                                    borderRadius: '10px',
+                                    px: 2.5,
+                                    border: '1px solid #cbd5e1',
+                                }}
+                            >
+                                Sửa gán cột
+                            </Button>
+                            <Button
+                                variant="contained"
+                                onClick={handleCommit}
+                                disabled={
+                                    busy
+                                    || selectedDates.length === 0
+                                    || selectedDates.some(isDrawDateIntakeBlocked)
+                                    || !invoiceEvidenceUrl.trim()
+                                    || isInvoiceUploading
+                                    || isTicketListUploading
+                                }
+                                startIcon={busy ? <CircularProgress size={16} color="inherit" /> : <CheckCircleIcon />}
+                                sx={{
+                                    textTransform: 'none',
+                                    fontWeight: 800,
+                                    borderRadius: '10px',
+                                    px: 3.5,
+                                    bgcolor: '#FF3030',
+                                    color: '#ffffff',
+                                    boxShadow: '0 4px 12px rgba(255, 48, 48, 0.25)',
+                                    '&:hover': { bgcolor: '#e02828' },
+                                }}
+                            >
+                                Tạo {selectedDates.length} phiếu nhập
+                            </Button>
+                        </>
+                    )}
+                </Stack>
             </DialogActions>
 
             <ImportBatchFileConfigDialog
@@ -1132,6 +1551,29 @@ export const ImportBatchFileImportDialog = ({
                 mismatches={pricingMismatches}
                 // Station pricing drives the batch line cost, so the preview has to
                 // be recomputed before the numbers on screen mean anything again.
+                onSaved={() => void runPreview()}
+            />
+
+            {selectedSupplier && supplierIdentity && (
+                <ImportBatchFileSupplierDialog
+                    open={supplierEditOpen}
+                    onClose={() => setSupplierEditOpen(false)}
+                    supplier={selectedSupplier}
+                    identity={supplierIdentity}
+                    // The letterhead check runs during resolution, so the verdict on
+                    // screen only changes once the file is read against the corrected
+                    // record.
+                    onSaved={() => void runPreview()}
+                />
+            )}
+
+            <ImportBatchFileScheduleDialog
+                open={scheduleOpen}
+                onClose={() => setScheduleOpen(false)}
+                mismatches={scheduleMismatches}
+                // Which stations are eligible is derived from their schedule, so the
+                // whole preview has to be resolved again before anything on screen
+                // reflects the correction.
                 onSaved={() => void runPreview()}
             />
         </Dialog>

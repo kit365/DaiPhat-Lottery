@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { isTicketSelectableForCancel } from '../utils/cancelTicketSelection';
 import { isSerialIncidentEligible } from '../utils/serialIncidentWorkflow';
 
@@ -52,7 +52,9 @@ const mapCancelableSerial = (
 
 export const useCancelTicketSelection = (tickets: CancelTicketLike[]) => {
     const [selectedSerials, setSelectedSerials] = useState<CancelSelectedSerial[]>([]);
+    const [isCancelMode, setIsCancelMode] = useState(false);
     const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
+    const previousSelectedCountRef = useRef(0);
 
     const cancelableSerials = useMemo(() => {
         const list: CancelSelectedSerial[] = [];
@@ -79,6 +81,14 @@ export const useCancelTicketSelection = (tickets: CancelTicketLike[]) => {
             return next.length === prev.length ? prev : next;
         });
     }, [cancelableSerials]);
+
+    useEffect(() => {
+        const previousCount = previousSelectedCountRef.current;
+        previousSelectedCountRef.current = selectedSerials.length;
+        if (isCancelMode && previousCount > 0 && selectedSerials.length === 0) {
+            setIsCancelMode(false);
+        }
+    }, [isCancelMode, selectedSerials.length]);
 
     const getTicketCancelableSerials = useCallback((ticket: CancelTicketLike) => {
         if (!isTicketSelectableForCancel(ticket.status)) {
@@ -108,6 +118,7 @@ export const useCancelTicketSelection = (tickets: CancelTicketLike[]) => {
     const handleSelectAll = useCallback(
         (checked: boolean) => {
             if (checked) {
+                // Only eligible serials (IN_STOCK/IMPORTING ticket + GOOD cancelable serials).
                 setSelectedSerials(cancelableSerials);
             } else {
                 setSelectedSerials([]);
@@ -161,6 +172,16 @@ export const useCancelTicketSelection = (tickets: CancelTicketLike[]) => {
 
     const clearSelection = useCallback(() => setSelectedSerials([]), []);
 
+    const enterCancelMode = useCallback(() => {
+        setIsCancelMode(true);
+    }, []);
+
+    const exitCancelMode = useCallback(() => {
+        previousSelectedCountRef.current = 0;
+        setSelectedSerials([]);
+        setIsCancelMode(false);
+    }, []);
+
     const openReportDialog = useCallback(() => setIsReportDialogOpen(true), []);
     const closeReportDialog = useCallback(() => setIsReportDialogOpen(false), []);
 
@@ -181,6 +202,7 @@ export const useCancelTicketSelection = (tickets: CancelTicketLike[]) => {
         selectedSerials,
         cancelableSerials,
         totalCancelableSerialsCount,
+        isCancelMode,
         isReportDialogOpen,
         getTicketCancelableSerials,
         getTicketSelectionState,
@@ -188,6 +210,8 @@ export const useCancelTicketSelection = (tickets: CancelTicketLike[]) => {
         handleSelectTicket,
         handleSelectSerial,
         clearSelection,
+        enterCancelMode,
+        exitCancelMode,
         openReportDialog,
         closeReportDialog,
         reportDialogProps,

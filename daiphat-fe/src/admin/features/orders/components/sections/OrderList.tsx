@@ -34,7 +34,7 @@ import { useSettings } from '../../../../shared/data-grid';
 import { useOrderDrawCutoff } from '../../hooks/useOrder';
 import { OrderCutoffReminderBanner } from './OrderCutoffReminderBanner';
 import { OrderHandoverConfirmDialog } from './OrderHandoverConfirmDialog';
-import { OrderStatus } from '../../../../../types/order.type';
+import { OrderStatus, getOrderTypeLabel, ORDER_TYPE_CHIP_STYLES, OrderType } from '../../../../../types/order.type';
 import { ORDER_STATUS_TABS } from '../../constants/orderStatus.constants';
 import {
     getOrderStatusAdminBadgeModifier,
@@ -397,22 +397,38 @@ export const OrderList = () => {
 
                                             <TableCell sx={{ borderBottom: '1px dashed var(--palette-background-neutral)' }}>
                                                 {(() => {
-                                                    const typeMap: any = {
-                                                        'ONLINE': { label: 'Online', color: 'var(--palette-info-dark)', bg: 'var(--palette-info-lighter)' },
-                                                        'DIRECT': { label: 'Tại quầy', color: 'var(--palette-warning-dark)', bg: 'var(--palette-warning-lighter)' }
-                                                    };
-                                                    const tInfo = typeMap[row.orderType] || { label: row.orderType, color: 'var(--palette-text-disabled)', bg: 'var(--palette-background-neutral)' };
+                                                    const orderType =
+                                                        row.orderType === OrderType.DIRECT
+                                                            ? OrderType.DIRECT
+                                                            : row.orderType === OrderType.ONLINE
+                                                              ? OrderType.ONLINE
+                                                              : null;
+                                                    if (!orderType) {
+                                                        return (
+                                                            <Chip
+                                                                label={row.orderType || '—'}
+                                                                size="small"
+                                                                sx={{
+                                                                    borderRadius: 'var(--shape-borderRadius-sm)',
+                                                                    fontWeight: 700,
+                                                                    fontSize: '0.6875rem',
+                                                                    height: '24px',
+                                                                }}
+                                                            />
+                                                        );
+                                                    }
+                                                    const chipStyle = ORDER_TYPE_CHIP_STYLES[orderType];
                                                     return (
                                                         <Chip
-                                                            label={tInfo.label}
+                                                            label={getOrderTypeLabel(orderType)}
                                                             size="small"
                                                             sx={{
-                                                                borderRadius: "var(--shape-borderRadius-sm)",
+                                                                borderRadius: 'var(--shape-borderRadius-sm)',
                                                                 fontWeight: 700,
                                                                 fontSize: '0.6875rem',
-                                                                color: tInfo.color,
-                                                                bgcolor: tInfo.bg,
-                                                                height: '24px'
+                                                                color: chipStyle.color,
+                                                                bgcolor: chipStyle.bgcolor,
+                                                                height: '24px',
                                                             }}
                                                         />
                                                     );

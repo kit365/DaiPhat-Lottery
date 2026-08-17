@@ -246,54 +246,62 @@ class _CartViewState extends ConsumerState<CartView> {
           Expanded(
             child: items.isEmpty
                 ? const _EmptyCartView()
-                : ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                    children: [
-                      _CartOverview(
-                        itemCount: items.length,
-                        ticketCount: ticketCount,
-                      ),
-                      const SizedBox(height: 14),
-                      ...items.asMap().entries.map((entry) {
-                        final index = entry.key;
-                        final item = entry.value;
-                        final card = _CartTicketCard(
-                          item: item,
-                          isSelectionMode: _isSelectionMode,
-                          isSelected: _selectedIndexes.contains(index),
-                          onTap: () {
-                            if (_isSelectionMode) {
-                              _toggleItemSelection(index);
-                            } else {
-                              _openDetail(context, item);
-                            }
-                          },
-                          onToggleSelect: () => _toggleItemSelection(index),
-                          onQuantityChanged: (qty) {
-                            ref
-                                .read(cartProvider.notifier)
-                                .updateQuantityAtIndex(index, qty);
-                          },
-                        );
-                        return Padding(
-                          key: ValueKey(
-                            '${item.lotteryTicketId}_${item.number}_$index',
-                          ),
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _isSelectionMode
-                              ? card
-                              : Dismissible(
-                                  key: ValueKey(
-                                    'dismiss_${item.lotteryTicketId}_$index',
+                : RefreshIndicator(
+                    color: AppColors.primary,
+                    onRefresh: () async {
+                      ref.invalidate(cartProvider);
+                    },
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                      children: [
+                        _CartOverview(
+                          itemCount: items.length,
+                          ticketCount: ticketCount,
+                        ),
+                        const SizedBox(height: 14),
+                        ...items.asMap().entries.map((entry) {
+                          final index = entry.key;
+                          final item = entry.value;
+                          final card = _CartTicketCard(
+                            item: item,
+                            isSelectionMode: _isSelectionMode,
+                            isSelected: _selectedIndexes.contains(index),
+                            onTap: () {
+                              if (_isSelectionMode) {
+                                _toggleItemSelection(index);
+                              } else {
+                                _openDetail(context, item);
+                              }
+                            },
+                            onToggleSelect: () => _toggleItemSelection(index),
+                            onQuantityChanged: (qty) {
+                              ref
+                                  .read(cartProvider.notifier)
+                                  .updateQuantityAtIndex(index, qty);
+                            },
+                          );
+                          return Padding(
+                            key: ValueKey(
+                              '${item.lotteryTicketId}_${item.number}_$index',
+                            ),
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _isSelectionMode
+                                ? card
+                                : Dismissible(
+                                    key: ValueKey(
+                                      'dismiss_${item.lotteryTicketId}_$index',
+                                    ),
+                                    direction: DismissDirection.endToStart,
+                                    background: const _DeleteSwipeBackground(),
+                                    onDismissed: (_) =>
+                                        _removeItem(item, index),
+                                    child: card,
                                   ),
-                                  direction: DismissDirection.endToStart,
-                                  background: const _DeleteSwipeBackground(),
-                                  onDismissed: (_) => _removeItem(item, index),
-                                  child: card,
-                                ),
-                        );
-                      }),
-                    ],
+                          );
+                        }),
+                      ],
+                    ),
                   ),
           ),
           if (items.isNotEmpty)

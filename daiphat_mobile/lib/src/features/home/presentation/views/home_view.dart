@@ -265,6 +265,7 @@ class _HomeContentState extends ConsumerState<_HomeContent>
           availableProvinces: [],
           isWaitingForResults: true,
         ),
+        normalizedDate: normalizedDate,
         isContentLoading: true,
       ),
       error: (error, _) => _buildLoadedState(
@@ -272,14 +273,19 @@ class _HomeContentState extends ConsumerState<_HomeContent>
           results: [],
           availableProvinces: [],
         ),
+        normalizedDate: normalizedDate,
         errorMessage: error.toString(),
       ),
-      data: (data) => _buildLoadedState(data),
+      data: (data) => _buildLoadedState(
+        data,
+        normalizedDate: normalizedDate,
+      ),
     );
   }
 
   Widget _buildLoadedState(
     HomeLotteryData data, {
+    required DateTime normalizedDate,
     bool isContentLoading = false,
     String? errorMessage,
   }) {
@@ -327,8 +333,19 @@ class _HomeContentState extends ConsumerState<_HomeContent>
           ),
         ),
         SafeArea(
-          child: CustomScrollView(
-            slivers: [
+          child: RefreshIndicator(
+            color: AppColors.primary,
+            onRefresh: () async {
+              ref.invalidate(homeLotteryProvider(normalizedDate));
+              await ref.read(homeLotteryProvider(normalizedDate).future);
+              if (widget.loginViewModel.isAuthenticated) {
+                await widget.notificationViewModel
+                    .fetchNotifications(refresh: true);
+              }
+            },
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
               SliverToBoxAdapter(
                 child: HomeHeader(
                   loginViewModel: widget.loginViewModel,
@@ -412,15 +429,13 @@ class _HomeContentState extends ConsumerState<_HomeContent>
                 SliverToBoxAdapter(
                   child: LotoCard(
                     provinces: allProvinces,
-                    globalSel: _selectedProvinces.length == 1
-                        ? _selectedProvinces.first
-                        : null,
                     results: data.results,
                   ),
                 ),
               ],
               const SliverToBoxAdapter(child: SizedBox(height: 40)),
             ],
+            ),
           ),
         ),
       ],

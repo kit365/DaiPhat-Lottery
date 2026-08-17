@@ -1,16 +1,26 @@
 import React from 'react';
-import { PrizePayoutRequestStatus } from '../../../types/prize-payout.type';
+import { format } from 'date-fns';
+import { PrizePayoutRequestStatus, formatPrizePayoutCurrency } from '../../../types/prize-payout.type';
+import { TransferEvidencePreview } from '@/admin/features/refund/components/TransferEvidencePreview';
 
 interface PrizePayoutStatusStepperProps {
     status: PrizePayoutRequestStatus;
     rejectCount?: number;
     maxOnlineRejectRetry?: number;
+    transferEvidenceUrl?: string;
+    completedAt?: string;
+    requestCode?: string;
+    netAmount?: number;
 }
 
 export const PrizePayoutStatusStepper: React.FC<PrizePayoutStatusStepperProps> = ({
     status,
     rejectCount,
     maxOnlineRejectRetry,
+    transferEvidenceUrl,
+    completedAt,
+    requestCode,
+    netAmount,
 }) => {
     if (status === PrizePayoutRequestStatus.MANUAL_RESOLUTION) {
         const maxRetry = maxOnlineRejectRetry ?? 3;
@@ -59,45 +69,63 @@ export const PrizePayoutStatusStepper: React.FC<PrizePayoutStatusStepperProps> =
         );
     }
 
-    const steps = [
-        { key: PrizePayoutRequestStatus.PENDING, label: 'Cần xử lý', icon: 'fa-solid fa-clock' },
-        { key: PrizePayoutRequestStatus.APPROVED, label: 'Đã duyệt', icon: 'fa-solid fa-user-check' },
-        { key: PrizePayoutRequestStatus.COMPLETED, label: 'Đã chuyển khoản', icon: 'fa-solid fa-money-bill-transfer' },
-    ];
-
-    const currentIndex =
-        status === PrizePayoutRequestStatus.COMPLETED
-            ? 2
-            : status === PrizePayoutRequestStatus.APPROVED
-                ? 1
-                : 0;
+    if (status === PrizePayoutRequestStatus.COMPLETED) {
+        return (
+            <div className="flex items-center gap-2.5 rounded-xl border border-[#A6E9C8] bg-[#E4F8ED] px-3.5 py-2.5">
+                <i className="fa-solid fa-circle-check text-[#118D57] text-[15px] shrink-0" />
+                <div className="min-w-0 flex-1">
+                    <p className="text-[13px] font-bold text-[#118D57] leading-snug">
+                        Trả thưởng thành công
+                    </p>
+                    {completedAt && (
+                        <p className="text-[12px] text-[#637381] mt-0.5 leading-snug">
+                            {format(new Date(completedAt), 'dd/MM/yyyy HH:mm')}
+                        </p>
+                    )}
+                </div>
+                {transferEvidenceUrl ? (
+                    <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-[11px] font-bold text-[#118D57] leading-none">
+                            Biên lai
+                        </span>
+                        <TransferEvidencePreview
+                            mini
+                            title="Biên lai chuyển khoản"
+                            showCaption={false}
+                            imageUrl={transferEvidenceUrl}
+                            infoItems={[
+                                {
+                                    label: 'Mã yêu cầu',
+                                    value: requestCode || '—',
+                                },
+                                {
+                                    label: 'Thực nhận',
+                                    value: formatPrizePayoutCurrency(netAmount ?? 0),
+                                },
+                                {
+                                    label: 'Thời gian',
+                                    value: completedAt
+                                        ? format(new Date(completedAt), 'dd/MM/yyyy HH:mm')
+                                        : '—',
+                                },
+                            ]}
+                        />
+                    </div>
+                ) : null}
+            </div>
+        );
+    }
 
     return (
-        <div className="bg-white rounded-[20px] p-6 border border-[#E5E8EB] shadow-[0_2px_12px_rgb(0,0,0,0.03)]">
-            <div className="flex items-center justify-between relative max-w-xl mx-auto">
-                <div className="absolute top-6 left-0 w-full h-[3px] bg-[#F4F6F8] -translate-y-1/2 z-0 rounded-full"></div>
-                <div
-                    className="absolute top-6 left-0 h-[3px] bg-[#FF3030] -translate-y-1/2 z-0 transition-all duration-700 rounded-full"
-                    style={{ width: `${(currentIndex / Math.max(steps.length - 1, 1)) * 100}%` }}
-                ></div>
-                {steps.map((step, index) => {
-                    const isCompleted = index <= currentIndex;
-                    const isActive = index === currentIndex;
-                    return (
-                        <div key={step.key} className="relative z-10 flex flex-col items-center gap-2 bg-white px-3">
-                            <div
-                                className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                                    isCompleted ? 'bg-[#FF3030] text-white' : 'bg-[#F4F6F8] text-[#919EAB]'
-                                } ${isActive ? 'shadow-[0_0_0_6px_#FFE3D5]' : ''}`}
-                            >
-                                <i className={step.icon}></i>
-                            </div>
-                            <span className={`text-[12px] font-bold ${isCompleted ? 'text-[#FF3030]' : 'text-[#919EAB]'}`}>
-                                {step.label}
-                            </span>
-                        </div>
-                    );
-                })}
+        <div className="bg-[#FFF9F3] rounded-[20px] p-6 border border-[#FFE3D5] flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-[#FF3030] text-white flex items-center justify-center text-xl shrink-0">
+                <i className="fa-solid fa-clock"></i>
+            </div>
+            <div>
+                <h3 className="text-[#B76E00] font-bold text-[16px]">Đang xử lý</h3>
+                <p className="text-[#637381] text-[14px] mt-1">
+                    Yêu cầu trả thưởng của bạn đang được xử lý. Vui lòng chờ trong giây lát.
+                </p>
             </div>
         </div>
     );

@@ -36,6 +36,7 @@ import com.daiphat.coreapi.domain.model.lotteries.ReturnBatchModel;
 import com.daiphat.coreapi.domain.model.lotteries.SupplierSettlementModel;
 import com.daiphat.coreapi.shared.util.ImportBatchConfigResolver;
 import com.daiphat.coreapi.shared.util.ImportCostCalculator;
+import com.daiphat.coreapi.shared.util.ReturnBatchCutoffTiming;
 import com.daiphat.coreapi.shared.util.SortUtils;
 import com.daiphat.coreapi.shared.util.ReturnBatchCodeGenerator;
 import lombok.RequiredArgsConstructor;
@@ -378,6 +379,13 @@ public class ReturnBatchService implements ReturnBatchServicePort {
         if (batch.getStatus() != ReturnBatchStatus.PENDING_HANDOVER) {
             throw new DomainException(ErrorCode.RETURN_BATCH_INVALID_STATUS);
         }
+        if (ReturnBatchCutoffTiming.isPastCutoff(
+                batch.getDrawDate(),
+                batch.getReturnCutOffTime(),
+                LocalDateTime.now(clock)
+        )) {
+            throw new DomainException(ErrorCode.RETURN_BATCH_INSPECTION_EXPIRED);
+        }
 
         LocalDateTime now = LocalDateTime.now(clock);
         List<ReturnBatchLineModel> lines = returnBatchRepositoryPort.findLinesByBatchId(batchId);
@@ -659,6 +667,16 @@ public class ReturnBatchService implements ReturnBatchServicePort {
         }
         if (returnBatchAutoCancelService.cancelIfPastCutoff(batch)) {
             throw new DomainException(ErrorCode.RETURN_BATCH_INSPECTION_EXPIRED);
+        }
+        int bufferMinutes = importBatchConfigResolver.resolveReturnBufferMinutes();
+        LocalDateTime now = LocalDateTime.now(clock);
+        if (!ReturnBatchCutoffTiming.isInInspectionWindow(
+                batch.getDrawDate(),
+                batch.getReturnCutOffTime(),
+                now,
+                bufferMinutes
+        )) {
+            throw new DomainException(ErrorCode.RETURN_BATCH_INSPECTION_NOT_OPEN);
         }
     }
 

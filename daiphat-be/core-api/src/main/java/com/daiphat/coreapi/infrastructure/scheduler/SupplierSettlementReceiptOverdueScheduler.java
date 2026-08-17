@@ -20,7 +20,7 @@ public class SupplierSettlementReceiptOverdueScheduler {
     public void markReceiptOverdueSettlements() {
         int updated = supplierSettlementServicePort.markReceiptOverdueSettlements();
         if (updated > 0) {
-            log.info("Cronjob: Marked {} supplier settlement(s) as RECEIPT_OVERDUE", updated);
+            log.info("Cronjob: Marked {} supplier settlement(s) as payment overdue (RECEIPT_OVERDUE)", updated);
         }
     }
 }

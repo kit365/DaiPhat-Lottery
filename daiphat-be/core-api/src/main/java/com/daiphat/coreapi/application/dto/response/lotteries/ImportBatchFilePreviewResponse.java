@@ -16,6 +16,8 @@ import java.util.List;
  * @param windowTo       last importable draw date (tomorrow)
  * @param importsTickets true when the file carries the tickets themselves, not
  *                       just the declared quantities
+ * @param supplierIdentity how the party named in the file's letterhead compares
+ *                       with the supplier selected in the dialog
  */
 @Builder
 public record ImportBatchFilePreviewResponse(
@@ -29,6 +31,7 @@ public record ImportBatchFilePreviewResponse(
         int importableRows,
         int skippedRows,
         int errorRows,
+        ImportBatchFileSupplierIdentityResponse supplierIdentity,
         List<ImportBatchFileGroupResponse> groups
 ) {
 }

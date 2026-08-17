@@ -800,6 +800,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                 _buildUtilityItemIcon(
                   Icons.calendar_month_outlined,
                   'Lịch mở thưởng',
+                  onTap: () => context.push(AppRoute.schedule.path),
                 ),
               ],
             ),

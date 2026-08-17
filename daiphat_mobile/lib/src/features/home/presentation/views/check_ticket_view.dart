@@ -22,9 +22,13 @@ class CheckTicketView extends ConsumerWidget {
         children: [
           _Header(),
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
-              child: Container(
+            child: RefreshIndicator(
+              color: AppColors.primary,
+              onRefresh: () => vm.loadStations(state.selectedDate),
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+                child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.fromLTRB(18, 20, 18, 20),
                 decoration: BoxDecoration(
@@ -79,6 +83,7 @@ class CheckTicketView extends ConsumerWidget {
                 ),
               ),
             ),
+          ),
           ),
         ],
       ),

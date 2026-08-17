@@ -7,7 +7,7 @@ import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import HourglassEmptyOutlinedIcon from '@mui/icons-material/HourglassEmptyOutlined';
 import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
 import ConfirmationNumberOutlinedIcon from '@mui/icons-material/ConfirmationNumberOutlined';
-import { Box, Card, Stack, Tab, Tabs, Tooltip } from '@mui/material';
+import { Box, Stack, Tab, Tabs, Tooltip } from '@mui/material';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
 import { AdminKpiCard, AdminKpiCardsGrid } from '@/admin/components/ui/AdminKpiCard';
@@ -185,19 +185,7 @@ export const ImportBatchListPage = () => {
                 </>
             )}
 
-            {tab === 'FILE_JOBS' && (
-                <Card
-                    elevation={0}
-                    sx={{
-                        borderRadius: '16px',
-                        border: '1px solid #e2e8f0',
-                        bgcolor: '#fff',
-                        p: 1,
-                    }}
-                >
-                    <ImportBatchFileJobList />
-                </Card>
-            )}
+            {tab === 'FILE_JOBS' && <ImportBatchFileJobList />}
 
             <ImportBatchFileImportDialog
                 open={fileImportOpen}

@@ -1,8 +1,12 @@
 "use client";
 
-import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
+import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
+import HourglassEmptyOutlinedIcon from '@mui/icons-material/HourglassEmptyOutlined';
+import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
+import HighlightOffOutlinedIcon from '@mui/icons-material/HighlightOffOutlined';
+import { useAdminRouter } from '@/admin/hooks/useAdminRouter';
 import { useEffect, useState, type SyntheticEvent } from 'react';
-import React from 'react';
 import {
     Box,
     Card,
@@ -21,16 +25,25 @@ import {
     Typography,
 } from '@mui/material';
 import dayjs from 'dayjs';
+import { AdminKpiCard, AdminKpiCardsGrid } from '@/admin/components/ui/AdminKpiCard';
+import { AdminRowActionsMenu } from '@/admin/components/ui/AdminRowActionsMenu';
+import { PERMISSIONS } from '@/admin/constants/permission.constants';
 import { prefixAdmin } from '@/admin/constants/routes';
-import { PrizePayoutStatusBadge } from '@/client/components/prize-payout/PrizePayoutStatusBadge';
+import { formatKpiAmount, formatVnd } from '@/admin/utils/currency';
+import { dataGridContainerStyles, useSettings } from '@/admin/shared/data-grid';
 import {
     formatPrizePayoutCurrency,
     PrizePayoutRequestStatus,
-    PRIZE_PAYOUT_CHANNEL_LABELS,
-    PRIZE_PAYOUT_TICKET_ORIGIN_LABELS,
+    resolvePrizePayoutOrderType,
+    resolvePrizePayoutOrderTypeLabel,
 } from '@/types/prize-payout.type';
+import { ORDER_TYPE_CHIP_STYLES } from '@/types/order.type';
 import { useGetStaffPrizePayouts } from '../../hooks/usePrizePayoutManagement';
 import { PRIZE_PAYOUT_STATUS_TABS } from '../../constants/prizePayoutStatus.constants';
+import {
+    getPrizePayoutStatusBadgeClass,
+    getPrizePayoutStatusLabel,
+} from '../../utils/prizePayoutStatusBadge.util';
 import { PrizePayoutToolbar } from './PrizePayoutToolbar';
 
 const TabBadge = styled('span')(() => ({
@@ -47,19 +60,9 @@ const TabBadge = styled('span')(() => ({
     transition: 'all 0.2s',
 }));
 
-const cellBorderSx = {
-    borderBottom: '1px dashed var(--palette-background-neutral)',
-};
-
-const headerCellSx = {
-    borderBottom: 'none',
-    color: 'var(--palette-text-secondary)',
-    fontWeight: 600,
-    fontSize: '0.875rem',
-};
-
 export const PrizePayoutList = () => {
     const router = useAdminRouter();
+    const { settings, setSettings } = useSettings();
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [search, setSearch] = useState('');
@@ -103,53 +106,50 @@ export const PrizePayoutList = () => {
 
     const detailPath = (id: number) => `/${prefixAdmin}/prize-payouts/detail/${id}`;
 
-    return (
-        <Stack spacing={2}>
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-                <Card
-                    sx={{
-                        flex: 1,
-                        borderRadius: 'var(--shape-borderRadius-lg)',
-                        boxShadow: 'var(--customShadows-card)',
-                    }}
-                >
-                    <Box sx={{ p: 2.5 }}>
-                        <Typography variant="body2" color="text.secondary">
-                            Cần xử lý
-                        </Typography>
-                        <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                            {listData?.pendingCount ?? 0}
-                        </Typography>
-                    </Box>
-                </Card>
-                <Card
-                    sx={{
-                        flex: 1,
-                        borderRadius: 'var(--shape-borderRadius-lg)',
-                        boxShadow: 'var(--customShadows-card)',
-                    }}
-                >
-                    <Box sx={{ p: 2.5 }}>
-                        <Typography variant="body2" color="text.secondary">
-                            Tổng tiền chờ chi
-                        </Typography>
-                        <Typography variant="h5" sx={{ fontWeight: 700, color: 'error.main' }}>
-                            {formatPrizePayoutCurrency(listData?.pendingGrossTotal)}
-                        </Typography>
-                    </Box>
-                </Card>
-            </Stack>
+    const totalCount = getTabCount('');
+    const completedCount = Number(statusCounts[PrizePayoutRequestStatus.COMPLETED]) || 0;
+    const rejectedCount =
+        (Number(statusCounts[PrizePayoutRequestStatus.REJECTED]) || 0) +
+        (Number(statusCounts[PrizePayoutRequestStatus.MANUAL_RESOLUTION]) || 0);
 
-            <Card
-                sx={{
-                    borderRadius: 'var(--shape-borderRadius-lg)',
-                    bgcolor: 'var(--palette-background-paper)',
-                    boxShadow: 'var(--customShadows-card)',
-                    overflow: 'hidden',
-                    display: 'flex',
-                    flexDirection: 'column',
-                }}
-            >
+    return (
+        <Stack spacing={2.5} sx={{ pb: 5 }}>
+            <AdminKpiCardsGrid columns={{ xs: 1, sm: 2, md: 3, xl: 5 }}>
+                <AdminKpiCard
+                    label="Tổng yêu cầu"
+                    value={String(totalCount)}
+                    icon={<AssignmentOutlinedIcon fontSize="small" />}
+                    tone="blue"
+                />
+                <AdminKpiCard
+                    label="Cần xử lý"
+                    value={String(listData?.pendingCount ?? 0)}
+                    icon={<HourglassEmptyOutlinedIcon fontSize="small" />}
+                    tone="amber"
+                />
+                <AdminKpiCard
+                    label="Đã chuyển"
+                    value={String(completedCount)}
+                    icon={<CheckCircleOutlinedIcon fontSize="small" />}
+                    tone="green"
+                />
+                <AdminKpiCard
+                    label="Từ chối / xử lý đại lý"
+                    value={String(rejectedCount)}
+                    icon={<HighlightOffOutlinedIcon fontSize="small" />}
+                    tone="rose"
+                />
+                <AdminKpiCard
+                    label="Tổng tiền chờ chi"
+                    value={formatKpiAmount(listData?.pendingGrossTotal)}
+                    valueTitle={formatVnd(listData?.pendingGrossTotal)}
+                    icon={<PaymentsOutlinedIcon fontSize="small" />}
+                    accent
+                    valueSize="compact"
+                />
+            </AdminKpiCardsGrid>
+
+            <Card elevation={0} className="admin-datagrid-card">
                 <Tabs
                     value={statusTab}
                     onChange={handleTabChange}
@@ -188,7 +188,8 @@ export const PrizePayoutList = () => {
                                     <TabBadge
                                         sx={{
                                             bgcolor: statusTab === tab.value ? tab.activeBg : tab.bg,
-                                            color: statusTab === tab.value ? tab.activeColor : tab.color,
+                                            color:
+                                                statusTab === tab.value ? tab.activeColor : tab.color,
                                             transition: 'all 0.2s ease',
                                         }}
                                     >
@@ -211,159 +212,192 @@ export const PrizePayoutList = () => {
                 </Tabs>
 
                 <Box sx={{ borderBottom: '1px dashed var(--palette-background-neutral)' }}>
-                    <PrizePayoutToolbar search={search} onSearchChange={setSearch} />
+                    <PrizePayoutToolbar
+                        settings={settings}
+                        onSettingsChange={setSettings}
+                        search={search}
+                        onSearchChange={setSearch}
+                    />
                 </Box>
 
-                <TableContainer sx={{ position: 'relative', overflow: 'unset' }}>
-                    <Table sx={{ minWidth: 960 }}>
-                        <TableHead sx={{ bgcolor: 'var(--palette-background-neutral)' }}>
-                            <TableRow>
-                                <TableCell sx={headerCellSx}>Mã yêu cầu</TableCell>
-                                <TableCell sx={headerCellSx}>Khách hàng</TableCell>
-                                <TableCell sx={headerCellSx}>Đài / Ngày quay</TableCell>
-                                <TableCell sx={headerCellSx}>Kênh</TableCell>
-                                <TableCell sx={headerCellSx}>Nguồn vé</TableCell>
-                                <TableCell sx={headerCellSx}>Thực nhận</TableCell>
-                                <TableCell sx={headerCellSx} align="center">Trạng thái</TableCell>
-                                <TableCell sx={headerCellSx}>Ngày tạo</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {isLoading ? (
+                <Box sx={dataGridContainerStyles}>
+                    <TableContainer className="admin-table-container" sx={{ flex: 1, overflow: 'auto' }}>
+                        <Table
+                            className="admin-table"
+                            sx={{
+                                minWidth: 1080,
+                                height: !isLoading && rows.length === 0 ? '100%' : 'auto',
+                            }}
+                            size={settings.density === 'compact' ? 'small' : 'medium'}
+                        >
+                            <TableHead>
                                 <TableRow>
-                                    <TableCell colSpan={8} align="center" sx={{ py: 10 }}>
-                                        <CircularProgress size={32} />
-                                    </TableCell>
+                                    <TableCell>Mã yêu cầu</TableCell>
+                                    <TableCell>Khách hàng</TableCell>
+                                    <TableCell>Đài / Ngày quay</TableCell>
+                                    <TableCell align="center">Loại đơn</TableCell>
+                                    <TableCell align="right">Thực nhận</TableCell>
+                                    <TableCell align="center">Trạng thái</TableCell>
+                                    <TableCell>Ngày tạo</TableCell>
+                                    <TableCell align="right" sx={{ width: 72 }} />
                                 </TableRow>
-                            ) : rows.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={8} align="center" sx={{ py: 10 }}>
-                                        <Typography sx={{ color: 'var(--palette-text-secondary)' }}>
-                                            Không có yêu cầu trả thưởng
-                                        </Typography>
-                                    </TableCell>
-                                </TableRow>
-                            ) : (
-                                rows.map((row) => (
-                                    <TableRow
-                                        key={row.id}
-                                        hover
-                                        sx={{ cursor: 'pointer' }}
-                                        onClick={() => router.push(detailPath(row.id))}
-                                    >
-                                        <TableCell sx={cellBorderSx}>
-                                            <Typography
+                            </TableHead>
+                            <TableBody>
+                                {isLoading ? (
+                                    <TableRow>
+                                        <TableCell colSpan={8} align="center" sx={{ borderBottom: 'none', py: 10 }}>
+                                            <Box
                                                 sx={{
-                                                    fontWeight: 600,
-                                                    fontSize: '0.875rem',
-                                                    color: 'var(--palette-text-primary)',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    minHeight: 320,
                                                 }}
                                             >
-                                                {row.requestCode}
-                                            </Typography>
-                                        </TableCell>
-                                        <TableCell sx={cellBorderSx}>
-                                            <Typography
-                                                sx={{
-                                                    fontWeight: 600,
-                                                    fontSize: '0.875rem',
-                                                    color: 'var(--palette-text-primary)',
-                                                }}
-                                            >
-                                                {row.customerName || row.customerId || '—'}
-                                            </Typography>
-                                        </TableCell>
-                                        <TableCell sx={cellBorderSx}>
-                                            <Typography
-                                                sx={{
-                                                    fontWeight: 600,
-                                                    fontSize: '0.875rem',
-                                                    color: 'var(--palette-text-primary)',
-                                                }}
-                                            >
-                                                {row.stationName || '—'}
-                                            </Typography>
-                                            <Typography
-                                                sx={{
-                                                    color: 'var(--palette-text-secondary)',
-                                                    fontSize: '0.75rem',
-                                                    mt: 0.25,
-                                                }}
-                                            >
-                                                {row.drawDate ? dayjs(row.drawDate).format('DD/MM/YYYY') : '—'}
-                                            </Typography>
-                                        </TableCell>
-                                        <TableCell sx={cellBorderSx}>
-                                            <Typography
-                                                sx={{
-                                                    fontWeight: 600,
-                                                    fontSize: '0.875rem',
-                                                    color: 'var(--palette-text-primary)',
-                                                }}
-                                            >
-                                                {row.channel ? PRIZE_PAYOUT_CHANNEL_LABELS[row.channel] : '—'}
-                                            </Typography>
-                                        </TableCell>
-                                        <TableCell sx={cellBorderSx}>
-                                            <Typography
-                                                sx={{
-                                                    fontWeight: 600,
-                                                    fontSize: '0.875rem',
-                                                    color: 'var(--palette-text-primary)',
-                                                }}
-                                            >
-                                                {row.ticketOrigin
-                                                    ? PRIZE_PAYOUT_TICKET_ORIGIN_LABELS[row.ticketOrigin]
-                                                    : '—'}
-                                            </Typography>
-                                        </TableCell>
-                                        <TableCell sx={cellBorderSx}>
-                                            <Typography
-                                                sx={{
-                                                    fontWeight: 700,
-                                                    fontSize: '0.875rem',
-                                                    color: 'var(--palette-error-main)',
-                                                }}
-                                            >
-                                                {formatPrizePayoutCurrency(row.netAmount ?? row.grossAmount)}
-                                            </Typography>
-                                        </TableCell>
-                                        <TableCell sx={cellBorderSx} align="center">
-                                            <PrizePayoutStatusBadge
-                                                status={row.status as PrizePayoutRequestStatus}
-                                            />
-                                        </TableCell>
-                                        <TableCell sx={cellBorderSx}>
-                                            <Typography
-                                                sx={{
-                                                    fontSize: '0.875rem',
-                                                    color: 'var(--palette-text-secondary)',
-                                                }}
-                                            >
-                                                {row.createdAt
-                                                    ? dayjs(row.createdAt).format('DD/MM/YYYY HH:mm')
-                                                    : '—'}
-                                            </Typography>
+                                                <CircularProgress size={32} />
+                                            </Box>
                                         </TableCell>
                                     </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
+                                ) : rows.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={8} align="center" sx={{ borderBottom: 'none', py: 10 }}>
+                                            <Box
+                                                sx={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    minHeight: 320,
+                                                }}
+                                            >
+                                                <span className="admin-datagrid-empty">
+                                                    Không có yêu cầu trả thưởng
+                                                </span>
+                                            </Box>
+                                        </TableCell>
+                                    </TableRow>
+                                ) : (
+                                    rows.map((row) => (
+                                        <TableRow key={row.id} hover>
+                                            <TableCell>
+                                                <Typography
+                                                    className="admin-cell-title"
+                                                    onClick={() => router.push(detailPath(row.id))}
+                                                    sx={{
+                                                        cursor: 'pointer',
+                                                        textDecoration: 'underline',
+                                                        '&:hover': {
+                                                            color: 'var(--palette-primary-main)',
+                                                        },
+                                                    }}
+                                                >
+                                                    {row.requestCode}
+                                                </Typography>
+                                            </TableCell>
+                                            <TableCell>
+                                                <span className="admin-cell-text">
+                                                    {row.customerName || row.customerId || '—'}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Typography className="admin-cell-title" noWrap>
+                                                    {row.stationName || '—'}
+                                                </Typography>
+                                                <Typography
+                                                    variant="caption"
+                                                    color="text.secondary"
+                                                    display="block"
+                                                >
+                                                    {row.drawDate
+                                                        ? dayjs(row.drawDate).format('DD/MM/YYYY')
+                                                        : '—'}
+                                                </Typography>
+                                            </TableCell>
+                                            <TableCell align="center">
+                                                {(() => {
+                                                    const label = resolvePrizePayoutOrderTypeLabel(row);
+                                                    const orderType = resolvePrizePayoutOrderType(row);
+                                                    if (!orderType) {
+                                                        return <span className="admin-cell-text">—</span>;
+                                                    }
+                                                    const chipStyle = ORDER_TYPE_CHIP_STYLES[orderType];
+                                                    return (
+                                                        <span
+                                                            className="admin-status-badge admin-status-badge--compact"
+                                                            style={{
+                                                                color: chipStyle.color,
+                                                                backgroundColor: chipStyle.bgcolor,
+                                                            }}
+                                                        >
+                                                            {label}
+                                                        </span>
+                                                    );
+                                                })()}
+                                            </TableCell>
+                                            <TableCell align="right">
+                                                <span
+                                                    className="admin-cell-text tabular-nums"
+                                                    style={{ fontWeight: 700, color: 'var(--palette-error-main)' }}
+                                                >
+                                                    {formatPrizePayoutCurrency(
+                                                        row.netAmount ?? row.grossAmount
+                                                    )}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell align="center">
+                                                <span
+                                                    className={`admin-status-badge ${getPrizePayoutStatusBadgeClass(row.status)}`}
+                                                >
+                                                    {getPrizePayoutStatusLabel(row.status)}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell>
+                                                <span className="admin-cell-date">
+                                                    {row.createdAt
+                                                        ? dayjs(row.createdAt).format('DD/MM/YYYY HH:mm')
+                                                        : '—'}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell align="right">
+                                                <AdminRowActionsMenu
+                                                    items={[
+                                                        {
+                                                            id: 'view',
+                                                            label: 'Xem chi tiết',
+                                                            icon: 'view',
+                                                            permission: PERMISSIONS.PRIZE_PAYOUT.VIEW,
+                                                            onClick: () => router.push(detailPath(row.id)),
+                                                        },
+                                                    ]}
+                                                />
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
 
-                <TablePagination
-                    component="div"
-                    count={total}
-                    page={page}
-                    onPageChange={handleChangePage}
-                    rowsPerPage={rowsPerPage}
-                    onRowsPerPageChange={handleChangeRowsPerPage}
-                    labelRowsPerPage="Số dòng mỗi trang:"
-                    labelDisplayedRows={({ from, to, count }) =>
-                        `${from}–${to} trong ${count !== -1 ? count : `hơn ${to}`}`
-                    }
-                />
+                    <TablePagination
+                        component="div"
+                        count={total}
+                        page={page}
+                        onPageChange={handleChangePage}
+                        rowsPerPage={rowsPerPage}
+                        onRowsPerPageChange={handleChangeRowsPerPage}
+                        rowsPerPageOptions={[10, 25, 50]}
+                        labelRowsPerPage="Số hàng mỗi trang:"
+                        labelDisplayedRows={({ from, to, count }) =>
+                            `${from}-${to} của ${count !== -1 ? count : `hơn ${to}`}`
+                        }
+                        sx={{
+                            borderTop: '1px solid var(--palette-divider)',
+                            color: 'var(--palette-text-secondary)',
+                            '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+                                fontSize: '0.875rem',
+                            },
+                        }}
+                    />
+                </Box>
             </Card>
         </Stack>
     );

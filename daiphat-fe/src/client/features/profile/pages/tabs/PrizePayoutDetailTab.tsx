@@ -12,11 +12,9 @@ import {
 } from '../../../../hooks/usePrizePayout';
 import {
     PrizePayoutRequestStatus,
-    PRIZE_PAYOUT_STATUS_MAP,
     formatPrizePayoutCurrency,
 } from '../../../../../types/prize-payout.type';
 import { PrizePayoutStatusStepper } from '../../../../components/prize-payout/PrizePayoutStatusStepper';
-import { TransferEvidencePreview } from '@/admin/features/refund/components/TransferEvidencePreview';
 import { PrizePayoutRequestModal } from '../../../../components/prize-payout/PrizePayoutRequestModal';
 import { LuckyNumber } from '../../../../components/ui/LuckyNumber';
 import { PrizePayoutComplaintButton } from '../../../../components/support/PrizePayoutComplaintButton';
@@ -41,8 +39,11 @@ export const PrizePayoutDetailTab = () => {
         const prev = lastStatusRef.current;
         lastStatusRef.current = nextStatus;
         if (prev && prev !== nextStatus) {
-            const label = PRIZE_PAYOUT_STATUS_MAP[nextStatus]?.label ?? nextStatus;
-            toast.info(`Trạng thái cập nhật: ${label}`);
+            if (nextStatus === PrizePayoutRequestStatus.COMPLETED) {
+                toast.success('Trả thưởng thành công! Tiền thưởng đã được chuyển vào tài khoản của bạn.');
+            } else if (nextStatus === PrizePayoutRequestStatus.REJECTED) {
+                toast.error('Yêu cầu trả thưởng đã bị từ chối.');
+            }
         }
     }, [payout?.status]);
     const fromComplaintId = searchParams.get('fromComplaintId');
@@ -135,6 +136,10 @@ export const PrizePayoutDetailTab = () => {
                 status={payout.status}
                 rejectCount={rejectCount}
                 maxOnlineRejectRetry={maxRetry}
+                transferEvidenceUrl={payout.transferEvidenceUrl}
+                completedAt={payout.completedAt}
+                requestCode={payout.requestCode}
+                netAmount={payout.netAmount ?? payout.grossAmount}
             />
 
             <div className="bg-white rounded-2xl border border-[#E5E8EB] p-5 md:p-6 shadow-sm">
@@ -155,10 +160,6 @@ export const PrizePayoutDetailTab = () => {
                     <div className="flex justify-between border-b border-dashed border-[#E5E8EB] pb-2">
                         <span className="text-[#637381]">Giá trị giải</span>
                         <span className="font-medium">{formatPrizePayoutCurrency(payout.grossAmount)}</span>
-                    </div>
-                    <div className="flex justify-between border-b border-dashed border-[#E5E8EB] pb-2">
-                        <span className="text-[#637381]">Thuế TNCN</span>
-                        <span className="font-medium">{formatPrizePayoutCurrency(payout.taxAmount)}</span>
                     </div>
                     <div className="flex justify-between border-b border-dashed border-[#E5E8EB] pb-2">
                         <span className="text-[#637381]">Hoa hồng đại lý</span>
@@ -195,13 +196,6 @@ export const PrizePayoutDetailTab = () => {
                     <p><span className="text-[#637381]">Chủ TK:</span> <strong>{payout.accountHolderName}</strong></p>
                 </div>
             </div>
-
-            {payout.status === PrizePayoutRequestStatus.COMPLETED && payout.transferEvidenceUrl && (
-                <div className="bg-white rounded-2xl border border-[#E5E8EB] p-5 md:p-6 shadow-sm">
-                    <h4 className="text-[#ee1314] font-bold text-[14px] uppercase mb-4">Biên lai chuyển khoản</h4>
-                    <TransferEvidencePreview imageUrl={payout.transferEvidenceUrl} />
-                </div>
-            )}
 
             {payout.status === PrizePayoutRequestStatus.REJECTED && (
                 <div className="bg-[#FFF4F4] rounded-2xl border border-[#ee1314]/20 p-5 flex flex-col gap-3">
