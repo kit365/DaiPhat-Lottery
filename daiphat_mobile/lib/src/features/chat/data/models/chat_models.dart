@@ -208,6 +208,8 @@ class ChatConversationSocketEvent {
     required this.conversationId,
     required this.status,
     this.assignedOperatorId,
+    this.lastAssignedOperatorId,
+    this.closedBy,
     this.reason,
   });
 
@@ -215,6 +217,8 @@ class ChatConversationSocketEvent {
   final int conversationId;
   final ConversationStatus? status;
   final String? assignedOperatorId;
+  final String? lastAssignedOperatorId;
+  final String? closedBy;
   final String? reason;
 
   factory ChatConversationSocketEvent.fromJson(Map<String, dynamic> json) {
@@ -223,6 +227,8 @@ class ChatConversationSocketEvent {
       conversationId: (json['conversationId'] as num).toInt(),
       status: ConversationStatus.fromString(json['status']?.toString()),
       assignedOperatorId: json['assignedOperatorId']?.toString(),
+      lastAssignedOperatorId: json['lastAssignedOperatorId']?.toString(),
+      closedBy: json['closedBy']?.toString(),
       reason: json['reason']?.toString(),
     );
   }

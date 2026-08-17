@@ -13,6 +13,8 @@ import {
     formatSessionBoundaryDetail,
     parseSessionCloseNotice,
     formatWaitDuration,
+    findOwnLiveConversation,
+    isLiveStaffAssignment,
     TimelineRow} from '../utils';
 import {
     Box,
@@ -21,7 +23,9 @@ import {
     Avatar,
     InputBase,
     CircularProgress,
-Chip,
+    Chip,
+    Tooltip,
+    IconButton,
     Dialog,
     DialogTitle,
     DialogContent,
@@ -51,6 +55,7 @@ import {
     ADMIN_DIALOG_TITLE_SX,
 } from '../../../../components/ui/AdminConfirmDialog';
 import { Icon } from '@/admin/components/ui/AdminIcon';
+import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined';
 import { useCallback, useRef, useEffect, useLayoutEffect, useState, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { AppToast as toast } from '../../../../../utils/toast.util';
@@ -62,14 +67,21 @@ import {
     adminChatDetailKey,
     useAssignConversation,
     useCloseConversation,
+    useConversationDetail,
 } from '../../hooks/useChat';
 import { useChatSocket } from '../../hooks/useChatSocket';
 import { chatService } from '../../services/chatService';
-import { prefixAdmin } from '../../../../constants/routes';
+import { prefixAdmin, ROUTES } from '../../../../constants/routes';
 import { Conversation, Message } from '../../../../../types/chat.type';
 import { ChatConversationSocketEvent, MessageSenderRole, ConversationStatusEnum, ConversationCloseReason, CLOSE_REASON_OPTIONS } from '../../../../../types/chat.type';
 import { useAuthStore } from '../../../../../stores/useAuthStore';
 import dayjs from 'dayjs';
+
+const OPEN_WORK_HREF: Record<string, string> = {
+    TICKET: ROUTES.ADMIN.SUPPORT_TICKETS.LIST,
+    REFUND: ROUTES.ADMIN.REFUNDS.LIST,
+    PAYOUT: ROUTES.ADMIN.PRIZE_PAYOUTS.LIST,
+};
 
 const STATUS_LABELS: Record<string, { label: string; color: string; bg: string }> = {
     [ConversationStatusEnum.OPEN]: { label: 'Mở', color: 'var(--palette-info-dark)', bg: 'var(--palette-info-lighter)' },
@@ -160,15 +172,20 @@ const AdminChatMessageBody = ({
 interface ChatWindowProps {
     conversationId: number | null;
     onToggleDetails?: () => void;
+    onBackToList?: () => void;
+    onSessionEnded?: () => void;
 }
 
-export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps) => {
+export const ChatWindow = ({ conversationId, onToggleDetails, onBackToList, onSessionEnded }: ChatWindowProps) => {
     const [message, setMessage] = useState('');
     const [closeDialogOpen, setCloseDialogOpen] = useState(false);
     const [closeReason, setCloseReason] = useState<ConversationCloseReason>('RESOLVED');
     const [showPreHandoff, setShowPreHandoff] = useState(false);
     const [preHandoffMessages, setPreHandoffMessages] = useState<Message[]>([]);
     const [loadingPreHandoff, setLoadingPreHandoff] = useState(false);
+    const [showPreviousSession, setShowPreviousSession] = useState(false);
+    const [previousSessionMessages, setPreviousSessionMessages] = useState<Message[]>([]);
+    const [loadingPreviousSession, setLoadingPreviousSession] = useState(false);
 
     const outerTheme = useTheme();
     const isMobile = useMediaQuery(outerTheme.breakpoints.down('sm'));
@@ -204,6 +221,8 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
     const closeMutation = useCloseConversation();
 
     const { data: conversations } = useConversations();
+    const detailQuery = useConversationDetail(conversationId);
+    const staffContext = detailQuery.data?.context;
     const activeConversation = conversations?.find((c: Conversation) => c.id === conversationId);
     const customerId =
         activeConversation?.customerId ??
@@ -233,10 +252,17 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
         [timelineQuery.data?.pages]
     );
     const isLoading = timelineQuery.isLoading;
+    const ownLiveConversation = findOwnLiveConversation(conversations, userId, conversationId);
+    const operatorAtCapacity = !!ownLiveConversation;
     const canClaim =
         !!activeConversation &&
         activeConversation.status === 'WAITING_FOR_OPERATOR' &&
-        !activeConversation.assignedOperatorId;
+        !activeConversation.assignedOperatorId &&
+        !operatorAtCapacity;
+    const showClaimBlocked = !!activeConversation
+        && activeConversation.status === 'WAITING_FOR_OPERATOR'
+        && !activeConversation.assignedOperatorId
+        && operatorAtCapacity;
     const canReply =
         !!activeConversation &&
         activeConversation.status !== 'CLOSED' &&
@@ -245,16 +271,42 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
         !!activeConversation &&
         activeConversation.status !== 'CLOSED' &&
         (isAdmin || activeConversation.assignedOperatorId === userId);
+    const isOwnLiveChat = Boolean(
+        activeConversation && isLiveStaffAssignment(activeConversation, userId)
+    );
+    const canLeaveToList = Boolean(onBackToList) && (
+        !isOwnLiveChat
+        || activeConversation?.status === ConversationStatusEnum.WAITING_FOR_CUSTOMER
+    );
 
-    const canExpandPreHandoff =
-        !!activeConversation &&
-        !!activeConversation.handoffSummary &&
-        (isAdmin || activeConversation.assignedOperatorId === userId);
+    const canExpandPreHandoff = !!activeConversation && !!activeConversation.handoffSummary;
 
     useEffect(() => {
         setShowPreHandoff(false);
         setPreHandoffMessages([]);
+        setShowPreviousSession(false);
+        setPreviousSessionMessages([]);
     }, [conversationId]);
+
+    const handleOpenPreviousSession = async () => {
+        if (!conversationId || !staffContext?.previousSession) {
+            return;
+        }
+        setShowPreviousSession(true);
+        if (previousSessionMessages.length > 0) {
+            return;
+        }
+        setLoadingPreviousSession(true);
+        try {
+            const messages = await chatService.getPreviousSessionMessages(Number(conversationId));
+            setPreviousSessionMessages(messages);
+        } catch (error: unknown) {
+            const err = error as { message?: string };
+            toast.error(err?.message || 'Không thể tải phiên hỗ trợ trước.');
+        } finally {
+            setLoadingPreviousSession(false);
+        }
+    };
 
     const handleOpenPreHandoff = async () => {
         if (!conversationId || !activeConversation?.handoffSummary) {
@@ -356,25 +408,14 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
             if (event.eventType === 'CONVERSATION_CLOSED') {
                 queryClient.setQueryData<Conversation[]>(
                     ADMIN_CHAT_CONVERSATIONS_KEY,
-                    (prev = []) =>
-                        prev.map((conversation) =>
-                            conversation.id === event.conversationId
-                                ? { ...conversation, status: event.status }
-                                : conversation
-                        )
+                    (prev = []) => prev.filter((conversation) => conversation.id !== event.conversationId)
                 );
-                queryClient.setQueryData(adminChatDetailKey(conversationId), (prev: unknown) => {
-                    if (!prev || typeof prev !== 'object' || !('conversation' in prev)) {
-                        return prev;
-                    }
-                    const detail = prev as { conversation: Conversation };
-                    return {
-                        ...detail,
-                        conversation: { ...detail.conversation, status: event.status },
-                    };
-                });
+                queryClient.removeQueries({ queryKey: adminChatDetailKey(event.conversationId) });
                 if (customerId) {
                     queryClient.invalidateQueries({ queryKey: adminChatCustomerTimelineKey(customerId) });
+                }
+                if (event.conversationId === Number(conversationId)) {
+                    onSessionEnded?.();
                 }
                 return;
             }
@@ -423,7 +464,7 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
             queryClient.invalidateQueries({ queryKey: ADMIN_CHAT_CONVERSATIONS_KEY });
             queryClient.invalidateQueries({ queryKey: adminChatDetailKey(conversationId) });
         },
-        [conversationId, customerId, queryClient, resolveCustomerId]
+        [conversationId, customerId, onSessionEnded, queryClient, resolveCustomerId]
     );
 
     const { sendMessage: sendRealtimeMessage, isConnected } = useChatSocket({
@@ -543,7 +584,12 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
         }
         closeMutation.mutate(
             { conversationId: Number(conversationId), reason: closeReason },
-            { onSuccess: () => setCloseDialogOpen(false) }
+            {
+                onSuccess: () => {
+                    setCloseDialogOpen(false);
+                    onSessionEnded?.();
+                },
+            }
         );
     };
 
@@ -648,6 +694,22 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                 }}
             >
                 <Stack direction="row" alignItems="center" spacing={2}>
+                    {canLeaveToList && (
+                        <Tooltip title={
+                            isOwnLiveChat
+                                ? 'Quay lại danh sách. Không thể nhận khách khác cho đến khi xử lý xong hội thoại này.'
+                                : 'Quay lại danh sách'
+                        }>
+                            <IconButton
+                                onClick={onBackToList}
+                                size="small"
+                                aria-label="Quay lại danh sách"
+                                sx={{ color: 'var(--palette-text-secondary)' }}
+                            >
+                                <ArrowBackOutlinedIcon />
+                            </IconButton>
+                        </Tooltip>
+                    )}
                     <Avatar
                         sx={{ width: 44, height: 44, fontWeight: 700, cursor: 'pointer' }}
                         onClick={onToggleDetails}
@@ -674,6 +736,14 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                                     />
                                 );
                             })()}
+                            {ownLiveConversation && (
+                                <Chip
+                                    label="Đang hỗ trợ 1 khách"
+                                    size="small"
+                                    color="success"
+                                    sx={{ fontSize: '0.7rem', fontWeight: 600, height: 22 }}
+                                />
+                            )}
                         </Stack>
                         <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
                             Mã KH: {activeConversation?.customerId}
@@ -737,6 +807,24 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                             {closeMutation.isPending ? 'Đang đóng...' : 'Đóng hội thoại'}
                         </Button>
                     )}
+                    {showClaimBlocked && (
+                        <Tooltip title="Bạn đang hỗ trợ một khách hàng khác. Đóng hoặc trả hội thoại hiện tại trước khi nhận khách mới.">
+                            <span>
+                                <Button
+                                    variant="contained"
+                                    disabled
+                                    sx={{
+                                        bgcolor: 'var(--palette-grey-300)',
+                                        color: 'var(--palette-text-disabled)',
+                                        fontWeight: 600,
+                                        boxShadow: 'none',
+                                    }}
+                                >
+                                    Nhận hội thoại
+                                </Button>
+                            </span>
+                        </Tooltip>
+                    )}
                     {canClaim && (
                         <Button
                             variant="contained"
@@ -775,6 +863,64 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                     }}
                 >
                     <Box ref={topSentinelRef} sx={{ height: 1, flexShrink: 0 }} />
+                    {(staffContext?.previousSession || staffContext?.handoffSummary || (staffContext?.openWork?.length ?? 0) > 0) && (
+                        <Box
+                            sx={{
+                                p: 1.5,
+                                borderRadius: 2,
+                                bgcolor: 'var(--palette-info-lighter)',
+                                border: '1px solid var(--palette-info-light)',
+                                flexShrink: 0,
+                            }}
+                        >
+                            <Typography variant="caption" sx={{ fontWeight: 700, color: 'var(--palette-info-dark)', display: 'block', mb: 0.75 }}>
+                                Ngữ cảnh khách hàng
+                            </Typography>
+                            {staffContext?.previousSession && (
+                                <Typography variant="body2" sx={{ mb: 0.5 }}>
+                                    Phiên trước
+                                    {staffContext.previousSession.operatorName
+                                        ? ` với ${staffContext.previousSession.operatorName}`
+                                        : ''}
+                                    {staffContext.previousSession.closeReasonLabel
+                                        ? ` · ${staffContext.previousSession.closeReasonLabel}`
+                                        : ''}
+                                    {staffContext.previousSession.closedAt
+                                        ? ` · ${dayjs(staffContext.previousSession.closedAt).format('DD/MM/YYYY HH:mm')}`
+                                        : ''}
+                                </Typography>
+                            )}
+                            {(staffContext?.openWork ?? []).map((item) => {
+                                const href = OPEN_WORK_HREF[item.type];
+                                return href ? (
+                                    <Typography key={item.type} variant="body2" sx={{ mb: 0.25 }}>
+                                        <Link href={href} style={{ fontWeight: 600 }}>
+                                            {item.label}
+                                        </Link>
+                                    </Typography>
+                                ) : (
+                                    <Typography key={item.type} variant="body2" sx={{ mb: 0.25 }}>
+                                        {item.label}
+                                    </Typography>
+                                );
+                            })}
+                            {staffContext?.handoffSummary && (
+                                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mt: 0.75, lineHeight: 1.5 }}>
+                                    {staffContext.handoffSummary}
+                                </Typography>
+                            )}
+                            {staffContext?.previousSession && (
+                                <Button
+                                    size="small"
+                                    variant="text"
+                                    onClick={() => void handleOpenPreviousSession()}
+                                    sx={{ mt: 0.5, px: 0, textTransform: 'none', fontWeight: 700 }}
+                                >
+                                    Xem phiên hỗ trợ trước
+                                </Button>
+                            )}
+                        </Box>
+                    )}
                     {(timelineQuery.isFetchingPreviousPage || timelineQuery.hasPreviousPage) && (
                         <Box sx={{ display: 'flex', justifyContent: 'center', py: 1, flexShrink: 0 }}>
                             {timelineQuery.isFetchingPreviousPage ? (
@@ -998,6 +1144,21 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                         </Typography>
                     </Box>
                 )}
+                {!canReply && showClaimBlocked && (
+                    <Box
+                        sx={{
+                            mb: 1.5,
+                            p: 1.5,
+                            borderRadius: 2,
+                            bgcolor: 'var(--palette-grey-200)',
+                            border: '1px solid var(--palette-grey-300)',
+                        }}
+                    >
+                        <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600 }}>
+                            Bạn đang hỗ trợ một khách hàng khác. Đóng hoặc trả hội thoại đó trước khi nhận khách này.
+                        </Typography>
+                    </Box>
+                )}
                 <Box
                     sx={{
                         display: 'flex',
@@ -1030,25 +1191,25 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                         sx={{ fontSize: '0.9375rem', mr: 1 }}
                     />
 
-                    <Button
-                        variant="contained"
+                    <IconButton
                         onClick={() => void handleSend()}
                         disabled={!message.trim() || !canReply}
+                        aria-label="Gửi tin nhắn"
                         sx={{
-                            minWidth: 'auto',
                             width: 36,
                             height: 36,
-                            borderRadius: '50%',
-                            p: 0,
+                            flexShrink: 0,
                             bgcolor: 'var(--palette-primary-main)',
                             color: 'white',
-                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
                             '&:hover': { bgcolor: 'var(--palette-primary-dark)' },
-                            '&.Mui-disabled': { bgcolor: 'var(--palette-grey-300)', color: 'var(--palette-grey-500)', boxShadow: 'none' },
+                            '&.Mui-disabled': {
+                                bgcolor: 'var(--palette-grey-300)',
+                                color: 'var(--palette-grey-500)',
+                            },
                         }}
                     >
-                        <Icon icon="solar:plain-bold" width={18} style={{ transform: 'translateX(-1px) translateY(1px)' }} />
-                    </Button>
+                        <Icon icon="solar:plain-bold" width={18} style={{ transform: 'translateX(1px)' }} />
+                    </IconButton>
                 </Box>
             </Box>
         </Box>
@@ -1119,6 +1280,73 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                                               : 'Hệ thống'}
                                         {' · '}
                                         {dayjs(msg.createdAt).format('HH:mm')}
+                                    </Typography>
+                                    <AdminChatMessageBody
+                                        content={msg.content ?? ''}
+                                        isBot={msg.senderType === MessageSenderRole.AI_SYSTEM}
+                                        compact
+                                    />
+                                </Box>
+                            ))}
+                        </Stack>
+                    )}
+                </DialogContent>
+            </Dialog>
+            <Dialog
+                open={showPreviousSession}
+                onClose={() => setShowPreviousSession(false)}
+                maxWidth="sm"
+                fullWidth
+                scroll="paper"
+                PaperProps={{ className: "admin-theme", sx: { ...ADMIN_DIALOG_PAPER_SX, maxHeight: '80vh' } }}
+            >
+                <DialogTitle sx={{ ...ADMIN_DIALOG_TITLE_SX, pr: 2 }}>
+                    <Stack direction="row" alignItems="center" justifyContent="space-between" gap={2}>
+                        Phiên hỗ trợ trước
+                        <Button
+                            size="small"
+                            variant="text"
+                            onClick={() => setShowPreviousSession(false)}
+                            sx={{ textTransform: 'none', fontWeight: 700, flexShrink: 0 }}
+                        >
+                            Đóng
+                        </Button>
+                    </Stack>
+                </DialogTitle>
+                <DialogContent sx={ADMIN_DIALOG_CONTENT_SX}>
+                    {staffContext?.previousSession && (
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                            {staffContext.previousSession.operatorName
+                                ? `Với ${staffContext.previousSession.operatorName}`
+                                : 'Phiên đã đóng'}
+                            {staffContext.previousSession.closeReasonLabel
+                                ? ` · ${staffContext.previousSession.closeReasonLabel}`
+                                : ''}
+                            {staffContext.previousSession.closedAt
+                                ? ` · ${dayjs(staffContext.previousSession.closedAt).format('DD/MM/YYYY HH:mm')}`
+                                : ''}
+                        </Typography>
+                    )}
+                    {loadingPreviousSession ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                            <CircularProgress size={24} />
+                        </Box>
+                    ) : previousSessionMessages.length === 0 ? (
+                        <Typography variant="body2" color="text.secondary">
+                            Không có tin nhắn phiên trước.
+                        </Typography>
+                    ) : (
+                        <Stack spacing={1.5}>
+                            {previousSessionMessages.map((msg) => (
+                                <Box key={`prev-${msg.id}`}>
+                                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                                        {msg.senderType === MessageSenderRole.CUSTOMER
+                                            ? 'Khách'
+                                            : msg.senderType === MessageSenderRole.OPERATOR
+                                              ? 'Nhân viên'
+                                              : 'Hệ thống'}
+                                        {' · '}
+                                        {dayjs(msg.createdAt).format('DD/MM HH:mm')}
                                     </Typography>
                                     <AdminChatMessageBody
                                         content={msg.content ?? ''}

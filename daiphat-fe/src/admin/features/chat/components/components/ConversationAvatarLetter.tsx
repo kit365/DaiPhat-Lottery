@@ -10,8 +10,7 @@ export const ConversationAvatarLetter: React.FC<Props> = ({ conversation }) => {
     const { data: customer } = useAccountDetail(conversation?.customerId);
 
     if (!conversation) return <>K</>;
-    if (!conversation.assignedOperatorId) return <>Y</>;
-    
+
     const embeddedName = conversation.customerName || conversation.customer?.name || conversation.customer?.fullName;
     if (embeddedName) return <>{embeddedName.charAt(0).toUpperCase()}</>;
     

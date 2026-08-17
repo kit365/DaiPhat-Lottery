@@ -9,6 +9,26 @@ import {
 const isActiveStatus = (status: Conversation['status']): boolean =>
     status !== ConversationStatusEnum.CLOSED;
 
+export const isLiveStaffAssignment = (
+    conversation: Pick<Conversation, 'status' | 'assignedOperatorId'>,
+    operatorId?: string | null
+): boolean =>
+    !!operatorId
+    && conversation.assignedOperatorId === operatorId
+    && (conversation.status === ConversationStatusEnum.ACTIVE
+        || conversation.status === ConversationStatusEnum.WAITING_FOR_CUSTOMER);
+
+export const findOwnLiveConversation = (
+    conversations: Conversation[] | undefined,
+    operatorId?: string | null,
+    excludeId?: number | null
+): Conversation | undefined =>
+    conversations?.find(
+        (conversation) =>
+            isLiveStaffAssignment(conversation, operatorId)
+            && (excludeId == null || conversation.id !== excludeId)
+    );
+
 /** Số tin chưa đọc trên danh sách hỗ trợ — đã đóng không còn unread. */
 export const getManagementUnreadCount = (conversation: Conversation): number => {
     if (conversation.status === ConversationStatusEnum.CLOSED) {
