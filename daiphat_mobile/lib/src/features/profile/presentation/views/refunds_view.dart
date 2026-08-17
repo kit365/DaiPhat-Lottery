@@ -174,28 +174,40 @@ class _RefundsViewState extends ConsumerState<RefundsView> {
     if (_viewModel.items.isEmpty) {
       return _buildEmpty();
     }
-    return RefreshIndicator(
-      color: AppColors.primary,
-      onRefresh: () => _viewModel.fetch(refresh: true),
-      child: ListView.builder(
-        controller: _scrollController,
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        itemCount: _viewModel.items.length + (_viewModel.isLoadingMore ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index == _viewModel.items.length) {
-            return const Padding(
-              padding: EdgeInsets.symmetric(vertical: 20),
-              child: Center(
-                child: CircularProgressIndicator(color: AppColors.primary),
-              ),
+    return RawScrollbar(
+      controller: _scrollController,
+      thumbVisibility: true,
+      trackVisibility: true,
+      thickness: 4,
+      radius: const Radius.circular(999),
+      thumbColor: const Color(0x66C90F1D),
+      trackColor: const Color(0x14C90F1D),
+      trackBorderColor: Colors.transparent,
+      padding: const EdgeInsets.only(right: 2, top: 4, bottom: 4),
+      child: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: () => _viewModel.fetch(refresh: true),
+        child: ListView.builder(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          itemCount:
+              _viewModel.items.length + (_viewModel.isLoadingMore ? 1 : 0),
+          itemBuilder: (context, index) {
+            if (index == _viewModel.items.length) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                ),
+              );
+            }
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _buildCard(_viewModel.items[index]),
             );
-          }
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: _buildCard(_viewModel.items[index]),
-          );
-        },
+          },
+        ),
       ),
     );
   }

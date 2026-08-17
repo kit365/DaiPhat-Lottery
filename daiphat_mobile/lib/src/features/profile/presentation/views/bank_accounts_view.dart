@@ -20,6 +20,7 @@ class BankAccountsView extends ConsumerStatefulWidget {
 
 class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
   late final BankAccountsViewModel _viewModel;
+  final _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -30,6 +31,7 @@ class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
   @override
   void dispose() {
     _viewModel.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -160,16 +162,28 @@ class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
           }
           if (_viewModel.accounts.isEmpty) return _buildEmpty();
 
-          return RefreshIndicator(
-            color: AppColors.primary,
-            onRefresh: _viewModel.load,
-            child: ListView.builder(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 90),
-              itemCount: _viewModel.accounts.length,
-              itemBuilder: (context, index) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _buildCard(_viewModel.accounts[index]),
+          return RawScrollbar(
+            controller: _scrollController,
+            thumbVisibility: true,
+            trackVisibility: true,
+            thickness: 4,
+            radius: const Radius.circular(999),
+            thumbColor: const Color(0x66C90F1D),
+            trackColor: const Color(0x14C90F1D),
+            trackBorderColor: Colors.transparent,
+            padding: const EdgeInsets.only(right: 2, top: 4, bottom: 4),
+            child: RefreshIndicator(
+              color: AppColors.primary,
+              onRefresh: _viewModel.load,
+              child: ListView.builder(
+                controller: _scrollController,
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 90),
+                itemCount: _viewModel.accounts.length,
+                itemBuilder: (context, index) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _buildCard(_viewModel.accounts[index]),
+                ),
               ),
             ),
           );

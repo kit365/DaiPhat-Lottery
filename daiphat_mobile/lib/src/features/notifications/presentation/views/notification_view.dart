@@ -249,28 +249,39 @@ class _NotificationViewState extends State<NotificationView> {
     final items = _viewModel.filteredNotifications;
     if (items.isEmpty) return _buildEmpty();
 
-    return RefreshIndicator(
-      color: AppColors.primary,
-      onRefresh: () => _viewModel.fetchNotifications(refresh: true),
-      child: ListView.builder(
-        controller: _scrollController,
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-        itemCount: items.length + (_viewModel.isLoadingMore ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index == items.length) {
-            return const Padding(
-              padding: EdgeInsets.symmetric(vertical: 20),
-              child: Center(
-                child: CircularProgressIndicator(color: AppColors.primary),
-              ),
+    return RawScrollbar(
+      controller: _scrollController,
+      thumbVisibility: true,
+      trackVisibility: true,
+      thickness: 4,
+      radius: const Radius.circular(999),
+      thumbColor: const Color(0x66C90F1D),
+      trackColor: const Color(0x14C90F1D),
+      trackBorderColor: Colors.transparent,
+      padding: const EdgeInsets.only(right: 2, top: 4, bottom: 4),
+      child: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: () => _viewModel.fetchNotifications(refresh: true),
+        child: ListView.builder(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+          itemCount: items.length + (_viewModel.isLoadingMore ? 1 : 0),
+          itemBuilder: (context, index) {
+            if (index == items.length) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                ),
+              );
+            }
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _buildItem(items[index]),
             );
-          }
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: _buildItem(items[index]),
-          );
-        },
+          },
+        ),
       ),
     );
   }
