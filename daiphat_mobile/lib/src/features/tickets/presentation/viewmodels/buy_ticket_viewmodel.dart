@@ -69,17 +69,27 @@ class BuyTicketState {
     required this.selectedProvince,
     required this.selectedDay,
     required this.tickets,
+    this.isListLoading = false,
+    this.isLoadingMore = false,
+    this.hasMore = false,
+    this.currentPage = 1,
+    this.totalElements = 0,
   });
 
   final String searchQuery;
   final String selectedProvince;
   final TicketDayFilter selectedDay;
   final List<LotteryTicketListItem> tickets;
+  final bool isListLoading;
+  final bool isLoadingMore;
+  final bool hasMore;
+  final int currentPage;
+  final int totalElements;
 
   bool get isTodaySellClosed => SellableDrawDate.isTodayDrawPassed();
 
-  /// Sau 16:15 VN không còn mở bán vé ngày mai (khớp BE ORD_050).
-  bool get isTomorrowSellClosed => SellableDrawDate.isTodayDrawPassed();
+  /// Ngày mai luôn mở bán (khớp web: sau 16:15 vẫn mua được vé ngày mai).
+  bool get isTomorrowSellClosed => false;
 
   List<String> get provinces => <String>{
     'Tat ca dai',
@@ -104,12 +114,22 @@ class BuyTicketState {
     String? selectedProvince,
     TicketDayFilter? selectedDay,
     List<LotteryTicketListItem>? tickets,
+    bool? isListLoading,
+    bool? isLoadingMore,
+    bool? hasMore,
+    int? currentPage,
+    int? totalElements,
   }) {
     return BuyTicketState(
       searchQuery: searchQuery ?? this.searchQuery,
       selectedProvince: selectedProvince ?? this.selectedProvince,
       selectedDay: selectedDay ?? this.selectedDay,
       tickets: tickets ?? this.tickets,
+      isListLoading: isListLoading ?? this.isListLoading,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      hasMore: hasMore ?? this.hasMore,
+      currentPage: currentPage ?? this.currentPage,
+      totalElements: totalElements ?? this.totalElements,
     );
   }
 
@@ -143,8 +163,12 @@ final buyTicketViewModelProvider =
     );
 
 class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
+  Timer? _searchDebounce;
+  int _listRequestId = 0;
+
   @override
   FutureOr<BuyTicketState> build() async {
+    ref.onDispose(() => _searchDebounce?.cancel());
     return _load(selectedDay: _defaultDayFilter());
   }
 
@@ -152,8 +176,10 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
       ref.read(lotteryTicketRepositoryProvider);
 
   TicketDayFilter _defaultDayFilter() {
-    // Sau 16:15: hôm nay đã đóng và ngày mai cũng không bán — giữ tab hôm nay.
-    return TicketDayFilter.today;
+    // Khớp web: trước 16:15 → hôm nay; sau 16:15 → ngày mai.
+    return SellableDrawDate.isTodayDrawPassed()
+        ? TicketDayFilter.tomorrow
+        : TicketDayFilter.today;
   }
 
   String _drawDateIsoFor(TicketDayFilter day) {
@@ -166,38 +192,103 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
     String searchQuery = '',
     String selectedProvince = 'Tat ca dai',
     TicketDayFilter selectedDay = TicketDayFilter.today,
+    int page = 1,
+    List<LotteryTicketListItem> existingTickets = const [],
+    bool append = false,
   }) async {
-    // Sau 16:15 không cho chọn / tải vé ngày mai.
+    // Sau 16:15 không còn bán vé hôm nay → chuyển sang ngày mai.
     var day = selectedDay;
-    if (day == TicketDayFilter.tomorrow &&
-        SellableDrawDate.isTodayDrawPassed()) {
-      day = TicketDayFilter.today;
+    if (day == TicketDayFilter.today && SellableDrawDate.isTodayDrawPassed()) {
+      day = TicketDayFilter.tomorrow;
     }
 
     final trimmedSearch = searchQuery.trim();
-    final tickets = await _repository.fetchOpenTickets(
+    final result = await _repository.fetchOpenTickets(
+      page: page,
+      size: LotteryTicketRepository.defaultPageSize,
       drawDate: _drawDateIsoFor(day),
       search: trimmedSearch.length >= 2 ? trimmedSearch : null,
     );
+
+    final mapped = result.items.map(mapLotteryTicketToListItem).toList();
+    final tickets = append ? [...existingTickets, ...mapped] : mapped;
 
     return BuyTicketState(
       searchQuery: searchQuery,
       selectedProvince: selectedProvince,
       selectedDay: day,
-      tickets: tickets.map(mapLotteryTicketToListItem).toList(),
+      tickets: tickets,
+      isListLoading: false,
+      isLoadingMore: false,
+      hasMore: result.hasMore,
+      currentPage: page,
+      totalElements: result.totalElements,
     );
+  }
+
+  Future<void> _reloadList({
+    required String searchQuery,
+    required String selectedProvince,
+    required TicketDayFilter selectedDay,
+  }) async {
+    final current = state.asData?.value;
+    if (current != null) {
+      state = AsyncData(
+        current.copyWith(
+          searchQuery: searchQuery,
+          selectedProvince: selectedProvince,
+          selectedDay: selectedDay,
+          isListLoading: true,
+          isLoadingMore: false,
+        ),
+      );
+    }
+
+    final requestId = ++_listRequestId;
+    try {
+      final next = await _load(
+        searchQuery: searchQuery,
+        selectedProvince: selectedProvince,
+        selectedDay: selectedDay,
+        page: 1,
+      );
+      if (requestId != _listRequestId) return;
+      state = AsyncData(next);
+    } catch (error, stackTrace) {
+      if (requestId != _listRequestId) return;
+      if (current != null) {
+        state = AsyncData(
+          current.copyWith(
+            searchQuery: searchQuery,
+            selectedProvince: selectedProvince,
+            selectedDay: selectedDay,
+            isListLoading: false,
+            isLoadingMore: false,
+          ),
+        );
+      } else {
+        state = AsyncError(error, stackTrace);
+      }
+    }
   }
 
   Future<void> updateSearchQuery(String query) async {
     final current = state.asData?.value;
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(
-      () => _load(
-        searchQuery: query.trim(),
-        selectedProvince: current?.selectedProvince ?? 'Tat ca dai',
-        selectedDay: current?.selectedDay ?? _defaultDayFilter(),
-      ),
-    );
+    if (current == null) return;
+
+    // Cập nhật query ngay để UI giữ trạng thái ô tìm kiếm, không full reload.
+    state = AsyncData(current.copyWith(searchQuery: query));
+
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 350), () async {
+      final latest = state.asData?.value;
+      if (latest == null) return;
+      await _reloadList(
+        searchQuery: latest.searchQuery,
+        selectedProvince: latest.selectedProvince,
+        selectedDay: latest.selectedDay,
+      );
+    });
   }
 
   void selectProvince(String province) {
@@ -209,34 +300,95 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
   Future<void> selectDay(TicketDayFilter day) async {
     final current = state.asData?.value;
     if (current == null) return;
+    // Sau 16:15 không mở bán vé hôm nay; ngày mai vẫn mua được.
     if (day == TicketDayFilter.today && SellableDrawDate.isTodayDrawPassed()) {
-      return;
-    }
-    if (day == TicketDayFilter.tomorrow &&
-        SellableDrawDate.isTodayDrawPassed()) {
       return;
     }
     if (day == current.selectedDay) return;
 
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(
-      () => _load(
+    await _reloadList(
+      searchQuery: current.searchQuery,
+      selectedProvince: current.selectedProvince,
+      selectedDay: day,
+    );
+  }
+
+  Future<void> loadMore() async {
+    final current = state.asData?.value;
+    if (current == null) return;
+    if (!current.hasMore || current.isListLoading || current.isLoadingMore) {
+      return;
+    }
+
+    state = AsyncData(current.copyWith(isLoadingMore: true));
+    final requestId = _listRequestId;
+    try {
+      final next = await _load(
         searchQuery: current.searchQuery,
         selectedProvince: current.selectedProvince,
+        selectedDay: current.selectedDay,
+        page: current.currentPage + 1,
+        existingTickets: current.tickets,
+        append: true,
+      );
+      if (requestId != _listRequestId) return;
+      state = AsyncData(next);
+    } catch (_) {
+      if (requestId != _listRequestId) return;
+      final latest = state.asData?.value ?? current;
+      state = AsyncData(latest.copyWith(isLoadingMore: false));
+    }
+  }
+
+  Future<void> applyQuery({
+    String searchQuery = '',
+    String? drawDateIso,
+  }) async {
+    var day = _defaultDayFilter();
+    final iso = drawDateIso?.trim() ?? '';
+    if (iso.isNotEmpty) {
+      final today = SellableDrawDate.todayIsoVn();
+      final tomorrow = SellableDrawDate.tomorrowIsoVn();
+      if (iso.startsWith(tomorrow)) {
+        day = TicketDayFilter.tomorrow;
+      } else if (iso.startsWith(today) &&
+          !SellableDrawDate.isTodayDrawPassed()) {
+        day = TicketDayFilter.today;
+      } else {
+        day = TicketDayFilter.tomorrow;
+      }
+    }
+
+    final current = state.asData?.value;
+    if (current != null) {
+      await _reloadList(
+        searchQuery: searchQuery.trim(),
+        selectedProvince: current.selectedProvince,
         selectedDay: day,
-      ),
+      );
+      return;
+    }
+
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(
+      () => _load(searchQuery: searchQuery.trim(), selectedDay: day),
     );
   }
 
   Future<void> refresh() async {
     final current = state.asData?.value;
+    if (current != null) {
+      await _reloadList(
+        searchQuery: current.searchQuery,
+        selectedProvince: current.selectedProvince,
+        selectedDay: current.selectedDay,
+      );
+      return;
+    }
+
     state = const AsyncLoading();
     state = await AsyncValue.guard(
-      () => _load(
-        searchQuery: current?.searchQuery ?? '',
-        selectedProvince: current?.selectedProvince ?? 'Tat ca dai',
-        selectedDay: current?.selectedDay ?? _defaultDayFilter(),
-      ),
+      () => _load(selectedDay: _defaultDayFilter()),
     );
   }
 }

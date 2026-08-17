@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { DashboardPage } from '@/admin/pages/dashboard/DashboardPage';
+import { DashboardPage } from '@/admin/features/dashboard/components/pages/DashboardPage';
 
 import { createAdminClientPage } from '@/admin/lib/createAdminClientPage';
 import { PERMISSIONS } from '@/admin/constants/permission.constants';

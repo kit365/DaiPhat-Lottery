@@ -1,16 +1,16 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { authService } from "../../admin/pages/authen/services/auth.service";
-import { userService } from "../../admin/pages/authen/services/user.service";
+import { authService } from "@/shared/auth/services/auth.service";
+import { userService } from "@/shared/auth/services/user.service";
 import { useAuthStore } from "../../stores/useAuthStore";
 import { User } from "../../types/user.type";
-import { useNavigate } from "react-router-dom";
 import { AppToast } from "../../utils/toast.util";
-import { STORAGE_KEYS } from "../../constants/storage.constants";
-import Cookies from "js-cookie";
-import { RegisterRequest } from "../../admin/pages/authen/types/auth.type";
+import { persistAccessToken } from "@/api/authHeaders";
+import { endAuthSession } from "@/api/endAuthSession";
+import { RegisterRequest } from "@/shared/auth/types/auth.type";
 import { updateUser } from "../../admin/features/users/services/userService";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -20,12 +20,11 @@ import { USER_ROLES } from "../../constants/role.constants";
 
 export const useAuth = () => {
     const queryClient = useQueryClient();
-    const navigate = useNavigate();
+    const router = useRouter();
     const [pendingVerificationIdentifier, setPendingVerificationIdentifier] = useState<string | null>(null);
 
     // Token from Zustand (persisted) — source of truth for auth status
     const token = useAuthStore((state) => state.token);
-    const logoutStore = useAuthStore((state) => state.logout);
     const loginStore = useAuthStore((state) => state.login);
     const closeAuthModals = useAuthStore((state) => state.closeAuthModals);
 
@@ -34,7 +33,7 @@ export const useAuth = () => {
     const getMeQuery = useQuery({
         queryKey: [QUERY_KEYS.CLIENT_ME, token],
         // Wrap so React Query's QueryFunctionContext is not passed as accessToken.
-        queryFn: () => authService.getMe(),
+        queryFn: () => userService.getMe(),
         enabled: !!token,
         staleTime: 0,         // always refetch when invalidated
         gcTime: 1000 * 60 * 5,
@@ -49,9 +48,7 @@ export const useAuth = () => {
         onMutate: () => {
             setPendingVerificationIdentifier(null);
             // Clear broken session so login isn't racing with refresh-token failures
-            Cookies.remove(STORAGE_KEYS.TOKEN, { path: "/" });
-            Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN, { path: "/" });
-            logoutStore();
+            endAuthSession();
         },
         onSuccess: async (response) => {
             setPendingVerificationIdentifier(null);
@@ -63,7 +60,7 @@ export const useAuth = () => {
             if (isSuccess && accessToken) {
                 const meResponse = authData?.user
                     ? { isSuccess: true, success: true, data: authData.user }
-                    : await authService.getMe(accessToken);
+                    : await userService.getMe(accessToken);
                 const meSuccess = meResponse.isSuccess ?? meResponse.success;
                 const userInfo = meResponse.data;
 
@@ -75,17 +72,11 @@ export const useAuth = () => {
                 const roleCode = (userInfo as User).role?.code || "";
                 if (roleCode === USER_ROLES.STREET_AGENT) {
                     AppToast.error("Tài khoản Street Agent chỉ dùng để quản lý hồ sơ nội bộ.");
-                    logoutStore();
-                    Cookies.remove(STORAGE_KEYS.TOKEN);
-                    Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN);
+                    endAuthSession();
                     return;
                 }
 
-                const cookieOptions = {
-                    expires: expiresIn ? expiresIn / 86400 : 7,
-                    path: '/'
-                };
-                Cookies.set(STORAGE_KEYS.TOKEN, accessToken, cookieOptions);
+                persistAccessToken(accessToken, expiresIn);
                 loginStore(userInfo as User, accessToken, expiresIn);
                 queryClient.setQueryData([QUERY_KEYS.CLIENT_ME, accessToken], {
                     isSuccess: true,
@@ -131,7 +122,7 @@ export const useAuth = () => {
                 AppToast.success(response.message || "Đăng ký thành công! Vui lòng kiểm tra email.");
                 closeAuthModals();
                 registerForm.reset();
-                navigate("/login");
+                router.push("/login");
             } else {
                 AppToast.error(response.message || "Đăng ký thất bại.");
             }
@@ -251,11 +242,8 @@ export const useAuth = () => {
         } catch (error) {
             console.error("Lỗi đăng xuất phía backend:", error);
         }
-        logoutStore();
-        queryClient.removeQueries({ queryKey: [QUERY_KEYS.CLIENT_ME] });
-        Cookies.remove(STORAGE_KEYS.TOKEN);
-        Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN);
-        navigate("/");
+        endAuthSession();
+        router.push("/");
         AppToast.success("Đăng xuất thành công!");
     };
 

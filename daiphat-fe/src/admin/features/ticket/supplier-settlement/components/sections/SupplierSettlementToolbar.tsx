@@ -6,7 +6,7 @@ import { IGridSettings, JiraFilter } from '../../../../../shared/data-grid';
 import { Search } from '../../../../../components/ui/Search';
 import { Columns } from '../../../../../components/ui/Columns';
 import { SettingsList } from '../../../../../components/ui/SettingsList';
-import type { SupplierSettlementStatus } from '../../types/supplierSettlement.type';
+import { SupplierSettlementStatus } from '../../types/supplierSettlement.type';
 
 interface SupplierSettlementToolbarProps {
     settings: IGridSettings;
@@ -14,42 +14,63 @@ interface SupplierSettlementToolbarProps {
     filters: {
         search?: string;
         status?: SupplierSettlementStatus;
+        expiredOnly?: boolean;
     };
-    onFilterChange: (fieldId: string, values: string[]) => void;
-    onClearFilters: () => void;
+    expiredCount?: number;
     onSearchChange: (search: string) => void;
+    onStatusChange?: (status?: SupplierSettlementStatus) => void;
+    onExpiredOnlyToggle?: (val?: boolean) => void;
 }
-
-const SETTLEMENT_STATUS_OPTIONS = [
-    { value: 'OPEN', label: 'Đang mở' },
-    { value: 'CLOSED', label: 'Đã đóng' },
-];
 
 export const SupplierSettlementToolbar = ({
     settings,
     onSettingsChange,
     filters,
-    onFilterChange,
-    onClearFilters,
+    expiredCount = 0,
     onSearchChange,
+    onStatusChange,
+    onExpiredOnlyToggle,
 }: SupplierSettlementToolbarProps) => {
-    const filterFields = useMemo(
-        () => [
+    const filterFields = useMemo(() => {
+        return [
             {
                 id: 'status',
-                label: 'Trạng thái',
-                options: SETTLEMENT_STATUS_OPTIONS,
+                label: 'Trạng thái đối soát',
+                options: [
+                    { value: 'OPEN', label: 'Đang mở' },
+                    { value: 'RECEIPT_OVERDUE', label: 'Quá hạn biên lai' },
+                    { value: 'CLOSED', label: 'Đã đóng' },
+                ],
             },
-        ],
-        [],
-    );
+            {
+                id: 'expiredOnly',
+                label: 'Hạn trả vé',
+                options: [
+                    { value: 'true', label: `Quá hạn trả vé (${expiredCount} kỳ)` },
+                ],
+            },
+        ];
+    }, [expiredCount]);
 
-    const selectedFilters = useMemo(
-        () => ({
-            status: filters.status ? [filters.status] : [],
-        }),
-        [filters.status],
-    );
+    const selectedFilters = useMemo(() => {
+        const sel: Record<string, string[]> = {};
+        if (filters.status) sel.status = [filters.status];
+        if (filters.expiredOnly) sel.expiredOnly = ['true'];
+        return sel;
+    }, [filters.status, filters.expiredOnly]);
+
+    const handleFilterChange = (fieldId: string, values: string[]) => {
+        if (fieldId === 'status') {
+            onStatusChange?.(values.length > 0 ? (values[0] as SupplierSettlementStatus) : undefined);
+        } else if (fieldId === 'expiredOnly') {
+            onExpiredOnlyToggle?.(values.includes('true'));
+        }
+    };
+
+    const handleClearFilters = () => {
+        onStatusChange?.(undefined);
+        onExpiredOnlyToggle?.(false);
+    };
 
     return (
         <Toolbar className="admin-list-toolbar">
@@ -65,8 +86,8 @@ export const SupplierSettlementToolbar = ({
                 <JiraFilter
                     fields={filterFields}
                     selectedFilters={selectedFilters}
-                    onFilterChange={onFilterChange}
-                    onClearAll={onClearFilters}
+                    onFilterChange={handleFilterChange}
+                    onClearAll={handleClearFilters}
                     trigger={({ onClick, totalFilterCount }) => (
                         <Button
                             variant="text"

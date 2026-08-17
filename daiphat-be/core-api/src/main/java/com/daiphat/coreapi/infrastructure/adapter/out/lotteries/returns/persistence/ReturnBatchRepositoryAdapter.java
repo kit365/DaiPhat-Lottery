@@ -2,6 +2,7 @@ package com.daiphat.coreapi.infrastructure.adapter.out.lotteries.returns.persist
 
 import com.daiphat.coreapi.application.port.out.lotteries.ReturnBatchRepositoryPort;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchType;
 import com.daiphat.coreapi.domain.model.lotteries.ReturnBatchLineModel;
 import com.daiphat.coreapi.domain.model.lotteries.ReturnBatchModel;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.ReturnBatchEntity;
@@ -11,11 +12,13 @@ import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.Lotte
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotterySupplierRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.ReturnBatchLineRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.ReturnBatchRepository;
+import com.daiphat.coreapi.infrastructure.persistence.repository.streetagent.AllocationBatchRepository;
 import com.daiphat.coreapi.infrastructure.persistence.specification.lotteries.ReturnBatchSpecification;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -29,6 +32,7 @@ public class ReturnBatchRepositoryAdapter implements ReturnBatchRepositoryPort {
     private final ReturnBatchLineRepository returnBatchLineRepository;
     private final LotterySupplierRepository lotterySupplierRepository;
     private final LotteryStationRepository lotteryStationRepository;
+    private final AllocationBatchRepository allocationBatchRepository;
     private final ReturnBatchPersistenceMapper returnBatchPersistenceMapper;
 
     @Override
@@ -43,6 +47,10 @@ public class ReturnBatchRepositoryAdapter implements ReturnBatchRepositoryPort {
         if (model.getLotterySupplierId() != null) {
             lotterySupplierRepository.findById(model.getLotterySupplierId())
                     .ifPresent(entity::setLotterySupplier);
+        }
+        if (model.getSourceAllocationBatchId() != null) {
+            allocationBatchRepository.findById(model.getSourceAllocationBatchId())
+                    .ifPresent(entity::setSourceAllocationBatch);
         }
         ReturnBatchEntity saved = returnBatchRepository.save(entity);
         // Reload with lines for consistent domain mapping.
@@ -72,11 +80,12 @@ public class ReturnBatchRepositoryAdapter implements ReturnBatchRepositoryPort {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Optional<ReturnBatchModel> findById(Long id) {
         return returnBatchRepository.findByIdAndDeletedAtIsNull(id)
                 .map(entity -> {
-                    // Ensure lines are loaded
-                    entity.getLines().size();
+                    // Ensure lines / supplier are loaded while session is open (scheduler / non-OSIV callers).
+                    initializeAssociations(entity);
                     return returnBatchPersistenceMapper.toDomain(entity);
                 });
     }
@@ -104,10 +113,35 @@ public class ReturnBatchRepositoryAdapter implements ReturnBatchRepositoryPort {
     }
 
     @Override
+    public Optional<ReturnBatchModel> findPrimarySupplierReturnBySupplierAndDrawDate(Long supplierId, LocalDate drawDate) {
+        return returnBatchRepository
+                .findFirstByLotterySupplier_IdAndDrawDateAndReturnBatchTypeAndDeletedAtIsNullOrderByIdAsc(
+                        supplierId,
+                        drawDate,
+                        ReturnBatchType.SUPPLIER_RETURN
+                )
+                .map(returnBatchPersistenceMapper::toDomain);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<ReturnBatchModel> findStreetAgentByAllocationBatchId(Long allocationBatchId) {
+        if (allocationBatchId == null) {
+            return Optional.empty();
+        }
+        return returnBatchRepository.findBySourceAllocationBatch_IdAndDeletedAtIsNull(allocationBatchId)
+                .map(entity -> {
+                    initializeAssociations(entity);
+                    return returnBatchPersistenceMapper.toDomain(entity);
+                });
+    }
+
+    @Override
     public Page<ReturnBatchModel> findAll(
             Pageable pageable,
             Long lotterySupplierId,
             Long supplierSettlementId,
+            ReturnBatchType returnBatchType,
             ReturnBatchStatus status,
             LocalDate drawDateFrom,
             LocalDate drawDateTo,
@@ -118,6 +152,7 @@ public class ReturnBatchRepositoryAdapter implements ReturnBatchRepositoryPort {
                         ReturnBatchSpecification.filter(
                                 lotterySupplierId,
                                 supplierSettlementId,
+                                returnBatchType,
                                 status,
                                 drawDateFrom,
                                 drawDateTo,
@@ -136,19 +171,19 @@ public class ReturnBatchRepositoryAdapter implements ReturnBatchRepositoryPort {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<ReturnBatchModel> findByStatuses(List<ReturnBatchStatus> statuses) {
         if (statuses == null || statuses.isEmpty()) {
             return List.of();
         }
+        // Query JOIN FETCHes supplier + lines; keep transaction so mapping is session-safe for schedulers.
         return returnBatchRepository.findByStatusInAndDeletedAtIsNull(statuses).stream()
-                .map(entity -> {
-                    entity.getLines().size();
-                    return returnBatchPersistenceMapper.toDomain(entity);
-                })
+                .map(returnBatchPersistenceMapper::toDomain)
                 .toList();
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<ReturnBatchModel> findBySupplierSettlementId(Long supplierSettlementId) {
         if (supplierSettlementId == null) {
             return List.of();
@@ -156,15 +191,21 @@ public class ReturnBatchRepositoryAdapter implements ReturnBatchRepositoryPort {
         return returnBatchRepository
                 .findBySupplierSettlementIdAndDeletedAtIsNullOrderByDrawDateDescIdDesc(supplierSettlementId)
                 .stream()
-                .map(entity -> {
-                    entity.getLines().size();
-                    return returnBatchPersistenceMapper.toDomain(entity);
-                })
+                .map(returnBatchPersistenceMapper::toDomain)
                 .toList();
     }
 
     @Override
     public long nextHeaderBatchCodeSequence() {
         return returnBatchRepository.nextHeaderBatchCodeSequence();
+    }
+
+    private static void initializeAssociations(ReturnBatchEntity entity) {
+        if (entity.getLotterySupplier() != null) {
+            entity.getLotterySupplier().getId();
+        }
+        if (entity.getLines() != null) {
+            entity.getLines().size();
+        }
     }
 }

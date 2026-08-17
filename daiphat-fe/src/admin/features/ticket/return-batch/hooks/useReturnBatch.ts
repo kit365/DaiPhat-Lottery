@@ -185,6 +185,7 @@ export const useReturnBatchList = () => {
 
     const queryParams = useMemo(
         () => ({
+            returnBatchType: 'SUPPLIER_RETURN' as const,
             search: filters.search || undefined,
             status: filters.status || undefined,
             page: apiPage,
@@ -197,7 +198,9 @@ export const useReturnBatchList = () => {
 
     const { data, isLoading, error } = useReturnBatches(queryParams, {
         placeholderData: keepPreviousData,
-        refetchInterval: 30_000,
+        // List polling every 30s was amplifying a heavy BE path; refresh on focus/mount is enough.
+        staleTime: 15_000,
+        refetchOnWindowFocus: true,
     });
 
     const batches = useMemo(() => (data as any)?.recordList ?? [], [data]);

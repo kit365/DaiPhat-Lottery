@@ -1,156 +1,189 @@
-import React from 'react';
-import { useGetMyOrders } from '../../hooks/useOrder';
+"use client";
 
-const ORDER_STATUS_LABELS: Record<string, string> = {
-    PENDING_PAYMENT: 'Chờ thanh toán',
-    PAID: 'Đã thanh toán',
-    PREPARING: 'Đang xử lý',
-    PENDING_PICKUP: 'Chờ nhận vé',
-    COMPLETED: 'Hoàn thành',
-    CANCELLED: 'Đã huỷ'
-};
-
-const ORDER_STATUS_STYLES: Record<string, string> = {
-    PENDING_PAYMENT: 'bg-[#FFF9F3] text-[#FFB020]',
-    PAID: 'bg-[#E4F8ED] text-[#1CD162]',
-    PREPARING: 'bg-[#F0F5FF] text-[#2065D1]',
-    PENDING_PICKUP: 'bg-[#F0F5FF] text-[#2065D1]',
-    COMPLETED: 'bg-[#E4F8ED] text-[#1CD162]',
-    CANCELLED: 'bg-[#ee1314] text-white'
-};
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { format } from 'date-fns';
+import { OrderStatusBadge } from '@/shared/components/StatusBadge';
+import type { OrderResponse } from '../../../types/order.type';
 
 const ORDER_CANCEL_TYPE_LABELS: Record<string, string> = {
-    CUSTOMER_REQUEST: 'Người dùng huỷ',
-    ADMIN_FORCE_CANCEL: 'Nhân viên hủy theo yêu cầu từ khách',
+    CUSTOMER_REQUEST: 'Bạn đã huỷ',
+    ADMIN_FORCE_CANCEL: 'Nhân viên đã huỷ',
     SYSTEM_PAYMENT_TIMEOUT: 'Quá hạn thanh toán',
-    OUT_OF_STOCK_INCIDENT: 'Sự cố kho vé'
+    OUT_OF_STOCK_INCIDENT: 'Sự cố kho vé',
 };
 
-interface SelectOrderModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    onSelect: (orderId: string) => void;
+interface SelectOrderDropdownProps {
+    orders: OrderResponse[];
+    isLoading?: boolean;
     selectedOrderId?: string;
+    onSelect: (orderId: string) => void;
 }
 
-export const SelectOrderModal: React.FC<SelectOrderModalProps> = ({
-    isOpen,
-    onClose,
-    onSelect,
-    selectedOrderId,
-}) => {
-    const { data: ordersData, isLoading } = useGetMyOrders({ page: 1, size: 100 }, isOpen);
-    const orders = ordersData?.data?.recordList || [];
+function resolveEligibility(order: OrderResponse) {
+    if (order.complaintEligibility) {
+        return {
+            eligible: order.complaintEligibility.eligible,
+            reason: order.complaintEligibility.message || 'Không đủ điều kiện',
+        };
+    }
+    if (order.status === 'PENDING_PAYMENT') {
+        return { eligible: false, reason: 'Chưa thanh toán' };
+    }
+    if (order.status === 'CANCELLED') {
+        if (order.cancelType === 'CUSTOMER_REQUEST') {
+            return { eligible: false, reason: 'Bạn đã huỷ đơn này' };
+        }
+        if (order.cancelType === 'ADMIN_FORCE_CANCEL') {
+            return { eligible: false, reason: 'Nhân viên đã huỷ đơn này' };
+        }
+        if (order.cancelType !== 'SYSTEM_PAYMENT_TIMEOUT' && order.cancelType !== 'OUT_OF_STOCK_INCIDENT') {
+            return { eligible: false, reason: 'Đơn đã huỷ' };
+        }
+    }
+    return { eligible: true, reason: '' };
+}
 
-    if (!isOpen) return null;
+function shortOrderCode(order: OrderResponse) {
+    return (order.orderCode || order.id).slice(0, 8).toUpperCase();
+}
+
+export const SelectOrderModal: React.FC<SelectOrderDropdownProps> = ({
+    orders,
+    isLoading = false,
+    selectedOrderId,
+    onSelect,
+}) => {
+    const [open, setOpen] = useState(false);
+    const [query, setQuery] = useState('');
+    const rootRef = useRef<HTMLDivElement>(null);
+    const selectedOrder = orders.find((order) => order.id === selectedOrderId);
+
+    const filtered = useMemo(() => {
+        const q = query.trim().toLowerCase();
+        if (!q) return orders;
+        return orders.filter((order) => {
+            const code = (order.orderCode || order.id).toLowerCase();
+            const id = order.id.toLowerCase();
+            return code.includes(q) || id.includes(q) || id.slice(0, 8).includes(q);
+        });
+    }, [orders, query]);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
+                setOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     return (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose}></div>
-            <div className="relative bg-white rounded-[20px] shadow-2xl w-full max-w-xl max-h-[85vh] flex flex-col overflow-hidden">
-                <div className="flex items-center justify-between p-5 border-b border-[#E5E8EB] bg-white z-10">
-                    <h2 className="text-[18px] font-bold text-[#212B36]">Chọn Đơn hàng</h2>
-                    <button
-                        onClick={onClose}
-                        className="w-8 h-8 rounded-lg hover:bg-[#F4F6F8] flex items-center justify-center text-[#637381] cursor-pointer"
-                    >
-                        <i className="fa-solid fa-xmark"></i>
-                    </button>
-                </div>
+        <div className="relative" ref={rootRef}>
+            <button
+                type="button"
+                onClick={() => setOpen((prev) => !prev)}
+                className={`w-full px-4 py-3 bg-white border rounded-xl text-[14px] flex items-center justify-between cursor-pointer transition-colors text-left ${
+                    open ? 'border-[#ee1314]' : 'border-[#E5E8EB] hover:border-[#ee1314]'
+                }`}
+            >
+                {selectedOrder ? (
+                    <span className="min-w-0 flex items-center gap-2">
+                        <span className="font-bold text-[#212B36] tabular-nums">
+                            #{shortOrderCode(selectedOrder)}
+                        </span>
+                        <span className="text-[12px] text-[#637381] tabular-nums truncate">
+                            {Number(selectedOrder.finalAmount ?? selectedOrder.totalAmount ?? 0).toLocaleString('vi-VN')}đ
+                        </span>
+                    </span>
+                ) : (
+                    <span className="text-[#919EAB]">Chọn đơn hàng...</span>
+                )}
+                <i
+                    className={`fa-solid fa-chevron-down text-[#919EAB] text-[12px] transition-transform ${
+                        open ? 'rotate-180' : ''
+                    }`}
+                />
+            </button>
 
-                <div className="p-5 overflow-y-auto flex-1 bg-[#F9FAFB]">
-                    {isLoading ? (
-                        <div className="flex flex-col items-center justify-center py-10 gap-3 text-[#919EAB]">
-                            <i className="fa-solid fa-spinner fa-spin text-2xl"></i>
-                            <span className="text-[14px] font-medium">Đang tải danh sách...</span>
+            {open && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-[#E5E8EB] rounded-xl shadow-lg z-30 overflow-hidden">
+                    <div className="p-2 border-b border-[#E5E8EB]">
+                        <div className="relative">
+                            <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-[11px] text-[#919EAB]" />
+                            <input
+                                type="search"
+                                value={query}
+                                onChange={(e) => setQuery(e.target.value)}
+                                placeholder="Tìm mã đơn…"
+                                className="w-full h-9 pl-8 pr-3 rounded-lg bg-[#F4F6F8] text-[13px] text-[#212B36] outline-none placeholder:text-[#919EAB]"
+                            />
                         </div>
-                    ) : orders.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-10 gap-3 text-[#919EAB]">
-                            <i className="fa-solid fa-box-open text-4xl mb-2 text-[#DFE3E8]"></i>
-                            <span className="text-[14px] font-medium">Bạn chưa có đơn hàng nào.</span>
-                        </div>
-                    ) : (
-                        <div className="flex flex-col gap-3">
-                            {orders.map((order) => {
-                                const isEligible = (() => {
-                                    if (order.complaintEligibility) {
-                                        return {
-                                            eligible: order.complaintEligibility.eligible,
-                                            reason: order.complaintEligibility.message || 'Không đủ điều kiện'
-                                        };
-                                    }
-                                    
-                                    // Fallback if complaintEligibility is missing for some reason
-                                    if (order.status === 'PENDING_PAYMENT') return { eligible: false, reason: 'Chưa thanh toán' };
-                                    if (order.status === 'CANCELLED') {
-                                        if (order.cancelType === 'CUSTOMER_REQUEST') return { eligible: false, reason: 'Bạn đã huỷ đơn này' };
-                                        if (order.cancelType === 'ADMIN_FORCE_CANCEL') return { eligible: false, reason: 'Nhân viên đã huỷ đơn này' };
-                                        if (order.cancelType !== 'SYSTEM_PAYMENT_TIMEOUT' && order.cancelType !== 'OUT_OF_STOCK_INCIDENT') {
-                                            return { eligible: false, reason: 'Đơn đã huỷ' };
-                                        }
-                                    }
-                                    return { eligible: true };
-                                })();
+                    </div>
+                    <div className="max-h-[240px] overflow-y-auto">
+                        {isLoading ? (
+                            <p className="py-8 text-center text-[13px] text-[#637381]">
+                                <i className="fa-solid fa-spinner fa-spin mr-2" />
+                                Đang tải…
+                            </p>
+                        ) : filtered.length === 0 ? (
+                            <p className="py-8 text-center text-[13px] text-[#637381]">
+                                {orders.length === 0 ? 'Bạn chưa có đơn hàng nào.' : 'Không có đơn phù hợp.'}
+                            </p>
+                        ) : (
+                            filtered.map((order) => {
+                                const eligibility = resolveEligibility(order);
                                 const isSelected = order.id === selectedOrderId;
                                 return (
-                                    <div
+                                    <button
                                         key={order.id}
+                                        type="button"
+                                        disabled={!eligibility.eligible}
                                         onClick={() => {
-                                            if (!isEligible.eligible) return;
+                                            if (!eligibility.eligible) return;
                                             onSelect(order.id);
-                                            onClose();
+                                            setOpen(false);
+                                            setQuery('');
                                         }}
-                                        className={`p-4 rounded-xl border transition-colors flex items-center justify-between gap-4 ${
-                                            !isEligible.eligible
-                                                ? 'bg-[#F9FAFB] border-[#E5E8EB] opacity-60 cursor-not-allowed'
+                                        className={`w-full text-left px-3 py-2.5 flex items-start gap-2 border-b border-[#F4F6F8] last:border-b-0 ${
+                                            !eligibility.eligible
+                                                ? 'opacity-50 cursor-not-allowed'
                                                 : isSelected
-                                                ? 'bg-[#FFF4F4] border-[#ee1314] cursor-pointer'
-                                                : 'bg-white border-[#E5E8EB] hover:border-[#ee1314]/50 hover:shadow-sm cursor-pointer'
+                                                  ? 'bg-[#FFF4F4] cursor-pointer'
+                                                  : 'hover:bg-[#F4F6F8] cursor-pointer'
                                         }`}
                                     >
-                                        <div className="flex items-center gap-4">
-                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isSelected ? 'bg-[#ee1314]/10 text-[#ee1314]' : 'bg-[#F4F6F8] text-[#637381]'}`}>
-                                                <i className="fa-solid fa-file-invoice"></i>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <span className="font-bold text-[13px] text-[#212B36] tabular-nums">
+                                                    #{shortOrderCode(order)}
+                                                </span>
+                                                <OrderStatusBadge status={order.status} />
                                             </div>
-                                            <div className="flex flex-col gap-0.5">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-bold text-[#212B36] text-[14px]">#{order.id.slice(0, 8).toUpperCase()}</span>
-                                                    <span className={`px-2 py-0.5 text-[10px] font-bold rounded-md uppercase ${ORDER_STATUS_STYLES[order.status] || 'bg-[#F4F6F8] text-[#454F5B]'}`}>
-                                                        {ORDER_STATUS_LABELS[order.status] || order.status}
-                                                    </span>
-                                                    {order.status === 'CANCELLED' && order.cancelType && (
-                                                        <span className="px-2 py-0.5 bg-[#FFF4F4] text-[#ee1314] text-[10px] font-bold rounded-md uppercase">
-                                                            {ORDER_CANCEL_TYPE_LABELS[order.cancelType] || order.cancelType}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <span className="text-[13px] font-semibold text-[#ee1314]">
-                                                    {order.totalAmount?.toLocaleString('vi-VN')}đ
-                                                </span>
-                                                <span className="text-[12px] text-[#919EAB]">
-                                                    {order.createdAt ? new Date(order.createdAt).toLocaleDateString('vi-VN') : ''}
-                                                </span>
-                                                {!isEligible.eligible && (
-                                                    <span className="text-[11px] font-bold text-[#FFB020] mt-1 bg-[#FFF9F3] px-2 py-0.5 rounded w-max">
-                                                        {isEligible.reason}
-                                                    </span>
+                                            <p className="mt-0.5 text-[12px] text-[#637381] tabular-nums">
+                                                {order.createdAt
+                                                    ? format(new Date(order.createdAt), 'dd/MM/yyyy')
+                                                    : '—'}
+                                                <span className="mx-1 text-[#C4CDD5]">·</span>
+                                                {Number(order.finalAmount ?? order.totalAmount ?? 0).toLocaleString(
+                                                    'vi-VN'
                                                 )}
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center justify-center text-[#ee1314]">
-                                            {isSelected ? (
-                                                <i className="fa-solid fa-circle-check text-xl"></i>
-                                            ) : (
-                                                <i className="fa-regular fa-circle text-xl text-[#DFE3E8]"></i>
+                                                đ
+                                            </p>
+                                            {!eligibility.eligible && (
+                                                <p className="mt-0.5 text-[11px] text-[#637381]">{eligibility.reason}</p>
                                             )}
                                         </div>
-                                    </div>
+                                        {isSelected && eligibility.eligible && (
+                                            <i className="fa-solid fa-check text-[#ee1314] text-[12px] mt-1" />
+                                        )}
+                                    </button>
                                 );
-                            })}
-                        </div>
-                    )}
+                            })
+                        )}
+                    </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 };

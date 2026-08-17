@@ -1,7 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ComplaintStatusBadge } from '../../../../components/support/ComplaintStatusBadge';
 import { ComplaintFormModal } from '../../../../components/support/ComplaintFormModal';
@@ -17,11 +17,10 @@ const STATUS_TABS: { value: TicketStatus | 'ALL'; label: string }[] = [
     { value: TicketStatus.WAITING_FOR_CUSTOMER, label: TICKET_STATUS_LABELS[TicketStatus.WAITING_FOR_CUSTOMER] },
     { value: TicketStatus.RESOLVED, label: TICKET_STATUS_LABELS[TicketStatus.RESOLVED] },
     { value: TicketStatus.REJECTED, label: TICKET_STATUS_LABELS[TicketStatus.REJECTED] },
-    { value: TicketStatus.CLOSED, label: TICKET_STATUS_LABELS[TicketStatus.CLOSED] },
 ];
 
 export const ComplaintsTab = () => {
-    const navigate = useNavigate();
+    const router = useRouter();
     const [activeTab, setActiveTab] = useState<TicketStatus | 'ALL'>('ALL');
     const [page, setPage] = useState(1);
     const [searchTerm, setSearchTerm] = useState('');
@@ -57,9 +56,10 @@ export const ComplaintsTab = () => {
         );
         if (!confirmed) return;
         setCancellingId(ticketId);
-        closeMutation.mutate(ticketId, {
-            onSettled: () => setCancellingId(null),
-        });
+        closeMutation.mutate(
+            { id: ticketId, intent: 'cancel' },
+            { onSettled: () => setCancellingId(null) }
+        );
     };
 
     return (
@@ -84,7 +84,7 @@ export const ComplaintsTab = () => {
             </div>
 
             <div className="bg-white border border-[#E5E8EB] rounded-[20px] shadow-[0_2px_12px_rgb(0,0,0,0.03)] overflow-hidden">
-                <div className="flex items-center gap-4 overflow-x-auto w-full scrollbar-hide px-6 pt-2 border-b border-[#E5E8EB]">
+                <div className="flex items-center gap-8 overflow-x-auto w-full scrollbar-hide px-6 pt-2 border-b border-[#E5E8EB]">
                     {STATUS_TABS.map((tab) => (
                         <button
                             key={tab.value}
@@ -100,7 +100,7 @@ export const ComplaintsTab = () => {
                     ))}
                 </div>
 
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto min-h-[268px]">
                     <table className="w-full text-left border-collapse min-w-[800px]">
                         <thead>
                             <tr className="bg-[#F9FAFB] border-b border-[#E5E8EB]">
@@ -118,14 +118,14 @@ export const ComplaintsTab = () => {
                         <tbody>
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan={7} className="py-8 text-center text-[14px] text-[#637381]">
+                                    <td colSpan={7} className="h-[216px] text-center align-middle text-[14px] text-[#637381]">
                                         <i className="fa-solid fa-spinner fa-spin mr-2"></i> Đang tải dữ liệu...
                                     </td>
                                 </tr>
                             ) : tickets.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="py-16 text-center">
-                                        <div className="flex flex-col items-center gap-3">
+                                    <td colSpan={7} className="h-[216px] text-center align-middle">
+                                        <div className="flex flex-col items-center justify-center gap-3">
                                             <div className="w-14 h-14 rounded-full bg-[#FFF4F4] text-[#ee1314] flex items-center justify-center text-xl">
                                                 <i className="fa-solid fa-headset"></i>
                                             </div>
@@ -144,7 +144,7 @@ export const ComplaintsTab = () => {
                                     <tr
                                         key={ticket.id}
                                         className="border-b border-[#F4F6F8] hover:bg-[#FAFBFC] transition-colors cursor-pointer"
-                                        onClick={() => navigate(`/profile/complaints/${ticket.id}`)}
+                                        onClick={() => router.push(`/profile/complaints/${ticket.id}`)}
                                     >
                                         <td className="py-4 px-5 align-middle">
                                             <span className="text-[14px] font-medium text-[#212B36]">#{ticket.id}</span>
@@ -179,7 +179,7 @@ export const ComplaintsTab = () => {
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        navigate(`/profile/complaints/${ticket.id}`);
+                                                        router.push(`/profile/complaints/${ticket.id}`);
                                                     }}
                                                     className="w-8 h-8 shrink-0 rounded-lg border border-[#E5E8EB] inline-flex items-center justify-center text-[#919EAB] hover:text-[#2065D1] hover:border-[#2065D1] hover:bg-[#F0F5FF] transition-all cursor-pointer"
                                                     title="Xem chi tiết"

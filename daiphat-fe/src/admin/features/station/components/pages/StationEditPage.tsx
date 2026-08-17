@@ -1,13 +1,14 @@
 "use client";
 
-import { Box, Stack, TextField, ThemeProvider, useTheme, CircularProgress, createTheme, MenuItem, Typography } from "@mui/material";
+import { useRouteParams } from "@/hooks/useRouteParams";
+import { Box, IconButton, InputAdornment, Stack, TextField, Tooltip, ThemeProvider, useTheme, CircularProgress, createTheme, MenuItem, Typography } from "@mui/material";
 import { REGION_DATA } from "../../../../constants/region.constants";
 import { DAYS_OF_WEEK } from "../../../../constants/schedule.constants";
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
-import { Title } from "../../../../components/ui/Title";
+import { PageHeader } from "../../../../components/ui/PageHeader";
+import { SpinnerLoading } from "../../../../components/ui/SpinnerLoading";
 import { TimePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
-import { Tiptap } from "../../../../components/layouts/titap/Tiptap";
+import { LazyTiptap } from "../../../../components/layouts/titap/LazyTiptap";
 import { useState, useEffect, type Dispatch, type SetStateAction, useMemo } from "react";
 import { CollapsibleCard } from "../../../../components/ui/CollapsibleCard";
 import { useStationDetail, useUpdateStation, useUploadStationImage } from "../../hooks/useStation";
@@ -17,13 +18,14 @@ import { useForm, Controller } from "react-hook-form";
 import { CreateStationFormValues, createStationSchema } from "../../schemas/station.schema";
 import { SwitchButton } from "../../../../components/ui/SwitchButton";
 import { prefixAdmin } from "../../../../constants/routes";
+import AutoFixHighOutlinedIcon from "@mui/icons-material/AutoFixHighOutlined";
 import { toast } from "react-toastify";
-import { LoadingButton } from "../../../../components/ui/LoadingButton";
+import { suggestStationCode } from "../../services/stationService";
+import { Button } from "../../../../components/ui/Button";
 import { FormUploadSingleFile } from "../../../../components/upload/FormUploadSingleFile";
-import { useParams } from "react-router-dom";
 
 export const StationEditPage = () => {
-    const { id } = useParams();
+    const { id } = useRouteParams();
     const [expandedDetail, setExpandedDetail] = useState(true);
 
     const toggle = (setter: Dispatch<SetStateAction<boolean>>) =>
@@ -84,6 +86,7 @@ export const StationEditPage = () => {
         resolver: zodResolver(createStationSchema) as any,
         defaultValues: {
             name: "",
+            code: "",
             description: "",
             status: "active",
             type: "TRADITIONAL",
@@ -99,6 +102,27 @@ export const StationEditPage = () => {
             displayOrder: 0,
         },
     });
+
+    // The generate button asks the backend, because only it knows which codes are
+    // already taken by other stations.
+    const [suggestingCode, setSuggestingCode] = useState(false);
+    const watchedName = watch("name");
+
+    const handleSuggestCode = async () => {
+        const name = watchedName?.trim();
+        if (!name) {
+            return;
+        }
+        setSuggestingCode(true);
+        try {
+            const suggested = await suggestStationCode(name, id ? Number(id) : undefined);
+            setValue("code", suggested, { shouldDirty: true, shouldValidate: true });
+        } catch {
+            toast.error("Không tạo được mã tự động. Vui lòng nhập mã thủ công.");
+        } finally {
+            setSuggestingCode(false);
+        }
+    };
 
     const { data: regionsRes } = useRegions();
     const regions = regionsRes?.data || [];
@@ -117,6 +141,7 @@ export const StationEditPage = () => {
         if (detailRes) {
             reset({
                 name: detailRes.name || "",
+                code: detailRes.code || "",
                 description: detailRes.description || "",
                 status: (detailRes.status === "inactive" ? "inactive" : "active") as "active" | "inactive",
                 type: detailRes.type || "TRADITIONAL",
@@ -162,26 +187,30 @@ export const StationEditPage = () => {
 
     if (isLoadingDetail) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-                <CircularProgress color="inherit" />
-            </Box>
+            <>
+                <PageHeader
+                    title="Chỉnh sửa nhà đài"
+                    breadcrumbItems={[
+                        { label: "Dashboard", to: "/" },
+                        { label: "Nhà đài", to: `/${prefixAdmin}/provider/list` },
+                        { label: "Chỉnh sửa" }
+                    ]}
+                />
+                <SpinnerLoading />
+            </>
         );
     }
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title="Chỉnh sửa nhà đài" />
-                    <Breadcrumb
-                        items={[
+            <PageHeader
+                title="Chỉnh sửa nhà đài"
+                breadcrumbItems={[
                             { label: "Dashboard", to: "/" },
                             { label: "Nhà đài", to: `/${prefixAdmin}/provider/list` },
                             { label: "Chỉnh sửa" }
                         ]}
-                    />
-                </div>
-            </div>
+            />
 
             <ThemeProvider theme={localTheme}>
                 <form onSubmit={handleSubmit(onSubmit)}>
@@ -209,6 +238,48 @@ export const StationEditPage = () => {
                                             )}
                                         />
                                     </Box>
+
+                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
+                                        <Controller
+                                            name="code"
+                                            control={control}
+                                            render={({ field, fieldState }) => (
+                                                <TextField
+                                                    {...field}
+                                                    value={field.value ?? ''}
+                                                    label="Mã nhà đài"
+                                                    error={!!fieldState.error}
+                                                    helperText={
+                                                        fieldState.error?.message ??
+                                                        'Mã dùng khi xuất / nhập tệp. Để trống thì hệ thống tự sinh.'
+                                                    }
+                                                    fullWidth
+                                                    InputProps={{
+                                                        endAdornment: (
+                                                            <InputAdornment position="end">
+                                                                <Tooltip title="Tự sinh mã từ tên nhà đài">
+                                                                    <span>
+                                                                        <IconButton
+                                                                            size="small"
+                                                                            edge="end"
+                                                                            disabled={
+                                                                                suggestingCode ||
+                                                                                !watchedName?.trim()
+                                                                            }
+                                                                            onClick={handleSuggestCode}
+                                                                        >
+                                                                            <AutoFixHighOutlinedIcon fontSize="small" />
+                                                                        </IconButton>
+                                                                    </span>
+                                                                </Tooltip>
+                                                            </InputAdornment>
+                                                        ),
+                                                    }}
+                                                />
+                                            )}
+                                        />
+                                    </Box>
+
 
                                     <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
                                         <Controller
@@ -450,7 +521,7 @@ export const StationEditPage = () => {
                                         name="description"
                                         control={control}
                                         render={({ field }) => (
-                                            <Tiptap
+                                            <LazyTiptap
                                                 value={field.value ?? ""}
                                                 onChange={field.onChange}
                                             />
@@ -467,7 +538,7 @@ export const StationEditPage = () => {
                                 checkedValue="active"
                                 uncheckedValue="inactive"
                             />
-                            <LoadingButton
+                            <Button
                                 type="submit"
                                 className="btn-primary-admin"
                                 loading={isUpdating || isUploadingImage}

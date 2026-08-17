@@ -1,16 +1,20 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import React from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ROUTES } from "../../../admin/constants/routes";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { AppToast as toast } from "../../../utils/toast.util";
 import { createNavBannerPrefetchHandlers } from "../../utils/prefetchImagesWhenIdle";
+import { shouldPrefetchClientNavRoute } from "../../utils/clientNavPrefetch";
 
 export const BottomNav: React.FC = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
+  const pathname = usePathname() ?? '';
+    const searchParamsForLocation = useSearchParams();
+  const router = useRouter();
   const { user, token, openLoginModal, openProfileSetupModal } = useAuthStore();
 
   const navItems = [
@@ -46,7 +50,7 @@ export const BottomNav: React.FC = () => {
       action: (e: React.MouseEvent) => {
         if (!token) {
           e.preventDefault();
-          navigate('/login');
+          router.push('/login');
         } else if (user) {
           const shouldRequireProfileSetup = !user.agreedToTerms;
           if (shouldRequireProfileSetup) {
@@ -63,7 +67,7 @@ export const BottomNav: React.FC = () => {
     <nav className="fixed bottom-0 left-0 right-0 z-[1000] lg:hidden block">
       <div className="flex justify-around items-center h-[75px] bg-white/80 backdrop-blur-xl border-t border-black/5 px-4 pb-[env(safe-area-inset-bottom)]">
         {navItems.filter(item => !item.hidden).map((item) => {
-          const isActive = location.pathname === item.to && item.to !== "#";
+          const isActive = pathname === item.to && item.to !== "#";
           
           const Content = (
             <div className={`flex flex-col items-center justify-center gap-1.5 w-full h-full transition-colors duration-300 relative ${isActive ? "text-[#ee1314]" : "text-[#637381]"}`}>
@@ -82,7 +86,8 @@ export const BottomNav: React.FC = () => {
           return (
             <Link
               key={item.label}
-              to={item.to}
+              href={item.to}
+              prefetch={shouldPrefetchClientNavRoute(item.to)}
               {...createNavBannerPrefetchHandlers(item.to)}
               className="flex-1 h-full cursor-pointer block"
               onClick={item.action ? (e) => item.action(e) : undefined}

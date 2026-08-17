@@ -7,7 +7,7 @@
 | 1 | `StreetAgentProfile.user_id` | **nullable + unique** (0..1). Target `NOT NULL` sau wire create-flow | `@OneToOne` + `unique`; cột nullable |
 | 2 | Skeleton `agent_id` | **BIGINT → `street_agent_profiles.id`** (không trỏ `users`) | Settlement / deposit / report → `StreetAgentProfileEntity` |
 | 3 | `AgentSettlement` value fields | **Một** field `returnedValue` / `returned_value` (không thêm `returnValue`) | Entity + SQL khớp |
-| 4 | `DailySalesReportDetail.detailId` | **BIGINT nullable, không FK** | `@Column` Long; SQL không `REFERENCES` |
+| 4 | `DailySalesReportDetail.detailId` | **FK → `allocation_batch_details.id`** (Phase 4 chốt) | `@ManyToOne AllocationBatchDetailEntity`; unique `(report_id, detail_id)` |
 
 Operator `collected_by` / `confirmed_by` = UUID → `users.id` (UUID thuần, chưa map `UserEntity`).
 
@@ -71,9 +71,9 @@ AllocationBatchEntity
 | `agent_settlements` | `report_id` | BIGINT FK → `daily_sales_reports.id` (nullable) |
 | `agent_settlements` | `collected_by` | UUID FK → `users.id` (nullable) |
 | `agent_settlements` | `allocation_batch_id` | BIGINT FK → `allocation_batches.id` |
-| `agent_deposit_transactions` | `agent_id` | BIGINT FK → profile |
-| `agent_deposit_transactions` | `allocation_id` | BIGINT FK → `allocation_batches.id` |
-| `agent_deposit_transactions` | `collected_by` | UUID FK → users |
+| `transactions` (shared ledger) | `street_agent_profile_id` | BIGINT FK → profile; source link for vendor cash movement |
+| `transactions` (shared ledger) | `allocation_batch_id` | BIGINT FK → `allocation_batches.id`; source link for vendor cash movement |
+| `transactions` (shared ledger) | `transaction_type` | `VENDOR_DEPOSIT`, `VENDOR_SETTLEMENT_COLLECTION`, `VENDOR_PAYOUT`; cash direction derived from type |
 | `daily_sales_reports` | `agent_id` | BIGINT FK → profile |
 | `daily_sales_reports` | `batch_id` | **Không thêm** |
 | `daily_sales_reports` | `confirmed_by` | UUID FK → users (nullable) |

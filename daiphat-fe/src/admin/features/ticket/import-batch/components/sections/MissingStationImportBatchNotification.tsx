@@ -1,12 +1,14 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import { Alert, Button, Stack, Typography } from '@mui/material';
 import { useMemo, useState } from 'react';
-import { useNavigate } from '@/components/router-compat';
 import type { ImportBatch } from '../../types/importBatch.type';
 import { ROUTES } from '../../../../../constants/routes';
 import { importBatchMissingStations } from '../../utils/importBatchProgress';
+import { useActiveSuppliers } from '../../../../supplier';
+import { useImportBatchIntakeGate } from '../../hooks/useImportBatchIntakeGate';
 import { useImportBatchesWithoutLines } from '../../hooks/useImportBatch';
 import { formatImportBatchHeaderCode } from '../../utils/importBatchCode';
 import {
@@ -33,14 +35,19 @@ const mergeMissingStationBatches = (
 export const MissingStationImportBatchNotification = ({
     pageBatches = [],
 }: MissingStationImportBatchNotificationProps) => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const [detailOpen, setDetailOpen] = useState(false);
     const { data: apiBatches = [], isLoading, isError } = useImportBatchesWithoutLines();
+    const { data: activeSuppliers = [] } = useActiveSuppliers();
+    const { evaluate: evaluateIntake } = useImportBatchIntakeGate();
 
-    const batches = useMemo(
-        () => mergeMissingStationBatches(apiBatches, pageBatches),
-        [apiBatches, pageBatches]
-    );
+    const batches = useMemo(() => {
+        const merged = mergeMissingStationBatches(apiBatches, pageBatches);
+        return merged.filter((batch) => {
+            const supplier = activeSuppliers.find((entry) => entry.id === batch.supplierId);
+            return !evaluateIntake(supplier, batch.drawDate).blocked;
+        });
+    }, [activeSuppliers, apiBatches, evaluateIntake, pageBatches]);
 
     if (batches.length === 0) {
         if (isLoading && !isError) {
@@ -61,7 +68,7 @@ export const MissingStationImportBatchNotification = ({
     const anyHaveStartedEntry = startedEntryCount > 0;
 
     const handleContinue = (batch: ImportBatch) => {
-        navigate(ROUTES.ADMIN.IMPORT_BATCH.EDIT(batch.id));
+        router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id));
     };
 
     const bannerText = !isMulti

@@ -86,6 +86,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     private final ImportBatchLineRepositoryPort importBatchLineRepositoryPort;
     private final ImportBatchDraftExpiryService importBatchDraftExpiryService;
     private final SupplierSettlementServicePort supplierSettlementServicePort;
+    private final ReturnBatchImportSyncService returnBatchImportSyncService;
     private final LotteryStationServicePort lotteryStationServicePort;
     private final LotteryTicketApplicationMapper lotteryTicketApplicationMapper;
     private final LotteryTicketSerialServicePort lotteryTicketSerialService;
@@ -137,7 +138,8 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                         serialReq,
                         importedById,
                         importBatchId,
-                        importBatchLineId
+                        importBatchLineId,
+                        request.inputSource()
                 )
         );
 
@@ -183,6 +185,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                             .numbers(section.numbers())
                             .serials(section.serials())
                             .isAutoSave(request.isAutoSave())
+                            .inputSource(request.inputSource())
                             .build(),
                     importedById
             ));
@@ -1039,6 +1042,10 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             refreshedBatch.getActiveLines().forEach(line ->
                     activateImportBatchLineTickets(line.getId())
             );
+            returnBatchImportSyncService.refreshOpenPrimarySupplierReturn(
+                    refreshedBatch.getSupplierId(),
+                    refreshedBatch.getDrawDate()
+            );
             ticket = getTicketOrThrow(ticket.getId());
             syncStationInventory(ticket.getStationId());
             return ticket;
@@ -1339,6 +1346,9 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     @Override
     @Transactional(readOnly = true)
     public java.util.List<com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketSerialResponse> getReplacementCandidates(Long stationId, String numbers, LocalDate drawDate) {
+        if (stationId == null || numbers == null || numbers.isBlank() || drawDate == null) {
+            return java.util.List.of();
+        }
         return lotteryTicketSerialService.findAllReplacementCandidates(stationId, numbers, drawDate, com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK)
                 .stream()
                 .map(lotteryTicketApplicationMapper::toSerialResponse)

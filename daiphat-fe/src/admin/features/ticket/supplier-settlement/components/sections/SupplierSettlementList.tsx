@@ -1,10 +1,17 @@
-import {
-    DataGrid,
+import type {
     GridColDef,
 } from '@mui/x-data-grid';
+import { LazyDataGrid } from '@/admin/shared/data-grid/LazyDataGrid';
+import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
+import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
+import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
+import ReplayOutlinedIcon from '@mui/icons-material/ReplayOutlined';
+import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
+import { AdminKpiCard, AdminKpiCardsGrid } from '@/admin/components/ui/AdminKpiCard';
 import { SortAscendingIcon, SortDescendingIcon, UnsortedIcon } from '../../../../../assets/icons';
 import {
     IGridSettings,
@@ -19,11 +26,10 @@ import {
 } from '../../../../../shared/data-grid';
 import { columnsConfig, columnsInitialState } from '../configs/column.config';
 import { SupplierSettlementToolbar } from './SupplierSettlementToolbar';
-import { DATA_GRID_LOCALE_VN } from '../../../../../../shared/components/DataTable/localeText.config';
+import { DATA_GRID_LOCALE_VN } from "@/admin/components/data-grid/localeText.config";
+import { formatKpiAmount } from '@/admin/utils/currency';
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
 import type { useSupplierSettlementList } from '../../hooks/useSupplierSettlement';
-import type { SupplierSettlementStatus } from '../../types/supplierSettlement.type';
-import { StatRibbonCard, StatRibbonCardsGrid } from '../../../../../components/ui/StatRibbonCard';
 
 declare module '@mui/x-data-grid' {
     interface ToolbarPropsOverrides {
@@ -51,9 +57,10 @@ export const SupplierSettlementList = ({
         filters,
         setSearchFilter,
         setStatusFilter,
+        setExpiredOnlyFilter,
+        setSort,
         paginationModel,
         onPaginationModelChange,
-        setSort,
     } = listHook;
 
     const sourceData = allSettlements.length > 0 ? allSettlements : settlements;
@@ -68,18 +75,7 @@ export const SupplierSettlementList = ({
         0
     );
 
-    const handleFilterChange = (fieldId: string, values: string[]) => {
-        if (fieldId === 'status') {
-            setStatusFilter(values.length > 0 ? (values[0] as SupplierSettlementStatus) : undefined);
-        }
-    };
-
-    const handleClearFilters = () => {
-        setStatusFilter(undefined);
-        setSearchFilter('');
-    };
-
-    if (error) {
+if (error) {
         return (
             <Box sx={{ py: 5, textAlign: 'center', color: 'var(--palette-error-main)', fontSize: '1.125rem' }}>
                 Lỗi khi tải danh sách đối soát nhà cung cấp. Vui lòng thử lại.
@@ -96,52 +92,71 @@ export const SupplierSettlementList = ({
                 expiredItems={expiredItems}
             />
 
-            {/* Top Executive Overview Metric Cards */}
-            <StatRibbonCardsGrid
+            <AdminKpiCardsGrid
                 columns={{
                     xs: 1,
                     sm: 2,
-                    md: expiredCount > 0 ? 5 : 4,
+                    md: expiredCount > 0 ? 3 : 2,
+                    xl: expiredCount > 0 ? 5 : 4,
                 }}
             >
-                <StatRibbonCard
-                    value={(pagination?.totalRecords || 0).toLocaleString('vi-VN')}
+                <AdminKpiCard
                     label="Số kỳ đối soát"
-                    icon="solar:clipboard-list-bold-duotone"
-                    color="orange"
+                    value={String(pagination?.totalRecords || 0)}
+                    icon={<AssignmentOutlinedIcon fontSize="small" />}
+                    tone="blue"
                 />
-                <StatRibbonCard
-                    value={`${formatImportCost(totalImportSum)} VNĐ`}
+                <AdminKpiCard
                     label="Tổng giá trị nhập"
-                    icon="solar:import-bold-duotone"
-                    color="cyan"
+                    value={formatKpiAmount(totalImportSum)}
+                    valueTitle={`${formatImportCost(totalImportSum)} VNĐ`}
+                    icon={<Inventory2OutlinedIcon fontSize="small" />}
+                    tone="cyan"
+                    valueSize="compact"
                 />
-                <StatRibbonCard
-                    value={`${formatImportCost(totalReturnSum)} VNĐ`}
+                <AdminKpiCard
                     label="Tổng giá trị trả"
-                    icon="solar:export-bold-duotone"
-                    color="purple"
+                    value={formatKpiAmount(totalReturnSum)}
+                    valueTitle={`${formatImportCost(totalReturnSum)} VNĐ`}
+                    icon={<ReplayOutlinedIcon fontSize="small" />}
+                    tone="slate"
+                    valueSize="compact"
                 />
-                <StatRibbonCard
-                    value={`${formatImportCost(remainingSum)} VNĐ`}
-                    label="Còn phải trả"
-                    icon="solar:wallet-money-bold-duotone"
-                    color="green"
+                <AdminKpiCard
+                    label="Còn phải trả NCC"
+                    value={formatKpiAmount(remainingSum)}
+                    valueTitle={`${formatImportCost(remainingSum)} VNĐ`}
+                    icon={<PaymentsOutlinedIcon fontSize="small" />}
+                    accent
+                    valueSize="compact"
                 />
-                {expiredCount > 0 ? (
-                    <StatRibbonCard
-                        value={`${formatImportCost(totalExpiredSum)} VNĐ`}
+                {expiredCount > 0 && (
+                    <AdminKpiCard
                         label={`Quá hạn trả vé (${expiredCount} kỳ)`}
-                        icon="solar:danger-triangle-bold-duotone"
-                        color="red"
+                        value={formatKpiAmount(totalExpiredSum)}
+                        valueTitle={`${formatImportCost(totalExpiredSum)} VNĐ`}
+                        icon={<WarningAmberOutlinedIcon fontSize="small" />}
+                        tone="rose"
+                        valueSize="compact"
                     />
-                ) : null}
-            </StatRibbonCardsGrid>
+                )}
+            </AdminKpiCardsGrid>
 
-            {/* Main DataGrid Card Container */}
-            <Card elevation={0} className="admin-datagrid-card">
-                <Box sx={dataGridContainerStyles}>
-                    <DataGrid
+            <Card
+                elevation={0}
+                className="admin-datagrid-card"
+                sx={{
+                    borderRadius: '16px',
+                    border: '1px solid #e2e8f0',
+                    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+                    bgcolor: '#ffffff',
+                    overflow: 'hidden',
+                    height: 'auto !important',
+                    minHeight: 'auto',
+                }}
+            >
+                <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
+                    <LazyDataGrid
                         rows={settlements}
                         getRowId={(row) => row.id}
                         columns={columnsConfig}
@@ -156,7 +171,7 @@ export const SupplierSettlementList = ({
                             columnSortedDescendingIcon: SortDescendingIcon,
                             columnUnsortedIcon: UnsortedIcon,
                             noRowsOverlay: () => (
-                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 200, py: 5 }}>
                                     {isLoading ? (
                                         <CircularProgress size={32} />
                                     ) : (
@@ -182,9 +197,10 @@ export const SupplierSettlementList = ({
                                 settings,
                                 onSettingsChange: setSettings,
                                 filters,
+                                expiredCount,
                                 onSearchChange: setSearchFilter,
-                                onFilterChange: handleFilterChange,
-                                onClearFilters: handleClearFilters,
+                                onStatusChange: setStatusFilter,
+                                onExpiredOnlyToggle: setExpiredOnlyFilter,
                             } as any,
                         }}
                         localeText={DATA_GRID_LOCALE_VN}
@@ -209,28 +225,30 @@ export const SupplierSettlementList = ({
                         onPaginationModelChange={onPaginationModelChange}
                         pageSizeOptions={[5, 10, 20, 50]}
                         initialState={columnsInitialState}
-                        {...adminDataGridRowHeightProps}
+                        getRowHeight={() => 'auto'}
                         disableRowSelectionOnClick
                         className="admin-datagrid"
                         sx={{
                             ...dataGridStyles,
-                            ...adminDataGridRowHeightSx,
+                            borderWidth: 0,
                             '& .MuiDataGrid-row': {
-                                minHeight: `${ADMIN_DATAGRID_ROW_MIN_HEIGHT}px !important`,
-                                borderLeft: '5px solid transparent',
-                            },
-                            '& .admin-datagrid-row-expired': {
-                                borderLeft: '5px solid #dc2626 !important',
+                                borderLeft: '3.5px solid transparent',
                                 transition: 'all 0.15s ease',
                             },
+                            '& .admin-datagrid-row-expired': {
+                                borderLeft: '3.5px solid #f87171 !important',
+                                bgcolor: 'rgba(254, 242, 242, 0.45) !important',
+                            },
                             '& .admin-datagrid-row-expired .MuiDataGrid-cell': {
-                                bgcolor: '#fef2f2 !important',
-                                borderBottom: '1px solid #fecaca !important',
+                                borderBottom: '1px solid rgba(254, 202, 202, 0.6) !important',
+                            },
+                            '& .admin-datagrid-row-expired:hover': {
+                                bgcolor: 'rgba(254, 226, 226, 0.7) !important',
                             },
                             '& .admin-datagrid-row-expired:hover .MuiDataGrid-cell': {
-                                bgcolor: '#ffe4e6 !important',
+                                bgcolor: 'transparent !important',
                             },
-                        } as import('@mui/material/styles').SxProps<import('@mui/material/styles').Theme>}
+                        }}
                     />
                 </Box>
             </Card>

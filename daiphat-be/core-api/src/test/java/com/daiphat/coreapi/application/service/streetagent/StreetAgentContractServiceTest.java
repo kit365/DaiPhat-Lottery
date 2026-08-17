@@ -1,14 +1,18 @@
 package com.daiphat.coreapi.application.service.streetagent;
 
 import com.daiphat.coreapi.application.dto.document.ContractPdfDocument;
+import com.daiphat.coreapi.application.port.out.contract.ContractRepositoryPort;
 import com.daiphat.coreapi.application.port.out.document.ContractPdfRendererPort;
 import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
 import com.daiphat.coreapi.application.port.out.streetagent.StreetAgentProfileRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.contract.ContractType;
 import com.daiphat.coreapi.domain.model.enums.settings.SystemConfigEnum;
 import com.daiphat.coreapi.domain.model.settings.SystemConfigModel;
 import com.daiphat.coreapi.domain.model.streetagent.StreetAgentProfileModel;
+import com.daiphat.coreapi.infrastructure.adapter.out.document.ThymeleafStreetAgentContractHtmlRenderer;
+import com.daiphat.coreapi.infrastructure.config.data.ContractSeedCatalog;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -40,6 +44,8 @@ class StreetAgentContractServiceTest {
     @Mock
     private StreetAgentProfileRepositoryPort profileRepositoryPort;
     @Mock
+    private ContractRepositoryPort contractRepositoryPort;
+    @Mock
     private SystemConfigRepositoryPort systemConfigRepositoryPort;
     private SpringTemplateEngine templateEngine;
     @Mock
@@ -52,8 +58,9 @@ class StreetAgentContractServiceTest {
         templateEngine = templateEngine();
         service = new StreetAgentContractService(
                 profileRepositoryPort,
+                contractRepositoryPort,
                 systemConfigRepositoryPort,
-                templateEngine,
+                new ThymeleafStreetAgentContractHtmlRenderer(templateEngine),
                 contractPdfRendererPort);
     }
 
@@ -62,6 +69,8 @@ class StreetAgentContractServiceTest {
     void generatePdf_usesProfileAndSystemSettings() {
         byte[] pdf = "%PDF-1.7".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
         when(profileRepositoryPort.findById(PROFILE_ID)).thenReturn(Optional.of(completeProfile()));
+        when(contractRepositoryPort.findDefaultByType(ContractType.STREET_AGENT_SALES))
+                .thenReturn(Optional.of(ContractSeedCatalog.salesTemplate()));
         when(systemConfigRepositoryPort.findActiveByConfigKey(anyString())).thenReturn(Optional.empty());
         when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.SITE_NAME.name()))
                 .thenReturn(Optional.of(config(SystemConfigEnum.SITE_NAME, "Đại Phát Lottery")));
@@ -75,8 +84,6 @@ class StreetAgentContractServiceTest {
                 .thenReturn(Optional.of(config(SystemConfigEnum.SITE_LEGAL_REPRESENTATIVE_TITLE, "Giám đốc")));
         when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.SITE_CONTRACT_SIGNING_PLACE.name()))
                 .thenReturn(Optional.of(config(SystemConfigEnum.SITE_CONTRACT_SIGNING_PLACE, "TP. Hồ Chí Minh")));
-        when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.VENDOR_DEFAULT_UNIT_PRICE.name()))
-                .thenReturn(Optional.of(config(SystemConfigEnum.VENDOR_DEFAULT_UNIT_PRICE, "9000")));
         when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.VENDOR_DEPOSIT_RATE.name()))
                 .thenReturn(Optional.of(config(SystemConfigEnum.VENDOR_DEPOSIT_RATE, "0.10")));
         when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.VENDOR_RETURN_CUTOFF.name()))
@@ -108,7 +115,7 @@ class StreetAgentContractServiceTest {
     @DisplayName("từ chối sinh PDF khi thiếu điều khoản bắt buộc")
     void generatePdf_rejectsIncompleteContract() {
         StreetAgentProfileModel incomplete = completeProfile();
-        incomplete.setDailyTicketCap(null);
+        incomplete.setContractMaxDailyCap(null);
         when(profileRepositoryPort.findById(PROFILE_ID)).thenReturn(Optional.of(incomplete));
 
         assertThatThrownBy(() -> service.generatePdf(PROFILE_ID))
@@ -162,7 +169,7 @@ class StreetAgentContractServiceTest {
                 .contractCode("HD-NBD-2026-001")
                 .contractStartDate(LocalDate.of(2026, 1, 1))
                 .contractEndDate(LocalDate.of(2026, 12, 31))
-                .dailyTicketCap(100)
+                .contractMaxDailyCap(100)
                 .build();
     }
 

@@ -5,12 +5,11 @@ import {
     Box,
     Divider
 } from '@mui/material';
-import { Title } from '../../../../components/ui/Title';
-import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
+import { PageHeader } from '../../../../components/ui/PageHeader';
 
 import { AiServiceControl, ChatList, ChatWindow, ChatDetails, ChatSidebar } from '../sections';
 import { useConversations } from '../../hooks/useChat';
-import { useChatOperatorSocket } from '../../hooks/useChatSocket';
+import { useAdminChatInboxSocket, useChatOperatorSocket } from '../../hooks/useChatSocket';
 import { Conversation } from '../../../../../types/chat.type';
 import { useAuthStore } from '../../../../../stores/useAuthStore';
 import { groupConversationsByCustomer } from '../utils';
@@ -29,6 +28,9 @@ export const ChatPage = () => {
             setSelectedId((prev) => (prev === conversationId ? null : prev));
         },
     });
+    useAdminChatInboxSocket({
+        selectedConversationId: selectedId,
+    });
     const activeConversation = groupedConversations.find((c: Conversation) => c.id === selectedId)
         ?? conversations.find((c: Conversation) => c.id === selectedId);
 
@@ -40,17 +42,13 @@ export const ChatPage = () => {
 
     return (
         <div className="admin-list-page">
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title="Hỗ trợ trực tuyến" />
-                    <Breadcrumb
-                        items={[
+            <PageHeader
+                title="Hỗ trợ trực tuyến"
+                breadcrumbItems={[
                             { label: 'Dashboard', to: '/' },
                             { label: 'Hỗ trợ trực tuyến' },
                         ]}
-                    />
-                </div>
-            </div>
+            />
 
             <AiServiceControl />
 

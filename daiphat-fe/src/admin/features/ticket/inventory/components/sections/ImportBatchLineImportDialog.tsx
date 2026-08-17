@@ -4,6 +4,7 @@ import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
 import ConfirmationNumberOutlinedIcon from '@mui/icons-material/ConfirmationNumberOutlined';
 import PauseCircleOutlineIcon from '@mui/icons-material/PauseCircleOutline';
+import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import {
     Alert,
     Box,
@@ -19,7 +20,7 @@ import {
 import dayjs from 'dayjs';
 import { Control, FieldArrayWithId, FieldErrors, useFormState, useWatch } from 'react-hook-form';
 import type { ImportBatchLine, ImportBatchStatus } from '../../../import-batch/types/importBatch.type';
-import { LoadingButton } from '../../../../../components/ui/LoadingButton';
+import { Button } from '../../../../../components/ui/Button';
 import { AdminStatusBadge } from '../../../../../components/ui/AdminStatusBadge';
 import {
     getBatchTypeBadgeClass,
@@ -64,6 +65,12 @@ type ImportBatchLineImportDialogProps = {
     onRemoveSerial?: (sectionIndex: number, serialIndex: number) => void;
     onNumbersFieldChange?: (sectionIndex: number) => void;
     numberLengthRules: TicketNumberLengthRules;
+    missingImageConfirmOpen?: boolean;
+    missingImageCount?: number;
+    onConfirmMissingImageSubmit?: () => void;
+    onCancelMissingImageSubmit?: () => void;
+    importIntakeBlocked?: boolean;
+    importIntakeBlockedMessage?: string;
 };
 
 const InfoItem = ({
@@ -140,6 +147,12 @@ export const ImportBatchLineImportDialog = ({
     onRemoveSerial,
     onNumbersFieldChange,
     numberLengthRules,
+    missingImageConfirmOpen = false,
+    missingImageCount = 0,
+    onConfirmMissingImageSubmit,
+    onCancelMissingImageSubmit,
+    importIntakeBlocked = false,
+    importIntakeBlockedMessage,
 }: ImportBatchLineImportDialogProps) => {
     const { isSubmitted } = useFormState({ control });
     const watchedSections = useWatch({ control, name: 'ticketSections' });
@@ -158,7 +171,8 @@ export const ImportBatchLineImportDialog = ({
             batchStatus === 'PARTIALLY_IMPORTED') &&
         !progress.isComplete &&
         !lineCancelled &&
-        !linePaused;
+        !linePaused &&
+        !importIntakeBlocked;
 
     const dialogRemainingQuota = Math.max(
         0,
@@ -177,7 +191,8 @@ export const ImportBatchLineImportDialog = ({
     const statusBadgeClass = getImportBatchLineStatusBadgeClass(line.status);
 
     return (
-        <Dialog
+        <>
+            <Dialog
             open={open}
             onClose={onClose}
             maxWidth="sm"
@@ -272,6 +287,12 @@ export const ImportBatchLineImportDialog = ({
                     </Alert>
                 )}
 
+                {importIntakeBlocked && importIntakeBlockedMessage && (
+                    <Alert severity="error" sx={{ mb: 1.5, py: 0.5 }}>
+                        {importIntakeBlockedMessage}
+                    </Alert>
+                )}
+
                 <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
                     <Box sx={{ flex: 1, minWidth: 0 }}>
                         <TicketImportProgressTrack
@@ -298,7 +319,7 @@ export const ImportBatchLineImportDialog = ({
                         Dãy số & sê-ri
                     </Typography>
                     {canImport && (
-                        <LoadingButton
+                        <Button
                             type="button"
                             variant="outlined"
                             className="btn-outlined-admin"
@@ -350,7 +371,7 @@ export const ImportBatchLineImportDialog = ({
             </DialogContent>
 
             <DialogActions sx={{ px: 2.5, py: 1.5, gap: 0.75 }}>
-                <LoadingButton
+                <Button
                     type="button"
                     variant="outlined"
                     className="btn-outlined-admin"
@@ -358,7 +379,7 @@ export const ImportBatchLineImportDialog = ({
                     onClick={onClose}
                     sx={dialogFooterButtonSx}
                 />
-                <LoadingButton
+                <Button
                     type="button"
                     variant="outlined"
                     className="import-batch-import-cta"
@@ -377,5 +398,81 @@ export const ImportBatchLineImportDialog = ({
                 />
             </DialogActions>
         </Dialog>
+
+        {/* Confirmation Dialog: Nhập vé chưa tải ảnh */}
+        <Dialog
+            open={Boolean(missingImageConfirmOpen)}
+            onClose={onCancelMissingImageSubmit}
+            maxWidth="xs"
+            fullWidth
+            PaperProps={{
+                className: 'admin-theme',
+                sx: {
+                    borderRadius: '16px',
+                    p: 1,
+                    boxShadow: 'var(--customShadows-dialog)',
+                },
+            }}
+        >
+            <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pb: 1, pt: 1.5, px: 2 }}>
+                <Box
+                    sx={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: '12px',
+                        bgcolor: '#fffbeb',
+                        color: '#d97706',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: '1px solid #fde68a',
+                        flexShrink: 0,
+                    }}
+                >
+                    <WarningAmberOutlinedIcon sx={{ fontSize: 24 }} />
+                </Box>
+                <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="subtitle1" fontWeight={800} color="#0f172a" sx={{ fontSize: '1rem' }}>
+                        Chưa tải lên hình ảnh vé
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                        Xác nhận lưu vé vào hệ thống
+                    </Typography>
+                </Box>
+            </DialogTitle>
+            <DialogContent sx={{ py: 1.5, px: 2 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem', lineHeight: 1.6 }}>
+                    Có <strong>{missingImageCount} vé</strong> chưa được tải lên hình ảnh minh chứng. Bạn có chắc chắn muốn tiếp tục nhập vé vào hệ thống không?
+                </Typography>
+            </DialogContent>
+            <DialogActions sx={{ px: 2, pb: 1.5, pt: 1, gap: 1 }}>
+                <Button
+                    type="button"
+                    variant="outlined"
+                    className="btn-outlined-admin"
+                    label="Hủy / Tải ảnh tiếp"
+                    onClick={onCancelMissingImageSubmit}
+                    sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600, fontSize: '0.8125rem' }}
+                />
+                <Button
+                    type="button"
+                    variant="contained"
+                    className="btn-admin"
+                    label="Xác nhận nhập vé"
+                    loading={isSubmitting}
+                    onClick={onConfirmMissingImageSubmit}
+                    sx={{
+                        borderRadius: '8px',
+                        textTransform: 'none',
+                        fontWeight: 700,
+                        fontSize: '0.8125rem',
+                        bgcolor: '#2563eb',
+                        color: '#fff',
+                        '&:hover': { bgcolor: '#1d4ed8' },
+                    }}
+                />
+            </DialogActions>
+        </Dialog>
+        </>
     );
 };

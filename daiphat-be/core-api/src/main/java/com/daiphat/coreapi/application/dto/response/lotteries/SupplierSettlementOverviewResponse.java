@@ -10,6 +10,8 @@ public record SupplierSettlementOverviewResponse(
         SupplierSettlementKpisResponse kpis,
         List<ImportBatchResponse> importBatches,
         List<ReturnBatchResponse> returnBatches,
-        List<SettlementStationInventoryResponse> inventoryByStation
+        List<SettlementStationInventoryResponse> inventoryByStation,
+        List<SettlementStationPricingResponse> stationPricing,
+        List<SupplierSettlementAdjustmentResponse> adjustments
 ) {
 }

@@ -5,11 +5,12 @@ export type ReturnBatchStatus =
     | 'HANDED_OVER'
     | 'CANCELLED';
 
+export type ReturnBatchType = 'SUPPLIER_RETURN' | 'STREET_AGENT_RETURN';
+
 export type ReturnBatchLineStatus =
     | 'PENDING'
-    | 'SUCCESS'
-    | 'REJECTED_BY_SUPPLIER'
-    | 'PULLED_FOR_SALE';
+    | 'INSPECTING'
+    | 'INSPECTED';
 
 export type ReturnDeliveryMode = 'RETAILER_DELIVERS' | 'SUPPLIER_COLLECTS';
 
@@ -21,6 +22,7 @@ export interface ReturnBatchLine {
     status: ReturnBatchLineStatus;
     statusLabel?: string | null;
     totalQuantity: number;
+    remainingInspectableQuantity?: number | null;
     totalReturnValue: number;
     attachedSerialCount?: number | null;
 }
@@ -28,7 +30,9 @@ export interface ReturnBatchLine {
 export interface ReturnBatch {
     id: number;
     batchCode?: string | null;
-    lotterySupplierId: number;
+    returnBatchType?: ReturnBatchType | null;
+    sourceAllocationBatchId?: number | null;
+    lotterySupplierId?: number | null;
     supplierName?: string | null;
     supplierCode?: string | null;
     drawDate: string;
@@ -36,6 +40,7 @@ export interface ReturnBatch {
     returnReceiptUrl?: string | null;
     returnEvidenceUrl?: string | null;
     totalQuantity: number;
+    remainingInspectableQuantity?: number | null;
     totalReturnValue: number;
     returnedBy?: string | null;
     returnedAt?: string | null;
@@ -66,6 +71,7 @@ export interface InspectableReturnSerial {
     status: string;
     statusLabel?: string | null;
     ticketCondition?: string | null;
+    ticketConditionLabel?: string | null;
     ticketConditionDisplayName?: string | null;
     ticketId: number;
     ticketNumbers?: string | null;
@@ -89,6 +95,8 @@ export interface ReturnBatchListParams {
     search?: string;
     sortBy?: string;
     direction?: string;
+    /** Keep supplier operations isolated from vendor inbound return batches. */
+    returnBatchType?: ReturnBatchType;
 }
 
 export interface AttachReturnSerialItem {

@@ -34,97 +34,102 @@ class HomeHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 52,
-            height: 52,
-            child: Transform.scale(
-              scale: 1.2,
-              child: Image.asset(
-                'assets/images/logoApp.png',
-                fit: BoxFit.contain,
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
+    return ListenableBuilder(
+      listenable: loginViewModel,
+      builder: (context, _) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
             children: [
-              Text(
-                'ĐẠI PHÁT',
-                style: GoogleFonts.barlow(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.primaryDark,
-                  height: 1.1,
+              SizedBox(
+                width: 52,
+                height: 52,
+                child: Transform.scale(
+                  scale: 1.2,
+                  child: Image.asset(
+                    'assets/images/logoApp.png',
+                    fit: BoxFit.contain,
+                  ),
                 ),
               ),
-              const SizedBox(height: 2),
-              Text(
-                'XỔ SỐ - MAY MẮN - THỊNH VƯỢNG',
-                style: GoogleFonts.publicSans(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.goldDark,
-                ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'ĐẠI PHÁT',
+                    style: GoogleFonts.barlow(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.primaryDark,
+                      height: 1.1,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'XỔ SỐ - MAY MẮN - THỊNH VƯỢNG',
+                    style: GoogleFonts.publicSans(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.goldDark,
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-          const Spacer(),
-          if (loginViewModel.isAuthenticated) ...[
-            const SizedBox(width: 8),
-            GestureDetector(
-              onTap: () => _openChat(context),
-              child: _iconBtn(Icons.chat_bubble_outline_rounded),
-            ),
-          ],
-          const SizedBox(width: 8),
-          Consumer(
-            builder: (context, ref, child) {
-              final cartItemCount = ref.watch(cartTicketCountProvider);
-              return GestureDetector(
-                onTap: () => context.pushNamed(AppRoute.cart.name),
-                child: Stack(
-                  children: [
-                    _iconBtn(Icons.shopping_cart_outlined),
-                    if (cartItemCount > 0)
-                      Positioned(
-                        right: 2,
-                        top: 2,
-                        child: Container(
-                          constraints: const BoxConstraints(
-                            minWidth: 18,
-                            minHeight: 18,
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(color: Colors.white, width: 1.5),
-                          ),
-                          child: Center(
-                            child: Text(
-                              '$cartItemCount',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
+              const Spacer(),
+              if (loginViewModel.isAuthenticated) ...[
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: () => _openChat(context),
+                  child: _iconBtn(Icons.chat_bubble_outline_rounded),
+                ),
+                const SizedBox(width: 8),
+                Consumer(
+                  builder: (context, ref, child) {
+                    final cartItemCount = ref.watch(cartTicketCountProvider);
+                    return GestureDetector(
+                      onTap: () => context.pushNamed(AppRoute.cart.name),
+                      child: Stack(
+                        children: [
+                          _iconBtn(Icons.shopping_cart_outlined),
+                          if (cartItemCount > 0)
+                            Positioned(
+                              right: 2,
+                              top: 2,
+                              child: Container(
+                                constraints: const BoxConstraints(
+                                  minWidth: 18,
+                                  minHeight: 18,
+                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 4),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary,
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(color: Colors.white, width: 1.5),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    '$cartItemCount',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
-                        ),
+                        ],
                       ),
-                  ],
+                    );
+                  },
                 ),
-              );
-            },
+              ],
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 

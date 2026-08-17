@@ -54,6 +54,9 @@ public class StreetAgentProfileEntity extends BaseEntity {
     @Column(name = "contact_province", length = 100)
     private String contactProvince;
 
+    @Column(name = "contact_ward", length = 100)
+    private String contactWard;
+
     @Column(name = "coverage_area", length = 255)
     private String coverageArea;
 
@@ -72,8 +75,8 @@ public class StreetAgentProfileEntity extends BaseEntity {
     @Column(name = "contract_document_url", length = 500)
     private String contractDocumentUrl;
 
-    @Column(name = "daily_ticket_cap")
-    private Integer dailyTicketCap;
+    @Column(name = "contract_max_daily_cap")
+    private Integer contractMaxDailyCap;
 
     @Column(name = "confidence_score", nullable = false, precision = 5, scale = 2)
     @Builder.Default
@@ -106,6 +109,6 @@ public class StreetAgentProfileEntity extends BaseEntity {
     }
 
     public boolean hasEffectiveContract(LocalDate businessDate) {
-        return hasContractInForce(businessDate) && dailyTicketCap != null && dailyTicketCap > 0;
+        return hasContractInForce(businessDate) && contractMaxDailyCap != null && contractMaxDailyCap > 0;
     }
 }

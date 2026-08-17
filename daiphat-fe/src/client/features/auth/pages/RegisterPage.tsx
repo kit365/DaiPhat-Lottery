@@ -1,18 +1,18 @@
 "use client";
 
-import { useState } from "react";
-import { useNavigate, Navigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Phone, Lock, Eye, EyeOff, Mail, User } from "lucide-react";
 import { useAuth } from "../../../hooks/useAuth";
 import { GoogleIcon, AuthBranding } from "../../../components/auth/SharedAuth";
 import { PasswordStrengthMeter } from "../../../components/auth/PasswordStrengthMeter";
-import { useForgotPassword } from "../../../../admin/pages/authen/hooks/use-forgot-password";
+import { useForgotPassword } from "@/shared/auth/hooks/useForgotPassword";
 import { redirectToGoogleOAuth } from "../../../utils/google-oauth.util";
-import { CLIENT_LOGO } from "../../../constants/clientBannerAssets";
+import { SiteLogo } from "../../../components/layout/SiteLogo";
 
 export const RegisterPage = () => {
-    const navigate = useNavigate();
+    const router = useRouter();
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [isPasswordFocused, setIsPasswordFocused] = useState(false);
@@ -27,8 +27,14 @@ export const RegisterPage = () => {
         isAuthenticated,
     } = useAuth();
 
+    useEffect(() => {
+        if (isAuthenticated) {
+            router.replace("/");
+        }
+    }, [isAuthenticated, router]);
+
     if (isAuthenticated) {
-        return <Navigate to="/" replace />;
+        return null;
     }
 
     const passwordValue = watch("password");
@@ -52,12 +58,12 @@ export const RegisterPage = () => {
             <div className="relative z-10 flex-1 flex flex-col lg:flex-row w-full max-w-[1440px] mx-auto min-h-[100dvh]">
                 
                 {/* Header Logo (Mobile & Desktop) */}
-                <div className="lg:absolute lg:top-8 lg:left-12 flex items-center gap-3 cursor-pointer z-20 font-client-display transition-transform hover:scale-[1.02] pt-6 pl-6 lg:p-0 shrink-0" onClick={() => navigate("/")}>
+                <div className="lg:absolute lg:top-8 lg:left-12 flex items-center gap-3 cursor-pointer z-20 font-client-display transition-transform hover:scale-[1.02] pt-6 pl-6 lg:p-0 shrink-0" onClick={() => router.push("/")}>
                     <div className="relative p-[2px] bg-gradient-to-tr from-[#ee1314] to-[#F59E0B] rounded-xl shadow-md shadow-[#ee1314]/10">
-                        <img 
-                            src="https://i.ibb.co/YBYnq3HR/z7824247008533-94446d3b6c16598cda67404d805c15c4-removebg-preview.png" 
-                            alt="Đại Phát Logo" 
-                            className="w-[38px] h-[38px] lg:w-[44px] lg:h-[44px] rounded-[10px] object-cover bg-white" 
+                        <SiteLogo
+                            className="w-[38px] h-[38px] lg:w-[44px] lg:h-[44px] rounded-[10px]"
+                            imgClassName="w-full h-full rounded-[10px] object-contain bg-white"
+                            alt="Đại Phát Logo"
                         />
                     </div>
                     <div className="flex flex-col justify-center">
@@ -65,7 +71,7 @@ export const RegisterPage = () => {
                         <span className="text-[8.5px] lg:text-[9.5px] font-bold text-[#F59E0B] leading-none uppercase tracking-wider whitespace-nowrap">Tài lộc - May mắn - Thịnh vượng</span>
                     </div>
                     <div className="hidden">
-                        <AuthBranding onClick={() => navigate("/")} />
+                        <AuthBranding onClick={() => router.push("/")} />
                     </div>
                 </div>
 
@@ -271,7 +277,7 @@ export const RegisterPage = () => {
                             <p className="text-[#666666] text-[13px] xl:text-[14px]">
                                 Đã có tài khoản?{" "}
                                 <button 
-                                    onClick={() => navigate("/login")}
+                                    onClick={() => router.push("/login")}
                                     className="text-[#D32F2F] font-bold hover:underline cursor-pointer"
                                 >
                                     Đăng nhập

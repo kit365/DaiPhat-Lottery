@@ -7,6 +7,7 @@ import {
     RenderPaidAtCell,
     RenderStatusCell,
     RenderSupplierNameCell,
+    RenderSettlementCodeCell,
 } from '../utils/render-cells';
 
 export const columnsConfig: GridColDef[] = [
@@ -16,7 +17,7 @@ export const columnsConfig: GridColDef[] = [
         flex: 1,
         minWidth: 160,
         hideable: false,
-        valueGetter: (_value, row) => row.supplierSettlementCode || (row.id != null ? `#${row.id}` : '—'),
+        renderCell: RenderSettlementCodeCell,
     },
     {
         field: 'supplierName',

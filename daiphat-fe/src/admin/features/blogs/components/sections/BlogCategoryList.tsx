@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from 'react';
-import { DataGrid } from '@mui/x-data-grid';
+import { LazyDataGrid } from '@/admin/shared/data-grid/LazyDataGrid';
 import Card from '@mui/material/Card';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import { getColumnsConfig, columnsInitialState } from '../configs/column.config';
 import { BlogCategoryToolbar } from './BlogCategoryToolbar';
-import { DATA_GRID_LOCALE_VN } from "../../../../../shared/components/DataTable/localeText.config";
+import { DATA_GRID_LOCALE_VN } from "@/admin/components/data-grid/localeText.config";
 import { dataGridStyles } from "../../../../shared/data-grid";
 import { useBlogCategories } from "../../hooks/useBlogCategory";
 
@@ -32,7 +32,7 @@ export const BlogCategoryList = ({ isTrash = false }: { isTrash?: boolean }) => 
     return (
         <Card elevation={0} className="admin-datagrid-card">
             <div style={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <DataGrid
+                <LazyDataGrid
                     rows={categories}
                     getRowId={(row) => row.id}
                     loading={isLoading}

@@ -1,18 +1,30 @@
-import {
-    ADMIN_PREFETCH_ALL_ROUTES,
-    ADMIN_PREFETCH_ROUTE_PRIORITY,
-} from '../constants/adminPrefetchRoutes';
+import { ROUTES } from '../constants/routes';
 import { prefetchAdminPageChunk } from '../lib/adminPagePrefetchRegistry';
-import { shouldSkipClientPrefetch } from '@/client/utils/prefetchImagesWhenIdle';
 
 export type PrefetchAdminRouteFn = (path: string) => void;
 
 const prefetchedRoutes = new Set<string>();
 
-export const prefetchAdminRoute = (
+// `router.prefetch()` also asks the Turbopack dev server to compile the
+// route's RSC payload on demand — same contention problem as chunk warming.
+// Skip speculative prefetch in dev for sidebar hover; login warmup opts in.
+const isDevRuntime = process.env.NODE_ENV !== 'production';
+
+type WarmAdminDestinationOptions = {
+    allowInDev?: boolean;
+    loadChunk?: boolean;
+};
+
+const warmAdminDestination = (
     path: string,
     prefetchRoute: PrefetchAdminRouteFn,
+    options?: WarmAdminDestinationOptions,
 ): void => {
+    const allowInDev = options?.allowInDev ?? false;
+    if (isDevRuntime && !allowInDev) {
+        return;
+    }
+
     const [pathname] = String(path || '').split('?');
     if (!pathname || prefetchedRoutes.has(pathname)) {
         return;
@@ -20,80 +32,37 @@ export const prefetchAdminRoute = (
 
     prefetchedRoutes.add(pathname);
     prefetchRoute(pathname);
-    prefetchAdminPageChunk(pathname);
-};
 
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-const prefetchRoutesInBatches = async (
-    routes: readonly string[],
-    prefetchRoute: PrefetchAdminRouteFn,
-    batchSize: number,
-    batchDelayMs: number,
-    isCancelled: () => boolean,
-) => {
-    for (let index = 0; index < routes.length; index += batchSize) {
-        if (isCancelled()) {
-            return;
-        }
-
-        const batch = routes.slice(index, index + batchSize);
-        batch.forEach((path) => prefetchAdminRoute(path, prefetchRoute));
-
-        if (index + batchSize < routes.length) {
-            await delay(batchDelayMs);
-        }
+    if (options?.loadChunk !== false) {
+        prefetchAdminPageChunk(pathname, { allowInDev });
     }
 };
 
-/**
- * Sau khi admin shell sẵn sàng:
- * - Prefetch ngay các route ưu tiên
- * - Sau đó prefetch toàn bộ route sidebar theo batch (không chờ idle từng route)
- */
-export const prefetchAdminPagesWhenIdle = (
+/** Hover sidebar — warm Next route + page chunk (production only). */
+export const prefetchAdminRoute = (
+    path: string,
     prefetchRoute: PrefetchAdminRouteFn,
-    delayMs = 200,
-): (() => void) => {
-    if (shouldSkipClientPrefetch()) {
-        return () => {};
-    }
+    options?: { loadChunk?: boolean },
+): void => {
+    warmAdminDestination(path, prefetchRoute, options);
+};
 
-    let cancelled = false;
-    let startHandle: ReturnType<typeof setTimeout> | null = null;
+/** Warm route + JS chunk before navigating (e.g. OAuth callback). */
+export const prefetchAdminDestination = (
+    path: string,
+    prefetchRoute: PrefetchAdminRouteFn,
+): void => {
+    warmAdminDestination(path, prefetchRoute, { allowInDev: true, loadChunk: true });
+};
 
-    const run = async () => {
-        const prioritySet = new Set<string>(ADMIN_PREFETCH_ROUTE_PRIORITY);
-        const remainingRoutes = ADMIN_PREFETCH_ALL_ROUTES.filter((path) => !prioritySet.has(path));
+const ADMIN_LOGIN_DESTINATIONS = [
+    ROUTES.ADMIN.DASHBOARD.SYSTEM,
+    ROUTES.ADMIN.AUTH.SETUP_PROFILE,
+] as const;
 
-        await prefetchRoutesInBatches(
-            ADMIN_PREFETCH_ROUTE_PRIORITY,
-            prefetchRoute,
-            ADMIN_PREFETCH_ROUTE_PRIORITY.length,
-            0,
-            () => cancelled,
-        );
-
-        await prefetchRoutesInBatches(
-            remainingRoutes,
-            prefetchRoute,
-            4,
-            120,
-            () => cancelled,
-        );
-    };
-
-    startHandle = setTimeout(() => {
-        startHandle = null;
-        void run();
-    }, delayMs);
-
-    return () => {
-        cancelled = true;
-
-        if (startHandle) {
-            clearTimeout(startHandle);
-            startHandle = null;
-        }
-    };
+/** Gọi ngay khi vào trang đăng nhập — warm dashboard trước khi user submit form. */
+export const prefetchAdminLoginDestinations = (prefetchRoute: PrefetchAdminRouteFn): void => {
+    ADMIN_LOGIN_DESTINATIONS.forEach((path) => {
+        warmAdminDestination(path, prefetchRoute, { allowInDev: true, loadChunk: true });
+    });
 };

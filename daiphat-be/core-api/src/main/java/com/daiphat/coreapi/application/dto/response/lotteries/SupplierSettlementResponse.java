@@ -1,11 +1,15 @@
 package com.daiphat.coreapi.application.dto.response.lotteries;
 
+import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementDiscrepancyType;
+import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementReconciliationPhase;
 import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementStatus;
 import lombok.Builder;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
 
 @Builder
 public record SupplierSettlementResponse(
@@ -21,10 +25,44 @@ public record SupplierSettlementResponse(
         BigDecimal totalPaidAmount,
         BigDecimal remainingAmount,
         String supplierSettlementReceiptUrl,
+        List<String> paymentEvidenceUrls,
         Boolean isReturnExpired,
         BigDecimal expiredReturnValue,
         SupplierSettlementStatus status,
         String statusLabel,
+        SupplierSettlementReconciliationPhase reconciliationPhase,
+        String reconciliationPhaseLabel,
+        Integer systemImportQuantity,
+        BigDecimal systemImportValue,
+        Integer systemReturnQuantity,
+        BigDecimal systemReturnValue,
+        Integer actualTicketImportQuantity,
+        BigDecimal actualTicketImportValue,
+        Integer actualReturnTicketQuantity,
+        BigDecimal actualReturnTicketValue,
+        BigDecimal originalTicketUnitPrice,
+        BigDecimal reconciledTicketUnitPrice,
+        /** Temporary API alias of {@link #reconciledTicketUnitPrice}. */
+        BigDecimal actualTicketPrice,
+        BigDecimal initialEstimatedSettlementValue,
+        BigDecimal finalSettlementValue,
+        BigDecimal actualPaidAmount,
+        BigDecimal settlementDifferenceAmount,
+        List<SupplierSettlementDiscrepancyType> discrepancyTypes,
+        List<SettlementDiscrepancyItemResponse> discrepancyItems,
+        Boolean importQuantityMismatch,
+        Boolean importValueMismatch,
+        Boolean returnQuantityMismatch,
+        Boolean returnValueMismatch,
+        Boolean importDiscrepancyResolved,
+        Boolean returnDiscrepancyResolved,
+        Boolean unitPriceDiscrepancyResolved,
+        BigDecimal recalculatedTotalPaidAmount,
+        String reconciliationNote,
+        LocalDateTime matchingConfirmedAt,
+        UUID matchingConfirmedBy,
+        LocalDateTime completedAt,
+        UUID completedBy,
         Long transactionId,
         LocalDateTime paidAt,
         LocalDateTime createdAt,

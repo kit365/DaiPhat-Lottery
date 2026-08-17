@@ -27,5 +27,15 @@
 | VEN-207 | 3 | Returned vendor serials remain `IN_STOCK` with `returnBatchLineId = null`, therefore the existing supplier-return query can pick them up | `VendorAllocationServiceTest#return_session_and_scan_returned_serial_to_stock` + `LotteryTicketSerialRepository` return-candidate query | GREEN |
 | VEN-208 | 3 | Controller forwards cọc/serial/operator correctly and mutations require edit authority | `VendorAllocationControllerTest` | GREEN |
 | VEN-209 | 3 | Batch response exposes snapshot/balance/serial allocation state needed by FE without recomputing money | `VendorAllocationServiceTest` | GREEN |
-| VEN-301 | 4 | Reports discriminate INTERNAL_COUNTER and STREET_AGENT | Pending phase 4 | PENDING |
-| VEN-302 | 4 | Confidence uses only last 30 terminal batches | Pending phase 4 | PENDING |
+| VEN-210 | 3 | Daily cap continues to consume SETTLED/LATE_SETTLED quantities; only CANCELLED/EXPIRED free capacity | `AllocationBatchStatus#isCapConsuming` + `VendorAllocationService` CAP_CONSUMING list (no dedicated assertion yet) | YELLOW |
+| VEN-211 | 3 | Draft create locks profile and maps open-batch unique index violations to `VENDOR_ALLOCATION_OPEN_BATCH_EXISTS` | `VendorAllocationService#createDraft` + `uq_allocation_batch_one_open_per_profile` (no dedicated IT yet) | YELLOW |
+| VEN-212 | 3 | Confirmation quote recomputes live settings; confirm recomputes again in transaction; rejects expired/past-draw drafts | `GET /confirmation-quote` + `VendorDepositCalculator` (quote↔confirm parity test still pending) | YELLOW |
+| VEN-301 | 4 | Vendor daily report cash = sold × faceValue (not grossCashRemitted / forced purchase) | `VendorDailySalesCashCalculatorTest` + projection adapters | GREEN |
+| VEN-302 | 4 | Confidence uses configurable weights/window/thresholds from Settings; experience caps tier; caps monotonic | `VendorConfidenceCalculatorTest`, `VendorConfidencePolicyValidatorTest` | GREEN |
+| VEN-303 | 4 | Settlement projection is 1:1 with allocation batch and idempotent on retry | `uq_agent_settlements_batch` + `VendorSettlementProjectionService` | YELLOW |
+| VEN-304 | 4 | PostgreSQL/Testcontainers persistence + concurrency suite | `VendorAllocationSchemaFlywayIT` (set `RUN_TESTCONTAINERS=true`); full concurrency still manual | YELLOW |
+| VEN-305 | 4 | FE uses server confirmation quote / settlement projections; CREATE/EDIT gating | `ConfirmVendorDepositDialog`, `VendorAllocationPage`, batch drawer sections | GREEN |
+| VEN-306 | 4 | Profile confidence + daily sales report UI/API wiring; batchId deep-link opens drawer | `StreetAgentDetailPage` + `/confidence` + `/daily-sales-reports` | GREEN |
+| VEN-307 | 4 | Browser E2E happy path (draft → confirm → return → settle) | Manual / not automated in CI | PENDING |
+| VEN-308 | 4 | Finalize yesterday reports only when no open batch on that report date | `existsOpenBatch(agentId, businessDate)` + `deletedAt IS NULL` | YELLOW |
+| VEN-309 | 4 | Bulk confidence policy update validates group then recalculates all profiles | `PUT /vendor-confidence-policy` + `VendorConfidenceService#recalculateAllProfiles` | YELLOW |

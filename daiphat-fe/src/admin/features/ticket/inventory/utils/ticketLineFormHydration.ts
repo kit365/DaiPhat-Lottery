@@ -31,6 +31,10 @@ const emptySerial = (): FormSerial => ({
 const normalizeNumbers = (value?: string | null) => (value ?? '').trim();
 const normalizeSerial = (value?: string | null) => (value ?? '').trim().toLowerCase();
 
+export const hasPendingSerialContent = (serial?: FormSerial | null) =>
+    !!normalizeSerial(serial?.serialNumber) ||
+    (typeof serial?.ticketImg === 'string' && serial.ticketImg.trim().length > 0);
+
 export const isPersistedSerial = (serial?: { id?: string | number | null } | null) =>
     serial?.id != null && String(serial.id).trim() !== '';
 
@@ -92,7 +96,7 @@ export const mergePersistedAndDraftSections = (
         const numbers = normalizeNumbers(draftSection.numbers);
         const numbersKey = numbers.toLowerCase();
         const draftSerials = (draftSection.serials ?? []).filter(
-            (serial) => !isPersistedSerial(serial) && normalizeSerial(serial.serialNumber)
+            (serial) => !isPersistedSerial(serial) && hasPendingSerialContent(serial)
         );
 
         if (!numbers) {
@@ -143,7 +147,7 @@ export const mergePersistedAndDraftSections = (
         const numbers = normalizeNumbers(draftSection.numbers);
         if (!numbers) {
             const hasPendingSerial = (draftSection.serials ?? []).some(
-                (serial) => !isPersistedSerial(serial) && normalizeSerial(serial.serialNumber)
+                (serial) => !isPersistedSerial(serial) && hasPendingSerialContent(serial)
             );
             if (hasPendingSerial) {
                 // serial without numbers is invalid for submit but keep for restore UX
@@ -168,7 +172,7 @@ export const mergePersistedAndDraftSections = (
         const pendingOnly = (draftSection.serials ?? []).filter(
             (serial) => !isPersistedSerial(serial)
         );
-        if (pendingOnly.some((serial) => normalizeSerial(serial.serialNumber)) || numbers) {
+        if (pendingOnly.some((serial) => hasPendingSerialContent(serial)) || numbers) {
             merged.push({
                 numbers,
                 serials: pendingOnly.length > 0 ? pendingOnly : [emptySerial()],
@@ -196,8 +200,7 @@ export const mergePersistedAndDraftSections = (
             const hasFilledPending = (section.serials ?? []).some(
                 (serial) =>
                     !isPersistedSerial(serial) &&
-                    (normalizeSerial(serial.serialNumber) ||
-                        (typeof serial.ticketImg === 'string' && serial.ticketImg.trim()))
+                    hasPendingSerialContent(serial)
             );
             return !!numbers || hasFilledPending;
         });
@@ -216,9 +219,7 @@ export const extractPendingDraftSections = (
 
     sections.forEach((section) => {
         const pendingSerials = (section.serials ?? []).filter((serial) => !isPersistedSerial(serial));
-        const hasFilledPending = pendingSerials.some((serial) =>
-            normalizeSerial(serial.serialNumber)
-        );
+        const hasFilledPending = pendingSerials.some((serial) => hasPendingSerialContent(serial));
         const numbers = normalizeNumbers(section.numbers);
 
         if (!hasFilledPending && !numbers) {
@@ -252,9 +253,7 @@ export const extractPendingDraftSections = (
     // Drop purely empty template sections (no numbers, no filled serials).
     const meaningful = pending.filter((section) => {
         const numbers = normalizeNumbers(section.numbers);
-        const hasFilled = (section.serials ?? []).some((serial) =>
-            normalizeSerial(serial.serialNumber)
-        );
+        const hasFilled = (section.serials ?? []).some((serial) => hasPendingSerialContent(serial));
         return !!numbers || hasFilled;
     });
 

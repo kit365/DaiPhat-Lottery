@@ -16,17 +16,32 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import com.daiphat.coreapi.domain.model.enums.lottery.InputSource;
 
 public interface LotteryTicketSerialServicePort {
 
     LotteryTicketSerialModel reportFault(Long id, ReportSerialFaultRequest request, UUID actorId);
+
+    default LotteryTicketSerialModel upsertSerialForTicket(
+            LotteryTicketModel ticket,
+            CreateLotteryTicketSerialRequest request,
+            UUID importedById,
+            Long importBatchId,
+            Long importBatchLineId
+    ) {
+        return upsertSerialForTicket(
+                ticket, request, importedById, importBatchId, importBatchLineId,
+                InputSource.MANUAL
+        );
+    }
 
     LotteryTicketSerialModel upsertSerialForTicket(
             LotteryTicketModel ticket,
             CreateLotteryTicketSerialRequest request,
             UUID importedById,
             Long importBatchId,
-            Long importBatchLineId
+            Long importBatchLineId,
+            InputSource inputSource
     );
 
     void syncSerialsForTicket(

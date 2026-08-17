@@ -1,248 +1,179 @@
 package com.daiphat.coreapi.domain.service.streetagent;
 
 import com.daiphat.coreapi.domain.model.streetagent.VendorAllocationSerialModel;
+import com.daiphat.coreapi.domain.model.enums.streetagent.VendorAllocationShortageReason;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.*;
 import java.util.stream.Collectors;
 
-/**
- * Builds a station → ticketNumber suggestion from inventory candidates.
- * Reuses {@link VendorAllocationPlanner} for even station distribution and counter reserve.
- */
+/** Builds an explainable vendor proposal: protected counter stock is calculated per station. */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class VendorAllocationSuggestionBuilder {
+    public record ReservePolicy(int fixedReserve, BigDecimal reservePercent) {
+        public ReservePolicy {
+            if (fixedReserve < 0 || reservePercent == null || reservePercent.signum() < 0
+                    || reservePercent.compareTo(BigDecimal.ONE) > 0) {
+                throw new IllegalArgumentException("Invalid counter reserve policy");
+            }
+        }
+    }
+    public record StationCapacity(int normalEligibleQuantity, int luckyQuantity, int fixedReserveQuantity,
+                                  int percentReserveQuantity, int effectiveAgencyReserveQuantity, int vendorCapacity) { }
+    public record AnnotatedSerial(VendorAllocationSerialModel serial, boolean vendorEligible, String blockedReason) { }
+    public record SerialSuggestion(Long serialId, String serialNumber, boolean lucky, List<String> luckyBadges,
+                                   boolean vendorEligible, String blockedReason, boolean suggested) { }
+    public record TicketSuggestion(String ticketNumbers, BigDecimal faceValue, boolean lucky, List<String> luckyBadges,
+                                   int availableCount, int suggestedCount, int selectableCount, boolean vendorEligible,
+                                   String blockedReason, List<SerialSuggestion> serials) { }
+    public record StationSuggestion(Long stationId, String stationName, int availableCount,
+                                    int normalEligibleQuantity, int luckyQuantity, int fixedReserveQuantity,
+                                    int percentReserveQuantity, int effectiveAgencyReserveQuantity, int vendorCapacity,
+                                    int suggestedCount, int selectableCount, List<TicketSuggestion> tickets) { }
+    public record Suggestion(int requestedQuantity, int remainingDailyCap, int capLimitedQuantity,
+                             int totalVendorCapacity, int allowedQuantity, int suggestedQuantity,
+                             int counterReservePerStation, BigDecimal counterReservePercentPerStation,
+                             int shortfallQuantity, int capShortfallQuantity, int inventoryShortfallQuantity,
+                             List<String> shortageReasons, String blockedReason, List<StationSuggestion> stations) { }
 
-    public record AnnotatedSerial(
-            VendorAllocationSerialModel serial,
-            boolean vendorEligible,
-            String blockedReason
-    ) {
+    /** Source-compatible fixed-only annotation for existing candidate consumers. */
+    public static List<AnnotatedSerial> annotate(List<VendorAllocationSerialModel> serials, int fixedReserve) {
+        return annotate(serials, new ReservePolicy(fixedReserve, BigDecimal.ZERO));
     }
 
-    public record SerialSuggestion(
-            Long serialId,
-            String serialNumber,
-            boolean lucky,
-            List<String> luckyBadges,
-            boolean vendorEligible,
-            String blockedReason,
-            boolean suggested
-    ) {
-    }
-
-    public record TicketSuggestion(
-            String ticketNumbers,
-            BigDecimal faceValue,
-            boolean lucky,
-            List<String> luckyBadges,
-            int availableCount,
-            int suggestedCount,
-            int selectableCount,
-            boolean vendorEligible,
-            String blockedReason,
-            List<SerialSuggestion> serials
-    ) {
-    }
-
-    public record StationSuggestion(
-            Long stationId,
-            String stationName,
-            int availableCount,
-            int suggestedCount,
-            int selectableCount,
-            List<TicketSuggestion> tickets
-    ) {
-    }
-
-    public record Suggestion(
-            int remainingDailyCap,
-            int suggestedQuantity,
-            int counterReservePerStation,
-            String blockedReason,
-            List<StationSuggestion> stations
-    ) {
-    }
-
-    public static List<AnnotatedSerial> annotate(List<VendorAllocationSerialModel> serials, int reservePerStation) {
-        Map<Long, Long> normalCount = serials.stream()
-                .filter(s -> !s.isLucky())
-                .collect(Collectors.groupingBy(VendorAllocationSerialModel::getStationId, LinkedHashMap::new, Collectors.counting()));
-        Map<Long, Integer> seen = new HashMap<>();
+    public static List<AnnotatedSerial> annotate(List<VendorAllocationSerialModel> serials, ReservePolicy policy) {
+        Map<Long, StationCapacity> capacities = capacities(serials, policy);
+        Map<Long, Integer> normalSeen = new HashMap<>();
         return serials.stream().map(serial -> {
-            int position = serial.isLucky() ? 0 : seen.merge(serial.getStationId(), 1, Integer::sum);
-            boolean counterReserved = !serial.isLucky()
-                    && position > Math.max(0, normalCount.get(serial.getStationId()).intValue() - reservePerStation);
-            boolean eligible = !serial.isLucky() && !counterReserved;
-            String reason = serial.isLucky() ? "LUCKY_PATTERN" : (counterReserved ? "COUNTER_RESERVE" : null);
-            return new AnnotatedSerial(serial, eligible, reason);
+            if (serial.isLucky()) return new AnnotatedSerial(serial, false, "LUCKY_PATTERN");
+            int position = normalSeen.merge(serial.getStationId(), 1, Integer::sum);
+            StationCapacity capacity = capacities.get(serial.getStationId());
+            boolean protectedForCounter = position > capacity.vendorCapacity();
+            return new AnnotatedSerial(serial, !protectedForCounter,
+                    protectedForCounter ? "COUNTER_RESERVE" : null);
         }).toList();
     }
 
-    public static Suggestion build(List<VendorAllocationSerialModel> serials, int remainingDailyCap, int reservePerStation) {
-        return build(serials, remainingDailyCap, reservePerStation, null);
+    public static Suggestion build(List<VendorAllocationSerialModel> serials, int remainingDailyCap, int fixedReserve) {
+        return build(serials, remainingDailyCap, remainingDailyCap, new ReservePolicy(fixedReserve, BigDecimal.ZERO), null);
     }
 
-    public static Suggestion build(
-            List<VendorAllocationSerialModel> serials,
-            int remainingDailyCap,
-            int reservePerStation,
-            String blockedReason
-    ) {
-        List<AnnotatedSerial> annotated = annotate(serials, reservePerStation);
-        Map<Long, Integer> availableByStation = new LinkedHashMap<>();
-        for (AnnotatedSerial item : annotated) {
-            if (!item.serial().isLucky()) {
-                availableByStation.merge(item.serial().getStationId(), 1, Integer::sum);
-            }
-        }
-
-        Map<Long, Integer> plan = Map.of();
-        if (remainingDailyCap > 0 && !availableByStation.isEmpty()) {
-            LinkedHashMap<Long, Integer> plannable = new LinkedHashMap<>();
-            for (var entry : availableByStation.entrySet()) {
-                if (entry.getValue() - reservePerStation > 0) {
-                    plannable.put(entry.getKey(), entry.getValue());
-                }
-            }
-            if (!plannable.isEmpty()) {
-                plan = VendorAllocationPlanner.plan(remainingDailyCap, plannable, reservePerStation);
-            }
-        }
-
-        Map<Long, List<AnnotatedSerial>> eligibleByStation = annotated.stream()
-                .filter(AnnotatedSerial::vendorEligible)
-                .collect(Collectors.groupingBy(a -> a.serial().getStationId(), LinkedHashMap::new, Collectors.toList()));
-
-        Set<Long> suggestedIds = new LinkedHashSet<>();
-        for (var entry : plan.entrySet()) {
-            List<AnnotatedSerial> eligible = eligibleByStation.getOrDefault(entry.getKey(), List.of());
-            suggestedIds.addAll(pickEvenlyAcrossTicketNumbers(entry.getValue(), eligible));
-        }
-
-        LinkedHashMap<Long, List<AnnotatedSerial>> byStation = new LinkedHashMap<>();
-        for (AnnotatedSerial item : annotated) {
-            byStation.computeIfAbsent(item.serial().getStationId(), id -> new ArrayList<>()).add(item);
-        }
-
-        List<StationSuggestion> stations = new ArrayList<>();
-        for (var stationEntry : byStation.entrySet()) {
-            List<AnnotatedSerial> stationSerials = stationEntry.getValue();
-            String stationName = stationSerials.getFirst().serial().getStationName();
-
-            LinkedHashMap<String, List<AnnotatedSerial>> byTicket = new LinkedHashMap<>();
-            for (AnnotatedSerial item : stationSerials) {
-                byTicket.computeIfAbsent(item.serial().getTicketNumbers(), key -> new ArrayList<>()).add(item);
-            }
-
-            List<TicketSuggestion> tickets = new ArrayList<>();
-            int stationSuggested = 0;
-            int stationSelectable = 0;
-            for (var ticketEntry : byTicket.entrySet()) {
-                List<AnnotatedSerial> ticketSerials = ticketEntry.getValue();
-                VendorAllocationSerialModel first = ticketSerials.getFirst().serial();
-                boolean anyLucky = ticketSerials.stream().anyMatch(a -> a.serial().isLucky());
-                int selectable = (int) ticketSerials.stream().filter(AnnotatedSerial::vendorEligible).count();
-                int suggested = (int) ticketSerials.stream()
-                        .filter(a -> suggestedIds.contains(a.serial().getSerialId()))
-                        .count();
-                stationSuggested += suggested;
-                stationSelectable += selectable;
-
-                boolean allBlocked = selectable == 0;
-                String ticketBlockedReason = null;
-                if (allBlocked) {
-                    ticketBlockedReason = ticketSerials.stream()
-                            .map(AnnotatedSerial::blockedReason)
-                            .filter(Objects::nonNull)
-                            .findFirst()
-                            .orElse(null);
-                }
-
-                List<String> badges = badges(first.getLuckyBadges());
-                if (anyLucky && badges.isEmpty()) {
-                    badges = List.of("Số đẹp");
-                }
-
-                List<SerialSuggestion> serialSuggestions = ticketSerials.stream()
-                        .map(a -> new SerialSuggestion(
-                                a.serial().getSerialId(),
-                                a.serial().getSerialNumber(),
-                                a.serial().isLucky(),
-                                badges(a.serial().getLuckyBadges()),
-                                a.vendorEligible(),
-                                a.blockedReason(),
-                                suggestedIds.contains(a.serial().getSerialId())
-                        ))
-                        .toList();
-
-                tickets.add(new TicketSuggestion(
-                        first.getTicketNumbers(),
-                        first.getFaceValue(),
-                        anyLucky,
-                        badges,
-                        ticketSerials.size(),
-                        suggested,
-                        selectable,
-                        selectable > 0,
-                        ticketBlockedReason,
-                        serialSuggestions
-                ));
-            }
-
-            stations.add(new StationSuggestion(
-                    stationEntry.getKey(),
-                    stationName,
-                    stationSerials.size(),
-                    stationSuggested,
-                    stationSelectable,
-                    tickets
-            ));
-        }
-
-        int suggestedQuantity = suggestedIds.size();
-        return new Suggestion(remainingDailyCap, suggestedQuantity, reservePerStation, blockedReason, stations);
+    public static Suggestion build(List<VendorAllocationSerialModel> serials, int remainingDailyCap, int fixedReserve,
+                                   String blockedReason) {
+        return build(serials, remainingDailyCap, remainingDailyCap, new ReservePolicy(fixedReserve, BigDecimal.ZERO), blockedReason);
     }
 
     /**
-     * Round-robin across ticket numbers so a station suggestion does not dump all qty onto one number.
+     * A business-window block is decisive: do not add artificial inventory or
+     * cap shortfalls when no allocation may be attempted at all.
      */
+    public static Suggestion blocked(
+            int requestedQuantity,
+            int remainingDailyCap,
+            ReservePolicy policy,
+            String blockedReason) {
+        int requested = Math.max(0, requestedQuantity);
+        int remaining = Math.max(0, remainingDailyCap);
+        return new Suggestion(
+                requested, remaining, 0, 0, 0, 0,
+                policy.fixedReserve(), policy.reservePercent(), requested, 0, 0,
+                List.of(blockedReason), blockedReason, List.of());
+    }
+
+    public static Suggestion build(List<VendorAllocationSerialModel> serials, int remainingDailyCap, int requestedQuantity,
+                                   ReservePolicy policy, String blockedReason) {
+        int requested = Math.max(0, requestedQuantity);
+        int cap = Math.max(0, remainingDailyCap);
+        Map<Long, StationCapacity> capacities = capacities(serials, policy);
+        int totalCapacity = capacities.values().stream().mapToInt(StationCapacity::vendorCapacity).sum();
+        int capLimited = Math.min(requested, cap);
+        int allowed = Math.min(capLimited, totalCapacity);
+        int capShortfall = Math.max(0, requested - cap);
+        int inventoryShortfall = Math.max(0, capLimited - totalCapacity);
+        List<String> shortageReasons = new ArrayList<>();
+        if (capShortfall > 0) shortageReasons.add(VendorAllocationShortageReason.DAILY_CAP_LIMIT.name());
+        if (inventoryShortfall > 0) shortageReasons.add(VendorAllocationShortageReason.INSUFFICIENT_STATION_CAPACITY.name());
+        if (serials.isEmpty() && blockedReason != null) shortageReasons.add(blockedReason);
+
+        List<AnnotatedSerial> annotated = annotate(serials, policy);
+        Map<Long, Integer> stationCapacities = capacities.entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().vendorCapacity(), (a, b) -> a, LinkedHashMap::new));
+        Map<Long, Integer> plan = stationCapacities.isEmpty() ? Map.of() : VendorAllocationPlanner.plan(allowed, stationCapacities);
+        Map<Long, List<AnnotatedSerial>> eligibleByStation = annotated.stream().filter(AnnotatedSerial::vendorEligible)
+                .collect(Collectors.groupingBy(item -> item.serial().getStationId(), LinkedHashMap::new, Collectors.toList()));
+        Set<Long> suggestedIds = new LinkedHashSet<>();
+        plan.forEach((stationId, quantity) -> suggestedIds.addAll(pickEvenlyAcrossTicketNumbers(quantity,
+                eligibleByStation.getOrDefault(stationId, List.of()))));
+
+        LinkedHashMap<Long, List<AnnotatedSerial>> byStation = new LinkedHashMap<>();
+        annotated.forEach(item -> byStation.computeIfAbsent(item.serial().getStationId(), ignored -> new ArrayList<>()).add(item));
+        List<StationSuggestion> stations = new ArrayList<>();
+        byStation.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(stationEntry -> {
+            List<AnnotatedSerial> stationSerials = stationEntry.getValue();
+            StationCapacity stationCapacity = capacities.get(stationEntry.getKey());
+            LinkedHashMap<String, List<AnnotatedSerial>> byTicket = new LinkedHashMap<>();
+            stationSerials.forEach(item -> byTicket.computeIfAbsent(item.serial().getTicketNumbers(), ignored -> new ArrayList<>()).add(item));
+            List<TicketSuggestion> tickets = new ArrayList<>();
+            int stationSuggested = 0;
+            int stationSelectable = 0;
+            for (List<AnnotatedSerial> ticketSerials : byTicket.values()) {
+                VendorAllocationSerialModel first = ticketSerials.getFirst().serial();
+                int selectable = (int) ticketSerials.stream().filter(AnnotatedSerial::vendorEligible).count();
+                int suggested = (int) ticketSerials.stream().filter(item -> suggestedIds.contains(item.serial().getSerialId())).count();
+                stationSuggested += suggested; stationSelectable += selectable;
+                boolean anyLucky = ticketSerials.stream().anyMatch(item -> item.serial().isLucky());
+                String ticketBlockedReason = selectable == 0 ? ticketSerials.stream().map(AnnotatedSerial::blockedReason)
+                        .filter(Objects::nonNull).findFirst().orElse(null) : null;
+                List<String> badges = badges(first.getLuckyBadges());
+                if (anyLucky && badges.isEmpty()) badges = List.of("Số đẹp");
+                tickets.add(new TicketSuggestion(first.getTicketNumbers(), first.getFaceValue(), anyLucky, badges,
+                        ticketSerials.size(), suggested, selectable, selectable > 0, ticketBlockedReason,
+                        ticketSerials.stream().map(item -> new SerialSuggestion(item.serial().getSerialId(), item.serial().getSerialNumber(),
+                                item.serial().isLucky(), badges(item.serial().getLuckyBadges()), item.vendorEligible(),
+                                item.blockedReason(), suggestedIds.contains(item.serial().getSerialId()))).toList()));
+            }
+            stations.add(new StationSuggestion(stationEntry.getKey(), stationSerials.getFirst().serial().getStationName(),
+                    stationSerials.size(), stationCapacity.normalEligibleQuantity(), stationCapacity.luckyQuantity(),
+                    stationCapacity.fixedReserveQuantity(), stationCapacity.percentReserveQuantity(),
+                    stationCapacity.effectiveAgencyReserveQuantity(), stationCapacity.vendorCapacity(), stationSuggested,
+                    stationSelectable, tickets));
+        });
+        return new Suggestion(requested, cap, capLimited, totalCapacity, allowed, suggestedIds.size(), policy.fixedReserve(),
+                policy.reservePercent(), requested - allowed, capShortfall, inventoryShortfall, List.copyOf(shortageReasons),
+                blockedReason, stations);
+    }
+
+    static Map<Long, StationCapacity> capacities(List<VendorAllocationSerialModel> serials, ReservePolicy policy) {
+        LinkedHashMap<Long, List<VendorAllocationSerialModel>> byStation = new LinkedHashMap<>();
+        serials.forEach(serial -> byStation.computeIfAbsent(serial.getStationId(), ignored -> new ArrayList<>()).add(serial));
+        LinkedHashMap<Long, StationCapacity> result = new LinkedHashMap<>();
+        byStation.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> {
+            int normal = (int) entry.getValue().stream().filter(serial -> !serial.isLucky()).count();
+            int lucky = entry.getValue().size() - normal;
+            int percent = policy.reservePercent().multiply(BigDecimal.valueOf(normal)).setScale(0, RoundingMode.CEILING).intValueExact();
+            int reserve = Math.min(normal, Math.max(policy.fixedReserve(), percent));
+            result.put(entry.getKey(), new StationCapacity(normal, lucky, policy.fixedReserve(), percent, reserve, normal - reserve));
+        });
+        return result;
+    }
+
     static List<Long> pickEvenlyAcrossTicketNumbers(int quantity, List<AnnotatedSerial> eligibleOrdered) {
-        if (quantity <= 0 || eligibleOrdered == null || eligibleOrdered.isEmpty()) {
-            return List.of();
-        }
+        if (quantity <= 0 || eligibleOrdered == null || eligibleOrdered.isEmpty()) return List.of();
         LinkedHashMap<String, Deque<Long>> queues = new LinkedHashMap<>();
-        for (AnnotatedSerial item : eligibleOrdered) {
-            queues.computeIfAbsent(item.serial().getTicketNumbers(), key -> new ArrayDeque<>())
-                    .add(item.serial().getSerialId());
-        }
+        eligibleOrdered.forEach(item -> queues.computeIfAbsent(item.serial().getTicketNumbers(), ignored -> new ArrayDeque<>()).add(item.serial().getSerialId()));
         List<Long> picked = new ArrayList<>(Math.min(quantity, eligibleOrdered.size()));
-        int target = Math.min(quantity, eligibleOrdered.size());
-        while (picked.size() < target) {
+        while (picked.size() < Math.min(quantity, eligibleOrdered.size())) {
             boolean progressed = false;
-            for (Deque<Long> queue : queues.values()) {
-                if (picked.size() >= target) {
-                    break;
-                }
-                Long next = queue.pollFirst();
-                if (next != null) {
-                    picked.add(next);
-                    progressed = true;
-                }
-            }
-            if (!progressed) {
-                break;
-            }
+            for (Deque<Long> queue : queues.values()) if (picked.size() < quantity && !queue.isEmpty()) { picked.add(queue.removeFirst()); progressed = true; }
+            if (!progressed) break;
         }
         return picked;
     }
-
     private static List<String> badges(String raw) {
-        if (raw == null || raw.isBlank()) {
-            return List.of();
-        }
-        return Arrays.stream(raw.split(",")).map(String::trim).filter(v -> !v.isEmpty()).toList();
+        if (raw == null || raw.isBlank()) return List.of();
+        return Arrays.stream(raw.split(",")).map(String::trim).filter(value -> !value.isEmpty()).toList();
     }
 }

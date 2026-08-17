@@ -1,7 +1,7 @@
 "use client";
 
+import Link from "next/link";
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { ROUTES } from '@/admin/constants/routes';
 import dayjs from 'dayjs';
 import { Search } from 'lucide-react';
@@ -24,6 +24,7 @@ import {
 } from '../../utils/sellableDrawDate.util';
 import { ClientDatePicker } from '../ui/ClientDatePicker';
 import { ClientStationSelect } from '../ui/ClientStationSelect';
+import { LuckyNumber } from '../ui/LuckyNumber';
 
 export const TicketSearchWidget: React.FC = () => {
     const [search, setSearch] = useState('');
@@ -93,7 +94,7 @@ export const TicketSearchWidget: React.FC = () => {
             <div className="p-5 space-y-4">
                 <form
                     onSubmit={handleSearch}
-                    className="flex items-center bg-[#F4F6F8] rounded-full border border-[#E5E8EB] p-1"
+                    className="flex items-center bg-[#F4F6F8] rounded-full border border-[#E5E8EB] px-1 py-1"
                 >
                     <input
                         type="text"
@@ -101,14 +102,8 @@ export const TicketSearchWidget: React.FC = () => {
                         value={search}
                         onChange={(e) => setSearch(e.target.value.replace(/\D/g, '').slice(0, 6))}
                         placeholder="Đuôi số (VD: 68, 686868)"
-                        className="flex-1 bg-transparent border-none outline-none px-3 text-[13px] text-[#212B36]"
+                        className="flex-1 bg-transparent border-none outline-none px-3 py-1.5 text-[13px] text-[#212B36]"
                     />
-                    <button
-                        type="submit"
-                        className="px-4 py-1.5 bg-[#FFF4F4] text-[#ee1314] font-bold text-[13px] rounded-full"
-                    >
-                        Tìm
-                    </button>
                 </form>
 
                 <div className="grid grid-cols-2 gap-2">
@@ -117,6 +112,7 @@ export const TicketSearchWidget: React.FC = () => {
                         value={selectedDate}
                         minDate={minDate}
                         maxDate={maxDate}
+                        earliestShortcutLabel="Ngày bán sớm nhất"
                         open={isDateOpen}
                         onOpenChange={setIsDateOpen}
                         onOpen={() => setIsStationOpen(false)}
@@ -159,7 +155,7 @@ export const TicketSearchWidget: React.FC = () => {
                                 >
                                     <div>
                                         <div className="text-[14px] font-black text-[#ee1314] tracking-wider">
-                                            {ticket.numbers}
+                                            <LuckyNumber value={ticket.numbers} ticket className="tracking-wider" />
                                         </div>
                                         <div className="text-[11px] text-[#637381]">
                                             {ticket.stationName} • Còn {stock} vé
@@ -196,7 +192,7 @@ export const TicketSearchWidget: React.FC = () => {
 
                 {hasSearchDigits && (
                     <Link
-                        to={`${ROUTES.PUBLIC.TICKETS}?ticketNumber=${encodeURIComponent(search)}&drawDate=${selectedDate}${stationId ? `&stationId=${stationId}` : ''}`}
+                        href={`${ROUTES.PUBLIC.TICKETS}?ticketNumber=${encodeURIComponent(search)}&drawDate=${selectedDate}${stationId ? `&stationId=${stationId}` : ''}`}
                         className="block text-center text-[13px] font-bold text-[#ee1314] hover:underline"
                     >
                         Xem tất cả kết quả →

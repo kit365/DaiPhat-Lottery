@@ -1,5 +1,7 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
 import { useState } from "react";
 import {
     Box,
@@ -12,7 +14,6 @@ import {
     Chip,
     IconButton,
     Select,
-    CircularProgress,
     alpha,
     Divider,
     Table,
@@ -22,13 +23,17 @@ import {
     TableHead,
     TableRow
 } from "@mui/material";
-import { Icon } from "@iconify/react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import dayjs from "dayjs";
-import { Title } from "../../../../components/ui/Title";
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
+import { PageHeader } from "../../../../components/ui/PageHeader";
+import { SpinnerLoading } from "../../../../components/ui/SpinnerLoading";
 import { useOrderDetail, useUpdateOrderStatus } from "../../hooks/useOrder";
-import { OrderStatus, resolveLotteryTicketSerialStatusBadge, resolveOrderDetailStatusBadge } from "../../../../../types/order.type";
+import {
+    OrderStatus,
+    getOrderDetailStatusAdminBadgeModifier,
+    resolveOrderDetailStatusBadge,
+} from "../../../../../types/order.type";
+import { resolveLotteryTicketSerialAdminBadge } from "../../utils/lotteryTicketSerialAdminBadge.util";
 import { toast } from "react-toastify";
 import { prefixAdmin } from "../../../../constants/routes";
 import { confirmAction } from "../../../../utils/swal";
@@ -37,8 +42,10 @@ import { PERMISSIONS } from "../../../../constants/permission.constants";
 import { OrderInspectionSection } from "../sections/OrderInspectionSection";
 import { OrderHandoverConfirmDialog } from "../sections/OrderHandoverConfirmDialog";
 import { OrderSteppersCard } from "../sections/OrderSteppersCard";
-import { getOrderStatusBadge } from "../../constants/orderStatus.constants";
-import { resolveOrderPaymentMethodLabel } from "../../../../../utils/orderPayment.util";
+import { getOrderStatusBadge, getOrderStatusAdminBadgeModifier } from '@/shared/components/StatusBadge/orderStatusMap';
+import { AdminStatusBadge } from '../../../../components/ui/AdminStatusBadge';
+import { AdminLuckyDisplay } from '@/shared/lucky-number';
+import { resolveOrderPaymentMethodLabel } from '@/admin/features/orders/utils/orderPayment.util';
 
 const PAYMENT_STATUS_OPTIONS: { [key: string]: { label: string; color: string; bg: string } } = {
     unpaid: { label: "Chưa thanh toán", color: "var(--palette-error-dark)", bg: "var(--palette-error-lighter)" },
@@ -48,8 +55,8 @@ const PAYMENT_STATUS_OPTIONS: { [key: string]: { label: string; color: string; b
 };
 
 export const OrderDetailPage = () => {
-    const { id } = useParams();
-    const navigate = useNavigate();
+    const { id } = useRouteParams();
+    const router = useAdminRouter();
     const { data: orderRes, isLoading, refetch } = useOrderDetail(id || "");
     const order = orderRes?.data;
     const { mutate: updateStatus } = useUpdateOrderStatus();
@@ -58,13 +65,21 @@ export const OrderDetailPage = () => {
 
     const handleBaoLoiHuyDon = () => {
         if (!order) return;
-        navigate(`/${prefixAdmin}/order/detail/${order.id}/cancel-with-refund`);
+        router.push(`/${prefixAdmin}/order/detail/${order.id}/cancel-with-refund`);
     };
 
     if (isLoading) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 20 }}>
-                <CircularProgress />
+            <Box>
+                <PageHeader
+                    title={`Đơn hàng #${id}`}
+                    breadcrumbItems={[
+                        { label: 'Bảng điều khiển', to: `/${prefixAdmin}/dashboard` },
+                        { label: 'Đơn hàng', to: `/${prefixAdmin}/order/list` },
+                        { label: 'Chi tiết đơn hàng' }
+                    ]}
+                />
+                <SpinnerLoading />
             </Box>
         );
     }
@@ -133,20 +148,14 @@ export const OrderDetailPage = () => {
     return (
         <Box sx={{ width: '100%', mx: 'auto' }}>
             {/* Unified Header section */}
-            <Box sx={{ mb: 5, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                <Stack direction="row" spacing={2} alignItems="center">
-                    <Box>
-                        <Title title={`Đơn hàng #${order.orderCode || order.id?.slice(-6).toUpperCase() || 'ERROR'}`} />
-                        <Breadcrumb
-                            items={[
-                                { label: 'Bảng điều khiển', to: `/${prefixAdmin}/dashboard` },
-                                { label: 'Đơn hàng', to: `/${prefixAdmin}/order/list` },
-                                { label: 'Chi tiết đơn hàng' }
-                            ]}
-                        />
-                    </Box>
-                </Stack>
-
+            <PageHeader
+                title={`Đơn hàng #${order.orderCode || order.id?.slice(-6).toUpperCase() || 'ERROR'}`}
+                breadcrumbItems={[
+                    { label: 'Bảng điều khiển', to: `/${prefixAdmin}/dashboard` },
+                    { label: 'Đơn hàng', to: `/${prefixAdmin}/order/list` },
+                    { label: 'Chi tiết đơn hàng' }
+                ]}
+                action={
                 <Stack direction="row" spacing={1.5} alignItems="center">
                     {order.status === OrderStatus.PAID && (
                         <Button 
@@ -223,7 +232,7 @@ export const OrderDetailPage = () => {
                     </Button>
                     <Button 
                         variant="outlined" 
-                        onClick={() => navigate(-1)} 
+                        onClick={() => router.back()} 
                         startIcon={<Icon icon="eva:arrow-back-fill" />}
                         sx={{
                             fontWeight: 700,
@@ -241,7 +250,8 @@ export const OrderDetailPage = () => {
                         Quay lại
                     </Button>
                 </Stack>
-            </Box>
+                }
+            />
 
             {/* Stepper Card (Full Width) */}
             <OrderSteppersCard order={order} />
@@ -310,17 +320,9 @@ export const OrderDetailPage = () => {
 
                                 <Grid size={{ xs: 12, sm: 6, md: 1.5 }}>
                                     <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)', display: 'block', mb: 1 }}>Trạng thái</Typography>
-                                    <Chip
-                                        label={currentStatus.label}
-                                        size="small"
-                                        sx={{
-                                            fontWeight: 700,
-                                            height: 24,
-                                            fontSize: '0.75rem',
-                                            borderRadius: '6px',
-                                            color: currentStatus.color,
-                                            bgcolor: currentStatus.bg,
-                                        }}
+                                    <AdminStatusBadge
+                                        label={getOrderStatusBadge(order.status).label}
+                                        modifier={getOrderStatusAdminBadgeModifier(order.status)}
                                     />
                                 </Grid>
                             </Grid>
@@ -335,9 +337,156 @@ export const OrderDetailPage = () => {
                             </Box>
                         </Card>
 
-                        {/* Danh sách vé Card / Inspection Section */}
-                        {isInspectionStarted && order.status === OrderStatus.PREPARING ? (
+                        {/* Danh sách vé */}
+                        <Card sx={{ borderRadius: 'var(--shape-borderRadius-lg)', boxShadow: 'var(--customShadows-card)' }}>
+                                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ pt: 3, px: 3, pb: 3 }}>
+                                    <Stack direction="row" spacing={1} alignItems="center">
+                                        <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--palette-text-primary)' }}>Danh sách vé</Typography>
+                                        <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)', ml: 1 }}>({order.orderDetails?.length || 0} vé)</Typography>
+                                    </Stack>
+                                    {order.status === OrderStatus.PREPARING && (
+                                        <Button 
+                                            variant="contained" 
+                                            startIcon={<Icon icon="solar:magnifer-zoom-in-bold-duotone" />}
+                                            onClick={() => setIsInspectionStarted(true)}
+                                            sx={{ height: 36, px: 2, borderRadius: '8px', fontWeight: 700, textTransform: 'none', boxShadow: 'none', bgcolor: 'var(--palette-grey-800)', color: 'common.white', '&:hover': { bgcolor: 'var(--palette-grey-900)' } }}
+                                        >
+                                            Bắt đầu kiểm tra
+                                        </Button>
+                                    )}
+                                </Stack>
+                                
+                                <TableContainer>
+                                    <Table sx={{ minWidth: 600 }}>
+                                        <TableHead>
+                                            <TableRow sx={{ bgcolor: 'var(--palette-background-neutral)' }}>
+                                                <TableCell align="center" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Vé số</TableCell>
+                                                <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Đài</TableCell>
+                                                <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Ngày xổ</TableCell>
+                                                <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Giá</TableCell>
+                                                <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Trạng thái</TableCell>
+                                                <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Hoạt động</TableCell>
+                                            </TableRow>
+                                        </TableHead>
+                                        <TableBody>
+                                            {(order.orderDetails || []).map((detail: any) => {
+                                                const allocatedSerial = detail.allocatedSerials?.[0];
+                                                const serialStatus =
+                                                    detail.serialStatus
+                                                    || allocatedSerial?.status
+                                                    || null;
+                                                const serialStatusLabel =
+                                                    detail.serialStatusDisplayName
+                                                    || allocatedSerial?.statusDisplayName
+                                                    || null;
+                                                const ticketCondition =
+                                                    detail.ticketCondition
+                                                    || allocatedSerial?.ticketCondition
+                                                    || null;
+                                                const ticketConditionLabel =
+                                                    detail.ticketConditionDisplayName
+                                                    || allocatedSerial?.ticketConditionDisplayName
+                                                    || null;
+                                                const serialBadge = resolveLotteryTicketSerialAdminBadge(
+                                                    serialStatus,
+                                                    serialStatusLabel,
+                                                    ticketCondition,
+                                                    ticketConditionLabel
+                                                );
+                                                const activityBadge = resolveOrderDetailStatusBadge(
+                                                    detail.status,
+                                                    detail.statusDisplayName
+                                                );
+
+                                                return (
+                                                <TableRow key={detail.id || detail.lotteryTicketSerialId || detail.serialNumber} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                                                    <TableCell align="center">
+                                                        <Box>
+                                                            <AdminLuckyDisplay
+                                                                value={
+                                                                    detail.numbers
+                                                                    || detail.lotteryTicket?.numbers
+                                                                    || detail.lotteryTicket?.symbol
+                                                                    || detail.lotteryTicket?.ticketNumber
+                                                                }
+                                                                ticket
+                                                                fontSize="0.875rem"
+                                                                fontWeight={700}
+                                                                letterSpacing="0.06em"
+                                                                sx={{ color: 'var(--palette-text-primary)' }}
+                                                            />
+                                                            {(detail.serialNumber
+                                                                || detail.replacedByTicketSerial?.serialNumber
+                                                                || detail.replaceTicketSerial?.serialNumber
+                                                                || detail.lotteryTicketSerial?.serialNumber) && (
+                                                                <Typography
+                                                                    variant="caption"
+                                                                    color="text.secondary"
+                                                                    component="div"
+                                                                    sx={{ mt: 0.25, lineHeight: 1.4, wordBreak: 'break-all' }}
+                                                                >
+                                                                    SN: {detail.serialNumber
+                                                                        || detail.replacedByTicketSerial?.serialNumber
+                                                                        || detail.replaceTicketSerial?.serialNumber
+                                                                        || detail.lotteryTicketSerial?.serialNumber}
+                                                                    {detail.replacedByTicketSerialId || detail.replacedByTicketSerial || detail.replaceTicketSerial ? ' (đã thay)' : ''}
+                                                                </Typography>
+                                                            )}
+                                                        </Box>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
+                                                            {detail.stationName || detail.lotteryTicket?.province?.name || detail.lotteryTicket?.station?.name || detail.lotteryTicket?.stationName || 'N/A'}
+                                                        </Typography>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)' }}>
+                                                            {(detail.drawDate || detail.lotteryTicket?.drawDate)
+                                                                ? dayjs(detail.drawDate || detail.lotteryTicket?.drawDate).format("DD/MM/YYYY")
+                                                                : 'N/A'}
+                                                        </Typography>
+                                                    </TableCell>
+
+                                                    <TableCell>
+                                                        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
+                                                            {(detail.price || 10000).toLocaleString('vi-VN')}đ
+                                                        </Typography>
+                                                    </TableCell>
+                                                    <TableCell align="center">
+                                                        <AdminStatusBadge
+                                                            label={serialBadge.label}
+                                                            modifier={serialBadge.modifier}
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell align="center">
+                                                        <AdminStatusBadge
+                                                            label={activityBadge.label}
+                                                            modifier={getOrderDetailStatusAdminBadgeModifier(detail.status)}
+                                                        />
+                                                    </TableCell>
+                                                </TableRow>
+                                                );
+                                            })}
+                                        </TableBody>
+                                    </Table>
+                                </TableContainer>
+                                <Divider sx={{ borderStyle: 'dashed' }} />
+                                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ p: 3 }}>
+                                    <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 500 }}>
+                                        Tổng số vé: {order.orderDetails?.length || 0}
+                                    </Typography>
+                                    <Stack direction="row" alignItems="center" spacing={1}>
+                                        <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>Tổng tiền:</Typography>
+                                        <Typography variant="h6" sx={{ fontWeight: 700, color: 'var(--palette-success-main)' }}>
+                                            {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.totalAmount || 0)}
+                                        </Typography>
+                                    </Stack>
+                                </Stack>
+                            </Card>
+
+                        {order.status === OrderStatus.PREPARING && (
                             <OrderInspectionSection
+                                open={isInspectionStarted}
                                 orderId={order.id}
                                 orderCode={order.orderCode}
                                 orderDetails={order.orderDetails || []}
@@ -364,168 +513,6 @@ export const OrderDetailPage = () => {
                                 onCancel={() => setIsInspectionStarted(false)}
                                 onMoveToReadyForPickup={() => handleStatusChange(OrderStatus.PENDING_PICKUP)}
                             />
-                        ) : (
-                            <Card sx={{ borderRadius: 'var(--shape-borderRadius-lg)', boxShadow: 'var(--customShadows-card)' }}>
-                                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ pt: 3, px: 3, pb: 3 }}>
-                                    <Stack direction="row" spacing={1} alignItems="center">
-                                        <Icon icon="solar:ticket-bold-duotone" width={24} style={{ color: 'var(--palette-success-main)' }} />
-                                        <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--palette-text-primary)' }}>Danh sách vé</Typography>
-                                        <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)', ml: 1 }}>({order.orderDetails?.length || 0} vé)</Typography>
-                                    </Stack>
-                                    {order.status === OrderStatus.PREPARING && (
-                                        <Button 
-                                            variant="contained" 
-                                            startIcon={<Icon icon="solar:magnifer-zoom-in-bold-duotone" />}
-                                            onClick={() => setIsInspectionStarted(true)}
-                                            sx={{ height: 36, px: 2, borderRadius: '8px', fontWeight: 700, textTransform: 'none', boxShadow: 'none', bgcolor: 'var(--palette-grey-800)', color: 'common.white', '&:hover': { bgcolor: 'var(--palette-grey-900)' } }}
-                                        >
-                                            Bắt đầu kiểm tra
-                                        </Button>
-                                    )}
-                                </Stack>
-                                
-                                <TableContainer>
-                                    <Table sx={{ minWidth: 600 }}>
-                                        <TableHead>
-                                            <TableRow sx={{ bgcolor: 'var(--palette-background-neutral)' }}>
-                                                <TableCell align="center" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Vé số</TableCell>
-                                                <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Đài</TableCell>
-                                                <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Ngày xổ</TableCell>
-                                                <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Loại vé</TableCell>
-                                                <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Giá</TableCell>
-                                                <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Trạng thái</TableCell>
-                                                <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Hoạt động</TableCell>
-                                            </TableRow>
-                                        </TableHead>
-                                        <TableBody>
-                                            {(order.orderDetails || []).map((detail: any) => {
-                                                const allocatedSerial = detail.allocatedSerials?.[0];
-                                                const serialStatus =
-                                                    detail.serialStatus
-                                                    || allocatedSerial?.status
-                                                    || null;
-                                                const serialStatusLabel =
-                                                    detail.serialStatusDisplayName
-                                                    || allocatedSerial?.statusDisplayName
-                                                    || null;
-                                                const ticketCondition =
-                                                    detail.ticketCondition
-                                                    || allocatedSerial?.ticketCondition
-                                                    || null;
-                                                const ticketConditionLabel =
-                                                    detail.ticketConditionDisplayName
-                                                    || allocatedSerial?.ticketConditionDisplayName
-                                                    || null;
-                                                const serialBadge = resolveLotteryTicketSerialStatusBadge(
-                                                    serialStatus,
-                                                    serialStatusLabel,
-                                                    ticketCondition,
-                                                    ticketConditionLabel
-                                                );
-                                                const activityBadge = resolveOrderDetailStatusBadge(detail.status);
-
-                                                return (
-                                                <TableRow key={detail.id || detail.lotteryTicketSerialId || detail.serialNumber} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
-                                                    <TableCell align="center">
-                                                        <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
-                                                            <Avatar variant="rounded" sx={{ width: 32, height: 32, bgcolor: '#ee1314', color: 'white' }}>
-                                                                <Icon icon="solar:ticket-bold-duotone" width={20} />
-                                                            </Avatar>
-                                                            <Box sx={{ textAlign: 'left' }}>
-                                                                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)' }}>
-                                                                    {detail.numbers || detail.lotteryTicket?.numbers || detail.lotteryTicket?.symbol || detail.lotteryTicket?.ticketNumber || 'N/A'}
-                                                                </Typography>
-                                                                {(detail.serialNumber
-                                                                    || detail.replacedByTicketSerial?.serialNumber
-                                                                    || detail.replaceTicketSerial?.serialNumber
-                                                                    || detail.lotteryTicketSerial?.serialNumber) && (
-                                                                    <Typography variant="caption" color="text.secondary">
-                                                                        SN: {detail.serialNumber
-                                                                            || detail.replacedByTicketSerial?.serialNumber
-                                                                            || detail.replaceTicketSerial?.serialNumber
-                                                                            || detail.lotteryTicketSerial?.serialNumber}
-                                                                        {detail.replacedByTicketSerialId || detail.replacedByTicketSerial || detail.replaceTicketSerial ? ' (đã thay)' : ''}
-                                                                    </Typography>
-                                                                )}
-                                                            </Box>
-                                                        </Stack>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
-                                                            {detail.stationName || detail.lotteryTicket?.province?.name || detail.lotteryTicket?.station?.name || detail.lotteryTicket?.stationName || 'N/A'}
-                                                        </Typography>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)' }}>
-                                                            {(detail.drawDate || detail.lotteryTicket?.drawDate)
-                                                                ? dayjs(detail.drawDate || detail.lotteryTicket?.drawDate).format("DD/MM/YYYY")
-                                                                : 'N/A'}
-                                                        </Typography>
-                                                        <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)' }}>
-                                                            {(detail.drawDate || detail.lotteryTicket?.drawDate)
-                                                                ? dayjs(detail.drawDate || detail.lotteryTicket?.drawDate).locale('vi').format("dddd")
-                                                                : 'N/A'}
-                                                        </Typography>
-                                                    </TableCell>
-
-                                                    <TableCell>
-                                                        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
-                                                            Vé thường
-                                                        </Typography>
-                                                    </TableCell>
-
-                                                    <TableCell>
-                                                        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
-                                                            {(detail.price || 10000).toLocaleString('vi-VN')}đ
-                                                        </Typography>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Chip
-                                                            label={serialBadge.label}
-                                                            size="small"
-                                                            sx={{
-                                                                fontWeight: 700,
-                                                                height: 24,
-                                                                fontSize: '0.75rem',
-                                                                borderRadius: '6px',
-                                                                color: serialBadge.color,
-                                                                bgcolor: serialBadge.bgcolor,
-                                                            }}
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Chip
-                                                            label={activityBadge.label}
-                                                            size="small"
-                                                            sx={{
-                                                                fontWeight: 700,
-                                                                height: 24,
-                                                                fontSize: '0.75rem',
-                                                                borderRadius: '6px',
-                                                                color: activityBadge.color,
-                                                                bgcolor: activityBadge.bgcolor,
-                                                            }}
-                                                        />
-                                                    </TableCell>
-                                                </TableRow>
-                                                );
-                                            })}
-                                        </TableBody>
-                                    </Table>
-                                </TableContainer>
-                                <Divider sx={{ borderStyle: 'dashed' }} />
-                                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ p: 3 }}>
-                                    <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 500 }}>
-                                        Tổng số vé: {order.orderDetails?.length || 0}
-                                    </Typography>
-                                    <Stack direction="row" alignItems="center" spacing={1}>
-                                        <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>Tổng tiền:</Typography>
-                                        <Typography variant="h6" sx={{ fontWeight: 700, color: 'var(--palette-success-main)' }}>
-                                            {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.totalAmount || 0)}
-                                        </Typography>
-                                    </Stack>
-                                </Stack>
-                            </Card>
                         )}
 
                     </Stack>
@@ -576,7 +563,7 @@ export const OrderDetailPage = () => {
                                 variant="outlined" 
                                 startIcon={<Icon icon="solar:user-id-linear" />}
                                 disabled={!((order as any).user?.id || (order as any).userId)}
-                                onClick={() => navigate(`/${prefixAdmin}/account-user/detail/${(order as any).user?.id || (order as any).userId}`)}
+                                onClick={() => router.push(`/${prefixAdmin}/account-user/detail/${(order as any).user?.id || (order as any).userId}`)}
                                 sx={{ 
                                     py: 1, 
                                     fontWeight: 700, 

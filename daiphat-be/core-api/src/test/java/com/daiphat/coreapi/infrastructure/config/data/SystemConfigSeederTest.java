@@ -113,7 +113,6 @@ class SystemConfigSeederTest {
                 .extracting(SystemConfigEntity::getConfigKey)
                 .contains(
                         "STREET_AGENT_COUNTER_RESERVE_PER_STATION",
-                        "VENDOR_DEFAULT_UNIT_PRICE",
                         "VENDOR_DEPOSIT_RATE",
                         "VENDOR_DRAFT_RESERVATION_TTL_MINUTES",
                         "VENDOR_RETURN_CUTOFF",

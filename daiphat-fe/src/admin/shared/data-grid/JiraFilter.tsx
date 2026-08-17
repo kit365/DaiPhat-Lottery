@@ -1,15 +1,16 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
-import { Popover, Button, Box, Typography, Divider, List, ListItem, ListItemButton, ListItemText, Checkbox, TextField, InputAdornment, IconButton } from '@mui/material';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Popover, Button, Box, Typography, Divider, List, ListItem, ListItemButton, ListItemText, Checkbox, TextField, InputAdornment, CircularProgress } from '@mui/material';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs from "dayjs";
-import "dayjs/locale/en-gb";
+import customParseFormat from 'dayjs/plugin/customParseFormat';
+import { AdminDatePicker } from '@/admin/components/ui/AdminDatePicker';
+import { DateRangePicker } from '@/admin/components/ui/DateRangePicker';
+
+dayjs.extend(customParseFormat);
 
 export interface Option {
     value: string;
@@ -22,11 +23,19 @@ export interface FilterField {
     id: string;
     label: string;
     options: Option[];
-    type?: 'date';
-    /** YYYY-MM-DD — chặn chọn ngày trước mốc này (DatePicker). */
+    /** `date` = AdminDatePicker; `dateRange` = DateRangePicker (shared admin calendar utils). */
+    type?: 'date' | 'dateRange';
+    /** YYYY-MM-DD — chặn chọn ngày trước mốc này (AdminDatePicker). */
     minDate?: string;
     /** false → ẩn ô tìm kiếm trong tab này (mặc định hiện). */
     searchable?: boolean;
+    /**
+     * Server-driven options: skip local label filter; parent updates `options`
+     * from {@link JiraFilterProps.onFieldSearch} / {@link JiraFilterProps.onFieldLoadMore}.
+     */
+    asyncSearch?: boolean;
+    loading?: boolean;
+    hasMore?: boolean;
 }
 
 interface JiraFilterProps {
@@ -35,22 +44,68 @@ interface JiraFilterProps {
     onFilterChange: (fieldId: string, values: string[]) => void;
     onClearAll: () => void;
     trigger?: (props: { onClick: (e: React.MouseEvent<HTMLButtonElement>) => void; totalFilterCount: number }) => React.ReactNode;
+    /** Debounced when the active field has `asyncSearch`. */
+    onFieldSearch?: (fieldId: string, query: string) => void;
+    onFieldLoadMore?: (fieldId: string) => void;
 }
 
-/** Chỉ chặn đóng khi click vào lịch DatePicker (không dùng .MuiModal-root vì Popover cũng là Modal). */
+const isRangeToken = (value: string) =>
+    value.startsWith('month:') || value.startsWith('quarter:') || value.startsWith('range:');
+
+const isoToDisplay = (iso?: string) => {
+    if (!iso) return '';
+    const parsed = dayjs(iso, 'YYYY-MM-DD', true);
+    return parsed.isValid() ? parsed.format('DD/MM/YYYY') : '';
+};
+
+const displayToIso = (display?: string) => {
+    if (!display) return '';
+    const parsed = dayjs(display, 'DD/MM/YYYY', true);
+    return parsed.isValid() ? parsed.format('YYYY-MM-DD') : '';
+};
+
+const formatSelectedDateLabel = (value: string) => {
+    if (isRangeToken(value)) {
+        const [, from, to] = value.split(':');
+        if (from && to) {
+            return from === to
+                ? `Đã chọn: ${isoToDisplay(from)}`
+                : `Đã chọn: ${isoToDisplay(from)} – ${isoToDisplay(to)}`;
+        }
+    }
+    return `Đã chọn: ${dayjs(value).format('DD/MM/YYYY')}`;
+};
+
+/** Chặn đóng JiraFilter khi đang tương tác lịch util (AdminDatePicker / DateRangePicker). */
 const isInsideDatePickerPortal = (target: EventTarget | null) => {
     if (!(target instanceof Element)) return false;
     return Boolean(
-        target.closest('.MuiPickersPopper-root, .MuiPickersLayout-root, .MuiDateCalendar-root')
+        target.closest(
+            [
+                '.admin-date-picker',
+                '.custom-date-range',
+                '.rdp-root',
+                '.MuiPickersPopper-root',
+                '.MuiPickersLayout-root',
+                '.MuiDateCalendar-root',
+            ].join(', '),
+        ),
     );
 };
 
-export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters, onFilterChange, onClearAll, trigger }) => {
+export const JiraFilter: React.FC<JiraFilterProps> = ({
+    fields,
+    selectedFilters,
+    onFilterChange,
+    onClearAll,
+    trigger,
+    onFieldSearch,
+    onFieldLoadMore,
+}) => {
     const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
     const [activeTabId, setActiveTabId] = useState<string>(fields[0]?.id || '');
     const [searchQuery, setSearchQuery] = useState('');
-    const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-    const [customDateValue, setCustomDateValue] = useState<dayjs.Dayjs | null>(null);
+    const [customDateValue, setCustomDateValue] = useState('');
 
     const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
         if (anchorEl) {
@@ -63,8 +118,7 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
     const handleClose = () => {
         setAnchorEl(null);
         setSearchQuery('');
-        setIsDatePickerOpen(false);
-        setCustomDateValue(null);
+        setCustomDateValue('');
     };
 
     const open = Boolean(anchorEl);
@@ -76,18 +130,26 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
     const activeField = fields.find(f => f.id === resolvedActiveTabId);
     const activeSelected = selectedFilters[resolvedActiveTabId] || [];
 
+    useEffect(() => {
+        if (!activeField?.asyncSearch || !onFieldSearch) return;
+        const timer = window.setTimeout(() => {
+            onFieldSearch(activeField.id, searchQuery);
+        }, 350);
+        return () => window.clearTimeout(timer);
+    }, [activeField?.asyncSearch, activeField?.id, onFieldSearch, searchQuery]);
+
     const filteredOptions = useMemo(() => {
         if (!activeField) return [];
         let baseOptions = activeField.options;
-        if (searchQuery) {
+        if (searchQuery && !activeField.asyncSearch) {
             baseOptions = baseOptions.filter(opt => opt.label.toLowerCase().includes(searchQuery.toLowerCase()));
         }
 
-        if (activeField.type === 'date') {
+        if (activeField.type === 'date' || activeField.type === 'dateRange') {
             const customSelected = activeSelected.filter(d => !activeField.options.find(o => o.value === d));
             const customOptions = customSelected.map(d => ({
                 value: d,
-                label: `Đã chọn: ${dayjs(d).format('DD/MM/YYYY')}`,
+                label: formatSelectedDateLabel(d),
                 color: '#FF3030',
                 bgColor: 'rgba(255, 48, 48, 0.08)'
             }));
@@ -162,9 +224,9 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
                 anchorEl={anchorEl}
                 disableScrollLock
                 onClose={(event, reason) => {
-                    // Escape luôn đóng; click ngoài chỉ bỏ qua nếu đang tương tác với lịch
+                    // Escape luôn đóng; click ngoài chỉ bỏ qua nếu đang tương tác với lịch util
                     if (reason === 'backdropClick' || reason === 'escapeKeyDown') {
-                        if (reason === 'backdropClick' && (isDatePickerOpen || isInsideDatePickerPortal(((event as { target?: Element })?.target as Element | null) ?? null))) {
+                        if (reason === 'backdropClick' && isInsideDatePickerPortal(((event as { target?: Element })?.target as Element | null) ?? null)) {
                             return;
                         }
                         handleClose();
@@ -339,48 +401,85 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
                                     </ListItemButton>
                                 </ListItem>
                             ))}
+
+                            {activeField?.asyncSearch && activeField.loading && filteredOptions.length === 0 ? (
+                                <Box sx={{ py: 3, display: 'flex', justifyContent: 'center' }}>
+                                    <CircularProgress size={22} />
+                                </Box>
+                            ) : null}
+
+                            {activeField?.asyncSearch && !activeField.loading && filteredOptions.length === 0 ? (
+                                <Typography variant="body2" sx={{ color: '#6B778C', textAlign: 'center', py: 2.5 }}>
+                                    Không tìm thấy kết quả
+                                </Typography>
+                            ) : null}
+
+                            {activeField?.asyncSearch && activeField.hasMore ? (
+                                <Box sx={{ pt: 1, pb: 0.5, display: 'flex', justifyContent: 'center' }}>
+                                    <Button
+                                        size="small"
+                                        variant="text"
+                                        disabled={activeField.loading}
+                                        onClick={() => onFieldLoadMore?.(activeField.id)}
+                                        sx={{ textTransform: 'none', fontWeight: 600, color: '#42526E' }}
+                                    >
+                                        {activeField.loading ? 'Đang tải…' : 'Tải thêm'}
+                                    </Button>
+                                </Box>
+                            ) : null}
                         </List>
 
                         {activeField && activeField.type === 'date' && (
                             <Box sx={{ mt: 1, borderTop: '1px solid #DFE1E6', pt: 1.5, flexShrink: 0 }}>
-                                <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="en-gb">
-                                    <DatePicker
-                                        label="Chọn ngày cụ thể"
-                                        value={customDateValue}
-                                        minDate={activeField.minDate ? dayjs(activeField.minDate) : undefined}
-                                        onOpen={() => setIsDatePickerOpen(true)}
-                                        onClose={() => setIsDatePickerOpen(false)}
-                                        slotProps={{
-                                            textField: { 
-                                                size: 'small', 
-                                                fullWidth: true,
-                                                sx: {
-                                                    '& fieldset': { borderColor: '#DFE1E6' },
-                                                    '&:hover fieldset': { borderColor: '#B3BAC5 !important' },
-                                                    '&.Mui-focused fieldset': { borderColor: '#FF3030 !important', borderWidth: '2px !important' }
-                                                }
-                                            },
-                                            popper: {
-                                                placement: 'bottom-start',
-                                                sx: { zIndex: (theme) => theme.zIndex.modal + 2 },
-                                            },
-                                        }}
-                                        onChange={(newValue) => {
-                                            setCustomDateValue(newValue);
-                                            if (newValue?.isValid()) {
-                                                const dateStr = newValue.format('YYYY-MM-DD');
-                                                if (activeField.minDate && dateStr < activeField.minDate) {
-                                                    return;
-                                                }
-                                                if (!activeSelected.includes(dateStr)) {
-                                                    onFilterChange(resolvedActiveTabId, [...activeSelected, dateStr]);
-                                                }
-                                            }
-                                        }}
-                                    />
-                                </LocalizationProvider>
+                                <AdminDatePicker
+                                    label="Chọn ngày cụ thể"
+                                    value={customDateValue || activeSelected.find((value) => !isRangeToken(value) && !activeField.options.some((opt) => opt.value === value)) || ''}
+                                    min={activeField.minDate}
+                                    onChange={(dateStr) => {
+                                        setCustomDateValue(dateStr);
+                                        if (!dateStr) return;
+                                        if (activeField.minDate && dateStr < activeField.minDate) return;
+                                        if (!activeSelected.includes(dateStr)) {
+                                            onFilterChange(resolvedActiveTabId, [...activeSelected, dateStr]);
+                                        }
+                                    }}
+                                />
                             </Box>
                         )}
+
+                        {activeField && activeField.type === 'dateRange' && (() => {
+                            const token = activeSelected.find(isRangeToken);
+                            const plainDates = activeSelected.filter((value) => !isRangeToken(value)).sort();
+                            let startDate = '';
+                            let endDate = '';
+                            if (token) {
+                                const [, from, to] = token.split(':');
+                                startDate = isoToDisplay(from);
+                                endDate = isoToDisplay(to || from);
+                            } else if (plainDates.length) {
+                                startDate = isoToDisplay(plainDates[0]);
+                                endDate = isoToDisplay(plainDates[plainDates.length - 1]);
+                            }
+
+                            return (
+                                <Box sx={{ mt: 1, borderTop: '1px solid #DFE1E6', pt: 1.5, flexShrink: 0 }}>
+                                    <DateRangePicker
+                                        label="Khoảng thời gian"
+                                        startDate={startDate}
+                                        endDate={endDate}
+                                        onChange={(range) => {
+                                            const from = displayToIso(range.startDate);
+                                            const to = displayToIso(range.endDate || range.startDate);
+                                            if (!from || !to) {
+                                                onFilterChange(resolvedActiveTabId, []);
+                                                return;
+                                            }
+                                            onFilterChange(resolvedActiveTabId, [`range:${from}:${to}`]);
+                                        }}
+                                    />
+                                </Box>
+                            );
+                        })()}
                     </Box>
                 </Box>
 

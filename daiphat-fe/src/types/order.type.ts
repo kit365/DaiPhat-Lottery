@@ -34,51 +34,93 @@ export const ORDER_DETAIL_STATUS_LABELS: Record<OrderDetailStatus, string> = {
 
 export const ORDER_DETAIL_STATUS_BADGE: Record<
     OrderDetailStatus,
-    { label: string; bg: string; text: string; color?: string; bgcolor?: string }
+    { label: string; bg: string; text: string; color: string; bgcolor: string }
 > = {
     [OrderDetailStatus.ACTIVE]: {
         label: ORDER_DETAIL_STATUS_LABELS[OrderDetailStatus.ACTIVE],
-        bg: 'bg-[#E4F8ED]',
-        text: 'text-[#1CD162]',
-        color: 'var(--palette-success-dark)',
-        bgcolor: 'var(--palette-success-lighter)',
+        bg: 'bg-[#D3FCD2]',
+        text: 'text-[#118D57]',
+        color: 'var(--palette-success-dark, #118D57)',
+        bgcolor: 'var(--palette-success-lighter, #D3FCD2)',
     },
     [OrderDetailStatus.INACTIVE]: {
         label: ORDER_DETAIL_STATUS_LABELS[OrderDetailStatus.INACTIVE],
-        bg: 'bg-[#F4F6F8]',
+        bg: 'bg-[rgba(145,158,171,0.16)]',
         text: 'text-[#637381]',
-        color: 'var(--palette-text-secondary)',
-        bgcolor: 'var(--palette-background-neutral)',
+        color: 'var(--palette-text-secondary, #637381)',
+        bgcolor: 'var(--palette-action-selected, rgba(145, 158, 171, 0.16))',
     },
     [OrderDetailStatus.REFUND_PENDING]: {
         label: ORDER_DETAIL_STATUS_LABELS[OrderDetailStatus.REFUND_PENDING],
-        bg: 'bg-[#FFF9F3]',
+        bg: 'bg-[#FFF5CC]',
         text: 'text-[#B76E00]',
-        color: 'var(--palette-warning-dark)',
-        bgcolor: 'var(--palette-warning-lighter)',
+        color: 'var(--palette-warning-dark, #B76E00)',
+        bgcolor: 'var(--palette-warning-lighter, #FFF5CC)',
     },
     [OrderDetailStatus.REFUNDED]: {
         label: ORDER_DETAIL_STATUS_LABELS[OrderDetailStatus.REFUNDED],
-        bg: 'bg-[#F0F5FF]',
-        text: 'text-[#2065D1]',
-        color: 'var(--palette-info-dark)',
-        bgcolor: 'var(--palette-info-lighter)',
+        bg: 'bg-[#CAFDF5]',
+        text: 'text-[#006C9C]',
+        color: 'var(--palette-info-dark, #006C9C)',
+        bgcolor: 'var(--palette-info-lighter, #CAFDF5)',
     },
 };
 
-export function resolveOrderDetailStatusBadge(status?: string | null) {
+export function resolveOrderDetailStatusBadge(
+    status?: string | null,
+    statusDisplayName?: string | null
+) {
     if (!status) {
-        return ORDER_DETAIL_STATUS_BADGE[OrderDetailStatus.ACTIVE];
+        const badge = ORDER_DETAIL_STATUS_BADGE[OrderDetailStatus.ACTIVE];
+        return statusDisplayName ? { ...badge, label: statusDisplayName } : badge;
     }
     const key = status as OrderDetailStatus;
-    return ORDER_DETAIL_STATUS_BADGE[key] ?? {
-        label: status,
-        bg: 'bg-[#F4F6F8]',
+    const badge = ORDER_DETAIL_STATUS_BADGE[key];
+    if (badge) {
+        return statusDisplayName ? { ...badge, label: statusDisplayName } : badge;
+    }
+    return {
+        label: statusDisplayName || status,
+        bg: 'bg-[rgba(145,158,171,0.16)]',
         text: 'text-[#637381]',
-        color: 'var(--palette-text-secondary)',
-        bgcolor: 'var(--palette-background-neutral)',
+        color: 'var(--palette-text-secondary, #637381)',
+        bgcolor: 'var(--palette-action-selected, rgba(145, 158, 171, 0.16))',
     };
 }
+
+export function getOrderDetailStatusAdminBadgeModifier(status?: string | null): string {
+    switch (status) {
+        case OrderDetailStatus.ACTIVE:
+        case 'ACTIVE':
+            return 'admin-status-badge--success';
+        case OrderDetailStatus.INACTIVE:
+        case 'INACTIVE':
+            return 'admin-status-badge--inactive';
+        case OrderDetailStatus.REFUND_PENDING:
+        case 'REFUND_PENDING':
+            return 'admin-status-badge--pending';
+        case OrderDetailStatus.REFUNDED:
+        case 'REFUNDED':
+            return 'admin-status-badge--active';
+        default:
+            return 'admin-status-badge--draft';
+    }
+}
+
+const SERIAL_STATUS_LABELS: Record<string, string> = {
+    IN_STOCK: 'Trong kho',
+    RESERVED: 'Đang giữ chỗ',
+    PROXY_HOLDING: 'Đại lý giữ hộ',
+    SOLD: 'Đã bán',
+    EXPIRED: 'Hết hạn',
+};
+
+const TICKET_CONDITION_LABELS: Record<string, string> = {
+    GOOD: 'Tốt',
+    DAMAGED: 'Hỏng',
+    LOST: 'Thất lạc',
+    VOIDED: 'Đã hủy',
+};
 
 /** Badge for lottery-ticket-serial status shown on order-detail lists. */
 export function resolveLotteryTicketSerialStatusBadge(
@@ -112,21 +154,6 @@ export function resolveLotteryTicketSerialStatusBadge(
             return { label, color: '#64748b', bgcolor: '#f1f5f9' };
     }
 }
-
-const SERIAL_STATUS_LABELS: Record<string, string> = {
-    IN_STOCK: 'Trong kho',
-    RESERVED: 'Đang giữ chỗ',
-    PROXY_HOLDING: 'Đại lý giữ hộ',
-    SOLD: 'Đã bán',
-    EXPIRED: 'Hết hạn',
-};
-
-const TICKET_CONDITION_LABELS: Record<string, string> = {
-    GOOD: 'Tốt',
-    DAMAGED: 'Hỏng',
-    LOST: 'Thất lạc',
-    VOIDED: 'Đã hủy',
-};
 
 export interface OrderTicketItemRequest {
     lotteryTicketId: number;

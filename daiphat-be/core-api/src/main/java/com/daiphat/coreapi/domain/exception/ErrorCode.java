@@ -72,6 +72,12 @@ public enum ErrorCode {
     IMAGE_FILE_REQUIRED("SYS_007", "Vui lòng chọn một tệp hình ảnh.", HttpStatus.BAD_REQUEST),
     IMAGE_INVALID_TYPE("SYS_008", "Chỉ hỗ trợ tải lên các tệp định dạng hình ảnh.", HttpStatus.BAD_REQUEST),
     IMAGE_UPLOAD_FAILED("SYS_009", "Không thể tải ảnh lên. Vui lòng kiểm tra cấu hình lưu trữ hoặc thử lại.", HttpStatus.BAD_GATEWAY),
+    CONTRACT_TEMPLATE_NOT_FOUND("SYS_010", "Chưa cấu hình mẫu hợp đồng cho loại này.", HttpStatus.NOT_FOUND),
+    CONTRACT_NOT_FOUND("SYS_011", "Hợp đồng không tồn tại.", HttpStatus.NOT_FOUND),
+    CONTRACT_DEFAULT_REQUIRED("SYS_012", "Không thể xóa hợp đồng đang là mặc định. Hãy đặt mặc định cho bản khác trước.", HttpStatus.BAD_REQUEST),
+    CONTRACT_LAST_OF_TYPE("SYS_013", "Phải giữ lại ít nhất một hợp đồng cho mỗi loại.", HttpStatus.BAD_REQUEST),
+    CONTRACT_INVALID_TYPE("SYS_014", "Loại hợp đồng không hợp lệ.", HttpStatus.BAD_REQUEST),
+    CONTRACT_ARTICLES_REQUIRED("SYS_015", "Hợp đồng cần có ít nhất một điều khoản.", HttpStatus.BAD_REQUEST),
     PASSWORD_CONFIRM_MISMATCH("AUTH_030", "Xác nhận mật khẩu không khớp", HttpStatus.BAD_REQUEST),
     ACCESS_DENIED("AUTH_031", "Bạn không có quyền truy cập tài nguyên này.", HttpStatus.FORBIDDEN),
 
@@ -136,14 +142,25 @@ public enum ErrorCode {
     PRIZE_PAYOUT_ALREADY_REQUESTED("ORD_042", "Vé đã có yêu cầu trả thưởng hoặc đã được trả.", HttpStatus.BAD_REQUEST),
     PRIZE_PAYOUT_BANK_ACCOUNT_MISMATCH("ORD_043", "Tài khoản ngân hàng không thuộc khách hàng.", HttpStatus.BAD_REQUEST),
     PRIZE_PAYOUT_CODE_GENERATION_FAILED("ORD_044", "Không thể tạo mã yêu cầu trả thưởng.", HttpStatus.INTERNAL_SERVER_ERROR),
-    PRIZE_PAYOUT_BANK_NAME_MISMATCH("ORD_045", "Tên chủ tài khoản ngân hàng không khớp tên khách hàng.", HttpStatus.BAD_REQUEST),
     PRIZE_PAYOUT_BLOCKS_PICKUP("ORD_046", "Vé đang có yêu cầu trả thưởng — không thể nhận vé vật lý.", HttpStatus.BAD_REQUEST),
     PRIZE_PAYOUT_REQUIRES_IN_PERSON("ORD_047", "Vé này bắt buộc đổi thưởng trực tiếp tại đại lý.", HttpStatus.BAD_REQUEST),
     PRIZE_PAYOUT_FOUR_EYES_REQUIRED("ORD_048", "Giao dịch từ ngưỡng thuế trở lên cần nhân viên khác xác nhận trả thưởng.", HttpStatus.BAD_REQUEST),
     PRIZE_PAYOUT_RECIPIENT_IDENTITY_REQUIRED("ORD_049", "Cần thu thập CCCD / tên người nhận trước khi tạo yêu cầu.", HttpStatus.BAD_REQUEST),
+    PRIZE_PAYOUT_CONTRACT_INCOMPLETE("ORD_050", "Cần chọn vé trúng và nhập họ tên, số CCCD người nhận để lập hợp đồng xác nhận trả thưởng.", HttpStatus.BAD_REQUEST),
+    PRIZE_PAYOUT_CONTRACT_DOCUMENT_INVALID_TYPE("ORD_051", "Chỉ chấp nhận file PDF, JPG hoặc PNG cho bản hợp đồng đã ký.", HttpStatus.BAD_REQUEST),
 
     // Lottery Errors
     // Lottery Product Errors
+    LOTTERY_STATION_CODE_EXISTED(
+            "LT_136",
+            "Mã nhà đài \"%s\" đã được dùng cho một nhà đài khác.",
+            HttpStatus.BAD_REQUEST
+    ),
+    LOTTERY_STATION_CODE_UNRESOLVABLE(
+            "LT_137",
+            "Không tạo được mã từ tên nhà đài. Vui lòng nhập mã thủ công.",
+            HttpStatus.BAD_REQUEST
+    ),
     LOTTERY_STATION_NOT_FOUND("LT_001", "Nhà đài không tồn tại.", HttpStatus.NOT_FOUND),
     LOTTERY_STATION_NAME_EXISTED("LT_002", "Tên nhà đài đã tồn tại.", HttpStatus.BAD_REQUEST),
     LOTTERY_STATION_INVALID_STATUS("LT_003", "Trạng thái sản phẩm không hợp lệ cho thao tác này.", HttpStatus.BAD_REQUEST),
@@ -427,6 +444,78 @@ public enum ErrorCode {
             HttpStatus.BAD_REQUEST
     ),
 
+    // Import batch file import (.csv / .xlsx)
+    IMPORT_BATCH_FILE_REQUIRED(
+            "LT_125",
+            "Vui lòng chọn tệp cần nhập.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_FILE_UNSUPPORTED_FORMAT(
+            "LT_126",
+            "Chỉ hỗ trợ tệp .csv hoặc .xlsx.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_FILE_TOO_LARGE(
+            "LT_127",
+            "Tệp vượt quá dung lượng cho phép (%d MB).",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_FILE_TOO_MANY_ROWS(
+            "LT_128",
+            "Tệp vượt quá số dòng cho phép (%d dòng).",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_FILE_UNREADABLE(
+            "LT_129",
+            "Không đọc được nội dung tệp. Vui lòng kiểm tra lại định dạng.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_FILE_HEADER_NOT_FOUND(
+            "LT_130",
+            "Không tìm thấy dòng tiêu đề trong tệp.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_FILE_COLUMN_NOT_FOUND(
+            "LT_131",
+            "Cột \"%s\" không tồn tại trong tệp.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_FILE_DRAW_DATE_SOURCE_REQUIRED(
+            "LT_132",
+            "Cần chọn cột ngày quay hoặc chỉ định ngày quay mặc định.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_FILE_ALREADY_IMPORTED(
+            "LT_133",
+            "Tệp này đã được dùng để tạo phiếu nhập cho ngày quay %s.",
+            HttpStatus.CONFLICT
+    ),
+    IMPORT_BATCH_FILE_CHANGED(
+            "LT_134",
+            "Tệp đã thay đổi so với lúc xem trước. Vui lòng xem trước lại.",
+            HttpStatus.CONFLICT
+    ),
+    IMPORT_BATCH_FILE_MAPPING_PROFILE_NOT_FOUND(
+            "LT_138",
+            "Cấu hình cột đã lưu không tồn tại.",
+            HttpStatus.NOT_FOUND
+    ),
+    IMPORT_BATCH_TICKET_LIST_IMAGE_TOO_LARGE(
+            "LT_139",
+            "Ảnh danh sách vé nhập vượt quá dung lượng cho phép (%d MB).",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_TICKET_LIST_IMAGE_TOO_MANY(
+            "LT_140",
+            "Số ảnh danh sách vé nhập vượt quá giới hạn cho phép (%d ảnh).",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_FILE_TICKET_COLUMNS_INCOMPLETE(
+            "LT_135",
+            "Nhập vé cần cả cột dãy số và cột sê-ri.",
+            HttpStatus.BAD_REQUEST
+    ),
+
     // Street Agent Profile Errors
     STREET_AGENT_PROFILE_NOT_FOUND("SAG_001", "Hồ sơ đại lý bán dạo không tồn tại.", HttpStatus.NOT_FOUND),
     STREET_AGENT_PROFILE_PHONE_EXISTED("SAG_002", "Số điện thoại đã được sử dụng cho hồ sơ khác.", HttpStatus.BAD_REQUEST),
@@ -441,6 +530,8 @@ public enum ErrorCode {
     VENDOR_ALLOCATION_OPEN_BATCH_EXISTS("SAG_010", "Vendor vẫn còn phiếu bàn giao chưa quyết toán.", HttpStatus.CONFLICT),
     VENDOR_ALLOCATION_SERIAL_INVALID("SAG_011", "Có vé không hợp lệ để bàn giao.", HttpStatus.CONFLICT),
     VENDOR_ALLOCATION_COUNTER_RESERVE_VIOLATED("SAG_012", "Phải chừa đủ vé thường cho quầy tại mỗi đài.", HttpStatus.BAD_REQUEST),
+    VENDOR_ALLOCATION_SHORTFALL_CONFIRMATION_REQUIRED("SAG_022", "Số vé được phép giao ít hơn nhu cầu. Cần xác nhận bàn giao thiếu.", HttpStatus.CONFLICT),
+    VENDOR_ALLOCATION_SUGGESTION_STALE("SAG_023", "Dữ liệu tồn kho đã thay đổi. Vui lòng tải lại gợi ý bàn giao.", HttpStatus.CONFLICT),
     VENDOR_ALLOCATION_LUCKY_OVERRIDE_REQUIRED("SAG_013", "Vé số đẹp chỉ được bàn giao khi có quyền và nêu rõ lý do.", HttpStatus.FORBIDDEN),
     STREET_AGENT_CONTRACT_DOCUMENT_INVALID_TYPE("SAG_014", "Chỉ chấp nhận file PDF, JPG hoặc PNG cho bản hợp đồng đã ký.", HttpStatus.BAD_REQUEST),
     STREET_AGENT_CONTRACT_DOCUMENT_REQUIRED("SAG_015", "Vui lòng chọn file bản hợp đồng đã ký.", HttpStatus.BAD_REQUEST),
@@ -455,7 +546,7 @@ public enum ErrorCode {
             HttpStatus.BAD_REQUEST),
     VENDOR_ALLOCATION_DAILY_CAP_MISSING(
             "SAG_019",
-            "Hạn mức vé ngày (dailyTicketCap) chưa được cấu hình hoặc phải lớn hơn 0.",
+            "Hạn mức vé/ngày theo hợp đồng chưa được cấu hình hoặc phải lớn hơn 0.",
             HttpStatus.BAD_REQUEST),
     VENDOR_ALLOCATION_PROFILE_INACTIVE(
             "SAG_020",
@@ -477,6 +568,38 @@ public enum ErrorCode {
             "SAG_024",
             "Chưa đính kèm bản hợp đồng đã ký. Vendor chưa được nhận vé.",
             HttpStatus.BAD_REQUEST),
+    DAILY_SALES_REPORT_NOT_FOUND(
+            "SAG_025",
+            "Báo cáo bán hàng ngày không tồn tại.",
+            HttpStatus.NOT_FOUND),
+    VENDOR_SETTLEMENT_CASH_MISMATCH(
+            "SAG_027",
+            "Số tiền xác nhận không khớp với số tiền quyết toán hệ thống.",
+            HttpStatus.BAD_REQUEST),
+    VENDOR_ALLOCATION_QUOTE_STALE(
+            "SAG_028",
+            "Báo giá cọc đã thay đổi. Vui lòng tải lại trước khi xác nhận bàn giao.",
+            HttpStatus.CONFLICT),
+    VENDOR_SETTLEMENT_PREVIEW_STALE(
+            "SAG_029",
+            "Bản tính quyết toán đã thay đổi. Vui lòng tải lại trước khi xác nhận.",
+            HttpStatus.CONFLICT),
+    VENDOR_ALLOCATION_RETURN_CUTOFF_REACHED(
+            "SAG_030",
+            "Đã qua giờ chốt bàn giao vé trong ngày.",
+            HttpStatus.CONFLICT),
+    VENDOR_ALLOCATION_BUSINESS_DATE_PASSED(
+            "SAG_031",
+            "Ngày kinh doanh đã qua, không thể tạo hoặc xác nhận bàn giao vé.",
+            HttpStatus.CONFLICT),
+    VENDOR_ALLOCATION_OPERATIONAL_DEADLINE_REACHED(
+            "SAG_032",
+            "Đã qua thời điểm cuối có thể bàn giao vé sau khi tính giờ chốt và thời gian chuẩn bị trả vé.",
+            HttpStatus.CONFLICT),
+    VENDOR_ALLOCATION_SUPPLIER_RETURN_CUTOFF_MISSING(
+            "SAG_033",
+            "Chưa cấu hình giờ Đại Phát cần nhận lại vé cho một hoặc nhiều vé đã chọn, nên không thể xác nhận bàn giao.",
+            HttpStatus.CONFLICT),
 
     // Support Ticket Errors
     TICKET_NOT_FOUND("TKT_001", "Yêu cầu hỗ trợ không tồn tại.", HttpStatus.NOT_FOUND),

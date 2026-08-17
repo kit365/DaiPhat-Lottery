@@ -1,11 +1,10 @@
 "use client";
 
 import { Box, Stack, TextField, ThemeProvider, useTheme, MenuItem, Select, FormControl, InputLabel, FormHelperText, createTheme, Autocomplete, CircularProgress } from "@mui/material"
-import { LoadingButton } from "../../../../components/ui/LoadingButton";
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb"
-import { Title } from "../../../../components/ui/Title"
+import { Button } from "../../../../components/ui/Button";
+import { PageHeader } from "../../../../components/ui/PageHeader"
 import { useState, type Dispatch, type SetStateAction } from "react"
-import { Tiptap } from "../../../../components/layouts/titap/Tiptap"
+import { LazyTiptap } from "../../../../components/layouts/titap/LazyTiptap"
 import { CollapsibleCard } from "../../../../components/ui/CollapsibleCard"
 import { useCreateBlog, useBlogTypes, useBlogStatuses } from "../../hooks/useBlog";
 import { useBlogTags } from "../../hooks/useBlogTag";
@@ -110,18 +109,14 @@ export const BlogCreatePage = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title="Tạo mới bài viết" />
-                    <Breadcrumb
-                        items={[
+            <PageHeader
+                title="Tạo mới bài viết"
+                breadcrumbItems={[
                             { label: "Bảng điều khiển", to: "/" },
                             { label: "Danh sách bài viết", to: `/${prefixAdmin}/blog/list` },
                             { label: "Tạo mới" }
                         ]}
-                    />
-                </div>
-            </div>
+            />
             <>
                 <form onSubmit={handleSubmit(onSubmit)}>
                     <Stack sx={{
@@ -169,7 +164,7 @@ export const BlogCreatePage = () => {
                                     control={control}
                                     render={({ field, fieldState }) => (
                                         <Box>
-                                            <Tiptap
+                                            <LazyTiptap
                                                 value={field.value ?? ""}
                                                 onChange={field.onChange}
                                             />
@@ -313,7 +308,7 @@ export const BlogCreatePage = () => {
                             </Stack>
                         </CollapsibleCard>
                         <Box gap="calc(3 * var(--spacing))" sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
-                            <LoadingButton
+                            <Button
                                 type="submit"
                                 loading={isPending || isUploading}
                                 label="Tạo mới bài viết"

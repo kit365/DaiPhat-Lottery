@@ -40,6 +40,25 @@ export const TICKET_STATUS_LABELS: Record<TicketStatus, string> = {
     [TicketStatus.CLOSED]: 'Đã đóng',
 };
 
+export const getTicketStatusBadgeClass = (status: TicketStatus) => {
+    switch (status) {
+        case TicketStatus.OPEN:
+            return 'admin-status-badge--draft';
+        case TicketStatus.IN_PROGRESS:
+            return 'admin-status-badge--active';
+        case TicketStatus.WAITING_FOR_CUSTOMER:
+            return 'admin-status-badge--pending';
+        case TicketStatus.RESOLVED:
+            return 'admin-status-badge--success';
+        case TicketStatus.REJECTED:
+            return 'admin-status-badge--inactive';
+        case TicketStatus.CLOSED:
+            return 'admin-status-badge--draft';
+        default:
+            return 'admin-status-badge--draft';
+    }
+};
+
 export const TICKET_REF_TYPE_LABELS: Record<TicketRefType, string> = {
     [TicketRefType.ORDER]: 'Đơn hàng',
     [TicketRefType.PAYMENT_TRANSACTION]: 'Giao dịch thanh toán',
@@ -114,6 +133,11 @@ export function isTerminalTicketStatus(status: TicketStatus): boolean {
 
 /** Customer may cancel/withdraw unless the ticket is already finished. */
 export function canCustomerCancelTicket(status: TicketStatus): boolean {
+    return !isTerminalTicketStatus(status);
+}
+
+/** Customer may confirm and close while the ticket is still open. */
+export function canCustomerConfirmTicket(status: TicketStatus): boolean {
     return !isTerminalTicketStatus(status);
 }
 

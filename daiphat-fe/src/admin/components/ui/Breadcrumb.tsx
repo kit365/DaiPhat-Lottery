@@ -1,8 +1,8 @@
-import { Link as RouterLink } from "react-router-dom";
+import Link from "@/admin/components/navigation/AdminLink";
 import Breadcrumbs from "@mui/material/Breadcrumbs";
 import { Typography } from "@mui/material";
 
-type BreadcrumbItem = {
+export type BreadcrumbItem = {
     label: string;
     to?: string;
     onClick?: () => void;
@@ -32,8 +32,8 @@ export const Breadcrumb = ({ items }: BreadcrumbProps) => {
                 item.to ? (
                     <Typography
                         key={index}
-                        component={RouterLink}
-                        to={item.to}
+                        component={Link}
+                        href={item.to}
                         sx={{ fontSize: '0.875rem', color: '#1C252E', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
                     >
                         {item.label}

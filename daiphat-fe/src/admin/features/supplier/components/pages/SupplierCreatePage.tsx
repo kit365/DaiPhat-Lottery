@@ -1,29 +1,49 @@
 "use client";
 
-import { Box, Stack } from '@mui/material';
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import {
+    Box,
+    Grid,
+} from '@mui/material';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from '@/components/router-compat';
 import { toast } from 'react-toastify';
-import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
-import { Title } from '../../../../components/ui/Title';
-import { CollapsibleCard } from '../../../../components/ui/CollapsibleCard';
-import { LoadingButton } from '../../../../components/ui/LoadingButton';
+import { PageHeader } from '../../../../components/ui/PageHeader';
 import { ROUTES } from '../../../../constants/routes';
 import { useCreateSupplier } from '../../hooks/useSupplier';
 import { SupplierFormFields } from '../sections/SupplierFormFields';
-import { supplierFormSchema, SupplierFormValues, supplierFormDefaultValues } from '../../schemas/supplier.schema';
+import { SupplierSidebarPanel } from '../sections/SupplierSidebarPanel';
+import {
+    supplierFormSchema,
+    SupplierFormValues,
+    supplierFormDefaultValues,
+} from '../../schemas/supplier.schema';
 import {
     getMissingSupplierFields,
     scrollToFirstMissingField,
     SupplierActivationField,
 } from '../../utils/supplier-activation';
 
+/** Helper to generate code slug from Vietnamese supplier name */
+const generateSupplierCode = (name: string): string => {
+    const slug = name
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'D')
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_|_$/g, '');
+    return slug.startsWith('NCC_') ? slug : slug ? `NCC_${slug}` : '';
+};
+
 export const SupplierCreatePage = () => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const { mutateAsync, isPending } = useCreateSupplier();
     const [activationErrorsVisible, setActivationErrorsVisible] = useState(false);
+    const [userEditedCode, setUserEditedCode] = useState(false);
 
     const { control, handleSubmit, watch, setValue } = useForm<SupplierFormValues>({
         resolver: zodResolver(supplierFormSchema),
@@ -31,6 +51,18 @@ export const SupplierCreatePage = () => {
     });
 
     const watchedValues = watch();
+    const watchedName = watch('name');
+
+    // Auto generate code from name if user hasn't manually edited it
+    useEffect(() => {
+        if (!userEditedCode && watchedName) {
+            const autoCode = generateSupplierCode(watchedName);
+            if (autoCode) {
+                setValue('code', autoCode, { shouldValidate: true });
+            }
+        }
+    }, [watchedName, userEditedCode, setValue]);
+
     const missingFields = useMemo(() => {
         if (!activationErrorsVisible) {
             return [];
@@ -41,7 +73,8 @@ export const SupplierCreatePage = () => {
     const handleActiveToggle = (nextActive: boolean) => {
         if (!nextActive) {
             setActivationErrorsVisible(false);
-            return true;
+            setValue('isActive', false);
+            return;
         }
 
         const missing = getMissingSupplierFields(watchedValues);
@@ -49,11 +82,11 @@ export const SupplierCreatePage = () => {
             setActivationErrorsVisible(true);
             requestAnimationFrame(() => scrollToFirstMissingField(missing));
             toast.warning('Vui lòng hoàn tất thông tin bắt buộc trước khi kích hoạt nhà cung cấp.');
-            return false;
+            return;
         }
 
         setActivationErrorsVisible(false);
-        return true;
+        setValue('isActive', true);
     };
 
     const onSubmit = async (data: SupplierFormValues) => {
@@ -85,7 +118,7 @@ export const SupplierCreatePage = () => {
             });
             if (res.success) {
                 toast.success(res.message || 'Tạo nhà cung cấp thành công.');
-                navigate(ROUTES.ADMIN.SUPPLIER.LIST);
+                router.push(ROUTES.ADMIN.SUPPLIER.LIST);
             } else {
                 toast.error(res.message || 'Tạo nhà cung cấp thất bại.');
             }
@@ -104,35 +137,40 @@ export const SupplierCreatePage = () => {
     };
 
     return (
-        <Box sx={{ maxWidth: 900, mx: 'auto' }}>
-            <Breadcrumb
-                items={[
+        <Box sx={{ maxWidth: 1200, mx: 'auto', pb: 8 }}>
+            <PageHeader
+                title="Thêm nhà cung cấp mới"
+                breadcrumbItems={[
                     { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
                     { label: 'Nhà cung cấp', to: ROUTES.ADMIN.SUPPLIER.LIST },
                     { label: 'Thêm mới' },
                 ]}
             />
-            <Title title="Thêm nhà cung cấp" />
 
             <form onSubmit={handleSubmit(onSubmit)} noValidate>
-                <CollapsibleCard title="Thông tin nhà cung cấp" expanded onToggle={() => undefined}>
-                    <Stack spacing={3} sx={{ p: 3 }}>
+                <Grid container spacing={3}>
+                    {/* Left Column: Form Detail Sections */}
+                    <Grid size={{ xs: 12, lg: 8 }}>
                         <SupplierFormFields
                             control={control}
                             missingFields={missingFields}
+                            isEdit={false}
+                            onUserEditedCode={() => setUserEditedCode(true)}
+                        />
+                    </Grid>
+
+                    {/* Right Column: Sticky Sidebar Panel */}
+                    <Grid size={{ xs: 12, lg: 4 }}>
+                        <SupplierSidebarPanel
+                            values={watchedValues}
                             onActiveToggle={handleActiveToggle}
-                            hideIsActive={true}
+                            onSubmit={handleSubmit(onSubmit)}
+                            onCancel={() => router.push(ROUTES.ADMIN.SUPPLIER.LIST)}
+                            isPending={isPending}
+                            isEdit={false}
                         />
-                        <LoadingButton
-                            type="submit"
-                            variant="contained"
-                            loading={isPending}
-                            label="Lưu"
-                            loadingLabel="Đang lưu..."
-                            sx={{ alignSelf: 'flex-end' }}
-                        />
-                    </Stack>
-                </CollapsibleCard>
+                    </Grid>
+                </Grid>
             </form>
         </Box>
     );

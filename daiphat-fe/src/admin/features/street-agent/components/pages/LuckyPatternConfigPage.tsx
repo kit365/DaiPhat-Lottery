@@ -2,37 +2,21 @@
 
 import { useMemo, useState } from "react";
 import {
-    Box,
-    Button,
-    Card,
-    Chip,
-    CircularProgress,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogTitle,
-    FormControlLabel,
-    IconButton,
-    MenuItem,
-    Stack,
-    Switch,
-    TextField,
-    Typography,
-} from "@mui/material";
-import { DataGrid, GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
+    Box, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, IconButton, InputAdornment, MenuItem, Stack, Switch, TextField, Tooltip, Typography } from '@mui/material';
+import type { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
+import { LazyDataGrid } from "@/admin/shared/data-grid/LazyDataGrid";
 import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "react-toastify";
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
-import { Title } from "../../../../components/ui/Title";
-import { LoadingButton } from "../../../../components/ui/LoadingButton";
+import { PageHeader } from "../../../../components/ui/PageHeader";
+import { Button } from '../../../../components/ui/Button';
 import { CanAccess } from "../../../../components/auth/CanAccess";
 import { ROUTES } from "../../../../constants/routes";
 import { PERMISSIONS } from "../../../../constants/permission.constants";
-import { DATA_GRID_LOCALE_VN } from "../../../../../shared/components/DataTable/localeText.config";
+import { DATA_GRID_LOCALE_VN } from "@/admin/components/data-grid/localeText.config";
 import { dataGridStyles } from "../../../../shared/data-grid";
 import { EditIcon } from "../../../../assets/icons";
 import {
@@ -56,6 +40,15 @@ const fieldSx = {
         borderRadius: "var(--shape-borderRadius)",
         fontSize: "0.875rem",
     },
+};
+
+const toPickerHex = (value?: string | null) => {
+    const raw = (value || "#F59E0B").trim();
+    if (/^#[0-9A-Fa-f]{6}$/.test(raw)) return raw;
+    if (/^#[0-9A-Fa-f]{3}$/.test(raw)) {
+        return `#${raw[1]}${raw[1]}${raw[2]}${raw[2]}${raw[3]}${raw[3]}`;
+    }
+    return "#F59E0B";
 };
 
 const defaultFormValues: UpsertLuckyPatternConfigFormValues = {
@@ -154,20 +147,20 @@ export const LuckyPatternConfigPage = () => {
             {
                 field: "name",
                 headerName: "Tên",
-                flex: 1.2,
-                minWidth: 180,
+                flex: 0.7,
+                minWidth: 140,
             },
             {
                 field: "patternType",
                 headerName: "Loại",
-                width: 160,
+                width: 200,
                 valueFormatter: (value) => LUCKY_PATTERN_TYPE_LABELS[value as string] || value,
             },
             {
                 field: "rule",
                 headerName: "Quy tắc",
-                flex: 1,
-                minWidth: 180,
+                flex: 0.6,
+                minWidth: 140,
                 valueGetter: (_value, row) =>
                     row.patternType === "EXACT"
                         ? row.exactNumbers || "—"
@@ -175,24 +168,61 @@ export const LuckyPatternConfigPage = () => {
             },
             {
                 field: "badgeLabel",
-                headerName: "Badge",
+                headerName: "Ký hiệu màu",
                 width: 140,
-                renderCell: (params: GridRenderCellParams) => (
-                    <Chip
-                        size="small"
-                        label={params.row.badgeLabel}
-                        sx={{
-                            fontWeight: 700,
-                            bgcolor: params.row.badgeColor || "rgba(245, 158, 11, 0.16)",
-                            color: params.row.badgeColor ? "#fff" : "rgb(183, 110, 0)",
-                        }}
-                    />
-                ),
+                align: "center",
+                headerAlign: "center",
+                sortable: false,
+                renderCell: (params: GridRenderCellParams) => {
+                    const color = params.row.badgeColor || "#F59E0B";
+                    const label = params.row.badgeLabel || "Ký hiệu màu";
+                    return (
+                        <Box
+                            sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                width: "100%",
+                                height: "100%",
+                            }}
+                        >
+                            <Tooltip title={label} arrow>
+                                <Box
+                                    aria-label={label}
+                                    sx={{
+                                        width: 16,
+                                        height: 16,
+                                        borderRadius: "50%",
+                                        bgcolor: color,
+                                        border: "1px solid rgba(28, 37, 46, 0.16)",
+                                        flexShrink: 0,
+                                    }}
+                                />
+                            </Tooltip>
+                        </Box>
+                    );
+                },
             },
             {
                 field: "priority",
                 headerName: "Ưu tiên",
-                width: 100,
+                width: 130,
+                align: "center",
+                headerAlign: "center",
+                renderCell: (params: GridRenderCellParams) => (
+                    <Box
+                        sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: "100%",
+                            height: "100%",
+                            fontWeight: 600,
+                        }}
+                    >
+                        {params.value ?? "—"}
+                    </Box>
+                ),
             },
             {
                 field: "active",
@@ -229,40 +259,38 @@ export const LuckyPatternConfigPage = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end flex-wrap">
-                <div className="mr-auto">
-                    <Title title="Cấu hình số đẹp" />
-                    <Breadcrumb
-                        items={[
-                            { label: "Dashboard", to: "/" },
-                            { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
-                            { label: "Số đẹp" },
-                        ]}
-                    />
-                </div>
-                <CanAccess permission={PERMISSIONS.STREET_AGENT.EDIT}>
-                    <Stack direction="row" spacing={1.5}>
-                        <Button
-                            variant="outlined"
-                            startIcon={<RefreshIcon />}
-                            disabled={isRecomputing}
-                            onClick={() =>
-                                recompute(undefined, {
-                                    onSuccess: (response) =>
-                                        toast.success(response.message || "Đã đánh dấu lại số đẹp."),
-                                    onError: (error: any) =>
-                                        toast.error(error.response?.data?.message || "Recompute thất bại"),
-                                })
-                            }
-                        >
-                            Đánh dấu lại vé tồn
-                        </Button>
-                        <Button className="btn-primary-admin" variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
-                            Thêm cấu hình
-                        </Button>
-                    </Stack>
-                </CanAccess>
-            </div>
+            <PageHeader
+                title="Cấu hình số đẹp"
+                breadcrumbItems={[
+                    { label: "Dashboard", to: "/" },
+                    { label: "Vé số" },
+                    { label: "Cấu hình số đẹp" },
+                ]}
+                action={
+                    <CanAccess permission={PERMISSIONS.STREET_AGENT.EDIT}>
+                        <Stack direction="row" spacing={1.5}>
+                            <Button
+                                variant="outlined"
+                                startIcon={<RefreshIcon />}
+                                disabled={isRecomputing}
+                                onClick={() =>
+                                    recompute(undefined, {
+                                        onSuccess: (response) =>
+                                            toast.success(response.message || "Đã áp dụng cấu hình cho toàn bộ vé."),
+                                        onError: (error: any) =>
+                                            toast.error(error.response?.data?.message || "Recompute thất bại"),
+                                    })
+                                }
+                            >
+                                Áp dụng toàn bộ vé
+                            </Button>
+                            <Button className="btn-primary-admin" variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
+                                Thêm cấu hình
+                            </Button>
+                        </Stack>
+                    </CanAccess>
+                }
+            />
 
             <Card
                 elevation={0}
@@ -274,7 +302,7 @@ export const LuckyPatternConfigPage = () => {
                 }}
             >
                 <Box sx={{ width: "100%", minHeight: 520 }}>
-                    <DataGrid
+                    <LazyDataGrid
                         className="admin-datagrid"
                         rows={patterns}
                         getRowId={(row) => row.id}
@@ -296,17 +324,52 @@ export const LuckyPatternConfigPage = () => {
                 </Box>
             </Card>
 
-            <Dialog open={openDialog} onClose={() => setOpenDialog(false)} fullWidth maxWidth="sm">
-                <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <Typography variant="h6" component="div" sx={{ fontWeight: 700 }}>
+            <Dialog
+                open={openDialog}
+                onClose={() => setOpenDialog(false)}
+                fullWidth
+                maxWidth="sm"
+                scroll="paper"
+                PaperProps={{
+                    className: "admin-theme",
+                    sx: {
+                        borderRadius: "16px",
+                        boxShadow: "var(--customShadows-dialog, 0px 24px 48px -8px rgba(0, 0, 0, 0.16))",
+                        bgcolor: "#FFFFFF",
+                        overflow: "hidden",
+                    },
+                }}
+            >
+                <DialogTitle
+                    sx={{
+                        m: 0,
+                        px: 3,
+                        pt: 2.5,
+                        pb: 2,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 1.5,
+                        borderBottom: "1px solid var(--palette-divider)",
+                        bgcolor: "#FFFFFF",
+                    }}
+                >
+                    <Typography component="span" sx={{ fontWeight: 700, fontSize: "1.125rem" }}>
                         {editing ? "Cập nhật cấu hình số đẹp" : "Thêm cấu hình số đẹp"}
                     </Typography>
-                    <IconButton onClick={() => setOpenDialog(false)}>
-                        <CloseIcon />
+                    <IconButton onClick={() => setOpenDialog(false)} size="small" aria-label="Đóng" sx={{ color: "text.secondary" }}>
+                        <CloseIcon fontSize="small" />
                     </IconButton>
                 </DialogTitle>
                 <form onSubmit={handleSubmit(onSubmit)}>
-                    <DialogContent dividers>
+                    <DialogContent
+                        sx={{
+                            px: 3,
+                            pt: "24px !important",
+                            pb: 3,
+                            bgcolor: "#FFFFFF",
+                        }}
+                    >
                         <Stack spacing={2.5}>
                             <Controller
                                 name="name"
@@ -319,7 +382,7 @@ export const LuckyPatternConfigPage = () => {
                                 name="patternType"
                                 control={control}
                                 render={({ field, fieldState }) => (
-                                    <TextField {...field} select label="Loại pattern" fullWidth error={!!fieldState.error} helperText={fieldState.error?.message} sx={fieldSx}>
+                                    <TextField {...field} select label="Loại" fullWidth error={!!fieldState.error} helperText={fieldState.error?.message} sx={fieldSx}>
                                         {Object.entries(LUCKY_PATTERN_TYPE_LABELS).map(([value, label]) => (
                                             <MenuItem key={value} value={value}>
                                                 {label}
@@ -364,14 +427,69 @@ export const LuckyPatternConfigPage = () => {
                                 name="badgeLabel"
                                 control={control}
                                 render={({ field, fieldState }) => (
-                                    <TextField {...field} label="Nhãn badge" fullWidth error={!!fieldState.error} helperText={fieldState.error?.message} sx={fieldSx} />
+                                    <TextField {...field} label="Nhãn ký hiệu" fullWidth error={!!fieldState.error} helperText={fieldState.error?.message} sx={fieldSx} />
                                 )}
                             />
                             <Controller
                                 name="badgeColor"
                                 control={control}
                                 render={({ field, fieldState }) => (
-                                    <TextField {...field} value={field.value ?? ""} label="Màu badge" placeholder="#F59E0B" fullWidth error={!!fieldState.error} helperText={fieldState.error?.message} sx={fieldSx} />
+                                    <Box sx={{ position: "relative" }}>
+                                        <TextField
+                                            value={field.value ?? ""}
+                                            label="Màu ký hiệu"
+                                            placeholder="#F59E0B"
+                                            fullWidth
+                                            error={!!fieldState.error}
+                                            helperText={fieldState.error?.message}
+                                            sx={{
+                                                ...fieldSx,
+                                                "& .MuiOutlinedInput-root": {
+                                                    ...fieldSx["& .MuiOutlinedInput-root"],
+                                                    cursor: "pointer",
+                                                },
+                                                "& .MuiInputBase-input": {
+                                                    cursor: "pointer",
+                                                },
+                                            }}
+                                            inputProps={{ readOnly: true }}
+                                            InputProps={{
+                                                startAdornment: (
+                                                    <InputAdornment position="start">
+                                                        <Box
+                                                            sx={{
+                                                                width: 16,
+                                                                height: 16,
+                                                                borderRadius: "50%",
+                                                                bgcolor: toPickerHex(field.value),
+                                                                border: "1px solid rgba(28, 37, 46, 0.16)",
+                                                                pointerEvents: "none",
+                                                            }}
+                                                        />
+                                                    </InputAdornment>
+                                                ),
+                                            }}
+                                        />
+                                        <Box
+                                            component="input"
+                                            type="color"
+                                            value={toPickerHex(field.value)}
+                                            onChange={(event) => field.onChange(event.target.value.toUpperCase())}
+                                            aria-label="Chọn màu ký hiệu"
+                                            sx={{
+                                                position: "absolute",
+                                                left: 14,
+                                                right: 14,
+                                                top: 8,
+                                                height: 40,
+                                                opacity: 0,
+                                                cursor: "pointer",
+                                                border: 0,
+                                                padding: 0,
+                                                background: "transparent",
+                                            }}
+                                        />
+                                    </Box>
                                 )}
                             />
                             <Controller
@@ -383,7 +501,7 @@ export const LuckyPatternConfigPage = () => {
                                         value={field.value ?? ""}
                                         onChange={(e) => field.onChange(e.target.value === "" ? null : Number(e.target.value))}
                                         type="number"
-                                        label="Độ ưu tiên"
+                                        label="Ưu tiên"
                                         fullWidth
                                         error={!!fieldState.error}
                                         helperText={fieldState.error?.message}
@@ -410,10 +528,25 @@ export const LuckyPatternConfigPage = () => {
                             />
                         </Stack>
                     </DialogContent>
-                    <DialogActions sx={{ px: 3, py: 2 }}>
-                        <Button onClick={() => setOpenDialog(false)}>Hủy</Button>
-                        <LoadingButton
+                    <DialogActions
+                        sx={{
+                            px: 3,
+                            py: 2.5,
+                            gap: 1.5,
+                            borderTop: "1px solid var(--palette-divider)",
+                            bgcolor: "#FFFFFF",
+                        }}
+                    >
+                        <Button
+                            variant="outlined"
+                            color="inherit"
+                            onClick={() => setOpenDialog(false)}
+                            disabled={isCreating || isUpdating}
+                            label="Hủy"
+                        />
+                        <Button
                             type="submit"
+                            variant="contained"
                             loading={isCreating || isUpdating}
                             label={editing ? "Lưu" : "Tạo"}
                             loadingLabel="Đang lưu..."

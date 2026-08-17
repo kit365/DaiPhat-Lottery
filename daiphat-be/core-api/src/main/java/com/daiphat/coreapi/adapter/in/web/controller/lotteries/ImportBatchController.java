@@ -5,7 +5,9 @@ import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateImportBatchRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ImportBatchClassificationPreviewRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.UpdateImportBatchInvoiceEvidenceRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateImportBatchRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.UpdateImportBatchTicketListImagesRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchClassificationPreviewResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchEligibleStationsResponse;
@@ -14,20 +16,24 @@ import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchReducti
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchTimePolicyResponse;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
+import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.port.in.lotteries.ImportBatchServicePort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchImportMode;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchType;
+import com.daiphat.coreapi.shared.util.StorageUtils;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -63,6 +69,37 @@ public class ImportBatchController {
         return ApiResponse.success(
                 "Cập nhật phiếu nhập lô vé thành công.",
                 importBatchServicePort.update(id, request)
+        );
+    }
+
+    @PostMapping("/{id:\\d+}/invoice-evidence")
+    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    public ApiResponse<ImportBatchResponse> attachInvoiceEvidence(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateImportBatchInvoiceEvidenceRequest request) {
+        return ApiResponse.success(
+                "Đã đính kèm ảnh biên lai phiếu nhập.",
+                importBatchServicePort.attachInvoiceEvidence(id, request.invoiceEvidenceUrl())
+        );
+    }
+
+    @PostMapping(value = "/ticket-list-images/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    public ApiResponse<StorageResult> uploadTicketListImage(@RequestPart("file") MultipartFile file) {
+        return ApiResponse.success(
+                "Tải ảnh danh sách vé nhập thành công.",
+                importBatchServicePort.uploadTicketListImage(StorageUtils.toUploadRequest(file))
+        );
+    }
+
+    @PostMapping("/{id:\\d+}/ticket-list-images")
+    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    public ApiResponse<ImportBatchResponse> attachTicketListImages(
+            @PathVariable Long id,
+            @RequestBody UpdateImportBatchTicketListImagesRequest request) {
+        return ApiResponse.success(
+                "Đã cập nhật ảnh danh sách vé nhập.",
+                importBatchServicePort.attachTicketListImages(id, request == null ? null : request.urls())
         );
     }
 

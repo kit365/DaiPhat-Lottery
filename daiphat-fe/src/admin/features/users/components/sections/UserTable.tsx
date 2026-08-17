@@ -1,16 +1,16 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { RoleEnum } from "../../../../../types/role.type";
 import React, { useMemo } from 'react';
-import { useNavigate } from '@/components/router-compat';
-import { DataGrid } from '@mui/x-data-grid';
+import { LazyDataGrid } from '@/admin/shared/data-grid/LazyDataGrid';
 import { Box, CircularProgress } from '@mui/material';
 import { useAuthStore } from '../../../../../stores/useAuthStore';
 import { PERMISSIONS } from '../../../../constants/permission.constants';
 import { getColumnsConfig } from '../configs/column.config';
 import { PaginationMetadata } from '../../../../../types/api.type';
 import { dataGridStyles } from '../../../../shared/data-grid';
-import { DATA_GRID_LOCALE_VN } from "../../../../../shared/components/DataTable/localeText.config";
+import { DATA_GRID_LOCALE_VN } from "@/admin/components/data-grid/localeText.config";
 import { AdminRowActionsMenu } from "../../../../components/ui/AdminRowActionsMenu";
 
 interface UserTableProps {
@@ -32,7 +32,7 @@ export const UserTable = ({
     onRefresh,
     isClient
 }: UserTableProps) => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const { user } = useAuthStore();
     
     const roleCode = typeof user?.role === 'string' ? user.role : (user?.role?.code || "");
@@ -72,7 +72,7 @@ export const UserTable = ({
                                     id: 'view',
                                     label: 'Chi tiết',
                                     icon: 'view',
-                                    onClick: () => navigate(
+                                    onClick: () => router.push(
                                         isClient
                                             ? `/admin/account-user/detail/${params.row.id}`
                                             : `/admin/account-admin/detail/${params.row.id}`
@@ -84,7 +84,7 @@ export const UserTable = ({
                                     id: 'edit',
                                     label: 'Chỉnh sửa',
                                     icon: 'edit',
-                                    onClick: () => navigate(
+                                    onClick: () => router.push(
                                         isClient
                                             ? `/admin/account-user/edit/${params.row.id}`
                                             : `/admin/account-admin/edit/${params.row.id}`
@@ -105,11 +105,11 @@ export const UserTable = ({
                 )
             }
         ];
-    }, [pagination?.currentPage, pagination?.limit, isClient, canView, canEdit, canDelete, navigate]);
+    }, [pagination?.currentPage, pagination?.limit, isClient, canView, canEdit, canDelete, router]);
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%' }}>
-            <DataGrid
+            <LazyDataGrid
                 rows={data || []}
                 columns={columns}
                 getRowId={(row) => row.id}

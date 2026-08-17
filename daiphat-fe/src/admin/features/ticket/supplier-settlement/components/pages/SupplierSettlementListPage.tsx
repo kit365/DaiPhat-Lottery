@@ -1,7 +1,6 @@
 "use client";
 
-import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
-import { Title } from '../../../../../components/ui/Title';
+import { PageHeader } from '../../../../../components/ui/PageHeader';
 import { prefixAdmin, ROUTES } from '../../../../../constants/routes';
 import { useSupplierSettlementList } from '../../hooks/useSupplierSettlement';
 import { SupplierSettlementList } from '../sections/SupplierSettlementList';
@@ -11,19 +10,15 @@ export const SupplierSettlementListPage = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title="Đối soát nhà cung cấp" />
-                    <Breadcrumb
-                        items={[
+            <PageHeader
+                title="Đối soát nhà cung cấp"
+                breadcrumbItems={[
                             { label: 'Bảng điều khiển', to: '/' },
                             { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
                             { label: 'Đối soát NCC', to: ROUTES.ADMIN.SUPPLIER_SETTLEMENT.LIST },
                             { label: 'Danh sách' },
                         ]}
-                    />
-                </div>
-            </div>
+            />
 
             <SupplierSettlementList listHook={listHook} />
         </>

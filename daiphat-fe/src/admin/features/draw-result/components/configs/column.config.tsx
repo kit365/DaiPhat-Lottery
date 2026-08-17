@@ -1,7 +1,19 @@
 import { GridColDef } from '@mui/x-data-grid';
-import { Chip, IconButton, Tooltip } from '@mui/material';
-import VisibilityIcon from '@mui/icons-material/Visibility';
+import { Box } from '@mui/material';
+import type { ReactNode } from 'react';
 import dayjs from 'dayjs';
+import { AdminStatusBadge } from '../../../../components/ui/AdminStatusBadge';
+import { AdminRowActionsMenu } from '../../../../components/ui/AdminRowActionsMenu';
+import {
+    getDrawResultStatusBadgeClass,
+    getDrawResultStatusLabel,
+} from '../../utils/drawResultLabels';
+
+const BadgeCell = ({ children }: { children: ReactNode }) => (
+    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
+        {children}
+    </Box>
+);
 
 export const columnsConfig = (onViewDetails: (id: number) => void): GridColDef[] => [
     { field: 'id', headerName: 'ID', width: 70 },
@@ -11,35 +23,24 @@ export const columnsConfig = (onViewDetails: (id: number) => void): GridColDef[]
         field: 'drawDate', 
         headerName: 'Ngày Quay', 
         width: 130,
-        renderCell: (params) => dayjs(params.value).format('DD/MM/YYYY')
+        renderCell: (params) => (
+            <span className="date-text">{dayjs(params.value).format('DD/MM/YYYY')}</span>
+        )
     },
     { 
         field: 'status', 
         headerName: 'Trạng Thái', 
         width: 150,
-        renderCell: (params) => {
-            const statusMap: Record<string, { label: string, color: 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' }> = {
-                'pending': { label: 'Chờ lấy', color: 'default' },
-                'drawing': { label: 'Đang cập nhật', color: 'info' },
-                'waiting_for_audit': { label: 'Chờ duyệt', color: 'warning' },
-                'completed': { label: 'Hoàn tất', color: 'success' },
-                'failed': { label: 'Thất bại', color: 'error' }
-            };
-            const s = statusMap[String(params.value || '').toLowerCase()] || { label: params.value, color: 'default' };
-            return <Chip label={s.label} color={s.color} size="small" />;
-        }
-    },
-    { 
-        field: 'isOfficial', 
-        headerName: 'Chính Thức', 
-        width: 120,
+        align: 'center',
+        headerAlign: 'center',
         renderCell: (params) => (
-            <Chip 
-                label={params.value ? "Chính thức" : "Chưa chuẩn"} 
-                color={params.value ? "primary" : "default"} 
-                size="small" 
-                variant={params.value ? "filled" : "outlined"}
-            />
+            <BadgeCell>
+                <AdminStatusBadge
+                    label={getDrawResultStatusLabel(params.value)}
+                    modifier={getDrawResultStatusBadgeClass(params.value)}
+                    className="admin-status-badge--compact"
+                />
+            </BadgeCell>
         )
     },
     { field: 'source', headerName: 'Nguồn', width: 120 },
@@ -47,18 +48,29 @@ export const columnsConfig = (onViewDetails: (id: number) => void): GridColDef[]
         field: 'detailCount',
         headerName: 'Số giải đã có',
         width: 130,
+        align: 'center',
+        headerAlign: 'center',
     },
     {
         field: 'actions',
-        headerName: 'Thao Tác',
-        width: 100,
+        headerName: '',
+        width: 50,
         sortable: false,
+        filterable: false,
+        disableColumnMenu: true,
+        align: 'right',
+        headerAlign: 'right',
         renderCell: (params) => (
-            <Tooltip title="Xem chi tiết vé dò">
-                <IconButton size="small" onClick={() => onViewDetails(params.row.id)}>
-                    <VisibilityIcon fontSize="small" />
-                </IconButton>
-            </Tooltip>
+            <AdminRowActionsMenu
+                items={[
+                    {
+                        id: 'view',
+                        label: 'Chi tiết',
+                        icon: 'view',
+                        onClick: () => onViewDetails(params.row.id),
+                    },
+                ]}
+            />
         ),
     },
 ];

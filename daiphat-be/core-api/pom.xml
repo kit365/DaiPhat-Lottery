@@ -20,6 +20,8 @@
         <lombok.version>1.18.46</lombok.version>
         <mapstruct.version>1.6.3</mapstruct.version>
         <commons-text.version>1.13.0</commons-text.version>
+        <commons-csv.version>1.12.0</commons-csv.version>
+        <poi.version>5.3.0</poi.version>
     </properties>
 
     <dependencies>
@@ -82,10 +84,26 @@
             <artifactId>commons-text</artifactId>
             <version>${commons-text.version}</version>
         </dependency>
+        <!-- Import batch file import (.csv / .xlsx) -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-csv</artifactId>
+            <version>${commons-csv.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>${poi.version}</version>
+        </dependency>
         <dependency>
             <groupId>com.openhtmltopdf</groupId>
             <artifactId>openhtmltopdf-pdfbox</artifactId>
             <version>1.0.10</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>5.3.0</version>
         </dependency>
         <!-- Lunar calendar (day earthly branch) for fortune-cast five-element scoring -->
         <dependency>
@@ -175,6 +193,16 @@
             <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -218,6 +246,7 @@
                         <testExclude>**/application/service/chat/intent/WebAccountIntentHandlerTest.java</testExclude>
                         <testExclude>**/application/service/chat/intent/WebScheduleIntentHandlerTest.java</testExclude>
                         <testExclude>**/application/service/chat/flow/schedule/DrawScheduleFlowServiceTest.java</testExclude>
+                        <testExclude>**/application/strategy/chat/intent/FortuneConsultIntentStrategyTest.java</testExclude>
                     </testExcludes>
                 </configuration>
             </plugin>

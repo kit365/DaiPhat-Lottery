@@ -1,7 +1,9 @@
 "use client";
 
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
-import { Title } from "../../../../components/ui/Title";
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
+import { PageHeader } from "../../../../components/ui/PageHeader";
+import { SpinnerLoading } from "../../../../components/ui/SpinnerLoading";
 import {
     useStreetAgentProfileDetail,
     useUpdateStreetAgentProfile,
@@ -13,17 +15,16 @@ import { useEffect, useRef, useState } from "react";
 import {
     updateStreetAgentProfileSchema,
     UpdateStreetAgentProfileFormValues,
-    AdjustDepositFormValues,
 } from "../../schemas/street-agent.schema";
 import { ROUTES } from "../../../../constants/routes";
 import { toast } from "react-toastify";
-import { Link as RouterLink, useNavigate, useParams } from "react-router-dom";
-import { Box, Button, CircularProgress, Alert } from "@mui/material";
-import { uploadAdminImage } from "../../../../api/upload.api";
-import { LoadingButton } from "../../../../components/ui/LoadingButton";
+import { Alert, Box, Stack, Typography } from "@mui/material";
+import { uploadAdminImage } from "@/admin/shared/services/upload.service";
+import Link from "@/admin/components/navigation/AdminLink";
+import { Button } from "../../../../components/ui/Button";
+import { AdminConfirmDialog } from "../../../../components/ui/AdminConfirmDialog";
 import { StreetAgentProfileForm } from "../sections/StreetAgentProfileForm";
-import { DepositAdjustDialog } from "../sections/DepositAdjustDialog";
-import { openStreetAgentContractPrint, getStreetAgentOnboardingResumePath } from "../../services/streetAgentService";
+import { getStreetAgentOnboardingResumePath } from "../../services/streetAgentService";
 import {
     parseCoverageAreaCodes,
     serializeCoverageAreaCodes,
@@ -31,7 +32,9 @@ import {
 import { StreetAgentProfile } from "../../types/street-agent.type";
 import { useVendorSettingsDefaults } from "../../hooks/useVendorSettingsDefaults";
 import { SignedContractUploadDialog } from "../SignedContractUploadDialog";
+import { SignedContractSaveDialog } from "../SignedContractSaveDialog";
 import { ContractDocumentViewerDialog } from "../ContractDocumentViewerDialog";
+import { getStreetAgentPendingNotice } from "../../utils/format";
 
 const SIGNED_DOC_TYPES = ["application/pdf", "image/jpeg", "image/jpg", "image/png"];
 const SIGNED_DOC_MAX_SIZE = 10 * 1024 * 1024;
@@ -44,11 +47,11 @@ const defaultValues: UpdateStreetAgentProfileFormValues = {
     imageUrl: "",
     contactAddress: "",
     contactProvince: "",
+    contactWard: "",
     coverageAreaCodes: [],
-    commissionRate: null,
     contractStartDate: "",
     contractEndDate: "",
-    dailyTicketCap: null,
+    contractMaxDailyCap: null,
 };
 
 const buildBasePayload = (data: UpdateStreetAgentProfileFormValues) => ({
@@ -59,11 +62,11 @@ const buildBasePayload = (data: UpdateStreetAgentProfileFormValues) => ({
     imageUrl: data.imageUrl || undefined,
     contactAddress: data.contactAddress || undefined,
     contactProvince: data.contactProvince || undefined,
+    contactWard: data.contactWard || undefined,
     coverageArea: serializeCoverageAreaCodes(data.coverageAreaCodes || []),
-    commissionRate: data.commissionRate ?? undefined,
     contractStartDate: data.contractStartDate || undefined,
     contractEndDate: data.contractEndDate || undefined,
-    dailyTicketCap: data.dailyTicketCap ?? undefined,
+    contractMaxDailyCap: data.contractMaxDailyCap ?? undefined,
 });
 
 const buildPayloadFromProfile = (profile: StreetAgentProfile) => ({
@@ -74,16 +77,16 @@ const buildPayloadFromProfile = (profile: StreetAgentProfile) => ({
     imageUrl: profile.imageUrl || undefined,
     contactAddress: profile.contactAddress || undefined,
     contactProvince: profile.contactProvince || undefined,
+    contactWard: profile.contactWard || undefined,
     coverageArea: profile.coverageArea || undefined,
-    commissionRate: profile.commissionRate ?? undefined,
     contractStartDate: profile.contractStartDate || undefined,
     contractEndDate: profile.contractEndDate || undefined,
-    dailyTicketCap: profile.dailyTicketCap ?? undefined,
+    contractMaxDailyCap: profile.contractMaxDailyCap ?? undefined,
 });
 
 export const StreetAgentEditPage = () => {
-    const { id } = useParams();
-    const navigate = useNavigate();
+    const { id } = useRouteParams();
+    const router = useAdminRouter();
     const { data: profile, isLoading, refetch } = useStreetAgentProfileDetail(id);
     const { mutate: update, isPending } = useUpdateStreetAgentProfile();
     const { mutate: uploadSigned, isPending: isUploadingSigned } = useUploadStreetAgentSignedContract();
@@ -91,17 +94,34 @@ export const StreetAgentEditPage = () => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const signedFileInputRef = useRef<HTMLInputElement>(null);
     const [isUploading, setIsUploading] = useState(false);
-    const [depositDialogOpen, setDepositDialogOpen] = useState(false);
     const [isStatusActionPending, setIsStatusActionPending] = useState(false);
     const [pendingSignedFile, setPendingSignedFile] = useState<File | null>(null);
+    const [previewSignedFile, setPreviewSignedFile] = useState<File | null>(null);
+    const [saveSignedConfirmOpen, setSaveSignedConfirmOpen] = useState(false);
+    const [contractChangeConfirmOpen, setContractChangeConfirmOpen] = useState(false);
+    const [pendingContractUpdate, setPendingContractUpdate] = useState<UpdateStreetAgentProfileFormValues | null>(null);
     const [viewSignedOpen, setViewSignedOpen] = useState(false);
 
     const { control, handleSubmit, setValue, watch, reset, getValues } = useForm<UpdateStreetAgentProfileFormValues>({
         resolver: zodResolver(updateStreetAgentProfileSchema) as any,
         defaultValues,
+        mode: "all",
+        reValidateMode: "onChange",
     });
 
     const imageUrl = watch("imageUrl");
+    const watchStartDate = watch("contractStartDate");
+    const watchEndDate = watch("contractEndDate");
+    const watchCap = watch("contractMaxDailyCap");
+    const pendingNotice = profile?.status === "PENDING"
+        ? getStreetAgentPendingNotice(profile)
+        : null;
+
+    const isContractChanged = Boolean(profile?.contractDocumentUrl && (
+        (profile.contractStartDate || "") !== (watchStartDate || "") ||
+        (profile.contractEndDate || "") !== (watchEndDate || "") ||
+        (profile.contractMaxDailyCap ?? null) !== (watchCap ?? null)
+    ));
 
     useEffect(() => {
         if (profile) {
@@ -113,11 +133,11 @@ export const StreetAgentEditPage = () => {
                 imageUrl: profile.imageUrl || "",
                 contactAddress: profile.contactAddress || "",
                 contactProvince: profile.contactProvince || "",
+                contactWard: profile.contactWard || "",
                 coverageAreaCodes: parseCoverageAreaCodes(profile.coverageArea),
-                commissionRate: profile.commissionRate ?? null,
                 contractStartDate: profile.contractStartDate || "",
                 contractEndDate: profile.contractEndDate || "",
-                dailyTicketCap: profile.dailyTicketCap ?? null,
+                contractMaxDailyCap: profile.contractMaxDailyCap ?? null,
             });
         }
     }, [profile, reset]);
@@ -148,7 +168,6 @@ export const StreetAgentEditPage = () => {
             setIsUploading(true);
             const url = await uploadAdminImage(file);
             setValue("imageUrl", url, { shouldValidate: true });
-            toast.success("Tải ảnh lên thành công!");
         } catch {
             toast.error("Tải ảnh lên thất bại!");
         } finally {
@@ -168,7 +187,12 @@ export const StreetAgentEditPage = () => {
             toast.error("Dung lượng file quá lớn. Tối đa là 10 Mb");
             return;
         }
+        setPreviewSignedFile(file);
+    };
+
+    const handleStageSignedFile = (file: File) => {
         setPendingSignedFile(file);
+        setPreviewSignedFile(null);
     };
 
     const handleConfirmSignedUpload = (file: File) => {
@@ -181,6 +205,7 @@ export const StreetAgentEditPage = () => {
                     if (response.success) {
                         toast.success(response.message || "Đính kèm bản đã ký thành công!");
                         setPendingSignedFile(null);
+                        setSaveSignedConfirmOpen(false);
                         void refetch();
                     } else {
                         toast.error(response.message || "Đính kèm bản đã ký thất bại");
@@ -222,43 +247,32 @@ export const StreetAgentEditPage = () => {
         );
     };
 
-    const handleAdjustDeposit = (values: AdjustDepositFormValues) => {
-        if (!id || !profile) return;
-        update(
-            {
-                id,
-                data: {
-                    ...buildPayloadFromProfile(profile),
-                    ...buildBasePayload(getValues()),
-                    depositBalance: values.depositBalance,
-                    depositAdjustmentReason: values.depositAdjustmentReason,
-                },
-            },
-            {
-                onSuccess: (response) => {
-                    if (response.success) {
-                        toast.success(response.message || "Điều chỉnh cọc thành công!");
-                        setDepositDialogOpen(false);
-                        void refetch();
-                    } else {
-                        toast.error(response.message || "Điều chỉnh cọc thất bại");
-                    }
-                },
-                onError: (error: any) => {
-                    toast.error(error.response?.data?.message || "Điều chỉnh cọc thất bại");
-                },
-            }
+    const submitProfileUpdate = (data: UpdateStreetAgentProfileFormValues) => {
+        const hadSignedContract = Boolean(profile?.contractDocumentUrl);
+        const contractTermsChanged = hadSignedContract && (
+            (profile?.contractStartDate || "") !== (data.contractStartDate || "") ||
+            (profile?.contractEndDate || "") !== (data.contractEndDate || "") ||
+            (profile?.contractMaxDailyCap ?? null) !== (data.contractMaxDailyCap ?? null)
         );
-    };
 
-    const onSubmit = (data: UpdateStreetAgentProfileFormValues) => {
         update(
             { id: id!, data: buildBasePayload(data) },
             {
                 onSuccess: (response) => {
                     if (response.success) {
-                        toast.success(response.message || "Cập nhật hồ sơ đại lý bán dạo thành công!");
-                        navigate(ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST);
+                        const updatedProfile = response.data;
+                        if (contractTermsChanged || (updatedProfile?.status === "PENDING" && !updatedProfile.contractDocumentUrl)) {
+                            if (contractTermsChanged) {
+                                toast.info("Đã lưu thời hạn mới. Bản ký cũ không còn hiệu lực; hãy hoàn thiện và tải bản ký mới.");
+                                router.push(getStreetAgentOnboardingResumePath(id!));
+                            } else {
+                                toast.info("Đã lưu hồ sơ. Vui lòng hoàn thiện và tải bản hợp đồng đã ký lên.");
+                                void refetch();
+                            }
+                        } else {
+                            toast.success(response.message || "Cập nhật hồ sơ người bán vé số thành công!");
+                            router.push(ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST);
+                        }
                     } else {
                         toast.error(response.message || "Cập nhật hồ sơ thất bại");
                     }
@@ -270,29 +284,51 @@ export const StreetAgentEditPage = () => {
         );
     };
 
+    const onSubmit = (data: UpdateStreetAgentProfileFormValues) => {
+        const hadSignedContract = Boolean(profile?.contractDocumentUrl);
+        const contractTermsChanged = hadSignedContract && (
+            (profile?.contractStartDate || "") !== (data.contractStartDate || "") ||
+            (profile?.contractEndDate || "") !== (data.contractEndDate || "") ||
+            (profile?.contractMaxDailyCap ?? null) !== (data.contractMaxDailyCap ?? null)
+        );
+
+        if (contractTermsChanged) {
+            setPendingContractUpdate(data);
+            setContractChangeConfirmOpen(true);
+            return;
+        }
+
+        submitProfileUpdate(data);
+    };
+
     if (isLoading) {
         return (
-            <Box sx={{ display: "flex", justifyContent: "center", py: 5 }}>
-                <CircularProgress />
+            <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
+                <PageHeader
+                    title="Chỉnh sửa hồ sơ người bán vé số"
+                    breadcrumbItems={[
+                        { label: "Dashboard", to: "/" },
+                        { label: "Người bán vé số", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
+                        { label: "Cập nhật" },
+                    ]}
+                />
+                <SpinnerLoading />
             </Box>
         );
     }
 
     return (
         <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
-            <Box sx={{ mb: 5 }}>
-                <Title title="Chỉnh sửa hồ sơ đại lý bán dạo" />
-                <Breadcrumb
-                    items={[
-                        { label: "Dashboard", to: "/" },
-                        { label: "Quản lý tài khoản", to: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST },
-                        { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
-                        { label: "Cập nhật" },
-                    ]}
-                />
-            </Box>
+            <PageHeader
+                title="Chỉnh sửa hồ sơ người bán vé số"
+                breadcrumbItems={[
+                    { label: "Dashboard", to: "/" },
+                    { label: "Người bán vé số", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
+                    { label: "Cập nhật" },
+                ]}
+            />
 
-            {profile?.status === "PENDING" && !profile.contractDocumentUrl && id ? (
+            {profile?.status === "PENDING" && !profile.contractDocumentUrl && id && (
                 <Alert
                     severity="warning"
                     sx={{ mb: 3 }}
@@ -300,21 +336,47 @@ export const StreetAgentEditPage = () => {
                         <Button
                             color="inherit"
                             size="small"
-                            component={RouterLink}
-                            to={getStreetAgentOnboardingResumePath(id)}
+                            component={Link}
+                            href={getStreetAgentOnboardingResumePath(id)}
                         >
                             Tiếp tục hoàn thiện HĐ
                         </Button>
                     }
                 >
-                    Hồ sơ đang PENDING — cần in hợp đồng và upload bản đã ký trước khi vendor nhận vé.
+                    Hồ sơ chưa đủ điều kiện nhận vé. Vui lòng hoàn thiện và tải bản hợp đồng đã ký.
                 </Alert>
-            ) : null}
+            )}
+
+            {profile?.status === "PENDING" && profile.contractDocumentUrl && id && (
+                <Alert
+                    severity="warning"
+                    sx={{ mb: 3 }}
+                    action={
+                        <Button
+                            color="inherit"
+                            size="small"
+                            onClick={() => document.getElementById("street-agent-contract")?.scrollIntoView({ behavior: "smooth" })}
+                        >
+                            {pendingNotice?.actionLabel || "Xem / điều chỉnh hồ sơ"}
+                        </Button>
+                    }
+                >
+                    {pendingNotice?.message || "Hồ sơ chưa đủ điều kiện nhận vé. Hãy kiểm tra lại thông tin hợp đồng."}
+                </Alert>
+            )}
+
+            {isContractChanged && (
+                <Alert severity="error" sx={{ mb: 3 }}>
+                    Cảnh báo: Bạn đang thay đổi thông tin hợp đồng. Lưu thay đổi sẽ làm mất hiệu lực bản hợp đồng đã ký hiện tại và hồ sơ sẽ chuyển về trạng thái chờ xử lý (PENDING). Bạn sẽ cần in và tải lại bản ký mới.
+                </Alert>
+            )}
 
             <form onSubmit={handleSubmit(onSubmit)}>
                 <StreetAgentProfileForm
+                    contractSectionId="street-agent-contract"
                     mode="edit"
                     control={control}
+                    setValue={setValue}
                     imageUrl={imageUrl}
                     isUploading={isUploading}
                     fileInputRef={fileInputRef}
@@ -325,32 +387,21 @@ export const StreetAgentEditPage = () => {
                     confidenceTier={profile?.confidenceTier}
                     contractCode={profile?.contractCode}
                     contractDocumentUrl={profile?.contractDocumentUrl}
+                    contractMaxDailyCap={profile?.contractMaxDailyCap}
+                    effectiveDailyCap={profile?.effectiveDailyCap}
                     depositBalance={profile?.depositBalance}
-                    onPrintContract={async () => {
-                        if (!id) return;
-                        try {
-                            await openStreetAgentContractPrint(id);
-                        } catch (error: any) {
-                            toast.error(
-                                error?.message ||
-                                    error?.response?.data?.message ||
-                                    "Không mở được hợp đồng PDF"
-                            );
-                        }
-                    }}
                     onUploadSignedDocument={handleSelectSignedDocument}
                     onViewSignedDocument={() => setViewSignedOpen(true)}
                     isUploadingSignedDocument={isUploadingSigned}
                     signedFileInputRef={signedFileInputRef}
-                    onAdjustDeposit={() => setDepositDialogOpen(true)}
                     onLockProfile={() => runStatusUpdate("INACTIVE", "Đã khóa hồ sơ")}
                     onReactivateProfile={() => runStatusUpdate("PENDING", "Đã kích hoạt lại hồ sơ")}
                     isStatusActionPending={isStatusActionPending}
                     vendorDefaults={vendorDefaults}
                     footer={
-                        <LoadingButton
+                        <Button
                             type="submit"
-                            loading={isPending && !depositDialogOpen && !isStatusActionPending}
+                            loading={isPending && !isStatusActionPending}
                             label="Lưu thay đổi"
                             loadingLabel="Đang lưu..."
                         />
@@ -358,29 +409,88 @@ export const StreetAgentEditPage = () => {
                 />
             </form>
 
+            {pendingSignedFile ? (
+                <Alert
+                    severity="info"
+                    sx={{ mt: 2 }}
+                    action={
+                        <Stack direction="row" spacing={1}>
+                            <Button
+                                variant="outlined"
+                                color="inherit"
+                                size="small"
+                                onClick={() => setPendingSignedFile(null)}
+                                label="Đổi file"
+                            />
+                            <Button
+                                variant="contained"
+                                size="small"
+                                onClick={() => setSaveSignedConfirmOpen(true)}
+                                label="Lưu bản ký vào hồ sơ"
+                            />
+                        </Stack>
+                    }
+                >
+                    Đã chọn <strong>{pendingSignedFile.name}</strong>. File mới chỉ đang chờ xác nhận cuối.
+                </Alert>
+            ) : null}
+
             <SignedContractUploadDialog
-                open={!!pendingSignedFile}
-                file={pendingSignedFile}
-                uploading={isUploadingSigned}
+                open={!!previewSignedFile}
+                file={previewSignedFile}
+                uploading={false}
                 onClose={() => {
-                    if (!isUploadingSigned) setPendingSignedFile(null);
+                    setPreviewSignedFile(null);
                 }}
-                onConfirm={handleConfirmSignedUpload}
+                onConfirm={handleStageSignedFile}
             />
+
+            <SignedContractSaveDialog
+                open={saveSignedConfirmOpen}
+                file={pendingSignedFile}
+                saving={isUploadingSigned}
+                onClose={() => setSaveSignedConfirmOpen(false)}
+                onConfirm={() => {
+                    if (pendingSignedFile) handleConfirmSignedUpload(pendingSignedFile);
+                }}
+            />
+
+            <AdminConfirmDialog
+                open={contractChangeConfirmOpen}
+                title="Cập nhật điều khoản hợp đồng?"
+                maxWidth="sm"
+                loading={isPending}
+                cancelLabel="Quay lại"
+                confirmLabel="Lưu và cập nhật bản ký"
+                confirmLoadingLabel="Đang lưu..."
+                onClose={() => {
+                    if (!isPending) {
+                        setContractChangeConfirmOpen(false);
+                        setPendingContractUpdate(null);
+                    }
+                }}
+                onConfirm={() => {
+                    if (!pendingContractUpdate) return;
+                    setContractChangeConfirmOpen(false);
+                    submitProfileUpdate(pendingContractUpdate);
+                    setPendingContractUpdate(null);
+                }}
+            >
+                <Stack spacing={1.5}>
+                    <Typography variant="body1">
+                        Bạn đang thay đổi ngày hiệu lực hoặc giới hạn ghi trên hợp đồng đã ký.
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                        Sau khi lưu, bản ký hiện tại sẽ không còn khớp, hồ sơ chuyển về trạng thái chờ xử lý và bạn sẽ được đưa về bước tải bản ký mới.
+                    </Typography>
+                </Stack>
+            </AdminConfirmDialog>
 
             <ContractDocumentViewerDialog
                 open={viewSignedOpen}
                 url={profile?.contractDocumentUrl}
                 fileName={profile?.contractCode ? `Hop-dong-da-ky-${profile.contractCode}` : undefined}
                 onClose={() => setViewSignedOpen(false)}
-            />
-
-            <DepositAdjustDialog
-                open={depositDialogOpen}
-                currentBalance={profile?.depositBalance}
-                loading={isPending && depositDialogOpen}
-                onClose={() => setDepositDialogOpen(false)}
-                onConfirm={handleAdjustDeposit}
             />
         </Box>
     );

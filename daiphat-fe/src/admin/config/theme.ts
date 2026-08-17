@@ -1,3 +1,4 @@
+import { Button } from '@/admin/components/ui/Button';
 import { createTheme } from '@mui/material/styles';
 import { createElement } from 'react';
 import SvgIcon from '@mui/material/SvgIcon';
@@ -311,6 +312,54 @@ export const adminTheme = createTheme({
                 },
             }
         },
+        MuiDialog: {
+            defaultProps: {
+                fullWidth: true,
+            },
+            styleOverrides: {
+                paper: {
+                    padding: 0,
+                    borderRadius: "16px",
+                    boxShadow: "var(--customShadows-dialog, 0px 24px 48px -8px rgba(0, 0, 0, 0.16))",
+                    backgroundColor: "#FFFFFF",
+                    overflow: "hidden",
+                },
+            },
+        },
+        MuiDialogTitle: {
+            styleOverrides: {
+                root: {
+                    margin: 0,
+                    padding: "20px 24px 16px",
+                    fontWeight: 700,
+                    fontSize: "1.125rem",
+                    lineHeight: 1.5,
+                    borderBottom: "1px solid var(--palette-divider)",
+                    backgroundColor: "#FFFFFF",
+                },
+            },
+        },
+        MuiDialogContent: {
+            styleOverrides: {
+                root: {
+                    padding: "24px 24px 8px",
+                    backgroundColor: "#FFFFFF",
+                    "&.MuiDialogContent-dividers": {
+                        padding: "24px",
+                    },
+                },
+            },
+        },
+        MuiDialogActions: {
+            styleOverrides: {
+                root: {
+                    padding: "20px 24px",
+                    gap: "12px",
+                    borderTop: "1px solid var(--palette-divider)",
+                    backgroundColor: "#FFFFFF",
+                },
+            },
+        },
         MuiMenu: {
             defaultProps: {
                 PaperProps: {
@@ -368,6 +417,16 @@ export const adminTheme = createTheme({
                 },
             },
         },
+        MuiTableCell: {
+            styleOverrides: {
+                root: {
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    verticalAlign: 'middle',
+                },
+            },
+        },
         MuiTableRow: {
             styleOverrides: {
                 root: {
@@ -377,6 +436,55 @@ export const adminTheme = createTheme({
                     '&.MuiTableRow-hover:hover': {
                         backgroundColor: 'transparent',
                     },
+                },
+            },
+        },
+        MuiSwitch: {
+            styleOverrides: {
+                root: {
+                    width: '36px !important',
+                    height: '20px !important',
+                    padding: '0 !important',
+                    margin: '8px !important',
+                },
+                switchBase: {
+                    padding: '0 !important',
+                    margin: '2px !important',
+                    transitionDuration: '300ms',
+                    '&.Mui-checked': {
+                        transform: 'translateX(16px) !important',
+                        color: '#fff !important',
+                        '& + .MuiSwitch-track': {
+                            backgroundColor: '#FF3030 !important',
+                            opacity: '1 !important',
+                            border: '0 !important',
+                        },
+                        '&.Mui-disabled + .MuiSwitch-track': {
+                            opacity: '0.5 !important',
+                        },
+                    },
+                    '&.Mui-focusVisible .MuiSwitch-thumb': {
+                        color: '#FF3030 !important',
+                        border: '4px solid #fff !important',
+                    },
+                    '&.Mui-disabled .MuiSwitch-thumb': {
+                        color: '#f5f5f5 !important',
+                    },
+                    '&.Mui-disabled + .MuiSwitch-track': {
+                        opacity: '0.7 !important',
+                    },
+                },
+                thumb: {
+                    boxSizing: 'border-box',
+                    width: '16px !important',
+                    height: '16px !important',
+                    boxShadow: '0 2px 4px 0 rgb(0 35 11 / 20%) !important',
+                },
+                track: {
+                    borderRadius: '10px !important',
+                    backgroundColor: '#919eab7a !important',
+                    opacity: '1 !important',
+                    transition: 'background-color 500ms',
                 },
             },
         },
@@ -422,7 +530,16 @@ export const adminTheme = createTheme({
                     '& .MuiDataGrid-withBorderColor': { borderColor: 'var(--palette-background-neutral)' },
                     
                     '& .MuiDataGrid-cell': {
-                        color: 'inherit', fontSize: "0.875rem", display: 'flex', alignItems: 'center',
+                        color: 'inherit',
+                        fontSize: "0.875rem",
+                        display: 'flex',
+                        alignItems: 'center',
+                        overflow: 'hidden',
+                        minWidth: 0,
+                        '& > *': {
+                            minWidth: 0,
+                            maxWidth: '100%',
+                        },
                     },
 
                     '& .MuiDataGrid-row:hover, & .MuiDataGrid-row.Mui-hovered': {

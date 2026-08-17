@@ -58,8 +58,8 @@
     </div>
 </div>
 
-<h1>Hợp đồng cộng tác bán vé số</h1>
-<p class="subtitle">Về việc nhận, bán hộ và đối soát vé số kiến thiết</p>
+<h1 th:text="${contract.title}">Hợp đồng cộng tác bán vé số</h1>
+<p class="subtitle" th:text="${contract.subtitle}">Về việc nhận, bán hộ và đối soát vé số kiến thiết</p>
 
 <div class="actions" th:if="${contract.showPrintAction}"><button onclick="window.print()">In hợp đồng</button></div>
 
@@ -67,65 +67,28 @@
 
 <h2>Thông tin các bên</h2>
 <table class="info-table">
-    <tr><th>Bên A - Đại lý giao vé</th><td th:text="${contract.siteLegalName}">ĐẠI PHÁT</td></tr>
+    <tr><th th:text="${contract.partyARoleLabel}">Bên A - Đại lý giao vé</th><td th:text="${contract.siteLegalName}">ĐẠI PHÁT</td></tr>
     <tr><th>Mã số thuế / ĐKKD</th><td th:text="${contract.siteTaxCode}">—</td></tr>
     <tr><th>Người đại diện / Chức danh</th><td><span th:text="${contract.siteLegalRepresentative}">—</span> / <span th:text="${contract.siteLegalRepresentativeTitle}">—</span></td></tr>
     <tr><th>Địa chỉ liên hệ</th><td th:text="${contract.siteAddress}">—</td></tr>
     <tr><th>Điện thoại / Email</th><td><span th:text="${contract.sitePhone}">—</span> / <span th:text="${contract.siteEmail}">—</span></td></tr>
-    <tr><th>Bên B - Người bán vé số dạo</th><td th:text="${contract.vendorFullName}">Nguyễn Văn A</td></tr>
+    <tr><th th:text="${contract.partyBRoleLabel}">Bên B - Người bán vé số dạo</th><td th:text="${contract.vendorFullName}">Nguyễn Văn A</td></tr>
     <tr><th>Số điện thoại</th><td th:text="${contract.vendorPhone}">0900000000</td></tr>
     <tr><th>Số CCCD</th><td th:text="${contract.vendorCccd}">000000000000</td></tr>
-    <tr><th>Địa chỉ / Tỉnh thành</th><td><span th:text="${contract.vendorAddress}">—</span> / <span th:text="${contract.vendorProvince}">—</span></td></tr>
+    <tr><th>Địa chỉ liên hệ</th><td><span th:text="${contract.vendorAddress}">—</span>, <span th:text="${contract.vendorWard}">—</span>, <span th:text="${contract.vendorProvince}">—</span></td></tr>
     <tr><th>Địa bàn bán</th><td th:text="${contract.vendorCoverageArea}">—</td></tr>
 </table>
 
-<div class="article">
-    <div class="article-title">Điều 1. Phạm vi hợp tác</div>
-    <p>Bên A giao Bên B nhận và bán hộ vé số theo từng phiếu bàn giao. Bên B là người bán hộ, không mặc nhiên mua toàn bộ vé được giao. Quyền sở hữu và quyền định đoạt vé chưa bán vẫn thuộc Bên A cho đến khi hai bên hoàn tất đối soát theo phiếu bàn giao.</p>
-</div>
-<div class="article">
-    <div class="article-title">Điều 2. Hạn mức và bàn giao vé</div>
-    <p>Hợp đồng có hiệu lực từ <strong th:text="${contract.contractStartDate}">01/01/2026</strong> đến <strong th:text="${contract.contractEndDate}">31/12/2026</strong>. Hạn mức tối đa hiện hành là <strong th:text="${contract.dailyTicketCap}">100 vé/ngày</strong>. Danh sách serial, đài xổ, ngày kinh doanh, số lượng và giá trị của từng lần giao được xác nhận trên từng phiếu bàn giao; phiếu này là phụ lục không tách rời của hợp đồng.</p>
-</div>
-<div class="article">
-    <div class="article-title">Điều 3. Giá bán, hoa hồng và tiền cọc</div>
-    <p>Giá vendor hiện hành: <strong th:text="${contract.vendorUnitPrice}">9.000 đ/vé</strong>. Mệnh giá bán lẻ được thể hiện trên từng vé. Hoa hồng: <strong th:text="${contract.commission}">—</strong>. Tiền cọc: <strong th:text="${contract.depositRate}">10%</strong>.</p>
-    <p th:text="${contract.depositFormula}">Tiền cọc = số vé xác nhận bàn giao × giá vendor × tỷ lệ cọc.</p>
-    <p>Giá, tỷ lệ cọc, giờ chốt trả vé và chính sách trả trễ áp dụng cho từng phiếu được hệ thống ghi nhận tại thời điểm xác nhận bàn giao; thay đổi cấu hình sau đó không làm thay đổi phiếu đã xác nhận.</p>
-</div>
-<div class="article">
-    <div class="article-title">Điều 4. Trả vé và đối soát</div>
-    <p>Bên B trả vé ế và thực hiện đối soát theo serial trước <strong th:text="${contract.returnCutoff}">15:00</strong> vào ngày áp dụng. Số vé bán được được xác định bằng số vé đã giao trừ số serial hợp lệ đã trả. Bên A hoàn cọc và ghi nhận hoa hồng theo kết quả quyết toán của phiếu bàn giao.</p>
-    <p>Vé mất, rách, hư hỏng hoặc không quét được phải được Bên B báo ngay khi đối soát và lập ghi nhận với Bên A. Nếu không có xác nhận khác của Bên A, serial không trả được được xử lý theo kết quả đối soát và chính sách áp dụng cho phiếu bàn giao.</p>
-</div>
-<div class="article">
-    <div class="article-title">Điều 5. Xử lý trả trễ</div>
-    <p th:text="${contract.lateReturnPolicy}">Chính sách trả trễ</p>
-    <p th:text="${contract.lateReturnSettlement}">Cách quyết toán khi trả trễ.</p>
-</div>
-<div class="article">
-    <div class="article-title">Điều 6. Quyền và trách nhiệm</div>
-    <ol>
-        <li>Bên A cung cấp vé hợp lệ, ghi nhận phiếu bàn giao và đối soát minh bạch.</li>
-        <li>Bên B bảo quản vé, bán đúng phạm vi được giao, không tự ý chuyển vé cho bên thứ ba và thực hiện đúng giờ trả vé.</li>
-        <li>Mọi thay đổi về số lượng, giá trị và kết quả đối soát phải được xác nhận trên hệ thống hoặc chứng từ liên quan.</li>
-        <li>Bên B không được chuyển giao quyền, nghĩa vụ hoặc vé đã nhận cho bên thứ ba nếu chưa có xác nhận của Bên A.</li>
-    </ol>
-</div>
-<div class="article">
-    <div class="article-title">Điều 7. Hiệu lực và chấm dứt</div>
-    <p>Hợp đồng hết hiệu lực vào ngày nêu trên, theo thỏa thuận bằng văn bản hoặc khi một bên vi phạm nghiêm trọng nghĩa vụ. Việc chấm dứt không làm mất nghĩa vụ đối soát, thanh toán và hoàn trả vé còn tồn theo các phiếu bàn giao chưa quyết toán.</p>
-</div>
-<div class="article">
-    <div class="article-title">Điều 8. Sửa đổi, thông báo và giải quyết tranh chấp</div>
-    <p>Mọi sửa đổi, bổ sung hợp đồng chỉ có giá trị khi được hai bên xác nhận bằng văn bản hoặc phương thức điện tử được Bên A chấp nhận. Các bên ưu tiên thương lượng thiện chí; nếu không giải quyết được, tranh chấp được xử lý theo quy định pháp luật hiện hành.</p>
+<div class="article" th:each="article : ${contract.articles}">
+    <div class="article-title" th:text="${article.title}">Điều</div>
+    <div th:utext="${article.body}"></div>
 </div>
 
-<p class="note">Bản PDF này là bản dự thảo/in từ hệ thống. Bản hợp đồng đã ký, nếu có, được lưu riêng trên hồ sơ đại lý.</p>
+<p class="note" th:text="${contract.footerNote}">Bản PDF này là bản dự thảo/in từ hệ thống. Bản hợp đồng đã ký, nếu có, được lưu riêng trên hồ sơ đại lý.</p>
 
 <div class="signatures">
-    <div class="signature"><div class="party-title">ĐẠI DIỆN BÊN A</div><div th:text="${contract.siteLegalRepresentativeTitle}">(Chức danh)</div><div class="signature-space"></div><div class="bold" th:text="${contract.siteLegalRepresentative}">Họ tên người đại diện</div></div>
-    <div class="signature"><div class="party-title">BÊN B - NGƯỜI BÁN VÉ SỐ DẠO</div><div>(Ký, ghi rõ họ tên)</div><div class="signature-space"></div><div class="bold" th:text="${contract.vendorFullName}">Nguyễn Văn A</div></div>
+    <div class="signature"><div class="party-title" th:text="${contract.partyASignatureLabel}">ĐẠI DIỆN BÊN A</div><div th:text="${contract.siteLegalRepresentativeTitle}">(Chức danh)</div><div class="signature-space"></div><div class="bold" th:text="${contract.siteLegalRepresentative}">Họ tên người đại diện</div></div>
+    <div class="signature"><div class="party-title" th:text="${contract.partyBSignatureLabel}">BÊN B - NGƯỜI BÁN VÉ SỐ DẠO</div><div>(Ký, ghi rõ họ tên)</div><div class="signature-space"></div><div class="bold" th:text="${contract.vendorFullName}">Nguyễn Văn A</div></div>
 </div>
 </body>
 </html>

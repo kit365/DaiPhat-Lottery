@@ -1,6 +1,6 @@
 'use client';
 
-import { Link } from 'react-router-dom';
+import Link from "next/link";
 import { ChevronRight, Phone, Mail, MapPin } from 'lucide-react';
 import { useSiteBranding } from '@/client/hooks/useSiteBranding';
 import { BrandMark } from '@/client/components/auth/SharedAuth';
@@ -56,7 +56,7 @@ const FooterNavList = ({
         <ul className="space-y-3">
             {links.map((item) => (
                 <li key={item.label}>
-                    <Link to={item.to} className={navLinkClass}>
+                    <Link href={item.to} prefetch={false} className={navLinkClass}>
                         <span>{item.label}</span>
                         <ChevronRight
                             size={12}

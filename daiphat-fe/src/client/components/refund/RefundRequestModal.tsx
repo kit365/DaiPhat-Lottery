@@ -1,8 +1,8 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import React, { useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
-import { useNavigate } from 'react-router-dom';
 import { OrderResponse } from '../../../types/order.type';
 import {
     formatRefundCountdown,
@@ -21,6 +21,9 @@ import {
     validateRefundSubmitFields,
 } from './refundRequestForm.logic';
 import { AppToast } from '../../../utils/toast.util';
+import { ClientSelect } from '../ui/ClientSelect';
+import { OrderStatusBadge } from '@/shared/components/StatusBadge';
+import { LuckyNumber } from '../ui/LuckyNumber';
 
 interface RefundRequestModalProps {
     isOpen: boolean;
@@ -28,17 +31,8 @@ interface RefundRequestModalProps {
     order: OrderResponse;
 }
 
-const ORDER_STATUS_LABELS: Record<string, string> = {
-    PENDING_PAYMENT: 'Chờ thanh toán',
-    PAID: 'Đã thanh toán',
-    PREPARING: 'Đang chuẩn bị vé',
-    PENDING_PICKUP: 'Chờ nhận vé',
-    COMPLETED: 'Đã hoàn thành',
-    CANCELLED: 'Đã hủy'
-};
-
 export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({ isOpen, onClose, order }) => {
-    const navigate = useNavigate();
+    const router = useRouter();
     const { data: bankAccountsData, isLoading: isLoadingBankAccounts } = useGetBankAccounts(isOpen);
     const {
         data: eligibilityData,
@@ -111,7 +105,7 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({ isOpen, 
                 onSuccess: (res) => {
                     if (res.success) {
                         onClose();
-                        navigate('/profile/orders');
+                        router.push('/profile/orders');
                     }
                 }
             }
@@ -236,11 +230,9 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({ isOpen, 
                                 </div>
                                 <div>
                                     <span className="text-[#637381]">Trạng thái</span>
-                                    <p className="font-semibold text-[#212B36] mt-0.5">
-                                        {ORDER_STATUS_LABELS[eligibility?.orderStatus || order.status] ||
-                                            eligibility?.orderStatus ||
-                                            order.status}
-                                    </p>
+                                    <div className="mt-0.5">
+                                        <OrderStatusBadge status={eligibility?.orderStatus || order.status} />
+                                    </div>
                                 </div>
                                 <div>
                                     <span className="text-[#637381]">Ngày đặt</span>
@@ -337,20 +329,15 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({ isOpen, 
                                 </div>
                             ) : (
                                 <>
-                                    <select
-                                        value={bankAccountId}
-                                        onChange={(e) => setBankAccountId(Number(e.target.value))}
-                                        className="w-full px-4 py-3 bg-white border border-[#E5E8EB] rounded-xl text-[14px] outline-none focus:border-[#ee1314] cursor-pointer disabled:bg-[#F4F6F8] disabled:text-[#919EAB]"
-                                        required
+                                    <ClientSelect
+                                        value={String(bankAccountId || '')}
+                                        onChange={(next) => setBankAccountId(Number(next))}
                                         disabled={isSubmitting || isRefundBlocked}
-                                    >
-                                        {bankAccounts.map((account) => (
-                                            <option key={account.id} value={account.id}>
-                                                {account.bankName} - {maskBankAccountNo(account.bankAccountNo)}
-                                                {account.isDefault ? ' (Mặc định)' : ''}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        options={bankAccounts.map((account) => ({
+                                            value: String(account.id),
+                                            label: `${account.bankName} - ${maskBankAccountNo(account.bankAccountNo)}${account.isDefault ? ' (Mặc định)' : ''}`,
+                                        }))}
+                                    />
                                     <button
                                         type="button"
                                         onClick={() => setShowBankForm(true)}
@@ -396,7 +383,7 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({ isOpen, 
                                                         Vé số
                                                     </span>
                                                     <span className="text-[14px] font-bold text-[#212B36]">
-                                                        {ticket.numbers || '—'}
+                                                        <LuckyNumber value={ticket.numbers} ticket className="text-[14px]" />
                                                     </span>
                                                 </div>
                                                 <div className="flex justify-between sm:block mb-1 sm:mb-0">

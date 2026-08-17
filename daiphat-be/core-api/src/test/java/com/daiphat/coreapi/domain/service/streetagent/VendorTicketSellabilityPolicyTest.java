@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 
@@ -99,5 +100,31 @@ class VendorTicketSellabilityPolicyTest {
                 List.of(serial)
         );
         assertThat(reason).isEqualTo(VendorTicketSellabilityPolicy.BLOCKED_DATE_NOT_SCHEDULED);
+    }
+
+    @Test
+    void resolveBlockedReason_returnsNoEligibleInventory_beforeDailyCapWhenThereAreNoTickets() {
+        String reason = VendorTicketSellabilityPolicy.resolveBlockedReason(
+                DrawScheduleUtils.today(),
+                0,
+                List.of()
+        );
+
+        assertThat(reason).isEqualTo(VendorTicketSellabilityPolicy.BLOCKED_NO_ELIGIBLE_INVENTORY);
+    }
+
+    @Test
+    void deterministic_sellability_rejects_missing_draw_schedule() {
+        LocalDate businessDate = LocalDate.of(2026, 8, 12);
+        VendorAllocationSerialModel serial = VendorAllocationSerialModel.builder()
+                .drawDate(businessDate)
+                .stationActive(true)
+                .ticketActive(true)
+                .ticketStatus(com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK)
+                .ticketCondition(com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD)
+                .build();
+
+        assertThat(VendorTicketSellabilityPolicy.isSellableForVendor(
+                serial, businessDate, LocalDateTime.of(2026, 8, 12, 9, 0))).isFalse();
     }
 }

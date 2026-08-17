@@ -39,6 +39,7 @@ interface CartStore {
 const resolveMaxStock = (maxStock?: number) =>
     typeof maxStock === 'number' && maxStock >= 0 ? maxStock : undefined;
 
+/** Qty may be 0 (pending explicit Delete). Removal is only via removeItem / removeBuyNowItem. */
 const clampQuantity = (quantity: number, maxStock?: number) => {
     const max = resolveMaxStock(maxStock) ?? 999;
     return Math.min(Math.max(0, quantity), Math.max(0, max));
@@ -91,12 +92,8 @@ export const useCartStore = create<CartStore>((set, get) => ({
         const item = get().items.find(i => i.id === id);
         if (!item) return false;
 
-        const max = resolveMaxStock(item.maxStock) ?? 999;
-        const newQty = item.quantity + delta;
-        // Cho phép về 0 để hiện "Xóa"; vẫn kẹp theo tồn kho
-        const clamped = Math.min(Math.max(0, newQty), Math.max(0, max));
-
-        // Không đổi được (đã chạm min/max)
+        // Allow 0 so UI can show Delete; never auto-remove the line here.
+        const clamped = clampQuantity(item.quantity + delta, item.maxStock);
         if (clamped === item.quantity) return false;
 
         set((state) => ({

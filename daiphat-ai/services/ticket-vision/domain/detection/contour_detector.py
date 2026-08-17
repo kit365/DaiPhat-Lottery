@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 
 from domain.detection.base import DetectedRegion, DetectionResult, TicketDetectorStrategy
+from domain.detection.ordering import cap_to_max_tickets, order_corners, sort_reading_order
 
 
 # A candidate whose bbox is this fraction (or more) contained within a
@@ -50,30 +51,6 @@ def _suppress_contained_regions(candidates: list[DetectedRegion]) -> list[Detect
         kept.append(candidate)
 
     return kept
-
-def _order_corners(points: np.ndarray) -> list[tuple[int, int]]:
-    """Order 4 points as (top-left, top-right, bottom-right, bottom-left).
-
-    Standard trick: top-left has the smallest (x+y), bottom-right the
-    largest (x+y); top-right has the smallest (y-x), bottom-left the
-    largest (y-x).
-    """
-    pts = points.reshape(4, 2).astype("float32")
-    s = pts.sum(axis=1)
-    d = np.diff(pts, axis=1).reshape(-1)
-
-    top_left = pts[np.argmin(s)]
-    bottom_right = pts[np.argmax(s)]
-    top_right = pts[np.argmin(d)]
-    bottom_left = pts[np.argmax(d)]
-
-    return [
-        (int(top_left[0]), int(top_left[1])),
-        (int(top_right[0]), int(top_right[1])),
-        (int(bottom_right[0]), int(bottom_right[1])),
-        (int(bottom_left[0]), int(bottom_left[1])),
-    ]
-
 
 class ContourTicketDetector(TicketDetectorStrategy):
     """MVP ticket detector: OpenCV contour detection + aspect-ratio filtering.
@@ -146,7 +123,7 @@ class ContourTicketDetector(TicketDetectorStrategy):
             # axis-aligned bounding box -- a diagonally-photographed ticket's
             # AABB is much closer to square than the ticket itself, which
             # would push it outside the aspect-ratio band and drop it.
-            corners = _order_corners(quad)
+            corners = order_corners(quad)
             top_left, top_right, bottom_right, bottom_left = (
                 np.array(p, dtype="float32") for p in corners
             )
@@ -166,21 +143,7 @@ class ContourTicketDetector(TicketDetectorStrategy):
             candidates.append(DetectedRegion(bbox=(x, y, w, h), corners=corners))
 
         candidates = _suppress_contained_regions(candidates)
-
-        # Reading order: top-to-bottom, then left-to-right within a "row".
-        # Tickets fanned out at roughly the same height are grouped using
-        # the median ticket height as the row-bucket size.
-        if candidates:
-            median_h = float(np.median([r.bbox[3] for r in candidates])) or 1.0
-            candidates.sort(key=lambda r: (round(r.bbox[1] / median_h), r.bbox[0]))
-
-        warnings: list[str] = []
-        if len(candidates) > self.max_tickets:
-            warnings.append(
-                f"Detected {len(candidates)} candidate ticket regions; "
-                f"processing capped at {self.max_tickets} "
-                "(see TICKET_VISION_MAX_TICKETS_PER_IMAGE)."
-            )
-            candidates = candidates[: self.max_tickets]
+        candidates = sort_reading_order(candidates)
+        candidates, warnings = cap_to_max_tickets(candidates, self.max_tickets)
 
         return DetectionResult(regions=candidates, warnings=warnings)

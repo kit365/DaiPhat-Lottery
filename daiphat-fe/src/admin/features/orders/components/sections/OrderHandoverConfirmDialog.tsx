@@ -1,19 +1,8 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import {
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    Button,
-    Typography,
-    FormControlLabel,
-    Checkbox,
-    Box,
-    Stack,
-} from '@mui/material';
-import { Icon } from '@iconify/react';
+import { useEffect, useState } from "react";
+import { Typography, FormControlLabel, Checkbox, Box, Stack } from "@mui/material";
+import { AdminConfirmDialog } from "@/admin/components/ui/AdminConfirmDialog";
 
 interface OrderHandoverConfirmDialogProps {
     open: boolean;
@@ -38,87 +27,43 @@ export const OrderHandoverConfirmDialog = ({
         }
     }, [open]);
 
-    const handleConfirm = () => {
-        if (!acknowledged) return;
-        onConfirm();
-        onClose();
-    };
-
     return (
-        <Dialog
+        <AdminConfirmDialog
             open={open}
-            onClose={onClose}
+            title="Xác nhận bàn giao"
             maxWidth="sm"
-            fullWidth
-            PaperProps={{
-                sx: {
-                    borderRadius: 'var(--shape-borderRadius-lg)',
-                    boxShadow: 'var(--customShadows-dialog)',
-                },
+            cancelLabel="Quay lại"
+            confirmLabel="Xác nhận hoàn thành"
+            confirmDisabled={!acknowledged}
+            onClose={onClose}
+            onConfirm={() => {
+                if (!acknowledged) return;
+                onConfirm();
+                onClose();
             }}
         >
-            <DialogTitle sx={{ pb: 1.5, pt: 2.5, px: 3 }}>
-                <Stack direction="row" spacing={1.5} alignItems="center">
-                    <Box
-                        sx={{
-                            width: 40,
-                            height: 40,
-                            borderRadius: '10px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            bgcolor: 'var(--palette-warning-lighter)',
-                            color: 'var(--palette-warning-dark)',
-                            flexShrink: 0,
-                        }}
-                    >
-                        <Icon icon="solar:hand-heart-bold-duotone" width={22} />
-                    </Box>
-                    <Typography
-                        variant="h6"
-                        sx={{
-                            fontWeight: 800,
-                            fontSize: '1.05rem',
-                            letterSpacing: 0.4,
-                            textTransform: 'uppercase',
-                            color: 'var(--palette-text-primary)',
-                        }}
-                    >
-                        Xác nhận bàn giao
-                    </Typography>
-                </Stack>
-            </DialogTitle>
-
-            <DialogContent sx={{ px: 3, pb: 1 }}>
-                <Typography
-                    variant="body2"
-                    sx={{
-                        color: 'var(--palette-text-secondary)',
-                        lineHeight: 1.7,
-                        mb: 2.5,
-                    }}
-                >
-                    Yêu cầu khách hàng kiểm tra kỹ số lượng và tình trạng vật lý của vé. Hệ thống{' '}
-                    <Box component="span" sx={{ fontWeight: 800, color: 'var(--palette-error-dark)' }}>
+            <Stack spacing={2}>
+                <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7 }}>
+                    Yêu cầu khách hàng kiểm tra kỹ số lượng và tình trạng vật lý của vé. Hệ thống{" "}
+                    <Box component="span" sx={{ fontWeight: 800, color: "var(--palette-error-dark)" }}>
                         KHÔNG
-                    </Box>{' '}
+                    </Box>{" "}
                     hỗ trợ hoàn tiền hoặc đổi vé sau khi đã hoàn tất bàn giao.
                 </Typography>
-
                 <Box
                     sx={{
                         p: 1.5,
-                        borderRadius: '12px',
-                        border: '1px solid var(--palette-divider)',
-                        bgcolor: 'var(--palette-background-neutral)',
+                        borderRadius: "12px",
+                        border: "1px solid var(--palette-divider)",
+                        bgcolor: "var(--palette-background-neutral)",
                     }}
                 >
                     <FormControlLabel
                         sx={{
-                            alignItems: 'flex-start',
+                            alignItems: "flex-start",
                             m: 0,
                             gap: 0.5,
-                            '& .MuiFormControlLabel-label': { pt: 0.25 },
+                            "& .MuiFormControlLabel-label": { pt: 0.25 },
                         }}
                         control={
                             <Checkbox
@@ -129,40 +74,13 @@ export const OrderHandoverConfirmDialog = ({
                             />
                         }
                         label={
-                            <Typography
-                                variant="body2"
-                                sx={{
-                                    fontWeight: 600,
-                                    color: 'var(--palette-text-primary)',
-                                    lineHeight: 1.5,
-                                }}
-                            >
+                            <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.5 }}>
                                 Tôi xác nhận khách hàng đã kiểm tra và đồng ý nhận đủ vé.
                             </Typography>
                         }
                     />
                 </Box>
-            </DialogContent>
-
-            <DialogActions sx={{ px: 3, pb: 2.5, pt: 2, gap: 1 }}>
-                <Button
-                    variant="outlined"
-                    color="inherit"
-                    onClick={onClose}
-                    sx={{ minWidth: 96 }}
-                >
-                    Hủy
-                </Button>
-                <Button
-                    variant="contained"
-                    className="btn-primary-admin"
-                    disabled={!acknowledged}
-                    onClick={handleConfirm}
-                    sx={{ minWidth: 140 }}
-                >
-                    Xác nhận hoàn thành
-                </Button>
-            </DialogActions>
-        </Dialog>
+            </Stack>
+        </AdminConfirmDialog>
     );
 };

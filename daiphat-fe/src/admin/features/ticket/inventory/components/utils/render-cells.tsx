@@ -1,8 +1,8 @@
 "use client";
 
-import { Avatar, Box, Chip, Link, ListItemText } from '@mui/material';
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { Box, Link, Typography, Stack } from '@mui/material';
 import { GridRenderCellParams } from '@mui/x-data-grid';
-import { useNavigate } from '@/components/router-compat';
 import { prefixAdmin } from '../../../../../constants/routes';
 import { useTicketInventory } from '../../hooks/useTicketInventory';
 import { toast } from 'react-toastify';
@@ -13,6 +13,8 @@ import { useStations } from '../../../../station/hooks/useStation';
 import { formatImportBatchCode } from '../../../import-batch/utils/importBatchCode';
 import { getTicketStatusLabel, normalizeTicketStatus } from '../../constants/ticket-status.config';
 import { AdminRowActionsMenu } from '../../../../../components/ui/AdminRowActionsMenu';
+import { AdminStatusBadge } from '../../../../../components/ui/AdminStatusBadge';
+import { AdminLuckyDisplay } from '@/shared/lucky-number';
 
 dayjs.locale('vi');
 
@@ -21,72 +23,44 @@ interface RenderCreatedAtCellProps {
 }
 
 export const RenderTicketCell = (params: GridRenderCellParams) => {
-    const { stationName, numbers, avatar, ticketImg, batchCode, quantity } = params.row;
-    const navigate = useNavigate();
+    const { numbers, quantity } = params.row;
+    const router = useAdminRouter();
     const id = params.row.id || params.row._id;
 
-    const displayImage = avatar || ticketImg;
-    const displayName = stationName || params.row.providerName || 'Không xác định';
-
     return (
-        <Box
-            sx={{
-                display: 'flex',
-                alignItems: 'center',
-                py: 'calc(2 * var(--spacing))',
-                gap: 'calc(2 * var(--spacing))',
-                width: '100%',
-            }}
-        >
-            <Avatar
-                alt={displayName}
-                src={displayImage}
-                variant="rounded"
-                sx={{
-                    width: '64px',
-                    height: '64px',
-                    borderRadius: 'var(--shape-borderRadius-md)',
-                    backgroundColor: 'var(--palette-background-neutral)',
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25, py: 0.75 }}>
+            <Link
+                href={`/${prefixAdmin}/ticket/detail/${id}`}
+                onClick={(e) => {
+                    e.preventDefault();
+                    router.push(`/${prefixAdmin}/ticket/detail/${id}`);
                 }}
-            />
-
-            <ListItemText
-                primary={
-                    <Link
-                        href={`/${prefixAdmin}/ticket/edit/${id}`}
-                        className="admin-cell-title"
-                        onClick={(e) => {
-                            e.preventDefault();
-                            navigate(`/${prefixAdmin}/ticket/edit/${id}`);
-                        }}
-                        underline="hover"
-                        sx={{ 
-                            fontSize: '1.15rem', 
-                            letterSpacing: '0.05em', 
-                            color: 'primary.main',
-                            fontWeight: 700 
-                        }}
-                    >
-                        {numbers || 'N/A'}
-                    </Link>
-                }
-                secondary={
-                    <span className="admin-cell-subtitle" style={{ fontSize: '0.85rem' }}>
-                        Số lượng: <strong style={{ color: 'var(--palette-error-main)', fontSize: '0.95rem' }}>{quantity ?? 0}</strong>
-                    </span>
-                }
-                slotProps={{
-                    primary: {
-                        component: 'span',
-                        variant: 'body1',
-                        noWrap: true,
-                    },
-                    secondary: {
-                        component: 'span',
-                    },
+                underline="hover"
+                sx={{ 
+                    fontSize: '1.05rem', 
+                    letterSpacing: '0.06em', 
+                    color: '#0f172a',
+                    fontWeight: 800,
+                    fontFamily: 'monospace',
+                    lineHeight: 1.2,
+                    '&:hover': { color: '#2563eb' },
                 }}
-                sx={{ m: 0 }}
-            />
+            >
+                <AdminLuckyDisplay
+                    value={numbers}
+                    ticket
+                    sx={{
+                        fontSize: '1.05rem',
+                        letterSpacing: '0.06em',
+                        color: 'inherit',
+                        fontWeight: 800,
+                        lineHeight: 1.2,
+                    }}
+                />
+            </Link>
+            <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600 }}>
+                Số lượng: <Box component="span" sx={{ color: '#ea580c', fontWeight: 800 }}>{quantity ?? 0}</Box> vé
+            </Typography>
         </Box>
     );
 };
@@ -97,9 +71,13 @@ export const RenderCreatedAtCell = ({ value }: RenderCreatedAtCellProps) => {
     if (!dateObj.isValid()) return null;
 
     return (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <span className="admin-cell-date">{dateObj.format('DD MMM, YYYY')}</span>
-            <span className="admin-cell-date-secondary">{dateObj.format('hh:mm A')}</span>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <Typography variant="body2" fontWeight={600} color="#0f172a" sx={{ fontSize: '0.8125rem' }}>
+                {dateObj.format('DD/MM/YYYY')}
+            </Typography>
+            <Typography variant="caption" color="#64748b" sx={{ fontSize: '0.75rem' }}>
+                {dateObj.format('HH:mm')}
+            </Typography>
         </Box>
     );
 };
@@ -116,9 +94,13 @@ const DrawDateCell = (params: GridRenderCellParams) => {
     if (!dateObj.isValid()) return null;
 
     return (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <span className="admin-cell-date">{dateObj.format('DD MMM, YYYY')}</span>
-            <span className="admin-cell-date-secondary">{drawTime}</span>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <Typography variant="body2" fontWeight={600} color="#0f172a" sx={{ fontSize: '0.8125rem' }}>
+                {dateObj.format('DD/MM/YYYY')}
+            </Typography>
+            <Typography variant="caption" color="#64748b" sx={{ fontSize: '0.75rem' }}>
+                {drawTime}
+            </Typography>
         </Box>
     );
 };
@@ -138,7 +120,6 @@ const ticketStatusModifier = (status?: string | null): string => {
         case 'EXPIRED':
             return 'admin-status-badge--inactive';
         default:
-            // Unknown / legacy cached values
             return 'admin-status-badge--draft';
     }
 };
@@ -148,7 +129,7 @@ export const RenderStatusCell = (params: GridRenderCellParams) => {
     const label = statusDisplayName || getTicketStatusLabel(status) || status || '—';
     const modifier = ticketStatusModifier(status);
 
-    return <span className={`admin-status-badge ${modifier}`.trim()}>{label}</span>;
+    return <AdminStatusBadge label={label} modifier={modifier} />;
 };
 
 const ticketConditionModifier = (condition?: string | null): string => {
@@ -166,7 +147,7 @@ export const RenderTicketConditionCell = (params: GridRenderCellParams) => {
     const label =
         ticketConditionDisplayName ||
         (condition === 'DAMAGED'
-            ? 'Hỏng vật lý'
+            ? 'Hỏng'
             : condition === 'LOST'
               ? 'Thất lạc'
               : condition === 'VOIDED'
@@ -175,16 +156,16 @@ export const RenderTicketConditionCell = (params: GridRenderCellParams) => {
 
     const modifier = ticketConditionModifier(ticketCondition);
 
-    return <span className={`admin-status-badge ${modifier}`.trim()}>{label}</span>;
+    return <AdminStatusBadge label={label} modifier={modifier} />;
 };
 
 export const RenderActionsCell = (params: GridRenderCellParams) => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const { deleteTicket } = useTicketInventory();
     const id = params.row.id || params.row._id;
 
     const handleEdit = () => {
-        navigate(`/${prefixAdmin}/ticket/edit/${id}`);
+        router.push(`/${prefixAdmin}/ticket/edit/${id}`);
     };
 
     const handleDelete = () => {
@@ -211,7 +192,7 @@ export const RenderActionsCell = (params: GridRenderCellParams) => {
                     id: 'view',
                     label: 'Chi tiết',
                     icon: 'view',
-                    onClick: () => navigate(`/${prefixAdmin}/ticket/detail/${id}`),
+                    onClick: () => router.push(`/${prefixAdmin}/ticket/detail/${id}`),
                 },
                 {
                     id: 'edit',

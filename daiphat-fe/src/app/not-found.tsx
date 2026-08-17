@@ -1,7 +1,7 @@
 "use client";
 
+import Link from "next/link";
 import React from 'react';
-import { Link } from '@/components/router-compat';
 import { PartnerLogos } from '@/client/components/layout/PartnerLogos';
 import { CLIENT_PAGE_BACKGROUND } from '@/client/constants/clientBannerAssets';
 
@@ -35,13 +35,13 @@ export default function NotFound() {
 
                             <div className="flex flex-col sm:flex-row items-center gap-4 w-full lg:w-auto mb-10">
                                 <Link
-                                    to="/"
+                                    href="/"
                                     className="w-full sm:w-auto px-8 py-4 bg-[#ee1314] text-white font-bold rounded-2xl hover:bg-[#d00f10] transition-colors flex items-center justify-center gap-2 shadow-lg shadow-[#ee1314]/30"
                                 >
                                     <i className="fa-solid fa-house"></i> Về trang chủ
                                 </Link>
                                 <Link
-                                    to="/"
+                                    href="/"
                                     className="w-full sm:w-auto px-8 py-4 bg-white text-[#ee1314] font-bold rounded-2xl border-2 border-[#ee1314] hover:bg-[#FFF4F4] transition-colors flex items-center justify-center gap-2"
                                 >
                                     <i className="fa-solid fa-magnifying-glass"></i> Dò kết quả

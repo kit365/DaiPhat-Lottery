@@ -1,27 +1,55 @@
 import '../models/lottery_ticket.dart';
 import '../services/lottery_ticket_api_service.dart';
 
+class OpenTicketsResult {
+  const OpenTicketsResult({
+    required this.items,
+    required this.pageNumber,
+    required this.totalPages,
+    required this.totalElements,
+    required this.hasMore,
+  });
+
+  final List<LotteryTicket> items;
+  final int pageNumber;
+  final int totalPages;
+  final int totalElements;
+  final bool hasMore;
+}
+
 class LotteryTicketRepository {
   LotteryTicketRepository(this._apiService);
 
   final LotteryTicketApiService _apiService;
 
+  static const int defaultPageSize = 15;
+
   /// Lấy vé đang bán từ API public (cùng FE `/lottery-tickets/public`).
-  Future<List<LotteryTicket>> fetchOpenTickets({
+  Future<OpenTicketsResult> fetchOpenTickets({
+    int page = 1,
+    int size = defaultPageSize,
     String? drawDate,
     String? search,
   }) async {
     final response = await _apiService.getPublicLotteryTickets(
-      page: 1,
-      size: 100,
+      page: page,
+      size: size,
       drawDate: drawDate,
       search: search,
       searchMode: 'CONTAINS',
-      sortBy: 'drawDate',
-      direction: 'asc',
     );
 
-    return response.items.where((ticket) => ticket.quantity > 0).toList();
+    // Ưu tiên cờ isLast từ API; fallback theo totalRecords.
+    final hasMore =
+        !response.isLast || (page * size) < response.totalElements;
+
+    return OpenTicketsResult(
+      items: response.items.where((ticket) => ticket.quantity > 0).toList(),
+      pageNumber: page,
+      totalPages: response.totalPages,
+      totalElements: response.totalElements,
+      hasMore: hasMore,
+    );
   }
 
   Future<LotteryTicket> fetchTicketDetail(int id) {

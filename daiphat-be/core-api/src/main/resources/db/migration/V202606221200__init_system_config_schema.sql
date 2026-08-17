@@ -5,6 +5,10 @@ CREATE TABLE IF NOT EXISTS system_config (
     config_type      VARCHAR(20)  NOT NULL,
     data_type        VARCHAR(20)  NOT NULL,
     description      VARCHAR(255) NOT NULL,
+    config_name      VARCHAR(100) NOT NULL DEFAULT '',
+    unit             VARCHAR(30),
+    validation_rules TEXT,
+    is_editable      BOOLEAN NOT NULL DEFAULT TRUE,
     is_active       BOOLEAN NOT NULL DEFAULT TRUE,
 
     created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

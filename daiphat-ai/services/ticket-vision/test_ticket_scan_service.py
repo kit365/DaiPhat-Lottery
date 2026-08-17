@@ -19,7 +19,7 @@ def _service(ocr_strategy: OcrStrategy) -> TicketScanService:
     # here (_correct_orientation, _refine_low_confidence_fields both operate
     # only on an already-cropped image and the OCR strategy).
     return TicketScanService(
-        detector=None,
+        detector_provider=None,
         ocr_strategy=ocr_strategy,
         validator=None,
         max_file_size_mb=10,

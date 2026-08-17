@@ -7,7 +7,7 @@ import { ComplaintFormModal } from './ComplaintFormModal';
 
 interface OrderComplaintButtonProps {
     orderId: string;
-    variant?: 'icon' | 'button';
+    variant?: 'icon' | 'button' | 'outline';
     className?: string;
     showHelperText?: boolean;
 }
@@ -39,6 +39,15 @@ export const OrderComplaintButton = ({
         }
         setShowModal(true);
     };
+
+    const ctaClassName =
+        variant === 'outline'
+            ? eligible
+                ? 'bg-white text-[#ee1314] border-[#ee1314]/35 hover:bg-[#FFF4F4]'
+                : 'bg-white text-[#919EAB] border-[#E5E8EB]'
+            : eligible
+              ? 'bg-[#ee1314] text-white hover:bg-[#c80f11] border-transparent shadow-md hover:-translate-y-0.5 active:translate-y-0 active:scale-95'
+              : 'bg-[#F4F6F8] text-[#919EAB] border-[#E5E8EB]';
 
     if (variant === 'icon') {
         return (
@@ -80,11 +89,7 @@ export const OrderComplaintButton = ({
                     onClick={handleClick}
                     aria-label="Gửi khiếu nại"
                     aria-disabled={!eligible || isLoading}
-                    className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border text-[13px] font-bold transition-all cursor-pointer ${
-                        eligible
-                            ? 'bg-[#ee1314] text-white hover:bg-[#c80f11] border-transparent shadow-md hover:-translate-y-0.5 active:translate-y-0 active:scale-95'
-                            : 'bg-[#F4F6F8] text-[#919EAB] border-[#E5E8EB]'
-                    }`}
+                    className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border text-[13px] font-bold transition-all cursor-pointer ${ctaClassName}`}
                 >
                     {isLoading ? (
                         <i className="fa-solid fa-spinner fa-spin text-[12px]"></i>

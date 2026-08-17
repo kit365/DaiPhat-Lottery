@@ -1,39 +1,18 @@
 "use client";
 
+import { AdminRowActionsMenu } from '@/admin/components/ui/AdminRowActionsMenu';
+import { Button } from '@/admin/components/ui/Button';
+
 import { ConversationTitle } from '../components/ConversationTitle';
 import { ConversationAvatarLetter } from '../components/ConversationAvatarLetter';
 import { getConversationDisplayTitle, getConversationAvatarLetter, getAssigneeDisplayLabel, getConversationPreviewText, getManagementUnreadCount } from '../utils';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
-    Box,
-    Card,
-    Tabs,
-    Tab,
-    styled,
-    Typography,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
-    Checkbox,
-    Stack,
-    Avatar,
-    IconButton,
-    Chip,
-    Toolbar,
-    Button,
-    Tooltip,
-    SvgIcon,
-    Menu,
-    MenuItem,
-    Badge
-} from "@mui/material";
-import { Icon } from "@iconify/react";
+    Box, Card, Tabs, Tab, styled, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Checkbox, Stack, Avatar, Chip, Toolbar, Tooltip, SvgIcon, Badge } from '@mui/material';
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import { adminChatDetailKey, ADMIN_CHAT_CONVERSATIONS_KEY } from '../../hooks/useChat';
 import { MessageSenderRole, ConversationStatusEnum } from '../../../../../types/chat.type';
-import { SortOrderEnum } from '../../../../../constants/common.constants';
+import { SortOrderEnum } from '../../constants/sortOrder';
 import dayjs from "dayjs";
 
 const WaitTimerChip = ({ startTime }: { startTime: string }) => {
@@ -109,6 +88,20 @@ const TabBadge = styled('span')(() => ({
     fontSize: "0.75rem",
     fontWeight: 700,
 }));
+
+const HEAD_CELL_SX = {
+    borderBottom: 'none',
+    color: 'var(--palette-text-secondary)',
+    fontWeight: 600,
+    fontSize: '0.875rem',
+    whiteSpace: 'nowrap',
+} as const;
+
+const BODY_CELL_SX = {
+    borderBottom: '1px dashed var(--palette-background-neutral)',
+    fontSize: '0.875rem',
+    color: 'var(--palette-text-primary)',
+} as const;
 
 interface ChatListProps {
     conversations: Conversation[];
@@ -238,17 +231,12 @@ export const ChatList = ({ conversations, onSelectConversation, onToggleMode, vi
         return options;
     }, [isAdmin, staffOperators]);
 
+    if (viewMode === 'MESSENGER' && messengerContent) {
+        return <>{messengerContent(conversations)}</>;
+    }
+
     return (
-        <Card
-            className="admin-list-card admin-list-card--table"
-            sx={{
-            borderRadius: 'var(--shape-borderRadius-lg)',
-            bgcolor: 'var(--palette-background-paper)',
-            boxShadow: "var(--customShadows-card)",
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column'
-        }}>
+        <Card elevation={0} className="admin-datagrid-card">
             <Tabs
                 value={tabStatus}
                 onChange={handleTabChange}
@@ -408,15 +396,11 @@ export const ChatList = ({ conversations, onSelectConversation, onToggleMode, vi
 
 
 
-            {viewMode === 'MESSENGER' && messengerContent ? (
-                messengerContent(filteredConversations)
-            ) : (
-                <>
-                    <TableContainer sx={{ position: 'relative', overflow: 'unset' }}>
+            <TableContainer sx={{ position: 'relative', overflow: 'auto', flex: 1, display: 'flex', flexDirection: 'column' }}>
                 <Table sx={{ minWidth: 960 }} size="medium">
                     <TableHead sx={{ bgcolor: 'var(--palette-background-neutral)' }}>
                         <TableRow>
-                            <TableCell padding="checkbox" sx={{ borderBottom: 'none', textAlign: 'center' }}>
+                            <TableCell padding="checkbox" sx={{ ...HEAD_CELL_SX, textAlign: 'center' }}>
                                 <Checkbox
                                     indeterminate={selected.length > 0 && selected.length < filteredConversations.length}
                                     checked={filteredConversations.length > 0 && selected.length === filteredConversations.length}
@@ -424,22 +408,22 @@ export const ChatList = ({ conversations, onSelectConversation, onToggleMode, vi
                                     sx={{ color: 'var(--palette-text-disabled)', p: 0 }}
                                 />
                             </TableCell>
-                            <TableCell sx={{ borderBottom: 'none', color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Khách hàng</TableCell>
-                            <TableCell sx={{ borderBottom: 'none', color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Tin nhắn gần nhất</TableCell>
-                            <TableCell sx={{ borderBottom: 'none', color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Nhân viên phụ trách</TableCell>
-                            <TableCell sx={{ borderBottom: 'none', color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Trạng thái</TableCell>
-                            <TableCell sx={{ borderBottom: 'none', color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Cập nhật lúc</TableCell>
-                            <TableCell sx={{ borderBottom: 'none', width: 80 }} align="right" />
+                            <TableCell sx={HEAD_CELL_SX}>Khách hàng</TableCell>
+                            <TableCell sx={HEAD_CELL_SX}>Tin nhắn gần nhất</TableCell>
+                            <TableCell sx={HEAD_CELL_SX}>Nhân viên phụ trách</TableCell>
+                            <TableCell sx={HEAD_CELL_SX} align="center">Trạng thái</TableCell>
+                            <TableCell sx={HEAD_CELL_SX}>Cập nhật lúc</TableCell>
+                            <TableCell sx={{ ...HEAD_CELL_SX, width: 80 }} align="right" />
                         </TableRow>
                     </TableHead>
 
                     <TableBody>
                         {filteredConversations.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={7} align="center" sx={{ py: 10 }}>
-                                    <Typography sx={{ color: 'var(--palette-text-secondary)' }}>
-                                        Không có dữ liệu
-                                    </Typography>
+                                <TableCell colSpan={7} align="center" sx={{ borderBottom: 'none', py: 10 }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
+                                        <span className="admin-datagrid-empty">Không có dữ liệu</span>
+                                    </Box>
                                 </TableCell>
                             </TableRow>
                         ) : (
@@ -452,13 +436,14 @@ export const ChatList = ({ conversations, onSelectConversation, onToggleMode, vi
                                         hover
                                         key={row.id}
                                         selected={isItemSelected}
-                                        sx={{ 
+                                        sx={{
                                             cursor: 'pointer',
-                                            bgcolor: hasUnread ? 'var(--palette-action-hover)' : 'inherit'
+                                            bgcolor: hasUnread ? 'var(--palette-action-hover)' : 'inherit',
+                                            '&:hover': { bgcolor: 'var(--palette-action-hover)' },
                                         }}
                                         onClick={() => onSelectConversation(row.id)}
                                     >
-                                        <TableCell padding="checkbox" sx={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                                        <TableCell padding="checkbox" sx={{ ...BODY_CELL_SX, textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
                                             <Checkbox
                                                 checked={isItemSelected}
                                                 onChange={(event) => handleClick(event as any, String(row.id))}
@@ -466,7 +451,7 @@ export const ChatList = ({ conversations, onSelectConversation, onToggleMode, vi
                                             />
                                         </TableCell>
 
-                                        <TableCell>
+                                        <TableCell sx={BODY_CELL_SX}>
                                             <Stack direction="row" alignItems="center" spacing={2}>
                                                 <Avatar sx={{ width: 40, height: 40 }}>
                                                     <ConversationAvatarLetter conversation={row} />
@@ -480,11 +465,11 @@ export const ChatList = ({ conversations, onSelectConversation, onToggleMode, vi
                                             </Stack>
                                         </TableCell>
 
-                                        <TableCell>
-                                            <Typography variant="body2" sx={{ 
-                                                maxWidth: 300, 
-                                                overflow: 'hidden', 
-                                                textOverflow: 'ellipsis', 
+                                        <TableCell sx={BODY_CELL_SX}>
+                                            <Typography variant="body2" sx={{
+                                                maxWidth: 300,
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis',
                                                 whiteSpace: 'nowrap',
                                                 fontWeight: hasUnread ? 600 : 400,
                                                 color: hasUnread ? 'text.primary' : 'text.secondary'
@@ -493,13 +478,13 @@ export const ChatList = ({ conversations, onSelectConversation, onToggleMode, vi
                                             </Typography>
                                         </TableCell>
 
-                                        <TableCell>
+                                        <TableCell sx={BODY_CELL_SX}>
                                             <Typography variant="body2" color="text.secondary">
                                                 {getAssigneeDisplayLabel(row, currentUserId)}
                                             </Typography>
                                         </TableCell>
 
-                                        <TableCell>
+                                        <TableCell sx={BODY_CELL_SX} align="center">
                                             {row.status === ConversationStatusEnum.CLOSED ? (
                                                 <Chip label="Đã đóng" size="small" sx={{ fontWeight: 600 }} />
                                             ) : hasUnread ? (
@@ -511,16 +496,23 @@ export const ChatList = ({ conversations, onSelectConversation, onToggleMode, vi
                                             )}
                                         </TableCell>
 
-                                        <TableCell>
+                                        <TableCell sx={BODY_CELL_SX}>
                                             <Typography variant="body2" color="text.secondary">
                                                 {dayjs(row.updatedAt).format('DD/MM/YYYY HH:mm')}
                                             </Typography>
                                         </TableCell>
 
-                                        <TableCell align="right">
-                                            <IconButton onClick={(e) => { e.stopPropagation(); onSelectConversation(row.id); }}>
-                                                <Icon icon="solar:alt-arrow-right-line-duotone" />
-                                            </IconButton>
+                                        <TableCell align="right" sx={{ ...BODY_CELL_SX, width: 80 }} onClick={(e) => e.stopPropagation()}>
+                                            <AdminRowActionsMenu
+                                                items={[
+                                                    {
+                                                        id: 'open',
+                                                        label: 'Mở chat',
+                                                        icon: 'view',
+                                                        onClick: () => onSelectConversation(row.id),
+                                                    },
+                                                ]}
+                                            />
                                         </TableCell>
                                     </TableRow>
                                 );
@@ -529,8 +521,6 @@ export const ChatList = ({ conversations, onSelectConversation, onToggleMode, vi
                     </TableBody>
                 </Table>
             </TableContainer>
-                </>
-            )}
         </Card>
     );
 };

@@ -1,11 +1,11 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
 import {
     Alert,
     Box,
-    Button,
     Chip,
-    CircularProgress,
     Dialog,
     DialogActions,
     DialogContent,
@@ -23,19 +23,16 @@ import {
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined';
 import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
-import Swal from 'sweetalert2';
-import { useNavigate, useParams } from '@/components/router-compat';
 import { toast } from 'react-toastify';
-import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
-import { Title } from '../../../../../components/ui/Title';
+import { PageHeader } from '../../../../../components/ui/PageHeader';
+import { SpinnerLoading } from '../../../../../components/ui/SpinnerLoading';
 import { CollapsibleCard } from '../../../../../components/ui/CollapsibleCard';
-import { LoadingButton } from '../../../../../components/ui/LoadingButton';
+import { Button } from '../../../../../components/ui/Button';
 import { CanAccess } from '../../../../../components/auth/CanAccess';
 import { UploadSingleFile } from '../../../../../components/upload/UploadSingleFile';
-import { uploadAdminImage } from '../../../../../api/upload.api';
+import { uploadAdminImage } from '@/admin/shared/services/upload.service';
 import { PERMISSIONS } from '../../../../../constants/permission.constants';
 import { ROUTES } from '../../../../../constants/routes';
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
@@ -63,8 +60,8 @@ const isPersistableEvidenceUrl = (url?: string | null): boolean => {
 };
 
 export const ReturnBatchDetailPage = () => {
-    const navigate = useNavigate();
-    const { id } = useParams<{ id: string }>();
+    const router = useAdminRouter();
+    const { id } = useRouteParams();
     const { data: batch, isLoading, isError, refetch } = useReturnBatchDetail(id);
     const confirmHandover = useConfirmReturnHandover();
     const startInspection = useStartReturnInspection();
@@ -101,8 +98,16 @@ export const ReturnBatchDetailPage = () => {
 
     if (isLoading) {
         return (
-            <Box display="flex" justifyContent="center" alignItems="center" minHeight={320}>
-                <CircularProgress />
+            <Box sx={{ width: '100%', pb: 5 }}>
+                <PageHeader
+                    title={`Phiếu trả vé #${id}`}
+                    breadcrumbItems={[
+                        { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
+                        { label: 'Trả vé NCC', to: ROUTES.ADMIN.RETURN_BATCH.LIST },
+                        { label: `#${id}` },
+                    ]}
+                />
+                <SpinnerLoading />
             </Box>
         );
     }
@@ -117,6 +122,12 @@ export const ReturnBatchDetailPage = () => {
 
     const canConfirmHandover =
         isPersistableEvidenceUrl(returnEvidenceUrl) && !isEvidenceUploading && !confirmHandover.isPending;
+    const remainingInspectable = batch.remainingInspectableQuantity ?? 0;
+    const canInspectTickets =
+        !batch.inspectionExpired &&
+        (batch.status === 'PENDING_INSPECTION' ||
+            batch.status === 'INSPECTING' ||
+            (batch.status === 'PENDING_HANDOVER' && remainingInspectable > 0));
 
     const handleOpenHandoverDialog = () => {
         if (batch.status !== 'PENDING_HANDOVER') {
@@ -176,10 +187,13 @@ export const ReturnBatchDetailPage = () => {
 
     const handleInspectTickets = async () => {
         if (batch.inspectionExpired || batch.status === 'CANCELLED') {
-            navigate(ROUTES.ADMIN.RETURN_BATCH.INSPECT(batch.id));
+            router.push(ROUTES.ADMIN.RETURN_BATCH.INSPECT(batch.id));
             return;
         }
-        if (canStartInspection(batch.status)) {
+        if (
+            canStartInspection(batch.status) ||
+            (batch.status === 'PENDING_HANDOVER' && remainingInspectable > 0)
+        ) {
             try {
                 await startInspection.mutateAsync(batch.id);
             } catch (err: any) {
@@ -188,6 +202,7 @@ export const ReturnBatchDetailPage = () => {
                     message === RETURN_BATCH_INSPECTION_EXPIRED_MESSAGE ||
                     err?.response?.data?.errorCode === 'LT_120'
                 ) {
+                    const { default: Swal } = await import('sweetalert2');
                     await Swal.fire({
                         icon: 'warning',
                         title: 'Inspection period expired',
@@ -201,68 +216,43 @@ export const ReturnBatchDetailPage = () => {
                 return;
             }
         }
-        navigate(ROUTES.ADMIN.RETURN_BATCH.INSPECT(batch.id));
+        router.push(ROUTES.ADMIN.RETURN_BATCH.INSPECT(batch.id));
     };
 
     return (
         <Box sx={{ width: '100%', pb: 5 }}>
-            {/* Page Header with Circular Back Button */}
-            <div className="mb-[calc(3*var(--spacing))] flex items-start justify-end gap-[calc(2*var(--spacing))] flex-wrap">
-                <div className="mr-auto">
-                    <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 0.5 }}>
-                        <IconButton
-                            onClick={() => navigate(ROUTES.ADMIN.RETURN_BATCH.LIST)}
-                            size="small"
-                            sx={{
-                                bgcolor: '#ffffff',
-                                border: '1px solid #cbd5e1',
-                                color: '#334155',
-                                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.06)',
-                                width: 36,
-                                height: 36,
-                                '&:hover': {
-                                    bgcolor: '#f1f5f9',
-                                    borderColor: '#94a3b8',
-                                    color: '#0f172a',
-                                    transform: 'translateX(-2px)',
-                                },
-                                transition: 'all 0.15s ease',
-                            }}
-                            title="Quay lại danh sách phiếu trả"
-                        >
-                            <ArrowBackOutlinedIcon fontSize="small" />
-                        </IconButton>
-                        <Title title={`Phiếu trả vé ${batch.batchCode?.trim() || `#${batch.id}`}`} />
-                        <Chip
-                            size="small"
-                            label={getReturnBatchStatusLabel(batch.status, batch.statusLabel)}
-                            color={getReturnBatchStatusChipColor(batch.status)}
-                            variant="outlined"
-                            sx={{ fontWeight: 700 }}
-                        />
-                    </Stack>
-                    <Breadcrumb
-                        items={[
-                            { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
-                            { label: 'Trả vé NCC', to: ROUTES.ADMIN.RETURN_BATCH.LIST },
-                            { label: batch.batchCode?.trim() || `#${batch.id}` },
-                        ]}
+            {/* Page Header */}
+            <PageHeader
+                title={`Phiếu trả vé ${batch.batchCode?.trim() || `#${batch.id}`}`}
+                breadcrumbItems={[
+                    { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
+                    { label: 'Trả vé NCC', to: ROUTES.ADMIN.RETURN_BATCH.LIST },
+                    { label: batch.batchCode?.trim() || `#${batch.id}` },
+                ]}
+                titleExtra={
+                    <Chip
+                        size="small"
+                        label={getReturnBatchStatusLabel(batch.status, batch.statusLabel)}
+                        color={getReturnBatchStatusChipColor(batch.status)}
+                        variant="outlined"
+                        sx={{ fontWeight: 700 }}
                     />
-                </div>
+                }
+                action={
                 <Stack direction="row" spacing={1} flexWrap="wrap">
-                    {(batch.status === 'PENDING_INSPECTION' || batch.status === 'INSPECTING') && !batch.inspectionExpired && (
+                    {canInspectTickets && (
                         <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
-                            <LoadingButton
-                                label={batch.status === 'INSPECTING' ? 'Kiểm tra vé (Tiếp tục)' : 'Kiểm tra vé'}
+                            <Button
+                                label={batch.status === 'INSPECTING' || remainingInspectable > 0 ? 'Kiểm tra vé (Tiếp tục)' : 'Kiểm tra vé'}
                                 className="btn-primary-admin"
                                 loading={startInspection.isPending}
                                 onClick={handleInspectTickets}
                             />
                         </CanAccess>
                     )}
-                    {batch.status === 'PENDING_HANDOVER' && (
+                    {batch.status === 'PENDING_HANDOVER' && remainingInspectable === 0 && (
                         <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
-                            <LoadingButton
+                            <Button
                                 label="Xác nhận bàn giao"
                                 className="btn-primary-admin"
                                 loading={confirmHandover.isPending}
@@ -271,7 +261,8 @@ export const ReturnBatchDetailPage = () => {
                         </CanAccess>
                     )}
                 </Stack>
-            </div>
+                }
+            />
 
             {/* System Status Alerts */}
             {batch.status === 'CANCELLED' && (
@@ -305,7 +296,14 @@ export const ReturnBatchDetailPage = () => {
                 </Alert>
             )}
 
-            {batch.status === 'PENDING_HANDOVER' && (
+            {batch.status === 'PENDING_HANDOVER' && remainingInspectable > 0 && (
+                <Alert severity="warning" sx={{ mb: 2.5, borderRadius: '12px' }}>
+                    Còn {new Intl.NumberFormat('vi-VN').format(remainingInspectable)} vé ế chưa kiểm tra.
+                    Bấm <strong>Kiểm tra vé</strong> để tiếp tục trước khi bàn giao nhà cung cấp.
+                </Alert>
+            )}
+
+            {batch.status === 'PENDING_HANDOVER' && remainingInspectable === 0 && (
                 <Alert severity="warning" sx={{ mb: 2.5, borderRadius: '12px' }}>
                     Kiểm tra đã hoàn tất — vé đang chờ bàn giao nhà cung cấp. Sau khi giao xong, bấm{' '}
                     <strong>Xác nhận bàn giao</strong>.
@@ -321,7 +319,7 @@ export const ReturnBatchDetailPage = () => {
                         <Box
                             sx={{
                                 display: 'grid',
-                                gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
+                                gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', lg: 'repeat(5, 1fr)' },
                                 gap: 2,
                                 mb: 3,
                             }}
@@ -355,6 +353,32 @@ export const ReturnBatchDetailPage = () => {
                                 </Typography>
                                 <Typography variant="body1" fontWeight={800} color="#0284c7" sx={{ mt: 0.5 }}>
                                     {new Intl.NumberFormat('vi-VN').format(batch.totalQuantity ?? 0)} vé
+                                </Typography>
+                            </Box>
+
+                            <Box
+                                sx={{
+                                    p: 2,
+                                    borderRadius: '12px',
+                                    bgcolor: remainingInspectable > 0 ? '#fff7ed' : '#f8fafc',
+                                    border: remainingInspectable > 0 ? '1px solid #fdba74' : '1px solid #f1f5f9',
+                                }}
+                            >
+                                <Typography
+                                    variant="caption"
+                                    color={remainingInspectable > 0 ? '#c2410c' : 'text.secondary'}
+                                    fontWeight={700}
+                                    display="block"
+                                >
+                                    Vé ế còn lại
+                                </Typography>
+                                <Typography
+                                    variant="body1"
+                                    fontWeight={800}
+                                    color={remainingInspectable > 0 ? '#c2410c' : '#0f172a'}
+                                    sx={{ mt: 0.5 }}
+                                >
+                                    {new Intl.NumberFormat('vi-VN').format(remainingInspectable)} vé
                                 </Typography>
                             </Box>
 
@@ -465,6 +489,9 @@ export const ReturnBatchDetailPage = () => {
                                     <TableCell align="right" sx={{ fontWeight: 700, color: '#334155' }}>
                                         Số lượng
                                     </TableCell>
+                                    <TableCell align="right" sx={{ fontWeight: 700, color: '#c2410c' }}>
+                                        Vé ế còn lại
+                                    </TableCell>
                                     <TableCell align="right" sx={{ fontWeight: 700, color: '#166534' }}>
                                         Giá trị trả
                                     </TableCell>
@@ -484,6 +511,15 @@ export const ReturnBatchDetailPage = () => {
                                         </TableCell>
                                         <TableCell align="right" sx={{ fontWeight: 700, color: '#0284c7' }}>
                                             {new Intl.NumberFormat('vi-VN').format(line.totalQuantity ?? 0)} vé
+                                        </TableCell>
+                                        <TableCell
+                                            align="right"
+                                            sx={{
+                                                fontWeight: 800,
+                                                color: (line.remainingInspectableQuantity ?? 0) > 0 ? '#c2410c' : '#64748b',
+                                            }}
+                                        >
+                                            {new Intl.NumberFormat('vi-VN').format(line.remainingInspectableQuantity ?? 0)} vé
                                         </TableCell>
                                         <TableCell align="right" sx={{ fontWeight: 800, color: '#15803d' }}>
                                             {formatImportCost(line.totalReturnValue)} VNĐ
@@ -669,7 +705,7 @@ export const ReturnBatchDetailPage = () => {
                     >
                         Hủy bỏ
                     </Button>
-                    <LoadingButton
+                    <Button
                         variant="contained"
                         loading={confirmHandover.isPending || isEvidenceUploading}
                         disabled={!canConfirmHandover}

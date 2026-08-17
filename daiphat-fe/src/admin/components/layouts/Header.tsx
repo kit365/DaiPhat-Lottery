@@ -1,5 +1,8 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { Button } from '@/admin/components/ui/Button';
+
 import AppBar from "@mui/material/AppBar";
 import useScrollTrigger from '@mui/material/useScrollTrigger';
 import React from "react";
@@ -7,23 +10,21 @@ import Container from "@mui/material/Container";
 import Box from '@mui/material/Box';
 import SettingsIcon from '@mui/icons-material/Settings';
 import Avatar from "@mui/material/Avatar";
-import Button from "@mui/material/Button";
+
 import Popover from "@mui/material/Popover";
 import MenuItem from "@mui/material/MenuItem";
 import Typography from "@mui/material/Typography";
 import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
-import { Icon } from "@iconify/react";
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import { useState } from "react";
 import { toast } from 'react-toastify';
 import { motion } from "framer-motion";
 import { useAuthStore } from "../../../stores/useAuthStore";
-import { useNavigate } from "@/components/router-compat";
-import { authService } from "../../pages/authen/services/auth.service";
+import { authService } from "@/shared/auth/services/auth.service";
 import { ROUTES } from "../../constants/routes";
 import { NotificationPopover } from "./NotificationPopover";
-import { STORAGE_KEYS } from "../../../constants/storage.constants";
-import Cookies from "js-cookie";
+import { endAuthSession } from "@/api/endAuthSession";
 
 interface Props {
     window?: () => Window;
@@ -57,10 +58,11 @@ function ElevationScroll(props: Props) {
 }
 
 export const Header = () => {
-    const navigate = useNavigate();
-    const { user, logout: logoutStore } = useAuthStore();
+    const router = useAdminRouter();
+    const { user } = useAuthStore();
     const [anchorElUser, setAnchorElUser] = useState<HTMLButtonElement | null>(null);
     const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
 
     const handleOpenUser = (event: React.MouseEvent<HTMLButtonElement>) => {
         setAnchorElUser(event.currentTarget);
@@ -71,19 +73,22 @@ export const Header = () => {
     };
 
     const handleLogout = async () => {
-        try {
-            // Clear local state immediately for better UX
-            logoutStore();
-            Cookies.remove(STORAGE_KEYS.TOKEN, { path: '/' });
-            Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN, { path: '/' });
-            toast.success("Đăng xuất thành công!");
-            navigate(ROUTES.ADMIN.AUTH.LOGIN);
+        if (isLoggingOut) {
+            return;
+        }
 
-            // Attempt server-side logout (browser sends HttpOnly cookie automatically)
+        setIsLoggingOut(true);
+
+        try {
             await authService.logout();
         } catch (error) {
-            console.error("Logout error (non-blocking):", error);
-            // We don't block the UI here since local state is already cleared
+            console.error("Logout error:", error);
+        } finally {
+            endAuthSession();
+            handleCloseUser();
+            toast.success("Đăng xuất thành công!");
+            router.replace(ROUTES.ADMIN.AUTH.LOGIN);
+            setIsLoggingOut(false);
         }
     };
 
@@ -282,7 +287,7 @@ export const Header = () => {
                                         transition={{ type: "spring", stiffness: 400, damping: 20 }}
                                     >
                                         <MenuItem 
-                                            onClick={() => { navigate(ROUTES.ADMIN.PROFILE); handleCloseUser(); }}
+                                            onClick={() => { router.push(ROUTES.ADMIN.PROFILE); handleCloseUser(); }}
                                             sx={{ 
                                                 borderRadius: '8px',
                                                 typography: 'body2',
@@ -304,19 +309,26 @@ export const Header = () => {
                                         whileHover={{ x: 4, filter: 'brightness(1.05)' }}
                                         transition={{ type: "spring", stiffness: 400, damping: 20 }}
                                     >
-                                        <MenuItem 
-                                            onClick={handleLogout} 
-                                            sx={{ 
+                                        <Button
+                                            fullWidth
+                                            variant="text"
+                                            color="error"
+                                            loading={isLoggingOut}
+                                            loadingLabel="Đang đăng xuất..."
+                                            onClick={handleLogout}
+                                            startIcon={<Icon icon="solar:logout-3-bold-duotone" width={20} />}
+                                            sx={{
+                                                justifyContent: 'flex-start',
                                                 borderRadius: '8px',
-                                                typography: 'body2',
                                                 fontWeight: 700,
                                                 color: 'var(--palette-error-main)',
-                                                '&:hover': { bgcolor: 'var(--palette-error-lighter)' }
+                                                px: 1.5,
+                                                py: 1,
+                                                '&:hover': { bgcolor: 'var(--palette-error-lighter)' },
                                             }}
                                         >
-                                            <Icon icon="solar:logout-3-bold-duotone" width={20} style={{ marginRight: '12px' }} />
                                             Đăng xuất
-                                        </MenuItem>
+                                        </Button>
                                     </motion.div>
                                 </Box>
                             </motion.div>

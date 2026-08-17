@@ -1,12 +1,7 @@
 import { apiApp } from '../../../../../api';
-import { withAuthHeaders } from '../../../../../api/authHeaders';
 import { ApiResponse } from '../../../../../types/api.type';
 
 const BASE_URL = `/lottery-tickets`;
-
-/** Header auth dùng chung — prefers in-memory store token over cookie. */
-const withAuth = () => withAuthHeaders();
-
 
 export const getTickets = async (params?: any): Promise<ApiResponse<any>> => {
     const response = await apiApp.get(BASE_URL, { 
@@ -28,7 +23,6 @@ export const getTickets = async (params?: any): Promise<ApiResponse<any>> => {
         paramsSerializer: {
             indexes: null,
         },
-        ...withAuth() 
     });
     
     const result = response.data?.data;
@@ -63,7 +57,6 @@ export const createTicket = async (
     options?: { skipGlobalErrorToast?: boolean }
 ): Promise<ApiResponse<any>> => {
     const response = await apiApp.post(BASE_URL, data, {
-        ...withAuth(),
         skipGlobalErrorToast: options?.skipGlobalErrorToast,
     } as any);
     return response.data;
@@ -84,7 +77,6 @@ export const bulkCreateTickets = async (
     options?: { skipGlobalErrorToast?: boolean }
 ): Promise<ApiResponse<any>> => {
     const response = await apiApp.post(`${BASE_URL}/bulk-import`, data, {
-        ...withAuth(),
         skipGlobalErrorToast: options?.skipGlobalErrorToast,
     } as any);
     return response.data;
@@ -92,7 +84,7 @@ export const bulkCreateTickets = async (
 
 /** Lấy chi tiết vé cho trang Edit */
 export const getTicketById = async (id: string | number): Promise<ApiResponse<any>> => {
-    const response = await apiApp.get(`${BASE_URL}/${id}`, withAuth());
+    const response = await apiApp.get(`${BASE_URL}/${id}`);
     return response.data;
 };
 
@@ -117,25 +109,25 @@ export const updateTicket = async (
     const payload = { ...data };
     // Status is system-derived; never send it on update even if a caller includes it.
     delete payload.status;
-    const response = await apiApp.put(`${BASE_URL}/${id}`, payload, withAuth());
+    const response = await apiApp.put(`${BASE_URL}/${id}`, payload);
     return response.data;
 };
 
 /** Xóa vé */
 export const deleteTicket = async (id: string | number): Promise<ApiResponse<any>> => {
-    const response = await apiApp.delete(`${BASE_URL}/${id}`, withAuth());
+    const response = await apiApp.delete(`${BASE_URL}/${id}`);
     return response.data;
 };
 
 /** Khôi phục vé */
 export const restoreTicket = async (id: string | number): Promise<ApiResponse<any>> => {
-    const response = await apiApp.patch(`${BASE_URL}/restore/${id}`, {}, withAuth());
+    const response = await apiApp.patch(`${BASE_URL}/restore/${id}`, {});
     return response.data;
 };
 
 /** Xóa vĩnh viễn vé */
 export const forceDeleteTicket = async (id: string | number): Promise<ApiResponse<any>> => {
-    const response = await apiApp.delete(`${BASE_URL}/force-delete/${id}`, withAuth());
+    const response = await apiApp.delete(`${BASE_URL}/force-delete/${id}`);
     return response.data;
 };
 
@@ -163,18 +155,16 @@ export const scanExpiredTickets = async (): Promise<ApiResponse<any>> => {
     } as any;
 };
 
-import { uploadAdminImage } from '../../../../api/upload.api';
+import { uploadAdminImage } from "@/admin/shared/services/upload.service";
 
-/** Upload ảnh vé số lên Cloudinary qua backend (dùng khi tạo vé, chưa có ticket id) */
+/** Upload ảnh vé số qua backend storage (dùng khi tạo vé, chưa có ticket id) */
 export const uploadLotteryTicketAsset = uploadAdminImage;
 
 /** Tải ảnh vé số */
 export const uploadTicketImage = async (id: string | number, file: File): Promise<ApiResponse<any>> => {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await apiApp.post(`${BASE_URL}/${id}/image`, formData, {
-        ...withAuth(),
-    });
+    const response = await apiApp.post(`${BASE_URL}/${id}/image`, formData);
     return response.data;
 };
 
@@ -183,9 +173,7 @@ export const uploadTicketImage = async (id: string | number, file: File): Promis
 export const uploadTicketSerialImage = async (id: string | number, file: File): Promise<ApiResponse<any>> => {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await apiApp.post(`/lottery-ticket-serials/${id}/image`, formData, {
-        ...withAuth(),
-    });
+    const response = await apiApp.post(`/lottery-ticket-serials/${id}/image`, formData);
     return response.data;
 };
 
@@ -200,7 +188,7 @@ export const reportTicketSerialFault = async (
         replacementTicketImg?: string;
     }
 ): Promise<ApiResponse<any>> => {
-    const response = await apiApp.post(`/lottery-ticket-serials/${id}/report-fault`, data, withAuth());
+    const response = await apiApp.post(`/lottery-ticket-serials/${id}/report-fault`, data);
     return response.data;
 };
 
@@ -229,7 +217,7 @@ export const replaceTicketDigits = async (
         newTicketImg?: string;
     }
 ): Promise<ApiResponse<any>> => {
-    const response = await apiApp.post(`/lottery-tickets/${id}/replace-digits`, data, withAuth());
+    const response = await apiApp.post(`/lottery-tickets/${id}/replace-digits`, data);
     return response.data;
 };
 
@@ -237,6 +225,6 @@ export const replaceTicketDigits = async (
 export const finalizeTicketIncidentCancel = async (
     id: string | number
 ): Promise<ApiResponse<any>> => {
-    const response = await apiApp.post(`/lottery-tickets/${id}/finalize-incident-cancel`, {}, withAuth());
+    const response = await apiApp.post(`/lottery-tickets/${id}/finalize-incident-cancel`, {});
     return response.data;
 };

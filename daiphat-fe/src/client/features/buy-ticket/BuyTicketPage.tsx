@@ -1,8 +1,9 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ChevronRight, CheckCircle2, ShieldCheck, RefreshCw, ChevronDown, Filter, LayoutGrid, Heart, SlidersHorizontal, Trash2, Search } from 'lucide-react';
 import { useCartStore, CartItem } from '../../../stores/useCartStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
@@ -12,7 +13,7 @@ import {
     useStationsToday,
     useStationsTomorrow,
 } from '@/client/hooks/useStationSchedule';
-import { apiApp } from '../../../api';
+import { useBuyTicketList } from './hooks/useBuyTicketList';
 import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
 import {
@@ -38,71 +39,9 @@ import {
     toUiTailRangeLabel,
 } from '../../utils/buyTicketFilter.util';
 import { PublicLotteryTicket } from '../../../types/lottery-ticket.type';
+import { LuckyNumber } from '../../components/ui/LuckyNumber';
 
 dayjs.locale('vi');
-
-const PUBLIC_TICKET_PAGE_SIZE = 500;
-const PUBLIC_TICKET_MAX_PAGES = 50;
-
-type PublicTicketQueryParams = {
-    stationIds: string[];
-    drawDate: string;
-    search?: string;
-    searches?: string[];
-    tailRanges?: string[];
-    numberTypes?: string[];
-};
-
-const mapPublicTicketRecord = (item: Record<string, unknown>) => ({
-    ...item,
-    _id: item.id,
-    avatar: item.ticketImg,
-    status: item.status ? String(item.status).toLowerCase() : 'draft',
-});
-
-const fetchAllPublicBuyTickets = async (params: PublicTicketQueryParams) => {
-    const merged: ReturnType<typeof mapPublicTicketRecord>[] = [];
-    let page = 1;
-    let totalRecords = 0;
-    let hasMore = true;
-
-    while (hasMore && page <= PUBLIC_TICKET_MAX_PAGES) {
-        const response = await apiApp.get('/lottery-tickets/public', {
-            params: {
-                page,
-                size: PUBLIC_TICKET_PAGE_SIZE,
-                stationIds: params.stationIds,
-                drawDate: params.drawDate,
-                search: params.search || undefined,
-                searchMode: params.search ? 'CONTAINS' : undefined,
-                searches: params.searches && params.searches.length > 0 ? params.searches : undefined,
-                tailRanges: params.tailRanges && params.tailRanges.length > 0 ? params.tailRanges : undefined,
-                numberTypes: params.numberTypes && params.numberTypes.length > 0 ? params.numberTypes : undefined,
-                sortBy: undefined,
-                direction: undefined,
-            },
-            paramsSerializer: {
-                indexes: null,
-            },
-        });
-
-        const result = response.data?.data;
-        const recordList = (result?.recordList || []).map(mapPublicTicketRecord);
-        merged.push(...recordList);
-
-        const pagination = result?.pagination;
-        totalRecords = pagination?.totalRecords ?? merged.length;
-        hasMore = pagination ? !pagination.isLast : recordList.length === PUBLIC_TICKET_PAGE_SIZE;
-        page += 1;
-    }
-
-    return {
-        recordList: merged,
-        pagination: {
-            totalRecords: totalRecords || merged.length,
-        },
-    };
-};
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -156,14 +95,17 @@ if (typeof window !== 'undefined') {
     });
 }
 export const BuyTicketPage = () => {
-    const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
+    const router = useRouter();
+    const searchParams = useSearchParams();
     const urlStationId = searchParams.get('stationId');
     const urlStationIds = searchParams.get('stationIds');
     const urlRegion = searchParams.get('region');
     const urlDrawDate = searchParams.get('drawDate');
     const urlTicketId = searchParams.get('ticketId');
-    const urlTicketNumber = normalizeTicketSearchDigits(searchParams.get('ticketNumber') || '', 6);
+    const urlTicketNumber = normalizeTicketSearchDigits(
+        searchParams.get('ticketNumber') || searchParams.get('search') || '',
+        6
+    );
     const { token, openLoginModal } = useAuthStore();
 
     // State
@@ -193,6 +135,8 @@ export const BuyTicketPage = () => {
     const appliedTicketIdRef = useRef<string | null>(null);
     const appliedTicketNumberRef = useRef<string | null>(null);
     const autoSwitchedToTomorrowRef = useRef(false);
+    /** Avoid using URL ticketId in first paint (static HTML vs client query) which trips the error boundary. */
+    const [deepLinkHighlightReady, setDeepLinkHighlightReady] = useState(false);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -293,6 +237,13 @@ export const BuyTicketPage = () => {
             ),
         [dynamicProvinces, selectedProvinces]
     );
+    const provinceNameById = useMemo(() => {
+        const map = new Map<string, string>();
+        dynamicProvinces.forEach((province) => {
+            map.set(String(province.id), province.name);
+        });
+        return map;
+    }, [dynamicProvinces]);
     const isAllProvincesSelected =
         allProvinceIds.length > 0 && activeProvinces.length === allProvinceIds.length;
     const selectedDatesKey = selectedDates.join(',');
@@ -356,10 +307,19 @@ export const BuyTicketPage = () => {
     }, [urlStationId, urlStationIds, urlRegion, urlDrawDate, urlTicketId, urlTicketNumber]);
 
     useEffect(() => {
+        setDeepLinkHighlightReady(true);
+    }, []);
+
+    useEffect(() => {
         if (!urlDrawDate) {
             return;
         }
-        setSelectedDates(toSellableDateTokens(urlDrawDate, effectiveDrawTime));
+        const next = toSellableDateTokens(urlDrawDate, effectiveDrawTime);
+        setSelectedDates((prev) =>
+            prev.length === next.length && prev.every((value, index) => value === next[index])
+                ? prev
+                : next
+        );
     }, [urlDrawDate, effectiveDrawTime]);
 
     // Deep link chỉ có stationId: chọn đúng ngày quay sắp tới của đài (vd. Cần Thơ – Thứ 4).
@@ -478,17 +438,7 @@ export const BuyTicketPage = () => {
     );
     const drawDateFilter = selectedDates.map(resolveDrawDateToken).join(',');
     const activeFilterCount = countActiveTicketFilters(appliedFilters);
-    const { data: ticketsRes, isLoading: isLoadingTickets, isFetching: isFetchingTickets } = useQuery({
-        queryKey: [
-            'public-buy-ticket-list',
-            selectedStationIdsForQuery,
-            drawDateFilter,
-            appliedSearch,
-            appliedFilters,
-        ],
-        enabled: selectedStationIdsForQuery.length > 0 && Boolean(drawDateFilter),
-        queryFn: async () => {
-            const result = await fetchAllPublicBuyTickets({
+    const { data: ticketsRes, isLoading: isLoadingTickets, isFetching: isFetchingTickets } = useBuyTicketList({
                 stationIds: selectedStationIdsForQuery,
                 drawDate: drawDateFilter,
                 search: appliedSearch || undefined,
@@ -496,13 +446,9 @@ export const BuyTicketPage = () => {
                 tailRanges: appliedFilters.tailRanges.length > 0 ? appliedFilters.tailRanges : undefined,
                 numberTypes: appliedFilters.numberTypes.length > 0 ? appliedFilters.numberTypes : undefined,
             });
-
-            return {
-                data: result,
-            };
-        },
-    });
-    const availableTickets = ticketsRes?.data?.recordList || [];
+    const availableTickets = Array.isArray(ticketsRes?.data?.recordList)
+        ? ticketsRes.data.recordList
+        : [];
     const totalTicketCount = ticketsRes?.data?.pagination?.totalRecords ?? availableTickets.length;
 
     const openFilterPanel = () => {
@@ -606,7 +552,9 @@ export const BuyTicketPage = () => {
         }
 
         appliedTicketIdRef.current = urlTicketId;
-        setSelectedNumbers([matched.numbers]);
+        if (matched.numbers) {
+            setSelectedNumbers([String(matched.numbers)]);
+        }
         setTicketQuantity(1);
 
         // Ensure đài matches the ticket when list finally loaded
@@ -651,7 +599,9 @@ export const BuyTicketPage = () => {
             || normalizedTickets[0];
 
         appliedTicketNumberRef.current = urlTicketNumber;
-        setSelectedNumbers([matched.numbers]);
+        if (matched?.numbers) {
+            setSelectedNumbers([String(matched.numbers)]);
+        }
         setTicketQuantity(1);
     }, [urlTicketNumber, availableTickets, isLoadingTickets, isFetchingTickets]);
 
@@ -808,7 +758,7 @@ export const BuyTicketPage = () => {
         if (!buyNowItems?.length) return;
 
         useCartStore.getState().startBuyNow(buyNowItems);
-        navigate('/checkout');
+        router.push('/checkout');
     };
 
     return (
@@ -989,7 +939,7 @@ export const BuyTicketPage = () => {
                                                                                             : 'border-[#E2E8F0] text-[#1E293B] bg-white hover:border-[#ee1314]/50'
                                                                                     }`}
                                                                                 >
-                                                                                    <span>{num}</span>
+                                                                                    <LuckyNumber value={num} ticket className="text-[13.5px]" />
                                                                                     <button
                                                                                         type="button"
                                                                                         onClick={(e) => {
@@ -1023,7 +973,7 @@ export const BuyTicketPage = () => {
                                                                             onClick={() => addFavoriteNumber(num)}
                                                                             className="h-9 px-3.5 rounded-xl border border-[#E2E8F0] text-[#334155] hover:text-[#ee1314] hover:border-[#ee1314]/40 hover:bg-[#FFF4F4] text-[13.5px] font-bold bg-[#F8FAFC] flex items-center justify-center cursor-pointer transition-all shadow-xs active:scale-95"
                                                                         >
-                                                                            {num}
+                                                                            <LuckyNumber value={num} ticket className="text-[13.5px] font-bold" />
                                                                         </button>
                                                                     ))}
                                                                 </div>
@@ -1206,7 +1156,9 @@ export const BuyTicketPage = () => {
                                                                                         : 'bg-[#F8FAFC] text-[#0F172A] border-[#E2E8F0] hover:bg-[#ee1314] hover:text-white hover:border-[#ee1314] hover:shadow-md hover:shadow-[#ee1314]/20'
                                                                                 }`}
                                                                             >
-                                                                                {ticket.numbers}
+                                                                                {ticket.numbers ? (
+                                                                                    <LuckyNumber value={String(ticket.numbers)} ticket />
+                                                                                ) : null}
                                                                             </button>
                                                                         );
                                                                     })}
@@ -1263,8 +1215,13 @@ export const BuyTicketPage = () => {
                                             const ticketKey = String(ticket.id ?? ticket._id ?? i);
                                             const isSelected = selectedNumbers.includes(num);
                                             const isDeepLinked =
-                                                !!urlTicketId && String(ticket.id ?? ticket._id) === String(urlTicketId);
-                                            const ticketImage = ticket.ticketImg;
+                                                deepLinkHighlightReady &&
+                                                !!urlTicketId &&
+                                                String(ticket.id ?? ticket._id) === String(urlTicketId);
+                                            const stationName =
+                                                ticket.stationName ||
+                                                provinceNameById.get(String(ticket.stationId ?? ticket.providerId ?? '')) ||
+                                                'Nhà đài';
 
                                             return (
                                                 <div
@@ -1276,27 +1233,14 @@ export const BuyTicketPage = () => {
                                                         ${isDeepLinked ? 'ring-2 ring-[#ee1314]/40' : ''}
                                                     `}
                                                 >
-                                                    {/* Image */}
-                                                    <div className="w-full h-[75px] mb-3 flex justify-center items-center bg-[#FAFAFA] rounded-lg overflow-hidden">
-                                                        {ticketImage ? (
-                                                            <img
-                                                                src={ticketImage}
-                                                                alt={`Vé số ${num}`}
-                                                                className="w-full max-h-full object-contain"
-                                                                onError={(e) => {
-                                                                    e.currentTarget.style.display = 'none';
-                                                                    const fallback = e.currentTarget.nextElementSibling as HTMLElement | null;
-                                                                    if (fallback) fallback.classList.remove('hidden');
-                                                                }}
-                                                            />
-                                                        ) : null}
-                                                        <div className={`text-[#919EAB] text-[12px] font-medium ${ticketImage ? 'hidden' : ''}`}>
-                                                            Vé số
-                                                        </div>
+                                                    <div className="mb-2 text-center text-[11.5px] font-semibold text-[#637381] leading-snug line-clamp-2 min-h-[32px] flex items-center justify-center px-1">
+                                                        {stationName}
                                                     </div>
 
                                                     {/* Number */}
-                                                    <div className="font-black text-[20px] text-[#212B36] tracking-tight mb-1.5 leading-none">{num}</div>
+                                                    <div className="font-black text-[20px] text-[#212B36] tracking-tight mb-1.5 leading-none">
+                                                        <LuckyNumber value={String(num)} ticket className="text-[20px] tracking-tight" />
+                                                    </div>
 
                                                     {/* Price */}
                                                     <div className="font-bold text-[#ee1314] text-[14px]">{(ticket.price || 10000).toLocaleString('vi-VN')}đ</div>
@@ -1364,8 +1308,8 @@ export const BuyTicketPage = () => {
                                     {selectedNumbers.length > 0 ? (
                                         <div className="flex flex-wrap gap-2 justify-end pl-4">
                                             {selectedNumbers.map(num => (
-                                                <div key={num} className="bg-[#FFF4F4] text-[#ee1314] px-2.5 py-1 rounded-lg text-[14px] font-bold tracking-[1px] border border-[#FFEBEE] shadow-sm">
-                                                    {num}
+                                                <div key={num} className="bg-[#FFF4F4] px-2.5 py-1 rounded-lg text-[14px] font-bold tracking-[1px] border border-[#FFEBEE] shadow-sm">
+                                                    <LuckyNumber value={num} ticket className="text-[14px] tracking-[1px]" />
                                                 </div>
                                             ))}
                                         </div>

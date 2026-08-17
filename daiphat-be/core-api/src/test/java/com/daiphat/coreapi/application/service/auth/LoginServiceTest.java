@@ -13,6 +13,8 @@ import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.UserModel;
 import com.daiphat.coreapi.domain.model.auth.AuthToken;
 import com.daiphat.coreapi.domain.model.auth.OAuthUserInfo;
+import com.daiphat.coreapi.domain.model.auth.RoleModel;
+import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
 import com.daiphat.coreapi.domain.model.enums.user.UserStatus;
 import com.daiphat.coreapi.application.port.in.auth.LoginServicePort;
 import org.junit.jupiter.api.BeforeEach;
@@ -127,6 +129,22 @@ class LoginServiceTest extends AuthTestBase {
                 .isInstanceOf(DomainException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.USER_INACTIVE);
+    }
+
+    @Test
+    @DisplayName("TC-LOGIN-010: hồ sơ người bán dạo không thể đăng nhập bằng mật khẩu")
+    void login_streetAgentIdentity_throwsUserInactiveBeforePasswordCheck() {
+        UserModel user = activeUser();
+        user.setRole(RoleModel.builder().code(RoleConstants.ROLE_STREET_AGENT).build());
+
+        when(userLookupService.findByUsernameOrEmailOrThrow(DEFAULT_USERNAME)).thenReturn(user);
+
+        assertThatThrownBy(() -> loginService.login(new LoginRequest(DEFAULT_USERNAME, DEFAULT_PASSWORD)))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.USER_INACTIVE);
+
+        verify(passwordHashPort, never()).matches(any(), any());
     }
 
     @Test
@@ -282,6 +300,27 @@ class LoginServiceTest extends AuthTestBase {
 
         verify(eventPublisher, never()).publishEvent(any(UserWelcomeEvent.class));
         verify(refreshTokenStorePort).save(DEFAULT_USER_ID, REFRESH_TOKEN, Duration.ofSeconds(604800));
+    }
+
+    @Test
+    @DisplayName("GOOGLE-LOGIN: không kích hoạt hồ sơ người bán dạo qua Google")
+    void loginWithGoogle_streetAgentIdentity_throwsUserInactiveWithoutSynchronizing() {
+        GoogleLoginRequest request = new GoogleLoginRequest("code", null, null, "http://localhost/callback", null);
+        OAuthUserInfo googleUser = new OAuthUserInfo(
+                UUID.randomUUID(), "street-agent", DEFAULT_EMAIL, "Kiet", "Ngo", null, "google");
+        UserModel user = activeUser();
+        user.setRole(RoleModel.builder().code(RoleConstants.ROLE_STREET_AGENT).build());
+
+        when(googleOAuthPort.verify(request)).thenReturn(googleUser);
+        when(userRepositoryPort.findByEmail(DEFAULT_EMAIL)).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> loginService.loginWithGoogle(request))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.USER_INACTIVE);
+
+        verify(userRepositoryPort, never()).save(any());
+        verifyNoInteractions(refreshTokenStorePort);
     }
 
     @Test

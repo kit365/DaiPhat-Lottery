@@ -3,7 +3,14 @@ import { withAuthHeaders } from '../../../../api/authHeaders';
 import { API_PREFIX, API_VERSION } from '../../../../api/api.constants';
 import { ROUTES } from '../../../constants/routes';
 import { ApiResponse, PageResponse } from '../../../../types/api.type';
-import { StreetAgentProfile, StreetAgentQueryParams } from '../types/street-agent.type';
+import {
+    DailySalesReport,
+    DailySalesReportListParams,
+    StreetAgentProfile,
+    CreateStreetAgentProfilePayload,
+    StreetAgentQueryParams,
+    VendorConfidence,
+} from '../types/street-agent.type';
 
 const BASE_URL = '/street-agent-profiles';
 
@@ -21,8 +28,35 @@ export const getStreetAgentProfileById = async (
     return response.data;
 };
 
+export const getStreetAgentConfidence = async (
+    id: number | string
+): Promise<ApiResponse<VendorConfidence>> => {
+    const response = await apiApp.get(`${BASE_URL}/${id}/confidence`);
+    return response.data;
+};
+
+export const listStreetAgentDailySalesReports = async (
+    id: number | string,
+    params?: DailySalesReportListParams
+): Promise<ApiResponse<PageResponse<DailySalesReport>>> => {
+    const response = await apiApp.get(`${BASE_URL}/${id}/daily-sales-reports`, {
+        params: {
+            page: params?.page ?? 1,
+            limit: params?.limit ?? 10,
+        },
+    });
+    return response.data;
+};
+
+export const getDailySalesReportById = async (
+    id: number | string
+): Promise<ApiResponse<DailySalesReport>> => {
+    const response = await apiApp.get(`/daily-sales-reports/${id}`);
+    return response.data;
+};
+
 export const createStreetAgentProfile = async (
-    data: Record<string, unknown>
+    data: CreateStreetAgentProfilePayload
 ): Promise<ApiResponse<StreetAgentProfile>> => {
     const response = await apiApp.post(BASE_URL, data);
     return response.data;

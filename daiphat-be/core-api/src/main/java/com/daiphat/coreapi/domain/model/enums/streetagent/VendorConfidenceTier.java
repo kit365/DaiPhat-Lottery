@@ -1,20 +1,12 @@
 package com.daiphat.coreapi.domain.model.enums.streetagent;
 
-import java.math.BigDecimal;
-
+/**
+ * Vendor confidence tier names only. Cap percentages and thresholds come from
+ * {@code VENDOR_SETTING} system configs, not from this enum.
+ */
 public enum VendorConfidenceTier {
-    NEW("0.25"),
-    DEVELOPING("0.50"),
-    ESTABLISHED("0.75"),
-    TRUSTED("1.00");
-
-    private final BigDecimal capPercentage;
-
-    VendorConfidenceTier(String capPercentage) {
-        this.capPercentage = new BigDecimal(capPercentage);
-    }
-
-    public BigDecimal capPercentage() {
-        return capPercentage;
-    }
+    NEW,
+    DEVELOPING,
+    ESTABLISHED,
+    TRUSTED
 }

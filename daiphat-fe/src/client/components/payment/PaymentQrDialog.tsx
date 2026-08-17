@@ -75,6 +75,8 @@ export const PaymentQrDialog: React.FC<PaymentQrDialogProps> = ({
             return;
         }
 
+        // Only treat as expired after backend confirms CANCELLED — never from countdown alone
+        // (countdown can flip right after PAID / during late PayOS webhook).
         if (isOrderPaymentCancelled(status)) {
             handleExpired();
         }
@@ -87,18 +89,15 @@ export const PaymentQrDialog: React.FC<PaymentQrDialogProps> = ({
         }
     }, [open]);
 
+    // Poll gateway until paid or cancelled. Keep polling after countdown hits 0 so a late
+    // successful transfer still resolves to onPaid instead of a stale expiry toast.
     useEffect(() => {
-        if (!open || !expired || resolvedRef.current) return;
-        handleExpired();
-    }, [open, expired, handleExpired]);
-
-    useEffect(() => {
-        if (!open || expired) return;
+        if (!open || !orderId) return;
 
         let cancelled = false;
 
         const poll = async () => {
-            if (cancelled || resolvedRef.current || !orderId || syncInFlightRef.current) return;
+            if (cancelled || resolvedRef.current || syncInFlightRef.current) return;
             syncInFlightRef.current = true;
             try {
                 const res = await syncPayment(orderId);
@@ -118,23 +117,23 @@ export const PaymentQrDialog: React.FC<PaymentQrDialogProps> = ({
             cancelled = true;
             window.clearInterval(timer);
         };
-        // mutateAsync từ useMutation ổn định — không đưa cả mutation object vào deps
-        // (countdown 1s làm re-render → effect restart → storm POST /payment/sync).
-    }, [open, expired, orderId, resolvePaymentStatus, syncPayment]);
+    }, [open, orderId, resolvePaymentStatus, syncPayment]);
 
     const handleManualSync = useCallback(async () => {
-        if (!orderId || resolvedRef.current || expired || syncInFlightRef.current) return;
+        if (!orderId || resolvedRef.current || syncInFlightRef.current) return;
         setSyncing(true);
         syncInFlightRef.current = true;
         try {
             const res = await syncPayment(orderId);
             const status = res?.data?.status;
-            if (isOrderPaymentSuccessful(status)) {
-                resolvePaymentStatus(status);
-            } else if (isOrderPaymentCancelled(status)) {
+            if (isOrderPaymentSuccessful(status) || isOrderPaymentCancelled(status)) {
                 resolvePaymentStatus(status);
             } else {
-                toast.info('Chưa nhận được thanh toán. Vui lòng thử lại sau vài giây.');
+                toast.info(
+                    expired
+                        ? 'Phiên sắp hết hạn — đang chờ xác nhận thanh toán từ cổng. Thử lại sau vài giây.'
+                        : 'Chưa nhận được thanh toán. Vui lòng thử lại sau vài giây.'
+                );
             }
         } catch (err: any) {
             toast.error(err?.response?.data?.message || 'Không kiểm tra được trạng thái thanh toán', {
@@ -246,7 +245,7 @@ export const PaymentQrDialog: React.FC<PaymentQrDialogProps> = ({
                     <button
                         type="button"
                         onClick={handleManualSync}
-                        disabled={syncing || loading || !orderId || expired}
+                        disabled={syncing || loading || !orderId}
                         className="flex-1 px-4 py-2.5 rounded-xl bg-[#212B36] text-white text-[13px] font-bold hover:bg-[#161C24] transition-colors disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
                     >
                         {syncing ? (

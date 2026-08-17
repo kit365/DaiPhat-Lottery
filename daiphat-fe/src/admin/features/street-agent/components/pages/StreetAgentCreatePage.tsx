@@ -1,7 +1,9 @@
 "use client";
 
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
-import { Title } from "../../../../components/ui/Title";
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useAppSearchParams } from "@/hooks/useAppSearchParams";
+import { PageHeader } from "../../../../components/ui/PageHeader";
+import { SpinnerLoading } from "../../../../components/ui/SpinnerLoading";
 import {
     useCreateStreetAgentProfile,
     useStreetAgentProfileDetail,
@@ -9,50 +11,60 @@ import {
 } from "../../hooks/useStreetAgent";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
     createStreetAgentProfileSchema,
     CreateStreetAgentProfileFormValues,
 } from "../../schemas/street-agent.schema";
 import { ROUTES } from "../../../../constants/routes";
 import { toast } from "react-toastify";
-import { Link as RouterLink, useNavigate, useSearchParams } from "react-router-dom";
 import {
     Alert,
     Box,
-    Button,
     Card,
     Chip,
-    CircularProgress,
     Stack,
     Step,
     StepLabel,
     Stepper,
     Typography,
-} from "@mui/material";
+} from '@mui/material';
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
-import CloudUploadIcon from "@mui/icons-material/CloudUpload";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import { uploadAdminImage } from "../../../../api/upload.api";
-import { LoadingButton } from "../../../../components/ui/LoadingButton";
+import { uploadAdminImage } from "@/admin/shared/services/upload.service";
+import { Button } from "../../../../components/ui/Button";
+import { UploadSingleFile } from "../../../../components/upload/UploadSingleFile";
+import { SignedContractUploadDialog } from "../SignedContractUploadDialog";
+import { SignedContractSaveDialog } from "../SignedContractSaveDialog";
 import { StreetAgentProfileForm } from "../sections/StreetAgentProfileForm";
 import {
     parseCoverageAreaCodes,
     serializeCoverageAreaCodes,
 } from "../../constants/coverageAreas";
 import { useVendorSettingsDefaults } from "../../hooks/useVendorSettingsDefaults";
-import {
-    openStreetAgentContractPrint,
-} from "../../services/streetAgentService";
+import { openStreetAgentContractPrint } from "../../services/streetAgentService";
 import { StreetAgentProfile } from "../../types/street-agent.type";
-import { SignedContractUploadDialog } from "../SignedContractUploadDialog";
 import { ContractDocumentViewerDialog } from "../ContractDocumentViewerDialog";
+import { StreetAgentProfileEditModal } from "../StreetAgentProfileEditModal";
+import { getStreetAgentPendingNotice } from "../../utils/format";
 
 const SIGNED_DOC_TYPES = ["application/pdf", "image/jpeg", "image/jpg", "image/png"];
 const SIGNED_DOC_MAX_SIZE = 10 * 1024 * 1024;
 
-const STEPS = ["Thông tin vendor", "In & ký hợp đồng", "Hoàn tất hồ sơ"] as const;
+const SIGNED_DOC_ACCEPT = {
+    "image/jpeg": [".jpg", ".jpeg"],
+    "image/png": [".png"],
+    "application/pdf": [".pdf"],
+} as const;
+
+const PENDING_STATUS_CHIP_SX = {
+    bgcolor: "rgba(255, 171, 0, 0.16)",
+    color: "rgb(183, 110, 0)",
+    fontWeight: 700,
+    height: 24,
+    fontSize: "0.75rem",
+};
+
+const STEPS = ["Thông tin người bán vé số", "In & ký hợp đồng", "Hoàn tất hồ sơ"] as const;
 
 const defaultValues: CreateStreetAgentProfileFormValues = {
     firstName: "",
@@ -62,11 +74,11 @@ const defaultValues: CreateStreetAgentProfileFormValues = {
     imageUrl: "",
     contactAddress: "",
     contactProvince: "",
+    contactWard: "",
     coverageAreaCodes: [],
-    commissionRate: null,
     contractStartDate: "",
     contractEndDate: "",
-    dailyTicketCap: null,
+    contractMaxDailyCap: 200,
 };
 
 const toFormValues = (profile: StreetAgentProfile): CreateStreetAgentProfileFormValues => ({
@@ -77,46 +89,55 @@ const toFormValues = (profile: StreetAgentProfile): CreateStreetAgentProfileForm
     imageUrl: profile.imageUrl || "",
     contactAddress: profile.contactAddress || "",
     contactProvince: profile.contactProvince || "",
+    contactWard: profile.contactWard || "",
     coverageAreaCodes: parseCoverageAreaCodes(profile.coverageArea),
-    commissionRate: profile.commissionRate ?? null,
     contractStartDate: profile.contractStartDate || "",
     contractEndDate: profile.contractEndDate || "",
-    dailyTicketCap: profile.dailyTicketCap ?? null,
+    contractMaxDailyCap: profile.contractMaxDailyCap ?? 200,
 });
 
 export const StreetAgentCreatePage = () => {
-    const navigate = useNavigate();
-    const [searchParams, setSearchParams] = useSearchParams();
+    const router = useAdminRouter();
+    const [searchParams, setSearchParams] = useAppSearchParams();
     const resumeIdParam = searchParams.get("resumeId");
     const resumeId = resumeIdParam && /^\d+$/.test(resumeIdParam) ? Number(resumeIdParam) : null;
 
     const { mutate: create, isPending: isCreating } = useCreateStreetAgentProfile();
-    const { mutate: uploadSigned, isPending: isUploadingSigned } = useUploadStreetAgentSignedContract();
+    const { mutateAsync: uploadSignedAsync, isPending: isUploadingSigned } = useUploadStreetAgentSignedContract();
     const {
         data: resumeProfile,
         isLoading: isLoadingResume,
         isError: isResumeError,
         refetch: refetchResume,
     } = useStreetAgentProfileDetail(resumeId ?? undefined);
-    const { defaults: vendorDefaults } = useVendorSettingsDefaults();
+    const {
+        defaults: vendorDefaults,
+    } = useVendorSettingsDefaults();
 
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const signedFileInputRef = useRef<HTMLInputElement>(null);
     const [isUploading, setIsUploading] = useState(false);
     const [activeStep, setActiveStep] = useState(0);
     const [createdProfile, setCreatedProfile] = useState<StreetAgentProfile | null>(null);
     const [hydratedResume, setHydratedResume] = useState(false);
     const [pendingSignedFile, setPendingSignedFile] = useState<File | null>(null);
+    const [previewSignedFile, setPreviewSignedFile] = useState<File | null>(null);
+    const [saveSignedConfirmOpen, setSaveSignedConfirmOpen] = useState(false);
     const [viewSignedOpen, setViewSignedOpen] = useState(false);
+    const [editProfileOpen, setEditProfileOpen] = useState(false);
 
     const { control, handleSubmit, setValue, watch, reset } = useForm<CreateStreetAgentProfileFormValues>({
         resolver: zodResolver(createStreetAgentProfileSchema) as any,
         defaultValues,
+        mode: "all",
+        reValidateMode: "onChange",
     });
 
     const imageUrl = watch("imageUrl");
     const profile = createdProfile ?? resumeProfile ?? null;
     const profileId = profile?.id ?? resumeId;
+    const pendingNotice = profile?.status === "PENDING"
+        ? getStreetAgentPendingNotice(profile)
+        : null;
 
     useEffect(() => {
         if (!resumeProfile || hydratedResume) return;
@@ -141,6 +162,16 @@ export const StreetAgentCreatePage = () => {
         setActiveStep(0);
         setHydratedResume(true);
     }, [resumeProfile, hydratedResume, reset]);
+
+    const defaultsAppliedRef = useRef(false);
+
+    useEffect(() => {
+        if (resumeProfile || defaultsAppliedRef.current) return;
+        if (vendorDefaults?.defaultContractMaxDailyCap != null) {
+            setValue("contractMaxDailyCap", vendorDefaults.defaultContractMaxDailyCap);
+            defaultsAppliedRef.current = true;
+        }
+    }, [resumeProfile, setValue, vendorDefaults]);
 
     useEffect(() => {
         if (isResumeError && resumeId) {
@@ -174,7 +205,6 @@ export const StreetAgentCreatePage = () => {
             setIsUploading(true);
             const url = await uploadAdminImage(file);
             setValue("imageUrl", url, { shouldValidate: true });
-            toast.success("Tải ảnh lên thành công!");
         } catch {
             toast.error("Tải ảnh lên thất bại!");
         } finally {
@@ -199,12 +229,11 @@ export const StreetAgentCreatePage = () => {
             imageUrl: data.imageUrl || undefined,
             contactAddress: data.contactAddress || undefined,
             contactProvince: data.contactProvince || undefined,
+            contactWard: data.contactWard || undefined,
             coverageArea: serializeCoverageAreaCodes(data.coverageAreaCodes || []),
-            commissionRate: data.commissionRate ?? undefined,
             contractStartDate: data.contractStartDate || undefined,
             contractEndDate: data.contractEndDate || undefined,
-            dailyTicketCap: data.dailyTicketCap ?? undefined,
-            depositBalance: 0,
+            contractMaxDailyCap: data.contractMaxDailyCap ?? undefined,
         };
 
         create(payload, {
@@ -217,9 +246,6 @@ export const StreetAgentCreatePage = () => {
                 setCreatedProfile(response.data);
                 setActiveStep(1);
                 setSearchParams({ resumeId: String(response.data.id) }, { replace: true });
-            },
-            onError: (error: any) => {
-                toast.error(error.response?.data?.message || "Tạo hồ sơ thất bại");
             },
         });
     };
@@ -237,74 +263,82 @@ export const StreetAgentCreatePage = () => {
         }
     };
 
-    const handleSignedFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        event.target.value = "";
-        if (!file || !profileId) return;
-
-        if (!SIGNED_DOC_TYPES.includes(file.type)) {
-            toast.error("Chỉ chấp nhận PDF, JPG hoặc PNG.");
-            return;
-        }
-        if (file.size > SIGNED_DOC_MAX_SIZE) {
-            toast.error("File quá lớn. Tối đa 10MB.");
-            return;
-        }
-
-        setPendingSignedFile(file);
-    };
-
-    const handleConfirmSignedUpload = (file: File) => {
+    const handleConfirmSignedUpload = useCallback(async (file: File) => {
         if (!profileId) return;
-        uploadSigned(
-            { id: profileId, file },
-            {
-                onSuccess: (response) => {
-                    if (!response.success || !response.data) {
-                        toast.error(response.message || "Upload bản ký thất bại");
-                        return;
-                    }
-                    toast.success(response.message || "Đã đính kèm bản hợp đồng đã ký.");
-                    setPendingSignedFile(null);
-                    setCreatedProfile(response.data);
-                    setActiveStep(2);
-                    void refetchResume();
-                },
-                onError: (error: any) => {
-                    toast.error(error.response?.data?.message || "Upload bản ký thất bại");
-                },
+
+        try {
+            const response = await uploadSignedAsync({ id: profileId, file });
+
+            if (!response.success || !response.data) {
+                toast.error(response.message || "Upload bản ký thất bại");
+                return;
             }
-        );
+
+            setPendingSignedFile(null);
+            setSaveSignedConfirmOpen(false);
+            setCreatedProfile(response.data);
+            setActiveStep(2);
+            void refetchResume();
+            return response.data.contractDocumentUrl || "";
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || error.message || "Upload bản ký thất bại");
+        }
+    }, [profileId, refetchResume, uploadSignedAsync]);
+
+    const handlePendingSignedFileChange = (value: File | string | null) => {
+        if (!value || typeof value === "string") {
+            setPreviewSignedFile(null);
+            if (!value) setPendingSignedFile(null);
+            return;
+        }
+
+        if (!SIGNED_DOC_TYPES.includes(value.type)) {
+            toast.error("Chỉ chấp nhận PDF, JPG hoặc PNG.");
+            setPreviewSignedFile(null);
+            return;
+        }
+        if (value.size > SIGNED_DOC_MAX_SIZE) {
+            toast.error("File quá lớn. Tối đa 10MB.");
+            setPreviewSignedFile(null);
+            return;
+        }
+
+        setPreviewSignedFile(value);
     };
 
-    const statusLabel = useMemo(() => {
-        if (!profile?.status) return "—";
-        if (profile.status === "ACTIVE") return "ACTIVE · Đã đủ điều kiện nhận vé";
-        if (profile.status === "PENDING") return "PENDING · Chờ bản hợp đồng đã ký";
-        return profile.status;
-    }, [profile?.status]);
+    const handleStageSignedFile = (file: File) => {
+        setPendingSignedFile(file);
+        setPreviewSignedFile(null);
+    };
+
+
 
     if (resumeId && isLoadingResume && !hydratedResume) {
         return (
-            <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-                <CircularProgress />
+            <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
+                <PageHeader
+                    title="Tạo hồ sơ người bán vé số"
+                    breadcrumbItems={[
+                        { label: "Dashboard", to: "/" },
+                        { label: "Người bán vé số", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
+                        { label: "Tiếp tục hoàn thiện" },
+                    ]}
+                />
+                <SpinnerLoading />
             </Box>
         );
     }
 
     return (
         <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
-            <Box sx={{ mb: 5 }}>
-                <Title title="Tạo hồ sơ đại lý bán dạo" />
-                <Breadcrumb
-                    items={[
-                        { label: "Dashboard", to: "/" },
-                        { label: "Quản lý tài khoản", to: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST },
-                        { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
-                        { label: resumeId ? "Tiếp tục hoàn thiện" : "Tạo hồ sơ" },
-                    ]}
-                />
-            </Box>
+            <PageHeader
+                title="Tạo hồ sơ người bán vé số"
+                breadcrumbItems={[
+                    { label: "Dashboard", to: "/" },
+                    { label: "Người bán vé số", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
+                    { label: resumeId ? "Tiếp tục hoàn thiện" : "Tạo hồ sơ" },
+                ]}
+            />
 
             <Card
                 sx={{
@@ -328,6 +362,7 @@ export const StreetAgentCreatePage = () => {
                     <StreetAgentProfileForm
                         mode="create"
                         control={control}
+                        setValue={setValue}
                         imageUrl={imageUrl}
                         isUploading={isUploading}
                         fileInputRef={fileInputRef}
@@ -335,9 +370,14 @@ export const StreetAgentCreatePage = () => {
                         onFileChange={handleFileChange}
                         depositBalance={0}
                         statusChip="PENDING"
+                        contractMaxDailyCap={profile?.contractMaxDailyCap}
+                        effectiveDailyCap={profile?.effectiveDailyCap}
                         vendorDefaults={vendorDefaults}
+                        // The signed-contract workspace only exists after the profile is saved.
+                        // Keep the create form focused on data entry; step 2 handles printing/upload.
+                        sections={{ signedContract: false }}
                         footer={
-                            <LoadingButton
+                            <Button
                                 type="submit"
                                 loading={isCreating}
                                 label="Lưu thông tin & tạo hợp đồng"
@@ -351,139 +391,91 @@ export const StreetAgentCreatePage = () => {
             {activeStep === 1 && profileId && (
                 <Card
                     sx={{
-                        p: { xs: 3, md: 4, lg: 5 },
+                        p: { xs: 3, md: 4 },
                         borderRadius: "var(--shape-borderRadius-lg)",
                         boxShadow: "var(--customShadows-card)",
-                        maxWidth: 720,
-                        mx: "auto",
                     }}
                 >
-                    <Stack spacing={4}>
+                    <Stack spacing={3}>
                         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 2 }}>
                             <Box>
                                 <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>
-                                    Hoàn thiện hồ sơ đại lý
+                                    Hoàn thiện hồ sơ người bán vé số
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary">
-                                    Vui lòng thực hiện các bước dưới đây để kích hoạt tài khoản
+                                    In hợp đồng, ký xác nhận rồi tải bản đã ký lên hệ thống.
                                 </Typography>
+                                <Button
+                                    variant="outlined"
+                                    color="inherit"
+                                    onClick={() => setEditProfileOpen(true)}
+                                    label="Chỉnh sửa thông tin hồ sơ"
+                                    sx={{ mt: 1.5, fontWeight: 700, borderRadius: "8px" }}
+                                />
                             </Box>
-                            <Box sx={{ textAlign: { xs: "left", sm: "right" } }}>
+                            <Stack
+                                spacing={0.5}
+                                sx={{
+                                    textAlign: { xs: "left", sm: "right" },
+                                    alignItems: { xs: "flex-start", sm: "flex-end" },
+                                }}
+                            >
                                 <Typography variant="caption" color="text.secondary" display="block">
                                     Mã hợp đồng
                                 </Typography>
-                                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                                     {profile?.contractCode || "—"}
                                 </Typography>
-                                <Chip label={statusLabel} size="small" color={profile?.status === "PENDING" ? "warning" : "default"} sx={{ height: 22, fontSize: "0.7rem", fontWeight: 700 }} />
-                            </Box>
-                        </Box>
-
-                        <Box>
-                            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2 }}>
-                                <Box sx={{ width: 28, height: 28, borderRadius: "50%", bgcolor: "var(--palette-primary-main, #00A76F)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
-                                    1
-                                </Box>
-                                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                                    In hợp đồng bản cứng
+                                {profile?.status === "PENDING" ? (
+                                    <Chip label="Đang chờ" size="small" sx={PENDING_STATUS_CHIP_SX} />
+                                ) : null}
+                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                    Hiệu lực: {profile?.contractStartDate ? profile.contractStartDate.split("-").reverse().join("/") : "—"} - {profile?.contractEndDate ? profile.contractEndDate.split("-").reverse().join("/") : "—"}
                                 </Typography>
-                            </Stack>
-                            <Box sx={{ p: 2.5, border: "1px solid var(--palette-divider, #e0e0e0)", borderRadius: 2, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 2, bgcolor: "var(--palette-background-neutral, #f4f6f8)" }}>
-                                <Typography variant="body2" color="text.secondary" sx={{ flex: 1, minWidth: 200 }}>
-                                    In file PDF hợp đồng và đưa cho đại lý ký xác nhận.
+                                <Typography variant="body2" color="text.secondary">
+                                    Giới hạn mỗi phiếu: {profile?.contractMaxDailyCap != null ? profile.contractMaxDailyCap : "—"} vé
                                 </Typography>
                                 <Button
                                     variant="contained"
-                                    color="inherit"
                                     startIcon={<PictureAsPdfIcon />}
                                     onClick={handlePrintContract}
                                     disabled={!profile?.contractCode}
-                                    sx={{ fontWeight: 700, borderRadius: "8px", boxShadow: "none" }}
-                                >
-                                    Xem / In hợp đồng
-                                </Button>
-                            </Box>
-                        </Box>
-
-                        <Box>
-                            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2 }}>
-                                <Box sx={{ width: 28, height: 28, borderRadius: "50%", bgcolor: "var(--palette-primary-main, #00A76F)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
-                                    2
-                                </Box>
-                                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                                    Tải lên bản đã ký
-                                </Typography>
-                            </Stack>
-
-                            <Box 
-                                onClick={() => !isUploadingSigned && signedFileInputRef.current?.click()}
-                                sx={{
-                                    width: "100%",
-                                    border: "2px dashed var(--palette-divider, #e0e0e0)",
-                                    borderRadius: 2,
-                                    p: 5,
-                                    bgcolor: "var(--palette-background-neutral, #f4f6f8)",
-                                    cursor: isUploadingSigned ? "default" : "pointer",
-                                    transition: "all 0.2s",
-                                    textAlign: "center",
-                                    "&:hover": {
-                                        bgcolor: isUploadingSigned ? "var(--palette-background-neutral)" : "var(--palette-action-hover, rgba(99, 115, 129, 0.08))",
-                                        borderColor: "var(--palette-text-primary, #212B36)"
-                                    }
-                                }}
-                            >
-                                <input
-                                    type="file"
-                                    ref={signedFileInputRef}
-                                    onChange={handleSignedFileChange}
-                                    className="hidden"
-                                    accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                                    label="Xem / In hợp đồng"
+                                    sx={{
+                                        mt: 0.75,
+                                        fontWeight: 700,
+                                        borderRadius: "8px",
+                                        boxShadow: "none",
+                                        minWidth: { sm: 200 },
+                                    }}
                                 />
-                                
-                                {isUploadingSigned ? (
-                                    <Stack spacing={2} alignItems="center">
-                                        <CircularProgress size={32} thickness={4} sx={{ color: "var(--palette-text-primary)" }} />
-                                        <Typography variant="subtitle2">Đang tải lên bản đã ký...</Typography>
-                                    </Stack>
-                                ) : (
-                                    <Stack spacing={2} alignItems="center">
-                                        <Box sx={{ 
-                                            width: 64, height: 64, borderRadius: "50%", 
-                                            bgcolor: "var(--palette-primary-lighter, #FFE7D9)", 
-                                            color: "var(--palette-primary-dark, #B72136)", 
-                                            display: "flex", alignItems: "center", justifyContent: "center" 
-                                        }}>
-                                            <CloudUploadIcon fontSize="large" />
-                                        </Box>
-                                        <Box>
-                                            <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>
-                                                Kéo thả hoặc nhấn để tải lên bản đã ký
-                                            </Typography>
-                                            <Typography variant="body2" color="text.secondary">
-                                                Hỗ trợ định dạng: PDF, JPG, PNG. Tối đa 10MB.
-                                            </Typography>
-                                        </Box>
-                                    </Stack>
-                                )}
-                            </Box>
+                            </Stack>
                         </Box>
-
-                        <Box sx={{ pt: 2, borderTop: "1px solid var(--palette-divider, #e0e0e0)" }}>
-                            <Button
-                                variant="text"
-                                color="inherit"
-                                onClick={() => {
-                                    if (profileId) {
-                                        navigate(`${ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.EDIT}/${profileId}`);
-                                        return;
-                                    }
-                                    setActiveStep(0);
-                                }}
-                                sx={{ fontWeight: 700, borderRadius: "8px", px: 1, ml: -1 }}
+                        <UploadSingleFile
+                            label="Bản hợp đồng đã ký"
+                            value={pendingSignedFile}
+                            onChange={handlePendingSignedFileChange}
+                            useRawFile
+                            disabled={isUploadingSigned}
+                            maxFileSizeMb={10}
+                            accept={SIGNED_DOC_ACCEPT}
+                            onPreview={() => {
+                                if (pendingSignedFile) setPreviewSignedFile(pendingSignedFile);
+                            }}
+                        />
+                        {pendingSignedFile ? (
+                            <Stack
+                                direction="row"
+                                justifyContent="flex-end"
+                                sx={{ width: "100%", pt: 0.5 }}
                             >
-                                {profileId ? "← Quay lại trang hồ sơ" : "← Quay lại bước 1"}
-                            </Button>
-                        </Box>
+                                <Button
+                                    variant="contained"
+                                    onClick={() => setSaveSignedConfirmOpen(true)}
+                                    label="Lưu bản ký vào hồ sơ"
+                                />
+                            </Stack>
+                        ) : null}
                     </Stack>
                 </Card>
             )}
@@ -497,58 +489,79 @@ export const StreetAgentCreatePage = () => {
                     }}
                 >
                     <Stack spacing={2.5} alignItems="flex-start">
-                        <Alert severity="success" sx={{ width: "100%" }}>
-                            Hồ sơ đã hoàn tất
-                            {profile.status === "ACTIVE"
-                                ? " và đang ACTIVE — vendor có thể nhận vé."
-                                : `. Trạng thái hiện tại: ${profile.status}.`}
-                        </Alert>
-
-                        <Typography variant="body2">
-                            {`${profile.lastName || ""} ${profile.firstName || ""}`.trim()} · {profile.phone}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                            Mã HĐ: {profile.contractCode || "—"}
-                        </Typography>
-                        {profile.contractDocumentUrl ? (
-                            <Button
-                                variant="text"
-                                onClick={() => setViewSignedOpen(true)}
-                                sx={{ fontWeight: 600, px: 0 }}
+                        {profile.status === "ACTIVE" ? (
+                            <Alert severity="success" sx={{ width: "100%" }}>
+                                Đã hoàn tất — người bán vé số có thể nhận vé.
+                            </Alert>
+                        ) : profile.status === "PENDING" ? (
+                            <Alert
+                                severity="warning"
+                                sx={{ width: "100%" }}
+                                action={
+                                    <Button
+                                        color="inherit"
+                                        size="small"
+                                        onClick={() => setEditProfileOpen(true)}
+                                    >
+                                        {pendingNotice?.actionLabel || "Xem / điều chỉnh hồ sơ"}
+                                    </Button>
+                                }
                             >
-                                Xem bản hợp đồng đã ký
-                            </Button>
-                        ) : null}
+                                {pendingNotice?.message || "Hồ sơ chưa đủ điều kiện nhận vé. Hãy kiểm tra lại thông tin hợp đồng."}
+                            </Alert>
+                        ) : (
+                            <Alert severity="error" sx={{ width: "100%" }}>
+                                Hồ sơ đang bị khóa và chưa thể nhận vé. Hãy mở khóa hồ sơ trước khi tiếp tục.
+                            </Alert>
+                        )}
 
-                        <Stack direction="row" spacing={1.5}>
+                        <Stack spacing={0.5}>
+                            <Typography variant="body2">
+                                <Box component="span" sx={{ color: "text.secondary" }}>
+                                    Tên:{" "}
+                                </Box>
+                                {`${profile.lastName || ""} ${profile.firstName || ""}`.trim() || "—"}
+                            </Typography>
+                            <Typography variant="body2">
+                                <Box component="span" sx={{ color: "text.secondary" }}>
+                                    Số điện thoại:{" "}
+                                </Box>
+                                {profile.phone || "—"}
+                            </Typography>
+                        </Stack>
+
+                        <Stack direction="row" spacing={1.5} flexWrap="wrap">
                             <Button
                                 variant="contained"
-                                onClick={() => navigate(ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST)}
+                                onClick={() => router.push(ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST)}
+                                label="Về danh sách"
                                 sx={{ fontWeight: 700, borderRadius: "8px" }}
-                            >
-                                Về danh sách
-                            </Button>
-                            <Button
-                                variant="outlined"
-                                component={RouterLink}
-                                to={`${ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.EDIT}/${profile.id}`}
-                                sx={{ fontWeight: 700, borderRadius: "8px" }}
-                            >
-                                Mở trang chỉnh sửa
-                            </Button>
+                            />
+                            {profile.contractDocumentUrl ? (
+                                <Button
+                                    variant="outlined"
+                                    color="inherit"
+                                    startIcon={<PictureAsPdfIcon />}
+                                    onClick={() => setViewSignedOpen(true)}
+                                    label="Xem bản hợp đồng"
+                                    sx={{ fontWeight: 700, borderRadius: "8px" }}
+                                />
+                            ) : null}
                         </Stack>
                     </Stack>
                 </Card>
             )}
 
-            <SignedContractUploadDialog
-                open={!!pendingSignedFile}
-                file={pendingSignedFile}
-                uploading={isUploadingSigned}
-                onClose={() => {
-                    if (!isUploadingSigned) setPendingSignedFile(null);
+            <StreetAgentProfileEditModal
+                open={editProfileOpen}
+                onClose={() => setEditProfileOpen(false)}
+                profileId={profileId}
+                vendorDefaults={vendorDefaults}
+                onUpdated={(updatedProfile) => {
+                    setCreatedProfile(updatedProfile);
+                    reset(toFormValues(updatedProfile));
+                    void refetchResume();
                 }}
-                onConfirm={handleConfirmSignedUpload}
             />
 
             <ContractDocumentViewerDialog
@@ -556,6 +569,26 @@ export const StreetAgentCreatePage = () => {
                 url={profile?.contractDocumentUrl}
                 fileName={profile?.contractCode ? `Hop-dong-da-ky-${profile.contractCode}` : undefined}
                 onClose={() => setViewSignedOpen(false)}
+            />
+
+            <SignedContractUploadDialog
+                open={!!previewSignedFile}
+                file={previewSignedFile}
+                uploading={false}
+                onClose={() => {
+                    setPreviewSignedFile(null);
+                }}
+                onConfirm={handleStageSignedFile}
+            />
+
+            <SignedContractSaveDialog
+                open={saveSignedConfirmOpen}
+                file={pendingSignedFile}
+                saving={isUploadingSigned}
+                onClose={() => setSaveSignedConfirmOpen(false)}
+                onConfirm={() => {
+                    if (pendingSignedFile) void handleConfirmSignedUpload(pendingSignedFile);
+                }}
             />
         </Box>
     );

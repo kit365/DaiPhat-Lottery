@@ -1,6 +1,6 @@
 "use client";
 
-import { PrizePayoutDetailPage } from '@/admin/pages/prize-payout/PrizePayoutDetailPage';
+import { PrizePayoutDetailPage } from '@/admin/features/prize-payout/components/pages/PrizePayoutDetailPage';
 
 import { createAdminClientPage } from '@/admin/lib/createAdminClientPage';
 import { PERMISSIONS } from '@/admin/constants/permission.constants';

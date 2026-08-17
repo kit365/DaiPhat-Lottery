@@ -12,6 +12,7 @@ class RefundService {
     int limit = 10,
     String? status,
     String? search,
+    String? orderId,
   }) async {
     final response = await _apiClient.get(
       '/refund-requests/my',
@@ -20,6 +21,7 @@ class RefundService {
         'limit': limit,
         if (status != null && status.isNotEmpty) 'status': status,
         if (search != null && search.isNotEmpty) 'search': search,
+        if (orderId != null && orderId.isNotEmpty) 'orderId': orderId,
       },
     );
 

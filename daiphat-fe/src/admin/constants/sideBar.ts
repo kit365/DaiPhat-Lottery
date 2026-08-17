@@ -7,13 +7,13 @@ import SettingsIcon from "@mui/icons-material/Settings";
 
 
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
-import RateReviewIcon from "@mui/icons-material/RateReview";
 import ChatIcon from "@mui/icons-material/Chat";
 import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 import PaymentsIcon from "@mui/icons-material/Payments";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import FactCheckIcon from "@mui/icons-material/FactCheck";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
+import StorefrontIcon from "@mui/icons-material/Storefront";
 
 import { PERMISSIONS } from "./permission.constants";
 
@@ -33,11 +33,32 @@ export const menuOverviewData = [
         path: ROUTES.ADMIN.DASHBOARD.ECOMMERCE,
         permission: PERMISSIONS.DASHBOARD.ECOMMERCE
     },
-
+    {
+        id: "revenue",
+        Icon: ArticleIcon,
+        label: "Doanh thu & Đối soát",
+        path: ROUTES.ADMIN.REPORTS.REVENUE,
+        permission: PERMISSIONS.DASHBOARD.ECOMMERCE
+    },
 ];
 
 
 export const menuManagementData = [
+    {
+        id: "settings",
+        label: "Cài đặt",
+        tKey: "admin.sidebar.settings",
+        Icon: SettingsIcon,
+        path: ROUTES.ADMIN.DASHBOARD.SETTINGS.ROOT,
+        permission: PERMISSIONS.SETTINGS.VIEW,
+        children: [
+            { id: "settings-general", label: "Cài đặt chung", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.GENERAL },
+            { id: "settings-policies", label: "Chính sách", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.POLICIES },
+            { id: "settings-pages", label: "Trang thông tin", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.PAGES },
+            { id: "settings-contracts", label: "Hợp đồng", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.CONTRACTS },
+            { id: "settings-system-config", label: "Cấu hình hệ thống", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.SYSTEM_CONFIG, permission: PERMISSIONS.SETTINGS.VIEW },
+        ]
+    },
     {
         id: "blogs",
         label: "Bài viết",
@@ -66,10 +87,18 @@ export const menuManagementData = [
         children: [
             { id: "staff-management", label: "Quản lý nhân viên", path: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST, permission: PERMISSIONS.ACCOUNT.VIEW },
             { id: "customer-management", label: "Quản lý khách hàng", path: ROUTES.ADMIN.ACCOUNTS.USER.LIST, permission: PERMISSIONS.USER.VIEW },
-            { id: "street-agents", label: "Đại lý bán dạo", path: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST, permission: PERMISSIONS.STREET_AGENT.VIEW },
-            { id: "street-agent-allocation", label: "Bàn giao vé bán dạo", path: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION, permission: PERMISSIONS.STREET_AGENT.VIEW },
+        ]
+    },
+    {
+        id: "street-agent-management",
+        label: "Người bán vé số",
+        Icon: StorefrontIcon,
+        permission: PERMISSIONS.STREET_AGENT.VIEW,
+        children: [
+            { id: "street-agents", label: "Hồ sơ người bán vé số", path: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST, permission: PERMISSIONS.STREET_AGENT.VIEW },
+            { id: "street-agent-allocation", label: "Bàn giao vé cho người bán vé số", path: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION, permission: PERMISSIONS.STREET_AGENT.VIEW },
             { id: "street-agent-allocation-batches", label: "Phiếu bàn giao vé", path: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION_BATCHES, permission: PERMISSIONS.STREET_AGENT.VIEW },
-            { id: "street-agent-lucky-patterns", label: "Cấu hình số đẹp", path: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LUCKY_PATTERNS, permission: PERMISSIONS.STREET_AGENT.VIEW },
+            { id: "street-agent-reports", label: "Báo cáo người bán vé", path: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.REPORTS, permission: PERMISSIONS.DASHBOARD.ANALYTICS },
         ]
     },
     {
@@ -80,7 +109,7 @@ export const menuManagementData = [
         permission: PERMISSIONS.SUPPLIER.VIEW,
         children: [
             { id: "supplier", label: "Danh sách", path: ROUTES.ADMIN.SUPPLIER.LIST, permission: PERMISSIONS.SUPPLIER.VIEW },
-            { id: "supplier-settlement", label: "Đối soát", path: ROUTES.ADMIN.SUPPLIER_SETTLEMENT.LIST, permission: PERMISSIONS.IMPORT_BATCH.VIEW },
+            { id: "supplier-settlement", label: "Đối soát", path: ROUTES.ADMIN.SUPPLIER_SETTLEMENT.LIST, permission: PERMISSIONS.IMPORT_BATCH.VIEW, badge: 'supplier-settlement-attention' },
             { id: "return-batch", label: "Trả vé", path: ROUTES.ADMIN.RETURN_BATCH.LIST, permission: PERMISSIONS.IMPORT_BATCH.VIEW, badge: 'return-batch-pending' },
         ],
     },
@@ -95,6 +124,7 @@ export const menuManagementData = [
             { id: "import-batch", label: "Nhập lô vé", path: ROUTES.ADMIN.IMPORT_BATCH.LIST, permission: PERMISSIONS.IMPORT_BATCH.VIEW },
             { id: "provider", label: "Nhà đài", tKey: "admin.sidebar.provider", path: ROUTES.ADMIN.TICKETS.PROVIDER, permission: PERMISSIONS.PROVIDER.VIEW },
             { id: "region", label: "Vùng miền", path: ROUTES.ADMIN.TICKETS.REGION, permission: PERMISSIONS.REGION.VIEW },
+            { id: "street-agent-lucky-patterns", label: "Cấu hình số đẹp", path: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LUCKY_PATTERNS, permission: PERMISSIONS.STREET_AGENT.VIEW },
         ]
     },
     {
@@ -103,8 +133,8 @@ export const menuManagementData = [
         Icon: ArticleIcon,
         permission: PERMISSIONS.ORDER.VIEW,
         children: [
-            { id: "list", label: "Danh sách đơn", path: ROUTES.ADMIN.ORDERS.LIST, permission: PERMISSIONS.ORDER.VIEW },
-            { id: "create-counter", label: "Đơn tại quầy", path: ROUTES.ADMIN.ORDERS.CREATE_COUNTER, permission: PERMISSIONS.ORDER.CREATE },
+            { id: "list", label: "Danh sách đơn", path: ROUTES.ADMIN.ORDERS.LIST, permission: PERMISSIONS.ORDER.VIEW, badge: 'orders-online-preparing' },
+            { id: "create-counter", label: "Đơn tại quầy", path: ROUTES.ADMIN.ORDERS.CREATE_COUNTER, permission: PERMISSIONS.ORDER.CREATE, badge: 'orders-direct-preparing' },
         ]
     },
     {
@@ -164,29 +194,4 @@ export const menuManagementData = [
         path: ROUTES.ADMIN.TICKETS.DRAW_RESULT,
         permission: PERMISSIONS.LOTTERY_RESULT.VIEW,
     },
-];
-
-export const menuDevelopmentData = [
-    {
-        id: "reviews",
-        label: "Đánh giá",
-        Icon: RateReviewIcon,
-        path: ROUTES.ADMIN.REVIEWS,
-        permission: PERMISSIONS.REVIEW.VIEW
-    },
-    {
-        id: "settings",
-        label: "Cài đặt",
-        tKey: "admin.sidebar.settings",
-        Icon: SettingsIcon,
-        path: ROUTES.ADMIN.DASHBOARD.SETTINGS.ROOT,
-        permission: PERMISSIONS.SETTINGS.VIEW,
-        children: [
-            { id: "settings-general", label: "Cài đặt chung", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.GENERAL },
-            { id: "settings-policies", label: "Chính sách", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.POLICIES },
-            { id: "settings-pages", label: "Trang thông tin", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.PAGES },
-            { id: "settings-app-password", label: "Mật khẩu ứng dụng", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.APP_PASSWORD },
-            { id: "settings-system-config", label: "Cấu hình hệ thống", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.SYSTEM_CONFIG, permission: PERMISSIONS.SETTINGS.VIEW },
-        ]
-    }
 ];

@@ -1,7 +1,9 @@
 package com.daiphat.coreapi.infrastructure.persistence.entity.lotteries;
 
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchType;
 import com.daiphat.coreapi.infrastructure.persistence.entity.BaseEntity;
+import com.daiphat.coreapi.infrastructure.persistence.entity.streetagent.AllocationBatchEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -45,8 +47,18 @@ public class ReturnBatchEntity extends BaseEntity {
     private String batchCode;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "lottery_supplier_id", nullable = false)
+    @JoinColumn(name = "lottery_supplier_id")
     private LotterySupplierEntity lotterySupplier;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "return_batch_type", nullable = false, length = 30)
+    @Builder.Default
+    private ReturnBatchType returnBatchType = ReturnBatchType.SUPPLIER_RETURN;
+
+    /** Present only for {@link ReturnBatchType#STREET_AGENT_RETURN}. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "source_allocation_batch_id")
+    private AllocationBatchEntity sourceAllocationBatch;
 
     @Column(name = "draw_date", nullable = false)
     private LocalDate drawDate;

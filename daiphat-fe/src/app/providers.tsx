@@ -1,28 +1,25 @@
 "use client";
 
 import { StrictMode, useState } from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { ToastContainer } from 'react-toastify';
 import { AuthInitializer } from '../components/auth/AuthInitializer';
+import { createAppQueryClient } from '@/shared/react-query/createAppQueryClient';
+import { registerAppQueryClient } from '@/api/endAuthSession';
+import { LuckyPatternPrefetcher } from '@/shared/lucky-number/LuckyPatternPrefetcher';
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            staleTime: 1000 * 60 * 2, // 2 minutes staleTime
-            gcTime: 1000 * 60 * 10, // 10 minutes cache time
-            refetchOnWindowFocus: false,
-          },
-        },
-      })
-  );
+  const [queryClient] = useState(() => {
+    const client = createAppQueryClient();
+    registerAppQueryClient(client);
+    return client;
+  });
 
   return (
     <StrictMode>
       <QueryClientProvider client={queryClient}>
         <AuthInitializer />
+        <LuckyPatternPrefetcher />
         {children}
         <ToastContainer
             position="top-right"

@@ -1,25 +1,26 @@
 "use client";
 
-import { Box, Stack, TextField, ThemeProvider, useTheme, createTheme, MenuItem, Typography } from "@mui/material"
+import { Box, IconButton, InputAdornment, Stack, TextField, Tooltip, ThemeProvider, useTheme, createTheme, MenuItem, Typography } from "@mui/material"
 import { REGION_DATA } from "../../../../constants/region.constants";
 import { DAYS_OF_WEEK } from "../../../../constants/schedule.constants";
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb"
-import { Title } from "../../../../components/ui/Title"
+import { PageHeader } from "../../../../components/ui/PageHeader"
 import { TimePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
-import { Tiptap } from "../../../../components/layouts/titap/Tiptap"
+import { LazyTiptap } from "../../../../components/layouts/titap/LazyTiptap"
 import { useState, useMemo, type Dispatch, type SetStateAction } from "react";
 import { CollapsibleCard } from "../../../../components/ui/CollapsibleCard";
 import { useCreateStation, useUploadStationImage } from "../../hooks/useStation";
 import { useRegions } from "../../../region/hooks/useRegion";
 import { formatRegionDefaultDrawTime } from "../../../region/types/region.type";
 import { zodResolver } from "@hookform/resolvers/zod";
+import AutoFixHighOutlinedIcon from "@mui/icons-material/AutoFixHighOutlined";
 import { useForm, Controller } from "react-hook-form";
 import { CreateStationFormValues, createStationSchema } from "../../schemas/station.schema";
 
 import { prefixAdmin } from "../../../../constants/routes";
 import { toast } from "react-toastify";
-import { LoadingButton } from "../../../../components/ui/LoadingButton";
+import { suggestStationCode } from "../../services/stationService";
+import { Button } from "../../../../components/ui/Button";
 import { FormUploadSingleFile } from "../../../../components/upload/FormUploadSingleFile";
 
 export const StationCreatePage = () => {
@@ -70,6 +71,7 @@ export const StationCreatePage = () => {
         resolver: zodResolver(createStationSchema) as any,
         defaultValues: {
             name: "",
+            code: "",
             description: "",
             status: "active",
             price: 10000,
@@ -80,6 +82,27 @@ export const StationCreatePage = () => {
             commissionRate: 0.1,
         },
     });
+
+    // The generate button asks the backend, because only it knows which codes are
+    // already taken by other stations.
+    const [suggestingCode, setSuggestingCode] = useState(false);
+    const watchedName = watch('name');
+
+    const handleSuggestCode = async () => {
+        const name = watchedName?.trim();
+        if (!name) {
+            return;
+        }
+        setSuggestingCode(true);
+        try {
+            const suggested = await suggestStationCode(name, undefined);
+            setValue('code', suggested, { shouldDirty: true, shouldValidate: true });
+        } catch {
+            toast.error('Không tạo được mã tự động. Vui lòng nhập mã thủ công.');
+        } finally {
+            setSuggestingCode(false);
+        }
+    };
 
     const { data: regionsRes } = useRegions();
     const regions = regionsRes?.data || [];
@@ -164,18 +187,14 @@ export const StationCreatePage = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title="Tạo mới nhà đài" />
-                    <Breadcrumb
-                        items={[
+            <PageHeader
+                title="Tạo mới nhà đài"
+                breadcrumbItems={[
                             { label: "Dashboard", to: "/" },
                             { label: "Nhà đài", to: `/${prefixAdmin}/provider/list` },
                             { label: "Tạo mới" }
                         ]}
-                    />
-                </div>
-            </div>
+            />
             <ThemeProvider theme={localTheme}>
                 <form onSubmit={handleSubmit(onSubmit)}>
                     <Stack sx={{
@@ -211,6 +230,48 @@ export const StationCreatePage = () => {
                                             )}
                                         />
                                     </Box>
+
+                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
+                                        <Controller
+                                            name="code"
+                                            control={control}
+                                            render={({ field, fieldState }) => (
+                                                <TextField
+                                                    {...field}
+                                                    value={field.value ?? ''}
+                                                    label="Mã nhà đài"
+                                                    error={!!fieldState.error}
+                                                    helperText={
+                                                        fieldState.error?.message ??
+                                                        'Mã dùng khi xuất / nhập tệp. Để trống thì hệ thống tự sinh.'
+                                                    }
+                                                    fullWidth
+                                                    InputProps={{
+                                                        endAdornment: (
+                                                            <InputAdornment position="end">
+                                                                <Tooltip title="Tự sinh mã từ tên nhà đài">
+                                                                    <span>
+                                                                        <IconButton
+                                                                            size="small"
+                                                                            edge="end"
+                                                                            disabled={
+                                                                                suggestingCode ||
+                                                                                !watchedName?.trim()
+                                                                            }
+                                                                            onClick={handleSuggestCode}
+                                                                        >
+                                                                            <AutoFixHighOutlinedIcon fontSize="small" />
+                                                                        </IconButton>
+                                                                    </span>
+                                                                </Tooltip>
+                                                            </InputAdornment>
+                                                        ),
+                                                    }}
+                                                />
+                                            )}
+                                        />
+                                    </Box>
+
 
                                     <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
                                         <Controller
@@ -449,7 +510,7 @@ export const StationCreatePage = () => {
                                         name="description"
                                         control={control}
                                         render={({ field }) => (
-                                            <Tiptap
+                                            <LazyTiptap
                                                 value={field.value ?? ""}
                                                 onChange={field.onChange}
                                             />
@@ -459,7 +520,7 @@ export const StationCreatePage = () => {
                             </Stack>
                         </CollapsibleCard>
                         <Box gap="calc(3 * var(--spacing))" sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
-                            <LoadingButton
+                            <Button
                                 type="submit"
                                 className="btn-primary-admin"
                                 loading={isPending || isUploadingImage}

@@ -7,13 +7,14 @@ CREATE TABLE IF NOT EXISTS street_agent_profiles (
     image_url                   VARCHAR(500),
     contact_address             VARCHAR(255),
     contact_province            VARCHAR(100),
+    contact_ward                VARCHAR(100),
     coverage_area               VARCHAR(255),
     commission_rate             NUMERIC(5, 4),
     contract_code               VARCHAR(100),
     contract_document_url       VARCHAR(500),
     contract_start_date         DATE,
     contract_end_date           DATE,
-    daily_ticket_cap            INTEGER,
+    contract_max_daily_cap      INTEGER,
     confidence_score            NUMERIC(5, 2) NOT NULL DEFAULT 25,
     confidence_tier             VARCHAR(20) NOT NULL DEFAULT 'NEW',
     confidence_calculated_at    TIMESTAMP,
@@ -28,8 +29,9 @@ CREATE TABLE IF NOT EXISTS street_agent_profiles (
 
     CONSTRAINT uq_street_agent_profiles_phone UNIQUE (phone),
     CONSTRAINT uq_street_agent_profiles_cccd UNIQUE (cccd),
-    CONSTRAINT ck_street_agent_profiles_daily_ticket_cap
-        CHECK (daily_ticket_cap IS NULL OR daily_ticket_cap > 0)
+    CONSTRAINT ck_street_agent_profiles_contract_daily_cap CHECK (
+        contract_max_daily_cap IS NULL OR contract_max_daily_cap > 0
+    )
 );
 
 CREATE INDEX IF NOT EXISTS idx_street_agent_profiles_status ON street_agent_profiles(status);

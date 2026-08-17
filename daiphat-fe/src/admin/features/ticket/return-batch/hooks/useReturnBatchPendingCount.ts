@@ -8,6 +8,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { hasPermission } from '../../../../utils/permission.util';
 import { PERMISSIONS } from '../../../../constants/permission.constants';
 import { ADMIN_BADGE_POLL_MS } from '../../../../hooks/adminBadgePoll';
+import { useAdminDeferredQueries } from '../../../../hooks/useAdminDeferredQueries';
 
 /**
  * Polls active return batches count for sidebar badge.
@@ -15,15 +16,23 @@ import { ADMIN_BADGE_POLL_MS } from '../../../../hooks/adminBadgePoll';
  */
 export const useReturnBatchPendingCount = () => {
     const { user, token } = useAuthStore();
+    const deferred = useAdminDeferredQueries();
     const canView = Boolean(token) && Boolean(user) && (
         hasPermission(user, PERMISSIONS.IMPORT_BATCH.VIEW) || hasPermission(user, PERMISSIONS.SUPPLIER.VIEW)
     );
 
     const query = useQuery({
         queryKey: [QUERY_KEYS.RETURN_BATCHES, 'pending-count'],
-        queryFn: () => getReturnBatches({ page: 1, size: 50 }),
-        enabled: canView,
-        refetchOnWindowFocus: canView,
+        queryFn: () =>
+            getReturnBatches({
+                page: 1,
+                size: 50,
+                // Prefer open statuses so badge does not pull handed-over history through heavy payloads.
+                status: undefined,
+                returnBatchType: 'SUPPLIER_RETURN',
+            }),
+        enabled: canView && deferred,
+        refetchOnWindowFocus: canView && deferred,
         refetchInterval: (q) => {
             if (!canView) return false;
             if (q.state.error) return false;

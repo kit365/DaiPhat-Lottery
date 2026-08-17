@@ -18,6 +18,7 @@ class HomeLotteryApiService {
         'region': _defaultRegion,
         'drawDate': _toApiDate(drawDate),
       },
+      includeAuth: false,
     );
 
     final apiResponse = ApiResponse<List<LotteryResultSummaryApiResponse>>.fromJson(
@@ -52,6 +53,7 @@ class HomeLotteryApiService {
       queryParameters: <String, dynamic>{
         'resultIds': resultIds.join(','),
       },
+      includeAuth: false,
     );
 
     final apiResponse = ApiResponse<List<LotteryResultLiveItemApiResponse>>.fromJson(

@@ -3,13 +3,11 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "../../../stores/useAuthStore";
-import { useForgotPassword } from "../../../admin/pages/authen/hooks/use-forgot-password";
+import { useForgotPassword } from "@/shared/auth/hooks/useForgotPassword";
 import { AppToast as toast } from "../../../utils/toast.util";
 import { PasswordStrengthMeter } from "./PasswordStrengthMeter";
-import Cookies from "js-cookie";
-import { STORAGE_KEYS } from "../../../constants/storage.constants";
-import { useQueryClient } from "@tanstack/react-query";
-import { authService } from "../../../admin/pages/authen/services/auth.service";
+import { authService } from "@/shared/auth/services/auth.service";
+import { endAuthSession } from "@/api/endAuthSession";
 
 const STEPS = {
     EMAIL: "EMAIL",
@@ -21,8 +19,7 @@ const STEPS = {
 type Step = keyof typeof STEPS;
 
 export const ForgotPasswordModal = () => {
-    const { isForgotPasswordModalOpen, closeForgotPasswordModal, openLoginModal, token, logout } = useAuthStore();
-    const queryClient = useQueryClient();
+    const { isForgotPasswordModalOpen, closeForgotPasswordModal, openLoginModal, token } = useAuthStore();
     const [step, setStep] = useState<Step>(STEPS.EMAIL);
     const [email, setEmail] = useState("");
     const [emailError, setEmailError] = useState("");
@@ -44,15 +41,12 @@ export const ForgotPasswordModal = () => {
                 } catch (e) {
                     console.error("Lỗi tự động đăng xuất ở backend:", e);
                 }
-                logout();
-                Cookies.remove(STORAGE_KEYS.TOKEN, { path: '/' });
-                Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN, { path: '/' });
-                queryClient.clear();
+                endAuthSession();
                 toast.info("Phiên làm việc đã được đóng để đặt lại mật khẩu.");
             };
             triggerAutoLogout();
         }
-    }, [isForgotPasswordModalOpen, token, logout, queryClient]);
+    }, [isForgotPasswordModalOpen, token]);
 
     const { requestOtp, verifyOtp, resetPassword, usePasswordPolicy, isPending } = useForgotPassword();
     const { data: passwordPolicy } = usePasswordPolicy();
@@ -126,10 +120,7 @@ export const ForgotPasswordModal = () => {
                     } catch (e) {
                         console.error("Lỗi đăng xuất khi đặt lại mật khẩu:", e);
                     }
-                    logout();
-                    Cookies.remove(STORAGE_KEYS.TOKEN, { path: '/' });
-                    Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN, { path: '/' });
-                    queryClient.clear();
+                    endAuthSession();
                     
                     setStep(STEPS.SUCCESS);
                 }

@@ -1,143 +1,138 @@
-import {
-    Box,
-    Typography,
-    Avatar,
-    Stack,
-    Divider,
-    Button,
-    Grid,
-    Chip,
-} from '@mui/material';
-import { Icon } from '@iconify/react';
+"use client";
+
+import { Box, Typography, Avatar, Stack, Button } from '@mui/material';
+import Link from '@/admin/components/navigation/AdminLink';
 import { Conversation } from '../../../../../types/chat.type';
-import { getConversationDisplayTitle, getAssigneeDisplayLabel, getConversationAvatarLetter, getManagementUnreadCount } from '../utils';
+import { ConversationStatusEnum } from '../../../../../types/chat.type';
+import { getConversationDisplayTitle, getAssigneeDisplayLabel, getManagementUnreadCount } from '../utils';
+import { ConversationAvatarLetter } from '../components/ConversationAvatarLetter';
 import { useAuthStore } from '../../../../../stores/useAuthStore';
+import { prefixAdmin } from '../../../../constants/routes';
+import dayjs from 'dayjs';
 
 interface ChatDetailsProps {
     conversation?: Conversation;
 }
 
 const STATUS_LABELS: Record<string, string> = {
-    OPEN: 'Mở',
-    ACTIVE: 'Đang xử lý',
-    WAITING_FOR_OPERATOR: 'Chờ nhân viên',
-    WAITING_FOR_CUSTOMER: 'Chờ khách hàng',
-    CLOSED: 'Đã đóng',
+    [ConversationStatusEnum.OPEN]: 'Mở',
+    [ConversationStatusEnum.ACTIVE]: 'Đang xử lý',
+    [ConversationStatusEnum.WAITING_FOR_OPERATOR]: 'Chờ nhân viên',
+    [ConversationStatusEnum.WAITING_FOR_CUSTOMER]: 'Chờ khách hàng',
+    [ConversationStatusEnum.CLOSED]: 'Đã đóng',
 };
+
+const InfoRow = ({ label, value }: { label: string; value: string }) => (
+    <Stack spacing={0.25} sx={{ py: 1.25 }}>
+        <Typography
+            variant="caption"
+            sx={{
+                color: 'var(--palette-text-disabled)',
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                fontSize: '0.6875rem',
+            }}
+        >
+            {label}
+        </Typography>
+        <Typography variant="body2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)', wordBreak: 'break-all' }}>
+            {value}
+        </Typography>
+    </Stack>
+);
 
 export const ChatDetails = ({ conversation }: ChatDetailsProps) => {
     const currentUserId = useAuthStore((state) => state.user?.id);
 
-    if (!conversation) return null;
+    if (!conversation) {
+        return (
+            <Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', px: 3 }}>
+                <Typography variant="body2" color="text.secondary" textAlign="center">
+                    Chọn hội thoại để xem thông tin khách.
+                </Typography>
+            </Box>
+        );
+    }
+
+    const unread = getManagementUnreadCount(conversation);
 
     return (
         <Box
             sx={{
                 width: '100%',
+                height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
-                height: '100%'
+                overflowY: 'auto',
             }}
         >
-            <Box sx={{ p: 3, textAlign: 'center' }}>
+            <Box sx={{ px: 3, pt: 4, pb: 3, textAlign: 'center' }}>
                 <Avatar
-                    sx={{ width: 80, height: 80, mx: 'auto', mb: 1.5, fontSize: '1.5rem', fontWeight: 800, border: '2px solid var(--palette-divider)' }}
+                    sx={{
+                        width: 96,
+                        height: 96,
+                        mx: 'auto',
+                        mb: 2,
+                        fontSize: '2rem',
+                        fontWeight: 700,
+                        bgcolor: 'var(--palette-grey-200)',
+                        color: 'var(--palette-text-secondary)',
+                    }}
                 >
-                    {getConversationAvatarLetter(conversation)}
+                    <ConversationAvatarLetter conversation={conversation} />
                 </Avatar>
-                
-                <Stack direction="row" alignItems="center" justifyContent="center" spacing={1} sx={{ mb: 0.5 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                        {getConversationDisplayTitle(conversation)}
-                    </Typography>
-                </Stack>
+                <Typography sx={{ fontWeight: 700, fontSize: '1.0625rem', lineHeight: 1.3, mb: 0.5 }}>
+                    {getConversationDisplayTitle(conversation)}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                    {STATUS_LABELS[conversation.status] || conversation.status}
+                </Typography>
+            </Box>
 
-                <Chip
-                    label={STATUS_LABELS[conversation.status] || conversation.status}
-                    size="small"
-                    sx={{ mb: 2 }}
+            <Box sx={{ px: 3, pb: 3 }}>
+                <Typography
+                    sx={{
+                        fontSize: '0.6875rem',
+                        fontWeight: 700,
+                        letterSpacing: '0.08em',
+                        color: 'var(--palette-text-disabled)',
+                        mb: 0.5,
+                    }}
+                >
+                    THÔNG TIN
+                </Typography>
+                <InfoRow label="MÃ KHÁCH" value={conversation.customerId || '—'} />
+                <InfoRow label="NHÂN VIÊN" value={getAssigneeDisplayLabel(conversation, currentUserId)} />
+                <InfoRow
+                    label="CẬP NHẬT"
+                    value={conversation.updatedAt ? dayjs(conversation.updatedAt).format('DD/MM/YYYY HH:mm') : '—'}
                 />
+                <InfoRow label="CHƯA ĐỌC" value={String(unread)} />
 
-                <Box sx={{ textAlign: 'left', bgcolor: 'var(--palette-background-neutral)', p: 1.5, borderRadius: 2, mb: 2 }}>
-                    <Stack direction="row" justifyContent="space-between" sx={{ mb: 1 }}>
-                        <Typography variant="body2" color="text.secondary">Mã KH:</Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>{conversation.customerId}</Typography>
-                    </Stack>
-                    <Stack direction="row" justifyContent="space-between" sx={{ mb: 1 }}>
-                        <Typography variant="body2" color="text.secondary">Nhân viên:</Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            {getAssigneeDisplayLabel(conversation, currentUserId)}
-                        </Typography>
-                    </Stack>
-                    <Stack direction="row" justifyContent="space-between">
-                        <Typography variant="body2" color="text.secondary">Tin chưa đọc:</Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 600, color: 'var(--palette-primary-main)' }}>
-                            {getManagementUnreadCount(conversation)}
-                        </Typography>
-                    </Stack>
-                </Box>
-                
-                <Button fullWidth variant="outlined" sx={{ color: 'var(--palette-primary-main)', borderColor: 'var(--palette-primary-main)', '&:hover': { borderColor: 'var(--palette-primary-dark)', bgcolor: 'var(--palette-error-lighter)' } }}>
-                    Xem chi tiết khách hàng
-                </Button>
-            </Box>
-
-            <Divider />
-
-            <Box sx={{ p: 3 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 2 }}>
-                    Timeline hội thoại
-                </Typography>
-                <Stack spacing={2} sx={{ position: 'relative', '&::before': { content: '""', position: 'absolute', left: 15, top: 10, bottom: 10, width: 2, bgcolor: 'var(--palette-divider)' } }}>
-                    <Stack direction="row" spacing={2} alignItems="flex-start" sx={{ position: 'relative', zIndex: 1 }}>
-                        <Box sx={{ width: 32, height: 32, borderRadius: '50%', bgcolor: 'var(--palette-info-lighter)', color: 'var(--palette-info-main)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Icon icon="solar:user-speak-bold" />
-                        </Box>
-                        <Box>
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>Khách bắt đầu chat</Typography>
-                            <Typography variant="caption" color="text.secondary">—</Typography>
-                        </Box>
-                    </Stack>
-                    {conversation.assignedOperatorId && (
-                        <Stack direction="row" spacing={2} alignItems="flex-start" sx={{ position: 'relative', zIndex: 1 }}>
-                            <Box sx={{ width: 32, height: 32, borderRadius: '50%', bgcolor: 'var(--palette-success-lighter)', color: 'var(--palette-success-main)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <Icon icon="solar:user-circle-bold" />
-                            </Box>
-                            <Box>
-                                <Typography variant="body2" sx={{ fontWeight: 600 }}>Nhân viên đã nhận</Typography>
-                                <Typography variant="caption" color="text.secondary">—</Typography>
-                            </Box>
-                        </Stack>
-                    )}
-                </Stack>
-            </Box>
-
-            <Divider />
-
-            <Box sx={{ p: 3, flexGrow: 1 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 2 }}>
-                    Thao tác nhanh
-                </Typography>
-                <Grid container spacing={1.5}>
-                    <Grid size={6}>
-                        <Button fullWidth variant="outlined" sx={{ color: 'text.primary', borderColor: 'var(--palette-divider)', justifyContent: 'flex-start', px: 1.5 }}>
-                            <Icon icon="solar:chat-line-bold" width={18} style={{ marginRight: 8, color: 'var(--palette-info-dark)' }} />
-                            <Typography variant="caption" sx={{ fontWeight: 600 }}>Trả lời mẫu</Typography>
-                        </Button>
-                    </Grid>
-                    <Grid size={6}>
-                        <Button fullWidth variant="outlined" sx={{ color: 'text.primary', borderColor: 'var(--palette-divider)', justifyContent: 'flex-start', px: 1.5 }}>
-                            <Icon icon="solar:magnifer-bold" width={18} style={{ marginRight: 8, color: 'var(--palette-warning-main)' }} />
-                            <Typography variant="caption" sx={{ fontWeight: 600 }}>Tra cứu vé</Typography>
-                        </Button>
-                    </Grid>
-                </Grid>
-            </Box>
-
-            <Box sx={{ p: 3, pt: 0 }}>
-                <Button fullWidth variant="contained" sx={{ bgcolor: 'var(--palette-grey-200)', color: 'var(--palette-error-main)', fontWeight: 600, boxShadow: 'none', '&:hover': { bgcolor: 'var(--palette-error-lighter)', boxShadow: 'none' } }}>
-                    Đóng hội thoại
-                </Button>
+                {conversation.customerId && (
+                    <Button
+                        component={Link}
+                        href={`/${prefixAdmin}/account-user/detail/${conversation.customerId}`}
+                        fullWidth
+                        variant="outlined"
+                        sx={{
+                            mt: 1.5,
+                            height: 40,
+                            borderRadius: '10px',
+                            textTransform: 'none',
+                            fontWeight: 700,
+                            boxShadow: 'none',
+                            borderColor: 'rgba(145, 158, 171, 0.24)',
+                            color: 'var(--palette-text-primary)',
+                            '&:hover': {
+                                borderColor: 'var(--palette-text-primary)',
+                                bgcolor: 'transparent',
+                            },
+                        }}
+                    >
+                        Hồ sơ khách hàng
+                    </Button>
+                )}
             </Box>
         </Box>
     );

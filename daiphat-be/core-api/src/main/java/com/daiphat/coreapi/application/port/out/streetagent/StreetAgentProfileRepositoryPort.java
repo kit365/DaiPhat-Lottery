@@ -21,6 +21,7 @@ public interface StreetAgentProfileRepositoryPort {
             String search,
             List<StreetAgentProfileStatus> statuses,
             List<String> contactProvinces);
+    List<Long> findAllActiveIds();
     long countAll(String search, List<String> contactProvinces);
     long countByStatus(StreetAgentProfileStatus status, String search, List<String> contactProvinces);
 }

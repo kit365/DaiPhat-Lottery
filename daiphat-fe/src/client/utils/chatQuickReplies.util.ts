@@ -130,12 +130,6 @@ const welcomeQuickReplies = (): ContextualQuickReplies => ({
       action: 'send',
       message: SUGGEST_TICKETS_MESSAGE,
     },
-    {
-      id: 'welcome-order',
-      label: 'Hỗ trợ đơn hàng',
-      action: 'send',
-      message: 'Tôi cần hỗ trợ đơn hàng',
-    },
   ],
 });
 

@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.infrastructure.config.data;
 
+import com.daiphat.coreapi.application.config.VendorTestSeedProperties;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchImportMode;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchLineStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus;
@@ -23,6 +24,7 @@ import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.Lotte
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotterySupplierRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryTicketRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryTicketSerialRepository;
+import com.daiphat.coreapi.shared.time.VietnamClock;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -35,10 +37,13 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.time.DayOfWeek;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Local-only fixture for manually testing vendor allocation.
@@ -61,9 +66,6 @@ public class VendorTestTicketSeedInitializer implements ApplicationRunner {
     private static final String SUPPLIER_CODE = "LOCAL-VENDOR-TEST";
     private static final String SEED_MARKER = "VENDOR_TEST_SEED";
     private static final String BATCH_PREFIX = "LOCAL-VENDOR-";
-    private static final int STATION_LIMIT = 2;
-    private static final int TICKETS_PER_STATION = 100;
-    private static final BigDecimal FACE_VALUE = BigDecimal.valueOf(10_000);
 
     private final LotteryStationRepository stationRepository;
     private final LotterySupplierRepository supplierRepository;
@@ -73,6 +75,8 @@ public class VendorTestTicketSeedInitializer implements ApplicationRunner {
     private final LotteryTicketSerialRepository serialRepository;
     private final UserRepository userRepository;
     private final TransactionTemplate transaction;
+    private final VendorTestSeedProperties properties;
+    private final VietnamClock vietnamClock;
 
     public VendorTestTicketSeedInitializer(
             LotteryStationRepository stationRepository,
@@ -82,7 +86,9 @@ public class VendorTestTicketSeedInitializer implements ApplicationRunner {
             LotteryTicketRepository ticketRepository,
             LotteryTicketSerialRepository serialRepository,
             UserRepository userRepository,
-            PlatformTransactionManager transactionManager
+            PlatformTransactionManager transactionManager,
+            VendorTestSeedProperties properties,
+            VietnamClock vietnamClock
     ) {
         this.stationRepository = stationRepository;
         this.supplierRepository = supplierRepository;
@@ -92,14 +98,17 @@ public class VendorTestTicketSeedInitializer implements ApplicationRunner {
         this.serialRepository = serialRepository;
         this.userRepository = userRepository;
         this.transaction = new TransactionTemplate(transactionManager);
+        this.properties = properties;
+        this.vietnamClock = vietnamClock;
     }
 
     @Override
     public void run(ApplicationArguments args) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = vietnamClock.today();
         transaction.executeWithoutResult(status -> {
+            seed(today.minusDays(properties.getHistoricalDays()));
             seed(today);
-            seed(today.plusDays(1));
+            seed(today.plusDays(properties.getFutureDays()));
         });
     }
 
@@ -123,10 +132,10 @@ public class VendorTestTicketSeedInitializer implements ApplicationRunner {
         DayOfWeek drawDay = drawDate.getDayOfWeek();
         List<LotteryStationEntity> stations = activeStations.stream()
                 .filter(station -> station.getDrawDays() != null && station.getDrawDays().contains(drawDay))
-                .limit(STATION_LIMIT)
+                .limit(properties.getStationLimit())
                 .toList();
         if (stations.isEmpty()) {
-            stations = activeStations.stream().limit(STATION_LIMIT).toList();
+            stations = activeStations.stream().limit(properties.getStationLimit()).toList();
         }
 
         if (stations.isEmpty()) {
@@ -134,7 +143,7 @@ public class VendorTestTicketSeedInitializer implements ApplicationRunner {
             return;
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = vietnamClock.now();
         LotterySupplierEntity supplier = supplierRepository
                 .findByCodeIgnoreCaseAndDeletedAtIsNull(SUPPLIER_CODE)
                 .orElseGet(() -> supplierRepository.save(LotterySupplierEntity.builder()
@@ -145,9 +154,9 @@ public class VendorTestTicketSeedInitializer implements ApplicationRunner {
                         .contactPhone("0900000000")
                         .address("LOCAL")
                         .paymentTermDays(0)
-                        .defaultImportCost(FACE_VALUE)
-                        .importAllowFrom(LocalTime.of(8, 0))
-                        .returnCutOffTime(LocalTime.of(14, 30))
+                        .defaultImportCost(properties.getFaceValue())
+                        .importAllowFrom(properties.getSupplierImportAllowedFrom())
+                        .returnCutOffTime(properties.getSupplierReturnCutoff())
                         .isActive(true)
                         .createdBy(SEED_MARKER)
                         .lastModifiedBy(SEED_MARKER)
@@ -170,6 +179,30 @@ public class VendorTestTicketSeedInitializer implements ApplicationRunner {
                         .lastModifiedBy(SEED_MARKER)
                         .build()));
 
+        // This fixture runs at application start. Load the existing local data
+        // once so a restart neither emits an N+1 query storm nor keeps adding
+        // another 100 tickets per station.
+        Map<String, LotteryTicketEntity> ticketsByStationAndNumber = new HashMap<>();
+        ticketRepository.findAllByStation_IdInAndDrawDateAndDeletedAtIsNull(
+                        stations.stream().map(LotteryStationEntity::getId).toList(), drawDate
+                )
+                .forEach(ticket -> ticketsByStationAndNumber.put(ticketKey(ticket.getStation().getId(), ticket.getNumbers()), ticket));
+        // A serial number is global, while this fixture spans several draw
+        // dates. Idempotency must therefore be keyed by the physical fixture
+        // ticket (station + draw date + ticket number), not by the old serial
+        // text alone. This also preserves local data seeded before the date was
+        // added to the serial format.
+        Set<String> seededTicketKeys = new HashSet<>();
+        serialRepository.findBySerialNumberPrefixWithTicketFetched("VENDOR-TEST-")
+                .forEach(serial -> {
+                    LotteryTicketEntity ticket = serial.getTicket();
+                    if (ticket != null && ticket.getStation() != null && ticket.getDrawDate() != null) {
+                        seededTicketKeys.add(seedTicketKey(
+                                ticket.getStation().getId(), ticket.getDrawDate(), ticket.getNumbers()
+                        ));
+                    }
+                });
+
         int createdSerials = 0;
         int stationOrder = 0;
         for (LotteryStationEntity station : stations) {
@@ -182,10 +215,10 @@ public class VendorTestTicketSeedInitializer implements ApplicationRunner {
                             .lotteryStation(station)
                             .batchType(ImportBatchType.NEW)
                             .batchCode(lineCode)
-                            .declareQuantity(TICKETS_PER_STATION)
-                            .declaredCostValue(FACE_VALUE.multiply(BigDecimal.valueOf(TICKETS_PER_STATION)))
+                            .declareQuantity(properties.getTicketsPerStation())
+                            .declaredCostValue(properties.getFaceValue().multiply(BigDecimal.valueOf(properties.getTicketsPerStation())))
                             .totalQuantity(0)
-                            .importCost(FACE_VALUE)
+                            .importCost(properties.getFaceValue())
                             .totalCostValue(BigDecimal.ZERO)
                             .status(ImportBatchLineStatus.IMPORTED)
                             .importedAt(now)
@@ -194,30 +227,31 @@ public class VendorTestTicketSeedInitializer implements ApplicationRunner {
                             .build()));
 
             int stationCreated = 0;
-            for (int ticketIndex = 1; ticketIndex <= TICKETS_PER_STATION; ticketIndex++) {
-                String numbers = resolveTicketNumber(station.getId(), drawDate, stationOrder, ticketIndex);
-                LotteryTicketEntity ticket = ticketRepository
-                        .findByStation_IdAndNumbersAndDrawDateAndDeletedAtIsNull(
-                                station.getId(), numbers, drawDate
-                        )
-                        .orElseGet(() -> ticketRepository.save(LotteryTicketEntity.builder()
+            for (int ticketIndex = 1; ticketIndex <= properties.getTicketsPerStation(); ticketIndex++) {
+                String numbers = resolveTicketNumber(stationOrder, ticketIndex);
+                String ticketKey = ticketKey(station.getId(), numbers);
+                LotteryTicketEntity ticket = ticketsByStationAndNumber.get(ticketKey);
+                if (ticket == null) {
+                    ticket = ticketRepository.save(LotteryTicketEntity.builder()
                                 .station(station)
                                 .numbers(numbers)
                                 .drawDate(drawDate)
                                 .batchCode(lineCode)
-                                .priceSnapshot(FACE_VALUE)
+                                .priceSnapshot(properties.getFaceValue())
                                 .status(LotteryTicketStatus.IN_STOCK)
                                 .active(true)
                                 .createdBy(SEED_MARKER)
                                 .lastModifiedBy(SEED_MARKER)
-                                .build()));
+                                .build());
+                    ticketsByStationAndNumber.put(ticketKey, ticket);
+                }
 
-                String serialNumber = "VENDOR-TEST-" + station.getId() + "-" + numbers;
-                boolean serialExists = serialRepository.findByTicket_IdAndDeletedAtIsNull(ticket.getId()).stream()
-                        .anyMatch(serial -> serialNumber.equals(serial.getSerialNumber()));
-                if (serialExists) {
+                String seededTicketKey = seedTicketKey(station.getId(), drawDate, numbers);
+                if (!seededTicketKeys.add(seededTicketKey)) {
                     continue;
                 }
+                String serialNumber = "VENDOR-TEST-" + drawDate.toString().replace("-", "")
+                        + "-" + station.getId() + "-" + numbers;
 
                 serialRepository.save(LotteryTicketSerialEntity.builder()
                         .ticket(ticket)
@@ -239,8 +273,8 @@ public class VendorTestTicketSeedInitializer implements ApplicationRunner {
                 stationCreated++;
             }
 
-            line.setTotalQuantity(TICKETS_PER_STATION);
-            line.setTotalCostValue(FACE_VALUE.multiply(BigDecimal.valueOf(TICKETS_PER_STATION)));
+            line.setTotalQuantity(properties.getTicketsPerStation());
+            line.setTotalCostValue(properties.getFaceValue().multiply(BigDecimal.valueOf(properties.getTicketsPerStation())));
             line.setStatus(ImportBatchLineStatus.IMPORTED);
             line.setImportedAt(now);
             importBatchLineRepository.save(line);
@@ -250,10 +284,10 @@ public class VendorTestTicketSeedInitializer implements ApplicationRunner {
         }
 
         batch.setLineCount(stations.size());
-        batch.setTotalDeclareQuantity(stations.size() * TICKETS_PER_STATION);
-        batch.setTotalDeclaredCostValue(FACE_VALUE.multiply(BigDecimal.valueOf(batch.getTotalDeclareQuantity())));
-        batch.setTotalImportedQuantity(stations.size() * TICKETS_PER_STATION);
-        batch.setTotalImportedCostValue(FACE_VALUE.multiply(BigDecimal.valueOf(batch.getTotalImportedQuantity())));
+        batch.setTotalDeclareQuantity(stations.size() * properties.getTicketsPerStation());
+        batch.setTotalDeclaredCostValue(properties.getFaceValue().multiply(BigDecimal.valueOf(batch.getTotalDeclareQuantity())));
+        batch.setTotalImportedQuantity(stations.size() * properties.getTicketsPerStation());
+        batch.setTotalImportedCostValue(properties.getFaceValue().multiply(BigDecimal.valueOf(batch.getTotalImportedQuantity())));
         batch.setStatus(ImportBatchStatus.IMPORTED);
         batch.setCompletedAt(now);
         importBatchRepository.save(batch);
@@ -262,17 +296,17 @@ public class VendorTestTicketSeedInitializer implements ApplicationRunner {
                 createdSerials, stations.size(), drawDate);
     }
 
-    private String resolveTicketNumber(Long stationId, LocalDate drawDate, int stationOrder, int ticketIndex) {
+    private String resolveTicketNumber(int stationOrder, int ticketIndex) {
         int candidate = 700_000 + stationOrder * 1000 + ticketIndex;
-        for (int offset = 0; offset < 100_000; offset++) {
-            String numbers = String.format("%06d", (candidate + offset) % 1_000_000);
-            if (!ticketRepository.existsByStation_IdAndNumbersAndDrawDateAndDeletedAtIsNull(
-                    stationId, numbers, drawDate
-            )) {
-                return numbers;
-            }
-        }
-        throw new IllegalStateException("Unable to allocate a local vendor test ticket number.");
+        return String.format("%06d", candidate % 1_000_000);
+    }
+
+    private String ticketKey(Long stationId, String numbers) {
+        return stationId + ":" + numbers;
+    }
+
+    private String seedTicketKey(Long stationId, LocalDate drawDate, String numbers) {
+        return stationId + ":" + drawDate + ":" + numbers;
     }
 
 }

@@ -3,6 +3,8 @@ package com.daiphat.coreapi.adapter.in.web.controller.streetagent;
 import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.application.dto.request.streetagent.ConfirmVendorAllocationRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.ReturnVendorAllocationSerialsRequest;
+import com.daiphat.coreapi.application.dto.request.streetagent.ReplaceVendorAllocationReturnsRequest;
+import com.daiphat.coreapi.application.dto.request.streetagent.SettleVendorAllocationRequest;
 import com.daiphat.coreapi.application.port.in.streetagent.VendorAllocationServicePort;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,30 +54,44 @@ class VendorAllocationControllerTest {
 
         assertThat(controller.openReturnSession(BATCH_ID).isSuccess()).isTrue();
         assertThat(controller.recordReturns(BATCH_ID, request).isSuccess()).isTrue();
+        ReplaceVendorAllocationReturnsRequest replaceRequest = new ReplaceVendorAllocationReturnsRequest(List.of(102L));
+        assertThat(controller.replaceReturns(BATCH_ID, replaceRequest).isSuccess()).isTrue();
+        assertThat(controller.removeReturn(BATCH_ID, 101L).isSuccess()).isTrue();
+        assertThat(controller.reopenReturnInspection(BATCH_ID).isSuccess()).isTrue();
 
         verify(vendorAllocationServicePort).openReturnSession(BATCH_ID);
         verify(vendorAllocationServicePort).recordReturns(BATCH_ID, request);
+        verify(vendorAllocationServicePort).replaceReturns(BATCH_ID, replaceRequest);
+        verify(vendorAllocationServicePort).removeReturn(BATCH_ID, 101L);
+        verify(vendorAllocationServicePort).reopenReturnInspection(BATCH_ID);
     }
 
     @Test
     void preview_and_settle_delegate_to_service_with_operator() {
+        SettleVendorAllocationRequest request = new SettleVendorAllocationRequest("settlement-preview", true);
         assertThat(controller.previewSettlement(BATCH_ID).isSuccess()).isTrue();
-        assertThat(controller.settle(BATCH_ID, principal).isSuccess()).isTrue();
+        assertThat(controller.settle(BATCH_ID, request, principal).isSuccess()).isTrue();
 
         verify(vendorAllocationServicePort).previewSettlement(BATCH_ID);
-        verify(vendorAllocationServicePort).settle(BATCH_ID, OPERATOR_ID);
+        verify(vendorAllocationServicePort).settle(BATCH_ID, request, OPERATOR_ID);
     }
 
     @Test
-    void mutation_endpoints_require_street_agent_or_member_edit_authority() throws NoSuchMethodException {
+    void mutation_endpoints_follow_vendor_action_permissions() throws NoSuchMethodException {
         for (var method : List.of(
                 VendorAllocationController.class.getMethod("confirm", Long.class, ConfirmVendorAllocationRequest.class, AuthenticatedUserPrincipal.class),
                 VendorAllocationController.class.getMethod("openReturnSession", Long.class),
                 VendorAllocationController.class.getMethod("recordReturns", Long.class, ReturnVendorAllocationSerialsRequest.class),
-                VendorAllocationController.class.getMethod("settle", Long.class, AuthenticatedUserPrincipal.class))) {
+                VendorAllocationController.class.getMethod("replaceReturns", Long.class, ReplaceVendorAllocationReturnsRequest.class),
+                VendorAllocationController.class.getMethod("removeReturn", Long.class, Long.class),
+                VendorAllocationController.class.getMethod("reopenReturnInspection", Long.class),
+                VendorAllocationController.class.getMethod("settle", Long.class, SettleVendorAllocationRequest.class, AuthenticatedUserPrincipal.class))) {
             PreAuthorize authorization = method.getAnnotation(PreAuthorize.class);
             assertThat(authorization).isNotNull();
-            assertThat(authorization.value()).isEqualTo("hasAnyAuthority('streetAgent:edit', 'member:edit')");
+            String expected = method.getName().equals("confirm") || method.getName().equals("settle")
+                    ? "hasAuthority('streetAgent:manage')"
+                    : "hasAuthority('streetAgent:edit')";
+            assertThat(authorization.value()).isEqualTo(expected);
         }
     }
 }

@@ -1,364 +1,185 @@
 "use client";
 
-import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
-import {
-    Alert,
-    Box,
-    Button,
-    Divider,
-    LinearProgress,
-    Paper,
-    Stack,
-    Tooltip,
-    Typography,
-} from '@mui/material';
-import dayjs from 'dayjs';
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { useMemo, useState } from 'react';
-import { useNavigate } from '@/components/router-compat';
-import type { ImportBatch } from '../../types/importBatch.type';
+import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
+import ArrowForwardOutlinedIcon from '@mui/icons-material/ArrowForwardOutlined';
+import { Alert, Button, Chip, Stack, Typography } from '@mui/material';
+import dayjs from 'dayjs';
+import { useActiveSuppliers } from '../../../../supplier';
 import { ROUTES } from '../../../../../constants/routes';
-import { useStations } from '../../../../station/hooks/useStation';
 import { useIncompleteImportBatches } from '../../hooks/useImportBatch';
+import { useImportBatchIntakeGate } from '../../hooks/useImportBatchIntakeGate';
+import { useStations } from '../../../../station/hooks/useStation';
 import { formatImportBatchHeaderCode } from '../../utils/importBatchCode';
-import {
-    getImportModeBadgeClass,
-    getImportModeChipColor,
-    getImportModeNotificationLabel,
-} from '../../utils/batchTypeLabels';
-import {
-    getImportBatchProgress,
-    getIncompleteLines,
-    resolveImportBatchStationNames,
-} from '../../utils/importBatchProgress';
+import { getImportModeNotificationLabel } from '../../utils/batchTypeLabels';
 import { ImportBatchNotificationDetailDialog } from './ImportBatchNotificationDetailDialog';
+import type { ImportBatch } from '../../types/importBatch.type';
 
-type IncompleteImportBatchNotificationProps = {
-    variant: 'detailed' | 'compact';
-};
-
-type IncompleteBatchItemProps = {
-    batch: ImportBatch;
-    resolveStationName: (stationId: number) => string;
-    onContinue: () => void;
-};
-
-// 6 cột đồng bộ với ImportBatchNotificationDetailDialog
-const GRID_COLS = 'minmax(0,1.3fr) 100px 140px minmax(0,1.2fr) minmax(120px,1fr) auto';
-
-const IncompleteBatchItem = ({
-    batch,
-    resolveStationName,
-    onContinue,
-}: IncompleteBatchItemProps) => {
-    const incompleteLines = getIncompleteLines(batch);
-    const progress = getImportBatchProgress(batch);
-    const stationNames = resolveImportBatchStationNames(
-        batch,
-        resolveStationName,
-        incompleteLines
-    );
-    const stationLabel =
-        stationNames.length > 0 ? stationNames.join(', ') : '—';
-    const drawDateLabel = batch.drawDate
-        ? dayjs(batch.drawDate).format('DD/MM/YYYY')
-        : '—';
-
-    // Màu chip hình thức nhập
-    const modeBgMap: Record<string, string> = {
-        warning: 'rgba(237,108,2,0.12)',
-        secondary: 'rgba(156,39,176,0.12)',
-        info: 'rgba(2,136,209,0.12)',
-        success: 'rgba(46,125,50,0.12)',
-        primary: 'rgba(25,118,210,0.12)',
-        error: 'rgba(211,47,47,0.12)',
-    };
-    const modeChipColor = getImportModeChipColor(batch.importMode);
-    const modeBg = modeBgMap[modeChipColor] ?? 'rgba(0,0,0,0.06)';
-
-    return (
-        <Box
-            sx={{
-                display: 'grid',
-                gridTemplateColumns: {
-                    xs: '1fr',
-                    md: GRID_COLS,
-                },
-                gap: { xs: 1, md: 1.5 },
-                alignItems: 'center',
-                py: 1.25,
-            }}
-        >
-            {/* Cột 1: Mã phiếu + Nhà cung cấp */}
-            <Stack spacing={0.25} sx={{ minWidth: 0 }}>
-                <Typography variant="body2" fontWeight={700} noWrap>
-                    {formatImportBatchHeaderCode(batch.batchCode, batch.id)}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" noWrap>
-                    {batch.supplierName || '—'}
-                </Typography>
-            </Stack>
-
-            {/* Cột 2: Ngày quay */}
-            <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
-                {drawDateLabel}
-            </Typography>
-
-            {/* Cột 3: Hình thức nhập */}
-            <Box>
-                <Box
-                    component="span"
-                    sx={{
-                        display: 'inline-block',
-                        px: 1,
-                        py: 0.25,
-                        borderRadius: 1,
-                        bgcolor: modeBg,
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        color: `${modeChipColor}.main`,
-                        whiteSpace: 'nowrap',
-                    }}
-                >
-                    {getImportModeNotificationLabel(batch.importMode)}
-                </Box>
-            </Box>
-
-            {/* Cột 4: Đài còn thiếu */}
-            <Tooltip title={stationLabel} disableHoverListener={stationNames.length <= 2}>
-                <Typography variant="body2" color="text.secondary" noWrap sx={{ minWidth: 0 }}>
-                    {stationLabel}
-                </Typography>
-            </Tooltip>
-
-            {/* Cột 5: Tiến độ */}
-            <Stack spacing={0.5} sx={{ minWidth: 0 }}>
-                <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
-                    {progress.imported} / {progress.declared} vé
-                    {progress.declared > 0 && (
-                        <Box
-                            component="span"
-                            sx={{ ml: 0.5, color: 'warning.main', fontWeight: 600 }}
-                        >
-                            ({progress.percentLabel})
-                        </Box>
-                    )}
-                </Typography>
-                <LinearProgress
-                    variant="determinate"
-                    value={progress.percent}
-                    color="warning"
-                    sx={{ height: 5, borderRadius: 1 }}
-                />
-            </Stack>
-
-            {/* Cột 6: Hành động */}
-            <Button
-                size="small"
-                variant="contained"
-                color="warning"
-                onClick={onContinue}
-                sx={{
-                    flexShrink: 0,
-                    justifySelf: { xs: 'flex-start', md: 'end' },
-                    whiteSpace: 'nowrap',
-                }}
-            >
-                Tiếp tục nhập
-            </Button>
-        </Box>
-    );
-};
-
-export const IncompleteImportBatchNotification = ({
-    variant,
-}: IncompleteImportBatchNotificationProps) => {
-    const navigate = useNavigate();
+export const IncompleteImportBatchNotification = () => {
+    const router = useAdminRouter();
     const [detailOpen, setDetailOpen] = useState(false);
     const { data: batches = [], isLoading } = useIncompleteImportBatches();
+    const { data: activeSuppliers = [] } = useActiveSuppliers();
+    const { evaluate: evaluateIntake } = useImportBatchIntakeGate();
     const { data: providersRes } = useStations({ limit: 1000 });
     const providers = (providersRes as any)?.data?.recordList || [];
 
-    const resolveStationName = useMemo(
-        () => (stationId: number) =>
-            providers.find((p: any) => String(p.id || p._id) === String(stationId))?.name ??
-            `Đài #${stationId}`,
-        [providers]
+    const actionableBatches = useMemo(
+        () =>
+            batches.filter((batch) => {
+                const supplier = activeSuppliers.find((entry) => entry.id === batch.supplierId);
+                const intake = evaluateIntake(supplier, batch.drawDate);
+                return !intake.blocked;
+            }),
+        [activeSuppliers, batches, evaluateIntake]
     );
 
-    const handleContinue = (_batch: ImportBatch) => {
-        navigate(ROUTES.ADMIN.IMPORT_BATCH.LIST);
-    };
+    const resolveStationName = (stationId: number) =>
+        providers.find((p: any) => String(p.id || p._id) === String(stationId))?.name || `Đài #${stationId}`;
 
-    if (isLoading || batches.length === 0) {
+    if (isLoading || actionableBatches.length === 0) {
         return null;
     }
 
-    if (variant === 'compact') {
-        const isMulti = batches.length >= 2;
-        const singleBatch = isMulti ? null : batches[0];
-        const pendingStations = singleBatch
-            ? resolveImportBatchStationNames(singleBatch, resolveStationName)
-            : [];
+    const isSingle = actionableBatches.length === 1;
+    const singleBatch = isSingle ? actionableBatches[0] : null;
 
-        return (
-            <>
-                <Alert
-                    severity="warning"
-                    icon={<WarningAmberOutlinedIcon fontSize="inherit" />}
-                    sx={{ mb: 2 }}
-                >
-                    <Stack
-                        direction={{ xs: 'column', sm: 'row' }}
-                        spacing={1}
-                        alignItems={{ sm: 'center' }}
-                        justifyContent="space-between"
-                        useFlexGap
-                    >
-                        <Stack direction="row" spacing={0.75} alignItems="center" useFlexGap flexWrap="wrap">
-                            <Typography variant="body2">
-                                <strong>{batches.length}</strong> phiếu nhập lô chưa hoàn tất
-                                {!isMulti && pendingStations.length > 0 && (
-                                    <>
-                                        {' '}
-                                        · {pendingStations.join(', ')}
-                                    </>
-                                )}
-                            </Typography>
-                            {!isMulti && singleBatch && (
-                                <span
-                                    className={`admin-status-badge ${getImportModeBadgeClass(singleBatch.importMode)}`}
-                                >
-                                    {getImportModeNotificationLabel(singleBatch.importMode)}
-                                </span>
-                            )}
-                        </Stack>
-                        {isMulti ? (
-                            <Button
-                                size="small"
-                                color="warning"
-                                variant="contained"
-                                onClick={() => setDetailOpen(true)}
-                                sx={{ flexShrink: 0 }}
-                            >
-                                Xem chi tiết
-                            </Button>
-                        ) : (
-                            singleBatch && (
-                                <Button
-                                    size="small"
-                                    color="warning"
-                                    variant="contained"
-                                    onClick={() => handleContinue(singleBatch)}
-                                    sx={{ flexShrink: 0 }}
-                                >
-                                    Tiếp tục nhập
-                                </Button>
-                            )
-                        )}
-                    </Stack>
-                </Alert>
+    const handleSingleClick = () => {
+        if (singleBatch) {
+            router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(singleBatch.id));
+        }
+    };
 
-                <ImportBatchNotificationDetailDialog
-                    open={detailOpen}
-                    title="Phiếu nhập lô chưa hoàn tất"
-                    batches={batches}
-                    actionType="continue-import"
-                    resolveStationName={resolveStationName}
-                    onClose={() => setDetailOpen(false)}
-                    onAction={handleContinue}
-                />
-            </>
-        );
-    }
+    const handleDialogAction = (batch: ImportBatch) => {
+        router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id));
+    };
 
     return (
-        <Paper
-            elevation={0}
-            sx={{
-                borderRadius: 'var(--shape-borderRadius-lg)',
-                overflow: 'hidden',
-                border: '1px solid rgba(var(--palette-warning-mainChannel) / 0.35)',
-                boxShadow: 'var(--customShadows-card)',
-                bgcolor: 'var(--palette-background-paper)',
-            }}
-        >
-            <Stack
-                direction="row"
-                spacing={1}
-                alignItems="center"
+        <>
+            <Alert
+                severity="warning"
+                icon={<WarningAmberOutlinedIcon sx={{ color: '#ea580c', fontSize: '1.4rem' }} />}
                 sx={{
-                    px: 2,
-                    py: 1.25,
-                    bgcolor: 'rgba(var(--palette-warning-mainChannel) / 0.08)',
-                    borderBottom: '1px solid var(--palette-background-neutral)',
+                    mb: 2.5,
+                    borderRadius: '14px',
+                    bgcolor: '#fff7ed',
+                    border: '1px solid #ffedd5',
+                    color: '#9a3412',
+                    p: { xs: 1.5, sm: 2 },
+                    '& .MuiAlert-message': {
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: { xs: 'flex-start', sm: 'center' },
+                        justifyContent: 'space-between',
+                        flexDirection: { xs: 'column', sm: 'row' },
+                        gap: 1.5,
+                    },
                 }}
             >
-                <WarningAmberOutlinedIcon
-                    fontSize="small"
-                    sx={{ color: 'var(--palette-warning-main)' }}
-                />
-                <Typography
-                    variant="subtitle2"
-                    sx={{ fontWeight: 700, color: 'var(--palette-text-primary)' }}
-                >
-                    Phiếu nhập lô chưa hoàn tất ({batches.length})
-                </Typography>
-            </Stack>
-
-            <Box sx={{ px: 2 }}>
-                <Box
-                    sx={{
-                        display: { xs: 'none', md: 'grid' },
-                        gridTemplateColumns: GRID_COLS,
-                        gap: 1.5,
-                        py: 0.75,
-                        borderBottom: '1px dashed var(--palette-background-neutral)',
-                    }}
-                >
-                    <Typography
-                        variant="caption"
-                        sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600 }}
-                    >
-                        Mã phiếu / Nhà cung cấp
-                    </Typography>
-                    <Typography
-                        variant="caption"
-                        sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600 }}
-                    >
-                        Ngày quay
-                    </Typography>
-                    <Typography
-                        variant="caption"
-                        sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600 }}
-                    >
-                        Hình thức
-                    </Typography>
-                    <Typography
-                        variant="caption"
-                        sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600 }}
-                    >
-                        Đài còn thiếu
-                    </Typography>
-                    <Typography
-                        variant="caption"
-                        sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600 }}
-                    >
-                        Tiến độ
-                    </Typography>
-                    <Box />
-                </Box>
-
-                <Stack divider={<Divider flexItem />}>
-                    {batches.map((batch) => (
-                        <IncompleteBatchItem
-                            key={batch.id}
-                            batch={batch}
-                            resolveStationName={resolveStationName}
-                            onContinue={() => handleContinue(batch)}
-                        />
-                    ))}
+                {/* Content */}
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'flex-start', sm: 'center' }} flexWrap="wrap" useFlexGap>
+                    {isSingle && singleBatch ? (
+                        <>
+                            <Typography variant="body2" fontWeight={600} color="#9a3412">
+                                Có <strong>1</strong> phiếu nhập lô chưa hoàn tất:
+                            </Typography>
+                            <Chip
+                                size="small"
+                                label={formatImportBatchHeaderCode(singleBatch.batchCode, singleBatch.id)}
+                                sx={{
+                                    fontWeight: 800,
+                                    fontFamily: 'monospace',
+                                    bgcolor: '#ffffff',
+                                    color: '#c2410c',
+                                    border: '1px solid #fed7aa',
+                                    height: 24,
+                                }}
+                            />
+                            {singleBatch.supplierName && (
+                                <Typography variant="caption" color="#7c2d12" fontWeight={500}>
+                                    ({singleBatch.supplierName}{singleBatch.drawDate ? ` · Ngày quay ${dayjs(singleBatch.drawDate).format('DD/MM/YYYY')}` : ''})
+                                </Typography>
+                            )}
+                            <Chip
+                                size="small"
+                                label={getImportModeNotificationLabel(singleBatch.importMode)}
+                                sx={{
+                                    fontSize: '0.7rem',
+                                    fontWeight: 700,
+                                    height: 20,
+                                    bgcolor: '#ffedd5',
+                                    color: '#ea580c',
+                                }}
+                            />
+                        </>
+                    ) : (
+                        <Typography variant="body2" fontWeight={600} color="#9a3412">
+                            Có <strong>{actionableBatches.length}</strong> phiếu nhập lô chưa hoàn tất cần xử lý tiếp.
+                        </Typography>
+                    )}
                 </Stack>
-            </Box>
-        </Paper>
+
+                {/* Action Button */}
+                {isSingle ? (
+                    <Button
+                        size="small"
+                        variant="contained"
+                        onClick={handleSingleClick}
+                        endIcon={<ArrowForwardOutlinedIcon sx={{ fontSize: '0.95rem !important' }} />}
+                        sx={{
+                            flexShrink: 0,
+                            textTransform: 'none',
+                            fontWeight: 800,
+                            borderRadius: '8px',
+                            bgcolor: '#ea580c',
+                            color: '#ffffff',
+                            px: 2,
+                            py: 0.6,
+                            fontSize: '0.8125rem',
+                            whiteSpace: 'nowrap',
+                            boxShadow: '0 2px 8px rgba(234, 88, 12, 0.25)',
+                            '&:hover': { bgcolor: '#c2410c' },
+                        }}
+                    >
+                        Xem chi tiết & tiếp tục
+                    </Button>
+                ) : (
+                    <Button
+                        size="small"
+                        variant="contained"
+                        onClick={() => setDetailOpen(true)}
+                        endIcon={<ArrowForwardOutlinedIcon sx={{ fontSize: '0.95rem !important' }} />}
+                        sx={{
+                            flexShrink: 0,
+                            textTransform: 'none',
+                            fontWeight: 800,
+                            borderRadius: '8px',
+                            bgcolor: '#ea580c',
+                            color: '#ffffff',
+                            px: 2,
+                            py: 0.6,
+                            fontSize: '0.8125rem',
+                            whiteSpace: 'nowrap',
+                            boxShadow: '0 2px 8px rgba(234, 88, 12, 0.25)',
+                            '&:hover': { bgcolor: '#c2410c' },
+                        }}
+                    >
+                        Xem danh sách {actionableBatches.length} lô
+                    </Button>
+                )}
+            </Alert>
+
+            {/* Popup dialog for multiple incomplete batches */}
+            <ImportBatchNotificationDetailDialog
+                open={detailOpen}
+                title={`Danh sách ${actionableBatches.length} phiếu nhập lô chưa hoàn tất`}
+                batches={actionableBatches}
+                actionType="continue-import"
+                resolveStationName={resolveStationName}
+                onClose={() => setDetailOpen(false)}
+                onAction={handleDialogAction}
+            />
+        </>
     );
 };

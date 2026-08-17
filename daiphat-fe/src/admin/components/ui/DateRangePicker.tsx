@@ -33,9 +33,13 @@ export const DateRangePicker = ({
         if (!startDate && !endDate) return undefined;
         const parseDate = (d?: string) => {
             if (!d) return undefined;
+            const parsed = dayjs(d, ['YYYY-MM-DD', 'DD/MM/YYYY'], true);
+            if (parsed.isValid()) return parsed.toDate();
             const parts = d.split('/');
-            if (parts.length !== 3) return undefined;
-            return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+            if (parts.length === 3) {
+                return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+            }
+            return undefined;
         };
         return { from: parseDate(startDate), to: parseDate(endDate) };
     }, [startDate, endDate]);
@@ -71,11 +75,19 @@ export const DateRangePicker = ({
         handleClose();
     };
 
+    const formatDisplay = (d?: string) => {
+        if (!d) return "";
+        const parsed = dayjs(d, ['YYYY-MM-DD', 'DD/MM/YYYY']);
+        return parsed.isValid() ? parsed.format('DD/MM/YYYY') : d;
+    };
+
     const displayValue = useMemo(() => {
         if (!startDate && !endDate) return "";
-        if (startDate === endDate) return startDate;
-        if (startDate && !endDate) return startDate;
-        return `${startDate} → ${endDate}`;
+        const startDisplay = formatDisplay(startDate);
+        const endDisplay = formatDisplay(endDate);
+        if (startDisplay === endDisplay) return startDisplay;
+        if (startDisplay && !endDisplay) return startDisplay;
+        return `${startDisplay} → ${endDisplay}`;
     }, [startDate, endDate]);
 
     const open = Boolean(anchorEl);
@@ -173,7 +185,7 @@ export const DateRangePicker = ({
                             --rdp-accent-color: #FF3030 !important;
                             --rdp-accent-background-color: rgba(255, 48, 48, 0.14) !important;
                             --rdp-range_middle-background-color: rgba(255, 48, 48, 0.14) !important;
-                            --rdp-range_middle-color: #006C45 !important;
+                            --rdp-range_middle-color: #C62828 !important;
                             --rdp-day-height: 36px !important;
                             --rdp-day-width: 36px !important;
                             margin: 0 !important;
@@ -229,7 +241,7 @@ export const DateRangePicker = ({
                         }
                         .custom-date-range .rdp-range_middle .rdp-day_button {
                             background-color: transparent !important;
-                            color: #006C45 !important;
+                            color: #C62828 !important;
                             font-weight: 600 !important;
                             border-radius: 0 !important;
                         }
@@ -297,7 +309,7 @@ export const DateRangePicker = ({
                                 textTransform: 'none',
                                 px: 2.5,
                                 '&:hover': {
-                                    bgcolor: '#00875A',
+                                    bgcolor: '#E02828',
                                 },
                             }}
                         >

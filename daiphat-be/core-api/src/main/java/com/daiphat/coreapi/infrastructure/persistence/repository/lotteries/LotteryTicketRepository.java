@@ -14,6 +14,14 @@ public interface LotteryTicketRepository
         extends JpaRepository<LotteryTicketEntity, Long>,
         JpaSpecificationExecutor<LotteryTicketEntity> {
 
+    @Query("""
+            select count(t)
+            from LotteryTicketEntity t
+            where t.active = true
+              and t.deletedAt is null
+            """)
+    long countActiveProducts();
+
     boolean existsByStation_IdAndNumbersAndDrawDateAndDeletedAtIsNull(
             Long productId,
             String numbers,
@@ -28,6 +36,15 @@ public interface LotteryTicketRepository
     java.util.Optional<LotteryTicketEntity> findByStation_IdAndNumbersAndDrawDateAndDeletedAtIsNull(
             Long productId,
             String numbers,
+            LocalDate drawDate
+    );
+
+    /**
+     * Used by local fixture loading to avoid an existence query for every
+     * generated ticket number.
+     */
+    List<LotteryTicketEntity> findAllByStation_IdInAndDrawDateAndDeletedAtIsNull(
+            Collection<Long> stationIds,
             LocalDate drawDate
     );
 

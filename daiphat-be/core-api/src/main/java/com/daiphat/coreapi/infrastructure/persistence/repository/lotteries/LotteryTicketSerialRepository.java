@@ -123,7 +123,8 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
                   com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK,
                   com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.EXPIRED
               )
-              AND s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD
+              AND (s.ticketCondition IS NULL
+                   OR s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD)
               AND s.returnBatchLineId IS NULL
             """)
     long countReturnEligibleByImportBatchLineId(@Param("importBatchLineId") Long importBatchLineId);
@@ -194,8 +195,22 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
     List<LotteryTicketSerialEntity> findVendorAllocationCandidates(@Param("drawDate") java.time.LocalDate drawDate);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select s from LotteryTicketSerialEntity s join fetch s.ticket t join fetch t.station where s.id in :ids and s.deletedAt is null")
+    @Query("select s from LotteryTicketSerialEntity s join fetch s.ticket t join fetch t.station where s.id in :ids and s.deletedAt is null order by s.id asc")
     List<LotteryTicketSerialEntity> findAllByIdForAllocationUpdate(@Param("ids") Collection<Long> ids);
+
+    /** Locks every currently sellable serial of affected stations while counter reserve is evaluated. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select s from LotteryTicketSerialEntity s join fetch s.ticket t join fetch t.station st
+            where s.deletedAt is null and s.status = com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK
+              and s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD
+              and s.returnBatchLineId is null and t.drawDate = :drawDate and t.deletedAt is null
+              and t.active = true and t.status <> com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus.EXPIRED
+              and st.deletedAt is null and st.isActive = true and st.id in :stationIds
+            order by st.id asc, t.numbers asc, s.id asc
+            """)
+    List<LotteryTicketSerialEntity> lockVendorAllocationCandidatesForStations(
+            @Param("drawDate") java.time.LocalDate drawDate, @Param("stationIds") Collection<Long> stationIds);
 
     List<LotteryTicketSerialEntity> findByReturnBatchLineIdAndDeletedAtIsNull(Long returnBatchLineId);
 
@@ -223,13 +238,44 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
               AND b.deletedAt IS NULL
               AND b.supplier.id = :supplierId
               AND t.drawDate = :drawDate
-              AND s.status = com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK
-              AND s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD
+              AND s.status IN (
+                  com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK,
+                  com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.EXPIRED
+              )
+              AND (s.ticketCondition IS NULL
+                   OR s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD)
               AND s.returnBatchLineId IS NULL
               AND (:stationIdsEmpty = true OR st.id IN :stationIds)
             ORDER BY st.name ASC, t.numbers ASC, s.serialNumber ASC
             """)
     List<LotteryTicketSerialEntity> findInStockForSupplierAndDrawDate(
+            @Param("supplierId") Long supplierId,
+            @Param("drawDate") java.time.LocalDate drawDate,
+            @Param("stationIds") Collection<Long> stationIds,
+            @Param("stationIdsEmpty") boolean stationIdsEmpty
+    );
+
+    @Query("""
+            SELECT COUNT(s) FROM LotteryTicketSerialEntity s
+            JOIN s.ticket t
+            JOIN t.station st
+            JOIN s.importBatchLine ibl
+            JOIN ibl.importBatch b
+            WHERE s.deletedAt IS NULL
+              AND t.deletedAt IS NULL
+              AND b.deletedAt IS NULL
+              AND b.supplier.id = :supplierId
+              AND t.drawDate = :drawDate
+              AND s.status IN (
+                  com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK,
+                  com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.EXPIRED
+              )
+              AND (s.ticketCondition IS NULL
+                   OR s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD)
+              AND s.returnBatchLineId IS NULL
+              AND (:stationIdsEmpty = true OR st.id IN :stationIds)
+            """)
+    long countReturnEligibleForSupplierAndDrawDate(
             @Param("supplierId") Long supplierId,
             @Param("drawDate") java.time.LocalDate drawDate,
             @Param("stationIds") Collection<Long> stationIds,
@@ -243,8 +289,21 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
                 SUM(CASE WHEN s.ticketCondition IS NULL
                            OR s.ticketCondition <> com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.VOIDED
                          THEN 1 ELSE 0 END),
-                SUM(CASE WHEN s.status = com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.SOLD
-                         THEN 1 ELSE 0 END),
+                SUM(CASE WHEN EXISTS (
+                    SELECT 1 FROM OrderEntity o
+                    JOIN o.orderDetails od
+                    WHERE (
+                           od.lotteryTicketSerial = s 
+                        OR od.replacedByTicketSerial = s 
+                    )
+                    AND od.status = :#{T(com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus).ACTIVE}
+                    AND o.status IN (
+                          :#{T(com.daiphat.coreapi.domain.model.enums.order.OrderStatus).PAID},
+                          :#{T(com.daiphat.coreapi.domain.model.enums.order.OrderStatus).PREPARING},
+                          :#{T(com.daiphat.coreapi.domain.model.enums.order.OrderStatus).PENDING_PICKUP},
+                          :#{T(com.daiphat.coreapi.domain.model.enums.order.OrderStatus).COMPLETED}
+                    )
+                ) THEN 1 ELSE 0 END),
                 SUM(CASE WHEN s.status = com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK
                            AND s.ticketCondition = com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.GOOD
                            AND s.returnBatchLineId IS NULL

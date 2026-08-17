@@ -1,7 +1,9 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { CheckCircle2, XCircle, Calendar, Hash } from 'lucide-react';
 import dayjs from 'dayjs';
 import { useGetMyOrderDetail } from '../../hooks/useOrder';
@@ -14,8 +16,8 @@ import { CLIENT_PAGE_BACKGROUND } from '../../constants/clientBannerAssets';
 type CheckoutFlow = 'return' | 'cancel';
 
 export const CheckoutResultPage = () => {
-    const [searchParams] = useSearchParams();
-    const navigate = useNavigate();
+    const searchParams = useSearchParams();
+    const router = useRouter();
     const processPaymentMutation = useProcessPayment();
     const cancelPaymentMutation = useCancelPayment();
     const syncPaymentMutation = useSyncPaymentFromGateway();
@@ -42,9 +44,9 @@ export const CheckoutResultPage = () => {
 
     useEffect(() => {
         if (searchParams.toString() || window.location.pathname !== '/checkout/result') {
-            navigate('/checkout/result', { replace: true });
+            router.replace('/checkout/result');
         }
-    }, [navigate, searchParams]);
+    }, [router, searchParams]);
 
     useEffect(() => {
         const transactionId = resultData.transactionId ? Number(resultData.transactionId) : null;
@@ -88,7 +90,6 @@ export const CheckoutResultPage = () => {
                 refetchOrder();
             }
         });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [resultData.orderId, resultData.code, resultData.cancel, resultData.flow]);
 
     const isCancelFlow = resultData.flow === 'cancel';
@@ -157,11 +158,11 @@ export const CheckoutResultPage = () => {
         setPaymentResult(null);
         setIsPreparingPayment(false);
         if (resultData.orderId) {
-            navigate(`/profile/orders/${resultData.orderId}`);
+            router.push(`/profile/orders/${resultData.orderId}`);
         } else {
-            navigate('/profile/orders');
+            router.push('/profile/orders');
         }
-    }, [navigate, resultData.orderId]);
+    }, [router, resultData.orderId]);
 
     const handlePaymentExpired = useCallback(() => {
         AppToast.error('Phiên thanh toán đã hết hạn. Đơn hàng đã bị hủy.');
@@ -169,11 +170,11 @@ export const CheckoutResultPage = () => {
         setPaymentResult(null);
         setIsPreparingPayment(false);
         if (resultData.orderId) {
-            navigate(`/profile/orders/${resultData.orderId}`);
+            router.push(`/profile/orders/${resultData.orderId}`);
         } else {
-            navigate('/profile/orders');
+            router.push('/profile/orders');
         }
-    }, [navigate, resultData.orderId]);
+    }, [router, resultData.orderId]);
 
     const handlePaymentDialogClose = useCallback(() => {
         setPaymentDialogOpen(false);
@@ -241,7 +242,7 @@ export const CheckoutResultPage = () => {
 
                         <div className="w-full flex flex-col sm:flex-row gap-3">
                             <Link
-                                to="/"
+                                href="/"
                                 className="flex-1 py-3.5 rounded-xl border-2 border-[#ee1314] text-[#ee1314] font-bold text-[15px] hover:bg-[#FFF4F4] transition-colors flex items-center justify-center gap-2"
                             >
                                 <i className="fa-solid fa-house"></i> Về trang chủ
@@ -258,7 +259,7 @@ export const CheckoutResultPage = () => {
                                 </button>
                             ) : (
                                 <Link
-                                    to={resultData.orderId ? `/profile/orders/${resultData.orderId}` : '/profile/orders'}
+                                    href={resultData.orderId ? `/profile/orders/${resultData.orderId}` : '/profile/orders'}
                                     className="flex-1 py-3.5 rounded-xl bg-[#ee1314] text-white font-bold text-[15px] hover:bg-[#d00f10] transition-colors shadow-md shadow-[#ee1314]/20 flex items-center justify-center gap-2"
                                 >
                                     <i className="fa-solid fa-file-invoice"></i> Xem đơn của tôi

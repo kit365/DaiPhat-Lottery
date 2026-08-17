@@ -1,17 +1,16 @@
 "use client";
 
-import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
-import { Title } from '../../../../components/ui/Title';
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { PageHeader } from '../../../../components/ui/PageHeader';
 import { CollapsibleCard } from '../../../../components/ui/CollapsibleCard';
 import { useCreateUser, useUploadUserAvatar } from "../../hooks/useUsers";
 import { useRoles } from "../../../role/hooks/useRole";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
 import { useEffect, useState } from "react";
-import { accountAdminSchema } from "../../../../schemas/account-admin.schema";
+import { accountAdminSchema } from "@/admin/features/users/schemas/account-admin.schema";
 import { ROUTES } from '../../../../constants/routes';
 import { toast } from "react-toastify";
-import { useNavigate } from '@/components/router-compat';
 import {
     Box,
     TextField,
@@ -21,11 +20,11 @@ import {
     AlertTitle,
     ListItemText,
 } from "@mui/material";
-import { LoadingButton } from '../../../../components/ui/LoadingButton';
+import { Button } from '../../../../components/ui/Button';
 import { UserAvatarUploader } from '../sections/UserAvatarUploader';
 
 export const AdminCreatePage = () => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const { mutateAsync: create, isPending } = useCreateUser();
     const { mutateAsync: uploadAvatar } = useUploadUserAvatar();
     const { data: roles = [] } = useRoles();
@@ -69,7 +68,7 @@ export const AdminCreatePage = () => {
             }
 
             toast.success("Tạo nhân viên thành công!");
-            navigate(ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST);
+            router.push(ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST);
         } catch (error: any) {
             toast.error(error.response?.data?.message || "Tạo thất bại");
         }
@@ -77,18 +76,14 @@ export const AdminCreatePage = () => {
 
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title="Thêm nhân viên mới" />
-                    <Breadcrumb
-                        items={[
+            <PageHeader
+                title="Thêm nhân viên mới"
+                breadcrumbItems={[
                             { label: "Dashboard", to: ROUTES.ADMIN.ROOT },
                             { label: "Danh sách Nhân viên", to: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST },
                             { label: "Thêm nhân viên mới" },
                         ]}
-                    />
-                </div>
-            </div>
+            />
 
             <form onSubmit={handleSubmit(onSubmit)} noValidate>
                 <CollapsibleCard title="Thông tin nhân viên" expanded onToggle={() => undefined}>
@@ -174,7 +169,7 @@ export const AdminCreatePage = () => {
                             Mật khẩu sẽ được hệ thống <strong>tự động tạo</strong> và gửi về email của người dùng. Người dùng sẽ được yêu cầu đổi mật khẩu trong lần đăng nhập đầu tiên.
                         </Alert>
 
-                        <LoadingButton
+                        <Button
                             type="submit"
                             variant="contained"
                             loading={isPending || isUploading}

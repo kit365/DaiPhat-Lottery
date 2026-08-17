@@ -14,7 +14,16 @@ class ApiResponse<T> {
     T Function(dynamic json)? fromJsonT,
   ) {
     // Determine success from either 'isSuccess' or 'success' fields.
-    final bool success = json['isSuccess'] ?? json['success'] ?? false;
+    final rawSuccess = json.containsKey('isSuccess')
+        ? json['isSuccess']
+        : json['success'];
+    final bool success = rawSuccess is bool
+        ? rawSuccess
+        : rawSuccess == null
+            ? false
+            : rawSuccess == true ||
+                rawSuccess == 1 ||
+                rawSuccess.toString().toLowerCase() == 'true';
     
     // Parse message
     final String msg = json['message']?.toString() ?? '';

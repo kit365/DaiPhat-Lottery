@@ -22,7 +22,6 @@ import com.daiphat.coreapi.domain.model.enums.chat.ChatScheduleStationMatchSourc
 import com.daiphat.coreapi.domain.model.enums.chat.ConversationStatus;
 import com.daiphat.coreapi.domain.model.enums.chat.MessageSenderType;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryRegionCode;
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryRegionModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import org.junit.jupiter.api.BeforeEach;
@@ -1058,7 +1057,7 @@ class DrawScheduleFlowServiceTest {
         LotteryStationModel model = new LotteryStationModel();
         model.setId(id);
         model.setName("Hồ Chí Minh");
-        model.setStatus(LotteryStationStatus.ACTIVE);
+        model.setActive(true);
         model.setRegion(region);
         return model;
     }

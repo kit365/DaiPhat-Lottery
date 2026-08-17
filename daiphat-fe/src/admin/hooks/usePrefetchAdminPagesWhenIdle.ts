@@ -1,13 +1,13 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-import {
-    ADMIN_PREFETCH_ALL_ROUTES,
-    ADMIN_PREFETCH_ROUTE_PRIORITY,
-} from '../constants/adminPrefetchRoutes';
-import { prefetchAdminPagesWhenIdle, prefetchAdminRoute } from '../utils/prefetchAdminPages';
+import { ADMIN_PREFETCH_ROUTE_PRIORITY } from '../constants/adminPrefetchRoutes';
+import { prefetchAdminRoute } from '../utils/prefetchAdminPages';
 
-/** Prefetch route + chunk các trang admin sau khi shell load xong. */
+/**
+ * Prefetch only a few high-traffic admin routes after shell is idle.
+ * Hover prefetch on sidebar handles the rest — avoids hundreds of chunk downloads.
+ */
 export const usePrefetchAdminPagesWhenIdle = (enabled: boolean) => {
     const router = useRouter();
 
@@ -26,31 +26,32 @@ export const usePrefetchAdminPagesWhenIdle = (enabled: boolean) => {
             router.prefetch(path);
         };
 
-        ADMIN_PREFETCH_ROUTE_PRIORITY.slice(0, 8).forEach((path) => {
-            prefetchAdminRoute(path, prefetchRoute);
-        });
+        let cancelled = false;
 
-        return prefetchAdminPagesWhenIdle(prefetchRoute);
-    }, [enabled, router]);
-
-    useEffect(() => {
-        if (!enabled) {
-            return;
-        }
-
-        const prefetchRoute = (path: string) => {
-            if (process.env.NODE_ENV === 'development') {
+        const run = () => {
+            if (cancelled) {
                 return;
             }
-            router.prefetch(path);
+            if (!ADMIN_PREFETCH_ROUTE_PRIORITY?.length) {
+                return;
+            }
+            ADMIN_PREFETCH_ROUTE_PRIORITY.slice(0, 4).forEach((path) => {
+                prefetchAdminRoute(path, prefetchRoute, { loadChunk: false });
+            });
         };
 
-        const timer = window.setTimeout(() => {
-            ADMIN_PREFETCH_ALL_ROUTES.forEach((path) => {
-                prefetchAdminRoute(path, prefetchRoute);
-            });
-        }, 10_000);
+        if ('requestIdleCallback' in window) {
+            const idleId = window.requestIdleCallback(run, { timeout: 3000 });
+            return () => {
+                cancelled = true;
+                window.cancelIdleCallback(idleId);
+            };
+        }
 
-        return () => window.clearTimeout(timer);
+        const timer = setTimeout(run, 2000);
+        return () => {
+            cancelled = true;
+            clearTimeout(timer);
+        };
     }, [enabled, router]);
 };

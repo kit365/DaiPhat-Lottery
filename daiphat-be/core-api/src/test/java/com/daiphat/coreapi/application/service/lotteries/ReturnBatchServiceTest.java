@@ -5,6 +5,7 @@ import com.daiphat.coreapi.application.dto.request.lotteries.AttachReturnSerials
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateReturnBatchLineRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateReturnBatchRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateReturnBatchLineStatusRequest;
+import com.daiphat.coreapi.application.dto.response.lotteries.InspectableReturnSerialResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ReturnBatchResponse;
 import com.daiphat.coreapi.application.mapper.lotteries.ReturnBatchApplicationMapper;
 import com.daiphat.coreapi.application.port.in.lotteries.LotterySupplierServicePort;
@@ -13,9 +14,12 @@ import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchLineReposit
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.ReturnBatchRepositoryPort;
+import com.daiphat.coreapi.application.port.out.lotteries.ReturnInspectableSerialData;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchLineStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchType;
+import com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition;
 import com.daiphat.coreapi.domain.model.lotteries.ImportBatchLineModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotterySupplierModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketModel;
@@ -24,6 +28,7 @@ import com.daiphat.coreapi.domain.model.lotteries.ReturnBatchLineModel;
 import com.daiphat.coreapi.domain.model.lotteries.ReturnBatchModel;
 import com.daiphat.coreapi.domain.model.lotteries.SupplierSettlementModel;
 import com.daiphat.coreapi.shared.util.ImportBatchConfigResolver;
+import com.daiphat.coreapi.shared.util.ReturnBatchCodeGenerator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,6 +39,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.data.domain.Page;
 
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -48,6 +54,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -81,6 +89,8 @@ class ReturnBatchServiceTest {
     @Mock
     private ReturnBatchAutoCancelService returnBatchAutoCancelService;
     @Mock
+    private ReturnBatchCodeGenerator returnBatchCodeGenerator;
+    @Mock
     private Clock clock;
 
     @InjectMocks
@@ -98,6 +108,7 @@ class ReturnBatchServiceTest {
                 .build();
         when(clock.instant()).thenReturn(Instant.parse("2026-07-31T10:00:00Z"));
         when(clock.getZone()).thenReturn(ZONE);
+        when(returnBatchCodeGenerator.generateHeaderCode(any(LocalDate.class))).thenReturn("RB-TEST-001");
         when(lotterySupplierServicePort.getActiveModelById(7L)).thenReturn(supplier);
         when(supplierSettlementServicePort.findOrCreateForImport(any(), eq(DRAW_DATE)))
                 .thenReturn(SupplierSettlementModel.builder().id(50L).lotterySupplierId(7L).periodFrom(DRAW_DATE).build());
@@ -155,8 +166,74 @@ class ReturnBatchServiceTest {
     }
 
     @Test
-    @DisplayName("attach serials then SUCCESS line refreshes settlement return value")
-    void updateLineStatus_success_recalculatesSettlement() {
+    @DisplayName("getAll defaults to supplier return batches when no type is supplied")
+    void getAll_defaultsToSupplierReturnType() {
+        when(returnBatchRepositoryPort.findAll(
+                any(), any(), any(), any(), any(), any(), any(), any()
+        )).thenReturn(Page.empty());
+
+        returnBatchService.getAll(
+                1,
+                10,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        verify(returnBatchRepositoryPort).findAll(
+                any(),
+                isNull(),
+                isNull(),
+                eq(ReturnBatchType.SUPPLIER_RETURN),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull()
+        );
+    }
+
+    @Test
+    @DisplayName("getAll forwards an explicit street-agent return type")
+    void getAll_forwardsStreetAgentReturnType() {
+        when(returnBatchRepositoryPort.findAll(
+                any(), any(), any(), any(), any(), any(), any(), any()
+        )).thenReturn(Page.empty());
+
+        returnBatchService.getAll(
+                1,
+                10,
+                null,
+                null,
+                ReturnBatchType.STREET_AGENT_RETURN,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        verify(returnBatchRepositoryPort).findAll(
+                any(),
+                isNull(),
+                isNull(),
+                eq(ReturnBatchType.STREET_AGENT_RETURN),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull()
+        );
+    }
+
+    @Test
+    @DisplayName("attach serials then INSPECTED line refreshes settlement return value")
+    void updateLineStatus_inspected_recalculatesSettlement() {
         ReturnBatchModel batch = ReturnBatchModel.builder()
                 .id(10L)
                 .lotterySupplierId(7L)
@@ -190,7 +267,7 @@ class ReturnBatchServiceTest {
         ));
         when(lotteryTicketSerialRepositoryPort.countByReturnBatchLineId(100L)).thenReturn(1L);
 
-        returnBatchService.updateLineStatus(10L, 100L, new UpdateReturnBatchLineStatusRequest(ReturnBatchLineStatus.SUCCESS));
+        returnBatchService.updateLineStatus(10L, 100L, new UpdateReturnBatchLineStatusRequest(ReturnBatchLineStatus.INSPECTED));
 
         ArgumentCaptor<LotteryTicketSerialModel> serialCaptor = ArgumentCaptor.forClass(LotteryTicketSerialModel.class);
         verify(lotteryTicketSerialRepositoryPort).save(serialCaptor.capture());
@@ -254,5 +331,51 @@ class ReturnBatchServiceTest {
         assertThat(saved.isManualOverride()).isTrue();
         assertThat(saved.getOverrideReason()).isEqualTo("Máy đọc lệch");
         assertThat(saved.getOverrideEvidenceUrl()).isEqualTo("https://cdn/evidence.jpg");
+
+        ArgumentCaptor<ReturnBatchLineModel> lineCaptor = ArgumentCaptor.forClass(ReturnBatchLineModel.class);
+        verify(returnBatchRepositoryPort, atLeastOnce()).saveLine(lineCaptor.capture());
+        assertThat(lineCaptor.getAllValues().stream().anyMatch(l -> l.getStatus() == ReturnBatchLineStatus.INSPECTING))
+                .isTrue();
+    }
+
+    @Test
+    @DisplayName("inspectable serials include EXPIRED GOOD unlinked inventory")
+    void listInspectableSerials_includesExpiredGood() {
+        ReturnBatchModel batch = ReturnBatchModel.builder()
+                .id(10L)
+                .lotterySupplierId(7L)
+                .drawDate(DRAW_DATE)
+                .status(ReturnBatchStatus.PENDING_INSPECTION)
+                .build();
+        ReturnBatchLineModel line = ReturnBatchLineModel.builder()
+                .id(100L)
+                .returnBatchId(10L)
+                .lotteryStationId(1L)
+                .status(ReturnBatchLineStatus.PENDING)
+                .build();
+        when(returnBatchRepositoryPort.findById(10L)).thenReturn(Optional.of(batch));
+        when(returnBatchRepositoryPort.findLinesByBatchId(10L)).thenReturn(List.of(line));
+        when(lotteryTicketSerialRepositoryPort.findInStockForSupplierAndDrawDate(eq(7L), eq(DRAW_DATE), any()))
+                .thenReturn(List.of(new ReturnInspectableSerialData(
+                        501L,
+                        "SN-1",
+                        LotteryTicketSerialStatus.EXPIRED,
+                        TicketCondition.GOOD,
+                        90L,
+                        "123456",
+                        DRAW_DATE,
+                        1L,
+                        "HCM",
+                        20L,
+                        new BigDecimal("9500"),
+                        new BigDecimal("10000")
+                )));
+
+        List<InspectableReturnSerialResponse> result = returnBatchService.listInspectableSerials(10L);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).status()).isEqualTo(LotteryTicketSerialStatus.EXPIRED);
+        assertThat(result.get(0).ticketCondition()).isEqualTo(TicketCondition.GOOD);
+        assertThat(result.get(0).returnBatchLineId()).isEqualTo(100L);
     }
 }

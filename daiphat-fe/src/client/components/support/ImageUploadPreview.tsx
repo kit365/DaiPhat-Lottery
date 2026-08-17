@@ -70,17 +70,17 @@ export const ImageUploadPreview: React.FC<ImageUploadPreviewProps> = ({
             />
 
             {previewUrl ? (
-                <div className="relative rounded-xl border border-[#E5E8EB] overflow-hidden bg-[#F9FAFB]">
+                <div className="flex items-start gap-3">
                     <img
                         src={previewUrl}
                         alt="Xem trước"
-                        className="w-full max-h-[240px] object-contain"
+                        className="w-[100px] h-[100px] shrink-0 object-cover rounded-xl border border-[#E5E8EB] bg-[#F9FAFB]"
                     />
-                    <div className="absolute top-2 right-2 flex gap-2">
+                    <div className="flex flex-wrap gap-2 pt-0.5">
                         <button
                             type="button"
                             onClick={() => inputRef.current?.click()}
-                            className="px-3 py-1.5 bg-white/90 backdrop-blur-sm border border-[#E5E8EB] rounded-lg text-[12px] font-bold text-[#454F5B] hover:bg-white cursor-pointer"
+                            className="px-3 py-1.5 bg-white border border-[#E5E8EB] rounded-lg text-[12px] font-bold text-[#454F5B] hover:bg-[#F4F6F8] cursor-pointer"
                         >
                             Đổi ảnh
                         </button>

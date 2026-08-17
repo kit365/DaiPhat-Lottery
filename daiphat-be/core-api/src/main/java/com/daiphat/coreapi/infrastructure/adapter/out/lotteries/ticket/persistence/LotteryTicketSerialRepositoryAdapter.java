@@ -214,6 +214,15 @@ public class LotteryTicketSerialRepositoryAdapter implements LotteryTicketSerial
     }
 
     @Override
+    public Optional<LotteryTicketSerialModel> findFirstBySerialNumber(String serialNumber) {
+        if (serialNumber == null || serialNumber.isBlank()) {
+            return Optional.empty();
+        }
+        return lotteryTicketSerialRepository.findFirstBySerialNumberAndDeletedAtIsNull(serialNumber.trim())
+                .map(lotteryTicketSerialPersistenceMapper::toDomain);
+    }
+
+    @Override
     public long countByReturnBatchLineId(Long returnBatchLineId) {
         return lotteryTicketSerialRepository.countByReturnBatchLineIdAndDeletedAtIsNull(returnBatchLineId);
     }
@@ -249,6 +258,19 @@ public class LotteryTicketSerialRepositoryAdapter implements LotteryTicketSerial
                     );
                 })
                 .toList();
+    }
+
+    @Override
+    public long countReturnEligibleForSupplierAndDrawDate(
+            Long supplierId,
+            java.time.LocalDate drawDate,
+            Collection<Long> stationIds
+    ) {
+        boolean stationIdsEmpty = stationIds == null || stationIds.isEmpty();
+        Collection<Long> ids = stationIdsEmpty ? List.of(-1L) : stationIds;
+        return lotteryTicketSerialRepository.countReturnEligibleForSupplierAndDrawDate(
+                supplierId, drawDate, ids, stationIdsEmpty
+        );
     }
 
     @Override

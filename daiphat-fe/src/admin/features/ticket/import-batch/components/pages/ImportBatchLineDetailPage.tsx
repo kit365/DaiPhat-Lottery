@@ -1,7 +1,10 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { useRouteParams } from "@/hooks/useRouteParams";
 import React from 'react';
 import {
+    Alert,
     Box,
     Button,
     Card,
@@ -20,6 +23,7 @@ import {
     TableContainer,
     TableHead,
     TableRow,
+    Tooltip,
     Typography,
 } from '@mui/material';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
@@ -27,19 +31,25 @@ import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import { useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
-import { useParams, useNavigate } from '@/components/router-compat';
-import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
+import { PageHeader } from '../../../../../components/ui/PageHeader';
+import { SpinnerLoading } from '../../../../../components/ui/SpinnerLoading';
 import { AdminStatusBadge } from '../../../../../components/ui/AdminStatusBadge';
 import { Search } from '../../../../../components/ui/Search';
-import { Title } from '../../../../../components/ui/Title';
 import { prefixAdmin, ROUTES } from '../../../../../constants/routes';
 import { QUERY_KEYS } from '../../../inventory/constants/queryKeys';
+import { QUERY_KEYS as IMPORT_BATCH_QUERY_KEYS } from '../../constants/queryKeys';
 import { getTicketStatusLabel, normalizeTicketStatus } from '../../../inventory/constants/ticket-status.config';
-import { useTicketInventory } from '../../../inventory/hooks/useTicketInventory';
 import { useStations } from '../../../../station/hooks/useStation';
-import { ReportSerialFaultPane } from '../sections/ReportSerialFaultPane';
+import { LazyReportSerialFaultPane } from '../sections/LazyReportSerialFaultPane';
 import { TicketImportProgressTrack } from '../sections/TicketImportProgressTrack';
-import { useImportBatchDetail } from '../../hooks/useImportBatch';
+import { ImportBatchLineImportHost } from '../../../inventory/components/sections/ImportBatchLineImportHost';
+import { useImportBatchDetail, useImportBatchLineEntryTickets } from '../../hooks/useImportBatch';
+import { useImportBatchIntakeGate } from '../../hooks/useImportBatchIntakeGate';
+import { useActiveSuppliers } from '../../../../supplier';
+import { CanAccess } from '../../../../../components/auth/CanAccess';
+import { PERMISSIONS } from '../../../../../constants/permission.constants';
+import { Button as LoadingButton } from '../../../../../components/ui/Button';
+import ConfirmationNumberOutlinedIcon from '@mui/icons-material/ConfirmationNumberOutlined';
 import {
     displayImportBatchLineCodeRaw,
     formatImportBatchHeaderCode,
@@ -60,6 +70,10 @@ import {
     matchesCancelFlowStatusFilter,
 } from '../../utils/cancelTicketSelection';
 import { isSerialIncidentEligible } from '../../utils/serialIncidentWorkflow';
+import { isLineIncomplete, isLinePaused } from '../../utils/importBatchProgress';
+import { AdminLuckyDisplay } from '@/shared/lucky-number';
+
+const asSerials = (serials: unknown): any[] => (Array.isArray(serials) ? serials : []);
 
 const ticketNumberSx = {
     fontWeight: 700,
@@ -118,7 +132,7 @@ const getTicketStatusBadgeClass = (status?: string | null): string => {
 };
 
 const getTicketConditionBadge = (condition?: string | null) => {
-    const normalized = (condition || 'GOOD').toUpperCase();
+    const normalized = String(condition || 'GOOD').toUpperCase();
     if (normalized === 'GOOD') {
         return { className: 'admin-status-badge--success', label: 'Tốt' };
     }
@@ -140,7 +154,7 @@ const getSerialDisplayBadge = (serial: {
     ticketCondition?: string | null;
     ticketConditionDisplayName?: string | null;
 }) => {
-    const condition = (serial.ticketCondition || '').toUpperCase();
+    const condition = String(serial.ticketCondition || '').toUpperCase();
     if (condition === 'DAMAGED' || condition === 'LOST' || condition === 'VOIDED') {
         return {
             className: getTicketStatusBadgeClass(condition),
@@ -180,12 +194,13 @@ const CollapsibleRow = ({
     );
     const conditionBadge = getTicketConditionBadge(ticket.ticketCondition);
 
+    const ticketSerials = asSerials(ticket.serials);
     const cancelableSerials = React.useMemo(() => {
         if (!ticketSelectable) {
             return [];
         }
-        return (ticket.serials || []).filter((serial: any) => isSerialIncidentEligible(serial));
-    }, [ticket.serials, ticketSelectable]);
+        return ticketSerials.filter((serial: any) => isSerialIncidentEligible(serial));
+    }, [ticketSerials, ticketSelectable]);
 
     const cancelableCount = cancelableSerials.length;
     const selectedCount = React.useMemo(
@@ -223,13 +238,15 @@ const CollapsibleRow = ({
                     <span className="admin-cell-text">{index + 1}</span>
                 </TableCell>
                 <TableCell onClick={toggleOpen}>
-                    <Typography className="admin-cell-title" sx={ticketNumberSx}>
-                        {ticket.numbers}
-                    </Typography>
+                    <AdminLuckyDisplay
+                        value={ticket.numbers}
+                        ticket
+                        sx={{ fontWeight: 700 }}
+                    />
                 </TableCell>
                 <TableCell onClick={toggleOpen}>
                     <span className="admin-cell-text">
-                        {ticket.serials?.length ? `${ticket.serials.length} sê-ri` : '—'}
+                        {ticketSerials.length ? `${ticketSerials.length} sê-ri` : '—'}
                     </span>
                 </TableCell>
                 <TableCell align="center" onClick={toggleOpen}>
@@ -250,8 +267,8 @@ const CollapsibleRow = ({
                 </TableCell>
             </TableRow>
 
-            {open && ticket.serials && ticket.serials.length > 0
-                ? ticket.serials.map((serial: any, serialIndex: number) => {
+            {open && ticketSerials.length > 0
+                ? ticketSerials.map((serial: any, serialIndex: number) => {
                       const serialBadge = getSerialDisplayBadge(serial);
                       const serialCondition = getTicketConditionBadge(serial.ticketCondition);
                       const isSerialChecked = selectedSerials.some(
@@ -286,9 +303,11 @@ const CollapsibleRow = ({
                                   <span className="admin-cell-text">{`${index + 1}.${serialIndex + 1}`}</span>
                               </TableCell>
                               <TableCell onClick={handleSerialToggle}>
-                                  <Typography className="admin-cell-text" sx={ticketNumberSx}>
-                                      {ticket.numbers}
-                                  </Typography>
+                                  <AdminLuckyDisplay
+                                      value={ticket.numbers}
+                                      ticket
+                                      sx={{ fontWeight: 600, fontSize: '0.875rem' }}
+                                  />
                               </TableCell>
                               <TableCell onClick={handleSerialToggle}>
                                   <Typography className="admin-cell-title" sx={ticketNumberSx}>
@@ -338,13 +357,25 @@ const CollapsibleRow = ({
     );
 };
 
-export const ImportBatchLineDetailPage = () => {
-    const { id, lineId } = useParams();
-    const navigate = useNavigate();
+type ImportBatchLineDetailPageProps = {
+    id?: string;
+    lineId?: string;
+};
+
+export const ImportBatchLineDetailPage = ({
+    id: idProp,
+    lineId: lineIdProp,
+}: ImportBatchLineDetailPageProps = {}) => {
+    const routeParams = useRouteParams<{ id?: string; lineId?: string }>();
+    const id = idProp || routeParams.id;
+    const lineId = lineIdProp || routeParams.lineId;
+    const router = useAdminRouter();
     const queryClient = useQueryClient();
 
-    const { data: batch, isLoading: isBatchLoading } = useImportBatchDetail(id);
+    const { data: batch, isLoading: isBatchLoading, refetch: refetchBatch } = useImportBatchDetail(id);
     const { data: providersRes } = useStations({ limit: 1000 });
+    const { data: activeSuppliers = [] } = useActiveSuppliers();
+    const { evaluate: evaluateIntake } = useImportBatchIntakeGate();
     const providers = (providersRes as any)?.data?.recordList || [];
 
     const resolveStationName = (stationId: number) =>
@@ -353,9 +384,18 @@ export const ImportBatchLineDetailPage = () => {
 
     const line = batch?.lines?.find((item) => String(item.id) === String(lineId));
 
-    const { tickets, isLoading: isTicketsLoading } = useTicketInventory(
-        { importBatchLineId: line?.id },
-        1000
+    const { data: entryTickets, isLoading: isTicketsLoading } = useImportBatchLineEntryTickets(id, lineId);
+    const tickets = React.useMemo(
+        () =>
+            (entryTickets?.tickets ?? []).map((ticket) => {
+                const serials = asSerials(ticket.serials);
+                return {
+                    ...ticket,
+                    serials,
+                    quantity: serials.length,
+                };
+            }),
+        [entryTickets]
     );
 
     const [selectedSerials, setSelectedSerials] = React.useState<any[]>([]);
@@ -363,7 +403,9 @@ export const ImportBatchLineDetailPage = () => {
     const [statusFilter, setStatusFilter] = React.useState('ALL');
     const [quantityFilter, setQuantityFilter] = React.useState('ALL');
     const [isReportDialogOpen, setIsReportDialogOpen] = React.useState(false);
+    const [isImportDialogOpen, setIsImportDialogOpen] = React.useState(false);
     const dialogCancelMode: 'TICKET' | 'SERIAL' = 'TICKET';
+    const autoOpenedImportRef = React.useRef(false);
 
     const availableStatusFilterOptions = React.useMemo(
         () => buildCancelFlowStatusFilterOptions(tickets || []),
@@ -384,7 +426,7 @@ export const ImportBatchLineDetailPage = () => {
             if (searchQuery.trim()) {
                 const query = searchQuery.trim().toLowerCase();
                 const matchNumbers = (ticket.numbers || '').toLowerCase().includes(query);
-                const matchSerials = (ticket.serials || []).some((serial: any) =>
+                const matchSerials = asSerials(ticket.serials).some((serial: any) =>
                     (serial.serialNumber || '').toLowerCase().includes(query)
                 );
                 if (!matchNumbers && !matchSerials) {
@@ -394,7 +436,7 @@ export const ImportBatchLineDetailPage = () => {
 
             if (statusFilter !== 'ALL') {
                 const ticketStatusMatch = matchesCancelFlowStatusFilter(ticket.status, statusFilter);
-                const serialStatusMatch = (ticket.serials || []).some((serial: any) =>
+                const serialStatusMatch = asSerials(ticket.serials).some((serial: any) =>
                     matchesCancelFlowSerialFilter(serial, statusFilter)
                 );
                 if (!ticketStatusMatch && !serialStatusMatch) {
@@ -402,7 +444,7 @@ export const ImportBatchLineDetailPage = () => {
                 }
             }
 
-            const quantity = ticket.quantity || ticket.serials?.length || 0;
+            const quantity = ticket.quantity || asSerials(ticket.serials).length || 0;
             if (quantityFilter === '10' && quantity !== 10) return false;
             if (quantityFilter === 'LESS_10' && (quantity >= 10 || quantity === 0)) return false;
             if (quantityFilter === 'ZERO' && quantity !== 0) return false;
@@ -417,7 +459,7 @@ export const ImportBatchLineDetailPage = () => {
             if (!isTicketSelectableForCancel(ticket.status)) {
                 return;
             }
-            (ticket.serials || []).forEach((serial: any) => {
+            asSerials(ticket.serials).forEach((serial: any) => {
                 if (!isSerialIncidentEligible(serial)) {
                     return;
                 }
@@ -447,12 +489,12 @@ export const ImportBatchLineDetailPage = () => {
         if (!isTicketSelectableForCancel(ticket.status)) {
             return;
         }
-        const ticketSerialIds = (ticket.serials || [])
+        const ticketSerialIds = asSerials(ticket.serials)
             .filter((serial: any) => isSerialIncidentEligible(serial))
             .map((serial: any) => String(serial.id));
 
         if (checked) {
-            const cancelableOfTicket = (ticket.serials || [])
+            const cancelableOfTicket = asSerials(ticket.serials)
                 .filter((serial: any) => isSerialIncidentEligible(serial))
                 .map((serial: any) => ({
                     id: serial.id,
@@ -507,12 +549,46 @@ export const ImportBatchLineDetailPage = () => {
         setIsReportDialogOpen(false);
         setSelectedSerials([]);
         queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKETS] });
+        queryClient.invalidateQueries({ queryKey: [IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_LINE_ENTRY_TICKETS] });
+        queryClient.invalidateQueries({ queryKey: [IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_DETAIL] });
     };
+
+    const intakeGate = React.useMemo(() => {
+        if (!batch?.supplierId || !batch.drawDate) {
+            return null;
+        }
+        const supplier = activeSuppliers.find((entry) => entry.id === batch.supplierId);
+        return evaluateIntake(supplier, batch.drawDate);
+    }, [activeSuppliers, batch, evaluateIntake]);
+
+    const showImportTicketsButton =
+        !!line && isLineIncomplete(line) && !isLinePaused(line);
+    const importTicketsBlocked = !!intakeGate?.blocked || !!intakeGate?.notYetAllowed;
+    const canImportTickets = showImportTicketsButton && !importTicketsBlocked;
+
+    React.useEffect(() => {
+        if (autoOpenedImportRef.current || !canImportTickets || isTicketsLoading) {
+            return;
+        }
+        // Empty incomplete line: open entry dialog so "Nhập vé" is not a dead-end detail page.
+        if ((tickets?.length ?? 0) === 0 && (line?.totalQuantity ?? 0) === 0) {
+            autoOpenedImportRef.current = true;
+            setIsImportDialogOpen(true);
+        }
+    }, [canImportTickets, isTicketsLoading, tickets?.length, line?.totalQuantity]);
 
     if (isBatchLoading || !line || !batch) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 10 }}>
-                <CircularProgress size={32} />
+            <Box className="admin-page">
+                <PageHeader
+                    title="Chi tiết lô nhập"
+                    breadcrumbItems={[
+                        { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
+                        { label: 'Nhập lô vé', to: ROUTES.ADMIN.IMPORT_BATCH.LIST },
+                        { label: id ? `Phiếu #${id}` : 'Chi tiết' },
+                    ]}
+                />
+                <SpinnerLoading />
             </Box>
         );
     }
@@ -524,8 +600,9 @@ export const ImportBatchLineDetailPage = () => {
 
     return (
         <Box className="admin-page">
-            <Breadcrumb
-                items={[
+            <PageHeader
+                title="Chi tiết lô nhập"
+                breadcrumbItems={[
                     { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
                     { label: 'Nhập lô vé', to: ROUTES.ADMIN.IMPORT_BATCH.LIST },
                     {
@@ -534,18 +611,8 @@ export const ImportBatchLineDetailPage = () => {
                     },
                     { label: stationName },
                 ]}
-            />
-
-            <Stack
-                direction={{ xs: 'column', sm: 'row' }}
-                alignItems={{ xs: 'flex-start', sm: 'flex-start' }}
-                justifyContent="space-between"
-                spacing={2}
-                sx={{ mb: 2 }}
-            >
-                <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Stack direction="row" alignItems="center" spacing={1.5} flexWrap="wrap" useFlexGap sx={{ mb: 1.5 }}>
-                        <Title title="Chi tiết lô nhập" />
+                titleExtra={
+                    <>
                         <AdminStatusBadge
                             label={getImportBatchLineStatusLabel(line.status)}
                             modifier={getImportBatchLineStatusBadgeClass(line.status)}
@@ -554,51 +621,85 @@ export const ImportBatchLineDetailPage = () => {
                             label={getBatchTypeLabel(line.batchType)}
                             modifier={getBatchTypeBadgeClass(line.batchType)}
                         />
+                    </>
+                }
+                description={
+                    <>
+                        <Box
+                            className="admin-ticket-create-meta"
+                            sx={{
+                                gridTemplateColumns: {
+                                    xs: '1fr',
+                                    sm: 'repeat(2, minmax(0, 1fr))',
+                                    md: 'repeat(4, minmax(0, 1fr))',
+                                },
+                                mb: 1.5,
+                            }}
+                        >
+                            <LineDetailInfoItem label="Mã lô" value={lineCodeRaw || '—'} monospace />
+                            <LineDetailInfoItem
+                                label="Ngày quay"
+                                value={batch.drawDate ? dayjs(batch.drawDate).format('DD/MM/YYYY') : '—'}
+                            />
+                            <LineDetailInfoItem
+                                label="SL đã nhập / khai báo"
+                                value={`${(line.totalQuantity ?? 0).toLocaleString('vi-VN')} / ${(line.declareQuantity ?? 0).toLocaleString('vi-VN')} vé`}
+                            />
+                            <LineDetailInfoItem
+                                label="Giá vốn"
+                                value={formatVnd(line.importCost)}
+                            />
+                        </Box>
+
+                        <Box sx={{ maxWidth: 360 }}>
+                            <TicketImportProgressTrack
+                                imported={line.totalQuantity ?? 0}
+                                declared={line.declareQuantity ?? 0}
+                                ariaLabel={`Tiến độ nhập vé ${stationName}`}
+                            />
+                        </Box>
+                    </>
+                }
+                action={
+                    <Stack direction="row" spacing={1}>
+                        {showImportTicketsButton && (
+                            <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
+                                <Tooltip
+                                    title={
+                                        importTicketsBlocked
+                                            ? intakeGate?.tooltipTitle ?? 'Không thể nhập vé lúc này.'
+                                            : ''
+                                    }
+                                >
+                                    <span>
+                                        <LoadingButton
+                                            variant="contained"
+                                            className="btn-primary-admin"
+                                            label="Nhập vé"
+                                            disabled={importTicketsBlocked}
+                                            startIcon={<ConfirmationNumberOutlinedIcon />}
+                                            onClick={() => setIsImportDialogOpen(true)}
+                                        />
+                                    </span>
+                                </Tooltip>
+                            </CanAccess>
+                        )}
+                        <Button
+                            variant="outlined"
+                            className="btn-outlined-admin"
+                            onClick={() => id && router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(id))}
+                        >
+                            Quay lại phiếu
+                        </Button>
                     </Stack>
+                }
+            />
 
-                    <Box
-                        className="admin-ticket-create-meta"
-                        sx={{
-                            gridTemplateColumns: {
-                                xs: '1fr',
-                                sm: 'repeat(2, minmax(0, 1fr))',
-                                md: 'repeat(4, minmax(0, 1fr))',
-                            },
-                            mb: 1.5,
-                        }}
-                    >
-                        <LineDetailInfoItem label="Mã lô" value={lineCodeRaw || '—'} monospace />
-                        <LineDetailInfoItem
-                            label="Ngày quay"
-                            value={batch.drawDate ? dayjs(batch.drawDate).format('DD/MM/YYYY') : '—'}
-                        />
-                        <LineDetailInfoItem
-                            label="SL đã nhập / khai báo"
-                            value={`${(line.totalQuantity ?? 0).toLocaleString('vi-VN')} / ${(line.declareQuantity ?? 0).toLocaleString('vi-VN')} vé`}
-                        />
-                        <LineDetailInfoItem
-                            label="Giá vốn"
-                            value={formatVnd(line.importCost)}
-                        />
-                    </Box>
-
-                    <Box sx={{ maxWidth: 360 }}>
-                        <TicketImportProgressTrack
-                            imported={line.totalQuantity ?? 0}
-                            declared={line.declareQuantity ?? 0}
-                            ariaLabel={`Tiến độ nhập vé ${stationName}`}
-                        />
-                    </Box>
-                </Box>
-
-                <Button
-                    variant="outlined"
-                    className="btn-outlined-admin"
-                    onClick={() => id && navigate(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(id))}
-                >
-                    Quay lại phiếu
-                </Button>
-            </Stack>
+            {(intakeGate?.blocked || intakeGate?.notYetAllowed) && (
+                <Alert severity={intakeGate.blocked ? 'error' : 'warning'} sx={{ mb: 2 }}>
+                    {intakeGate.message}
+                </Alert>
+            )}
 
             <Card elevation={0} className="admin-datagrid-card">
                 <Box
@@ -739,8 +840,9 @@ export const ImportBatchLineDetailPage = () => {
                 </TableContainer>
             </Card>
 
+            {isReportDialogOpen && (
             <Dialog
-                open={isReportDialogOpen}
+                open
                 onClose={() => setIsReportDialogOpen(false)}
                 maxWidth="lg"
                 fullWidth
@@ -756,7 +858,7 @@ export const ImportBatchLineDetailPage = () => {
                 }}
             >
                 <DialogContent sx={{ p: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                    <ReportSerialFaultPane
+                    <LazyReportSerialFaultPane
                         serials={selectedSerials}
                         ticketNumbers={firstSelected ? firstSelected.ticketNumbers : ''}
                         ticketId={firstSelected ? firstSelected.ticketId : undefined}
@@ -769,6 +871,23 @@ export const ImportBatchLineDetailPage = () => {
                     />
                 </DialogContent>
             </Dialog>
+            )}
+
+            {isImportDialogOpen && (
+            <ImportBatchLineImportHost
+                batchId={batch.id}
+                lineId={String(line.id)}
+                onClose={() => setIsImportDialogOpen(false)}
+                onSuccess={() => {
+                    setIsImportDialogOpen(false);
+                    refetchBatch();
+                    queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKETS] });
+                    queryClient.invalidateQueries({
+                        queryKey: [IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_LINE_ENTRY_TICKETS],
+                    });
+                }}
+            />
+            )}
         </Box>
     );
 };

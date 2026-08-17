@@ -34,4 +34,44 @@ class HandoffSummaryBuilderTest {
         assertThat(summary).contains("Đã hiển thị lịch quay + kết quả đài theo yêu cầu");
         assertThat(summary).doesNotContain("SCHEDULE_STATION_BUNDLE");
     }
+
+    @Test
+    void build_stripsExcludeParamsAndDedupesSuggestAsks() {
+        List<MessageModel> messages = List.of(
+                MessageModel.builder()
+                        .senderType(MessageSenderType.CUSTOMER)
+                        .type(MessageType.TEXT)
+                        .content("gợi ý vé số cho tôi")
+                        .build(),
+                MessageModel.builder()
+                        .senderType(MessageSenderType.CUSTOMER)
+                        .type(MessageType.TEXT)
+                        .content("gợi ý vé số cho tôi|exclude=8288,8289,8290")
+                        .build(),
+                MessageModel.builder()
+                        .senderType(MessageSenderType.CUSTOMER)
+                        .type(MessageType.TEXT)
+                        .content("gợi ý vé số cho tôi|exclude=8288,8289,8290,8291")
+                        .build(),
+                MessageModel.builder()
+                        .senderType(MessageSenderType.AI_SYSTEM)
+                        .type(MessageType.TEXT)
+                        .content("Dưới đây là 5 vé đang bán cho kỳ quay sắp tới dành cho quý khách:\n\nTICKET_SUGGEST:[{\"id\":1,\"numbers\":\"701001\",\"stationName\":\"Tây Ninh\",\"price\":10000}]")
+                        .build()
+        );
+
+        String summary = HandoffSummaryBuilder.build(messages, EscalationReason.CUSTOMER_REQUEST);
+
+        assertThat(summary).contains("Hỏi gợi ý vé số (3 lần)");
+        assertThat(summary).contains("Đã gợi ý 1 vé số đang bán");
+        assertThat(summary).doesNotContain("exclude=");
+        assertThat(summary).doesNotContain("TICKET_SUGGEST");
+        assertThat(summary).doesNotContain("701001");
+    }
+
+    @Test
+    void stripInternalParams_removesExcludeSuffix() {
+        assertThat(HandoffSummaryBuilder.stripInternalParams("gợi ý vé số cho tôi|exclude=1,2,3"))
+                .isEqualTo("gợi ý vé số cho tôi");
+    }
 }

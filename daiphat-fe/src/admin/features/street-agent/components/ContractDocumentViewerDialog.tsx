@@ -3,14 +3,19 @@
 import { useEffect, useState } from "react";
 import {
     Box,
-    Button,
     CircularProgress,
     Dialog,
     DialogActions,
     DialogContent,
     DialogTitle,
+    IconButton,
+    Stack,
     Typography,
 } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
+import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import { Button } from "../../../components/ui/Button";
 
 interface ContractDocumentViewerDialogProps {
     open: boolean;
@@ -63,7 +68,6 @@ export const ContractDocumentViewerDialog = ({
             setError(null);
             setPreviewUrl(null);
             try {
-                // Already a local blob/data URL — use directly.
                 if (url.startsWith("blob:") || url.startsWith("data:")) {
                     if (cancelled) return;
                     setIsPdf(looksLikePdf(url, "", fileName));
@@ -114,38 +118,97 @@ export const ContractDocumentViewerDialog = ({
             onClose={onClose}
             fullWidth
             maxWidth="xl"
+            scroll="paper"
             PaperProps={{
+                className: "admin-theme",
                 sx: {
+                    borderRadius: { xs: 0, md: "16px" },
+                    boxShadow: "var(--customShadows-dialog, 0px 24px 48px -8px rgba(0, 0, 0, 0.16))",
+                    bgcolor: "#FFFFFF",
+                    overflow: "hidden",
                     height: { xs: "100%", md: "92vh" },
                     maxHeight: { xs: "100%", md: "92vh" },
                     m: { xs: 0, md: 2 },
+                    display: "flex",
+                    flexDirection: "column",
                 },
             }}
         >
-            <DialogTitle>{title}</DialogTitle>
+            <DialogTitle
+                sx={{
+                    m: 0,
+                    px: 3,
+                    py: 2.5,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    borderBottom: "1px solid var(--palette-divider)",
+                    bgcolor: "#FFFFFF",
+                    flexShrink: 0,
+                }}
+            >
+                <Stack direction="row" alignItems="center" spacing={1.5} sx={{ minWidth: 0 }}>
+                    <Box
+                        sx={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: "12px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            bgcolor: "rgba(28, 37, 46, 0.08)",
+                            color: "var(--palette-text-primary)",
+                            flexShrink: 0,
+                        }}
+                    >
+                        <PictureAsPdfIcon fontSize="small" />
+                    </Box>
+                    <Box sx={{ minWidth: 0 }}>
+                        <Typography
+                            component="span"
+                            sx={{
+                                fontWeight: 700,
+                                fontSize: "1.125rem",
+                                display: "block",
+                                lineHeight: 1.3,
+                            }}
+                        >
+                            {title}
+                        </Typography>
+                        {fileName ? (
+                            <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{ display: "block", mt: 0.25 }}
+                                noWrap
+                            >
+                                {fileName}
+                            </Typography>
+                        ) : null}
+                    </Box>
+                </Stack>
+                <IconButton onClick={onClose} size="small" aria-label="Đóng">
+                    <CloseIcon fontSize="small" />
+                </IconButton>
+            </DialogTitle>
+
             <DialogContent
                 sx={{
+                    px: 3,
+                    py: 2.5,
+                    bgcolor: "#FFFFFF",
                     display: "flex",
                     flexDirection: "column",
-                    gap: 1.5,
-                    pt: 1,
-                    pb: 1,
+                    flex: 1,
                     overflow: "hidden",
                 }}
             >
-                {fileName ? (
-                    <Typography variant="body2" color="text.secondary" sx={{ flexShrink: 0 }}>
-                        {fileName}
-                    </Typography>
-                ) : null}
-
                 <Box
                     sx={{
-                        border: "1px solid",
-                        borderColor: "divider",
-                        borderRadius: 1,
+                        border: "1px solid var(--palette-divider)",
+                        borderRadius: "var(--shape-borderRadius-lg)",
                         overflow: "hidden",
-                        bgcolor: "grey.50",
+                        bgcolor: "var(--palette-background-neutral)",
                         flex: 1,
                         minHeight: { xs: "60vh", md: 0 },
                         display: "flex",
@@ -154,7 +217,7 @@ export const ContractDocumentViewerDialog = ({
                     }}
                 >
                     {loading ? (
-                        <CircularProgress />
+                        <CircularProgress size={32} />
                     ) : error ? (
                         <Typography sx={{ p: 3 }} color="error">
                             {error}
@@ -186,20 +249,37 @@ export const ContractDocumentViewerDialog = ({
                     )}
                 </Box>
             </DialogContent>
-            <DialogActions>
+
+            <DialogActions
+                sx={{
+                    px: 3,
+                    py: 2.5,
+                    gap: 1.5,
+                    borderTop: "1px solid var(--palette-divider)",
+                    bgcolor: "#FFFFFF",
+                    flexShrink: 0,
+                }}
+            >
+                <Button
+                    variant="outlined"
+                    color="inherit"
+                    onClick={onClose}
+                    label="Đóng"
+                    sx={{ fontWeight: 700, borderRadius: "8px", minWidth: 100 }}
+                />
                 {previewUrl ? (
                     <Button
+                        component="a"
                         href={previewUrl}
+                        download={fileName || "hop-dong-da-ky.pdf"}
                         target="_blank"
                         rel="noopener noreferrer"
-                        download={fileName || undefined}
-                    >
-                        Tải xuống
-                    </Button>
+                        variant="contained"
+                        startIcon={<DownloadOutlinedIcon />}
+                        label="Tải xuống"
+                        sx={{ fontWeight: 700, borderRadius: "8px", minWidth: 140 }}
+                    />
                 ) : null}
-                <Button onClick={onClose} variant="contained">
-                    Đóng
-                </Button>
             </DialogActions>
         </Dialog>
     );

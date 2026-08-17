@@ -17,19 +17,24 @@ import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchLineReposit
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchTimePolicyResponse;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
+import com.daiphat.coreapi.application.dto.storage.StorageResult;
+import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.application.mapper.lotteries.ImportBatchApplicationMapper;
 import com.daiphat.coreapi.application.port.in.lotteries.ImportBatchServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotterySupplierServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.SupplierSettlementServicePort;
+import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchRepositoryPort;
+import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchImportMode;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchLineStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchType;
+import com.daiphat.coreapi.domain.model.enums.settings.SystemConfigEnum;
 import com.daiphat.coreapi.domain.model.lotteries.ImportBatchLineModel;
 import com.daiphat.coreapi.domain.model.lotteries.ImportBatchModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
@@ -43,6 +48,9 @@ import com.daiphat.coreapi.shared.util.ImportBatchStationEligibilityResolver;
 import com.daiphat.coreapi.shared.util.ImportBatchTypeResolver;
 import com.daiphat.coreapi.shared.util.ImportCostCalculator;
 import com.daiphat.coreapi.shared.util.SortUtils;
+import com.daiphat.coreapi.shared.util.StorageFolderConstants;
+import com.daiphat.coreapi.shared.util.StorageUtils;
+import com.daiphat.coreapi.shared.util.SupplierTicketIntakeWindowPolicy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -83,10 +91,13 @@ public class ImportBatchService implements ImportBatchServicePort {
     private final ImportBatchStationEligibilityResolver stationEligibilityResolver;
     private final ImportBatchCodeGenerator importBatchCodeGenerator;
     private final ImportBatchConfigResolver importBatchConfigResolver;
+    private final SupplierTicketIntakeWindowPolicy intakeWindowPolicy;
     private final ImportBatchDraftExpiryService importBatchDraftExpiryService;
     private final LotteryTicketServicePort lotteryTicketServicePort;
     private final ImportBatchImportModeResolver importBatchImportModeResolver;
     private final SupplierSettlementServicePort supplierSettlementServicePort;
+    private final StoragePort storagePort;
+    private final SystemConfigRepositoryPort systemConfigRepositoryPort;
     private final Clock clock;
 
     @Override
@@ -137,6 +148,7 @@ public class ImportBatchService implements ImportBatchServicePort {
                 .supplierName(supplier.getName())
                 .importMode(request.importMode())
                 .invoiceEvidenceUrl(resolveInvoiceEvidenceUrl(request))
+                .ticketListImageUrls(normalizeTicketListImageUrls(request.ticketListImageUrls()))
                 .note(trimToNull(request.note()))
                 .lines(new ArrayList<>())
                 .build();
@@ -218,6 +230,7 @@ public class ImportBatchService implements ImportBatchServicePort {
         applyDeclareQuantityReductionIfNeeded(batch, request);
         batch = getImportBatchOrThrow(id);
         batch.setTotalDeclareQuantity(request.totalDeclareQuantity());
+        applyTicketListImagesUpdate(batch, request.ticketListImageUrls());
 
         LocalDateTime now = LocalDateTime.now(clock);
 
@@ -237,6 +250,60 @@ public class ImportBatchService implements ImportBatchServicePort {
         batch.setUpdatedAt(now);
 
         ImportBatchModel saved = importBatchRepositoryPort.save(batch);
+        return importBatchApplicationMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public ImportBatchResponse attachInvoiceEvidence(Long id, String invoiceEvidenceUrl) {
+        ImportBatchModel batch = getImportBatchOrThrow(id);
+        String trimmed = invoiceEvidenceUrl != null ? invoiceEvidenceUrl.trim() : null;
+        // Blank = clear evidence (settlement matching delete / re-upload flow).
+        if (trimmed == null || trimmed.isBlank()) {
+            batch.setInvoiceEvidenceUrl(null);
+            batch.setUpdatedAt(LocalDateTime.now(clock));
+            ImportBatchModel cleared = importBatchRepositoryPort.save(batch);
+            log.info("Cleared invoiceEvidenceUrl for importBatchId={}", id);
+            return importBatchApplicationMapper.toResponse(cleared);
+        }
+        String existing = trimToNull(batch.getInvoiceEvidenceUrl());
+        if (existing != null && !existing.equals(trimmed)) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_INVOICE_EVIDENCE_LOCKED);
+        }
+        batch.setInvoiceEvidenceUrl(trimmed);
+        batch.setUpdatedAt(LocalDateTime.now(clock));
+        ImportBatchModel saved = importBatchRepositoryPort.save(batch);
+        log.info("Attached invoiceEvidenceUrl for importBatchId={}", id);
+        return importBatchApplicationMapper.toResponse(saved);
+    }
+
+    @Override
+    public StorageResult uploadTicketListImage(UploadRequest request) {
+        StorageUtils.validateImageUpload(request);
+        int maxSizeMb = resolveTicketListImageMaxSizeMb();
+        long maxBytes = maxSizeMb * 1024L * 1024L;
+        if (request.data().length > maxBytes) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_TICKET_LIST_IMAGE_TOO_LARGE, null, maxSizeMb);
+        }
+        return storagePort.upload(new UploadRequest(
+                request.data(),
+                request.fileName(),
+                request.contentType(),
+                StorageFolderConstants.IMPORT_BATCH_TICKET_LIST_FOLDER
+        ));
+    }
+
+    @Override
+    @Transactional
+    public ImportBatchResponse attachTicketListImages(Long id, List<String> urls) {
+        ImportBatchModel batch = getImportBatchOrThrow(id);
+        if (batch.getStatus() == ImportBatchStatus.CANCELLED) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_INVALID_STATUS);
+        }
+        batch.setTicketListImageUrls(normalizeTicketListImageUrls(urls));
+        batch.setUpdatedAt(LocalDateTime.now(clock));
+        ImportBatchModel saved = importBatchRepositoryPort.save(batch);
+        log.info("Attached {} ticket list image(s) for importBatchId={}", saved.getTicketListImageUrls().size(), id);
         return importBatchApplicationMapper.toResponse(saved);
     }
 
@@ -331,6 +398,65 @@ public class ImportBatchService implements ImportBatchServicePort {
         if (!Objects.equals(existing, requested)) {
             throw new DomainException(ErrorCode.IMPORT_BATCH_INVOICE_EVIDENCE_LOCKED);
         }
+    }
+
+    private void applyTicketListImagesUpdate(ImportBatchModel batch, List<String> urls) {
+        if (urls == null) {
+            return;
+        }
+        batch.setTicketListImageUrls(normalizeTicketListImageUrls(urls));
+    }
+
+    private List<String> normalizeTicketListImageUrls(List<String> urls) {
+        if (urls == null || urls.isEmpty()) {
+            return new ArrayList<>();
+        }
+        List<String> normalized = new ArrayList<>();
+        for (String url : urls) {
+            String trimmed = trimToNull(url);
+            if (trimmed == null) {
+                continue;
+            }
+            if (!isValidTicketListImageUrl(trimmed)) {
+                throw new DomainException(ErrorCode.INVALID_INPUT, "URL ảnh danh sách vé nhập không hợp lệ.");
+            }
+            if (!normalized.contains(trimmed)) {
+                normalized.add(trimmed);
+            }
+        }
+        int maxCount = resolveTicketListImageMaxCount();
+        if (normalized.size() > maxCount) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_TICKET_LIST_IMAGE_TOO_MANY, null, maxCount);
+        }
+        return normalized;
+    }
+
+    private boolean isValidTicketListImageUrl(String url) {
+        return url.startsWith("http://")
+                || url.startsWith("https://")
+                || (url.startsWith("/") && !url.startsWith("//") && !url.contains(".."));
+    }
+
+    private int resolveTicketListImageMaxCount() {
+        return resolveClampedInt(SystemConfigEnum.IMPORT_BATCH_TICKET_LIST_IMAGE_MAX_COUNT, 1, 20);
+    }
+
+    private int resolveTicketListImageMaxSizeMb() {
+        return resolveClampedInt(SystemConfigEnum.IMPORT_BATCH_TICKET_LIST_IMAGE_MAX_SIZE_MB, 1, 10);
+    }
+
+    private int resolveClampedInt(SystemConfigEnum configEnum, int min, int max) {
+        int fallback = Integer.parseInt(configEnum.getDefaultValue());
+        String raw = systemConfigRepositoryPort.findByConfigKey(configEnum.name())
+                .map(config -> config.getConfigValue())
+                .orElse(configEnum.getDefaultValue());
+        int parsed;
+        try {
+            parsed = Integer.parseInt(raw.trim());
+        } catch (NumberFormatException ex) {
+            parsed = fallback;
+        }
+        return Math.min(max, Math.max(min, parsed));
     }
 
     private void applySupplierUpdate(ImportBatchModel batch, Long supplierId) {
@@ -672,22 +798,10 @@ public class ImportBatchService implements ImportBatchServicePort {
             LocalDate drawDate,
             LocalDateTime now
     ) {
-        if (supplier == null || supplier.getReturnCutOffTime() == null || drawDate == null) {
-            return;
-        }
-        if (!drawDate.equals(now.toLocalDate())) {
-            return;
-        }
-        LocalTime currentTime = now.toLocalTime();
-        if (!currentTime.isBefore(supplier.getReturnCutOffTime())) {
+        if (intakeWindowPolicy.isIntakeClosed(supplier, drawDate, now)) {
             throw new DomainException(
                     ErrorCode.IMPORT_BATCH_RETURN_CUTOFF_PASSED,
-                    String.format(
-                            "Đã qua giờ chốt trả vé của nhà cung cấp %s (%s). "
-                                    + "Không thể tạo phiếu nhập lô mới cho kỳ quay hôm nay.",
-                            supplier.getName(),
-                            supplier.getReturnCutOffTime().format(TIME_DISPLAY)
-                    )
+                    intakeWindowPolicy.closedMessage(supplier, drawDate)
             );
         }
     }

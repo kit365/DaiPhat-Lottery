@@ -428,7 +428,7 @@ class StreetAgentProfileServiceTest {
             ArgumentCaptor<StreetAgentProfileModel> captor =
                     ArgumentCaptor.forClass(StreetAgentProfileModel.class);
             verify(streetAgentProfileRepositoryPort).save(captor.capture());
-            assertThat(captor.getValue().getStatus()).isEqualTo(StreetAgentProfileStatus.PENDING);
+            assertThat(captor.getValue().getStatus()).isEqualTo(StreetAgentProfileStatus.ACTIVE);
         }
 
         @Test
@@ -481,7 +481,7 @@ class StreetAgentProfileServiceTest {
         @Test
         @DisplayName("ngày bắt đầu và kết thúc trùng nhau")
         void create_withSameContractDates() {
-            LocalDate sameDate = LocalDate.of(2026, 6, 1);
+            LocalDate sameDate = LocalDate.of(2026, 12, 1);
             CreateStreetAgentProfileRequest request = buildRequest(sameDate, sameDate, BigDecimal.ZERO);
 
             stubUniqueConstraintsPass();
@@ -667,8 +667,8 @@ class StreetAgentProfileServiceTest {
         }
 
         @Test
-        @DisplayName("cập nhật số dư ký quỹ khi có giá trị mới")
-        void update_setsDepositBalanceWhenProvided() {
+        @DisplayName("không cho form hồ sơ chỉnh trực tiếp số dư ký quỹ")
+        void update_doesNotAllowDepositBalanceMutationThroughProfileForm() {
             UpdateStreetAgentProfileRequest request = buildUpdateRequest(
                     null,
                     null,
@@ -684,14 +684,14 @@ class StreetAgentProfileServiceTest {
 
             streetAgentProfileService.update(PROFILE_ID, request);
 
-            assertThat(existing.getDepositBalance()).isEqualByComparingTo("8000000");
+            assertThat(existing.getDepositBalance()).isEqualByComparingTo("5000000");
             verify(streetAgentProfileApplicationMapper).updateModel(existing, request);
             verify(streetAgentProfileRepositoryPort).save(existing);
         }
 
         @Test
-        @DisplayName("đối soát cọc legacy về 0 sẽ kích hoạt lại hồ sơ đủ hợp đồng")
-        void update_activatesEligibleProfileAfterLegacyDepositIsReconciled() {
+        @DisplayName("form hồ sơ không đối soát cọc legacy")
+        void update_doesNotReconcileLegacyDepositThroughProfileForm() {
             UpdateStreetAgentProfileRequest request = buildCompleteContractUpdateRequest(BigDecimal.ZERO, "ACTIVE");
             StreetAgentProfileModel existing = buildEligibleModel(new BigDecimal("500000"));
             existing.setStatus(StreetAgentProfileStatus.PENDING);
@@ -703,7 +703,7 @@ class StreetAgentProfileServiceTest {
                 target.setContractCode(source.contractCode());
                 target.setContractStartDate(source.contractStartDate());
                 target.setContractEndDate(source.contractEndDate());
-                target.setDailyTicketCap(source.dailyTicketCap());
+                target.setContractMaxDailyCap(source.contractMaxDailyCap());
                 target.setStatus(StreetAgentProfileStatus.fromCode(source.status()));
                 return null;
             }).when(streetAgentProfileApplicationMapper).updateModel(eq(existing), eq(request));
@@ -712,8 +712,8 @@ class StreetAgentProfileServiceTest {
 
             streetAgentProfileService.update(PROFILE_ID, request);
 
-            assertThat(existing.getDepositBalance()).isEqualByComparingTo(BigDecimal.ZERO);
-            assertThat(existing.getStatus()).isEqualTo(StreetAgentProfileStatus.ACTIVE);
+            assertThat(existing.getDepositBalance()).isEqualByComparingTo("500000");
+            assertThat(existing.getStatus()).isEqualTo(StreetAgentProfileStatus.PENDING);
         }
 
         @Test
@@ -757,7 +757,7 @@ class StreetAgentProfileServiceTest {
         @Test
         @DisplayName("ngày bắt đầu và kết thúc trùng nhau")
         void update_withSameContractDates() {
-            LocalDate sameDate = LocalDate.of(2026, 6, 1);
+            LocalDate sameDate = LocalDate.of(2026, 12, 1);
             UpdateStreetAgentProfileRequest request = buildUpdateRequest(
                     sameDate,
                     sameDate,
@@ -785,6 +785,35 @@ class StreetAgentProfileServiceTest {
             when(streetAgentProfileApplicationMapper.toResponse(existing)).thenReturn(buildResponse());
 
             assertThat(streetAgentProfileService.update(PROFILE_ID, request).id()).isEqualTo(PROFILE_ID);
+        }
+
+        @Test
+        @DisplayName("đổi trần hợp đồng sẽ yêu cầu ký lại và chuyển hồ sơ về PENDING")
+        void update_contractTermChangeInvalidatesSignedDocument() {
+            UpdateStreetAgentProfileRequest request = buildCompleteContractUpdateRequest(BigDecimal.ZERO, "ACTIVE");
+            StreetAgentProfileModel existing = buildEligibleModel(BigDecimal.ZERO);
+            existing.setId(PROFILE_ID);
+            existing.setContractMaxDailyCap(50);
+            String oldContractCode = existing.getContractCode();
+
+            stubUpdateUniqueConstraintsPass(existing);
+            doAnswer(invocation -> {
+                StreetAgentProfileModel target = invocation.getArgument(0);
+                UpdateStreetAgentProfileRequest source = invocation.getArgument(1);
+                target.setContractStartDate(source.contractStartDate());
+                target.setContractEndDate(source.contractEndDate());
+                target.setContractMaxDailyCap(source.contractMaxDailyCap());
+                return null;
+            }).when(streetAgentProfileApplicationMapper).updateModel(eq(existing), eq(request));
+            when(streetAgentProfileRepositoryPort.save(existing)).thenReturn(existing);
+            when(streetAgentProfileApplicationMapper.toResponse(existing)).thenReturn(buildResponse());
+
+            streetAgentProfileService.update(PROFILE_ID, request);
+
+            assertThat(existing.getContractDocumentUrl()).isNull();
+            assertThat(existing.getStatus()).isEqualTo(StreetAgentProfileStatus.PENDING);
+            assertThat(existing.getContractCode()).isNotBlank().isNotEqualTo(oldContractCode);
+            verify(streetAgentProfileRepositoryPort).save(existing);
         }
 
         @Test
@@ -995,7 +1024,7 @@ class StreetAgentProfileServiceTest {
         StreetAgentProfileModel model = buildModel();
         model.setContractCode("HD-VENDOR-001");
         model.setContractDocumentUrl("https://cdn.example.com/contracts/signed.pdf");
-        model.setDailyTicketCap(100);
+        model.setContractMaxDailyCap(100);
         model.setDepositBalance(depositBalance);
         return model;
     }

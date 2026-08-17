@@ -34,6 +34,11 @@ export const ImportBatchLineImportHost = ({
         handleSerialFieldChange,
         handleRemoveSerial,
         handleNumbersFieldChange,
+        missingImageConfirmOpen,
+        missingImageCount,
+        onConfirmMissingImageSubmit,
+        onCancelMissingImageSubmit,
+        intakeGate,
     } = useImportBatchLineImportForm({
         batchId: batchId ? String(batchId) : null,
         activeLineId: lineId,
@@ -61,6 +66,12 @@ export const ImportBatchLineImportHost = ({
             onRemoveSerial={handleRemoveSerial}
             onNumbersFieldChange={handleNumbersFieldChange}
             numberLengthRules={numberLengthRules}
+            missingImageConfirmOpen={missingImageConfirmOpen}
+            missingImageCount={missingImageCount}
+            onConfirmMissingImageSubmit={onConfirmMissingImageSubmit}
+            onCancelMissingImageSubmit={onCancelMissingImageSubmit}
+            importIntakeBlocked={!!intakeGate?.blocked || !!intakeGate?.notYetAllowed}
+            importIntakeBlockedMessage={intakeGate?.message ?? undefined}
         />
     );
 };

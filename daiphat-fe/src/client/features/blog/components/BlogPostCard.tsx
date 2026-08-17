@@ -1,6 +1,6 @@
+import Link from "next/link";
 import React, { useState } from 'react';
 import AppImage from '@/components/AppImage';
-import { Link } from 'react-router-dom';
 import { PublicPost } from '../types/blog';
 
 interface BlogPostCardProps {
@@ -51,7 +51,7 @@ export const BlogPostCard: React.FC<BlogPostCardProps> = ({ post, isFirst = fals
         <div className="flex-1 flex flex-col justify-center py-1">
           {post.category && (
             <Link
-              to={`/blogs?category=${post.category.slug}`}
+              href={`/blogs?category=${post.category.slug}`}
               className="inline-block px-3 py-1 bg-[#FFF4F4] text-[#ee1314] text-[12px] font-medium rounded-md mb-3 w-fit hover:bg-[#ee1314] hover:text-white transition-colors"
             >
               {post.category.name}
@@ -59,7 +59,7 @@ export const BlogPostCard: React.FC<BlogPostCardProps> = ({ post, isFirst = fals
           )}
           <h3 className="text-[18px] font-bold text-[#212B36] leading-[1.4] mb-2">
             <Link
-              to={`/blogs/detail/${post.slug}`}
+              href={`/blogs/detail/${post.slug}`}
               className="hover:text-[#ee1314] transition-colors"
             >
               {post.title}
@@ -76,7 +76,7 @@ export const BlogPostCard: React.FC<BlogPostCardProps> = ({ post, isFirst = fals
               <i className="fa-regular fa-eye"></i> {formatViews(post.viewCount)}
             </span>
             <Link
-              to={`/blogs/detail/${post.slug}`}
+              href={`/blogs/detail/${post.slug}`}
               className="ml-auto text-[#ee1314] font-semibold hover:underline"
             >
               Đọc tiếp <i className="fa-solid fa-arrow-right text-[12px] ml-1"></i>

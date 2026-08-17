@@ -23,7 +23,9 @@ export const orderService = {
      * Creates an online order for tickets
      */
     createOnlineOrder: async (data: CreateOnlineOrderRequest): Promise<ApiResponse<OrderResponse>> => {
-        const response = await apiApp.post(`${BASE_URL}/online`, data);
+        const response = await apiApp.post(`${BASE_URL}/online`, data, {
+            skipGlobalErrorToast: true,
+        } as Parameters<typeof apiApp.post>[2]);
         return response.data;
     },
 

@@ -34,7 +34,7 @@ export interface BuildBuyTicketPathOptions {
   stationIds?: number[];
   highlightDate?: string;
   ticketId?: number;
-  /** Pre-fill search bar so the suggested ticket is visible on tickets page. */
+  /** Pre-fill the tickets page search box (`ticketNumber` query param). */
   search?: string;
 }
 
@@ -58,7 +58,8 @@ export const buildBuyTicketPath = ({
     params.set('ticketId', String(ticketId));
   }
   if (search?.trim()) {
-    params.set('search', search.trim());
+    // BuyTicketPage reads `ticketNumber` (legacy `search` is still accepted as fallback).
+    params.set('ticketNumber', search.trim());
   }
   if (stationId != null && !Number.isNaN(stationId)) {
     params.set('stationId', String(stationId));

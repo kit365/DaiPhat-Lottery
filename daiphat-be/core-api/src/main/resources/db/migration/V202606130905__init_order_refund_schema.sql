@@ -148,6 +148,7 @@ CREATE TABLE IF NOT EXISTS refund_requests (
     fund_source VARCHAR(30) NOT NULL DEFAULT 'COMPANY_FUND',
     reimburse_status VARCHAR(20) NOT NULL DEFAULT 'NONE',
     attempt_number INT NOT NULL DEFAULT 1,
+    transfer_note VARCHAR(500),
     bank_account_id BIGINT,
     status VARCHAR(20) NOT NULL,
     reviewed_by UUID,
@@ -176,32 +177,3 @@ ALTER TABLE order_details
 ALTER TABLE transactions
     ADD CONSTRAINT fk_transactions_refund_request
         FOREIGN KEY (refund_request_id) REFERENCES refund_requests (id);
-
-CREATE TABLE IF NOT EXISTS ticket_replacement_history (
-    id                      BIGSERIAL PRIMARY KEY,
-    order_id                UUID         NOT NULL,
-    order_detail_id         BIGINT       NOT NULL,
-    old_ticket_serial_id    BIGINT       NOT NULL,
-    new_ticket_serial_id    BIGINT       NOT NULL,
-    reason                  VARCHAR(30)  NOT NULL,
-    note                    VARCHAR(500),
-    damaged_reason          VARCHAR(255),
-    damaged_evidence_url    VARCHAR(1024),
-    handled_by              UUID         NOT NULL,
-    created_at              TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_ticket_replacement_history_order
-        FOREIGN KEY (order_id) REFERENCES orders (id),
-    CONSTRAINT fk_ticket_replacement_history_order_detail
-        FOREIGN KEY (order_detail_id) REFERENCES order_details (id),
-    CONSTRAINT fk_ticket_replacement_history_old_serial
-        FOREIGN KEY (old_ticket_serial_id) REFERENCES lottery_ticket_serials (id),
-    CONSTRAINT fk_ticket_replacement_history_new_serial
-        FOREIGN KEY (new_ticket_serial_id) REFERENCES lottery_ticket_serials (id),
-    CONSTRAINT fk_ticket_replacement_history_handled_by
-        FOREIGN KEY (handled_by) REFERENCES users (id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_ticket_replacement_history_order_id
-    ON ticket_replacement_history (order_id);
-CREATE INDEX IF NOT EXISTS idx_ticket_replacement_history_order_detail_id
-    ON ticket_replacement_history (order_detail_id);

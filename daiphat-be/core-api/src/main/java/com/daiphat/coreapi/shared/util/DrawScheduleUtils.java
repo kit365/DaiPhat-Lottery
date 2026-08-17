@@ -5,8 +5,11 @@ import com.daiphat.coreapi.domain.exception.ErrorCode;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.List;
 
 public final class DrawScheduleUtils {
@@ -25,6 +28,18 @@ public final class DrawScheduleUtils {
 
     public static LocalTime nowTime() {
         return LocalTime.now(VIETNAM_ZONE);
+    }
+
+    public static ZonedDateTime nowVn() {
+        return ZonedDateTime.now(VIETNAM_ZONE);
+    }
+
+    /** Treat stored wall-clock timestamps as Asia/Ho_Chi_Minh and expose ISO offset. */
+    public static OffsetDateTime toVietnamOffset(LocalDateTime local) {
+        if (local == null) {
+            return null;
+        }
+        return local.atZone(VIETNAM_ZONE).toOffsetDateTime();
     }
 
     /**

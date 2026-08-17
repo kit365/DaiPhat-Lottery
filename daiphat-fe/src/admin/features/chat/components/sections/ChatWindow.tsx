@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "@/admin/components/navigation/AdminLink";
 import { ConversationTitle } from '../components/ConversationTitle';
 import { ConversationAvatarLetter } from '../components/ConversationAvatarLetter';
 import {
@@ -12,8 +13,7 @@ import {
     formatSessionBoundaryDetail,
     parseSessionCloseNotice,
     formatWaitDuration,
-    TimelineRow,
-} from '../utils';
+    TimelineRow} from '../utils';
 import {
     Box,
     Stack,
@@ -21,8 +21,7 @@ import {
     Avatar,
     InputBase,
     CircularProgress,
-    Button,
-    Chip,
+Chip,
     Dialog,
     DialogTitle,
     DialogContent,
@@ -35,11 +34,23 @@ import {
     useTheme,
     useMediaQuery,
     createTheme,
-    Collapse,
 } from '@mui/material';
-import { formatChatMessageContent } from '../../../../../client/utils/ticketSuggestToken.util';
-import { LoadingButton } from '../../../../components/ui/LoadingButton';
-import { Icon } from '@iconify/react';
+import {
+    formatChatMessageContent,
+    formatCustomerChatMessageContent,
+    parseTicketSuggestToken,
+    splitTicketSuggestText,
+    stripChatInternalParams,
+} from '../../../../../client/utils/ticketSuggestToken.util';
+import { AdminChatTicketSuggestCards } from '../components/AdminChatTicketSuggestCards';
+import { Button } from '../../../../components/ui/Button';
+import {
+    ADMIN_DIALOG_ACTIONS_SX,
+    ADMIN_DIALOG_CONTENT_SX,
+    ADMIN_DIALOG_PAPER_SX,
+    ADMIN_DIALOG_TITLE_SX,
+} from '../../../../components/ui/AdminConfirmDialog';
+import { Icon } from '@/admin/components/ui/AdminIcon';
 import { useCallback, useRef, useEffect, useLayoutEffect, useState, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { AppToast as toast } from '../../../../../utils/toast.util';
@@ -51,14 +62,11 @@ import {
     adminChatDetailKey,
     useAssignConversation,
     useCloseConversation,
-    mergeCustomerTimelineMessage,
 } from '../../hooks/useChat';
 import { useChatSocket } from '../../hooks/useChatSocket';
 import { chatService } from '../../services/chatService';
-import { Link } from '@/components/router-compat';
 import { prefixAdmin } from '../../../../constants/routes';
 import { Conversation, Message } from '../../../../../types/chat.type';
-import { ChatSocketMessageEvent } from '../../../../../types/websocket.type';
 import { ChatConversationSocketEvent, MessageSenderRole, ConversationStatusEnum, ConversationCloseReason, CLOSE_REASON_OPTIONS } from '../../../../../types/chat.type';
 import { useAuthStore } from '../../../../../stores/useAuthStore';
 import dayjs from 'dayjs';
@@ -71,15 +79,83 @@ const STATUS_LABELS: Record<string, { label: string; color: string; bg: string }
     [ConversationStatusEnum.CLOSED]: { label: 'Đã đóng', color: 'var(--palette-grey-700)', bg: 'var(--palette-grey-200)' },
 };
 
-const mapSocketMessage = (payload: ChatSocketMessageEvent): Message => ({
-    id: payload.id ?? Date.now(),
-    senderId: payload.senderId,
-    senderType: payload.senderType || MessageSenderRole.CUSTOMER,
-    conversationId: payload.conversationId,
-    content: payload.content?.trim() || '',
-    type: 'TEXT',
-    createdAt: payload.createdAt || new Date().toISOString(),
-});
+const AdminChatMessageBody = ({
+    content,
+    isBot,
+    compact = false,
+}: {
+    content: string;
+    isBot: boolean;
+    compact?: boolean;
+}) => {
+    if (!isBot) {
+        return (
+            <Typography
+                variant="body2"
+                sx={{
+                    lineHeight: 1.5,
+                    wordBreak: 'break-word',
+                    whiteSpace: 'pre-wrap',
+                    fontSize: compact ? '0.8125rem' : undefined,
+                }}
+            >
+                {formatCustomerChatMessageContent(content)}
+            </Typography>
+        );
+    }
+
+    const parsed = parseTicketSuggestToken(stripChatInternalParams(content));
+    if (parsed && parsed.tickets.length > 0) {
+        const { reply, caption } = splitTicketSuggestText(parsed.text);
+        return (
+            <Box sx={{ width: '100%', maxWidth: 420 }}>
+                {reply ? (
+                    <Typography
+                        variant="body2"
+                        sx={{
+                            lineHeight: 1.5,
+                            wordBreak: 'break-word',
+                            whiteSpace: 'pre-wrap',
+                            mb: caption || parsed.tickets.length ? 1 : 0,
+                            fontSize: compact ? '0.8125rem' : undefined,
+                        }}
+                    >
+                        {reply}
+                    </Typography>
+                ) : null}
+                {caption ? (
+                    <Typography
+                        variant="body2"
+                        sx={{
+                            lineHeight: 1.5,
+                            wordBreak: 'break-word',
+                            whiteSpace: 'pre-wrap',
+                            fontWeight: 600,
+                            fontSize: compact ? '0.8125rem' : undefined,
+                        }}
+                    >
+                        {caption}
+                    </Typography>
+                ) : null}
+                <AdminChatTicketSuggestCards tickets={parsed.tickets} />
+            </Box>
+        );
+    }
+
+    return (
+        <Typography
+            variant="body2"
+            sx={{
+                lineHeight: 1.5,
+                wordBreak: 'break-word',
+                whiteSpace: 'pre-wrap',
+                fontSize: compact ? '0.8125rem' : undefined,
+            }}
+        >
+            {formatChatMessageContent(content)}
+        </Typography>
+    );
+};
 
 interface ChatWindowProps {
     conversationId: number | null;
@@ -180,29 +256,56 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
         setPreHandoffMessages([]);
     }, [conversationId]);
 
-    const handleTogglePreHandoff = async () => {
-        if (!conversationId || !canExpandPreHandoff) {
+    const handleOpenPreHandoff = async () => {
+        if (!conversationId || !activeConversation?.handoffSummary) {
             return;
         }
-        if (showPreHandoff) {
-            setShowPreHandoff(false);
+        if (!canExpandPreHandoff && !canClaim) {
             return;
         }
+        setShowPreHandoff(true);
         if (preHandoffMessages.length > 0) {
-            setShowPreHandoff(true);
+            return;
+        }
+        if (!canExpandPreHandoff) {
             return;
         }
         setLoadingPreHandoff(true);
         try {
             const messages = await chatService.getPreHandoffMessages(Number(conversationId));
             setPreHandoffMessages(messages);
-            setShowPreHandoff(true);
         } catch (error: unknown) {
             const err = error as { message?: string };
             toast.error(err?.message || 'Không thể tải lịch sử chat AI.');
         } finally {
             setLoadingPreHandoff(false);
         }
+    };
+
+    const handleAssignToMe = () => {
+        if (!conversationId || !canClaim) {
+            return;
+        }
+        const hasSummary = Boolean(activeConversation?.handoffSummary);
+        assignMutation.mutate(Number(conversationId), {
+            onSuccess: () => {
+                if (hasSummary) {
+                    setShowPreHandoff(true);
+                    void (async () => {
+                        setLoadingPreHandoff(true);
+                        try {
+                            const messages = await chatService.getPreHandoffMessages(Number(conversationId));
+                            setPreHandoffMessages(messages);
+                        } catch (error: unknown) {
+                            const err = error as { message?: string };
+                            toast.error(err?.message || 'Không thể tải lịch sử chat AI.');
+                        } finally {
+                            setLoadingPreHandoff(false);
+                        }
+                    })();
+                }
+            },
+        });
     };
 
     const resolveCustomerId = useCallback(
@@ -217,76 +320,6 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
             );
         },
         [conversationId, conversations, customerId, queryClient]
-    );
-
-    const handleIncomingMessage = useCallback(
-        (payload: ChatSocketMessageEvent) => {
-            if (!conversationId) {
-                return;
-            }
-
-            const resolvedCustomerId = resolveCustomerId(payload.conversationId);
-            if (!resolvedCustomerId) {
-                return;
-            }
-
-            const incomingConversation =
-                conversations?.find((conversation) => conversation.id === payload.conversationId) ??
-                conversations?.find((conversation) => conversation.id === conversationId);
-            if (!incomingConversation?.assignedOperatorId) {
-                return;
-            }
-
-            const incoming = mapSocketMessage(payload);
-
-            queryClient.setQueryData(
-                adminChatCustomerTimelineKey(resolvedCustomerId),
-                (prev) =>
-                    mergeCustomerTimelineMessage(prev as any, {
-                        id: incoming.id,
-                        conversationId: incoming.conversationId,
-                        senderId: incoming.senderId,
-                        senderType: incoming.senderType,
-                        content: incoming.content,
-                        type: incoming.type,
-                        createdAt: incoming.createdAt,
-                        isRead: incoming.isRead ?? false,
-                    } as any)
-            );
-
-            queryClient.setQueryData<Conversation[]>(
-                ADMIN_CHAT_CONVERSATIONS_KEY,
-                (prev = []) =>
-                    prev.map((conversation) => {
-                        if (
-                            conversation.id !== incoming.conversationId &&
-                            conversation.customerId !== resolvedCustomerId
-                        ) {
-                            return conversation;
-                        }
-
-                        return {
-                            ...conversation,
-                            updatedAt: incoming.createdAt,
-                            lastMessage: {
-                                id: incoming.id,
-                                senderId: incoming.senderId ?? '',
-                                senderType: incoming.senderType,
-                                conversationId: incoming.conversationId,
-                                content: incoming.content,
-                                type: incoming.type,
-                                createdAt: incoming.createdAt,
-                            },
-                            unreadCount:
-                                incoming.senderType === MessageSenderRole.CUSTOMER
-                                    ? (conversation.unreadCount ?? 0) + 1
-                                    : conversation.unreadCount,
-                        };
-                    })
-            );
-            shouldStickToBottom.current = true;
-        },
-        [conversationId, conversations, queryClient, resolveCustomerId]
     );
 
     const handleConversationEvent = useCallback(
@@ -396,7 +429,6 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
     const { sendMessage: sendRealtimeMessage, isConnected } = useChatSocket({
         conversationId,
         additionalConversationIds: customerConversationIds,
-        onMessage: handleIncomingMessage,
         onConversationEvent: handleConversationEvent,
         enabled: !!conversationId && !!customerId,
     });
@@ -412,6 +444,33 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
     useEffect(() => {
         shouldStickToBottom.current = true;
     }, [conversationId, customerId]);
+
+    // Messenger opens the customer timeline (not /management/{id}), so clear list
+    // unread immediately; BE marks operatorLastReadAt on the timeline first page.
+    useEffect(() => {
+        if (!conversationId || !customerId) {
+            return;
+        }
+        queryClient.setQueryData<Conversation[]>(ADMIN_CHAT_CONVERSATIONS_KEY, (prev = []) =>
+            prev.map((conversation) =>
+                conversation.customerId === customerId
+                && conversation.status !== ConversationStatusEnum.CLOSED
+                    ? { ...conversation, unreadCount: 0 }
+                    : conversation
+            )
+        );
+        // Refresh statuses (ACTIVE vs WAITING_FOR_CUSTOMER) that socket may have missed.
+        void queryClient.invalidateQueries({ queryKey: ADMIN_CHAT_CONVERSATIONS_KEY });
+    }, [conversationId, customerId, queryClient]);
+
+    useEffect(() => {
+        if (!customerId) {
+            return;
+        }
+        void queryClient.invalidateQueries({
+            queryKey: adminChatCustomerTimelineKey(customerId),
+        });
+    }, [conversationId, customerId, queryClient]);
 
     useLayoutEffect(() => {
         if (!shouldStickToBottom.current) {
@@ -470,13 +529,6 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
         container.scrollTop += diff;
         pendingScrollRestore.current = 0;
     }, [timelineQuery.isFetchingPreviousPage, timelineQuery.data?.pages.length]);
-
-    const handleAssignToMe = () => {
-        if (!conversationId || !canClaim) {
-            return;
-        }
-        assignMutation.mutate(Number(conversationId));
-    };
 
     const handleCloseConversation = () => {
         if (!conversationId || !canClose) {
@@ -642,6 +694,34 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                 </Stack>
 
                 <Stack direction="row" spacing={1}>
+                    {canExpandPreHandoff && (
+                        <Button
+                            variant="outlined"
+                            onClick={() => {
+                                if (showPreHandoff) {
+                                    setShowPreHandoff(false);
+                                    return;
+                                }
+                                void handleOpenPreHandoff();
+                            }}
+                            disabled={loadingPreHandoff}
+                            sx={{
+                                color: 'var(--palette-warning-dark)',
+                                borderColor: 'var(--palette-warning-light)',
+                                fontWeight: 600,
+                                '&:hover': {
+                                    borderColor: 'var(--palette-warning-main)',
+                                    bgcolor: 'var(--palette-warning-lighter)',
+                                },
+                            }}
+                        >
+                            {loadingPreHandoff
+                                ? 'Đang tải...'
+                                : showPreHandoff
+                                  ? 'Ẩn lịch sử AI'
+                                  : 'Xem toàn bộ lịch sử AI'}
+                        </Button>
+                    )}
                     {canClose && (
                         <Button
                             variant="outlined"
@@ -695,76 +775,6 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                     }}
                 >
                     <Box ref={topSentinelRef} sx={{ height: 1, flexShrink: 0 }} />
-                    {activeConversation?.handoffSummary && (
-                        <Box
-                            sx={{
-                                flexShrink: 0,
-                                mb: 1,
-                                p: 2,
-                                borderRadius: 2,
-                                bgcolor: 'var(--palette-warning-lighter)',
-                                border: '1px solid var(--palette-warning-light)',
-                            }}
-                        >
-                            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-                                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--palette-warning-dark)' }}>
-                                    Tóm tắt trước khi gặp nhân viên
-                                </Typography>
-                                {canExpandPreHandoff && (
-                                    <Button
-                                        size="small"
-                                        variant="text"
-                                        onClick={() => void handleTogglePreHandoff()}
-                                        disabled={loadingPreHandoff}
-                                        sx={{ textTransform: 'none', fontWeight: 600 }}
-                                    >
-                                        {loadingPreHandoff
-                                            ? 'Đang tải...'
-                                            : showPreHandoff
-                                              ? 'Ẩn lịch sử AI'
-                                              : 'Xem toàn bộ lịch sử AI'}
-                                    </Button>
-                                )}
-                            </Stack>
-                            <Typography
-                                variant="body2"
-                                sx={{ whiteSpace: 'pre-wrap', color: 'text.primary', lineHeight: 1.6 }}
-                            >
-                                {activeConversation.handoffSummary}
-                            </Typography>
-                            {!canExpandPreHandoff && canClaim && (
-                                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                                    Nhận hội thoại để xem chi tiết lịch sử chat với AI (nếu cần).
-                                </Typography>
-                            )}
-                            <Collapse in={showPreHandoff}>
-                                <Stack spacing={1.25} sx={{ mt: 2, pt: 1.5, borderTop: '1px dashed var(--palette-divider)' }}>
-                                    {preHandoffMessages.length === 0 ? (
-                                        <Typography variant="caption" color="text.secondary">
-                                            Không có tin nhắn AI trước khi tiếp nhận.
-                                        </Typography>
-                                    ) : (
-                                        preHandoffMessages.map((msg) => (
-                                            <Box key={`pre-${msg.id}`}>
-                                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                                                    {msg.senderType === MessageSenderRole.CUSTOMER
-                                                        ? 'Khách'
-                                                        : msg.senderType === MessageSenderRole.AI_SYSTEM
-                                                          ? 'AI'
-                                                          : 'Hệ thống'}
-                                                    {' · '}
-                                                    {dayjs(msg.createdAt).format('HH:mm')}
-                                                </Typography>
-                                                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                                                    {msg.content}
-                                                </Typography>
-                                            </Box>
-                                        ))
-                                    )}
-                                </Stack>
-                            </Collapse>
-                        </Box>
-                    )}
                     {(timelineQuery.isFetchingPreviousPage || timelineQuery.hasPreviousPage) && (
                         <Box sx={{ display: 'flex', justifyContent: 'center', py: 1, flexShrink: 0 }}>
                             {timelineQuery.isFetchingPreviousPage ? (
@@ -794,7 +804,7 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                         <Box sx={{ textAlign: 'center', mt: 4, opacity: 0.6 }}>
                             <Typography variant="body2">
                                 {activeConversation?.handoffSummary
-                                    ? 'Vui lòng đọc tóm tắt phía trên trước khi phản hồi.'
+                                    ? 'Nhận hội thoại để xem tóm tắt trước khi gặp nhân viên.'
                                     : 'Hãy bắt đầu cuộc trò chuyện.'}
                             </Typography>
                         </Box>
@@ -847,7 +857,7 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                                         Phiên hỗ trợ với{' '}
                                         <Box
                                             component={Link}
-                                            to={`/${prefixAdmin}/account-admin/detail/${operatorId}`}
+                                            href={`/${prefixAdmin}/account-admin/detail/${operatorId}`}
                                             sx={{
                                                 color: 'primary.main',
                                                 fontWeight: 600,
@@ -931,11 +941,16 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                                             boxShadow: '0 2px 5px rgba(0,0,0,0.05)',
                                             border: isMe ? 'none' : isBot ? '1px solid var(--palette-info-light)' : '1px solid var(--palette-divider)',
                                             width: 'fit-content',
+                                            maxWidth: '100%',
                                         }}
                                     >
-                                        <Typography variant="body2" sx={{ lineHeight: 1.5, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
-                                            {isBot ? formatChatMessageContent(msg.content ?? '') : msg.content}
-                                        </Typography>
+                                        {isMe ? (
+                                            <Typography variant="body2" sx={{ lineHeight: 1.5, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
+                                                {msg.content}
+                                            </Typography>
+                                        ) : (
+                                            <AdminChatMessageBody content={msg.content ?? ''} isBot={isBot} />
+                                        )}
                                     </Box>
                                     <Typography
                                         variant="caption"
@@ -964,6 +979,25 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
             </Box>
 
             <Box sx={{ p: 2, bgcolor: 'var(--palette-background-paper)', borderTop: '1px solid var(--palette-divider)', flexShrink: 0 }}>
+                {!canReply && canClaim && (
+                    <Box
+                        sx={{
+                            mb: 1.5,
+                            p: 1.5,
+                            borderRadius: 2,
+                            bgcolor: 'var(--palette-warning-lighter)',
+                            border: '1px solid var(--palette-warning-light)',
+                        }}
+                    >
+                        <Typography variant="body2" sx={{ color: 'var(--palette-warning-dark)', fontWeight: 600 }}>
+                            Hội thoại đang chờ nhận
+                            {activeConversation?.status === ConversationStatusEnum.WAITING_FOR_OPERATOR
+                                && activeConversation.escalatedAt && (
+                                <> · Đã chờ {formatWaitDuration(activeConversation.escalatedAt)}</>
+                            )}
+                        </Typography>
+                    </Box>
+                )}
                 <Box
                     sx={{
                         display: 'flex',
@@ -1020,10 +1054,93 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
         </Box>
 
         <ThemeProvider theme={localTheme}>
-            <Dialog open={closeDialogOpen} onClose={() => setCloseDialogOpen(false)} maxWidth="xs" fullWidth>
-                <DialogTitle sx={{ pb: 1, fontWeight: 700, fontSize: '1.25rem' }}>Đóng hội thoại</DialogTitle>
-                <DialogContent sx={{ py: '20px !important' }}>
-                    <FormControl fullWidth sx={{ mt: 1 }}>
+            <Dialog
+                open={showPreHandoff}
+                onClose={() => setShowPreHandoff(false)}
+                maxWidth="sm"
+                fullWidth
+                scroll="paper"
+                PaperProps={{ className: "admin-theme", sx: { ...ADMIN_DIALOG_PAPER_SX, maxHeight: '80vh' } }}
+            >
+                <DialogTitle sx={{ ...ADMIN_DIALOG_TITLE_SX, pr: 2 }}>
+                    <Stack direction="row" alignItems="center" justifyContent="space-between" gap={2}>
+                        Lịch sử chat với AI
+                        <Button
+                            size="small"
+                            variant="text"
+                            onClick={() => setShowPreHandoff(false)}
+                            sx={{
+                                textTransform: 'none',
+                                fontWeight: 700,
+                                color: 'var(--palette-warning-dark)',
+                                flexShrink: 0,
+                            }}
+                        >
+                            Ẩn lịch sử AI
+                        </Button>
+                    </Stack>
+                </DialogTitle>
+                <DialogContent sx={ADMIN_DIALOG_CONTENT_SX}>
+                    {activeConversation?.handoffSummary && (
+                        <Box
+                            sx={{
+                                mb: 2,
+                                p: 1.5,
+                                borderRadius: 2,
+                                bgcolor: 'var(--palette-warning-lighter)',
+                                border: '1px solid var(--palette-warning-light)',
+                            }}
+                        >
+                            <Typography variant="caption" sx={{ fontWeight: 700, color: 'var(--palette-warning-dark)', display: 'block', mb: 0.75 }}>
+                                Tóm tắt trước khi gặp nhân viên
+                            </Typography>
+                            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+                                {activeConversation.handoffSummary}
+                            </Typography>
+                        </Box>
+                    )}
+                    {loadingPreHandoff ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                            <CircularProgress size={24} />
+                        </Box>
+                    ) : preHandoffMessages.length === 0 ? (
+                        <Typography variant="body2" color="text.secondary">
+                            Không có tin nhắn AI trước khi tiếp nhận.
+                        </Typography>
+                    ) : (
+                        <Stack spacing={1.5}>
+                            {preHandoffMessages.map((msg) => (
+                                <Box key={`pre-${msg.id}`}>
+                                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                                        {msg.senderType === MessageSenderRole.CUSTOMER
+                                            ? 'Khách'
+                                            : msg.senderType === MessageSenderRole.AI_SYSTEM
+                                              ? 'AI'
+                                              : 'Hệ thống'}
+                                        {' · '}
+                                        {dayjs(msg.createdAt).format('HH:mm')}
+                                    </Typography>
+                                    <AdminChatMessageBody
+                                        content={msg.content ?? ''}
+                                        isBot={msg.senderType === MessageSenderRole.AI_SYSTEM}
+                                        compact
+                                    />
+                                </Box>
+                            ))}
+                        </Stack>
+                    )}
+                </DialogContent>
+            </Dialog>
+            <Dialog
+                open={closeDialogOpen}
+                onClose={() => setCloseDialogOpen(false)}
+                maxWidth="xs"
+                fullWidth
+                PaperProps={{ className: "admin-theme", sx: ADMIN_DIALOG_PAPER_SX }}
+            >
+                <DialogTitle sx={ADMIN_DIALOG_TITLE_SX}>Đóng hội thoại</DialogTitle>
+                <DialogContent sx={ADMIN_DIALOG_CONTENT_SX}>
+                    <FormControl fullWidth>
                         <InputLabel id="close-reason-label">Lý do đóng</InputLabel>
                         <Select
                             labelId="close-reason-label"
@@ -1039,23 +1156,15 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                         </Select>
                     </FormControl>
                 </DialogContent>
-                <DialogActions sx={{ pt: 2, px: 3, pb: 2 }}>
+                <DialogActions sx={ADMIN_DIALOG_ACTIONS_SX}>
                     <Button
                         onClick={() => setCloseDialogOpen(false)}
                         variant="outlined"
                         color="inherit"
                         disabled={closeMutation.isPending}
-                        sx={{
-                            borderRadius: '8px',
-                            textTransform: 'none',
-                            fontWeight: 700,
-                            px: 3,
-                            py: 1,
-                        }}
-                    >
-                        Hủy
-                    </Button>
-                    <LoadingButton
+                        label="Quay lại"
+                    />
+                    <Button
                         onClick={() => void confirmCloseConversation()}
                         loading={closeMutation.isPending}
                         label="Xác nhận đóng"

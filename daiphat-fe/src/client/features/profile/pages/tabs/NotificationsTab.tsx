@@ -1,6 +1,7 @@
 "use client";
 
-import { useLocation, useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Newspaper, ShieldCheck, Check, Trash2, Trophy } from "lucide-react";
 import {
@@ -79,8 +80,9 @@ const getTypeMeta = (type: NotificationResponse["type"]) => {
 };
 
 export const NotificationsTab = () => {
-    const navigate = useNavigate();
-    const location = useLocation();
+    const router = useRouter();
+    const pathname = usePathname() ?? '';
+    const searchParamsForLocation = useSearchParams();
     const [activeTab, setActiveTab] = useState<'all' | 'unread'>('all');
     const [unavailableMessage, setUnavailableMessage] = useState<string | null>(null);
     const scrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -94,7 +96,7 @@ export const NotificationsTab = () => {
         isFetchingNextPage,
         hasNextPage,
         fetchNextPage,
-    } = useNotifications(7);
+    } = useNotifications();
     const { mutate: markMyNotificationAsRead } = useMarkMyNotificationAsRead();
     const { mutate: markAllMyNotificationsAsRead } = useMarkAllMyNotificationsAsRead();
     const { mutate: deleteAllMyReadNotifications } = useDeleteAllMyReadNotifications();
@@ -107,12 +109,13 @@ export const NotificationsTab = () => {
     );
 
     useEffect(() => {
-        const state = location.state as { unavailableMessage?: string } | null;
-        if (state?.unavailableMessage) {
-            setUnavailableMessage(state.unavailableMessage);
-            navigate(location.pathname, { replace: true, state: null } as any);
+        const message = searchParamsForLocation?.get("unavailableMessage");
+        if (!message) {
+            return;
         }
-    }, [location.state, location.pathname, navigate]);
+        setUnavailableMessage(message);
+        router.replace(pathname);
+    }, [searchParamsForLocation, pathname, router]);
 
     useEffect(() => {
         if (activeTab !== 'all') {
@@ -180,7 +183,7 @@ export const NotificationsTab = () => {
                         secondaryLabel="Xem đơn hàng"
                         onSecondaryClick={() => {
                             setUnavailableMessage(null);
-                            navigate('/profile/orders');
+                            router.push('/profile/orders');
                         }}
                     />
                 </div>
@@ -242,7 +245,7 @@ export const NotificationsTab = () => {
                                         }
                                         const result = await resolveNotificationNavigation(notification);
                                         if (result.kind === "navigate") {
-                                            navigate(result.path);
+                                            router.push(result.path);
                                             return;
                                         }
                                         if (result.kind === "unavailable") {

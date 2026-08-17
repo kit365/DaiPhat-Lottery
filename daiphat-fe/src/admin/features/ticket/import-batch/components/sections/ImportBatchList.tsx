@@ -1,16 +1,10 @@
 "use client";
 
-import PlaylistAddOutlinedIcon from '@mui/icons-material/PlaylistAddOutlined';
-import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import ConfirmationNumberOutlinedIcon from '@mui/icons-material/ConfirmationNumberOutlined';
 import {
     Box,
-    Button,
     Card,
     CircularProgress,
-    Collapse,
-    IconButton,
-    LinearProgress,
     Stack,
     Table,
     TableBody,
@@ -23,222 +17,175 @@ import {
     Typography,
 } from '@mui/material';
 import dayjs from 'dayjs';
-import React, { useCallback, useMemo, useState } from 'react';
-import { useNavigate } from '@/components/router-compat';
-import { CanAccess } from '../../../../../components/auth/CanAccess';
+import { useCallback, useState } from 'react';
+import { toast } from 'react-toastify';
+import { useAdminRouter } from '@/admin/hooks/useAdminRouter';
+import { useActiveSuppliers } from '../../../../supplier';
+import { useImportBatchIntakeGate } from '../../hooks/useImportBatchIntakeGate';
 import { AdminRowActionsMenu } from '../../../../../components/ui/AdminRowActionsMenu';
 import { PERMISSIONS } from '../../../../../constants/permission.constants';
 import { ROUTES } from '../../../../../constants/routes';
-import { useStations } from '../../../../station/hooks/useStation';
 import { ImportBatchLineImportHost } from '../../../inventory/components/sections/ImportBatchLineImportHost';
-import { ImportBatchLineImportTable } from '../../../inventory/components/sections/ImportBatchLineImportTable';
-import type { ImportBatch } from '../../types/importBatch.type';
+import type { ImportBatch, ImportBatchStatus } from '../../types/importBatch.type';
 import type { useImportBatchList } from '../../hooks/useImportBatch';
 import {
+    getBatchTypeBadgeClass,
+    getBatchTypeLabel,
     getImportBatchStatusBadgeClass,
-    getImportBatchStatusChipLabel,
+    getImportBatchStatusLabel,
     getImportModeBadgeClass,
     getImportModeChipLabel,
     getImportModeLabel,
+    type ImportBatchImportMode,
 } from '../../utils/batchTypeLabels';
 import {
     displayImportBatchHeaderCodeRaw,
     formatImportBatchHeaderCode,
+    formatImportBatchLinesSummaryCompact,
+    formatImportBatchLinesSummaryTooltip,
     importBatchCodeMonospaceSx,
 } from '../../utils/importBatchCode';
+import { hasStartedImportBatchLineEntry } from '../../utils/importBatchEditDraft';
 import {
     batchHasPendingLines,
-    getImportBatchListRowAction,
-    getImportBatchProgress,
+    findFirstIncompleteLine,
     importBatchMissingStations,
-    importBatchNeedsAttention,
     isImportBatchEditable,
 } from '../../utils/importBatchProgress';
-
-const importBatchNeedsTicketImport = (batch: ImportBatch) =>
-    (batch.lines?.length ?? 0) > 0 &&
-    !importBatchMissingStations(batch) &&
-    batchHasPendingLines(batch);
+import { useSettings, dataGridContainerStyles } from '../../../../../shared/data-grid';
+import { ImportBatchToolbar } from './ImportBatchToolbar';
 
 type ImportBatchListProps = {
     listHook: ReturnType<typeof useImportBatchList>;
 };
 
 export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
-    const navigate = useNavigate();
-    const { batches, pagination, isLoading, filters, setPage, setLimit } = listHook;
-    const [openRows, setOpenRows] = useState<number[]>([]);
-    const [importTarget, setImportTarget] = useState<{ batchId: number; lineId: string } | null>(
-        null
-    );
-
-    const { data: providersRes } = useStations({ limit: 1000 });
-    const providers = (providersRes as { data?: { recordList?: Array<{ id?: number; _id?: number; name?: string }> } })?.data?.recordList || [];
-
-    const resolveStationName = useCallback(
-        (stationId?: number | string) => {
-            if (!stationId) return '—';
-            return (
-                providers.find((p) => String(p.id || p._id) === String(stationId))?.name ??
-                `Đài #${stationId}`
-            );
-        },
-        [providers]
-    );
+    const router = useAdminRouter();
+    const { settings, setSettings } = useSettings();
+    const { data: activeSuppliers = [] } = useActiveSuppliers();
+    const { evaluate: evaluateIntake } = useImportBatchIntakeGate();
+    const {
+        batches,
+        pagination,
+        isLoading,
+        error,
+        filters,
+        setSearch,
+        setStatus,
+        setImportMode,
+        setPage,
+        setLimit,
+    } = listHook;
+    const [importTarget, setImportTarget] = useState<{ batchId: number; lineId: string } | null>(null);
 
     const page = (filters.page ?? 1) - 1;
     const rowsPerPage = filters.size ?? 10;
 
+    const handleFilterChange = (fieldId: string, values: string[]) => {
+        if (fieldId === 'status') {
+            setStatus(values.length > 0 ? (values[0] as ImportBatchStatus) : '');
+        } else if (fieldId === 'importMode') {
+            setImportMode(values.length > 0 ? (values[0] as ImportBatchImportMode) : '');
+        }
+    };
+
+    const handleClearFilters = () => {
+        setStatus('');
+        setImportMode('');
+        setSearch('');
+    };
+
     const handleViewDetail = useCallback(
-        (batchId: number) => navigate(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batchId)),
-        [navigate]
+        (batchId: number) => router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batchId)),
+        [router]
     );
 
-    const handleEditBatch = useCallback(
-        (batchId: number) => navigate(ROUTES.ADMIN.IMPORT_BATCH.EDIT(batchId)),
-        [navigate]
-    );
-
-    const toggleRow = useCallback((batch: ImportBatch) => {
-        if (importBatchNeedsTicketImport(batch)) {
+    const handleAddTicket = useCallback((batch: ImportBatch) => {
+        const supplier = activeSuppliers.find((entry) => entry.id === batch.supplierId);
+        const intake = evaluateIntake(supplier, batch.drawDate);
+        if (intake.blocked || intake.notYetAllowed) {
             return;
         }
 
-        setOpenRows((prev) =>
-            prev.includes(batch.id) ? prev.filter((id) => id !== batch.id) : [...prev, batch.id]
-        );
-    }, []);
-
-    const handleOpenImportDialog = useCallback((batchId: number, lineId: string) => {
-        setImportTarget({ batchId, lineId });
-    }, []);
+        const firstLine = findFirstIncompleteLine(batch);
+        if (firstLine?.id != null) {
+            setImportTarget({ batchId: batch.id, lineId: String(firstLine.id) });
+            return;
+        }
+        if ((batch.lines?.length ?? 0) === 0) {
+            toast.info('Phiếu chưa có dòng nhà đài. Hãy chỉnh sửa phiếu để thêm nhà đài trước.');
+            router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id));
+            return;
+        }
+        toast.info('Không còn dòng nào cần nhập vé. Mở chi tiết phiếu để kiểm tra.');
+        router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id));
+    }, [activeSuppliers, evaluateIntake, router]);
 
     const handleCloseImportDialog = useCallback(() => {
         setImportTarget(null);
     }, []);
 
-    const handleRowAction = useCallback(
-        (batch: ImportBatch) => {
-            const action = getImportBatchListRowAction(batch);
-            if (action?.type === 'add-stations') {
-                handleEditBatch(batch.id);
-            }
-        },
-        [handleEditBatch]
-    );
+    const handleImportSuccess = useCallback(() => {
+        setImportTarget(null);
+        listHook.refetch?.();
+    }, [listHook]);
 
-    const renderImportProgress = (batch: ImportBatch, importedQty: number, declaredQty: number) => {
-        const progress = getImportBatchProgress(batch);
-        const needsAttention = importBatchNeedsAttention(batch);
-        const percent = progress.declared > 0 ? progress.percent : 0;
-
-        if (importBatchMissingStations(batch)) {
-            return (
-                <Stack spacing={0.75} alignItems="center" sx={{ minWidth: 132, mx: 'auto' }}>
-                    <Typography
-                        variant="caption"
-                        sx={{
-                            color: 'var(--palette-warning-dark, #B76E00)',
-                            fontWeight: 700,
-                            whiteSpace: 'nowrap',
-                        }}
-                    >
-                        Chưa có nhà đài
-                    </Typography>
-                    <LinearProgress
-                        variant="determinate"
-                        value={0}
-                        color="warning"
-                        sx={{ width: '100%', height: 4, borderRadius: 999 }}
-                    />
-                </Stack>
-            );
-        }
-
+    if (error) {
         return (
-            <Stack spacing={0.75} alignItems="center" sx={{ minWidth: 132, mx: 'auto' }}>
-                <Typography
-                    variant="body2"
-                    sx={{
-                        fontWeight: 700,
-                        color: needsAttention ? 'var(--palette-warning-dark, #B76E00)' : 'var(--palette-text-primary)',
-                        whiteSpace: 'nowrap',
-                    }}
-                >
-                    {importedQty.toLocaleString('vi-VN')}
-                    <Box component="span" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 500 }}>
-                        {' '}/ {declaredQty.toLocaleString('vi-VN')} vé
-                    </Box>
-                </Typography>
-                <LinearProgress
-                    variant="determinate"
-                    value={percent}
-                    color={needsAttention ? 'warning' : 'success'}
-                    sx={{ width: '100%', height: 4, borderRadius: 999 }}
-                />
-            </Stack>
+            <Box sx={{ py: 5, textAlign: 'center', color: 'var(--palette-error-main)', fontSize: '1.125rem' }}>
+                Lỗi khi tải danh sách phiếu nhập lô. Vui lòng thử lại.
+            </Box>
         );
-    };
-
-    const renderRowActionButton = (batch: ImportBatch) => {
-        const action = getImportBatchListRowAction(batch);
-        if (!action || action.type !== 'add-stations') {
-            return null;
-        }
-
-        return (
-            <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
-                <Tooltip title={action.label} placement="top" arrow>
-                    <Button
-                        size="small"
-                        variant="outlined"
-                        color="warning"
-                        className="import-batch-line-table-action"
-                        startIcon={<PlaylistAddOutlinedIcon sx={{ fontSize: '0.9375rem !important' }} />}
-                        onClick={() => handleRowAction(batch)}
-                        sx={{
-                            borderColor: 'rgba(var(--palette-warning-mainChannel) / 0.48)',
-                            bgcolor: 'rgba(var(--palette-warning-mainChannel) / 0.08)',
-                            '&:hover': {
-                                borderColor: 'var(--palette-warning-main)',
-                                bgcolor: 'rgba(var(--palette-warning-mainChannel) / 0.14)',
-                            },
-                        }}
-                    >
-                        {action.label}
-                    </Button>
-                </Tooltip>
-            </CanAccess>
-        );
-    };
-
-    const expandedBatchMap = useMemo(() => {
-        const map = new Map<number, ImportBatch>();
-        batches.forEach((batch) => map.set(batch.id, batch));
-        return map;
-    }, [batches]);
+    }
 
     return (
         <>
-            <Card elevation={0} className="admin-datagrid-card" sx={{ height: 640 }}>
-                <Box sx={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                    <TableContainer className="admin-table-container" sx={{ flex: 1 }}>
-                        <Table className="admin-table" sx={{ height: batches.length === 0 ? '100%' : 'auto' }} size="medium">
+            <Card elevation={0} className="admin-datagrid-card">
+                <Box sx={dataGridContainerStyles}>
+                    {/* Integrated Toolbar with Search, JiraFilter, Columns & Settings */}
+                    <ImportBatchToolbar
+                        settings={settings}
+                        onSettingsChange={setSettings}
+                        filters={{
+                            status: filters.status,
+                            importMode: filters.importMode,
+                            search: filters.search,
+                        }}
+                        onFilterChange={handleFilterChange}
+                        onClearFilters={handleClearFilters}
+                        onSearchChange={setSearch}
+                    />
+
+                    <TableContainer className="admin-table-container" sx={{ flex: 1, overflow: 'auto' }}>
+                        <Table
+                            className="admin-table"
+                            sx={{
+                                minWidth: 960,
+                                height: batches.length === 0 ? '100%' : 'auto',
+                                ...(settings.showCellBorders && {
+                                    '& td, & th': { borderRight: '1px solid var(--palette-divider)' },
+                                }),
+                            }}
+                            size={settings.density === 'compact' ? 'small' : 'medium'}
+                        >
                             <TableHead>
                                 <TableRow>
                                     <TableCell>Mã phiếu</TableCell>
                                     <TableCell>Ngày quay</TableCell>
-                                    <TableCell align="center">Nhà cung cấp</TableCell>
-                                    <TableCell>Hình thức nhập</TableCell>
+                                    <TableCell>Nhà cung cấp</TableCell>
+                                    <TableCell align="center">Hình thức nhập</TableCell>
+                                    <TableCell>Người thực hiện</TableCell>
                                     <TableCell align="center">Trạng thái</TableCell>
-                                    <TableCell align="center">Tiến độ nhập</TableCell>
-                                    <TableCell align="center">Thao tác</TableCell>
+                                    <TableCell sx={{ maxWidth: 200 }}>Mã lô / Loại</TableCell>
+                                    <TableCell align="right">Khai báo</TableCell>
+                                    <TableCell align="right">Đã nhập</TableCell>
+                                    <TableCell sx={{ width: 72 }} align="right" />
                                 </TableRow>
                             </TableHead>
                             <TableBody>
                                 {isLoading ? (
                                     <TableRow>
-                                        <TableCell colSpan={7} align="center" sx={{ borderBottom: 'none', py: 10 }}>
+                                        <TableCell colSpan={10} align="center" sx={{ borderBottom: 'none', py: 10 }}>
                                             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
                                                 <CircularProgress size={32} />
                                             </Box>
@@ -246,7 +193,7 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
                                     </TableRow>
                                 ) : batches.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={7} align="center" sx={{ borderBottom: 'none', py: 10 }}>
+                                        <TableCell colSpan={10} align="center" sx={{ borderBottom: 'none', py: 10 }}>
                                             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
                                                 <Typography className="admin-datagrid-empty">Không có dữ liệu</Typography>
                                             </Box>
@@ -266,156 +213,126 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
                                                 (sum, line) => sum + (line.declareQuantity || 0),
                                                 0
                                             );
-                                        const needsAttention = importBatchNeedsAttention(batch);
-                                        const canExpand = (batch.lines?.length ?? 0) > 0;
-                                        const needsTicketImport = importBatchNeedsTicketImport(batch);
-                                        const isOpen = needsTicketImport || openRows.includes(batch.id);
-                                        const canCollapse = canExpand && !needsTicketImport;
+                                        const uniqueBatchTypes = Array.from(
+                                            new Set((batch.lines ?? []).map((line) => line.batchType).filter(Boolean))
+                                        );
+                                        const missingStations = importBatchMissingStations(batch);
+                                        const hasPending = batchHasPendingLines(batch);
+                                        const batchSupplier = activeSuppliers.find(
+                                            (entry) => entry.id === batch.supplierId
+                                        );
+                                        const batchIntake = evaluateIntake(batchSupplier, batch.drawDate);
+                                        const importTicketBlocked =
+                                            batchIntake.blocked || batchIntake.notYetAllowed;
 
                                         return (
-                                            <React.Fragment key={batch.id}>
-                                                <TableRow
-                                                    className={needsAttention ? 'admin-table-row-attention' : undefined}
-                                                    sx={
-                                                        needsAttention
-                                                            ? {
-                                                                boxShadow: 'inset 3px 0 0 var(--palette-warning-main)',
-                                                            }
-                                                            : undefined
-                                                    }
-                                                >
+                                            <TableRow key={batch.id} hover>
                                                 <TableCell>
-                                                    <Typography
-                                                        className="admin-cell-title"
-                                                        sx={importBatchCodeMonospaceSx}
-                                                        title={displayImportBatchHeaderCodeRaw(batch.batchCode, batch.id)}
-                                                    >
-                                                        {formatImportBatchHeaderCode(batch.batchCode, batch.id)}
-                                                    </Typography>
+                                                    <Stack direction="row" spacing={0.75} alignItems="center">
+                                                        {(missingStations || hasPending) && (
+                                                             <Tooltip
+                                                                title={
+                                                                    missingStations
+                                                                        ? hasStartedImportBatchLineEntry(batch.id)
+                                                                            ? 'Tiếp tục nhập phiếu'
+                                                                            : 'Chưa bổ sung nhà đài'
+                                                                        : 'Còn dòng chưa nhập đủ vé'
+                                                                }
+                                                            >
+                                                                <Box
+                                                                    sx={{
+                                                                        width: 8,
+                                                                        height: 8,
+                                                                        borderRadius: '50%',
+                                                                        bgcolor: 'var(--palette-warning-main)',
+                                                                        flexShrink: 0,
+                                                                    }}
+                                                                />
+                                                            </Tooltip>
+                                                        )}
+                                                        <Typography
+                                                            className="admin-cell-title"
+                                                            sx={importBatchCodeMonospaceSx}
+                                                            title={displayImportBatchHeaderCodeRaw(batch.batchCode, batch.id)}
+                                                        >
+                                                            {formatImportBatchHeaderCode(batch.batchCode, batch.id)}
+                                                        </Typography>
+                                                    </Stack>
                                                 </TableCell>
-                                                    <TableCell>
-                                                        <span className="admin-cell-date">
-                                                            {batch.drawDate ? dayjs(batch.drawDate).format('DD/MM/YYYY') : '—'}
+                                                <TableCell>
+                                                    <span className="admin-cell-date">
+                                                        {batch.drawDate ? dayjs(batch.drawDate).format('DD/MM/YYYY') : '—'}
+                                                    </span>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <span className="admin-cell-text">{batch.supplierName || '—'}</span>
+                                                </TableCell>
+                                                <TableCell align="center">
+                                                    <Tooltip title={getImportModeLabel(batch.importMode)}>
+                                                        <span className={`admin-status-badge ${getImportModeBadgeClass(batch.importMode)}`}>
+                                                            {getImportModeChipLabel(batch.importMode)}
                                                         </span>
-                                                    </TableCell>
-                                                    <TableCell align="center">
-                                                        <span className="admin-cell-text">{batch.supplierName || '—'}</span>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Tooltip title={getImportModeLabel(batch.importMode)}>
-                                                            <span className={`admin-status-badge ${getImportModeBadgeClass(batch.importMode)}`}>
-                                                                {getImportModeChipLabel(batch.importMode)}
-                                                            </span>
-                                                        </Tooltip>
-                                                    </TableCell>
-                                                    <TableCell align="center">
-                                                        <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                                                            <span className={`admin-status-badge ${getImportBatchStatusBadgeClass(batch.status)}`}>
-                                                                {getImportBatchStatusChipLabel(batch.status)}
-                                                            </span>
-                                                        </Box>
-                                                    </TableCell>
-                                                    <TableCell align="center">
-                                                        {renderImportProgress(batch, importedQty, declaredQty)}
-                                                    </TableCell>
-                                                    <TableCell align="center">
-                                                        <Stack
-                                                            direction="row"
-                                                            spacing={0.5}
-                                                            alignItems="center"
-                                                            justifyContent="center"
-                                                            flexWrap="nowrap"
-                                                            sx={{ minWidth: 0 }}
-                                                        >
-                                                            {renderRowActionButton(batch)}
-                                                            {canExpand && (
-                                                                <Tooltip
-                                                                    title={
-                                                                        needsTicketImport
-                                                                            ? 'Phiếu chưa nhập đủ, không thể thu gọn'
-                                                                            : isOpen
-                                                                              ? 'Thu gọn danh sách đài'
-                                                                              : 'Mở danh sách đài'
-                                                                    }
-                                                                    placement="top"
-                                                                    arrow
+                                                    </Tooltip>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <span className="admin-cell-text">{batch.createdBy || '—'}</span>
+                                                </TableCell>
+                                                <TableCell align="center">
+                                                    <span className={`admin-status-badge ${getImportBatchStatusBadgeClass(batch.status)}`}>
+                                                        {getImportBatchStatusLabel(batch.status)}
+                                                    </span>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {uniqueBatchTypes.length > 0 ? (
+                                                        <Stack direction="row" spacing={0.5} flexWrap="wrap">
+                                                            {uniqueBatchTypes.map((type) => (
+                                                                <span
+                                                                    key={type}
+                                                                    className={`admin-status-badge ${getBatchTypeBadgeClass(type)}`}
                                                                 >
-                                                                    <span>
-                                                                        <IconButton
-                                                                            size="small"
-                                                                            disabled={isOpen && !canCollapse}
-                                                                            aria-label={
-                                                                                isOpen
-                                                                                    ? 'Thu gọn danh sách đài'
-                                                                                    : 'Mở danh sách đài'
-                                                                            }
-                                                                            onClick={() => toggleRow(batch)}
-                                                                            sx={{
-                                                                                color: 'var(--palette-text-secondary)',
-                                                                            }}
-                                                                        >
-                                                                            {isOpen ? (
-                                                                                <KeyboardArrowUpIcon fontSize="small" />
-                                                                            ) : (
-                                                                                <KeyboardArrowDownIcon fontSize="small" />
-                                                                            )}
-                                                                        </IconButton>
-                                                                    </span>
-                                                                </Tooltip>
-                                                            )}
-                                                            <AdminRowActionsMenu
-                                                                items={[
-                                                                    {
-                                                                        id: 'view',
-                                                                        label: 'Xem chi tiết',
-                                                                        icon: 'view',
-                                                                        onClick: () => handleViewDetail(batch.id),
-                                                                    },
-                                                                    {
-                                                                        id: 'edit',
-                                                                        label: 'Chỉnh sửa',
-                                                                        icon: 'edit',
-                                                                        onClick: () => handleEditBatch(batch.id),
-                                                                        hidden: !isImportBatchEditable(batch),
-                                                                        permission: PERMISSIONS.IMPORT_BATCH.CREATE,
-                                                                    },
-                                                                ]}
-                                                            />
+                                                                    {getBatchTypeLabel(type)}
+                                                                </span>
+                                                            ))}
                                                         </Stack>
-                                                    </TableCell>
-                                                </TableRow>
-
-                                                {canExpand && (
-                                                    <TableRow>
-                                                        <TableCell
-                                                            colSpan={7}
-                                                            sx={{
-                                                                py: 0,
-                                                                px: 0,
-                                                                borderBottom: isOpen
-                                                                    ? '1px dashed var(--palette-divider)'
-                                                                    : 'none',
-                                                                bgcolor: 'var(--palette-background-neutral)',
-                                                            }}
-                                                        >
-                                                            <Collapse in={isOpen} timeout="auto" unmountOnExit>
-                                                                <Box className="admin-import-batch-line-embed-panel">
-                                                                    <ImportBatchLineImportTable
-                                                                        embedded
-                                                                        lines={expandedBatchMap.get(batch.id)?.lines ?? batch.lines ?? []}
-                                                                        batchStatus={batch.status}
-                                                                        drawDate={batch.drawDate}
-                                                                        resolveStationName={resolveStationName}
-                                                                        onImportLine={(lineId) =>
-                                                                            handleOpenImportDialog(batch.id, lineId)
-                                                                        }
-                                                                    />
-                                                                </Box>
-                                                            </Collapse>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                )}
-                                            </React.Fragment>
+                                                    ) : (
+                                                        <span className="admin-status-badge admin-status-badge--success">
+                                                            Nhập mới
+                                                        </span>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell align="right">
+                                                    <span className="admin-cell-text">{declaredQty.toLocaleString('vi-VN')}</span>
+                                                </TableCell>
+                                                <TableCell align="right">
+                                                    <span className="admin-cell-text" style={{ fontWeight: 700, color: importedQty >= declaredQty && declaredQty > 0 ? '#16a34a' : 'inherit' }}>
+                                                        {importedQty.toLocaleString('vi-VN')}
+                                                    </span>
+                                                </TableCell>
+                                                <TableCell align="right">
+                                                    <AdminRowActionsMenu
+                                                        items={[
+                                                            {
+                                                                id: 'view',
+                                                                label: 'Xem chi tiết',
+                                                                icon: 'view',
+                                                                onClick: () => handleViewDetail(batch.id),
+                                                            },
+                                                            {
+                                                                id: 'import',
+                                                                label: 'Nhập vé',
+                                                                icon: <ConfirmationNumberOutlinedIcon fontSize="small" />,
+                                                                hidden: !isImportBatchEditable(batch),
+                                                                permission: PERMISSIONS.TICKET.CREATE,
+                                                                disabled: importTicketBlocked,
+                                                                disabledTitle:
+                                                                    batchIntake.tooltipTitle ??
+                                                                    'Không thể nhập vé lúc này.',
+                                                                onClick: () => handleAddTicket(batch),
+                                                            },
+                                                        ]}
+                                                    />
+                                                </TableCell>
+                                            </TableRow>
                                         );
                                     })
                                 )}
@@ -438,7 +355,9 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
                         sx={{
                             borderTop: '1px solid var(--palette-divider)',
                             color: 'var(--palette-text-secondary)',
-                            flexShrink: 0,
+                            '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+                                fontSize: '0.875rem',
+                            },
                         }}
                     />
                 </Box>
@@ -448,6 +367,7 @@ export const ImportBatchList = ({ listHook }: ImportBatchListProps) => {
                 batchId={importTarget?.batchId ?? null}
                 lineId={importTarget?.lineId ?? null}
                 onClose={handleCloseImportDialog}
+                onSuccess={handleImportSuccess}
             />
         </>
     );

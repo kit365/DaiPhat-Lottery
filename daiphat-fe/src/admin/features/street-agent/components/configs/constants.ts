@@ -18,13 +18,6 @@ export const CONFIDENCE_TIER_LABELS: Record<string, string> = {
     TRUSTED: 'Tin cậy',
 };
 
-export const CONFIDENCE_TIER_CAP_PERCENT: Record<string, number> = {
-    NEW: 0.25,
-    DEVELOPING: 0.5,
-    ESTABLISHED: 0.75,
-    TRUSTED: 1,
-};
-
 export const LUCKY_PATTERN_TYPE_LABELS: Record<string, string> = {
     EXACT: 'Số khớp chính xác',
     DIGIT_MATCH: 'Khớp theo cụm số',
@@ -42,7 +35,7 @@ export const BLOCKED_REASON_LABELS: Record<string, string> = {
     DRAW_TIME_PASSED: 'Đã qua giờ xổ — không còn vé để bàn giao',
     DATE_NOT_SCHEDULED: 'Ngày này không có đài xổ',
     NO_ELIGIBLE_INVENTORY: 'Không còn vé hợp lệ trong kho',
-    DAILY_CAP_EXHAUSTED: 'Đã hết cap giao vé trong ngày',
+    DAILY_CAP_EXHAUSTED: 'Phiếu đang mở đã đạt giới hạn giao vé',
 };
 
 export const ALLOCATION_BATCH_STATUS_LABELS: Record<string, string> = {
@@ -64,3 +57,23 @@ export const ALLOCATION_BATCH_STATUS_FILTER_OPTIONS = [
     { value: 'CANCELLED', label: ALLOCATION_BATCH_STATUS_LABELS.CANCELLED },
     { value: 'LATE_SETTLED', label: ALLOCATION_BATCH_STATUS_LABELS.LATE_SETTLED },
 ];
+
+export const getVendorAllocationBatchStatusBadgeClass = (status?: string) => {
+    switch (status) {
+        case 'DRAFT':
+            return 'admin-status-badge--draft';
+        case 'CONFIRMED':
+            return 'admin-status-badge--active';
+        case 'RETURN_OPEN':
+            return 'admin-status-badge--pending';
+        case 'SETTLED':
+            return 'admin-status-badge--success';
+        case 'LATE_SETTLED':
+            return 'admin-status-badge--pending';
+        case 'EXPIRED':
+        case 'CANCELLED':
+            return 'admin-status-badge--inactive';
+        default:
+            return 'admin-status-badge--draft';
+    }
+};

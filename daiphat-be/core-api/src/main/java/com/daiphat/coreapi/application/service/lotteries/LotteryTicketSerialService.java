@@ -14,6 +14,7 @@ import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
+import com.daiphat.coreapi.application.service.streetagent.LuckySerialTagger;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
@@ -44,6 +45,7 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
     private final StoragePort storagePort;
     private final OrderRepositoryPort orderRepositoryPort;
     private final LotteryTicketSerialIncidentService serialIncidentService;
+    private final LuckySerialTagger luckySerialTagger;
 
     @Override
     @Transactional
@@ -52,7 +54,8 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
             CreateLotteryTicketSerialRequest request,
             UUID importedById,
             Long importBatchId,
-            Long importBatchLineId
+            Long importBatchLineId,
+            InputSource inputSource
     ) {
         String normalizedSerial = request.serialNumber().trim();
         if (lotteryTicketSerialRepositoryPort.existsByTicketIdAndSerialNumber(ticket.getId(), normalizedSerial)) {
@@ -67,10 +70,11 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
                 .serialNumber(normalizedSerial)
                 .stationId(ticket.getStationId())
                 .drawDate(ticket.getDrawDate())
-                .inputSource(InputSource.MANUAL)
+                .inputSource(inputSource == null ? InputSource.MANUAL : inputSource)
                 .replacedForTicketId(request.replacedForTicketId())
                 .build();
         serial.initializeImport(importedById);
+        luckySerialTagger.apply(serial, ticket.getNumbers());
         return lotteryTicketSerialRepositoryPort.save(serial);
     }
 
@@ -390,6 +394,10 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
 
         if (request.ticketCondition() == TicketCondition.DAMAGED
                 || request.ticketCondition() == TicketCondition.LOST) {
+            if (request.faultedBy() == LotteryTicketSerialFaultedBy.LOST_DURING_RETURN
+                    || request.faultedBy() == LotteryTicketSerialFaultedBy.ISSUER_FAULT) {
+                return;
+            }
             if (serial.isInternalInventoryIncidentStatus()
                     && request.faultedBy() != LotteryTicketSerialFaultedBy.INTERNAL_FAULT) {
                 throw new DomainException(

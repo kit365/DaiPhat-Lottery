@@ -1,7 +1,7 @@
-import {
-    DataGrid,
+import type {
     GridColDef,
 } from '@mui/x-data-grid';
+import { LazyDataGrid } from '@/admin/shared/data-grid/LazyDataGrid';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -17,7 +17,7 @@ import {
 } from '../../../../shared/data-grid';
 import { columnsConfig, columnsInitialState } from '../configs/column.config';
 import { SupplierToolbar } from './SupplierToolbar';
-import { DATA_GRID_LOCALE_VN } from '../../../../../shared/components/DataTable/localeText.config';
+import { DATA_GRID_LOCALE_VN } from "@/admin/components/data-grid/localeText.config";
 import type { useSupplierList } from '../../hooks/useSupplier';
 
 declare module '@mui/x-data-grid' {
@@ -56,7 +56,7 @@ export const SupplierList = ({
     return (
         <Card elevation={0} className="admin-datagrid-card">
             <Box sx={dataGridContainerStyles}>
-                <DataGrid
+                <LazyDataGrid
                     rows={suppliers}
                     getRowId={(row) => row.id}
                     columns={columnsConfig}

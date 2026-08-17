@@ -1,72 +1,95 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
+import { usePathname } from "next/navigation";
 import { ReactNode, useEffect } from "react";
-import { Navigate, useLocation, Outlet } from "@/components/router-compat";
+import { clearAdminAuthSession } from "@/admin/lib/adminSession.utils";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { USER_ROLES } from "../../../constants/role.constants";
 import { toast } from "react-toastify";
+import { ROUTES } from "../../constants/routes";
+import { SpinnerLoading } from "../ui/SpinnerLoading";
 
 interface Props {
     children?: ReactNode;
 }
 
-import { ROUTES } from "../../constants/routes";
+function isRestrictedAdminRole(role: unknown): boolean {
+    if (!role) return false;
+    const code = typeof role === "string" ? role : (role as { code?: string }).code || "";
+    const normalized = code.startsWith("ROLE_") ? code : `ROLE_${code}`;
+    return normalized === USER_ROLES.MEMBER || normalized === USER_ROLES.STREET_AGENT;
+}
 
+/**
+ * Client-side auth rules that middleware cannot handle (needs user from API):
+ * setup-profile, restricted roles. Token gate is handled by middleware.ts.
+ */
 export const AuthGuard = ({ children }: Props) => {
-    const { token, isHydrated, user, logout } = useAuthStore();
-    const location = useLocation();
-    
-    const isAuthenticated = !!token;
+    const router = useAdminRouter();
+    const pathname = usePathname() ?? "";
+    const { token, isHydrated, user } = useAuthStore();
 
-    // DP-32 Middleware: Reject MEMBER roles from Admin area
-    const checkIsRestricted = (r: any) => {
-        if (!r) return false;
-        const code = typeof r === 'string' ? r : (r.code || "");
-        const normalized = code.startsWith("ROLE_") ? code : `ROLE_${code}`;
-        return normalized === USER_ROLES.MEMBER || normalized === USER_ROLES.STREET_AGENT;
-    };
+    const isRestrictedRole = isRestrictedAdminRole(user?.role);
+    const isSetupIncomplete = user && (user.hasPassword === false || user.agreedToTerms === false);
+    const isSetupPath = pathname.includes(ROUTES.ADMIN.AUTH.SETUP_PROFILE);
+    const isSetupComplete = user?.hasPassword && user?.agreedToTerms;
 
-    const isRestrictedRole = 
-        checkIsRestricted(user?.role);
-
-    // HOOKS PHẢI ĐẶT TRƯỚC BẤT KỲ LỆNH RETURN NÀO
     useEffect(() => {
         if (isRestrictedRole) {
             toast.error("Bạn không có quyền truy cập vùng quản trị!", {
-                toastId: "auth-denied"
+                toastId: "auth-denied",
             });
-            logout();
+            clearAdminAuthSession();
         }
-    }, [isRestrictedRole, logout]);
+    }, [isRestrictedRole]);
+
+    useEffect(() => {
+        if (!isHydrated) return;
+
+        if (!token || isRestrictedRole) {
+            router.replace(ROUTES.ADMIN.AUTH.LOGIN);
+            return;
+        }
+
+        if (isSetupIncomplete && !isSetupPath) {
+            router.replace(ROUTES.ADMIN.AUTH.SETUP_PROFILE);
+            return;
+        }
+
+        if (user && isSetupComplete && isSetupPath) {
+            router.replace(ROUTES.ADMIN.DASHBOARD.ROOT);
+        }
+    }, [
+        isHydrated,
+        token,
+        isRestrictedRole,
+        isSetupIncomplete,
+        isSetupPath,
+        isSetupComplete,
+        user,
+        router,
+    ]);
+
+    const sessionFallback = (
+        <SpinnerLoading message="Đang xác thực phiên đăng nhập..." minHeight={360} />
+    );
 
     if (!isHydrated) {
-        return <>{children || <Outlet />}</>;
+        return sessionFallback;
     }
 
-    if (!isAuthenticated) {
-        return <Navigate to={ROUTES.ADMIN.AUTH.LOGIN} state={{ from: location }} replace />;
-    }
-    
-    if (isRestrictedRole) {
-        return <Navigate to={ROUTES.ADMIN.AUTH.LOGIN} replace />;
+    if (!token || isRestrictedRole) {
+        return sessionFallback;
     }
 
-    // DP-32 Setup Enforcement: Force redirect to setup-profile if not completed
-    // Only redirect when fields are explicitly false (not undefined = still loading from API)
-    const isSetupIncomplete = user && (user.hasPassword === false || user.agreedToTerms === false);
-    const isSetupPath = location.pathname.includes(ROUTES.ADMIN.AUTH.SETUP_PROFILE);
-
-    // FIX: Only redirect if we HAVE user info but it's incomplete. 
-    // Prevents loops when user is null (e.g., during refresh or BE failure).
     if (isSetupIncomplete && !isSetupPath) {
-        return <Navigate to={ROUTES.ADMIN.AUTH.SETUP_PROFILE} state={{ from: location }} replace />;
+        return sessionFallback;
     }
 
-    // DP-32 Setup Protection: Prevent re-entry if already complete
-    const isSetupComplete = user?.hasPassword && user?.agreedToTerms;
     if (user && isSetupComplete && isSetupPath) {
-        return <Navigate to={ROUTES.ADMIN.DASHBOARD.ROOT} replace />;
+        return sessionFallback;
     }
 
-    return <>{children || <Outlet />}</>;
+    return <>{children}</>;
 };

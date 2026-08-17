@@ -1,6 +1,8 @@
 "use client";
 
-import { Toolbar, Box, Button, Badge, SvgIcon, Tooltip, Menu, MenuItem, ToggleButtonGroup, ToggleButton } from "@mui/material";
+import { Button } from '@/admin/components/ui/Button';
+
+import { Toolbar, Box, Badge, SvgIcon, Tooltip, Menu, MenuItem, ToggleButtonGroup, ToggleButton } from '@mui/material';
 import GridViewIcon from "@mui/icons-material/GridView";
 import ViewListIcon from "@mui/icons-material/ViewList";
 import { useMemo, useRef, useState } from "react";

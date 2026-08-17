@@ -1,9 +1,11 @@
 package com.daiphat.coreapi.application.service.lotteries;
 
+import com.daiphat.coreapi.application.dto.request.lotteries.BulkUpdateLotteryStationPricingRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ConfirmSyncLotteryStationItem;
 import com.daiphat.coreapi.application.dto.request.lotteries.ConfirmSyncLotteryStationsRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryStationRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.SyncLotteryStationsRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryStationPricingItem;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryStationRequest;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationSyncItemResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationSyncPreviewItemResponse;
@@ -16,6 +18,8 @@ import com.daiphat.coreapi.application.dto.lotteries.LotteryStationSourcePreview
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationResponse;
 import com.daiphat.coreapi.application.event.LotteryStationDrawReminderEvent;
 import com.daiphat.coreapi.application.mapper.lotteries.LotteryStationApplicationMapper;
+import com.daiphat.coreapi.shared.util.ImportCostCalculator;
+import com.daiphat.coreapi.shared.util.LotteryStationCodeGenerator;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryRegionRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryStationRepositoryPort;
@@ -64,6 +68,7 @@ public class LotteryStationService implements LotteryStationServicePort {
     private final LotteryTicketRepositoryPort lotteryTicketRepositoryPort;
     private final PrizeStructureRepositoryPort prizeStructureRepositoryPort;
     private final LotteryStationApplicationMapper lotteryStationApplicationMapper;
+    private final LotteryStationCodeGenerator lotteryStationCodeGenerator;
     private final StoragePort storagePort;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -85,6 +90,7 @@ public class LotteryStationService implements LotteryStationServicePort {
         }
 
         LotteryStationModel model = lotteryStationApplicationMapper.toModel(request);
+        model.setCode(resolveStationCode(request.code(), request.name(), null));
         LotteryRegionModel stationRegion = resolveRegion(request.region());
         model.setRegion(stationRegion);
         requireRegionHasPrizeStructures(stationRegion);
@@ -256,6 +262,13 @@ public class LotteryStationService implements LotteryStationServicePort {
             model.setName(request.name().trim());
         }
 
+        if (hasText(request.code())) {
+            model.setCode(resolveStationCode(request.code(), model.getName(), id));
+        } else if (!hasText(model.getCode())) {
+            // Stations created before codes existed get one on their next edit.
+            model.setCode(resolveStationCode(null, model.getName(), id));
+        }
+
         if (request.region() != null) {
             LotteryRegionModel newRegion = resolveRegion(request.region());
             if (previousRegion == null || !previousRegion.region().equalsIgnoreCase(newRegion.region())) {
@@ -295,6 +308,24 @@ public class LotteryStationService implements LotteryStationServicePort {
         log.info("Lottery product updated with id: {}", saved.getId());
 
         return lotteryStationApplicationMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public List<LotteryStationResponse> updatePricing(BulkUpdateLotteryStationPricingRequest request) {
+        List<LotteryStationResponse> updated = new ArrayList<>();
+        for (UpdateLotteryStationPricingItem item : request.items()) {
+            LotteryStationModel model = getProductOrThrow(item.lotteryStationId());
+            ImportCostCalculator.fromPriceAndCommission(item.importCost(), item.commissionRate());
+            model.setPrice(ImportCostCalculator.scaleMoney(item.importCost()));
+            model.setCommissionRate(item.commissionRate());
+            LotteryStationModel saved = lotteryStationRepositoryPort.save(model);
+            recalculateInventory(saved);
+            updated.add(lotteryStationApplicationMapper.toResponse(saved));
+            log.info("Updated station pricing id={} price={} commissionRate={}",
+                    saved.getId(), saved.getPrice(), saved.getCommissionRate());
+        }
+        return updated;
     }
 
     private boolean isActiveStation(LotteryStationModel model) {
@@ -412,11 +443,25 @@ public class LotteryStationService implements LotteryStationServicePort {
         Map<String, LotteryStationModel> existingStations = indexExistingStations(stationRegion);
         List<LotteryStationSyncPreviewItemResponse> items = new ArrayList<>();
 
+        // Codes suggested within one preview must not collide with each other, so
+        // suggestions already handed out in this loop count as taken.
+        Set<String> suggestedCodes = new HashSet<>();
+
         for (LotteryStationSourcePreviewItem previewItem : preview.items()) {
             String canonicalName = requireCanonicalName(previewItem);
             String normalizedKey = normalizeName(canonicalName);
             LotteryStationModel existing = existingStations.get(normalizedKey);
             SyncAction action = existing == null ? SyncAction.CREATED : SyncAction.UPDATED;
+
+            String code = existing != null && hasText(existing.getCode())
+                    ? existing.getCode()
+                    : lotteryStationCodeGenerator.generate(
+                            canonicalName,
+                            candidate -> suggestedCodes.contains(candidate)
+                                    || lotteryStationRepositoryPort.existsByCode(candidate));
+            if (code != null) {
+                suggestedCodes.add(code);
+            }
 
             List<DayOfWeek> drawDays = parseDrawDays(previewItem.drawDays(), canonicalName);
             LocalTime drawTime = parseDrawTime(previewItem.drawTime(), canonicalName);
@@ -425,6 +470,7 @@ public class LotteryStationService implements LotteryStationServicePort {
             items.add(LotteryStationSyncPreviewItemResponse.builder()
                     .name(canonicalName)
                     .canonicalName(canonicalName)
+                    .code(code)
                     .province(canonicalName)
                     .region(stationRegion.region())
                     .drawDays(drawDays)
@@ -570,6 +616,7 @@ public class LotteryStationService implements LotteryStationServicePort {
 
         LotteryStationModel station = LotteryStationModel.builder()
                 .name(item.name().trim())
+                .code(resolveStationCode(item.code(), item.name(), null))
                 .province(item.canonicalName().trim())
                 .region(stationRegion)
                 .price(defaultPrice)
@@ -593,6 +640,11 @@ public class LotteryStationService implements LotteryStationServicePort {
     ) {
         LocalDate previousNextDrawDate = station.getNextDrawDate();
         station.setName(item.name().trim());
+        if (hasText(item.code())) {
+            station.setCode(resolveStationCode(item.code(), item.name(), station.getId()));
+        } else if (!hasText(station.getCode())) {
+            station.setCode(resolveStationCode(null, item.name(), station.getId()));
+        }
         station.setProvince(item.canonicalName().trim());
         station.setRegion(stationRegion);
         if (defaultPrice != null) {
@@ -926,5 +978,40 @@ public class LotteryStationService implements LotteryStationServicePort {
 
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
+    }
+
+    /**
+     * Settles the code a station will carry.
+     *
+     * <p>A blank request means "derive it from the name", which is what the
+     * generate button on the form sends. A typed code is normalized and then
+     * rejected if another live station already holds it - codes are what exported
+     * files are matched on, so a duplicate would silently merge two stations.
+     */
+    private String resolveStationCode(String requestedCode, String name, Long excludeStationId) {
+        String normalized = lotteryStationCodeGenerator.normalize(requestedCode);
+        if (normalized != null) {
+            if (lotteryStationRepositoryPort.existsByCodeExcluding(normalized, excludeStationId)) {
+                throw new DomainException(ErrorCode.LOTTERY_STATION_CODE_EXISTED, null, normalized);
+            }
+            return normalized;
+        }
+
+        return lotteryStationCodeGenerator.generate(
+                name,
+                candidate -> lotteryStationRepositoryPort.existsByCodeExcluding(candidate, excludeStationId)
+        );
+    }
+
+    @Override
+    public String suggestCode(String name, Long excludeStationId) {
+        String suggested = lotteryStationCodeGenerator.generate(
+                name,
+                candidate -> lotteryStationRepositoryPort.existsByCodeExcluding(candidate, excludeStationId)
+        );
+        if (suggested == null) {
+            throw new DomainException(ErrorCode.LOTTERY_STATION_CODE_UNRESOLVABLE);
+        }
+        return suggested;
     }
 }

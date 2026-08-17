@@ -23,16 +23,17 @@ public class JwtTokenService implements TokenProviderPort {
     private static final String REFRESH_TOKEN = "refresh";
     private static final String AUTH_VERSION = "auth_version";
 
-    @Value("${daiphat.auth.jwt.secret}")
+    // Defaults keep IntelliJ local runs up when .env / profile YAML is not on the property path.
+    @Value("${daiphat.auth.jwt.secret:daiphat_super_secret_jwt_key_for_local_development_environment_32bytes}")
     private String secret;
 
-    @Value("${daiphat.auth.jwt.issuer}")
+    @Value("${daiphat.auth.jwt.issuer:daiphat-core-api}")
     private String issuer;
 
-    @Value("${daiphat.auth.jwt.access-token-ttl-seconds}")
+    @Value("${daiphat.auth.jwt.access-token-ttl-seconds:900}")
     private long accessTokenTtlSeconds;
 
-    @Value("${daiphat.auth.jwt.refresh-token-ttl-seconds}")
+    @Value("${daiphat.auth.jwt.refresh-token-ttl-seconds:604800}")
     private long refreshTokenTtlSeconds;
 
     @Override

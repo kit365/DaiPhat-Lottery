@@ -41,7 +41,7 @@ public interface LotteryTicketSerialRepositoryPort {
 
     long countByImportBatchLineIdAndStatus(Long importBatchLineId, LotteryTicketSerialStatus status);
 
-    /** IN_STOCK|EXPIRED + GOOD + not linked to a return line. */
+    /** IN_STOCK|EXPIRED + GOOD (or null) + not linked to a return line. */
     long countReturnEligibleByImportBatchLineId(Long importBatchLineId);
 
     List<Long> findDistinctTicketIdsByImportBatchLineId(Long importBatchLineId);
@@ -62,9 +62,21 @@ public interface LotteryTicketSerialRepositoryPort {
 
     List<LotteryTicketSerialModel> findAllByReturnBatchLineId(Long returnBatchLineId);
 
+    Optional<LotteryTicketSerialModel> findFirstBySerialNumber(String serialNumber);
+
     long countByReturnBatchLineId(Long returnBatchLineId);
 
+    /**
+     * Unsold serials eligible to inspect/return for a supplier draw:
+     * IN_STOCK|EXPIRED + GOOD (or null) + not already linked to a return line.
+     */
     List<ReturnInspectableSerialData> findInStockForSupplierAndDrawDate(
+            Long supplierId,
+            java.time.LocalDate drawDate,
+            Collection<Long> stationIds
+    );
+
+    long countReturnEligibleForSupplierAndDrawDate(
             Long supplierId,
             java.time.LocalDate drawDate,
             Collection<Long> stationIds

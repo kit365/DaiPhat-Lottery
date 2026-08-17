@@ -334,14 +334,18 @@ input:-webkit-autofill:active {
     box-shadow: var(--customShadows-z8) !important;
 }
 
-.btn-primary-admin.Mui-disabled {
+.btn-primary-admin.Mui-disabled,
+.MuiButton-contained.btn-primary-admin.Mui-disabled,
+.MuiDialogActions-root .MuiButton-contained.btn-primary-admin.Mui-disabled {
     background-color: rgba(145, 158, 171, 0.24) !important;
     color: rgba(145, 158, 171, 0.8) !important;
     box-shadow: none !important;
+    cursor: not-allowed !important;
+    opacity: 0.6 !important;
 }
 
-.MuiButton-contained.btn-primary-admin,
-.MuiDialogActions-root .MuiButton-contained.btn-primary-admin {
+.MuiButton-contained.btn-primary-admin:not(.Mui-disabled),
+.MuiDialogActions-root .MuiButton-contained.btn-primary-admin:not(.Mui-disabled) {
     background-color: var(--palette-text-primary) !important;
     color: var(--palette-common-white) !important;
 }
@@ -666,6 +670,7 @@ input:-webkit-autofill:active {
     font-weight: 500 !important;
     color: var(--palette-text-secondary) !important;
     flex-direction: row !important;
+    overflow: visible !important;
 }
 
 .admin-tab.Mui-selected {
@@ -1003,6 +1008,12 @@ input:-webkit-autofill:active {
 }
 
 .admin-cell-text {
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     font-size: 0.875rem;
     font-weight: 500;
     color: var(--palette-text-primary);
@@ -1041,19 +1052,48 @@ input:-webkit-autofill:active {
 }
 
 /* Status badges */
+.admin-status-badge-host {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    min-width: 0;
+    height: 24px;
+    line-height: 1;
+    vertical-align: middle;
+}
+
 .admin-status-badge {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    line-height: 1.5;
-    min-width: 1.5rem;
-    height: 1.5rem;
-    font-size: 0.75rem;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    line-height: 1;
+    height: 24px;
+    min-height: 24px;
+    max-height: 24px;
+    font-size: 0.6875rem;
     font-weight: 700;
-    padding: 0 6px;
+    padding: 0 8px;
     border-radius: 6px;
     background-color: var(--palette-grey-200);
     color: var(--palette-grey-800);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.admin-status-badge--compact {
+    min-width: auto;
+    min-height: 1.125rem;
+    height: 1.125rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    padding: 0 4px;
+    border-radius: 4px;
+    line-height: 1.125rem;
 }
 
 .admin-status-badge--draft {
@@ -1079,6 +1119,46 @@ input:-webkit-autofill:active {
 .admin-status-badge--success {
     background-color: var(--palette-success-lighter);
     color: var(--palette-success-dark);
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    height: 24px;
+    min-height: 24px;
+    max-height: 24px;
+    padding: 0 8px;
+    border-radius: 6px;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+}
+
+.MuiTableCell-root:has(.admin-status-badge-host),
+.MuiTableCell-root:has(.admin-status-badge),
+.MuiTableCell-root:has(.status-badge) {
+    text-align: center !important;
+}
+
+.MuiTableCell-root:has(.admin-status-badge-host) > .MuiBox-root,
+.MuiTableCell-root:has(.admin-status-badge) > .MuiBox-root,
+.MuiTableCell-root:has(.status-badge) > .MuiBox-root {
+    justify-content: center !important;
+    width: 100%;
+}
+
+.MuiDataGrid-cell:has(.admin-status-badge-host),
+.MuiDataGrid-cell:has(.admin-status-badge),
+.MuiDataGrid-cell:has(.status-badge) {
+    justify-content: center !important;
 }
 
 /* DataGrid action menu typography */
@@ -1251,6 +1331,21 @@ input:-webkit-autofill:active {
 /* -------------------------------------------------------------------------
    MUI DatePicker / DateTimePicker / TimePicker Global Styling
    ------------------------------------------------------------------------- */
+/* Picker Input Box Styling */
+.MuiPickersOutlinedInput-root {
+    border-radius: var(--shape-borderRadius) !important;
+}
+
+.MuiPickersOutlinedInput-root.Mui-focused .MuiPickersOutlinedInput-notchedOutline,
+.MuiPickersOutlinedInput-root.Mui-focused.Mui-error .MuiPickersOutlinedInput-notchedOutline {
+    border-color: #1C252E !important;
+    border-width: 2px !important;
+}
+
+.MuiFormControl-root:has(.MuiPickersOutlinedInput-root.Mui-focused) .MuiInputLabel-root {
+    color: #1C252E !important;
+}
+
 .MuiPickersPopper-root .MuiPaper-root {
     border-radius: var(--shape-borderRadius-lg) !important;
     box-shadow: var(--customShadows-z20) !important;
@@ -1259,13 +1354,13 @@ input:-webkit-autofill:active {
 
 /* Selected Date Day Circle in Calendar */
 .MuiPickersDay-root.Mui-selected {
-    background-color: var(--palette-text-primary) !important;
-    color: var(--palette-common-white) !important;
+    background-color: #FF3030 !important;
+    color: #FFFFFF !important;
     font-weight: 700 !important;
 }
 
 .MuiPickersDay-root.Mui-selected:hover {
-    background-color: var(--palette-grey-700) !important;
+    background-color: rgba(255, 48, 48, 0.8) !important;
 }
 
 /* Today Indicator */
@@ -1275,26 +1370,55 @@ input:-webkit-autofill:active {
 
 /* Selected Time Item in Digital Clock / TimePicker */
 .MuiMultiSectionDigitalClockSection-item.Mui-selected {
-    background-color: var(--palette-text-primary) !important;
-    color: var(--palette-common-white) !important;
+    background-color: #FF3030 !important;
+    color: #FFFFFF !important;
     font-weight: 700 !important;
     border-radius: 8px !important;
 }
 
 .MuiMultiSectionDigitalClockSection-item.Mui-selected:hover {
-    background-color: var(--palette-grey-700) !important;
+    background-color: rgba(255, 48, 48, 0.8) !important;
 }
 
 /* AM / PM Selector Button */
 .MuiTimePickerToolbar-ampmSelection .MuiButton-root.Mui-selected,
 .MuiPickersToolbarText-root.Mui-selected {
-    color: var(--palette-text-primary) !important;
+    color: #FF3030 !important;
     font-weight: 700 !important;
 }
 
 .MuiTimePickerToolbar-ampmSelection .MuiButton-root.Mui-selected {
-    background-color: var(--palette-text-primary) !important;
-    color: var(--palette-common-white) !important;
+    background-color: #FF3030 !important;
+    color: #FFFFFF !important;
+}
+
+/* Picker Action Buttons (Cancel / OK) */
+.MuiPickersLayout-root .MuiDialogActions-root .MuiButton-root {
+    border-radius: 8px !important;
+    text-transform: none !important;
+    font-weight: 700 !important;
+    padding: 6px 16px !important;
+}
+
+/* Cancel Button */
+.MuiPickersLayout-root .MuiDialogActions-root .MuiButton-root:first-of-type {
+    border: 1px solid rgba(145, 158, 171, 0.32) !important;
+    color: #1C252E !important;
+    background-color: transparent !important;
+}
+.MuiPickersLayout-root .MuiDialogActions-root .MuiButton-root:first-of-type:hover {
+    background-color: rgba(145, 158, 171, 0.08) !important;
+    border-color: rgba(145, 158, 171, 0.48) !important;
+}
+
+/* OK Button */
+.MuiPickersLayout-root .MuiDialogActions-root .MuiButton-root:last-of-type {
+    background-color: #1C252E !important;
+    color: #FFFFFF !important;
+    border: 1px solid #1C252E !important;
+}
+.MuiPickersLayout-root .MuiDialogActions-root .MuiButton-root:last-of-type:hover {
+    background-color: #3f4a56 !important; /* Slightly lighter black/dark-grey for hover */
 }
 
 /* Analog Clock Pointer & Pin */

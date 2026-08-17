@@ -2,15 +2,34 @@ package com.daiphat.coreapi.adapter.in.web.controller.lotteries;
 
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
+import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
+import com.daiphat.coreapi.application.dto.document.ContractPdfDocument;
+import com.daiphat.coreapi.application.dto.request.lotteries.AddSettlementMonetaryAdjustmentRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.CompleteSettlementReconciliationRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.ConfirmSettlementMatchingRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.ResolveImportDiscrepancyRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.ResolveReturnDiscrepancyRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.ResolveUnitPriceDiscrepancyRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.UpdateSupplierSettlementPaymentEvidenceRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateSupplierSettlementReceiptRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.SettlementCompleteResultResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.SettlementImportFileCheckResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.SettlementResolvableSerialResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.SupplierSettlementAdjustmentResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.SupplierSettlementOverviewResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.SupplierSettlementResponse;
+import com.daiphat.coreapi.application.port.in.lotteries.SupplierSettlementReconciliationReportServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.SupplierSettlementServicePort;
 import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementStatus;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,6 +40,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @RequestMapping(ApiConstants.API_V1 + "/supplier-settlements")
@@ -32,6 +52,7 @@ public class SupplierSettlementController {
     private static final String DEFAULT_LIMIT = "10";
 
     private final SupplierSettlementServicePort supplierSettlementServicePort;
+    private final SupplierSettlementReconciliationReportServicePort reconciliationReportServicePort;
 
     @GetMapping
     @PreAuthorize("hasAnyAuthority('supplier:view', 'importBatch:view')")
@@ -87,5 +108,141 @@ public class SupplierSettlementController {
                         request != null ? request.supplierSettlementReceiptUrl() : null
                 )
         );
+    }
+
+    @PostMapping("/{id}/payment-evidence")
+    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    public ApiResponse<SupplierSettlementResponse> updatePaymentEvidenceUrls(
+            @PathVariable Long id,
+            @RequestBody UpdateSupplierSettlementPaymentEvidenceRequest request
+    ) {
+        return ApiResponse.success(
+                "Đã cập nhật ảnh thanh toán nhà cung cấp.",
+                supplierSettlementServicePort.updatePaymentEvidenceUrls(
+                        id,
+                        request != null ? request.paymentEvidenceUrls() : List.of()
+                )
+        );
+    }
+
+    @PostMapping("/{id}/reconciliation/matching")
+    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    public ApiResponse<SupplierSettlementResponse> confirmMatching(
+            @PathVariable Long id,
+            @Valid @RequestBody ConfirmSettlementMatchingRequest request,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
+    ) {
+        return ApiResponse.success(
+                "Đã xác nhận đối chiếu số liệu.",
+                supplierSettlementServicePort.confirmMatching(id, request, principal.getId())
+        );
+    }
+
+    @GetMapping("/{id}/reconciliation/missing-return-tickets")
+    @PreAuthorize("hasAnyAuthority('supplier:view', 'importBatch:view')")
+    public ApiResponse<List<SettlementResolvableSerialResponse>> listMissingReturnTickets(@PathVariable Long id) {
+        return ApiResponse.success(null, supplierSettlementServicePort.listMissingReturnTickets(id));
+    }
+
+    @GetMapping("/{id}/reconciliation/import-resolvable-tickets")
+    @PreAuthorize("hasAnyAuthority('supplier:view', 'importBatch:view')")
+    public ApiResponse<List<SettlementResolvableSerialResponse>> listImportResolvableTickets(@PathVariable Long id) {
+        return ApiResponse.success(null, supplierSettlementServicePort.listImportResolvableTickets(id));
+    }
+
+    @GetMapping("/{id}/reconciliation/import-file-check")
+    @PreAuthorize("hasAnyAuthority('supplier:view', 'importBatch:view')")
+    public ApiResponse<SettlementImportFileCheckResponse> checkImportFiles(@PathVariable Long id) {
+        return ApiResponse.success(null, supplierSettlementServicePort.checkImportFiles(id));
+    }
+
+    @PostMapping("/{id}/reconciliation/resolve-import")
+    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    public ApiResponse<SupplierSettlementResponse> resolveImport(
+            @PathVariable Long id,
+            @Valid @RequestBody ResolveImportDiscrepancyRequest request,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
+    ) {
+        return ApiResponse.success(
+                "Đã cập nhật xử lý chênh lệch nhập.",
+                supplierSettlementServicePort.resolveImportDiscrepancy(id, request, principal.getId())
+        );
+    }
+
+    @PostMapping("/{id}/reconciliation/resolve-return")
+    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    public ApiResponse<SupplierSettlementResponse> resolveReturn(
+            @PathVariable Long id,
+            @Valid @RequestBody ResolveReturnDiscrepancyRequest request,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
+    ) {
+        return ApiResponse.success(
+                "Đã cập nhật xử lý vé trả thiếu.",
+                supplierSettlementServicePort.resolveReturnDiscrepancy(id, request, principal.getId())
+        );
+    }
+
+    @PostMapping("/{id}/reconciliation/resolve-unit-price")
+    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    public ApiResponse<SupplierSettlementResponse> resolveUnitPrice(
+            @PathVariable Long id,
+            @Valid @RequestBody ResolveUnitPriceDiscrepancyRequest request,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
+    ) {
+        return ApiResponse.success(
+                "Đã ghi nhận chênh lệch giá nhập.",
+                supplierSettlementServicePort.resolveUnitPriceDiscrepancy(id, request, principal.getId())
+        );
+    }
+
+    @PostMapping("/{id}/reconciliation/settlement-adjustments")
+    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    public ApiResponse<SupplierSettlementAdjustmentResponse> addSettlementAdjustment(
+            @PathVariable Long id,
+            @Valid @RequestBody AddSettlementMonetaryAdjustmentRequest request,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
+    ) {
+        return ApiResponse.success(
+                "Đã thêm điều chỉnh thanh toán.",
+                supplierSettlementServicePort.addSettlementMonetaryAdjustment(id, request, principal.getId())
+        );
+    }
+
+    @PostMapping("/{id}/reconciliation/recalculate")
+    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    public ApiResponse<SupplierSettlementResponse> recalculate(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
+    ) {
+        return ApiResponse.success(
+                "Đã tính lại số tiền đối soát.",
+                supplierSettlementServicePort.recalculateReconciliation(id, principal.getId())
+        );
+    }
+
+    @PostMapping("/{id}/reconciliation/complete")
+    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    public ApiResponse<SettlementCompleteResultResponse> complete(
+            @PathVariable Long id,
+            @RequestBody(required = false) CompleteSettlementReconciliationRequest request,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
+    ) {
+        SettlementCompleteResultResponse result = supplierSettlementServicePort.completeReconciliation(
+                id,
+                request != null ? request : new CompleteSettlementReconciliationRequest(null),
+                principal.getId()
+        );
+        return ApiResponse.success(result.message(), result);
+    }
+
+    @GetMapping(value = "/{id}/reconciliation/report", produces = MediaType.APPLICATION_PDF_VALUE)
+    @PreAuthorize("hasAnyAuthority('supplier:view', 'importBatch:view')")
+    public ResponseEntity<byte[]> downloadReconciliationReport(@PathVariable Long id) {
+        ContractPdfDocument document = reconciliationReportServicePort.generatePdf(id);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + document.fileName() + "\"")
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .body(document.content());
     }
 }

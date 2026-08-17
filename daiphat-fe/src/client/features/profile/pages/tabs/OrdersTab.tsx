@@ -1,7 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { OrderStatus, OrderType, GetMyOrdersParams, OrderResponse } from '../../../../../types/order.type';
 import { useGetMyOrders, useGetMyOrderDetail } from '../../../../hooks/useOrder';
 import { useProcessPayment } from '../../../../hooks/useTransaction';
@@ -13,24 +13,33 @@ import { PaymentQrDialog } from '../../../../components/payment/PaymentQrDialog'
 import { useGetMyRefunds } from '../../../../hooks/useRefund';
 import { OrderRowActionsMenu } from '../components/OrderRowActionsMenu';
 import { ProfileTablePagination } from '../components/ProfileTablePagination';
+import { ClientSelect } from '../../../../components/ui/ClientSelect';
+import { ClientDatePicker } from '../../../../components/ui/ClientDatePicker';
+import { OrderStatusBadge } from '@/shared/components/StatusBadge';
+import { todayIsoVn } from '../../../../utils/sellableDrawDate.util';
 import { format } from 'date-fns';
-
-const ORDER_STATUS_MAP: Record<OrderStatus, { label: string, bg: string, text: string }> = {
-    [OrderStatus.PENDING_PAYMENT]: { label: 'Chờ thanh toán', bg: 'bg-[#FFF9F3]', text: 'text-[#FFB020]' },
-    [OrderStatus.PAID]: { label: 'Đã thanh toán', bg: 'bg-[#E4F8ED]', text: 'text-[#1CD162]' },
-    [OrderStatus.PREPARING]: { label: 'Đang chuẩn bị vé', bg: 'bg-[#F0F5FF]', text: 'text-[#2065D1]' },
-    [OrderStatus.PENDING_PICKUP]: { label: 'Chờ nhận vé', bg: 'bg-[#F0F5FF]', text: 'text-[#2065D1]' },
-    [OrderStatus.COMPLETED]: { label: 'Đã hoàn thành', bg: 'bg-[#E4F8ED]', text: 'text-[#1CD162]' },
-    [OrderStatus.CANCELLED]: { label: 'Đã huỷ', bg: 'bg-[#FFF4F4]', text: 'text-[#ee1314]' }
-};
 
 const ORDER_TYPE_MAP: Record<OrderType, { label: string, icon: string }> = {
     [OrderType.ONLINE]: { label: 'Online', icon: 'fa-solid fa-desktop' },
     [OrderType.DIRECT]: { label: 'Tại quầy', icon: 'fa-solid fa-store' }
 };
 
+const ORDER_SORT_OPTIONS = [
+    { value: 'default', label: 'Sắp xếp: Mặc định' },
+    { value: 'newest', label: 'Mới nhất' },
+    { value: 'pickup_asc', label: 'Giờ lấy vé gần nhất' },
+    { value: 'price_desc', label: 'Thành tiền: Cao → Thấp' },
+    { value: 'price_asc', label: 'Thành tiền: Thấp → Cao' },
+];
+
+const ORDER_TYPE_FILTER_OPTIONS = [
+    { value: '', label: 'Tất cả loại đơn' },
+    { value: OrderType.ONLINE, label: 'Online (Đặt qua app)' },
+    { value: OrderType.DIRECT, label: 'Tại quầy (Staff tạo)' },
+];
+
 export const OrdersTab = () => {
-    const navigate = useNavigate();
+    const router = useRouter();
     const [activeTab, setActiveTab] = useState<OrderStatus | 'ALL'>('ALL');
     const [showFilter, setShowFilter] = useState(false);
     const [sortByUI, setSortByUI] = useState('default');
@@ -41,6 +50,10 @@ export const OrdersTab = () => {
     const [orderType, setOrderType] = useState('');
     const [fromDate, setFromDate] = useState('');
     const [toDate, setToDate] = useState('');
+    const [fromDateOpen, setFromDateOpen] = useState(false);
+    const [toDateOpen, setToDateOpen] = useState(false);
+
+    const todayIso = todayIsoVn();
 
     const queryParams: GetMyOrdersParams = {
         page,
@@ -157,9 +170,9 @@ export const OrdersTab = () => {
         setPayingOrder(null);
         setIsPreparingPayment(false);
         if (orderId) {
-            navigate(`/profile/orders/${orderId}`);
+            router.push(`/profile/orders/${orderId}`);
         }
-    }, [navigate, payingOrder?.id]);
+    }, [router, payingOrder?.id]);
 
     const handlePaymentExpired = useCallback(() => {
         AppToast.error('Phiên thanh toán đã hết hạn. Đơn hàng đã bị hủy.');
@@ -169,9 +182,9 @@ export const OrdersTab = () => {
         setPayingOrder(null);
         setIsPreparingPayment(false);
         if (orderId) {
-            navigate(`/profile/orders/${orderId}`);
+            router.push(`/profile/orders/${orderId}`);
         }
-    }, [navigate, payingOrder?.id]);
+    }, [router, payingOrder?.id]);
 
     const handlePaymentDialogClose = useCallback(() => {
         setPaymentDialogOpen(false);
@@ -194,15 +207,6 @@ export const OrdersTab = () => {
         { value: OrderStatus.COMPLETED, label: 'Đã hoàn thành' },
         { value: OrderStatus.CANCELLED, label: 'Đã huỷ' }
     ];
-
-    const getStatusBadge = (status: OrderStatus) => {
-        const config = ORDER_STATUS_MAP[status];
-        return (
-            <div className={`inline-block ${config.bg} ${config.text} px-2.5 py-1 rounded-md text-[12px] font-medium`}>
-                {config.label}
-            </div>
-        );
-    };
 
     const getOrderTypeDisplay = (type: OrderType) => {
         const config = ORDER_TYPE_MAP[type];
@@ -229,17 +233,12 @@ export const OrdersTab = () => {
                     />
                 </div>
                 <div className="flex items-center gap-3 w-full lg:w-auto">
-                    <select 
+                    <ClientSelect
                         value={sortByUI}
-                        onChange={(e) => setSortByUI(e.target.value)}
-                        className="px-4 py-3 bg-white border border-[#E5E8EB] rounded-xl text-[14px] text-[#212B36] font-medium outline-none cursor-pointer hover:border-[#919EAB] transition-colors min-w-[180px] shadow-[0_2px_8px_rgb(0,0,0,0.02)]"
-                    >
-                        <option value="default">Sắp xếp: Mặc định</option>
-                        <option value="newest">Mới nhất</option>
-                        <option value="pickup_asc">Giờ lấy vé gần nhất</option>
-                        <option value="price_desc">Thành tiền: Cao → Thấp</option>
-                        <option value="price_asc">Thành tiền: Thấp → Cao</option>
-                    </select>
+                        onChange={setSortByUI}
+                        options={ORDER_SORT_OPTIONS}
+                        className="min-w-[220px]"
+                    />
                     
                     <button 
                         onClick={() => setShowFilter(!showFilter)}
@@ -253,39 +252,34 @@ export const OrdersTab = () => {
             {/* Advanced Filters */}
             {showFilter && (
                 <div className="p-5 border border-[#E5E8EB] bg-white rounded-xl shadow-[0_2px_8px_rgb(0,0,0,0.02)] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div className="flex flex-col gap-2">
-                        <label className="text-[12px] font-bold text-[#454F5B]">Loại đơn hàng</label>
-                        <select 
-                            value={orderType}
-                            onChange={(e) => setOrderType(e.target.value)}
-                            className="w-full px-3 py-2.5 bg-white border border-[#E5E8EB] rounded-xl text-[13px] text-[#212B36] font-medium outline-none focus:border-[#ee1314] transition-colors cursor-pointer"
-                        >
-                            <option value="">Tất cả loại đơn</option>
-                            <option value={OrderType.ONLINE}>Online (Đặt qua app)</option>
-                            <option value={OrderType.DIRECT}>Tại quầy (Staff tạo)</option>
-                        </select>
-                    </div>
-                    <div className="flex flex-col gap-2 lg:col-span-2">
-                        <label className="text-[12px] font-bold text-[#454F5B]">Khoảng thời gian (Từ ngày - Đến ngày)</label>
-                        <div className="flex items-center gap-2">
-                            <div className="relative flex-1">
-                                <input 
-                                    type="date" 
-                                    value={fromDate}
-                                    onChange={(e) => setFromDate(e.target.value)}
-                                    className="w-full px-3 py-2.5 bg-white border border-[#E5E8EB] rounded-xl text-[13px] text-[#637381] font-medium outline-none focus:border-[#ee1314] transition-colors cursor-pointer" 
-                                />
-                            </div>
-                            <span className="text-[#919EAB] font-bold">-</span>
-                            <div className="relative flex-1">
-                                <input 
-                                    type="date" 
-                                    value={toDate}
-                                    onChange={(e) => setToDate(e.target.value)}
-                                    className="w-full px-3 py-2.5 bg-white border border-[#E5E8EB] rounded-xl text-[13px] text-[#637381] font-medium outline-none focus:border-[#ee1314] transition-colors cursor-pointer" 
-                                />
-                            </div>
-                        </div>
+                    <ClientSelect
+                        label="Loại đơn hàng"
+                        value={orderType}
+                        onChange={setOrderType}
+                        options={ORDER_TYPE_FILTER_OPTIONS}
+                    />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:col-span-2">
+                        <ClientDatePicker
+                            label="Từ ngày"
+                            value={fromDate}
+                            maxDate={toDate || todayIso}
+                            allowClear
+                            open={fromDateOpen}
+                            onOpenChange={setFromDateOpen}
+                            onOpen={() => setToDateOpen(false)}
+                            onChange={setFromDate}
+                        />
+                        <ClientDatePicker
+                            label="Đến ngày"
+                            value={toDate}
+                            minDate={fromDate || undefined}
+                            maxDate={todayIso}
+                            allowClear
+                            open={toDateOpen}
+                            onOpenChange={setToDateOpen}
+                            onOpen={() => setFromDateOpen(false)}
+                            onChange={setToDate}
+                        />
                     </div>
                 </div>
             )}
@@ -305,46 +299,6 @@ export const OrdersTab = () => {
                     ))}
                 </div>
 
-                {/* Advanced Filters */}
-                {showFilter && (
-                    <div className="p-5 border-b border-[#E5E8EB] bg-[#FAFBFC] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <div className="flex flex-col gap-2">
-                            <label className="text-[12px] font-bold text-[#454F5B]">Loại đơn hàng</label>
-                            <select 
-                                value={orderType}
-                                onChange={(e) => setOrderType(e.target.value)}
-                                className="w-full px-3 py-2.5 bg-white border border-[#E5E8EB] rounded-xl text-[13px] text-[#212B36] font-medium outline-none focus:border-[#ee1314] transition-colors cursor-pointer"
-                            >
-                                <option value="">Tất cả loại đơn</option>
-                                <option value={OrderType.ONLINE}>Online (Đặt qua app)</option>
-                                <option value={OrderType.DIRECT}>Tại quầy (Staff tạo)</option>
-                            </select>
-                        </div>
-                        <div className="flex flex-col gap-2 lg:col-span-2">
-                            <label className="text-[12px] font-bold text-[#454F5B]">Khoảng thời gian (Từ ngày - Đến ngày)</label>
-                            <div className="flex items-center gap-2">
-                                <div className="relative flex-1">
-                                    <input 
-                                        type="date" 
-                                        value={fromDate}
-                                        onChange={(e) => setFromDate(e.target.value)}
-                                        className="w-full px-3 py-2.5 bg-white border border-[#E5E8EB] rounded-xl text-[13px] text-[#637381] font-medium outline-none focus:border-[#ee1314] transition-colors cursor-pointer" 
-                                    />
-                                </div>
-                                <span className="text-[#919EAB] font-bold">-</span>
-                                <div className="relative flex-1">
-                                    <input 
-                                        type="date" 
-                                        value={toDate}
-                                        onChange={(e) => setToDate(e.target.value)}
-                                        className="w-full px-3 py-2.5 bg-white border border-[#E5E8EB] rounded-xl text-[13px] text-[#637381] font-medium outline-none focus:border-[#ee1314] transition-colors cursor-pointer" 
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
                 {/* Orders List */}
                 <div className="flex flex-col">
                     <div className="overflow-x-auto">
@@ -356,7 +310,7 @@ export const OrdersTab = () => {
                                     <th className="py-4 px-5 text-[13px] font-semibold text-[#637381] tracking-wide">Giờ lấy vé</th>
                                     <th className="py-4 px-5 text-[13px] font-semibold text-[#637381] tracking-wide text-center">SL Vé</th>
                                     <th className="py-4 px-5 text-[13px] font-semibold text-[#637381] tracking-wide">Thành tiền</th>
-                                    <th className="py-4 px-5 text-[13px] font-semibold text-[#637381] tracking-wide">Trạng thái</th>
+                                    <th className="py-4 px-5 text-[13px] font-semibold text-[#637381] tracking-wide text-center">Trạng thái</th>
                                     <th className="py-4 px-5 text-[13px] font-semibold text-[#637381] tracking-wide text-right">Thao tác</th>
                                 </tr>
                             </thead>
@@ -419,8 +373,10 @@ export const OrdersTab = () => {
                                                 <td className="py-4 px-5 align-top">
                                                     <span className="text-[14px] font-bold text-[#212B36]">{order.totalAmount.toLocaleString('vi-VN')}đ</span>
                                                 </td>
-                                                <td className="py-4 px-5 align-top">
-                                                    {getStatusBadge(order.status)}
+                                                <td className="py-4 px-5 align-middle text-center">
+                                                    <div className="flex justify-center">
+                                                        <OrderStatusBadge status={order.status} />
+                                                    </div>
                                                 </td>
                                                 <td className="py-4 px-5 text-right align-top">
                                                     <div className="flex items-center justify-end">
@@ -428,7 +384,7 @@ export const OrdersTab = () => {
                                                             order={order}
                                                             hasPendingRefund={hasPendingRefund}
                                                             isPaying={processPaymentMutation.isPending}
-                                                            onViewDetail={() => navigate(`/profile/orders/${order.id}`)}
+                                                            onViewDetail={() => router.push(`/profile/orders/${order.id}`)}
                                                             onRequestRefund={() => handleRequestRefund(order)}
                                                             onQuickPayment={
                                                                 order.status === OrderStatus.PENDING_PAYMENT

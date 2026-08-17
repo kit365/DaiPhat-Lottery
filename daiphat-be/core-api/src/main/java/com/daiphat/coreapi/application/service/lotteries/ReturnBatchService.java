@@ -25,6 +25,7 @@ import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchLineStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchType;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnDeliveryMode;
 import com.daiphat.coreapi.domain.model.lotteries.ImportBatchLineModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotterySupplierModel;
@@ -88,7 +89,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
         LotterySupplierModel supplier = lotterySupplierServicePort.getActiveModelById(request.supplierId());
         ensureUniqueStations(request.lines().stream().map(CreateReturnBatchLineRequest::lotteryStationId).toList());
 
-        returnBatchRepositoryPort.findBySupplierAndDrawDate(supplier.getId(), request.drawDate())
+        returnBatchRepositoryPort.findPrimarySupplierReturnBySupplierAndDrawDate(supplier.getId(), request.drawDate())
                 .ifPresent(existing -> {
                     throw new DomainException(ErrorCode.RETURN_BATCH_PENDING_EXISTS, existing.getId());
                 });
@@ -136,20 +137,23 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     @Transactional
     public ReturnBatchResponse getById(Long id) {
         ReturnBatchModel batch = getBatchOrThrow(id);
-        if (batch.getStatus() != null && batch.getStatus().isOpenForInspection()) {
+        if (isSupplierReturn(batch) && batch.getStatus() != null && batch.getStatus().isOpenForInspection()) {
             returnBatchAutoCancelService.cancelIfPastCutoff(batch);
         }
-        syncSummaryIfReturnWindowOpen(id);
+        if (isSupplierReturn(batch)) {
+            syncSummaryIfReturnWindowOpen(id);
+        }
         return toDetailResponse(id);
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public PageResponse<ReturnBatchResponse> getAll(
             int page,
             int size,
             Long lotterySupplierId,
             Long supplierSettlementId,
+            ReturnBatchType returnBatchType,
             ReturnBatchStatus status,
             LocalDate drawDateFrom,
             LocalDate drawDateTo,
@@ -157,22 +161,30 @@ public class ReturnBatchService implements ReturnBatchServicePort {
             String sortBy,
             String direction
     ) {
+        ReturnBatchType effectiveReturnBatchType = returnBatchType != null
+                ? returnBatchType
+                : ReturnBatchType.SUPPLIER_RETURN;
         String field = sortBy != null && SORTABLE_FIELDS.contains(sortBy) ? sortBy : "drawDate";
         PageRequest pageRequest = PageRequest.of(
                 Math.max(page - 1, 0),
                 size,
                 SortUtils.createSort(field, direction != null ? direction : "desc")
         );
+        // List is a read-only projection of stored aggregates.
+        // Auto-cancel / inventory summary sync / detail enrichment belong on getById,
+        // inspection mutations, and schedulers — not on every list GET (was causing multi-second loads).
         Page<ReturnBatchResponse> responsePage = returnBatchRepositoryPort
-                .findAll(pageRequest, lotterySupplierId, supplierSettlementId, status, drawDateFrom, drawDateTo, search)
-                .map(model -> {
-                    if (model.getStatus() != null && model.getStatus().isOpenForInspection()) {
-                        returnBatchAutoCancelService.cancelIfPastCutoff(model);
-                        syncSummaryIfReturnWindowOpen(model.getId());
-                        return toDetailResponse(model.getId());
-                    }
-                    return returnBatchApplicationMapper.toResponse(model);
-                });
+                .findAll(
+                        pageRequest,
+                        lotterySupplierId,
+                        supplierSettlementId,
+                        effectiveReturnBatchType,
+                        status,
+                        drawDateFrom,
+                        drawDateTo,
+                        search
+                )
+                .map(this::toListResponse);
         return PageResponse.from(responsePage, page, size);
     }
 
@@ -180,6 +192,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     @Transactional(readOnly = true)
     public List<InspectableReturnSerialResponse> listInspectableSerials(Long batchId) {
         ReturnBatchModel batch = getBatchOrThrow(batchId);
+        requireSupplierReturn(batch);
         List<ReturnBatchLineModel> lines = returnBatchRepositoryPort.findLinesByBatchId(batchId);
         Set<Long> stationIds = lines.stream()
                 .map(ReturnBatchLineModel::getLotteryStationId)
@@ -223,6 +236,9 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     @Transactional
     public ReturnBatchResponse startInspection(Long batchId) {
         ReturnBatchModel batch = getBatchOrThrow(batchId);
+        requireSupplierReturn(batch);
+        reopenForLeftoverInspection(batch);
+        batch = getBatchOrThrow(batchId);
         ensureInspectionMutable(batch);
         if (batch.getStatus() == ReturnBatchStatus.INSPECTING) {
             return toDetailResponse(batchId);
@@ -244,6 +260,9 @@ public class ReturnBatchService implements ReturnBatchServicePort {
             UUID operatorId
     ) {
         ReturnBatchModel batch = getBatchOrThrow(batchId);
+        requireSupplierReturn(batch);
+        reopenForLeftoverInspection(batch);
+        batch = getBatchOrThrow(batchId);
         ensureInspectionMutable(batch);
         if (batch.getStatus() == null || !batch.getStatus().isOpenForInspection()) {
             throw new DomainException(ErrorCode.RETURN_BATCH_INVALID_STATUS);
@@ -295,7 +314,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
             if (line == null) {
                 throw new DomainException(ErrorCode.RETURN_BATCH_SERIAL_NOT_ELIGIBLE);
             }
-            if (line.getStatus() != ReturnBatchLineStatus.PENDING) {
+            if (line.getStatus() == null || !line.getStatus().isOpenForInspection()) {
                 throw new DomainException(ErrorCode.RETURN_BATCH_LINE_INVALID_STATUS);
             }
 
@@ -308,19 +327,28 @@ public class ReturnBatchService implements ReturnBatchServicePort {
 
         for (ReturnBatchLineModel line : lines) {
             if (touchedLineIds.contains(line.getId())) {
+                line.setStatus(ReturnBatchLineStatus.INSPECTED);
+                returnBatchRepositoryPort.saveLine(line);
                 recalculateLineAggregates(line);
             }
         }
         refreshBatchAggregates(batchId);
 
         batch = getBatchOrThrow(batchId);
+        lines = returnBatchRepositoryPort.findLinesByBatchId(batchId);
+        boolean allInspected = !lines.isEmpty()
+                && lines.stream().allMatch(line -> line.getStatus() == ReturnBatchLineStatus.INSPECTED);
         if (request.returnReceiptUrl() != null) {
             batch.setReturnReceiptUrl(trimToNull(request.returnReceiptUrl()));
         }
         batch.setDeliveryMode(request.deliveryMode());
-        batch.setStatus(ReturnBatchStatus.PENDING_HANDOVER);
-        batch.setReturnedAt(now);
-        batch.setReturnedBy(operatorId);
+        if (allInspected) {
+            batch.setStatus(ReturnBatchStatus.PENDING_HANDOVER);
+            batch.setReturnedAt(now);
+            batch.setReturnedBy(operatorId);
+        } else {
+            batch.setStatus(ReturnBatchStatus.INSPECTING);
+        }
         returnBatchRepositoryPort.save(batch);
 
         if (batch.getSupplierSettlementId() != null) {
@@ -346,6 +374,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
             UUID operatorId
     ) {
         ReturnBatchModel batch = getBatchOrThrow(batchId);
+        requireSupplierReturn(batch);
         if (batch.getStatus() != ReturnBatchStatus.PENDING_HANDOVER) {
             throw new DomainException(ErrorCode.RETURN_BATCH_INVALID_STATUS);
         }
@@ -366,7 +395,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
                 }
             }
             if (anyReturned) {
-                line.setStatus(ReturnBatchLineStatus.SUCCESS);
+                line.setStatus(ReturnBatchLineStatus.INSPECTED);
                 returnBatchRepositoryPort.saveLine(line);
                 recalculateLineAggregates(line);
             }
@@ -415,12 +444,13 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     @Transactional
     public ReturnBatchResponse attachSerials(Long batchId, Long lineId, AttachReturnSerialsRequest request) {
         ReturnBatchModel batch = getBatchOrThrow(batchId);
+        requireSupplierReturn(batch);
         ensureInspectionMutable(batch);
         if (batch.getStatus() == null || !batch.getStatus().isOpenForInspection()) {
             throw new DomainException(ErrorCode.RETURN_BATCH_INVALID_STATUS);
         }
         ReturnBatchLineModel line = getLineOrThrow(batchId, lineId);
-        if (line.getStatus() != ReturnBatchLineStatus.PENDING) {
+        if (line.getStatus() == null || !line.getStatus().isOpenForInspection()) {
             throw new DomainException(ErrorCode.RETURN_BATCH_LINE_INVALID_STATUS);
         }
 
@@ -450,6 +480,11 @@ public class ReturnBatchService implements ReturnBatchServicePort {
             returnBatchRepositoryPort.save(batch);
         }
 
+        if (line.getStatus() == ReturnBatchLineStatus.PENDING) {
+            line.setStatus(ReturnBatchLineStatus.INSPECTING);
+            returnBatchRepositoryPort.saveLine(line);
+        }
+
         recalculateLineAggregates(line);
         refreshBatchAggregates(batchId);
         if (batch.getSupplierSettlementId() != null) {
@@ -462,12 +497,13 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     @Transactional
     public ReturnBatchResponse detachSerial(Long batchId, Long lineId, Long serialId) {
         ReturnBatchModel batch = getBatchOrThrow(batchId);
+        requireSupplierReturn(batch);
         ensureInspectionMutable(batch);
         if (batch.getStatus() == null || !batch.getStatus().isOpenForInspection()) {
             throw new DomainException(ErrorCode.RETURN_BATCH_INVALID_STATUS);
         }
         ReturnBatchLineModel line = getLineOrThrow(batchId, lineId);
-        if (line.getStatus() != ReturnBatchLineStatus.PENDING) {
+        if (line.getStatus() == null || !line.getStatus().isOpenForInspection()) {
             throw new DomainException(ErrorCode.RETURN_BATCH_LINE_INVALID_STATUS);
         }
         LotteryTicketSerialModel serial = lotteryTicketSerialRepositoryPort.findById(serialId)
@@ -484,6 +520,10 @@ public class ReturnBatchService implements ReturnBatchServicePort {
         serial.setOverrideEvidenceUrl(null);
         serial.setReturnedAt(null);
         lotteryTicketSerialRepositoryPort.save(serial);
+
+        long remainingOnLine = lotteryTicketSerialRepositoryPort.countByReturnBatchLineId(lineId);
+        line.setStatus(remainingOnLine > 0 ? ReturnBatchLineStatus.INSPECTING : ReturnBatchLineStatus.PENDING);
+        returnBatchRepositoryPort.saveLine(line);
 
         recalculateLineAggregates(line);
         refreshBatchAggregates(batchId);
@@ -505,6 +545,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     @Transactional
     public ReturnBatchResponse updateLineStatus(Long batchId, Long lineId, UpdateReturnBatchLineStatusRequest request) {
         ReturnBatchModel batch = getBatchOrThrow(batchId);
+        requireSupplierReturn(batch);
         if (batch.getStatus() != null && batch.getStatus().isOpenForInspection()) {
             ensureInspectionMutable(batch);
         }
@@ -513,28 +554,21 @@ public class ReturnBatchService implements ReturnBatchServicePort {
         }
         ReturnBatchLineModel line = getLineOrThrow(batchId, lineId);
         ReturnBatchLineStatus newStatus = request.status();
+        if (newStatus == null) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "Trạng thái dòng trả vé không hợp lệ.");
+        }
         line.setStatus(newStatus);
         LocalDateTime now = LocalDateTime.now(clock);
 
+        // Per-serial accept/reject/sale outcomes stay on the serial; line status only tracks inspection.
         List<LotteryTicketSerialModel> serials = lotteryTicketSerialRepositoryPort.findAllByReturnBatchLineId(lineId);
         for (LotteryTicketSerialModel serial : serials) {
-            if (newStatus == ReturnBatchLineStatus.SUCCESS) {
+            if (newStatus == ReturnBatchLineStatus.INSPECTED) {
                 if (serial.getReturnedAt() == null) {
                     serial.setReturnedAt(now);
                 }
-            } else if (newStatus == ReturnBatchLineStatus.PENDING
-                    || newStatus == ReturnBatchLineStatus.REJECTED_BY_SUPPLIER) {
+            } else if (newStatus.isOpenForInspection()) {
                 serial.setReturnedAt(null);
-            } else if (newStatus == ReturnBatchLineStatus.PULLED_FOR_SALE) {
-                // Serial pulled for sale returns to sellable inventory.
-                serial.setReturnBatchLineId(null);
-                if (serial.getStatus() != LotteryTicketSerialStatus.EXPIRED) {
-                    serial.setStatus(LotteryTicketSerialStatus.IN_STOCK);
-                }
-                serial.setReturnedAt(null);
-                serial.setManualOverride(false);
-                serial.setOverrideReason(null);
-                serial.setOverrideEvidenceUrl(null);
             }
             lotteryTicketSerialRepositoryPort.save(serial);
         }
@@ -553,6 +587,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     @Transactional
     public ReturnBatchResponse markReturned(Long batchId, UUID operatorId) {
         ReturnBatchModel batch = getBatchOrThrow(batchId);
+        requireSupplierReturn(batch);
         ensureInspectionMutable(batch);
         if (batch.getStatus() == null || !batch.getStatus().isOpenForInspection()) {
             throw new DomainException(ErrorCode.RETURN_BATCH_INVALID_STATUS);
@@ -571,6 +606,7 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     @Transactional
     public ReturnBatchResponse confirm(Long batchId, ConfirmReturnBatchRequest request) {
         ReturnBatchModel batch = getBatchOrThrow(batchId);
+        requireSupplierReturn(batch);
         if (batch.getStatus() != null && batch.getStatus().isOpenForInspection()) {
             ensureInspectionMutable(batch);
         }
@@ -597,6 +633,21 @@ public class ReturnBatchService implements ReturnBatchServicePort {
             supplierSettlementServicePort.recalculateTotalReturnValue(batch.getSupplierSettlementId());
         }
         return toDetailResponse(batchId);
+    }
+
+    /**
+     * Confirming only some stations used to flip the header to PENDING_HANDOVER while other
+     * stations still had unsold serials. Re-open inspection so leftover vé ế can still be checked.
+     */
+    private void reopenForLeftoverInspection(ReturnBatchModel batch) {
+        if (batch.getStatus() != ReturnBatchStatus.PENDING_HANDOVER) {
+            return;
+        }
+        Integer remaining = countRemainingInspectable(batch, null);
+        if (remaining != null && remaining > 0) {
+            batch.setStatus(ReturnBatchStatus.INSPECTING);
+            returnBatchRepositoryPort.save(batch);
+        }
     }
 
     private void ensureInspectionMutable(ReturnBatchModel batch) {
@@ -715,17 +766,41 @@ public class ReturnBatchService implements ReturnBatchServicePort {
         return toDetailResponse(batchId);
     }
 
+    private ReturnBatchResponse toListResponse(ReturnBatchModel model) {
+        Integer remaining = countRemainingInspectable(model, null);
+        return returnBatchApplicationMapper.toResponse(model, null, remaining);
+    }
+
     private ReturnBatchResponse toDetailResponse(Long batchId) {
         ReturnBatchModel batch = getBatchOrThrow(batchId);
         List<ReturnBatchLineModel> lines = returnBatchRepositoryPort.findLinesByBatchId(batchId);
         batch.setLines(lines);
         List<ReturnBatchLineResponse> lineResponses = lines.stream()
-                .map(line -> returnBatchApplicationMapper.toLineResponse(
-                        line,
-                        lotteryTicketSerialRepositoryPort.countByReturnBatchLineId(line.getId())
-                ))
+                .map(line -> {
+                    Integer remaining = line.getLotteryStationId() == null
+                            ? 0
+                            : countRemainingInspectable(batch, Set.of(line.getLotteryStationId()));
+                    return returnBatchApplicationMapper.toLineResponse(
+                            line,
+                            lotteryTicketSerialRepositoryPort.countByReturnBatchLineId(line.getId()),
+                            remaining
+                    );
+                })
                 .toList();
         return returnBatchApplicationMapper.toResponse(batch, lineResponses);
+    }
+
+    private Integer countRemainingInspectable(ReturnBatchModel batch, Set<Long> stationIds) {
+        if (batch == null || !isSupplierReturn(batch)
+                || batch.getLotterySupplierId() == null
+                || batch.getDrawDate() == null) {
+            return 0;
+        }
+        return (int) lotteryTicketSerialRepositoryPort.countReturnEligibleForSupplierAndDrawDate(
+                batch.getLotterySupplierId(),
+                batch.getDrawDate(),
+                stationIds
+        );
     }
 
     private ReturnBatchModel getBatchOrThrow(Long id) {
@@ -740,6 +815,18 @@ public class ReturnBatchService implements ReturnBatchServicePort {
             throw new DomainException(ErrorCode.RETURN_BATCH_LINE_NOT_FOUND);
         }
         return line;
+    }
+
+    private boolean isSupplierReturn(ReturnBatchModel batch) {
+        return batch.getReturnBatchType() == null
+                || batch.getReturnBatchType() == ReturnBatchType.SUPPLIER_RETURN;
+    }
+
+    /** Supplier endpoints must not mutate a vendor receipt created by the allocation flow. */
+    private void requireSupplierReturn(ReturnBatchModel batch) {
+        if (!isSupplierReturn(batch)) {
+            throw new DomainException(ErrorCode.RETURN_BATCH_INVALID_STATUS);
+        }
     }
 
     private void ensureUniqueStations(List<Long> stationIds) {

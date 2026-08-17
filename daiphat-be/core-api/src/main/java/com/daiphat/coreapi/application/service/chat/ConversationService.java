@@ -164,8 +164,8 @@ public class ConversationService implements ConversationServicePort {
         UserModel user = userLookupServicePort.findActiveByIdOrThrow(userId);
         ConversationModel conversation = getConversationOrThrow(conversationId);
         assertManagementAccess(conversation, userId, isAdmin(user));
-        if (userId.equals(conversation.getAssignedOperatorId())) {
-            markConversationRead(conversation, userId);
+        if (shouldMarkOperatorReadOnOpen(userId, conversation)) {
+            conversation.markOperatorRead(LocalDateTime.now());
             conversationRepositoryPort.save(conversation);
         }
         return toManagementConversationDetailResponse(conversation);
@@ -239,7 +239,7 @@ public class ConversationService implements ConversationServicePort {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public CustomerChatTimelineResponse getCustomerChatTimeline(
             UUID userId,
             UUID customerId,
@@ -269,6 +269,12 @@ public class ConversationService implements ConversationServicePort {
             if (conversationScope.isEmpty()) {
                 throw new DomainException(ErrorCode.CONVERSATION_VIEW_DENIED);
             }
+        }
+
+        // Messenger view loads the customer timeline (not /management/{id}), so mark
+        // read here when staff opens the live thread (first page only).
+        if (beforeCreatedAt == null && beforeId == null) {
+            markStaffReadOnOpen(userId, customerConversations, conversationScope);
         }
 
         return buildCustomerChatTimeline(customerId, limit, beforeCreatedAt, beforeId, conversationScope, false, true);
@@ -1183,6 +1189,39 @@ public class ConversationService implements ConversationServicePort {
             conversation.markCustomerRead(readAt);
         } else if (userId.equals(conversation.getAssignedOperatorId())) {
             conversation.markOperatorRead(readAt);
+        }
+    }
+
+    /**
+     * Assigned operator opening their thread, or any staff opening an unassigned
+     * waiting conversation, clears management unread for that conversation.
+     */
+    private boolean shouldMarkOperatorReadOnOpen(UUID userId, ConversationModel conversation) {
+        if (conversation == null || conversation.getStatus() == ConversationStatus.CLOSED) {
+            return false;
+        }
+        if (userId.equals(conversation.getAssignedOperatorId())) {
+            return true;
+        }
+        return conversation.getAssignedOperatorId() == null;
+    }
+
+    private void markStaffReadOnOpen(
+            UUID userId,
+            List<ConversationModel> customerConversations,
+            Collection<Long> conversationScope
+    ) {
+        LocalDateTime readAt = LocalDateTime.now();
+        for (ConversationModel conversation : customerConversations) {
+            if (conversationScope != null && !conversationScope.contains(conversation.getId())) {
+                continue;
+            }
+            // Do not clear another operator's unread when admin only peeks their thread.
+            if (!shouldMarkOperatorReadOnOpen(userId, conversation)) {
+                continue;
+            }
+            conversation.markOperatorRead(readAt);
+            conversationRepositoryPort.save(conversation);
         }
     }
 

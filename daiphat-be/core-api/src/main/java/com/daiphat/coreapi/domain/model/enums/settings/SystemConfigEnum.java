@@ -377,14 +377,34 @@ public enum SystemConfigEnum {
             "{\"min\":\"00:00\",\"max\":\"23:59\"}",
             true
     ),
-    VENDOR_DEFAULT_UNIT_PRICE(
+    VENDOR_EFFECTIVE_HANDOVER_DEADLINE_RULE(
+            ConfigType.VENDOR_SETTING,
+            DataType.STRING,
+            "Tự tính theo từng phiếu",
+            "Hạn giao thực tế không phải setting cố định. Hệ thống lấy mốc sớm hơn giữa giờ chốt người bán và giờ trả nhà cung cấp sớm nhất trừ thời gian đệm.",
+            "Cách tính hạn giao thực tế",
+            null,
+            "{\"allowEmpty\":false,\"maxLength\":255}",
+            false
+    ),
+    VENDOR_COMMISSION_RATE(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "0.10",
+            "Tỷ lệ hoa hồng chung trả cho người bán dạo trên mỗi vé bán thành công. Giá vendor được tính từ mệnh giá trừ tỷ lệ này.",
+            "Tỷ lệ hoa hồng vendor",
+            "%",
+            "{\"min\":0,\"max\":1}",
+            true
+    ),
+    VENDOR_DEFAULT_CONTRACT_MAX_DAILY_CAP(
             ConfigType.VENDOR_SETTING,
             DataType.INT,
-            "9000",
-            "Giá bán mặc định cho người bán dạo trên mỗi vé",
-            "Giá vé vendor mặc định",
-            "VND/vé",
-            "{\"min\":0}",
+            "200",
+            "Giới hạn số vé tối đa cho mỗi phiếu bàn giao, được ghi trong hợp đồng khi tạo người bán vé số mới.",
+            "Hạn mức hợp đồng mặc định",
+            "vé/phiếu",
+            "{\"min\":1,\"max\":100000}",
             true
     ),
     VENDOR_DEPOSIT_RATE(
@@ -418,6 +438,146 @@ public enum SystemConfigEnum {
             "{\"min\":1,\"max\":120}",
             true
     ),
+    VENDOR_CONFIDENCE_DEVELOPING_MIN_SCORE(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "40",
+            "Điểm tối thiểu để đạt tier DEVELOPING",
+            "Ngưỡng điểm DEVELOPING",
+            "điểm",
+            "{\"min\":0,\"max\":100}",
+            true
+    ),
+    VENDOR_CONFIDENCE_ESTABLISHED_MIN_SCORE(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "60",
+            "Điểm tối thiểu để đạt tier ESTABLISHED",
+            "Ngưỡng điểm ESTABLISHED",
+            "điểm",
+            "{\"min\":0,\"max\":100}",
+            true
+    ),
+    VENDOR_CONFIDENCE_TRUSTED_MIN_SCORE(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "80",
+            "Điểm tối thiểu để đạt tier TRUSTED",
+            "Ngưỡng điểm TRUSTED",
+            "điểm",
+            "{\"min\":0,\"max\":100}",
+            true
+    ),
+    VENDOR_CONFIDENCE_DEVELOPING_MIN_BATCHES(
+            ConfigType.VENDOR_SETTING,
+            DataType.INT,
+            "5",
+            "Số batch settle tối thiểu để mở trần DEVELOPING",
+            "Ngưỡng batch DEVELOPING",
+            "batch",
+            "{\"min\":1,\"max\":1000}",
+            true
+    ),
+    VENDOR_CONFIDENCE_ESTABLISHED_MIN_BATCHES(
+            ConfigType.VENDOR_SETTING,
+            DataType.INT,
+            "10",
+            "Số batch settle tối thiểu để mở trần ESTABLISHED",
+            "Ngưỡng batch ESTABLISHED",
+            "batch",
+            "{\"min\":1,\"max\":1000}",
+            true
+    ),
+    VENDOR_CONFIDENCE_TRUSTED_MIN_BATCHES(
+            ConfigType.VENDOR_SETTING,
+            DataType.INT,
+            "20",
+            "Số batch settle tối thiểu để mở trần TRUSTED",
+            "Ngưỡng batch TRUSTED",
+            "batch",
+            "{\"min\":1,\"max\":1000}",
+            true
+    ),
+    VENDOR_CONFIDENCE_NEW_CAP_PERCENT(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "0.25",
+            "Tỷ lệ daily cap cho tier NEW",
+            "Cap % NEW",
+            "%",
+            "{\"min\":0,\"max\":1}",
+            true
+    ),
+    VENDOR_CONFIDENCE_DEVELOPING_CAP_PERCENT(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "0.50",
+            "Tỷ lệ daily cap cho tier DEVELOPING",
+            "Cap % DEVELOPING",
+            "%",
+            "{\"min\":0,\"max\":1}",
+            true
+    ),
+    VENDOR_CONFIDENCE_ESTABLISHED_CAP_PERCENT(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "0.75",
+            "Tỷ lệ daily cap cho tier ESTABLISHED",
+            "Cap % ESTABLISHED",
+            "%",
+            "{\"min\":0,\"max\":1}",
+            true
+    ),
+    VENDOR_CONFIDENCE_TRUSTED_CAP_PERCENT(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "1.00",
+            "Tỷ lệ daily cap cho tier TRUSTED",
+            "Cap % TRUSTED",
+            "%",
+            "{\"min\":0,\"max\":1}",
+            true
+    ),
+    VENDOR_CONFIDENCE_ON_TIME_WEIGHT(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "0.50",
+            "Trọng số on-time trong công thức confidence (tổng 3 trọng số = 1)",
+            "Trọng số đúng hạn",
+            null,
+            "{\"min\":0,\"max\":1}",
+            true
+    ),
+    VENDOR_CONFIDENCE_SELL_THROUGH_WEIGHT(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "0.40",
+            "Trọng số sell-through trong công thức confidence (tổng 3 trọng số = 1)",
+            "Trọng số bán ra",
+            null,
+            "{\"min\":0,\"max\":1}",
+            true
+    ),
+    VENDOR_CONFIDENCE_EXPERIENCE_WEIGHT(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "0.10",
+            "Trọng số experience trong công thức confidence (tổng 3 trọng số = 1)",
+            "Trọng số kinh nghiệm",
+            null,
+            "{\"min\":0,\"max\":1}",
+            true
+    ),
+    VENDOR_CONFIDENCE_EXPERIENCE_WINDOW(
+            ConfigType.VENDOR_SETTING,
+            DataType.INT,
+            "30",
+            "Số batch settle gần nhất dùng để tính confidence",
+            "Cửa sổ kinh nghiệm",
+            "batch",
+            "{\"min\":1,\"max\":500}",
+            true
+    ),
     STREET_AGENT_COUNTER_RESERVE_PER_STATION(
             ConfigType.VENDOR_SETTING,
             DataType.INT,
@@ -426,6 +586,16 @@ public enum SystemConfigEnum {
             "Tồn tối thiểu chừa quầy",
             "vé/đài",
             "{\"min\":0,\"max\":100000}",
+            true
+    ),
+    STREET_AGENT_COUNTER_RESERVE_PERCENT_PER_STATION(
+            ConfigType.VENDOR_SETTING,
+            DataType.DECIMAL,
+            "0.20",
+            "Tỷ lệ vé thường hợp lệ phải chừa cho quầy tại mỗi đài. Mức giữ thực tế lấy giá trị lớn hơn giữa tỷ lệ này và tồn tối thiểu chừa quầy.",
+            "Tỷ lệ tồn chừa quầy",
+            "%",
+            "{\"min\":0,\"max\":1}",
             true
     ),
     RETURN_BUFFER_TIME(
@@ -448,6 +618,26 @@ public enum SystemConfigEnum {
             "{\"min\":1,\"max\":1440}",
             true
     ),
+    VERIFICATION_DEADLINE(
+            ConfigType.TICKET_RETURN,
+            DataType.TIME,
+            "17:00",
+            "Hạn chót đối chiếu / upload biên lai đối soát trong ngày (sau hạn trả vé NCC)",
+            "Hạn chót đối chiếu",
+            "HH:mm",
+            "{\"min\":\"00:00\",\"max\":\"23:59\"}",
+            true
+    ),
+    SETTLEMENT_BUFFER_TIME(
+            ConfigType.TICKET_RETURN,
+            DataType.INT,
+            "120",
+            "Thời gian đệm (phút) sau hạn chót đối chiếu để hoàn tất đối soát và thanh toán NCC",
+            "Thời gian đệm đối soát/thanh toán",
+            "phút",
+            "{\"min\":0,\"max\":1440}",
+            true
+    ),
     TICKET_AUTO_IMPORT_THRESHOLD(
             ConfigType.TICKET_IMPORT,
             DataType.INT,
@@ -456,6 +646,26 @@ public enum SystemConfigEnum {
             "Ngưỡng số lượng vé tự động nhập",
             "vé",
             "{\"min\":1,\"max\":10000}",
+            true
+    ),
+    IMPORT_BATCH_TICKET_LIST_IMAGE_MAX_COUNT(
+            ConfigType.TICKET_IMPORT,
+            DataType.INT,
+            "5",
+            "Số ảnh danh sách vé nhập tối đa được đính trên một phiếu nhập lô.",
+            "Số ảnh danh sách vé nhập tối đa",
+            "ảnh",
+            "{\"min\":1,\"max\":20}",
+            true
+    ),
+    IMPORT_BATCH_TICKET_LIST_IMAGE_MAX_SIZE_MB(
+            ConfigType.TICKET_IMPORT,
+            DataType.INT,
+            "5",
+            "Dung lượng tối đa mỗi ảnh danh sách vé nhập trên phiếu nhập lô.",
+            "Dung lượng tối đa mỗi ảnh danh sách vé",
+            "MB",
+            "{\"min\":1,\"max\":10}",
             true
     ),
     STAFF_INCIDENT_CUTOFF(
@@ -638,10 +848,47 @@ public enum SystemConfigEnum {
             "{}",
             true
     ),
+    PRIZE_PAYOUT_CONTRACT_ADDITIONAL_TERMS(
+            ConfigType.PAYOUT_SETTING,
+            DataType.STRING,
+            "Người nhận cam kết là chủ sở hữu hợp pháp của vé hoặc được ủy quyền hợp lệ; chịu trách nhiệm trước pháp luật nếu thông tin CCCD/CMND không đúng. Đại lý chỉ trả thưởng theo kết quả đối chiếu hệ thống và giấy tờ đã thu thập tại thời điểm lập hợp đồng.",
+            "Điều khoản bổ sung in trên hợp đồng xác nhận trả thưởng (cùng khung pháp lý Bên A với hợp đồng cộng tác bán vé số).",
+            "Điều khoản hợp đồng trả thưởng",
+            null,
+            "{\"allowEmpty\":true,\"maxLength\":4000}",
+            true
+    ),
     /**
      * Wall-clock slot length in minutes (aligned from 00:00 Asia/Ho_Chi_Minh).
      * Example: 60 = once per clock hour, 360 = every 6 hours, 1440 = once per calendar day.
      */
+    /**
+     * One JSON blob rather than five separate keys: these settings are only ever
+     * read together by the file importer, and the import dialog shows them as a
+     * single "current configuration" panel.
+     */
+    TICKET_IMPORT_FILE_CONFIG(
+            ConfigType.TICKET_IMPORT,
+            DataType.JSON,
+            // Default fieldAliases mirror ImportBatchFileMappingDetector; Flyway seeds the same JSON.
+            "{\"maxFileSizeMb\":2,\"maxRows\":2000,\"serialSeparator\":\";\","
+                    + "\"storeOriginalFile\":true,\"allowPartialImport\":true,"
+                    + "\"fieldAliases\":{"
+                    + "\"drawDateColumn\":[\"ngayquay\",\"ngayxoso\",\"ngayso\",\"ngay\",\"drawdate\",\"date\"],"
+                    + "\"stationCodeColumn\":[\"madai\",\"manhadai\",\"ma\",\"stationcode\",\"code\"],"
+                    + "\"stationColumn\":[\"nhadai\",\"tendai\",\"dai\",\"tinh\",\"station\",\"lotterystation\"],"
+                    + "\"quantityColumn\":[\"soluong\",\"sl\",\"sove\",\"quantity\",\"qty\",\"amount\"],"
+                    + "\"numbersColumn\":[\"dayso\",\"sove\",\"sodu\",\"conso\",\"numbers\",\"ticketnumber\",\"so\"],"
+                    + "\"serialsColumn\":[\"seri\",\"sori\",\"soseri\",\"danhsachseri\",\"serial\",\"serials\",\"serialnumber\"],"
+                    + "\"ticketImageColumn\":[\"anhve\",\"hinhve\",\"anh\",\"hinh\",\"ticketimg\",\"ticketimage\",\"image\",\"photo\",\"url\"],"
+                    + "\"importCostColumn\":[\"giavon\",\"dongia\",\"giave\",\"importcost\",\"unitprice\",\"price\",\"gia\"]"
+                    + "}}",
+            "Giới hạn và quy ước khi đọc tệp .csv/.xlsx nhập vé, kèm alias tên cột tự nhận diện (dùng chung mọi NCC).",
+            "Cấu hình nhập vé từ tệp",
+            null,
+            "{}",
+            true
+    ),
     FORTUNE_CAST_COOLDOWN_HOURS(
             ConfigType.FORTUNE_SETTING,
             DataType.INT,

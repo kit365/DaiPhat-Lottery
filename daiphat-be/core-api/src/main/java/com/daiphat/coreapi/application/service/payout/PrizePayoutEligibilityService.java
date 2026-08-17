@@ -30,7 +30,6 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTi
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderDetailEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderEntity;
 import com.daiphat.coreapi.infrastructure.persistence.repository.order.OrderDetailRepository;
-import com.daiphat.coreapi.shared.util.PersonNameMatchUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -352,12 +351,6 @@ public class PrizePayoutEligibilityService {
     @Transactional(readOnly = true)
     public void validateEligible(OrderDetailEntity detail, LotteryTicketSerialEntity serial) {
         validateCustomerOnlineCreate(detail, serial);
-    }
-
-    public void validateBankAccountHolderName(String customerFullName, String bankAccountName) {
-        if (!PersonNameMatchUtils.matches(customerFullName, bankAccountName)) {
-            throw new DomainException(ErrorCode.PRIZE_PAYOUT_BANK_NAME_MISMATCH);
-        }
     }
 
     @Transactional(readOnly = true)

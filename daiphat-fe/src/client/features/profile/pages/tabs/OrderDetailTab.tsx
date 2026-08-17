@@ -1,13 +1,17 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { useRouteParams } from "@/hooks/useRouteParams";
+import { usePathname, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useNavigate, Link, useLocation } from '@/components/router-compat';
-import { PROVINCE_ICON_FALLBACK, TICKET_IMAGE_FALLBACK } from '../../../../constants/clientBannerAssets';
+import { PROVINCE_ICON_FALLBACK } from '../../../../constants/clientBannerAssets';
 import QRCode from 'react-qr-code';
 import { useGetMyOrderDetail } from '../../../../hooks/useOrder';
 import { useGetPendingPaymentCountdown, useProcessPayment, useSyncPaymentFromGateway } from '../../../../hooks/useTransaction';
 import { useGetMyRefunds } from '../../../../hooks/useRefund';
-import { OrderStatus, OrderType, resolveOrderDetailStatusBadge } from '../../../../../types/order.type';
+import { OrderStatus, OrderType } from '../../../../../types/order.type';
+import { OrderDetailStatusBadge, OrderStatusBadge } from '@/shared/components/StatusBadge';
 import { RefundRequestStatus, RefundType, formatRefundCountdown, isRefundCandidateStatus } from '../../../../../types/refund.type';
 import { PaymentGateway, PaymentResult } from '../../../../../types/transaction.type';
 import { AppToast } from '../../../../../utils/toast.util';
@@ -21,32 +25,13 @@ import { OrderComplaintButton } from '../../../../components/support/OrderCompla
 import { useGetOrderRefundEligibility } from '../../../../hooks/useRefund';
 import { useRefundCountdown } from '../../../../hooks/useRefundCountdown';
 import { format } from 'date-fns';
-
-const ORDER_STATUS_MAP: Record<OrderStatus, { label: string, bg: string, text: string }> = {
-    [OrderStatus.PENDING_PAYMENT]: { label: 'Chờ thanh toán', bg: 'bg-[#FFF9F3]', text: 'text-[#FFB020]' },
-    [OrderStatus.PAID]: { label: 'Đã thanh toán', bg: 'bg-[#E4F8ED]', text: 'text-[#1CD162]' },
-    [OrderStatus.PREPARING]: { label: 'Đang xử lý', bg: 'bg-[#F0F5FF]', text: 'text-[#2065D1]' },
-    [OrderStatus.PENDING_PICKUP]: { label: 'Chờ nhận vé', bg: 'bg-[#F0F5FF]', text: 'text-[#2065D1]' },
-    [OrderStatus.COMPLETED]: { label: 'Đã hoàn thành', bg: 'bg-[#E4F8ED]', text: 'text-[#1CD162]' },
-    [OrderStatus.CANCELLED]: { label: 'Đã huỷ', bg: 'bg-[#FFF4F4]', text: 'text-[#ee1314]' }
-};
-
+import { LuckyNumber } from '../../../../components/ui/LuckyNumber';
 
 const OrderStepper = ({ order }: { order: any }) => {
     const currentStatus = order?.status;
 
     if (currentStatus === OrderStatus.CANCELLED) {
-        return (
-            <div className="bg-[#FFF4F4] rounded-[20px] p-6 lg:p-8 border border-[#FFEBEE] flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
-                <div className="w-14 h-14 rounded-full bg-[#ee1314] text-white flex items-center justify-center text-2xl shrink-0 shadow-sm">
-                    <i className="fa-solid fa-xmark"></i>
-                </div>
-                <div>
-                    <h3 className="text-[#ee1314] font-bold text-[18px]">Đơn hàng đã bị huỷ</h3>
-                    <p className="text-[#637381] text-[14px] mt-1.5 font-medium">Đơn hàng này đã bị huỷ và không thể tiếp tục thực hiện giao dịch.</p>
-                </div>
-            </div>
-        );
+        return null;
     }
 
     const isAtStore = order?.receiveType === 'COUNTER_PICKUP' || order?.orderType === OrderType.DIRECT;
@@ -114,9 +99,10 @@ const OrderStepper = ({ order }: { order: any }) => {
 };
 
 export const OrderDetailTab = () => {
-    const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
-    const location = useLocation();
+    const { id } = useRouteParams();
+    const router = useRouter();
+    const pathname = usePathname() ?? '';
+    const searchParamsForLocation = useSearchParams();
     const { data: orderData, isLoading, isError, refetch: refetchOrder } = useGetMyOrderDetail(id || '');
     const { data: refundsData } = useGetMyRefunds({ orderId: id, limit: 100, page: 1 }, !!id);
     const processPaymentMutation = useProcessPayment();
@@ -170,8 +156,6 @@ export const OrderDetailTab = () => {
 
         syncTriggeredRef.current = true;
         syncPaymentMutation.mutate(order.id);
-    // Chỉ chạy 1 lần khi đơn đang chờ thanh toán
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [order?.id, order?.status]);
 
     const pendingFullOrderRefund = useMemo(
@@ -241,7 +225,7 @@ export const OrderDetailTab = () => {
         seconds: remainingCountdownSeconds % 60,
     };
 
-    // Khi countdown hết hạn: đóng dialog, toast, refetch tới khi backend hủy đơn
+    // Countdown hết hạn: chỉ báo lỗi sau khi backend đã CANCELLED (không toast khi vừa PAID).
     useEffect(() => {
         if (!order?.id || order.status !== OrderStatus.PENDING_PAYMENT || !isPaymentCountdownExpired) {
             if (order?.status !== OrderStatus.PENDING_PAYMENT) {
@@ -250,21 +234,26 @@ export const OrderDetailTab = () => {
             return;
         }
 
-        if (!paymentExpiredHandledRef.current) {
-            paymentExpiredHandledRef.current = true;
-            handlePaymentExpired();
-        }
-
         const timer = window.setInterval(() => {
             void refetchOrder();
         }, 3000);
 
         return () => window.clearInterval(timer);
-    }, [order?.id, order?.status, isPaymentCountdownExpired, handlePaymentExpired, refetchOrder]);
+    }, [order?.id, order?.status, isPaymentCountdownExpired, refetchOrder]);
 
     useEffect(() => {
-        const state = location.state as { openRefund?: boolean } | null;
-        if (!state?.openRefund || !order || !isRefundCandidateStatus(order.status) || isLoadingEligibility) {
+        if (!order?.id || order.status !== OrderStatus.CANCELLED || !isPaymentCountdownExpired) {
+            return;
+        }
+        if (paymentExpiredHandledRef.current) {
+            return;
+        }
+        paymentExpiredHandledRef.current = true;
+        handlePaymentExpired();
+    }, [order?.id, order?.status, isPaymentCountdownExpired, handlePaymentExpired]);
+
+    useEffect(() => {
+        if (searchParamsForLocation?.get("openRefund") !== "true" || !order || !isRefundCandidateStatus(order.status) || isLoadingEligibility) {
             return;
         }
 
@@ -274,8 +263,8 @@ export const OrderDetailTab = () => {
             AppToast.error(refundIneligibleReason);
         }
 
-        navigate(location.pathname, { replace: true, state: null } as any);
-    }, [location.state, location.pathname, order, navigate, isLoadingEligibility, refundEligible, refundIneligibleReason]);
+        router.replace(pathname);
+    }, [searchParamsForLocation, pathname, order, router, isLoadingEligibility, refundEligible, refundIneligibleReason]);
 
     if (isLoading) {
         return (
@@ -307,7 +296,6 @@ export const OrderDetailTab = () => {
     /** Countdown đã hết nhưng backend chưa kịp hủy → hiển thị như đã huỷ */
     const displayStatus =
         isPendingPayment && isPaymentCountdownExpired ? OrderStatus.CANCELLED : order.status;
-    const statusConfig = ORDER_STATUS_MAP[displayStatus];
     const isPaidOrCompleted = [OrderStatus.PAID, OrderStatus.PREPARING, OrderStatus.PENDING_PICKUP, OrderStatus.COMPLETED].includes(order.status);
 
     const handleCopyOrderCode = () => {
@@ -366,9 +354,9 @@ export const OrderDetailTab = () => {
             {/* Header Title (with back button) */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3 text-[14px] font-medium text-[#637381]">
-                    <Link to="/" className="hover:text-[#212B36] transition-colors">Trang chủ</Link>
+                    <Link href="/" className="hover:text-[#212B36] transition-colors">Trang chủ</Link>
                     <i className="fa-solid fa-chevron-right text-[10px]"></i>
-                    <Link to="/profile/orders" className="hover:text-[#212B36] transition-colors">Đơn hàng của tôi</Link>
+                    <Link href="/profile/orders" className="hover:text-[#212B36] transition-colors">Đơn hàng của tôi</Link>
                     <i className="fa-solid fa-chevron-right text-[10px]"></i>
                     <span className="text-[#212B36] font-bold">Chi tiết đơn hàng</span>
                 </div>
@@ -378,12 +366,21 @@ export const OrderDetailTab = () => {
                 <div className="flex items-center gap-3">
                     <h1 className="client-heading m-0">Chi tiết đơn hàng</h1>
                 </div>
-                <button
-                    onClick={() => navigate('/profile/orders')}
-                    className="px-5 py-2.5 bg-white border border-[#E5E8EB] rounded-xl text-[13px] font-bold text-[#454F5B] hover:bg-[#F9FAFB] transition-colors shadow-sm cursor-pointer flex items-center gap-2 w-max"
-                >
-                    <i className="fa-solid fa-arrow-left"></i> Quay lại
-                </button>
+                <div className="flex items-center gap-2.5 flex-wrap">
+                    {!showPendingPaymentUi && (
+                        <OrderComplaintButton
+                            orderId={order.id}
+                            variant="outline"
+                            showHelperText={false}
+                        />
+                    )}
+                    <button
+                        onClick={() => router.push('/profile/orders')}
+                        className="px-5 py-2.5 bg-white border border-[#E5E8EB] rounded-xl text-[13px] font-bold text-[#454F5B] hover:bg-[#F9FAFB] transition-colors shadow-sm cursor-pointer flex items-center gap-2 w-max"
+                    >
+                        <i className="fa-solid fa-arrow-left"></i> Quay lại
+                    </button>
+                </div>
             </div>
 
             {/* Pending Payment Card — chỉ hiện khi còn thời gian thanh toán */}
@@ -434,172 +431,51 @@ export const OrderDetailTab = () => {
                 </div>
             )}
 
-            {/* Header Box */}
-            <div className="bg-white rounded-[20px] p-6 lg:p-8 border border-[#E5E8EB] shadow-[0_2px_12px_rgb(0,0,0,0.03)] flex flex-col md:flex-row md:items-start justify-between gap-6">
-                <div className="flex flex-col gap-1.5">
-                    <span className="text-[13px] font-medium text-[#637381]">Mã đơn hàng</span>
-                    <div className="flex items-center gap-2 min-h-[26px]">
-                        <span className="text-[14px] font-medium text-[#212B36] break-all">{order.orderCode}</span>
-                        <button
-                            onClick={handleCopyOrderCode}
-                            className="text-[#919EAB] hover:text-[#ee1314] transition-colors cursor-pointer flex items-center justify-center"
-                            title="Sao chép mã đơn"
-                        >
-                            <i className="fa-regular fa-copy text-[14px]"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                    <span className="text-[13px] font-medium text-[#637381]">Ngày đặt</span>
-                    <div className="flex items-center min-h-[26px]">
-                        <span className="text-[14px] font-medium text-[#212B36]">
-                            {order.createdAt ? format(new Date(order.createdAt), 'dd/MM/yyyy - HH:mm') : '-'}
-                        </span>
-                    </div>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                    <span className="text-[13px] font-medium text-[#637381]">Loại đơn</span>
-                    <div className="flex items-center min-h-[26px]">
-                        <span className="text-[14px] font-medium text-[#212B36]">
-                            {order.orderType === 'ONLINE' ? 'Mua online' : 'Mua trực tiếp'}
-                        </span>
-                    </div>
-                </div>
-
-                <div className="flex flex-col gap-1.5 items-start md:items-end">
-                    <span className="text-[13px] font-medium text-[#637381]">Trạng thái</span>
-                    <div className="flex items-center min-h-[26px]">
-                        <span className={`text-[12px] font-bold px-3 py-1 rounded-full border ${statusConfig.bg} ${statusConfig.text} border-current/20`}>
-                            {statusConfig.label}
-                        </span>
-                    </div>
-                </div>
-            </div>
-
             {/* Stepper trạng thái đơn hàng */}
-            {order.orderType !== 'DIRECT' && (
+            {order.orderType !== 'DIRECT' && displayStatus !== OrderStatus.CANCELLED && (
                 <div className="mt-6">
                     <OrderStepper order={{ ...order, status: displayStatus }} />
                 </div>
             )}
 
-            {/* Danh sách vé chi tiết */}
-            <div className="bg-white rounded-[20px] p-6 lg:p-8 border border-[#E5E8EB] shadow-[0_2px_12px_rgb(0,0,0,0.03)] flex flex-col gap-6 mt-6 mb-6">
-                <div className="flex items-center justify-between border-b border-[#F4F6F8] pb-4">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-[#FFF4F4] text-[#ee1314] flex items-center justify-center text-lg shrink-0">
-                            <i className="fa-solid fa-ticket"></i>
-                        </div>
-                        <h3 className="text-[18px] font-bold text-[#212B36]">Danh sách vé đã mua</h3>
-                    </div>
-                    <span className="text-[14px] font-bold text-[#212B36] bg-[#F4F6F8] px-3 py-1.5 rounded-lg">{order.orderDetails?.length || 0} vé</span>
-                </div>
-
-                <div className="space-y-4">
-                    {order.orderDetails && order.orderDetails.length > 0 ? (
-                        order.orderDetails.map((detail: any, index: number) => {
-                            const stationName = detail.stationName || detail.lotteryTicket?.station?.name || "Chưa rõ đài";
-                            const drawDate = detail.drawDate ? format(new Date(detail.drawDate), 'dd/MM/yyyy') : detail.lotteryTicket?.drawDate ? format(new Date(detail.lotteryTicket.drawDate), 'dd/MM/yyyy') : (order.createdAt ? format(new Date(order.createdAt), 'dd/MM/yyyy') : '-');
-                            const numbers = detail.numbers || detail.lotteryTicket?.numbers || "---";
-                            const price = detail.price || 10000;
-                            const ticketImg = detail.ticketImg || detail.lotteryTicket?.imageUrl || TICKET_IMAGE_FALLBACK;
-
-                            const pendingDetailRefund = detail.id ? getPendingRefundForDetail(detail.id) : undefined;
-                            const detailRefund = detail.id ? getRefundForDetail(detail.id) : undefined;
-
-                            return (
-                                <div key={index} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 border border-[#E5E8EB] rounded-2xl hover:border-[#ee1314]/30 transition-colors bg-white shadow-sm hover:shadow-md gap-4">
-                                    <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 w-full sm:w-auto">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-[80px] h-[50px] rounded shrink-0 overflow-hidden border border-gray-100 bg-[#F9FAFB] relative">
-                                                <img src={ticketImg} alt={`Vé ${stationName}`} className="w-full h-full object-cover mix-blend-multiply" />
-                                                <div className="absolute inset-0 bg-black/5 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer">
-                                                    <i className="fa-solid fa-magnifying-glass-plus text-white text-[14px]"></i>
-                                                </div>
-                                            </div>
-                                            <div className="font-bold text-[18px] text-[#212B36] tracking-tight">{numbers}</div>
-                                        </div>
-
-                                        <div className="flex flex-col items-start gap-1 sm:border-l sm:border-[#E5E8EB] sm:pl-6">
-                                            <div className="flex items-center gap-2">
-                                                <img src={detail.lotteryTicket?.station?.logoUrl || PROVINCE_ICON_FALLBACK} alt="Logo" className="w-5 h-5 rounded-full border border-gray-200" />
-                                                <span className="font-bold text-[14px] text-[#212B36]">{stationName}</span>
-                                            </div>
-                                            <div className="flex items-center gap-1.5 text-[13px] text-[#637381] pl-7">
-                                                <span className="font-medium text-[#212B36]">{drawDate}</span>
-                                                <span>•</span>
-                                                <span>16:15</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-6 sm:gap-10 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 pt-4 sm:pt-0 border-dashed border-[#E5E8EB] mt-2 sm:mt-0">
-                                        <div className="flex flex-col items-center">
-                                            <span className="text-[12px] text-[#637381] mb-1">Số lượng</span>
-                                            <span className="text-[14px] font-bold text-[#212B36]">{detail.quantity || 1}</span>
-                                        </div>
-
-                                        <div className="flex flex-col items-end min-w-[100px]">
-                                            <span className="text-[12px] text-[#637381] mb-1">Giá vé</span>
-                                            <div className="text-[16px] font-bold text-[#ee1314] leading-none">
-                                                {price.toLocaleString('vi-VN')} đ
-                                            </div>
-                                        </div>
-                                        
-                                        <div className="flex flex-col items-end gap-2">
-                                            {detail.status && (() => {
-                                                const badge = resolveOrderDetailStatusBadge(detail.status);
-                                                return (
-                                                    <span
-                                                        className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[12px] font-bold ${badge.bg} ${badge.text}`}
-                                                    >
-                                                        {badge.label}
-                                                    </span>
-                                                );
-                                            })()}
-                                            {isPaidOrCompleted && (
-                                                <Link
-                                                    to="/"
-                                                    className="hidden lg:flex text-[#ee1314] hover:text-[#c80f11] text-[13px] font-bold items-center gap-1.5 hover:underline bg-[#FFF4F4] px-3 py-1.5 rounded-lg border border-[#FFEBEE]"
-                                                >
-                                                    Tra kết quả <i className="fa-solid fa-arrow-up-right-from-square text-[11px]"></i>
-                                                </Link>
-                                            )}
-                                            {(pendingDetailRefund || (detail.status === 'REFUND_PENDING' && detailRefund)) && (
-                                                <Link
-                                                    to={`/profile/refunds/${(pendingDetailRefund || detailRefund)?.id}`}
-                                                    className="text-[#FFB020] text-[12px] font-bold flex items-center gap-1.5 hover:underline w-max"
-                                                >
-                                                    <i className="fa-solid fa-clock text-[11px]"></i> Xem yêu cầu hủy
-                                                </Link>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })
-                    ) : (
-                        <div className="py-8 text-center text-[14px] text-[#637381] border border-[#E5E8EB] rounded-xl bg-gray-50/50">
-                            Không có dữ liệu vé
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            {/* Grid 3 boxes */}
-            <div className={`grid grid-cols-1 ${order.orderType !== 'DIRECT' && order.status === OrderStatus.PENDING_PICKUP ? 'lg:grid-cols-2' : ''} gap-6 mb-6`}>
-                {/* Box 1: Thông tin đơn hàng */}
+            {/* Đơn hàng + thanh toán + vé — cùng 1 khung */}
+            <div className={`grid grid-cols-1 ${order.orderType !== 'DIRECT' && order.status === OrderStatus.PENDING_PICKUP ? 'lg:grid-cols-2' : ''} gap-6 mb-6 mt-6`}>
                 <div className="bg-white rounded-[20px] p-6 lg:p-8 border border-[#E5E8EB] shadow-[0_2px_12px_rgb(0,0,0,0.03)] h-full flex flex-col">
-                    <h3 className="text-[16px] font-bold text-[#212B36] mb-6">Thông tin thanh toán</h3>
-                    
-                    <div className="flex justify-between items-start mb-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 pb-6 mb-6 border-b border-[#F4F6F8]">
                         <div className="flex flex-col gap-1.5">
-                            <span className="text-[13px] text-[#637381]">Sản phẩm</span>
-                            <span className="text-[14px] font-medium text-[#212B36]">Vé số truyền thống</span>
+                            <span className="text-[13px] font-medium text-[#637381]">Mã đơn hàng</span>
+                            <div className="flex items-center gap-2 min-h-[26px]">
+                                <span className="text-[14px] font-medium text-[#212B36] break-all">{order.orderCode}</span>
+                                <button
+                                    onClick={handleCopyOrderCode}
+                                    className="text-[#919EAB] hover:text-[#ee1314] transition-colors cursor-pointer flex items-center justify-center shrink-0"
+                                    title="Sao chép mã đơn"
+                                >
+                                    <i className="fa-regular fa-copy text-[14px]"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                            <span className="text-[13px] font-medium text-[#637381]">Ngày đặt</span>
+                            <span className="text-[14px] font-medium text-[#212B36] min-h-[26px] flex items-center">
+                                {order.createdAt ? format(new Date(order.createdAt), 'dd/MM/yyyy - HH:mm') : '-'}
+                            </span>
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                            <span className="text-[13px] font-medium text-[#637381]">Loại đơn</span>
+                            <span className="text-[14px] font-medium text-[#212B36] min-h-[26px] flex items-center">
+                                {order.orderType === 'ONLINE' ? 'Mua online' : 'Mua trực tiếp'}
+                            </span>
+                        </div>
+                        <div className="flex flex-col gap-1.5 sm:items-end">
+                            <span className="text-[13px] font-medium text-[#637381]">Trạng thái</span>
+                            <div className="flex items-center min-h-[26px]">
+                                <OrderStatusBadge status={displayStatus} />
+                            </div>
                         </div>
                     </div>
+
+                    <h3 className="text-[16px] font-bold text-[#212B36] mb-6">Thông tin thanh toán</h3>
 
                     <div className="grid grid-cols-2 gap-6 mb-6">
                         <div className="flex flex-col gap-1.5">
@@ -611,13 +487,6 @@ export const OrderDetailTab = () => {
                         <div className="flex flex-col gap-1.5">
                             <span className="text-[13px] text-[#637381]">Số lượng vé</span>
                             <span className="text-[14px] font-medium text-[#212B36]">{order.orderDetails?.length || 0} vé</span>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-6 mb-6">
-                        <div className="flex flex-col gap-1.5">
-                            <span className="text-[13px] text-[#637381]">Tổng tiền hàng</span>
-                            <span className="text-[14px] font-medium text-[#212B36]">{(order.totalAmount || 0).toLocaleString('vi-VN')}đ</span>
                         </div>
                     </div>
 
@@ -640,16 +509,103 @@ export const OrderDetailTab = () => {
                         <div className="flex flex-col gap-1.5">
                             <span className="text-[13px] text-[#637381]">Ngày thanh toán</span>
                             <span className="text-[14px] font-medium text-[#212B36]">
-                                {(displayStatus !== OrderStatus.PENDING_PAYMENT && displayStatus !== OrderStatus.CANCELLED) 
+                                {(displayStatus !== OrderStatus.PENDING_PAYMENT && displayStatus !== OrderStatus.CANCELLED)
                                     ? ((order.transactions?.[0] as any)?.createdAt ? format(new Date((order.transactions[0] as any).createdAt), 'dd/MM/yyyy - HH:mm') : (order.createdAt ? format(new Date(order.createdAt), 'dd/MM/yyyy - HH:mm') : '-'))
                                     : '-'}
                             </span>
                         </div>
                     </div>
 
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center pb-6 mb-6 border-b border-[#F4F6F8]">
                         <span className="text-[14px] font-bold text-[#212B36]">Tổng thanh toán</span>
                         <span className="text-[24px] font-bold text-[#ee1314]">{(order.totalAmount || 0).toLocaleString('vi-VN')}đ</span>
+                    </div>
+
+                    <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-[15px] font-bold text-[#212B36]">Vé đã mua</h4>
+                        <span className="text-[13px] font-bold text-[#637381]">{order.orderDetails?.length || 0} vé</span>
+                    </div>
+
+                    <div className="flex flex-col gap-3">
+                        {order.orderDetails && order.orderDetails.length > 0 ? (
+                            order.orderDetails.map((detail: any, index: number) => {
+                                const stationName = detail.stationName || detail.lotteryTicket?.station?.name || 'Chưa rõ đài';
+                                const drawDate = detail.drawDate
+                                    ? format(new Date(detail.drawDate), 'dd/MM/yyyy')
+                                    : detail.lotteryTicket?.drawDate
+                                        ? format(new Date(detail.lotteryTicket.drawDate), 'dd/MM/yyyy')
+                                        : (order.createdAt ? format(new Date(order.createdAt), 'dd/MM/yyyy') : '-');
+                                const numbers = detail.numbers || detail.lotteryTicket?.numbers || '---';
+                                const price = detail.price || 10000;
+                                const quantity = detail.quantity || 1;
+                                const pendingDetailRefund = detail.id ? getPendingRefundForDetail(detail.id) : undefined;
+                                const detailRefund = detail.id ? getRefundForDetail(detail.id) : undefined;
+                                const stationId =
+                                    detail.lotteryTicket?.station?.id ??
+                                    detail.lotteryTicket?.stationId ??
+                                    detail.stationId;
+                                const drawDateRaw = detail.drawDate || detail.lotteryTicket?.drawDate;
+                                const resultLookupUrl = (() => {
+                                    const params = new URLSearchParams();
+                                    if (drawDateRaw) params.set('drawDate', String(drawDateRaw).slice(0, 10));
+                                    if (stationId != null) params.set('stationId', String(stationId));
+                                    const digits = String(numbers).replace(/\D/g, '');
+                                    if (digits) params.set('search', digits);
+                                    const query = params.toString();
+                                    return query ? `/?${query}` : '/';
+                                })();
+
+                                return (
+                                    <div
+                                        key={index}
+                                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border border-[#E5E8EB] bg-[#F9FAFB]"
+                                    >
+                                        <div className="flex flex-col sm:flex-row sm:items-center gap-3 min-w-0">
+                                            <span className="font-bold text-[16px] text-[#212B36] tracking-tight shrink-0 tabular-nums">
+                                                <LuckyNumber value={numbers} ticket className="text-[16px] tracking-tight" />
+                                            </span>
+                                            <div className="flex flex-col min-w-0 sm:border-l sm:border-[#E5E8EB] sm:pl-4">
+                                                <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                                                    <img src={detail.lotteryTicket?.station?.logoUrl || PROVINCE_ICON_FALLBACK} alt="" className="w-5 h-5 rounded-full border border-gray-200 shrink-0" />
+                                                    <span className="font-bold text-[14px] text-[#212B36] truncate">{stationName}</span>
+                                                    {detail.status ? (
+                                                        <OrderDetailStatusBadge status={detail.status} />
+                                                    ) : null}
+                                                </div>
+                                                <span className="text-[13px] text-[#637381] pl-7">
+                                                    {drawDate} • 16:15
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-3 sm:gap-4 justify-between sm:justify-end shrink-0">
+                                            <span className="text-[14px] font-bold text-[#212B36] whitespace-nowrap tabular-nums">
+                                                {quantity} x {price.toLocaleString('vi-VN')}đ
+                                            </span>
+                                            {isPaidOrCompleted && (
+                                                <Link
+                                                    href={resultLookupUrl}
+                                                    className="inline-flex h-8 items-center gap-1.5 px-3 rounded-lg border border-[#FFCDD2] bg-white text-[#ee1314] text-[12px] font-bold no-underline hover:bg-[#FFF4F4] transition-colors whitespace-nowrap"
+                                                >
+                                                    <i className="fa-solid fa-magnifying-glass text-[11px]"></i>
+                                                    Tra kết quả
+                                                </Link>
+                                            )}
+                                            {(pendingDetailRefund || (detail.status === 'REFUND_PENDING' && detailRefund)) && (
+                                                <Link
+                                                    href={`/profile/refunds/${(pendingDetailRefund || detailRefund)?.id}`}
+                                                    className="text-[#FFB020] text-[12px] font-bold hover:underline whitespace-nowrap"
+                                                >
+                                                    Xem yêu cầu hủy
+                                                </Link>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        ) : (
+                            <p className="py-4 text-center text-[14px] text-[#637381]">Không có dữ liệu vé</p>
+                        )}
                     </div>
                 </div>
 
@@ -839,7 +795,7 @@ export const OrderDetailTab = () => {
                         </div>
                     </div>
                     <Link
-                        to={`/profile/refunds/${pendingFullOrderRefund.id}`}
+                        href={`/profile/refunds/${pendingFullOrderRefund.id}`}
                         className="h-9 px-4 rounded-xl border border-[#DFE3E8] bg-white text-[#454F5B] text-[13px] font-semibold hover:border-[#C4CDD5] hover:bg-[#F4F6F8] hover:text-[#212B36] transition-colors whitespace-nowrap self-start sm:self-center flex items-center justify-center shadow-[0_1px_2px_rgb(0,0,0,0.04)]"
                     >
                         Xem chi tiết
@@ -847,24 +803,6 @@ export const OrderDetailTab = () => {
                 </div>
             )}
 
-            {!showPendingPaymentUi && (
-                <div className="rounded-2xl px-5 py-4 border border-[#E5E8EB] bg-[#F8FAFC] flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
-                    <div className="flex items-start gap-3 min-w-0">
-                        <div className="w-9 h-9 rounded-xl bg-white border border-[#E5E8EB] text-[#919EAB] flex items-center justify-center shrink-0">
-                            <i className="fa-solid fa-headset text-[13px]"></i>
-                        </div>
-                        <div className="min-w-0 pt-0.5">
-                            <p className="text-[14px] font-semibold text-[#212B36] leading-tight">
-                                Khiếu nại đơn hàng
-                            </p>
-                            <p className="text-[12px] text-[#637381] mt-1 leading-relaxed">
-                                Gửi khiếu nại nếu đơn hàng bị lỗi thanh toán, chuẩn bị chậm, không nhận được vé hoặc dịch vụ chưa tốt.
-                            </p>
-                        </div>
-                    </div>
-                    <OrderComplaintButton orderId={order.id} variant="button" />
-                </div>
-            )}
             
             {/* Mobile Sticky Bottom Bar */}
             {showPendingPaymentUi && (

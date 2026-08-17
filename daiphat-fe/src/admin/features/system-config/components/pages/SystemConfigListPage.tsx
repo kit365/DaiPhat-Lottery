@@ -1,154 +1,56 @@
-import { useMemo, useState, type ReactElement } from 'react';
+"use client";
+
+import { Fragment, useMemo, useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
     Box,
+    Button,
     Card,
     Stack,
-    Tab,
     Table,
     TableBody,
     TableCell,
     TableContainer,
     TableHead,
     TableRow,
-    Tabs,
     Typography,
-    styled,
 } from '@mui/material';
-import { Banknote, CreditCard, FileText, Gift, Globe2, LayoutList, MessageSquare, PackageMinus, ShoppingCart, Sparkles, Store, Ticket } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
+import { PageHeader } from '../../../../components/ui/PageHeader';
 import { Search } from '../../../../components/ui/Search';
-import { Title } from '../../../../components/ui/Title';
 import { PERMISSIONS } from '../../../../constants/permission.constants';
 import { useAuthStore } from '../../../../../stores/useAuthStore';
-import { UpdateSystemConfigFormValues } from '../../../../schemas/system-config.schema';
-import { useSystemConfigs, useUpdateSystemConfig } from '../../hooks/useSystemConfig';
+import { UpdateSystemConfigFormValues } from '@/admin/features/system-config/schemas/system-config.schema';
+import { useBulkUpdateVendorConfidencePolicy, useSystemConfigs, useUpdateSystemConfig } from '../../hooks/useSystemConfig';
 import { SystemConfigEditDialog } from '../sections/SystemConfigEditDialog';
 import { SystemConfigTableRow } from '../sections/SystemConfigTableRow';
+import { VendorConfidencePolicyDialog } from '../sections/VendorConfidencePolicyDialog';
+import { SettingsContentTabs } from '../../../settings/components/SettingsContentTabs';
+import { EditIcon } from '../../../../assets/icons';
+import { buildVendorConfigSections } from '../../utils/vendorConfigSections';
 import {
     CONFIG_TYPE_LABELS,
     ConfigType,
     SystemConfigResponse,
 } from '../../types/system-config';
 
-const TabBadge = styled('span')(() => ({
-    height: '24px',
-    minWidth: '24px',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: '8px',
-    padding: '0px 6px',
-    borderRadius: 'var(--shape-borderRadius-sm)',
-    fontSize: '0.75rem',
-    fontWeight: 700,
-}));
+type TypeFilter = ConfigType;
 
-type TypeFilter = 'all' | ConfigType;
+const HIDDEN_CONFIG_TYPES = new Set([ConfigType.STATIC_PAGE, ConfigType.GENERAL_SETTING]);
 
-const TYPE_TABS: { value: TypeFilter; label: string; icon: ReactElement; color: string }[] = [
-    { value: 'all', label: 'Tất cả', icon: <LayoutList size={18} />, color: 'primary.main' },
-    {
-        value: ConfigType.GENERAL_SETTING,
-        label: CONFIG_TYPE_LABELS[ConfigType.GENERAL_SETTING],
-        icon: <Globe2 size={18} />,
-        color: 'primary.dark',
-    },
-    {
-        value: ConfigType.STATIC_PAGE,
-        label: CONFIG_TYPE_LABELS[ConfigType.STATIC_PAGE],
-        icon: <FileText size={18} />,
-        color: 'primary.main',
-    },
-    {
-        value: ConfigType.ORDER_SETTING,
-        label: CONFIG_TYPE_LABELS[ConfigType.ORDER_SETTING],
-        icon: <ShoppingCart size={18} />,
-        color: 'info.main',
-    },
-    {
-        value: ConfigType.PAYMENT_SETTING,
-        label: CONFIG_TYPE_LABELS[ConfigType.PAYMENT_SETTING],
-        icon: <CreditCard size={18} />,
-        color: 'success.main',
-    },
-    {
-        value: ConfigType.TICKET_IMPORT,
-        label: CONFIG_TYPE_LABELS[ConfigType.TICKET_IMPORT],
-        icon: <Ticket size={18} />,
-        color: 'warning.main',
-    },
-    {
-        value: ConfigType.TICKET_RETURN,
-        label: CONFIG_TYPE_LABELS[ConfigType.TICKET_RETURN],
-        icon: <PackageMinus size={18} />,
-        color: 'warning.dark',
-    },
-    {
-        value: ConfigType.VENDOR_SETTING,
-        label: CONFIG_TYPE_LABELS[ConfigType.VENDOR_SETTING],
-        icon: <Store size={18} />,
-        color: 'info.dark',
-    },
-    {
-        value: ConfigType.REFUND_SETTING,
-        label: CONFIG_TYPE_LABELS[ConfigType.REFUND_SETTING],
-        icon: <Banknote size={18} />,
-        color: 'secondary.main',
-    },
-    {
-        value: ConfigType.COMPLAINT_SETTING,
-        label: CONFIG_TYPE_LABELS[ConfigType.COMPLAINT_SETTING],
-        icon: <MessageSquare size={18} />,
-        color: 'error.main',
-    },
-    {
-        value: ConfigType.PAYOUT_SETTING,
-        label: CONFIG_TYPE_LABELS[ConfigType.PAYOUT_SETTING],
-        icon: <Gift size={18} />,
-        color: 'success.dark',
-    },
-    {
-        value: ConfigType.FORTUNE_SETTING,
-        label: CONFIG_TYPE_LABELS[ConfigType.FORTUNE_SETTING],
-        icon: <Sparkles size={18} />,
-        color: 'error.dark',
-    },
+const TYPE_TABS: { value: TypeFilter; label: string }[] = [
+    { value: ConfigType.ORDER_SETTING, label: CONFIG_TYPE_LABELS[ConfigType.ORDER_SETTING] },
+    { value: ConfigType.PAYMENT_SETTING, label: CONFIG_TYPE_LABELS[ConfigType.PAYMENT_SETTING] },
+    { value: ConfigType.TICKET_IMPORT, label: CONFIG_TYPE_LABELS[ConfigType.TICKET_IMPORT] },
+    { value: ConfigType.TICKET_RETURN, label: CONFIG_TYPE_LABELS[ConfigType.TICKET_RETURN] },
+    { value: ConfigType.VENDOR_SETTING, label: CONFIG_TYPE_LABELS[ConfigType.VENDOR_SETTING] },
+    { value: ConfigType.REFUND_SETTING, label: CONFIG_TYPE_LABELS[ConfigType.REFUND_SETTING] },
+    { value: ConfigType.COMPLAINT_SETTING, label: CONFIG_TYPE_LABELS[ConfigType.COMPLAINT_SETTING] },
+    { value: ConfigType.PAYOUT_SETTING, label: CONFIG_TYPE_LABELS[ConfigType.PAYOUT_SETTING] },
+    { value: ConfigType.FORTUNE_SETTING, label: CONFIG_TYPE_LABELS[ConfigType.FORTUNE_SETTING] },
 ];
 
-const renderTypeFilterTab = (
-    tab: (typeof TYPE_TABS)[number],
-    selected: boolean,
-    count: number
-) => (
-    <Tab
-        value={tab.value}
-        icon={tab.icon}
-        iconPosition="start"
-        label={
-            <Box
-                component="span"
-                sx={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 1,
-                    color: selected ? tab.color : 'text.secondary',
-                }}
-            >
-                <Box component="span">{tab.label}</Box>
-                <TabBadge
-                    sx={{
-                        ml: 0,
-                        bgcolor: selected ? tab.color : 'action.hover',
-                        color: selected ? '#fff' : 'text.secondary',
-                    }}
-                >
-                    {count}
-                </TabBadge>
-            </Box>
-        }
-    />
-);
+const DEFAULT_TAB = TYPE_TABS[0].value;
 
 export const SystemConfigListPage = () => {
     const { user } = useAuthStore();
@@ -156,44 +58,43 @@ export const SystemConfigListPage = () => {
         user?.permissions?.includes(PERMISSIONS.SETTINGS.EDIT) ||
         user?.rolesName?.includes('ROLE_ADMIN');
 
+    const router = useRouter();
+    const searchParams = useSearchParams();
+
     const [search, setSearch] = useState('');
-    const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+    const [typeFilter, setTypeFilter] = useState<TypeFilter>(DEFAULT_TAB);
+
+    useEffect(() => {
+        const tab = searchParams.get('tab') as TypeFilter;
+        if (tab && TYPE_TABS.some((t) => t.value === tab)) {
+            setTypeFilter(tab);
+        } else {
+            setTypeFilter(DEFAULT_TAB);
+        }
+    }, [searchParams]);
+
+    const handleTabChange = (value: TypeFilter) => {
+        setTypeFilter(value);
+        const params = new URLSearchParams(searchParams.toString());
+        params.set('tab', value);
+        router.replace(`?${params.toString()}`, { scroll: false });
+    };
     const [selectedConfig, setSelectedConfig] = useState<SystemConfigResponse | null>(null);
+    const [confidencePolicyOpen, setConfidencePolicyOpen] = useState(false);
 
     const { data: configsRes, isLoading } = useSystemConfigs('all');
     const { mutate: updateConfig, isPending } = useUpdateSystemConfig();
+    const { mutate: bulkUpdateConfidence, isPending: isBulkConfidencePending } =
+        useBulkUpdateVendorConfidencePolicy();
 
     const allConfigs = configsRes?.data || [];
-
-    const typeCounts = useMemo(() => {
-        const counts: Record<TypeFilter, number> = {
-            all: allConfigs.length,
-            [ConfigType.GENERAL_SETTING]: 0,
-            [ConfigType.STATIC_PAGE]: 0,
-            [ConfigType.ORDER_SETTING]: 0,
-            [ConfigType.PAYMENT_SETTING]: 0,
-            [ConfigType.TICKET_IMPORT]: 0,
-            [ConfigType.TICKET_RETURN]: 0,
-            [ConfigType.VENDOR_SETTING]: 0,
-            [ConfigType.REFUND_SETTING]: 0,
-            [ConfigType.COMPLAINT_SETTING]: 0,
-            [ConfigType.PAYOUT_SETTING]: 0,
-            [ConfigType.FORTUNE_SETTING]: 0,
-        };
-        allConfigs.forEach((c) => {
-            if (counts[c.configType] !== undefined) {
-                counts[c.configType] += 1;
-            }
-        });
-        return counts;
-    }, [allConfigs]);
+    const listConfigs = useMemo(
+        () => allConfigs.filter((c) => !HIDDEN_CONFIG_TYPES.has(c.configType)),
+        [allConfigs]
+    );
 
     const filteredConfigs = useMemo(() => {
-        let items = allConfigs;
-
-        if (typeFilter !== 'all') {
-            items = items.filter((c) => c.configType === typeFilter);
-        }
+        const items = listConfigs.filter((c) => c.configType === typeFilter);
 
         const q = search.trim().toLowerCase();
         if (!q) return items;
@@ -205,21 +106,13 @@ export const SystemConfigListPage = () => {
                 c.description.toLowerCase().includes(q) ||
                 c.configValue.toLowerCase().includes(q)
         );
-    }, [allConfigs, search, typeFilter]);
-
-    const [
-        allTab,
-        orderTab,
-        paymentTab,
-        ticketImportTab,
-        ticketReturnTab,
-        refundTab,
-        complaintTab,
-        payoutTab,
-        fortuneTab,
-    ] = TYPE_TABS;
+    }, [listConfigs, search, typeFilter]);
 
     const handleEdit = (config: SystemConfigResponse) => {
+        if (config.configKey.startsWith('VENDOR_CONFIDENCE_')) {
+            setConfidencePolicyOpen(true);
+            return;
+        }
         setSelectedConfig(config);
     };
 
@@ -254,20 +147,36 @@ export const SystemConfigListPage = () => {
         );
     };
 
+    const handleBulkConfidenceSubmit = (values: Record<string, string>) => {
+        bulkUpdateConfidence(values, {
+            onSuccess: (res) => {
+                if (res.success) {
+                    toast.success(res.message || 'Cập nhật chính sách điểm tin cậy thành công!');
+                    setConfidencePolicyOpen(false);
+                } else {
+                    toast.error(res.message || 'Cập nhật chính sách điểm tin cậy thất bại!');
+                }
+            },
+            onError: (err: any) => {
+                toast.error(
+                    err?.response?.data?.message ||
+                        err.message ||
+                        'Cập nhật chính sách điểm tin cậy thất bại!'
+                );
+            },
+        });
+    };
+
     return (
         <>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
-                    <Title title="Cấu hình hệ thống" />
-                    <Breadcrumb
-                        items={[
+            <PageHeader
+                title="Cấu hình hệ thống"
+                breadcrumbItems={[
                             { label: 'Dashboard', to: '/admin' },
                             { label: 'Cài đặt', to: '/admin/dashboard/settings' },
                             { label: 'Cấu hình hệ thống' },
                         ]}
-                    />
-                </div>
-            </div>
+            />
 
             <Card
                 sx={{
@@ -286,64 +195,37 @@ export const SystemConfigListPage = () => {
                         sx={{ mb: 2 }}
                     >
                         <Search
-                            placeholder="Tìm theo tên, khóa, mô tả hoặc giá trị..."
+                            placeholder={
+                                typeFilter === ConfigType.VENDOR_SETTING
+                                    ? 'Tìm chính sách người bán vé số...'
+                                    : 'Tìm theo tên, mô tả hoặc giá trị...'
+                            }
                             value={search}
                             onChange={setSearch}
                             maxWidth="100%"
                         />
-                        <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
-                            {filteredConfigs.length} cấu hình
-                        </Typography>
+                        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                            <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+                                {filteredConfigs.length} cấu hình
+                            </Typography>
+                        </Stack>
                     </Stack>
-
-                    <Tabs
-                        value={typeFilter}
-                        onChange={(_, value: TypeFilter) => setTypeFilter(value)}
-                        variant="scrollable"
-                        scrollButtons="auto"
-                        allowScrollButtonsMobile
-                        sx={{
-                            minHeight: 44,
-                            '& .MuiTab-root': {
-                                minHeight: 44,
-                                textTransform: 'none',
-                                fontWeight: 600,
-                                flexShrink: 0,
-                            },
-                            '& .MuiTabs-scrollButtons.Mui-disabled': {
-                                opacity: 0.3,
-                            },
-                            '& .MuiTabs-indicator': {
-                                backgroundColor: TYPE_TABS.find((t) => t.value === typeFilter)?.color || 'primary.main',
-                            },
-                        }}
-                    >
-                        {renderTypeFilterTab(allTab, typeFilter === allTab.value, typeCounts[allTab.value])}
-                        {renderTypeFilterTab(orderTab, typeFilter === orderTab.value, typeCounts[orderTab.value])}
-                        {renderTypeFilterTab(paymentTab, typeFilter === paymentTab.value, typeCounts[paymentTab.value])}
-                        {renderTypeFilterTab(
-                            ticketImportTab,
-                            typeFilter === ticketImportTab.value,
-                            typeCounts[ticketImportTab.value]
-                        )}
-                        {renderTypeFilterTab(
-                            ticketReturnTab,
-                            typeFilter === ticketReturnTab.value,
-                            typeCounts[ticketReturnTab.value]
-                        )}
-                        {renderTypeFilterTab(refundTab, typeFilter === refundTab.value, typeCounts[refundTab.value])}
-                        {renderTypeFilterTab(
-                            complaintTab,
-                            typeFilter === complaintTab.value,
-                            typeCounts[complaintTab.value]
-                        )}
-                        {renderTypeFilterTab(payoutTab, typeFilter === payoutTab.value, typeCounts[payoutTab.value])}
-                        {renderTypeFilterTab(fortuneTab, typeFilter === fortuneTab.value, typeCounts[fortuneTab.value])}
-                    </Tabs>
                 </Box>
 
+                <SettingsContentTabs
+                    value={Math.max(
+                        0,
+                        TYPE_TABS.findIndex((tab) => tab.value === typeFilter)
+                    )}
+                    labels={TYPE_TABS.map((tab) => tab.label)}
+                    onChange={(index) => {
+                        const next = TYPE_TABS[index];
+                        if (next) handleTabChange(next.value);
+                    }}
+                />
+
                 <TableContainer>
-                    <Table>
+                    <Table sx={{ tableLayout: 'fixed', minWidth: 960 }}>
                         <TableHead>
                             <TableRow
                                 sx={{
@@ -355,28 +237,66 @@ export const SystemConfigListPage = () => {
                                     },
                                 }}
                             >
-                                <TableCell>Tên cấu hình</TableCell>
-                                <TableCell>Mô tả</TableCell>
-                                <TableCell>Giá trị</TableCell>
-                                <TableCell>Đơn vị</TableCell>
-                                <TableCell align="center">Loại</TableCell>
-                                <TableCell>Kiểu dữ liệu</TableCell>
-                                {canEdit && <TableCell align="center">Hành động</TableCell>}
+                                <TableCell sx={{ width: '32%' }}>Tên cấu hình</TableCell>
+                                <TableCell sx={{ width: '36%' }}>Mô tả</TableCell>
+                                <TableCell align="center" sx={{ width: 120 }}>Giá trị</TableCell>
+                                <TableCell align="center" sx={{ width: 120 }}>Kiểu dữ liệu</TableCell>
+                                {canEdit && <TableCell align="center" sx={{ width: 88 }}>Hành động</TableCell>}
                             </TableRow>
                         </TableHead>
                         <TableBody>
                             {isLoading ? (
                                 <TableRow>
-                                    <TableCell colSpan={canEdit ? 7 : 6} align="center" sx={{ py: 4 }}>
+                                    <TableCell colSpan={canEdit ? 5 : 4} align="center" sx={{ py: 4 }}>
                                         Đang tải dữ liệu...
                                     </TableCell>
                                 </TableRow>
                             ) : filteredConfigs.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={canEdit ? 7 : 6} align="center" sx={{ py: 4 }}>
+                                    <TableCell colSpan={canEdit ? 5 : 4} align="center" sx={{ py: 4 }}>
                                         {search ? 'Không tìm thấy cấu hình phù hợp' : 'Không có dữ liệu'}
                                     </TableCell>
                                 </TableRow>
+                            ) : typeFilter === ConfigType.VENDOR_SETTING ? (
+                                buildVendorConfigSections(filteredConfigs).map((section) => (
+                                    <Fragment key={section.title}>
+                                        <TableRow>
+                                            <TableCell
+                                                colSpan={canEdit ? 5 : 4}
+                                                sx={{
+                                                    py: 1.5,
+                                                    bgcolor: 'var(--palette-background-neutral, rgba(145, 158, 171, 0.08))',
+                                                    borderBottom: '1px dashed var(--palette-divider)',
+                                                }}
+                                            >
+                                                <Stack direction="row" alignItems="center" justifyContent="space-between" gap={2}>
+                                                    <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1C252E' }}>
+                                                        {section.title}
+                                                    </Typography>
+                                                    {section.showBulkConfidence && canEdit ? (
+                                                        <Button
+                                                            variant="outlined"
+                                                            size="small"
+                                                            onClick={() => setConfidencePolicyOpen(true)}
+                                                            startIcon={<EditIcon sx={{ fontSize: 18 }} />}
+                                                            sx={{ textTransform: 'none', fontWeight: 700 }}
+                                                        >
+                                                            Điều chỉnh điểm tin cậy
+                                                        </Button>
+                                                    ) : null}
+                                                </Stack>
+                                            </TableCell>
+                                        </TableRow>
+                                        {section.items.map((config) => (
+                                            <SystemConfigTableRow
+                                                key={config.id}
+                                                config={config}
+                                                canEdit={Boolean(canEdit)}
+                                                onEdit={handleEdit}
+                                            />
+                                        ))}
+                                    </Fragment>
+                                ))
                             ) : (
                                 filteredConfigs.map((config) => (
                                     <SystemConfigTableRow
@@ -398,6 +318,14 @@ export const SystemConfigListPage = () => {
                 onClose={handleCloseDialog}
                 onSubmit={handleSubmit}
                 isPending={isPending}
+            />
+
+            <VendorConfidencePolicyDialog
+                open={confidencePolicyOpen}
+                configs={allConfigs}
+                loading={isBulkConfidencePending}
+                onClose={() => setConfidencePolicyOpen(false)}
+                onSubmit={handleBulkConfidenceSubmit}
             />
         </>
     );

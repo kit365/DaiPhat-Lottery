@@ -1,8 +1,6 @@
-"use client";
+﻿"use client";
 
-import { ForgotPasswordPage } from '@/admin/pages/authen/ForgotPasswordPage';
-import { createAdminClientPage } from '@/admin/lib/createAdminClientPage';
+import { ForgotPasswordPage } from '@/admin/features/auth/components/pages/ForgotPasswordPage';
 
-export const ClientPage = createAdminClientPage({
-    component: ForgotPasswordPage,
-});
+// Password recovery must remain reachable without an authenticated session.
+export const ClientPage = ForgotPasswordPage;

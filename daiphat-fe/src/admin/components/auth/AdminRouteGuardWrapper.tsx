@@ -4,6 +4,8 @@ import React, { Suspense } from 'react';
 import { usePathname } from 'next/navigation';
 import { AuthGuard } from './AuthGuard';
 import { LayoutAdmin } from '@/admin/layouts/LayoutAdmin';
+import { AdminSessionProvider } from '@/admin/context/AdminSessionProvider';
+import '@/admin/constants/adminPrefetchRoutes';
 
 export function AdminRouteGuardWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -11,15 +13,17 @@ export function AdminRouteGuardWrapper({ children }: { children: React.ReactNode
 
   return (
     <Suspense fallback={null}>
-      {isAuthPage ? (
-        children
-      ) : (
-        <AuthGuard>
+      <AdminSessionProvider>
+        {isAuthPage ? (
+          children
+        ) : (
           <LayoutAdmin>
-            {children}
+            <AuthGuard>
+              {children}
+            </AuthGuard>
           </LayoutAdmin>
-        </AuthGuard>
-      )}
+        )}
+      </AdminSessionProvider>
     </Suspense>
   );
 }

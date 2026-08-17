@@ -11,14 +11,19 @@ import {
 } from "../services/orderService";
 import { OrderFilterParams } from '../../../../types/order.type';
 import { QUERY_KEYS } from '../constants/queryKeys';
-import { QUERY_KEYS as GLOBAL_QUERY_KEYS } from '../../../../constants/queryKeys';
 import { QUERY_KEYS as TICKET_QUERY_KEYS } from '../../ticket/inventory/constants/queryKeys';
+import { QUERY_KEYS as NOTIFICATION_QUERY_KEYS } from '../../notifications/constants/queryKeys';
+import { QUERY_KEYS as REFUND_QUERY_KEYS } from '../../refund/constants/queryKeys';
 import { getSystemConfigs } from '../../system-config/services/systemConfigService';
 import { ConfigType } from '../../system-config/types/system-config';
 import { SYSTEM_CONFIG_KEYS } from '../../system-config/hooks/useSystemConfig';
 import { useAuthStore } from '../../../../stores/useAuthStore';
 import { hasPermission } from '../../../utils/permission.util';
 import { PERMISSIONS } from '../../../constants/permission.constants';
+import { ADMIN_BADGE_POLL_MS } from '../../../hooks/adminBadgePoll';
+import { useAdminDeferredQueries } from '../../../hooks/useAdminDeferredQueries';
+import { refundAdminApi } from '../../refund/services/refundService';
+import { QUERY_STALE_TIMES } from '@/shared/react-query';
 
 type AdminOrderListFilters = OrderFilterParams & { limit?: number };
 
@@ -157,7 +162,7 @@ export const useUpdateOrderStatus = () => {
         onSuccess: (_data, variables) => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ORDERS] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ORDER_DETAIL, variables.id] });
-            queryClient.invalidateQueries({ queryKey: [GLOBAL_QUERY_KEYS.ADMIN_NOTIFICATIONS] });
+            queryClient.invalidateQueries({ queryKey: [NOTIFICATION_QUERY_KEYS.NOTIFICATIONS] });
         },
     });
 };
@@ -173,18 +178,39 @@ export const useCreateOrder = () => {
     });
 };
 
-/** Polls statusCounts for the sidebar PREPARING badge. */
+/** Polls PREPARING statusCounts for sidebar badges, split by order type. */
 export const usePreparingOrderCount = () => {
     const { user, token } = useAuthStore();
+    const deferred = useAdminDeferredQueries();
     const canView = Boolean(token) && Boolean(user) && hasPermission(user, PERMISSIONS.ORDER.VIEW);
 
-    const query = useQuery({
-        queryKey: [GLOBAL_QUERY_KEYS.ADMIN_ORDERS, 'preparing-count'],
-        queryFn: () => getOrders({ page: 1, size: 1 }, { skipGlobalErrorToast: true }),
-        enabled: canView,
-        refetchOnWindowFocus: canView,
+    const onlineQuery = useQuery({
+        queryKey: [QUERY_KEYS.ORDERS, 'preparing-count', 'ONLINE'],
+        queryFn: () => getOrders(
+            { page: 1, size: 1, orderType: 'ONLINE' },
+            { skipGlobalErrorToast: true }
+        ),
+        enabled: canView && deferred,
+        refetchOnWindowFocus: canView && deferred,
         refetchInterval: (q) => {
-            if (!canView) return false;
+            if (!canView || !deferred) return false;
+            if (q.state.error) return false;
+            return ADMIN_BADGE_POLL_MS;
+        },
+        staleTime: ADMIN_BADGE_POLL_MS / 2,
+        retry: false,
+    });
+
+    const directQuery = useQuery({
+        queryKey: [QUERY_KEYS.ORDERS, 'preparing-count', 'DIRECT'],
+        queryFn: () => getOrders(
+            { page: 1, size: 1, orderType: 'DIRECT' },
+            { skipGlobalErrorToast: true }
+        ),
+        enabled: canView && deferred,
+        refetchOnWindowFocus: canView && deferred,
+        refetchInterval: (q) => {
+            if (!canView || !deferred) return false;
             if (q.state.error) return false;
             return 30_000;
         },
@@ -192,14 +218,26 @@ export const usePreparingOrderCount = () => {
         retry: false,
     });
 
-    const preparingCount = useMemo(() => {
-        const counts = query.data?.data?.statusCounts as Record<string, number> | undefined;
+    const onlinePreparingCount = useMemo(() => {
+        const counts = onlineQuery.data?.data?.statusCounts as Record<string, number> | undefined;
         return Number(counts?.PREPARING) || 0;
-    }, [query.data?.data?.statusCounts]);
+    }, [onlineQuery.data?.data?.statusCounts]);
+
+    const directPreparingCount = useMemo(() => {
+        const counts = directQuery.data?.data?.statusCounts as Record<string, number> | undefined;
+        return Number(counts?.PREPARING) || 0;
+    }, [directQuery.data?.data?.statusCounts]);
+
+    const preparingCount = onlinePreparingCount + directPreparingCount;
 
     return {
+        /** ONLINE PREPARING — badge for "Danh sách đơn". */
+        onlinePreparingCount,
+        /** DIRECT PREPARING — badge for "Đơn tại quầy". */
+        directPreparingCount,
+        /** Combined total for parent "Đơn hàng". */
         preparingCount,
-        isLoading: query.isLoading,
+        isLoading: onlineQuery.isLoading || directQuery.isLoading,
     };
 };
 
@@ -296,4 +334,13 @@ export const useOrderDrawCutoff = (preparingCount = 0) => {
         preparingCount,
         now,
     };
+};
+
+export const useOrderRefundsForInspection = (orderId?: string, enabled = false) => {
+    return useQuery({
+        queryKey: [REFUND_QUERY_KEYS.ADMIN_REFUNDS, { orderId, page: 1, limit: 20 }],
+        queryFn: () => refundAdminApi.getStaffRefunds({ orderId, page: 1, limit: 20 }),
+        enabled: !!orderId && enabled,
+        staleTime: QUERY_STALE_TIMES.badge,
+    });
 };

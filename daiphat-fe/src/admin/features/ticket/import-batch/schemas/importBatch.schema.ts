@@ -8,7 +8,7 @@ import {
 import { hasInvoiceEvidence } from '../utils/invoiceEvidence';
 import { isDrawDateWithinAllowedRange } from '../utils/importBatchDrawDate';
 
-/** URL đã upload hoặc File local — upload khi bấm xác nhận/lưu. */
+/** Prefer uploaded URL; File still allowed on update forms that upload at save time. */
 const invoiceEvidenceSchema = z.union([z.string(), z.instanceof(File)]).nullish();
 
 const importBatchLineSchema = z.object({
@@ -30,6 +30,7 @@ export const createImportBatchSchema = z
             .number()
             .min(1, 'Tổng số lượng khai báo phiếu nhập lô phải lớn hơn 0'),
         invoiceEvidenceUrl: invoiceEvidenceSchema,
+        ticketListImageUrls: z.array(z.string()).optional(),
         note: z.string().optional(),
         lines: z.array(importBatchLineSchema),
     })
@@ -60,7 +61,6 @@ export const createImportBatchSchema = z
         }
 
         const stationIds = new Set<number>();
-        let requiresInvoice = false;
 
         data.lines.forEach((line, index) => {
             if (stationIds.has(line.lotteryStationId)) {
@@ -71,17 +71,13 @@ export const createImportBatchSchema = z
                 });
             }
             stationIds.add(line.lotteryStationId);
-
-            const type = line.resolvedBatchType as ImportBatchType | undefined;
-            if (data.importMode === 'IN_DAY' && type === 'NEW') {
-                requiresInvoice = true;
-            }
         });
 
-        if (data.importMode === 'IN_DAY' && requiresInvoice && !hasInvoiceEvidence(data.invoiceEvidenceUrl)) {
+        // IN_DAY create: receipt card is shown — require File or uploaded URL (resolve uploads File at submit).
+        if (data.importMode === 'IN_DAY' && !hasInvoiceEvidence(data.invoiceEvidenceUrl)) {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
-                message: 'Vui lòng chọn ảnh biên lai.',
+                message: 'Vui lòng tải ảnh biên lai thành công trước khi xác nhận.',
                 path: ['invoiceEvidenceUrl'],
             });
         }
@@ -167,6 +163,7 @@ export const updateImportBatchSchema = z
             .number()
             .min(1, 'Tổng số lượng khai báo phiếu nhập lô phải lớn hơn 0'),
         invoiceEvidenceUrl: invoiceEvidenceSchema,
+        ticketListImageUrls: z.array(z.string()).optional(),
         importMode: z.enum(['IN_DAY', 'POST_DRAW_SUPPLEMENT']),
         drawDate: z.string().min(1),
         lines: z.array(updateImportBatchLineSchema),

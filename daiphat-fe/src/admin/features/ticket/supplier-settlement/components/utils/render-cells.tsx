@@ -1,20 +1,62 @@
 "use client";
 
+import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import type { ReactNode } from 'react';
 import { Link } from '@mui/material';
 import { GridRenderCellParams } from '@mui/x-data-grid';
 import dayjs from 'dayjs';
-import { useNavigate } from '@/components/router-compat';
 import { ROUTES } from '../../../../../constants/routes';
 import { AdminRowActionsMenu } from '../../../../../components/ui/AdminRowActionsMenu';
-import { formatVnd } from '../../../import-batch/utils/importCostCalculator';
+import { formatImportCost, formatVnd } from '../../../import-batch/utils/importCostCalculator';
 import {
     getSupplierSettlementStatusLabel,
     getSupplierSettlementStatusModifier,
 } from '../../utils/settlementLabels';
 
+export const RenderSettlementCodeCell = (params: GridRenderCellParams) => {
+    const router = useAdminRouter();
+    const id = params.row.id;
+    const code = params.row.supplierSettlementCode || (id != null ? `#${id}` : '—');
+    const isExpired = params.row.isReturnExpired;
+
+    return (
+        <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+            <Link
+                href={ROUTES.ADMIN.SUPPLIER_SETTLEMENT.DETAIL(id)}
+                onClick={(e) => {
+                    e.preventDefault();
+                    router.push(ROUTES.ADMIN.SUPPLIER_SETTLEMENT.DETAIL(id));
+                }}
+                underline="hover"
+                sx={{
+                    fontFamily: 'monospace',
+                    fontWeight: 700,
+                    fontSize: '0.8125rem',
+                    color: isExpired ? '#b91c1c' : '#0f172a',
+                    bgcolor: isExpired ? '#fee2e2' : '#f8fafc',
+                    border: `1px solid ${isExpired ? '#fca5a5' : '#e2e8f0'}`,
+                    borderRadius: '6px',
+                    px: 1,
+                    py: 0.35,
+                    lineHeight: 1.2,
+                    display: 'inline-block',
+                    transition: 'all 0.15s ease',
+                    '&:hover': {
+                        bgcolor: isExpired ? '#fecaca' : '#f1f5f9',
+                        borderColor: isExpired ? '#f87171' : '#cbd5e1',
+                        transform: 'translateY(-1px)',
+                    },
+                }}
+                title={`Xem chi tiết đối soát ${code}`}
+            >
+                {code}
+            </Link>
+        </div>
+    );
+};
+
 export const RenderSupplierNameCell = (params: GridRenderCellParams) => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const id = params.row.id;
     const name = params.row.supplierName || '—';
     const code = params.row.supplierCode;
@@ -26,7 +68,7 @@ export const RenderSupplierNameCell = (params: GridRenderCellParams) => {
                 className="admin-cell-title"
                 onClick={(e) => {
                     e.preventDefault();
-                    navigate(ROUTES.ADMIN.SUPPLIER_SETTLEMENT.DETAIL(id));
+                    router.push(ROUTES.ADMIN.SUPPLIER_SETTLEMENT.DETAIL(id));
                 }}
                 underline="hover"
             >
@@ -59,13 +101,24 @@ export const RenderMoneyCell = (params: GridRenderCellParams) => (
     </MoneyCellWrapper>
 );
 
-export const RenderRemainingMoneyCell = (params: GridRenderCellParams) => (
-    <MoneyCellWrapper>
-        <span className="admin-cell-text" style={{ fontWeight: 700, color: '#166534', textAlign: 'center' }}>
-            {formatVnd(params.value)}
-        </span>
-    </MoneyCellWrapper>
-);
+export const RenderRemainingMoneyCell = (params: GridRenderCellParams) => {
+    const isExpired = params.row.isReturnExpired;
+    const value = params.value ?? 0;
+    return (
+        <MoneyCellWrapper>
+            <span
+                className="admin-cell-text"
+                style={{
+                    fontWeight: 700,
+                    color: value > 0 && isExpired ? '#dc2626' : value > 0 ? '#166534' : '#64748b',
+                    textAlign: 'center',
+                }}
+            >
+                {formatImportCost(value)} VNĐ
+            </span>
+        </MoneyCellWrapper>
+    );
+};
 
 export const RenderPaidAtCell = (params: GridRenderCellParams) => {
     const paidAt = params.row.paidAt;
@@ -91,7 +144,7 @@ export const RenderStatusCell = (params: GridRenderCellParams) => {
 };
 
 export const RenderActionsCell = (params: GridRenderCellParams) => {
-    const navigate = useNavigate();
+    const router = useAdminRouter();
     const id = params.row.id;
 
     return (
@@ -101,7 +154,7 @@ export const RenderActionsCell = (params: GridRenderCellParams) => {
                     id: 'detail',
                     label: 'Xem chi tiết',
                     icon: 'view',
-                    onClick: () => navigate(ROUTES.ADMIN.SUPPLIER_SETTLEMENT.DETAIL(id)),
+                    onClick: () => router.push(ROUTES.ADMIN.SUPPLIER_SETTLEMENT.DETAIL(id)),
                 },
             ]}
         />

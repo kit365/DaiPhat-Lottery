@@ -131,7 +131,7 @@ export const parseTicketSuggestToken = (content: string): ParsedTicketSuggest | 
 
 /** Human-readable text without the machine `TICKET_SUGGEST:` payload. */
 export const stripTicketSuggestToken = (content: string): string => {
-  const text = content?.trim() ?? '';
+  const text = stripChatInternalParams(content);
   if (!text) {
     return '';
   }
@@ -152,7 +152,7 @@ export const stripTicketSuggestToken = (content: string): string => {
 
 /** Formats bot content for staff/admin chat (no raw JSON tokens). */
 export const formatChatMessageContent = (content: string): string => {
-  const text = content?.trim() ?? '';
+  const text = stripChatInternalParams(content);
   if (!text) {
     return '';
   }
@@ -175,6 +175,27 @@ export const formatChatMessageContent = (content: string): string => {
     lines.push(ticketLines.join('\n'));
   }
   return lines.join('\n\n');
+};
+
+/** Removes internal control params (e.g. `|exclude=1,2,3`) from customer-visible text. */
+export const stripChatInternalParams = (content: string): string => {
+  const text = content?.trim() ?? '';
+  if (!text) {
+    return '';
+  }
+  return text.replace(/\|\s*exclude=[0-9,\s]+/gi, '').trim();
+};
+
+/** Customer message display for staff — never show API control params. */
+export const formatCustomerChatMessageContent = (content: string): string => {
+  const cleaned = stripChatInternalParams(content);
+  if (!cleaned) {
+    return '';
+  }
+  if (/^gợi ý vé số cho tôi$/i.test(cleaned) || /^gợi ý vé$/i.test(cleaned)) {
+    return 'Gợi ý vé số';
+  }
+  return cleaned;
 };
 
 /**

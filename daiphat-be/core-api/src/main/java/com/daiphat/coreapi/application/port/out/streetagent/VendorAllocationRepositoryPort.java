@@ -12,15 +12,22 @@ import java.util.*;
 public interface VendorAllocationRepositoryPort {
     boolean existsOpenBatchByProfileId(Long profileId, Collection<AllocationBatchStatus> statuses);
     Optional<VendorAllocationBatchModel> findOpenByProfileId(Long profileId, Collection<AllocationBatchStatus> statuses);
+    /**
+     * @param businessDateToday Vietnam calendar "today" used to float today's batches after open ones.
+     *                          When null, only unsettled-first + createdAt desc is applied.
+     */
     Page<VendorAllocationBatchModel> search(
             Long profileId,
             Collection<AllocationBatchStatus> statuses,
             LocalDate businessDateFrom,
             LocalDate businessDateTo,
+            String search,
+            LocalDate businessDateToday,
             Pageable pageable);
     long sumAllocatedForDay(Long profileId, LocalDate date, Collection<AllocationBatchStatus> statuses);
     List<VendorAllocationSerialModel> findCandidates(LocalDate drawDate);
     List<VendorAllocationSerialModel> lockCandidates(Collection<Long> serialIds);
+    List<VendorAllocationSerialModel> lockCandidatesForStations(LocalDate drawDate, Collection<Long> stationIds);
     VendorAllocationBatchModel save(VendorAllocationBatchModel model);
     Optional<VendorAllocationBatchModel> findById(Long id);
     Optional<VendorAllocationBatchModel> findByIdForUpdate(Long id);

@@ -164,15 +164,28 @@ export const useCloseComplaint = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: (id: number) => supportTicketService.close(id),
-        onSuccess: (response, id) => {
+        mutationFn: ({ id }: { id: number; intent: 'cancel' | 'confirm' }) =>
+            supportTicketService.close(id),
+        onSuccess: (response, variables) => {
+            const isConfirm = variables.intent === 'confirm';
             if (response.success) {
-                toast.success(response.message || 'Huỷ khiếu nại thành công');
+                toast.success(
+                    isConfirm
+                        ? 'Bạn đã xác nhận. Khiếu nại đã được giải quyết.'
+                        : response.message || 'Huỷ khiếu nại thành công'
+                );
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_MY_COMPLAINTS] });
-                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_COMPLAINT_DETAIL, id] });
-                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_TICKET_COMMENTS, id] });
+                queryClient.invalidateQueries({
+                    queryKey: [QUERY_KEYS.CLIENT_COMPLAINT_DETAIL, variables.id],
+                });
+                queryClient.invalidateQueries({
+                    queryKey: [QUERY_KEYS.CLIENT_TICKET_COMMENTS, variables.id],
+                });
             } else {
-                toast.error(response.message || 'Có lỗi xảy ra khi huỷ khiếu nại');
+                toast.error(
+                    response.message ||
+                        (isConfirm ? 'Không thể xác nhận khiếu nại' : 'Có lỗi xảy ra khi huỷ khiếu nại')
+                );
             }
         },
         onError: (error: any) => {

@@ -1,10 +1,15 @@
 "use client";
 
+import Link from "next/link";
 import React, { useEffect, useMemo, useState } from 'react';
 import { scrollToTop } from '../../../../../utils/scroll.util';
-import { Link } from 'react-router-dom';
-import dayjs from 'dayjs';
-import { formatVietnameseDrawDate } from '../../../../utils/vietnameseDate.util';
+import {
+    formatVietnameseDateTime,
+    formatVietnameseDrawDate,
+    normalizeDrawDateIso,
+} from '../../../../utils/vietnameseDate.util';
+import { todayIsoVn } from '../../../../utils/sellableDrawDate.util';
+import { ClientDatePicker } from '../../../../components/ui/ClientDatePicker';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Pagination } from '../../../../components/common/Pagination';
 import { useStationsByDrawDate } from '@/client/hooks/useStationSchedule';
@@ -22,6 +27,7 @@ import {
     SERIAL_PAYOUT_STATE_LABELS,
 } from '../../../../../types/prize-payout.type';
 import { PrizePayoutRequestModal } from '../../../../components/prize-payout/PrizePayoutRequestModal';
+import { LuckyNumber } from '../../../../components/ui/LuckyNumber';
 import { AppToast as toast } from '../../../../../utils/toast.util';
 import { ROUTES } from '@/admin/constants/routes';
 
@@ -74,23 +80,6 @@ const formatMoney = (value?: number) =>
 /** Always "Thứ 2, dd/mm/yyyy" — never English Monday from dayjs `dddd`. */
 const formatDrawDate = formatVietnameseDrawDate;
 
-const formatDateTime = (value?: string) =>
-    value ? dayjs(value).format('DD/MM/YYYY - HH:mm:ss') : '—';
-
-/** Tách số vé thành từng cặp 2 chữ số nếu đủ chẵn (VD: 68 11 00), ngược lại tách từng ký tự. */
-const splitTicketNumbers = (numbers?: string): string[] => {
-    const digits = (numbers || '').replace(/\D/g, '');
-    if (!digits) return [];
-    if (digits.length % 2 === 0 && digits.length >= 2 && digits.length <= 12) {
-        const pairs: string[] = [];
-        for (let i = 0; i < digits.length; i += 2) {
-            pairs.push(digits.slice(i, i + 2));
-        }
-        return pairs;
-    }
-    return digits.split('');
-};
-
 const ticketKey = (ticket: PurchasedTicket) =>
     `${ticket.orderId}-${ticket.ticketId}-${ticket.serialNumber || ticket.numbers}`;
 
@@ -102,13 +91,6 @@ const normalizeStationName = (value?: string) =>
         .replace(/\s+/g, ' ')
         .trim();
 
-const normalizeDrawDateIso = (raw?: string) => {
-    if (!raw) return '';
-    const matched = raw.match(/\d{4}-\d{2}-\d{2}/);
-    if (matched?.[0]) return matched[0];
-    return dayjs(raw).format('YYYY-MM-DD');
-};
-
 export const TicketsTab = () => {
     const [page, setPage] = useState(1);
     const [activeTab, setActiveTab] = useState<StatusTab>('Tất cả');
@@ -116,16 +98,19 @@ export const TicketsTab = () => {
     const [searchCode, setSearchCode] = useState('');
     const [fromDate, setFromDate] = useState('');
     const [toDate, setToDate] = useState('');
+    const [fromDateOpen, setFromDateOpen] = useState(false);
+    const [toDateOpen, setToDateOpen] = useState(false);
     const [selectedTicket, setSelectedTicket] = useState<PurchasedTicket | null>(null);
     const [payoutModalOpen, setPayoutModalOpen] = useState(false);
 
+    const todayIso = todayIsoVn();
     const pageSize = 10;
     const apiStatus = STATUS_TAB_TO_API[activeTab];
     const redeemedParam =
         activeTab === 'Trúng thưởng' && wonRedeemFilter !== 'ALL'
             ? wonRedeemFilter === 'REDEEMED'
             : undefined;
-    const hasInvalidDateRange = Boolean(fromDate && toDate && dayjs(fromDate).isAfter(dayjs(toDate)));
+    const hasInvalidDateRange = Boolean(fromDate && toDate && fromDate > toDate);
 
     const { data, isLoading, isFetching, isError, error, refetch } = usePurchasedTicketLookup({
         page,
@@ -268,7 +253,6 @@ export const TicketsTab = () => {
     // DETAIL VIEW (Vé chi tiết dạng cuống xé kỹ thuật số sang trọng)
     if (selectedTicket) {
         const ui = STATUS_UI[selectedTicket.drawResultStatus] ?? STATUS_UI.PENDING_DRAW;
-        const numberParts = splitTicketNumbers(selectedTicket.numbers);
         const isWon = selectedTicket.drawResultStatus === 'WON';
         const isEligibleForPayout = canRequestPrizePayout(selectedTicket);
         const ineligibilityReason = !isEligibleForPayout ? getPrizePayoutIneligibilityMessage(selectedTicket) : null;
@@ -365,25 +349,11 @@ export const TicketsTab = () => {
                         <div className="flex flex-col gap-3">
                             <span className="text-[13px] text-slate-500 font-bold uppercase tracking-wider">Bộ số dự thưởng</span>
                             <div className="flex items-center gap-2.5 md:gap-4 flex-wrap bg-slate-50/80 p-4 md:p-6 rounded-2xl border border-slate-200/60 shadow-inner">
-                                {numberParts.length > 0 ? (
-                                    numberParts.map((num, i) => (
-                                        <motion.div
-                                            key={`${num}-${i}`}
-                                            whileHover={{ scale: 1.1, y: -2 }}
-                                            className={`w-12 h-12 md:w-16 md:h-16 rounded-full flex items-center justify-center text-[18px] md:text-[24px] font-black tracking-tight ${
-                                                isWon
-                                                    ? 'bg-gradient-to-b from-amber-300 via-amber-400 to-amber-500 text-amber-950 shadow-[0_6px_16px_rgba(245,158,11,0.4),inset_0_2px_4px_rgba(255,255,255,0.9)] border-2 border-amber-300'
-                                                    : 'bg-gradient-to-b from-white via-slate-100 to-slate-200 text-slate-900 shadow-[0_4px_12px_rgba(0,0,0,0.12),inset_0_2px_3px_rgba(255,255,255,1)] border border-slate-300/80'
-                                            }`}
-                                        >
-                                            {num}
-                                        </motion.div>
-                                    ))
-                                ) : (
-                                    <span className="text-[24px] font-black tracking-wider text-red-600">
-                                        {selectedTicket.numbers}
-                                    </span>
-                                )}
+                                <LuckyNumber
+                                    value={selectedTicket.numbers}
+                                    ticket
+                                    className={`text-[18px] md:text-[24px] font-black tracking-tight ${isWon ? 'text-amber-950' : 'text-slate-900'}`}
+                                />
                             </div>
                         </div>
 
@@ -405,7 +375,7 @@ export const TicketsTab = () => {
                                 <div className="bg-slate-50/70 rounded-2xl p-4 border border-slate-200/70 flex flex-col gap-3">
                                     <div className="flex items-center justify-between text-[14px]">
                                         <span className="text-slate-500 font-medium">Thời gian mua vé</span>
-                                        <span className="text-slate-900 font-bold">{formatDateTime(selectedTicket.purchasedAt)}</span>
+                                        <span className="text-slate-900 font-bold">{formatVietnameseDateTime(selectedTicket.purchasedAt)}</span>
                                     </div>
                                     <div className="h-[1px] bg-slate-200/60"></div>
 
@@ -463,7 +433,7 @@ export const TicketsTab = () => {
                                                         </span>
                                                         {selectedTicket.actualPickedUpAt ? (
                                                             <span className="text-[12px] text-slate-500 font-medium">
-                                                                Lấy lúc {formatDateTime(selectedTicket.actualPickedUpAt)}
+                                                                Lấy lúc {formatVietnameseDateTime(selectedTicket.actualPickedUpAt)}
                                                             </span>
                                                         ) : possession.hint ? (
                                                             <span className="text-[12px] text-slate-500 font-medium max-w-[220px]">
@@ -496,6 +466,22 @@ export const TicketsTab = () => {
                         {/* Prize payout action box for winning tickets */}
                         {isWon && (() => {
                             const payoutDisplay = resolveTicketPayoutDisplay(selectedTicket);
+                            const isPayoutCompleted = payoutDisplay?.status === 'COMPLETED';
+                            const isPayoutInProgress = payoutDisplay?.status === 'PENDING';
+                            const payoutRequestHref = selectedTicket.activePayoutRequestId
+                                ? `/profile/prize-payouts/${selectedTicket.activePayoutRequestId}`
+                                : null;
+
+                            const congratulationCopy = isEligibleForPayout
+                                ? 'Bạn có thể gửi yêu cầu trả thưởng online. Tiền sẽ được chuyển sau khi nhân viên duyệt.'
+                                : isPayoutCompleted
+                                    ? 'Yêu cầu trả thưởng đã được duyệt và hoàn tất.'
+                                    : isPayoutInProgress
+                                        ? 'Yêu cầu trả thưởng của bạn đang được xử lý.'
+                                        : selectedTicket.claimChannel === 'IN_PERSON' || selectedTicket.canClaimOnline === false
+                                            ? 'Vé này cần mang đến đại lý để đổi thưởng trực tiếp.'
+                                            : 'Tiền thưởng sẽ được chuyển tới tài khoản ngân hàng của bạn sau khi yêu cầu được duyệt.';
+
                             return (
                             <div className="bg-gradient-to-r from-amber-50 via-amber-100/50 to-amber-50 rounded-2xl p-5 border border-amber-200/80 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
                                 <div className="flex items-start gap-3">
@@ -505,11 +491,7 @@ export const TicketsTab = () => {
                                     <div>
                                         <h4 className="text-amber-950 font-black text-[16px] mb-0.5">Chúc mừng bạn đã trúng thưởng!</h4>
                                         <p className="text-slate-600 text-[13px] m-0">
-                                            {isEligibleForPayout
-                                                ? 'Bạn có thể gửi yêu cầu trả thưởng online. Tiền sẽ được chuyển sau khi nhân viên duyệt.'
-                                                : selectedTicket.claimChannel === 'IN_PERSON' || selectedTicket.canClaimOnline === false
-                                                    ? 'Vé này cần mang đến đại lý để đổi thưởng trực tiếp.'
-                                                    : 'Tiền thưởng sẽ được chuyển tới tài khoản ngân hàng của bạn sau khi yêu cầu được duyệt.'}
+                                            {congratulationCopy}
                                         </p>
                                     </div>
                                 </div>
@@ -522,9 +504,9 @@ export const TicketsTab = () => {
                                     >
                                         🏆 Yêu cầu trả thưởng ngay
                                     </button>
-                                ) : selectedTicket.activePayoutRequestId ? (
+                                ) : isPayoutInProgress && payoutRequestHref ? (
                                     <Link
-                                        to={`/profile/prize-payouts/${selectedTicket.activePayoutRequestId}`}
+                                        href={payoutRequestHref}
                                         className="text-amber-700 font-bold text-[14px] hover:underline no-underline"
                                     >
                                         Xem yêu cầu đang xử lý →
@@ -539,11 +521,18 @@ export const TicketsTab = () => {
                                                 {payoutDisplay.label}
                                             </div>
                                         )}
-                                        {ineligibilityReason && (
+                                        {isPayoutCompleted && payoutRequestHref ? (
+                                            <Link
+                                                href={payoutRequestHref}
+                                                className="text-emerald-700 font-bold text-[13px] hover:underline no-underline"
+                                            >
+                                                Xem yêu cầu đã hoàn tất →
+                                            </Link>
+                                        ) : ineligibilityReason ? (
                                             <span className="text-[12px] text-slate-500 font-medium">
                                                 {ineligibilityReason}
                                             </span>
-                                        )}
+                                        ) : null}
                                     </div>
                                 )}
                             </div>
@@ -553,14 +542,14 @@ export const TicketsTab = () => {
                         {/* Action buttons footer */}
                         <div className="flex items-center justify-between pt-2">
                             <Link
-                                to={resultLookupUrl}
+                                href={resultLookupUrl}
                                 className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-[13.5px] transition-colors no-underline flex items-center gap-2"
                             >
                                 <i className="fa-solid fa-calendar-days"></i> Xem kết quả kỳ quay
                             </Link>
 
                             <Link
-                                to={rebuyUrl}
+                                href={rebuyUrl}
                                 className="px-6 py-2.5 bg-gradient-to-r from-red-600 to-rose-600 text-white font-bold rounded-xl text-[14px] shadow-md shadow-red-600/20 hover:brightness-110 transition-all cursor-pointer flex items-center gap-2 no-underline"
                             >
                                 <i className="fa-solid fa-cart-plus"></i> Mua lại bộ số này
@@ -675,38 +664,35 @@ export const TicketsTab = () => {
 
                 <div className="flex flex-col lg:flex-row lg:items-end gap-3 px-4 md:px-5 py-3.5 border-b border-slate-100 bg-white">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full lg:max-w-[460px]">
-                        <div className="flex flex-col gap-1">
-                            <label htmlFor="ticketFromDate" className="text-[12px] font-bold text-slate-500 uppercase tracking-wide">
-                                Từ ngày
-                            </label>
-                            <input
-                                id="ticketFromDate"
-                                type="date"
-                                value={fromDate}
-                                max={toDate || undefined}
-                                onChange={(e) => {
-                                    setFromDate(e.target.value);
-                                    setPage(1);
-                                }}
-                                className="h-[42px] w-full px-3 border border-slate-200 bg-white rounded-xl text-[13.5px] outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/10 transition-all font-semibold text-slate-800 shadow-xs"
-                            />
-                        </div>
-                        <div className="flex flex-col gap-1">
-                            <label htmlFor="ticketToDate" className="text-[12px] font-bold text-slate-500 uppercase tracking-wide">
-                                Đến ngày
-                            </label>
-                            <input
-                                id="ticketToDate"
-                                type="date"
-                                value={toDate}
-                                min={fromDate || undefined}
-                                onChange={(e) => {
-                                    setToDate(e.target.value);
-                                    setPage(1);
-                                }}
-                                className="h-[42px] w-full px-3 border border-slate-200 bg-white rounded-xl text-[13.5px] outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/10 transition-all font-semibold text-slate-800 shadow-xs"
-                            />
-                        </div>
+                        <ClientDatePicker
+                            label="Từ ngày"
+                            value={fromDate}
+                            maxDate={toDate || todayIso}
+                            allowClear
+                            open={fromDateOpen}
+                            onOpenChange={setFromDateOpen}
+                            onOpen={() => setToDateOpen(false)}
+                            onChange={(ymd) => {
+                                setFromDate(ymd);
+                                setPage(1);
+                            }}
+                            className="w-full"
+                        />
+                        <ClientDatePicker
+                            label="Đến ngày"
+                            value={toDate}
+                            minDate={fromDate || undefined}
+                            maxDate={todayIso}
+                            allowClear
+                            open={toDateOpen}
+                            onOpenChange={setToDateOpen}
+                            onOpen={() => setFromDateOpen(false)}
+                            onChange={(ymd) => {
+                                setToDate(ymd);
+                                setPage(1);
+                            }}
+                            className="w-full"
+                        />
                     </div>
 
                     {/* Search Code / Numbers */}
@@ -816,7 +802,7 @@ export const TicketsTab = () => {
                             <p className="font-extrabold text-[16px] text-slate-800 m-0">Chưa tìm thấy vé số nào</p>
                             <p className="text-[13px] mt-1 text-slate-400">Vé bạn mua hoặc tìm kiếm sẽ xuất hiện tại đây.</p>
                             <Link
-                                to={ROUTES.PUBLIC.TICKETS}
+                                href={ROUTES.PUBLIC.TICKETS}
                                 className="inline-flex mt-4 px-6 py-2.5 bg-gradient-to-r from-red-600 to-rose-600 text-white font-extrabold rounded-xl text-[14px] no-underline shadow-md shadow-red-600/20 hover:brightness-110 transition-all"
                             >
                                 Mua vé ngay
@@ -826,7 +812,6 @@ export const TicketsTab = () => {
                         <AnimatePresence mode="popLayout">
                             {tickets.map((ticket, index) => {
                                 const ui = STATUS_UI[ticket.drawResultStatus] ?? STATUS_UI.PENDING_DRAW;
-                                const numberParts = splitTicketNumbers(ticket.numbers);
                                 const isWon = ticket.drawResultStatus === 'WON';
 
                                 return (
@@ -908,24 +893,11 @@ export const TicketsTab = () => {
                                                 Bộ số
                                             </span>
                                             <div className="flex items-center gap-1.5 flex-wrap">
-                                                {numberParts.length > 0 ? (
-                                                    numberParts.map((num, i) => (
-                                                        <div
-                                                            key={`${num}-${i}`}
-                                                            className={`w-9 h-9 rounded-full flex items-center justify-center text-[13.5px] font-black tracking-tight transition-transform group-hover:scale-105 ${
-                                                                isWon
-                                                                    ? 'bg-gradient-to-b from-amber-300 via-amber-400 to-amber-500 text-amber-950 shadow-[0_3px_8px_rgba(245,158,11,0.35),inset_0_1px_2px_rgba(255,255,255,0.8)] border border-amber-300'
-                                                                    : 'bg-gradient-to-b from-white via-slate-100 to-slate-200 text-slate-900 shadow-[0_3px_6px_rgba(0,0,0,0.08),inset_0_1px_2px_rgba(255,255,255,1)] border border-slate-300/80'
-                                                            }`}
-                                                        >
-                                                            {num}
-                                                        </div>
-                                                    ))
-                                                ) : (
-                                                    <span className="text-[16px] font-black tracking-wider text-slate-900">
-                                                        {ticket.numbers}
-                                                    </span>
-                                                )}
+                                                <LuckyNumber
+                                                    value={ticket.numbers}
+                                                    ticket
+                                                    className={`text-[16px] font-black tracking-wider ${isWon ? 'text-amber-950' : 'text-slate-900'}`}
+                                                />
                                             </div>
                                         </div>
 
@@ -972,18 +944,11 @@ export const TicketsTab = () => {
                                                     Bộ số
                                                 </span>
                                                 <div className="flex items-center gap-1.5 flex-wrap">
-                                                    {numberParts.map((num, i) => (
-                                                        <div
-                                                            key={`${num}-${i}`}
-                                                            className={`w-8 h-8 rounded-full flex items-center justify-center text-[13px] font-black ${
-                                                                isWon
-                                                                    ? 'bg-gradient-to-b from-amber-300 via-amber-400 to-amber-500 text-amber-950 shadow-xs border border-amber-300'
-                                                                    : 'bg-white shadow-xs border border-slate-200 text-slate-900'
-                                                            }`}
-                                                        >
-                                                            {num}
-                                                        </div>
-                                                    ))}
+                                                    <LuckyNumber
+                                                        value={ticket.numbers}
+                                                        ticket
+                                                        className={`text-[14px] font-black ${isWon ? 'text-amber-950' : 'text-slate-900'}`}
+                                                    />
                                                 </div>
                                             </div>
                                         </div>

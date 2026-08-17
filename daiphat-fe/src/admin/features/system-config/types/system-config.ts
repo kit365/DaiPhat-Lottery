@@ -28,7 +28,7 @@ export const CONFIG_TYPE_LABELS: Record<ConfigType, string> = {
     [ConfigType.PAYMENT_SETTING]: 'Cấu hình thanh toán',
     [ConfigType.TICKET_IMPORT]: 'Cấu hình nhập vé',
     [ConfigType.TICKET_RETURN]: 'Cấu hình trả vé',
-    [ConfigType.VENDOR_SETTING]: 'Cấu hình người bán dạo',
+    [ConfigType.VENDOR_SETTING]: 'Cấu hình người bán vé số',
     [ConfigType.REFUND_SETTING]: 'Cấu hình hoàn tiền',
     [ConfigType.COMPLAINT_SETTING]: 'Cấu hình khiếu nại',
     [ConfigType.PAYOUT_SETTING]: 'Cấu hình trả thưởng',

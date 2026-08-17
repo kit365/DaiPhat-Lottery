@@ -1,18 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useAppSearchParams } from "@/hooks/useAppSearchParams";
+import Link from "@/admin/components/navigation/AdminLink";
+import { ReactNode, useEffect, useMemo, useState } from "react";
 import { useSidebar } from "../../../../context/sidebar/useSidebar";
 import {
     Alert,
-    Autocomplete,
     Box,
-    Button,
     Card,
+    Checkbox,
     Chip,
     CircularProgress,
     Divider,
-    Drawer,
+    FormControlLabel,
     IconButton,
+    MenuItem,
     Stack,
     Table,
     TableBody,
@@ -21,21 +23,22 @@ import {
     TableHead,
     TableRow,
     TextField,
+    ToggleButton,
+    ToggleButtonGroup,
+    Tooltip,
     Typography,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 import CloseIcon from "@mui/icons-material/Close";
-import dayjs from "dayjs";
 import { toast } from "react-toastify";
-import { Link as RouterLink, useSearchParams } from "@/components/router-compat";
-import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
-import { Title } from "../../../../components/ui/Title";
-import { LoadingButton } from "../../../../components/ui/LoadingButton";
+import { PageHeader } from "../../../../components/ui/PageHeader";
+import { Button } from '../../../../components/ui/Button';
 import { ROUTES } from "../../../../constants/routes";
 import { PERMISSIONS } from "../../../../constants/permission.constants";
 import { usePermissions } from "../../../../hooks/usePermission";
 import { useStreetAgentProfiles } from "../../hooks/useStreetAgent";
+import { getStreetAgentOnboardingResumePath } from "../../services/streetAgentService";
 import {
     useCancelVendorAllocation,
     useCreateVendorAllocationDraft,
@@ -45,21 +48,29 @@ import {
 } from "../../hooks/useVendorAllocation";
 import {
     StreetAgentProfile,
-    VendorAllocationSerialItem,
+    VendorAllocationSuggestion,
     VendorAllocationTicketGroup,
+    VendorAllocationStationGroup,
 } from "../../types/street-agent.type";
 import {
     ALLOCATION_BATCH_STATUS_LABELS,
     BLOCKED_REASON_LABELS,
-    CONFIDENCE_TIER_CAP_PERCENT,
     CONFIDENCE_TIER_LABELS,
 } from "../configs/constants";
 import { formatCountdown, formatCurrency, formatDate } from "../../utils/format";
 import {
-    useVendorSettingsDefaults,
-    VENDOR_LATE_RETURN_POLICY_LABELS,
-} from "../../hooks/useVendorSettingsDefaults";
+    minVendorAllocationBusinessDate,
+    resolveVendorAllocationBusinessDate,
+} from "../../utils/vendorAllocationBusinessDate";
+import { getMetricChipSx } from "@/admin/utils/badge";
+import { useVendorSettingsDefaults } from "../../hooks/useVendorSettingsDefaults";
 import { ConfirmVendorDepositDialog } from "../ConfirmVendorDepositDialog";
+import { AdminTicketCard } from "../../../../components/ui/AdminTicketCard";
+import { AdminLuckyDisplay } from "@/shared/lucky-number";
+import { StationCapacityBadges } from "../sections/StationCapacityBadges";
+import { AdminDatePicker } from "../../../../components/ui/AdminDatePicker";
+import { VendorAllocationStationDrawer } from "../sections/VendorAllocationStationDrawer";
+import { todayIsoVn } from "@/client/utils/sellableDrawDate.util";
 
 const fieldSx = {
     "& .MuiOutlinedInput-root": {
@@ -69,9 +80,25 @@ const fieldSx = {
 };
 
 type TicketKey = string;
+type AllocationSelectionMode = "SYSTEM" | "MANUAL";
+
+const ALLOCATION_SELECTION_MODE_OPTIONS: { value: AllocationSelectionMode; label: string }[] = [
+    { value: "SYSTEM", label: "Tự động" },
+    { value: "MANUAL", label: "Thủ công" },
+];
 
 const ticketKey = (stationId: number, ticketNumbers: string): TicketKey =>
     `${stationId}::${ticketNumbers}`;
+
+const formatVendorSelectLabel = (item: StreetAgentProfile) =>
+    `${item.lastName || ""} ${item.firstName || ""}`.trim() + (item.phone ? ` — ${item.phone}` : "");
+
+const getSuggestedSerialIds = (suggestion: VendorAllocationSuggestion | undefined) =>
+    suggestion?.stations?.flatMap((station) =>
+        station.tickets.flatMap((ticket) =>
+            ticket.serials.filter((serial) => serial.suggested).map((serial) => serial.serialId)
+        )
+    ) || [];
 
 const getApiErrorMessage = (error: any, fallback: string) => {
     const status = error?.response?.status;
@@ -82,40 +109,246 @@ const getApiErrorMessage = (error: any, fallback: string) => {
     return message || fallback;
 };
 
-const maxSelectableForTicket = (
-    ticket: VendorAllocationTicketGroup,
-    canOverrideLucky: boolean
-) => {
-    if (ticket.vendorEligible) return ticket.selectableCount;
-    if (ticket.lucky && canOverrideLucky) return ticket.availableCount;
-    return 0;
+const SHORTAGE_REASON_LABELS: Record<string, string> = {
+    DAILY_CAP_LIMIT: "Phiếu đang mở đã đạt giới hạn giao vé.",
+    DAILY_CAP_EXHAUSTED: "Phiếu đang mở đã đạt giới hạn giao vé.",
+    INSUFFICIENT_STATION_CAPACITY: "Kho không đủ vé thường sau khi chừa phần bán tại quầy.",
+    NO_DRAWING_STATION: "Ngày này không có đài xổ phù hợp.",
+    NO_ELIGIBLE_TICKET: "Không còn vé hợp lệ để giao.",
+    NO_ELIGIBLE_INVENTORY: "Kho hiện không còn vé phù hợp để giao.",
+    DRAW_SCHEDULE_MISSING: "Chưa có lịch xổ của đài nên hệ thống chưa thể xác định vé được giao.",
+    DATE_NOT_SCHEDULED: "Đài không xổ vào ngày đã chọn.",
+    RETURN_CUTOFF_REACHED: "Đã qua giờ nhận trả vé của ngày kinh doanh.",
+    INSUFFICIENT_INVENTORY: "Kho hiện không đủ vé phù hợp để giao.",
+    VENDOR_CAP_REACHED: "Đã đạt hạn mức giao vé của người bán vé số.",
+    AGENCY_RESERVE_CAP: "Không đủ vé sau khi chừa quầy",
+    DRAW_TIME_PASSED: "Đã qua giờ xổ",
+    INSUFFICIENT_FUNDS: "Không đủ số dư cọc",
+    LUCKY_TICKET_RESERVED: "Vé số đẹp đang giữ",
+    STATION_BLOCKED: "Đài bị chặn",
+    BUSINESS_DATE_PASSED: "Ngày kinh doanh đã qua, không thể tạo hoặc xác nhận bàn giao.",
+    OPERATIONAL_DEADLINE_REACHED: "Đã qua thời điểm cuối có thể bàn giao trong ngày.",
+    SUPPLIER_RETURN_CUTOFF_MISSING: "Chưa đủ giờ nhận lại vé để xác định thời điểm bàn giao.",
 };
 
-const pickSerialIds = (
-    ticket: VendorAllocationTicketGroup,
-    qty: number,
-    canOverrideLucky: boolean
-): number[] => {
-    if (qty <= 0) return [];
-    const pool: VendorAllocationSerialItem[] = ticket.vendorEligible
-        ? ticket.serials.filter((s) => s.vendorEligible)
-        : ticket.lucky && canOverrideLucky
-          ? ticket.serials
-          : [];
-    return pool.slice(0, qty).map((s) => s.serialId);
+const formatTime = (value?: string | null) => {
+    if (!value) return null;
+    const match = value.match(/^(\d{1,2}:\d{2})/);
+    return match?.[1] || value;
+};
+
+const formatDeadline = (value?: string | null, fallback?: string | null) => {
+    if (value) {
+        const date = new Date(value);
+        if (!Number.isNaN(date.getTime())) {
+            return `${date.toLocaleDateString("vi-VN")} lúc ${date.toLocaleTimeString("vi-VN", {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: false,
+            })}`;
+        }
+    }
+    return fallback ? formatTime(fallback) : null;
+};
+
+const mapReasonDetail = (detail: NonNullable<VendorAllocationSuggestion["reasonDetails"]>[number]) => {
+    const cutoff = formatTime(detail.cutoffTime);
+    const drawTime = formatTime(detail.drawTime);
+    const deadline = formatDeadline(detail.effectiveDeadlineAt, cutoff);
+
+    switch (detail.code) {
+        case "OPERATIONAL_DEADLINE_REACHED":
+            return deadline
+                ? `Đã qua thời điểm cuối có thể bàn giao (${deadline}). Mốc này đã chừa thời gian để Đại Phát nhận lại vé.`
+                : SHORTAGE_REASON_LABELS.OPERATIONAL_DEADLINE_REACHED;
+        case "RETURN_CUTOFF_REACHED":
+            return deadline
+                ? `Đã qua giờ chốt trả vé trong ngày (${deadline}), không thể bàn giao thêm.`
+                : "Đã qua giờ chốt trả vé trong ngày, không thể bàn giao thêm.";
+        case "BUSINESS_DATE_PASSED":
+            return SHORTAGE_REASON_LABELS.BUSINESS_DATE_PASSED;
+        case "SUPPLIER_RETURN_CUTOFF_MISSING":
+            return detail.stationName
+                ? `Đài ${detail.stationName} chưa có giờ Đại Phát nhận lại vé; chưa thể tính giờ bàn giao.`
+                : SHORTAGE_REASON_LABELS.SUPPLIER_RETURN_CUTOFF_MISSING;
+        case "DRAW_TIME_PASSED":
+            return detail.stationName && drawTime
+                ? `Đài ${detail.stationName} đã qua giờ xổ (${drawTime}), không còn vé được giao.`
+                : SHORTAGE_REASON_LABELS.DRAW_TIME_PASSED;
+        case "DAILY_CAP_LIMIT":
+        case "DAILY_CAP_EXHAUSTED":
+            return detail.remainingDailyCap == null || detail.remainingDailyCap <= 0
+                ? "Phiếu đang mở đã đạt giới hạn giao vé. Hoàn tất hoặc hủy phiếu này trước khi tạo phiếu mới."
+                : `Phiếu đang mở chỉ còn có thể thêm ${detail.remainingDailyCap} vé.`;
+        case "INSUFFICIENT_STATION_CAPACITY":
+            if (detail.requestedQuantity != null && detail.vendorCapacity != null) {
+                return `Kho chỉ có thể giao ${detail.vendorCapacity}/${detail.requestedQuantity} vé sau khi chừa vé cho quầy.`;
+            }
+            return SHORTAGE_REASON_LABELS.INSUFFICIENT_STATION_CAPACITY;
+        default:
+            return SHORTAGE_REASON_LABELS[detail.code] || null;
+    }
+};
+
+const getSuggestionReasonMessages = (suggestion?: VendorAllocationSuggestion | null) => {
+    const detailMessages = (suggestion?.reasonDetails || [])
+        .map(mapReasonDetail)
+        .filter((message): message is string => Boolean(message));
+    if (detailMessages.length > 0) return Array.from(new Set(detailMessages));
+    return [mapShortageReasons(suggestion?.shortageReasons, suggestion?.blockedReason)];
+};
+
+const DisabledWithTooltip = ({
+    title,
+    disabled,
+    children,
+    fullWidth = false,
+}: {
+    title: string | null;
+    disabled: boolean;
+    children: ReactNode;
+    fullWidth?: boolean;
+}) => {
+    if (!disabled || !title) {
+        return <>{children}</>;
+    }
+
+    return (
+        <Tooltip title={title} arrow>
+            <span
+                style={{
+                    display: fullWidth ? "block" : "inline-flex",
+                    width: fullWidth ? "100%" : undefined,
+                }}
+            >
+                {children}
+            </span>
+        </Tooltip>
+    );
+};
+
+const ManualPickSlot = ({
+    disabled,
+    onPick,
+}: {
+    disabled: boolean;
+    onPick: () => void;
+}) => (
+    <Box
+        role="button"
+        tabIndex={disabled ? -1 : 0}
+        aria-label="Chọn vé thủ công"
+        aria-disabled={disabled}
+        onClick={() => {
+            if (!disabled) onPick();
+        }}
+        onKeyDown={(event) => {
+            if (disabled) return;
+            if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onPick();
+            }
+        }}
+        sx={{
+            width: 156,
+            minHeight: 90,
+            px: 1.5,
+            py: 1.25,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 0.75,
+            borderRadius: 2,
+            border: "1px solid",
+            borderColor: "divider",
+            bgcolor: "background.paper",
+            boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+            cursor: disabled ? "not-allowed" : "pointer",
+            opacity: disabled ? 0.55 : 1,
+            outline: "none",
+            transition: "border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease",
+            "&:hover": disabled
+                ? undefined
+                : {
+                      borderColor: "text.primary",
+                      bgcolor: "action.hover",
+                      boxShadow: "0 2px 8px rgba(28, 37, 46, 0.08)",
+                  },
+            "&:focus-visible": {
+                borderColor: "text.primary",
+                boxShadow: "0 0 0 2px rgba(28, 37, 46, 0.18)",
+            },
+        }}
+    >
+        <Box
+            sx={{
+                width: 32,
+                height: 32,
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                bgcolor: "rgba(145, 158, 171, 0.12)",
+                color: "text.primary",
+            }}
+        >
+            <AddIcon sx={{ fontSize: 18 }} />
+        </Box>
+        <Box sx={{ textAlign: "center" }}>
+            <Typography sx={{ fontSize: "0.8125rem", fontWeight: 700, lineHeight: 1.2, color: "text.primary" }}>
+                Chọn vé
+            </Typography>
+            <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mt: 0.25, lineHeight: 1.2 }}>
+                Chưa có vé
+            </Typography>
+        </Box>
+    </Box>
+);
+
+const isVendorOpenBatchBlockedMessage = (message?: string | null) =>
+    !!message &&
+    /phiếu bàn giao/i.test(message) &&
+    /quyết toán|chưa đóng|chưa quyết/i.test(message);
+
+const mapShortageReasons = (reasons?: string[] | null, blockedReason?: string | null) => {
+    if (blockedReason === "DRAW_TIME_PASSED" || reasons?.includes("DRAW_TIME_PASSED")) {
+        return "Đã qua giờ xổ của các đài hôm nay, không còn vé có thể giao.";
+    }
+    if (blockedReason && SHORTAGE_REASON_LABELS[blockedReason]) {
+        return SHORTAGE_REASON_LABELS[blockedReason];
+    }
+    if (!reasons || reasons.length === 0) {
+        return "Kho hiện không còn vé phù hợp để giao.";
+    }
+    if (reasons.length > 1) {
+        return "Kho không đủ vé do các giới hạn hệ thống (hạn mức, chừa quầy...).";
+    }
+    return SHORTAGE_REASON_LABELS[reasons[0]] || "Kho hiện không đủ vé phù hợp để bàn giao.";
 };
 
 export const VendorAllocationPage = () => {
     const { can } = usePermissions();
+    const canCreate = can(PERMISSIONS.STREET_AGENT.CREATE);
+    const canEdit = can(PERMISSIONS.STREET_AGENT.EDIT);
     const canOverrideLucky = can(PERMISSIONS.STREET_AGENT.MANAGE);
-    const [searchParams, setSearchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useAppSearchParams();
     const { isOpen: isSidebarOpen } = useSidebar();
 
     const [profile, setProfile] = useState<StreetAgentProfile | null>(null);
-    const [businessDate, setBusinessDate] = useState(
-        () => searchParams.get("businessDate") || dayjs().format("YYYY-MM-DD")
+    const [businessDate, setBusinessDate] = useState(() =>
+        resolveVendorAllocationBusinessDate(searchParams.get("businessDate"))
     );
-    const [selectedQty, setSelectedQty] = useState<Record<TicketKey, number>>({});
+    const [selectedSerialIds, setSelectedSerialIds] = useState<number[]>([]);
+    const [requestedQuantity, setRequestedQuantity] = useState<number | null>(null);
+    const [requestedQuantityDraft, setRequestedQuantityDraft] = useState<number | null>(null);
+    const [selectionMode, setSelectionMode] = useState<AllocationSelectionMode>("SYSTEM");
+    const [faceValue, setFaceValue] = useState<number | null>(() => {
+        const raw = searchParams.get("faceValue");
+        const parsed = raw ? Number(raw) : NaN;
+        return Number.isFinite(parsed) ? parsed : null;
+    });
+    const [acceptShortfall, setAcceptShortfall] = useState(false);
     const [luckyOverrideReason, setLuckyOverrideReason] = useState("");
     const [draftId, setDraftId] = useState<number | null>(() => {
         const raw = searchParams.get("draftId");
@@ -123,18 +356,15 @@ export const VendorAllocationPage = () => {
         return Number.isFinite(parsed) ? parsed : null;
     });
     const [nowMs, setNowMs] = useState(Date.now());
-    const [serialDrawer, setSerialDrawer] = useState<{
-        stationName: string;
-        ticket: VendorAllocationTicketGroup;
-    } | null>(null);
+    const [drawerStation, setDrawerStation] = useState<VendorAllocationStationGroup | null>(null);
+    const [drawerTicketNumber, setDrawerTicketNumber] = useState<string | null>(null);
     const [hydratedProfileFromUrl, setHydratedProfileFromUrl] = useState(false);
     const [confirmOpen, setConfirmOpen] = useState(false);
 
     const { data: profilesRes, isLoading: isLoadingProfiles } = useStreetAgentProfiles({
         page: 1,
         limit: 100,
-        status: "ACTIVE",
-    });
+        });
     const profiles = profilesRes?.data?.recordList || [];
 
     const {
@@ -143,8 +373,14 @@ export const VendorAllocationPage = () => {
         isFetching: isFetchingOpen,
     } = useVendorAllocationOpenBatch(profile?.id);
 
+    // A DRAFT batch only holds serials temporarily. It is rendered by the
+    // draft banner below and must not be presented as an unsettled handover.
+    // Only a confirmed/return-open batch blocks a new allocation and produces
+    // the "chưa quyết toán" warning.
     const blockingOpenBatch =
-        openBatch && openBatch.status !== "DRAFT" ? openBatch : null;
+        openBatch && (openBatch.status === "CONFIRMED" || openBatch.status === "RETURN_OPEN")
+            ? openBatch
+            : null;
 
     const {
         data: suggestion,
@@ -155,7 +391,14 @@ export const VendorAllocationPage = () => {
     } = useVendorAllocationSuggestion(
         profile?.id,
         businessDate,
-        !blockingOpenBatch
+        requestedQuantity,
+        faceValue,
+        !blockingOpenBatch &&
+        !draftId &&
+        openBatch?.status !== "DRAFT" &&
+        !isLoadingOpen &&
+        !isFetchingOpen &&
+        profile?.status === "ACTIVE"
     );
 
     const { data: draftBatch } = useVendorAllocationBatch(draftId);
@@ -163,10 +406,38 @@ export const VendorAllocationPage = () => {
     const { mutate: cancelDraft, isPending: isCancelling } = useCancelVendorAllocation();
     const { defaults: vendorDefaults } = useVendorSettingsDefaults();
 
+    const hasActiveDraft = Boolean(
+        draftId ||
+        openBatch?.status === "DRAFT" ||
+        draftBatch?.status === "DRAFT"
+    );
+
+    const returnCutoff = vendorDefaults.returnCutoff || vendorDefaults.timing.returnCutoff;
+    const minBusinessDate = useMemo(
+        () => minVendorAllocationBusinessDate(returnCutoff, new Date(nowMs)),
+        [returnCutoff, nowMs]
+    );
+    const businessDateCutoffHelperText = useMemo(() => {
+        if (!returnCutoff || minBusinessDate <= todayIsoVn(new Date(nowMs))) {
+            return undefined;
+        }
+        const cutoffLabel = returnCutoff.match(/^(\d{1,2}:\d{2})/)?.[1] || returnCutoff;
+        return `Đã qua giờ chốt trả vé (${cutoffLabel}) — không thể chọn hôm nay.`;
+    }, [returnCutoff, minBusinessDate, nowMs]);
+
     useEffect(() => {
         const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
         return () => window.clearInterval(timer);
     }, []);
+
+    // Keep selection aligned with BE: past VN days + today after VENDOR_RETURN_CUTOFF are closed.
+    // Do not rewrite a draft's business date while a reservation is open.
+    useEffect(() => {
+        if (draftId || hasActiveDraft) return;
+        if (businessDate && businessDate < minBusinessDate) {
+            setBusinessDate(minBusinessDate);
+        }
+    }, [businessDate, minBusinessDate, draftId, hasActiveDraft]);
 
     useEffect(() => {
         if (hydratedProfileFromUrl || isLoadingProfiles || profiles.length === 0) return;
@@ -180,11 +451,38 @@ export const VendorAllocationPage = () => {
     }, [hydratedProfileFromUrl, isLoadingProfiles, profiles, searchParams]);
 
     useEffect(() => {
-        setSelectedQty({});
+        setSelectedSerialIds([]);
+        setRequestedQuantity(null);
+        setRequestedQuantityDraft(null);
+        setSelectionMode("SYSTEM");
+        setAcceptShortfall(false);
         setLuckyOverrideReason("");
-        setSerialDrawer(null);
+        setDrawerStation(null);
+        setDrawerTicketNumber(null);
         setDraftId(null);
     }, [profile?.id]);
+
+    useEffect(() => {
+        setRequestedQuantity(null);
+        setRequestedQuantityDraft(null);
+        setAcceptShortfall(false);
+    }, [businessDate]);
+
+    useEffect(() => {
+        if (suggestion?.availableFaceValues && suggestion.availableFaceValues.length === 1) {
+            const singleVal = suggestion.availableFaceValues[0];
+            if (faceValue !== singleVal) {
+                setFaceValue(singleVal);
+            }
+        }
+    }, [suggestion?.availableFaceValues, faceValue]);
+
+    useEffect(() => {
+        setSelectedSerialIds([]);
+        setRequestedQuantity(null);
+        setRequestedQuantityDraft(null);
+        setAcceptShortfall(false);
+    }, [faceValue]);
 
     useEffect(() => {
         if (!profile?.id || isLoadingOpen || isFetchingOpen) return;
@@ -205,45 +503,48 @@ export const VendorAllocationPage = () => {
         if (profile?.id) next.set("profileId", String(profile.id));
         if (businessDate) next.set("businessDate", businessDate);
         if (draftId) next.set("draftId", String(draftId));
+        if (faceValue) next.set("faceValue", String(faceValue));
         setSearchParams(next, { replace: true });
-    }, [profile?.id, businessDate, draftId, setSearchParams]);
+    }, [profile?.id, businessDate, draftId, faceValue, setSearchParams]);
 
     useEffect(() => {
         if (!suggestion?.stations || draftId) return;
-        const next: Record<TicketKey, number> = {};
-        for (const station of suggestion.stations) {
-            for (const ticket of station.tickets) {
-                next[ticketKey(station.stationId, ticket.ticketNumbers)] = ticket.suggestedCount;
-            }
+        if ((suggestion.availableFaceValues?.length ?? 0) > 1 && !faceValue) {
+            setSelectedSerialIds([]);
+            return;
         }
-        setSelectedQty(next);
-    }, [suggestion, draftId]);
+        if (selectionMode === "SYSTEM") {
+            setSelectedSerialIds(getSuggestedSerialIds(suggestion));
+        } else {
+            const currentSerialIds = new Set(
+                suggestion.stations.flatMap((station) =>
+                    station.tickets.flatMap((ticket) => ticket.serials.map((serial) => serial.serialId))
+                )
+            );
+            setSelectedSerialIds((current) => current.filter((serialId) => currentSerialIds.has(serialId)));
+        }
+        setAcceptShortfall(false);
+    }, [suggestion, draftId, selectionMode, faceValue]);
 
     useEffect(() => {
         if (draftBatch?.status && draftBatch.status !== "DRAFT") {
             setDraftId(null);
-            setSelectedQty({});
+            setSelectedSerialIds([]);
         }
     }, [draftBatch?.status]);
 
-    const theoreticalCap = useMemo(() => {
-        if (!profile?.dailyTicketCap) return null;
-        const ratio = CONFIDENCE_TIER_CAP_PERCENT[profile.confidenceTier || "NEW"] ?? 0.25;
-        return Math.floor(profile.dailyTicketCap * ratio);
-    }, [profile]);
-
-    const selectedSerialIds = useMemo(() => {
-        if (!suggestion?.stations) return [] as number[];
-        const ids: number[] = [];
+    const selectedQty = useMemo(() => {
+        const qtyMap: Record<TicketKey, number> = {};
+        if (!suggestion?.stations) return qtyMap;
         for (const station of suggestion.stations) {
             for (const ticket of station.tickets) {
                 const key = ticketKey(station.stationId, ticket.ticketNumbers);
-                const qty = selectedQty[key] ?? 0;
-                ids.push(...pickSerialIds(ticket, qty, canOverrideLucky));
+                const count = ticket.serials.filter(s => selectedSerialIds.includes(s.serialId)).length;
+                if (count > 0) qtyMap[key] = count;
             }
         }
-        return ids;
-    }, [suggestion, selectedQty, canOverrideLucky]);
+        return qtyMap;
+    }, [suggestion, selectedSerialIds]);
 
     const selectedLuckyCount = useMemo(() => {
         if (!suggestion?.stations) return 0;
@@ -260,7 +561,11 @@ export const VendorAllocationPage = () => {
 
     const hasLuckySelected = selectedLuckyCount > 0;
     const totalSelected = selectedSerialIds.length;
-    const remainingCap = suggestion?.remainingDailyCap ?? theoreticalCap;
+    const remainingCap =
+        suggestion?.remainingDailyCap != null ? suggestion.remainingDailyCap : null;
+    const availableForCurrentBatch =
+        remainingCap ?? profile?.remainingDailyCap ?? profile?.effectiveDailyCap ?? null;
+    const allowedQuantity = suggestion?.allowedQuantity ?? 0;
 
     const hasSelectableInventory = useMemo(() => {
         if (!suggestion?.stations?.length) return false;
@@ -270,58 +575,53 @@ export const VendorAllocationPage = () => {
     }, [suggestion]);
 
     const suggestionBlockedMessage = suggestion?.blockedReason
-        ? BLOCKED_REASON_LABELS[suggestion.blockedReason] || suggestion.blockedReason
+        ? BLOCKED_REASON_LABELS[suggestion.blockedReason] ||
+          SHORTAGE_REASON_LABELS[suggestion.blockedReason] ||
+          "Không thể giao vé."
         : null;
+    const suggestionReasonMessages = getSuggestionReasonMessages(suggestion);
 
     const canCreateDraft =
+        canCreate &&
         !draftId &&
         !blockingOpenBatch &&
         !!profile &&
+        profile.status === "ACTIVE" &&
         !suggestionBlockedMessage &&
         (remainingCap ?? 0) > 0 &&
         hasSelectableInventory &&
+        !((suggestion?.availableFaceValues?.length ?? 0) > 1 && !faceValue) &&
         totalSelected > 0;
 
-    const adjustQty = (stationId: number, ticket: VendorAllocationTicketGroup, delta: number) => {
-        if (draftId) return;
-        const key = ticketKey(stationId, ticket.ticketNumbers);
-        const max = maxSelectableForTicket(ticket, canOverrideLucky);
-        setSelectedQty((prev) => {
-            const current = prev[key] ?? 0;
-            const next = Math.max(0, Math.min(max, current + delta));
-            return { ...prev, [key]: next };
-        });
-    };
-
-    const selectAllSelectable = () => {
-        if (draftId || !suggestion?.stations?.length) return;
-        let remaining = remainingCap == null ? Number.POSITIVE_INFINITY : Math.max(0, remainingCap);
-        const next: Record<TicketKey, number> = {};
-        for (const station of suggestion.stations) {
-            for (const ticket of station.tickets) {
-                const key = ticketKey(station.stationId, ticket.ticketNumbers);
-                const max = maxSelectableForTicket(ticket, canOverrideLucky);
-                const take = Math.min(max, remaining);
-                next[key] = take;
-                remaining -= take;
-            }
+    const applyRequestedQuantity = () => {
+        if (draftId || isFetchingSuggestion || requestedQuantityDraft == null) return;
+        const nextQuantity = Math.floor(requestedQuantityDraft);
+        if (!Number.isFinite(nextQuantity) || nextQuantity <= 0) {
+            toast.error("Số vé muốn giao phải lớn hơn 0.");
+            return;
         }
-        setSelectedQty(next);
+        setRequestedQuantity(nextQuantity);
     };
 
-    const clearSelection = () => {
-        if (draftId) return;
-        setSelectedQty({});
+    const changeSelectionMode = (nextMode: AllocationSelectionMode | null) => {
+        if (!nextMode || draftId || isFetchingSuggestion) return;
+        setSelectionMode(nextMode);
+        setAcceptShortfall(false);
+        if (nextMode === "SYSTEM") {
+            setSelectedSerialIds(getSuggestedSerialIds(suggestion));
+        } else {
+            setSelectedSerialIds([]);
+        }
     };
 
     const handleCreateDraft = () => {
         if (!profile?.id) {
-            toast.error("Vui lòng chọn đại lý bán dạo");
+            toast.error("Vui lòng chọn người bán vé số");
             return;
         }
         if (blockingOpenBatch) {
             toast.error(
-                `Vendor còn phiếu mở ${blockingOpenBatch.batchCode} (${ALLOCATION_BATCH_STATUS_LABELS[blockingOpenBatch.status] || blockingOpenBatch.status}). Không thể tạo phiếu mới.`
+                `Người bán vé số còn phiếu mở ${blockingOpenBatch.batchCode} (${ALLOCATION_BATCH_STATUS_LABELS[blockingOpenBatch.status] || blockingOpenBatch.status}). Không thể tạo phiếu mới.`
             );
             return;
         }
@@ -338,7 +638,15 @@ export const VendorAllocationPage = () => {
             return;
         }
         if (remainingCap != null && selectedSerialIds.length > remainingCap) {
-            toast.error(`Số vé chọn vượt hạn mức còn lại (${remainingCap})`);
+            toast.error(`Số vé chọn vượt số lượng còn có thể thêm vào phiếu (${remainingCap})`);
+            return;
+        }
+        if (selectedSerialIds.length !== allowedQuantity) {
+            toast.error(`Vui lòng chọn đúng số vé được phép giao (${allowedQuantity}).`);
+            return;
+        }
+        if ((suggestion?.shortfallQuantity ?? 0) > 0 && !acceptShortfall) {
+            toast.error(`Cần xác nhận bàn giao thiếu ${suggestion?.allowedQuantity}/${suggestion?.requestedQuantity} vé.`);
             return;
         }
 
@@ -347,7 +655,10 @@ export const VendorAllocationPage = () => {
                 streetAgentProfileId: profile.id,
                 businessDate,
                 serialIds: selectedSerialIds,
+                requestedQuantity: suggestion?.requestedQuantity ?? selectedSerialIds.length,
+                acceptShortfall,
                 luckyOverrideReason: hasLuckySelected ? luckyOverrideReason.trim() : undefined,
+                faceValue: faceValue ?? undefined,
             },
             {
                 onSuccess: (response) => {
@@ -370,7 +681,7 @@ export const VendorAllocationPage = () => {
             onSuccess: (response) => {
                 toast.success(response.message || "Đã hủy phiếu nháp và nhả vé.");
                 setDraftId(null);
-                setSelectedQty({});
+                setSelectedSerialIds([]);
                 refetchSuggestion();
             },
             onError: (error: any) => {
@@ -388,112 +699,187 @@ export const VendorAllocationPage = () => {
         (suggestionError as any)?.response?.data?.message ||
         (suggestionError ? "Không tải được gợi ý bàn giao." : null);
 
+    const vendorOpenBatchAlertMessage = useMemo(() => {
+        // A draft is already explained by the reservation banner. In
+        // particular, ignore a stale SAG_010 suggestion error caused by the
+        // draft itself being part of the backend's open-batch guard.
+        if (hasActiveDraft) {
+            return null;
+        }
+        if (blockingOpenBatch) {
+            return (
+                <>
+                    Vendor vẫn còn phiếu bàn giao <strong>{blockingOpenBatch.batchCode}</strong> chưa quyết toán (
+                    {ALLOCATION_BATCH_STATUS_LABELS[blockingOpenBatch.status] || blockingOpenBatch.status}
+                    ). Không thể tạo phiếu nháp mới cho đến khi phiếu này được quyết toán / đóng.
+                </>
+            );
+        }
+        if (isVendorOpenBatchBlockedMessage(suggestionErrorMessage)) {
+            return suggestionErrorMessage;
+        }
+        return null;
+    }, [blockingOpenBatch, hasActiveDraft, suggestionErrorMessage]);
+
+    const businessDateDisabledReason = draftId
+        ? `Đang có phiếu nháp${draftBatch?.batchCode ? ` ${draftBatch.batchCode}` : ""} — không thể đổi ngày kinh doanh.`
+        : null;
+
+    const selectionModeDisabledReason = draftId
+        ? "Đang có phiếu nháp — không thể đổi cách chọn vé."
+        : isFetchingSuggestion
+          ? "Đang cập nhật gợi ý bàn giao…"
+          : null;
+
+    const manualPickDisabledReason = draftId
+        ? "Đang có phiếu nháp — không thể chọn vé thủ công."
+        : blockingOpenBatch
+          ? `Còn phiếu mở ${blockingOpenBatch.batchCode} — không thể chọn vé mới.`
+          : profile?.status !== "ACTIVE"
+            ? "Người bán vé số chưa kích hoạt — không thể chọn vé."
+            : null;
+
     return (
         <Box sx={{ maxWidth: 1200, mx: "auto", pb: (!draftId && !blockingOpenBatch && profile) ? 12 : 5 }}>
-            <div className="mb-[calc(3*var(--spacing))] flex items-start justify-end gap-[calc(2*var(--spacing))] flex-wrap">
-                <div className="mr-auto">
-                    <Title title="Bàn giao vé cho đại lý bán dạo" />
-                    <Breadcrumb
-                        items={[
-                            { label: "Dashboard", to: "/" },
-                            { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
-                            { label: "Bàn giao vé" },
-                        ]}
-                    />
-                </div>
-            </div>
+            <PageHeader
+                title="Bàn giao vé cho người bán vé số"
+                breadcrumbItems={[
+                    { label: "Dashboard", to: "/" },
+                    { label: "Người bán vé số" },
+                    { label: "Bàn giao vé" },
+                ]}
+            />
 
             <Stack spacing={3}>
+                {draftBatch?.status === "DRAFT" && (
+                    <Alert
+                        severity={isExpired ? "error" : "warning"}
+                        action={
+                            canEdit ? (
+                                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                                    <Button
+                                        color="inherit"
+                                        size="small"
+                                        disabled={isCancelling}
+                                        onClick={handleCancel}
+                                    >
+                                        Hủy nháp
+                                    </Button>
+                                    {isExpired ? (
+                                        <Button
+                                            color="inherit"
+                                            size="small"
+                                            disabled={isCancelling}
+                                            onClick={handleCancel}
+                                        >
+                                            Làm mới báo giá
+                                        </Button>
+                                    ) : null}
+                                    <Button
+                                        color="inherit"
+                                        size="small"
+                                        disabled={isExpired}
+                                        onClick={() => setConfirmOpen(true)}
+                                    >
+                                        Xác nhận bàn giao
+                                    </Button>
+                                </Stack>
+                            ) : undefined
+                        }
+                    >
+                        Phiếu {draftBatch.batchCode} đang giữ{" "}
+                        <AdminLuckyDisplay
+                            component="span"
+                            value={`${draftBatch.allocatedQuantity} vé`}
+                            fontWeight={700}
+                        />
+                        . Hết hạn giữ chỗ sau <strong>{countdown}</strong>
+                        {isExpired ? " (đã hết hạn)." : "."}
+                    </Alert>
+                )}
+
+                {vendorOpenBatchAlertMessage && (
+                    <Alert
+                        severity="warning"
+                        action={
+                            <Button
+                                color="inherit"
+                                size="small"
+                                component={Link}
+                                href={ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION_BATCHES}
+                            >
+                                Xem phiếu
+                            </Button>
+                        }
+                    >
+                        {vendorOpenBatchAlertMessage}
+                    </Alert>
+                )}
+
                 <Card sx={{ p: 3, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
                     <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
                         Chọn đại lý & ngày kinh doanh
                     </Typography>
                     <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "2fr 1fr" }, gap: 2 }}>
-                        <Autocomplete
-                            options={profiles}
-                            loading={isLoadingProfiles}
-                            value={profile}
-                            onChange={(_event, value) => setProfile(value)}
-                            getOptionLabel={(option) =>
-                                `${option.lastName || ""} ${option.firstName || ""}`.trim() +
-                                (option.phone ? ` — ${option.phone}` : "")
-                            }
-                            isOptionEqualToValue={(a, b) => a.id === b.id}
-                            renderInput={(params) => (
-                                <TextField {...params} label="Đại lý bán dạo *" sx={fieldSx} />
-                            )}
-                        />
                         <TextField
-                            type="date"
-                            label="Ngày kinh doanh"
-                            value={businessDate}
-                            onChange={(e) => setBusinessDate(e.target.value)}
-                            InputLabelProps={{ shrink: true }}
+                            select
+                            fullWidth
+                            label="Người bán vé số *"
+                            value={profile?.id ? String(profile.id) : ""}
+                            onChange={(event) => {
+                                const nextId = event.target.value;
+                                setProfile(profiles.find((item) => String(item.id) === nextId) || null);
+                            }}
+                            disabled={isLoadingProfiles}
+                            helperText={isLoadingProfiles ? "Đang tải danh sách…" : undefined}
                             sx={fieldSx}
-                        />
+                        >
+                            <MenuItem value="">
+                                <em>Chọn người bán vé số</em>
+                            </MenuItem>
+                            {profiles.map((item) => (
+                                <MenuItem key={item.id} value={String(item.id)}>
+                                    {formatVendorSelectLabel(item)}
+                                </MenuItem>
+                            ))}
+                        </TextField>
+                        <DisabledWithTooltip
+                            title={businessDateDisabledReason}
+                            disabled={!!businessDateDisabledReason}
+                            fullWidth
+                        >
+                            <AdminDatePicker
+                                label="Ngày kinh doanh"
+                                value={businessDate}
+                                required
+                                onChange={(next) => {
+                                    if (!next || next < minBusinessDate) return;
+                                    setBusinessDate(next);
+                                }}
+                                min={minBusinessDate}
+                                disabled={!!businessDateDisabledReason}
+                                helperText={businessDateDisabledReason ? undefined : businessDateCutoffHelperText}
+                                helperTextColor="warning"
+                            />
+                        </DisabledWithTooltip>
                     </Box>
 
                     {profile && (
                         <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mt: 2 }} flexWrap="wrap">
-                            <Chip size="small" label={`Hạn mức ngày: ${profile.dailyTicketCap ?? "—"}`} sx={{ fontWeight: 600 }} />
                             <Chip
                                 size="small"
                                 label={`Tin cậy: ${CONFIDENCE_TIER_LABELS[profile.confidenceTier || ""] || profile.confidenceTier || "—"}`}
-                                sx={{ fontWeight: 600 }}
+                                sx={getMetricChipSx("success")}
                             />
                             <Chip
                                 size="small"
-                                label={`Cap theo confidence: ${theoreticalCap ?? "—"}`}
-                                sx={{ fontWeight: 600 }}
+                                label={`Có thể giao trong phiếu này: ${availableForCurrentBatch == null ? "—" : `${availableForCurrentBatch} vé`}`}
+                                sx={getMetricChipSx("info")}
                             />
-                            <Chip
-                                size="small"
-                                label={`Cọc đang giữ: ${formatCurrency(profile.depositBalance)}`}
-                                sx={{ fontWeight: 600 }}
-                            />
-                            <Chip
-                                size="small"
-                                label={`Giá vendor: ${formatCurrency(vendorDefaults.defaultUnitPrice)}`}
-                                sx={{ fontWeight: 600 }}
-                            />
-                            <Chip
-                                size="small"
-                                label={`Tỷ lệ cọc: ${
-                                    vendorDefaults.depositRate == null
-                                        ? "—"
-                                        : `${(vendorDefaults.depositRate * 100).toLocaleString("vi-VN", {
-                                              maximumFractionDigits: 2,
-                                          })}%`
-                                }`}
-                                sx={{ fontWeight: 600 }}
-                            />
-                            <Chip
-                                size="small"
-                                label={`TTL nháp: ${
-                                    vendorDefaults.draftReservationTtlMinutes == null
-                                        ? "—"
-                                        : `${vendorDefaults.draftReservationTtlMinutes} phút`
-                                }`}
-                                sx={{ fontWeight: 600 }}
-                            />
-                            <Chip
-                                size="small"
-                                label={`Giờ chốt: ${vendorDefaults.returnCutoff || "—"}`}
-                                sx={{ fontWeight: 600 }}
-                            />
-                            <Chip
-                                size="small"
-                                label={`Trả trễ: ${
-                                    vendorDefaults.lateReturnPolicy
-                                        ? VENDOR_LATE_RETURN_POLICY_LABELS[vendorDefaults.lateReturnPolicy]
-                                        : "—"
-                                }`}
-                                sx={{ fontWeight: 600 }}
-                            />
-                            {suggestion?.counterReservePerStation != null && (
+                            {Number(profile.depositBalance ?? 0) > 0 && (
                                 <Chip
                                     size="small"
-                                    label={`Chừa quầy/đài: ${suggestion.counterReservePerStation}`}
+                                    label={`Cọc đang giữ: ${formatCurrency(profile.depositBalance)}`}
                                     sx={{ fontWeight: 600 }}
                                 />
                             )}
@@ -501,56 +887,24 @@ export const VendorAllocationPage = () => {
                     )}
                 </Card>
 
-                {blockingOpenBatch && (
+                {profile && profile.status !== "ACTIVE" && (
                     <Alert
                         severity="warning"
                         action={
                             <Button
                                 color="inherit"
                                 size="small"
-                                component={RouterLink}
-                                to={ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION_BATCHES}
+                                component={Link}
+                                href={getStreetAgentOnboardingResumePath(profile.id)}
                             >
-                                Xem phiếu
+                                Tiếp tục Onboarding
                             </Button>
                         }
                     >
-                        Vendor còn phiếu mở <strong>{blockingOpenBatch.batchCode}</strong> (
-                        {ALLOCATION_BATCH_STATUS_LABELS[blockingOpenBatch.status] ||
-                            blockingOpenBatch.status}
-                        ). Không thể tạo phiếu nháp mới cho đến khi phiếu này được quyết toán / đóng.
+                        Người bán vé số này chưa hoàn tất hồ sơ (Trạng thái: {profile.status}). Vui lòng hoàn tất hồ sơ trước khi giao vé.
                     </Alert>
                 )}
-
-                {draftBatch?.status === "DRAFT" && (
-                    <Alert
-                        severity={isExpired ? "error" : "warning"}
-                        action={
-                            <Stack direction="row" spacing={1}>
-                                <Button color="inherit" size="small" disabled={isCancelling} onClick={handleCancel}>
-                                    Hủy nháp
-                                </Button>
-                                <Button
-                                    color="inherit"
-                                    size="small"
-                                    disabled={isExpired}
-                                    onClick={() => setConfirmOpen(true)}
-                                >
-                                    Xác nhận bàn giao
-                                </Button>
-                            </Stack>
-                        }
-                    >
-                        Phiếu {draftBatch.batchCode} đang giữ {draftBatch.allocatedQuantity} vé.
-                        {" "}
-                        Còn lại theo hạn mức: {draftBatch.remainingDailyCap}.
-                        {" "}
-                        Hết hạn giữ chỗ sau <strong>{countdown}</strong>
-                        {isExpired ? " (đã hết hạn)" : ""}.
-                    </Alert>
-                )}
-
-                {suggestionErrorMessage && (
+                {suggestionErrorMessage && !hasActiveDraft && !vendorOpenBatchAlertMessage && (
                     <Alert
                         severity="error"
                         action={
@@ -568,191 +922,324 @@ export const VendorAllocationPage = () => {
                         <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                             Gợi ý bàn giao {businessDate ? `— ${formatDate(businessDate)}` : ""}
                         </Typography>
-                        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                            <Typography variant="body2" sx={{ color: "var(--palette-text-secondary)" }}>
-                                Đã chọn: {totalSelected}
-                                {remainingCap != null ? ` · Cap còn lại: ${remainingCap}` : ""}
-                                {suggestion?.suggestedQuantity != null
-                                    ? ` · Gợi ý: ${suggestion.suggestedQuantity}`
-                                    : ""}
-                            </Typography>
-                            <Button
-                                size="small"
-                                variant="outlined"
-                                onClick={selectAllSelectable}
-                                disabled={
-                                    !!draftId ||
-                                    !profile ||
-                                    !hasSelectableInventory ||
-                                    (remainingCap ?? 0) <= 0
-                                }
-                            >
-                                Chọn tất cả
-                            </Button>
-                            <Button
-                                size="small"
-                                onClick={clearSelection}
-                                disabled={!!draftId || totalSelected === 0}
-                            >
-                                Bỏ chọn
-                            </Button>
-                            <Button size="small" onClick={() => refetchSuggestion()} disabled={!profile || isFetchingSuggestion}>
-                                Tải lại gợi ý
-                            </Button>
+                        <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25} alignItems={{ xs: "stretch", sm: "center" }} flexWrap="wrap" useFlexGap>
+                            {hasSelectableInventory && (suggestion?.allowedQuantity ?? 0) > 0 && (
+                                <Stack direction="row" alignItems="center" spacing={1.5} flexWrap="wrap" useFlexGap>
+                                    <Typography
+                                        variant="body2"
+                                        sx={{
+                                            fontWeight: 700,
+                                            color: "var(--palette-text-primary)",
+                                            whiteSpace: "nowrap",
+                                        }}
+                                    >
+                                        Đã chọn{" "}
+                                        <AdminLuckyDisplay
+                                            component="span"
+                                            value={`${totalSelected}/${suggestion?.allowedQuantity ?? 0}`}
+                                            fontWeight={700}
+                                        />
+                                        :
+                                    </Typography>
+                                    <DisabledWithTooltip
+                                        title={selectionModeDisabledReason}
+                                        disabled={!!selectionModeDisabledReason}
+                                    >
+                                        <Box
+                                            role="group"
+                                            aria-label="Cách chọn vé"
+                                            sx={{
+                                                display: "inline-flex",
+                                                width: { xs: "100%", sm: 200 },
+                                                minWidth: { sm: 200 },
+                                                p: "3px",
+                                                borderRadius: "10px",
+                                                border: "1px solid",
+                                                borderColor: "divider",
+                                                bgcolor: "background.paper",
+                                                opacity: selectionModeDisabledReason ? 0.6 : 1,
+                                            }}
+                                        >
+                                            {ALLOCATION_SELECTION_MODE_OPTIONS.map((option) => {
+                                                const selected = selectionMode === option.value;
+                                                return (
+                                                    <Box
+                                                        key={option.value}
+                                                        component="button"
+                                                        type="button"
+                                                        disabled={!!selectionModeDisabledReason}
+                                                        onClick={() => changeSelectionMode(option.value)}
+                                                        sx={{
+                                                            flex: 1,
+                                                            width: "50%",
+                                                            border: 0,
+                                                            borderRadius: "8px",
+                                                            py: 0.75,
+                                                            px: 1,
+                                                            fontSize: "0.8125rem",
+                                                            fontWeight: selected ? 600 : 500,
+                                                            lineHeight: 1.2,
+                                                            cursor: selectionModeDisabledReason ? "not-allowed" : "pointer",
+                                                            bgcolor: selected ? "action.selected" : "transparent",
+                                                            color: "text.primary",
+                                                            transition: "background-color 0.15s ease",
+                                                            "&:hover": selectionModeDisabledReason
+                                                                ? undefined
+                                                                : {
+                                                                      bgcolor: selected ? "action.selected" : "action.hover",
+                                                                  },
+                                                        }}
+                                                    >
+                                                        {option.label}
+                                                    </Box>
+                                                );
+                                            })}
+                                        </Box>
+                                    </DisabledWithTooltip>
+                                </Stack>
+                            )}
+                            {isFetchingSuggestion && (
+                                <Stack direction="row" spacing={0.75} alignItems="center" sx={{ color: "text.secondary" }}>
+                                    <CircularProgress size={16} />
+                                    <Typography variant="caption">Đang cập nhật gợi ý…</Typography>
+                                </Stack>
+                            )}
                         </Stack>
                     </Stack>
 
+                    {profile && suggestion && !draftId && hasSelectableInventory && suggestion.allowedQuantity > 0 && (
+                        <Stack spacing={1.5} sx={{ mb: 3 }}>
+                            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25} alignItems={{ xs: "stretch", sm: "flex-end" }} flexWrap="wrap" useFlexGap>
+                                <TextField
+                                    type="number"
+                                    label="Số vé muốn giao"
+                                    value={requestedQuantityDraft ?? requestedQuantity ?? suggestion.requestedQuantity ?? ""}
+                                    placeholder={String(suggestion.requestedQuantity)}
+                                    inputProps={{ min: 1, max: Math.max(1, suggestion.remainingDailyCap) }}
+                                    onChange={(event) => {
+                                        const value = Number(event.target.value);
+                                        setRequestedQuantityDraft(Number.isFinite(value) && value > 0 ? value : null);
+                                    }}
+                                    sx={{
+                                        ...fieldSx,
+                                        width: { xs: "100%", sm: 220 },
+                                        minWidth: { sm: 200 },
+                                        "& .MuiOutlinedInput-root": {
+                                            borderRadius: "var(--shape-borderRadius)",
+                                            fontSize: "0.875rem",
+                                            height: 56,
+                                            minHeight: 56,
+                                        },
+                                    }}
+                                    disabled={isFetchingSuggestion}
+                                />
+                                <Button
+                                    variant="contained"
+                                    loading={isFetchingSuggestion}
+                                    loadingLabel="Đang cập nhật…"
+                                    disabled={
+                                        isFetchingSuggestion ||
+                                        requestedQuantityDraft == null ||
+                                        requestedQuantityDraft === requestedQuantity
+                                    }
+                                    onClick={applyRequestedQuantity}
+                                    sx={{
+                                        alignSelf: { xs: "stretch", sm: "flex-end" },
+                                        height: "56px !important",
+                                        minHeight: "56px !important",
+                                        px: "20px !important",
+                                        whiteSpace: "nowrap",
+                                    }}
+                                >
+                                    Áp dụng
+                                </Button>
+                                {suggestion?.availableFaceValues && suggestion.availableFaceValues.length > 1 && (
+                                    <ToggleButtonGroup
+                                        color="primary"
+                                        value={faceValue}
+                                        exclusive
+                                        onChange={(_, val) => {
+                                            if (val !== null) setFaceValue(val);
+                                        }}
+                                        size="small"
+                                        sx={{ height: 56, alignSelf: { xs: "stretch", sm: "flex-end" } }}
+                                        disabled={isFetchingSuggestion}
+                                    >
+                                        {suggestion.availableFaceValues.map(fv => (
+                                            <ToggleButton key={fv} value={fv} sx={{ px: 2, fontWeight: 600 }}>
+                                                {fv / 1000}K
+                                            </ToggleButton>
+                                        ))}
+                                    </ToggleButtonGroup>
+                                )}
+                            </Stack>
+                            {suggestion.shortfallQuantity > 0 && (
+                                <Alert severity="warning" sx={{ alignItems: "flex-start" }}>
+                                    <Stack spacing={1.25} sx={{ width: "100%", minWidth: 0 }}>
+                                        <Stack spacing={0.5}>
+                                            <Typography variant="body2">
+                                                Chỉ có thể bàn giao{" "}
+                                                <AdminLuckyDisplay
+                                                    component="span"
+                                                    value={`${suggestion.allowedQuantity}/${suggestion.requestedQuantity} vé`}
+                                                    fontWeight={700}
+                                                />
+                                                .
+                                            </Typography>
+                                            {suggestionReasonMessages.map((message) => (
+                                                <Typography key={message} variant="body2">
+                                                    {message}
+                                                </Typography>
+                                            ))}
+                                        </Stack>
+                                        <FormControlLabel
+                                            sx={{
+                                                m: 0,
+                                                alignItems: "flex-start",
+                                                gap: 1,
+                                                "& .MuiCheckbox-root": { p: 0.25, mt: 0.125 },
+                                            }}
+                                            control={
+                                                <Checkbox
+                                                    size="small"
+                                                    checked={acceptShortfall}
+                                                    onChange={(_, checked) => setAcceptShortfall(checked)}
+                                                />
+                                            }
+                                            label={
+                                                <Typography variant="body2" component="span">
+                                                    Đồng ý bàn giao{" "}
+                                                    <AdminLuckyDisplay
+                                                        component="span"
+                                                        value={`${suggestion.allowedQuantity}/${suggestion.requestedQuantity} vé`}
+                                                        fontWeight={700}
+                                                    />
+                                                </Typography>
+                                            }
+                                        />
+                                    </Stack>
+                                </Alert>
+                            )}
+                        </Stack>
+                    )}
+
                     {!profile ? (
                         <Alert severity="info">
-                            Chọn đại lý bán dạo để xem gợi ý phân bổ vé theo đài và số vé.
+                            Chọn người bán vé số để xem gợi ý phân bổ vé theo đài và số vé.
+                        </Alert>
+                    ) : profile.status !== "ACTIVE" ? (
+                        <Alert severity="warning">
+                            Đại lý chưa kích hoạt hoặc đang onboarding. Không thể tải gợi ý bàn giao.
                         </Alert>
                     ) : isLoadingSuggestion ? (
                         <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
                             <CircularProgress />
                         </Box>
-                    ) : !suggestion?.stations?.length ? (
-                        <Alert severity={suggestionBlockedMessage ? "warning" : "info"}>
-                            {suggestionBlockedMessage || "Không có vé phù hợp cho ngày này."}
-                        </Alert>
                     ) : (
                         <Stack spacing={3}>
-                            {suggestion.stations.map((station) => (
-                                <Box key={station.stationId}>
-                                    <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-                                        {station.stationName}
-                                        <Typography
-                                            component="span"
-                                            variant="caption"
-                                            sx={{ ml: 1, color: "var(--palette-text-secondary)" }}
-                                        >
-                                            (chọn được {station.selectableCount}/{station.availableCount} · gợi ý {station.suggestedCount})
-                                        </Typography>
+                            {(!hasSelectableInventory || suggestion?.allowedQuantity === 0) && (
+                                <Alert severity={suggestionBlockedMessage ? "warning" : "info"}>
+                                    <Stack spacing={0.25}>
+                                        {suggestionReasonMessages.map((message) => (
+                                            <Typography key={message} variant="body2">{message}</Typography>
+                                        ))}
+                                    </Stack>
+                                </Alert>
+                            )}
+                            {!suggestion?.stations?.length ? (
+                                <Box sx={{ py: 8, textAlign: "center" }}>
+                                    <Typography className="admin-datagrid-empty">
+                                        Không có danh sách vé để bàn giao cho ngày này.
                                     </Typography>
-                                    <TableContainer>
-                                        <Table size="small">
-                                            <TableHead>
-                                                <TableRow>
-                                                    <TableCell>Số vé</TableCell>
-                                                    <TableCell align="right">Còn</TableCell>
-                                                    <TableCell align="center">Đã chọn</TableCell>
-                                                    <TableCell>Badge</TableCell>
-                                                    <TableCell>Trạng thái</TableCell>
-                                                    <TableCell align="right" />
-                                                </TableRow>
-                                            </TableHead>
-                                            <TableBody>
-                                                {station.tickets.map((ticket) => {
+                                </Box>
+                            ) : null}
+                            {suggestion?.stations?.map((station) => {
+                                const pickedTickets = station.tickets.filter((ticket) => {
+                                    const key = ticketKey(station.stationId, ticket.ticketNumbers);
+                                    return (selectedQty[key] ?? 0) > 0;
+                                });
+                                const hasPicked = pickedTickets.length > 0;
+
+                                return (
+                                    <Box key={station.stationId}>
+                                        <Stack
+                                            direction="row"
+                                            alignItems="center"
+                                            spacing={1}
+                                            flexWrap="wrap"
+                                            useFlexGap
+                                            sx={{ mb: 1.5 }}
+                                        >
+                                            <Typography
+                                                sx={{
+                                                    fontWeight: 700,
+                                                    fontSize: { xs: "1.0625rem", sm: "1.25rem" },
+                                                    lineHeight: 1.2,
+                                                    color: "var(--palette-text-primary)",
+                                                }}
+                                            >
+                                                {station.stationName}
+                                            </Typography>
+                                            <StationCapacityBadges
+                                                vendorCapacity={station.vendorCapacity}
+                                                agencyReserve={station.effectiveAgencyReserveQuantity}
+                                                luckyQuantity={station.luckyQuantity}
+                                            />
+                                        </Stack>
+
+                                        {station.vendorCapacity === 0 ? (
+                                            <Typography variant="body2" color="text.disabled" sx={{ fontStyle: "italic" }}>
+                                                Không có vé để bàn giao cho đài này.
+                                            </Typography>
+                                        ) : !hasPicked ? (
+                                            <DisabledWithTooltip
+                                                title={manualPickDisabledReason}
+                                                disabled={!!manualPickDisabledReason}
+                                            >
+                                                <ManualPickSlot
+                                                    disabled={!!manualPickDisabledReason}
+                                                    onPick={() => {
+                                                        setSelectionMode("MANUAL");
+                                                        setSelectedSerialIds([]);
+                                                        setDrawerStation(station);
+                                                        setDrawerTicketNumber(null);
+                                                    }}
+                                                />
+                                            </DisabledWithTooltip>
+                                        ) : (
+                                            <Stack direction="row" flexWrap="wrap" gap={2}>
+                                                {pickedTickets.map((ticket) => {
                                                     const key = ticketKey(station.stationId, ticket.ticketNumbers);
                                                     const qty = selectedQty[key] ?? 0;
-                                                    const max = maxSelectableForTicket(ticket, canOverrideLucky);
-                                                    const canAdjust = max > 0 && !draftId;
+                                                    const counterReserveOverride = ticket.serials.some(
+                                                        (serial) => serial.blockedReason === "COUNTER_RESERVE" &&
+                                                            serial.suggested && selectedSerialIds.includes(serial.serialId)
+                                                    );
                                                     return (
-                                                        <TableRow
-                                                            key={key}
-                                                            hover
-                                                            sx={{
-                                                                opacity: max > 0 || qty > 0 ? 1 : 0.55,
-                                                                bgcolor: ticket.lucky ? "rgba(245, 158, 11, 0.04)" : undefined,
+                                                        <AdminTicketCard
+                                                            key={ticket.ticketNumbers}
+                                                            ticketNumbers={ticket.ticketNumbers}
+                                                            stationName={station.stationName}
+                                                            faceValue={ticket.faceValue}
+                                                            quantity={qty}
+                                                            isLucky={ticket.lucky}
+                                                            luckyBadges={ticket.luckyBadges}
+                                                            counterReserveOverride={counterReserveOverride}
+                                                            actionLabel="Đổi vé"
+                                                            disabled={!!draftId}
+                                                            onClickAction={() => {
+                                                                setDrawerStation(station);
+                                                                setDrawerTicketNumber(ticket.ticketNumbers);
                                                             }}
-                                                        >
-                                                            <TableCell>
-                                                                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                                                                    Số {ticket.ticketNumbers}
-                                                                </Typography>
-                                                                <Typography variant="caption" sx={{ color: "var(--palette-text-secondary)" }}>
-                                                                    {formatCurrency(ticket.faceValue)}
-                                                                </Typography>
-                                                            </TableCell>
-                                                            <TableCell align="right">{ticket.availableCount}</TableCell>
-                                                            <TableCell align="center">
-                                                                <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
-                                                                    <IconButton
-                                                                        size="small"
-                                                                        disabled={!canAdjust || qty <= 0}
-                                                                        onClick={() => adjustQty(station.stationId, ticket, -1)}
-                                                                        aria-label="Giảm số lượng"
-                                                                    >
-                                                                        <RemoveIcon fontSize="small" />
-                                                                    </IconButton>
-                                                                    <Typography variant="body2" sx={{ minWidth: 24, textAlign: "center", fontWeight: 700 }}>
-                                                                        {qty}
-                                                                    </Typography>
-                                                                    <IconButton
-                                                                        size="small"
-                                                                        disabled={!canAdjust || qty >= max}
-                                                                        onClick={() => adjustQty(station.stationId, ticket, 1)}
-                                                                        aria-label="Tăng số lượng"
-                                                                    >
-                                                                        <AddIcon fontSize="small" />
-                                                                    </IconButton>
-                                                                </Stack>
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-                                                                    {(ticket.luckyBadges || []).map((badge) => (
-                                                                        <Chip
-                                                                            key={`${key}-${badge}`}
-                                                                            size="small"
-                                                                            label={badge}
-                                                                            sx={{ fontWeight: 700 }}
-                                                                        />
-                                                                    ))}
-                                                                    {!ticket.luckyBadges?.length && ticket.lucky && (
-                                                                        <Chip size="small" label="Số đẹp" sx={{ fontWeight: 700 }} />
-                                                                    )}
-                                                                </Stack>
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                {ticket.vendorEligible ? (
-                                                                    <Chip size="small" label="Có thể giao" color="success" variant="outlined" />
-                                                                ) : (
-                                                                    <Chip
-                                                                        size="small"
-                                                                        label={
-                                                                            BLOCKED_REASON_LABELS[ticket.blockedReason || ""] ||
-                                                                            ticket.blockedReason ||
-                                                                            "Bị chặn"
-                                                                        }
-                                                                        color="warning"
-                                                                        variant="outlined"
-                                                                    />
-                                                                )}
-                                                            </TableCell>
-                                                            <TableCell align="right">
-                                                                <Button
-                                                                    size="small"
-                                                                    onClick={() =>
-                                                                        setSerialDrawer({
-                                                                            stationName: station.stationName,
-                                                                            ticket,
-                                                                        })
-                                                                    }
-                                                                >
-                                                                    Xem serial
-                                                                </Button>
-                                                            </TableCell>
-                                                        </TableRow>
+                                                        />
                                                     );
                                                 })}
-                                            </TableBody>
-                                        </Table>
-                                    </TableContainer>
-                                </Box>
-                            ))}
+                                            </Stack>
+                                        )}
+                                    </Box>
+                                );
+                            })}
                         </Stack>
-                    )}
-
-                    {hasLuckySelected && canOverrideLucky && !draftId && (
-                        <TextField
-                            sx={{ ...fieldSx, mt: 3 }}
-                            fullWidth
-                            multiline
-                            minRows={2}
-                            label="Lý do override số đẹp"
-                            value={luckyOverrideReason}
-                            onChange={(e) => setLuckyOverrideReason(e.target.value)}
-                            helperText="Bắt buộc khi chọn vé số đẹp. Cần quyền streetAgent:manage."
-                        />
                     )}
 
                     {draftBatch && draftBatch.status !== "DRAFT" && (
@@ -763,8 +1250,8 @@ export const VendorAllocationPage = () => {
                 </Card>
             </Stack>
 
-            {!draftId && !blockingOpenBatch && profile && (
-                <Box 
+            {!draftId && !blockingOpenBatch && profile && hasSelectableInventory && suggestion && suggestion.allowedQuantity > 0 && totalSelected > 0 && (
+                <Box
                     sx={{
                         position: "fixed",
                         bottom: 0,
@@ -792,19 +1279,23 @@ export const VendorAllocationPage = () => {
                             </Typography>
                         </Box>
                     </Stack>
-                    <LoadingButton
+                    <Button
                         variant="contained"
                         size="large"
                         loading={isCreatingDraft}
-                        label={`Tạo nháp & giữ vé${
-                            vendorDefaults.draftReservationTtlMinutes != null
-                                ? ` ${vendorDefaults.draftReservationTtlMinutes} phút`
-                                : ""
-                        }`}
+                        label={
+                            totalSelected !== allowedQuantity
+                                ? `Chọn đủ ${allowedQuantity} vé để tiếp tục`
+                                : `Tạo nháp & giữ vé${
+                                      vendorDefaults.draftReservationTtlMinutes != null
+                                          ? ` ${vendorDefaults.draftReservationTtlMinutes} phút`
+                                          : ""
+                                  }`
+                        }
                         loadingLabel="Đang giữ vé..."
                         onClick={handleCreateDraft}
                         disabled={!canCreateDraft}
-                        sx={{ 
+                        sx={{
                             boxShadow: "0 8px 16px 0 rgba(0, 167, 111, 0.24)",
                             borderRadius: 2,
                             fontWeight: 700,
@@ -827,81 +1318,31 @@ export const VendorAllocationPage = () => {
                 onClose={() => setConfirmOpen(false)}
                 onSuccess={() => {
                     setDraftId(null);
-                    setSelectedQty({});
+                    setSelectedSerialIds([]);
                     setConfirmOpen(false);
                     // Open-batch query refresh shows the CONFIRMED blocker; do not refetch suggestions.
                 }}
             />
 
-            <Drawer
-                anchor="right"
-                open={!!serialDrawer}
-                onClose={() => setSerialDrawer(null)}
-                PaperProps={{ sx: { width: { xs: "100%", sm: 420 } } }}
-            >
-                {serialDrawer && (
-                    <Box sx={{ p: 2.5, height: "100%", display: "flex", flexDirection: "column" }}>
-                        <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={1}>
-                            <Box>
-                                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                                    Serial — Số {serialDrawer.ticket.ticketNumbers}
-                                </Typography>
-                                <Typography variant="body2" sx={{ color: "var(--palette-text-secondary)" }}>
-                                    {serialDrawer.stationName} · {serialDrawer.ticket.availableCount} vé vật lý
-                                </Typography>
-                            </Box>
-                            <IconButton onClick={() => setSerialDrawer(null)} aria-label="Đóng">
-                                <CloseIcon />
-                            </IconButton>
-                        </Stack>
-                        <Divider sx={{ my: 2 }} />
-                        <Box sx={{ overflow: "auto", flex: 1 }}>
-                            <Stack spacing={1}>
-                                {serialDrawer.ticket.serials.map((serial) => {
-                                    const selected = selectedSerialIds.includes(serial.serialId);
-                                    return (
-                                        <Box
-                                            key={serial.serialId}
-                                            sx={{
-                                                px: 1.5,
-                                                py: 1,
-                                                borderRadius: "var(--shape-borderRadius)",
-                                                border: "1px solid",
-                                                borderColor: selected
-                                                    ? "var(--palette-primary-main)"
-                                                    : "var(--palette-divider)",
-                                                bgcolor: selected ? "action.hover" : "transparent",
-                                            }}
-                                        >
-                                            <Stack direction="row" justifyContent="space-between" alignItems="center" gap={1}>
-                                                <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 600 }}>
-                                                    {serial.serialNumber}
-                                                </Typography>
-                                                <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-                                                    {selected && <Chip size="small" label="Đã chọn" color="primary" variant="outlined" />}
-                                                    {serial.lucky && <Chip size="small" label="Số đẹp" sx={{ fontWeight: 700 }} />}
-                                                    {!serial.vendorEligible && (
-                                                        <Chip
-                                                            size="small"
-                                                            label={
-                                                                BLOCKED_REASON_LABELS[serial.blockedReason || ""] ||
-                                                                serial.blockedReason ||
-                                                                "Chặn"
-                                                            }
-                                                            color="warning"
-                                                            variant="outlined"
-                                                        />
-                                                    )}
-                                                </Stack>
-                                            </Stack>
-                                        </Box>
-                                    );
-                                })}
-                            </Stack>
-                        </Box>
-                    </Box>
-                )}
-            </Drawer>
+            <VendorAllocationStationDrawer
+                open={!!drawerStation}
+                station={drawerStation}
+                focusedTicketNumber={drawerTicketNumber}
+                initialSelectedSerialIds={selectedSerialIds}
+                initialLuckyReason={luckyOverrideReason}
+                canOverrideLucky={canOverrideLucky}
+                allowedQuantity={allowedQuantity}
+                onClose={() => {
+                    setDrawerStation(null);
+                    setDrawerTicketNumber(null);
+                }}
+                onSave={(draftIds, draftReason) => {
+                    setSelectedSerialIds(draftIds);
+                    setLuckyOverrideReason(draftReason);
+                    setDrawerStation(null);
+                    setDrawerTicketNumber(null);
+                }}
+            />
         </Box>
     );
 };
