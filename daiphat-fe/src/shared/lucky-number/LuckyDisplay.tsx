@@ -20,6 +20,8 @@ export type LuckyDisplayProps = {
     fallback?: ReactNode;
     /** Hide the small "Số đẹp" chip (parent frame already shows it). */
     showBadge?: boolean;
+    /** Default: beside the number. Checkout uses `above`. */
+    badgePlacement?: "end" | "above";
 };
 
 /** Plain HTML span — client ticket numbers (same pattern config as admin). */
@@ -30,6 +32,7 @@ export const ClientLuckyDisplay = ({
     style,
     fallback = "—",
     showBadge = true,
+    badgePlacement = "end",
 }: LuckyDisplayProps) => {
     const display = value == null || value === "" ? "" : String(value);
     const segments = useLuckyDigitSegments(display, { ticket });
@@ -53,14 +56,29 @@ export const ClientLuckyDisplay = ({
         );
     }
 
+    const badge = (
+        <span className="shrink-0 rounded px-1 py-px text-[9px] font-bold leading-none text-[#B76E00] bg-[#FFE082]">
+            Số đẹp
+        </span>
+    );
+
+    if (badgePlacement === "above") {
+        return (
+            <span className="inline-flex flex-col items-center gap-0.5">
+                {badge}
+                <span className={className} style={numberStyle}>
+                    {display}
+                </span>
+            </span>
+        );
+    }
+
     return (
         <span className="inline-flex items-center gap-1 align-middle">
             <span className={className} style={numberStyle}>
                 {display}
             </span>
-            <span className="shrink-0 rounded px-1 py-px text-[9px] font-bold leading-none text-[#B76E00] bg-[#FFE082]">
-                Số đẹp
-            </span>
+            {badge}
         </span>
     );
 };

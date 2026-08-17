@@ -44,7 +44,6 @@ export const useSearchCustomers = (params: { q: string; limit?: number }, option
     return useQuery({
         queryKey: [QUERY_KEYS.SEARCH_CUSTOMERS, params.q, params.limit],
         queryFn: () => searchCustomers(params),
-        enabled: !!params.q && params.q.trim().length > 0,
         staleTime: 1000 * 60,
         ...options
     });

@@ -25,7 +25,7 @@ const getBackendBase = () =>
 
 const apiRoot = () => `${getBackendBase()}${API_PREFIX}${API_VERSION}`;
 
-async function serverGet<T>(path: string, params?: Record<string, string>, revalidate = 30): Promise<T | null> {
+async function serverGet<T>(path: string, params?: Record<string, string>): Promise<T | null> {
     try {
         const url = new URL(`${apiRoot()}${path}`);
         if (params) {
@@ -34,7 +34,7 @@ async function serverGet<T>(path: string, params?: Record<string, string>, reval
             });
         }
 
-        const response = await fetch(url.toString(), { next: { revalidate } });
+        const response = await fetch(url.toString(), { cache: 'no-store' });
         if (!response.ok) {
             return null;
         }
