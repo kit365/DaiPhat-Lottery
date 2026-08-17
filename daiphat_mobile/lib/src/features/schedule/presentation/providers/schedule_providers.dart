@@ -9,6 +9,6 @@ final scheduleApiServiceProvider = Provider<ScheduleApiService>((ref) {
 });
 
 final lotteryScheduleProvider =
-    FutureProvider<List<LotteryStationSchedule>>((ref) {
+    FutureProvider.autoDispose<List<LotteryStationSchedule>>((ref) {
   return ref.watch(scheduleApiServiceProvider).fetchAll();
 });

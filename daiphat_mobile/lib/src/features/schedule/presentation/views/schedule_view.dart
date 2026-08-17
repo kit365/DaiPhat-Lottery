@@ -7,15 +7,32 @@ import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import '../../data/models/lottery_station_schedule.dart';
 import '../providers/schedule_providers.dart';
 
-class ScheduleView extends ConsumerWidget {
+class ScheduleView extends ConsumerStatefulWidget {
   const ScheduleView({super.key});
 
+  static const _headerRed = Color(0xFFEE1314);
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ScheduleView> createState() => _ScheduleViewState();
+}
+
+class _ScheduleViewState extends ConsumerState<ScheduleView> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.invalidate(lotteryScheduleProvider);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final asyncSchedule = ref.watch(lotteryScheduleProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
@@ -32,13 +49,15 @@ class ScheduleView extends ConsumerWidget {
           'Lịch mở thưởng',
           style: GoogleFonts.publicSans(
             fontSize: 18,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w800,
             color: AppColors.textMain,
           ),
         ),
         centerTitle: true,
       ),
       body: asyncSchedule.when(
+        skipLoadingOnReload: true,
+        skipLoadingOnRefresh: true,
         loading: () => const Center(
           child: CircularProgressIndicator(color: AppColors.primary),
         ),
@@ -53,7 +72,11 @@ class ScheduleView extends ConsumerWidget {
               onRetry: () => ref.invalidate(lotteryScheduleProvider),
             );
           }
-          return _ScheduleTable(stations: stations);
+          return RefreshIndicator(
+            color: AppColors.primary,
+            onRefresh: () => ref.refresh(lotteryScheduleProvider.future),
+            child: _ScheduleTable(stations: stations),
+          );
         },
       ),
     );
@@ -107,12 +130,6 @@ class _ScheduleTable extends StatelessWidget {
 
   final List<LotteryStationSchedule> stations;
 
-  static const _regionColors = <String, Color>{
-    'MIEN_NAM': Color(0xFFEE1314),
-    'MIEN_TRUNG': Color(0xFFF26522),
-    'MIEN_BAC': Color(0xFFF59E0B),
-  };
-
   @override
   Widget build(BuildContext context) {
     final regions = availableScheduleRegions(stations);
@@ -121,33 +138,34 @@ class _ScheduleTable extends StatelessWidget {
     final todayId = todayScheduleDayId();
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
       children: [
         Text(
           'Theo dõi thời gian quay số theo từng miền',
           style: GoogleFonts.publicSans(
             fontSize: 13,
-            color: AppColors.textMuted,
+            color: const Color(0xFF637381),
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 18),
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(18),
             border: Border.all(color: const Color(0xFFE5E7EB)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
           clipBehavior: Clip.antiAlias,
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final minTableWidth = 112.0 + 168.0 * regions.length;
+              final minTableWidth = 128.0 + 180.0 * regions.length;
               final tableWidth = constraints.maxWidth > minTableWidth
                   ? constraints.maxWidth
                   : minTableWidth;
@@ -162,22 +180,20 @@ class _ScheduleTable extends StatelessWidget {
                     ),
                     defaultVerticalAlignment: TableCellVerticalAlignment.middle,
                     columnWidths: {
-                      0: const FlexColumnWidth(1.05),
+                      0: const FlexColumnWidth(1.15),
                       for (var i = 0; i < regions.length; i++)
-                        i + 1: const FlexColumnWidth(1.7),
+                        i + 1: const FlexColumnWidth(1.85),
                     },
                     children: [
                       TableRow(
                         children: [
-                          _headerCell('Khu vực', color: AppColors.primary),
+                          _headerCell('KHU VỰC'),
                           ...regions.map((region) {
-                            final color =
-                                _regionColors[region] ?? AppColors.primary;
-                            return _headerCell(
-                              scheduleRegionLabels[region] ?? region,
-                              subtitle: '(${drawTimes[region] ?? '--:--'})',
-                              color: color,
-                            );
+                            final label =
+                                (scheduleRegionLabels[region] ?? region)
+                                    .toUpperCase();
+                            final time = drawTimes[region] ?? '--:--';
+                            return _headerCell('$label ($time)');
                           }),
                         ],
                       ),
@@ -194,14 +210,7 @@ class _ScheduleTable extends StatelessWidget {
                             ...regions.map((region) {
                               final list =
                                   day.stationsByRegion[region] ?? const [];
-                              final color = isToday
-                                  ? (_regionColors[region] ?? AppColors.primary)
-                                  : const Color(0xFF333333);
-                              return _stationCell(
-                                list,
-                                color: color,
-                                bold: isToday,
-                              );
+                              return _stationCell(list, isToday: isToday);
                             }),
                           ],
                         );
@@ -217,39 +226,20 @@ class _ScheduleTable extends StatelessWidget {
     );
   }
 
-  Widget _headerCell(String title, {required Color color, String? subtitle}) {
-    return TableCell(
-      verticalAlignment: TableCellVerticalAlignment.fill,
-      child: Container(
-        color: color,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-        alignment: Alignment.center,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              title.toUpperCase(),
-              textAlign: TextAlign.center,
-              style: GoogleFonts.publicSans(
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-                color: Colors.white,
-                letterSpacing: 0.4,
-              ),
-            ),
-            if (subtitle != null) ...[
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.publicSans(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.white.withValues(alpha: 0.9),
-                ),
-              ),
-            ],
-          ],
+  Widget _headerCell(String title) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 48),
+      color: ScheduleView._headerRed,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+      alignment: Alignment.center,
+      child: Text(
+        title,
+        textAlign: TextAlign.center,
+        style: GoogleFonts.publicSans(
+          fontSize: 13,
+          fontWeight: FontWeight.w800,
+          color: Colors.white,
+          letterSpacing: 0.3,
         ),
       ),
     );
@@ -257,21 +247,23 @@ class _ScheduleTable extends StatelessWidget {
 
   Widget _dayCell(String label, {required bool isToday}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          if (isToday) ...[
-            const Icon(Icons.star_rounded, size: 14, color: AppColors.primary),
-            const SizedBox(width: 4),
-          ],
+          Icon(
+            isToday ? Icons.star_rounded : Icons.calendar_month_outlined,
+            size: 16,
+            color: AppColors.primary,
+          ),
+          const SizedBox(width: 6),
           Text(
             label,
             textAlign: TextAlign.center,
             style: GoogleFonts.publicSans(
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: FontWeight.w800,
-              color: isToday ? AppColors.primary : AppColors.navy,
+              color: isToday ? AppColors.primary : AppColors.textMain,
             ),
           ),
         ],
@@ -281,11 +273,10 @@ class _ScheduleTable extends StatelessWidget {
 
   Widget _stationCell(
     List<LotteryStationSchedule> stations, {
-    required Color color,
-    required bool bold,
+    required bool isToday,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: stations
@@ -295,9 +286,9 @@ class _ScheduleTable extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: GoogleFonts.publicSans(
                   fontSize: 13,
-                  height: 1.45,
-                  fontWeight: bold ? FontWeight.w800 : FontWeight.w500,
-                  color: color,
+                  height: 1.5,
+                  fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
+                  color: isToday ? AppColors.primary : const Color(0xFF333333),
                 ),
               ),
             )
