@@ -4,6 +4,9 @@ import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
 import com.daiphat.coreapi.application.dto.request.order.CreateDirectOrderRequest;
 import com.daiphat.coreapi.application.dto.request.order.CreateOnlineOrderRequest;
+import com.daiphat.coreapi.application.dto.request.order.ConfirmOrderHandoverRequest;
+import com.daiphat.coreapi.application.dto.storage.StorageResult;
+import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.application.dto.response.order.OrderResponse;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
@@ -25,6 +28,16 @@ public interface OrderServicePort {
     OrderResponse getMyOrderDetail(UUID orderId, UUID customerId);
 
     OrderResponse updateOrderStatus(UUID orderId, OrderStatus status, String reason, UUID operatorId);
+
+    StorageResult uploadHandoverEvidence(UUID orderId, UploadRequest request, UUID operatorId);
+
+    OrderResponse submitPaymentTimeoutComplaint(UUID orderId, UploadRequest request, UUID customerId);
+
+    OrderResponse reviewPaymentTimeoutComplaint(UUID orderId, boolean approved, String reason, UUID operatorId);
+
+    long countPendingPaymentTimeoutComplaints();
+
+    OrderResponse confirmOnlineOrderHandover(UUID orderId, ConfirmOrderHandoverRequest request, UUID operatorId);
 
     PageResponse<OrderResponse> getOrders(
             int page,

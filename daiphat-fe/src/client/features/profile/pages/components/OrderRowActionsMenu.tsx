@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { OrderResponse, OrderStatus } from '../../../../../types/order.type';
 import { canShowRefundRequest } from '../../../../../types/refund.type';
 import { ComplaintFormModal } from '../../../../components/support/ComplaintFormModal';
+import { PaymentTimeoutComplaintModal } from '../../../../components/payment/PaymentTimeoutComplaintModal';
 import { useGetOrderComplaintEligibility } from '../../../../hooks/useSupportTicket';
 import { AppToast } from '../../../../../utils/toast.util';
 
@@ -35,6 +36,7 @@ export const OrderRowActionsMenu = ({
 }: OrderRowActionsMenuProps) => {
     const [open, setOpen] = useState(false);
     const [showComplaintModal, setShowComplaintModal] = useState(false);
+    const [showPaymentTimeoutComplaintModal, setShowPaymentTimeoutComplaintModal] = useState(false);
     const [mounted, setMounted] = useState(false);
     const [menuPos, setMenuPos] = useState<MenuPos>({ top: 0, left: 0 });
 
@@ -43,9 +45,15 @@ export const OrderRowActionsMenu = ({
 
     const showRefund = canShowRefundRequest(order, hasPendingRefund);
     const showPayment = order.status === OrderStatus.PENDING_PAYMENT && !!onQuickPayment;
-    const showComplaint = order.status !== OrderStatus.PENDING_PAYMENT;
+    const isPaymentTimeoutCancellation = order.cancelType === 'SYSTEM_PAYMENT_TIMEOUT';
+    const canSubmitPaymentTimeoutComplaint =
+        isPaymentTimeoutCancellation && order.status === OrderStatus.CANCELLED;
+    const paymentComplaintPending =
+        isPaymentTimeoutCancellation && order.status === OrderStatus.PAYMENT_COMPLAINT_PENDING;
+    const showGenericComplaint =
+        order.status !== OrderStatus.PENDING_PAYMENT && !isPaymentTimeoutCancellation;
     const { data: complaintEligibilityData, isLoading: isLoadingComplaintEligibility } =
-        useGetOrderComplaintEligibility(order.id, showComplaint);
+        useGetOrderComplaintEligibility(order.id, showGenericComplaint);
     const complaintEligibility = complaintEligibilityData?.data;
 
     useEffect(() => setMounted(true), []);
@@ -93,7 +101,7 @@ export const OrderRowActionsMenu = ({
             window.removeEventListener('scroll', onReposition, true);
             window.removeEventListener('resize', onReposition);
         };
-    }, [open, showRefund, showPayment, showComplaint, isLoadingComplaintEligibility]);
+    }, [open, showRefund, showPayment, canSubmitPaymentTimeoutComplaint, paymentComplaintPending, showGenericComplaint, isLoadingComplaintEligibility]);
 
     useEffect(() => {
         if (!open) return;
@@ -172,7 +180,29 @@ export const OrderRowActionsMenu = ({
                 </button>
             )}
 
-            {showComplaint && (
+            {canSubmitPaymentTimeoutComplaint && (
+                <button
+                    type="button"
+                    onClick={() => closeAndRun(() => setShowPaymentTimeoutComplaintModal(true))}
+                    className="w-full px-4 py-2.5 text-left text-[14px] text-[#ee1314] hover:bg-[#FFF4F4] flex items-center gap-2.5 cursor-pointer transition-colors font-medium"
+                >
+                    <i className="fa-solid fa-receipt w-4 text-center"></i>
+                    Khiếu nại thanh toán
+                </button>
+            )}
+
+            {paymentComplaintPending && (
+                <button
+                    type="button"
+                    disabled
+                    className="w-full px-4 py-2.5 text-left text-[14px] text-[#919EAB] flex items-center gap-2.5 cursor-not-allowed font-medium"
+                >
+                    <i className="fa-solid fa-clock w-4 text-center"></i>
+                    Đang chờ xác minh
+                </button>
+            )}
+
+            {showGenericComplaint && (
                 <button
                     type="button"
                     disabled={isLoadingComplaintEligibility}
@@ -232,6 +262,14 @@ export const OrderRowActionsMenu = ({
                 defaultOrderId={order.id}
                 defaultCategoryCode={complaintEligibility?.categoryCode || undefined}
                 requireEvidence={complaintEligibility?.requiresEvidence}
+            />
+
+            <PaymentTimeoutComplaintModal
+                isOpen={showPaymentTimeoutComplaintModal}
+                orderId={order.id}
+                orderCode={order.orderCode}
+                amount={order.finalAmount}
+                onClose={() => setShowPaymentTimeoutComplaintModal(false)}
             />
         </>
     );

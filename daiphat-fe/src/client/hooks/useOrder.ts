@@ -64,3 +64,18 @@ export const useGetMyOrderDetail = (id: string) => {
         retry: false,
     });
 };
+
+export const useSubmitPaymentTimeoutComplaint = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ id, file }: { id: string; file: File }) =>
+            orderService.submitPaymentTimeoutComplaint(id, file),
+        onSuccess: (_response, variables) => {
+            queryClient.invalidateQueries({
+                queryKey: [QUERY_KEYS.CLIENT_MY_ORDER_DETAIL, variables.id],
+            });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_MY_ORDERS] });
+        },
+    });
+};

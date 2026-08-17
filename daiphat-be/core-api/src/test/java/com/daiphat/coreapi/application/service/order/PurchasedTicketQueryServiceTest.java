@@ -153,7 +153,7 @@ class PurchasedTicketQueryServiceTest {
                 .order(order)
                 .lotteryTicketSerial(serial)
                 .price(BigDecimal.valueOf(10000))
-                .status(OrderDetailStatus.ACTIVE)
+                .status(OrderDetailStatus.HANDOVER_IN_PROGRESS)
                 .build();
     }
 }

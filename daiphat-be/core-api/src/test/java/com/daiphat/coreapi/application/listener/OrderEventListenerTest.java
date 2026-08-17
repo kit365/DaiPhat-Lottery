@@ -6,6 +6,7 @@ import com.daiphat.coreapi.application.event.OrderStatusChangedEvent;
 import com.daiphat.coreapi.application.port.in.notification.NotificationServicePort;
 import com.daiphat.coreapi.application.port.out.notification.FcmPushPort;
 import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
+import com.daiphat.coreapi.application.service.order.PaymentComplaintReminderConfigService;
 import com.daiphat.coreapi.domain.model.UserModel;
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationChannel;
@@ -47,6 +48,9 @@ class OrderEventListenerTest {
     @Mock
     private FcmPushPort fcmPushPort;
 
+    @Mock
+    private PaymentComplaintReminderConfigService paymentComplaintReminderConfigService;
+
     @Captor
     private ArgumentCaptor<NotificationModel> notificationCaptor;
 
@@ -62,7 +66,8 @@ class OrderEventListenerTest {
         orderEventListener = new OrderEventListener(
                 notificationService,
                 userRepositoryPort,
-                fcmPushPort
+                fcmPushPort,
+                paymentComplaintReminderConfigService
         );
     }
 

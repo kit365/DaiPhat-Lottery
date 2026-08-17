@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum OrderStatus implements LabeledEnum {
     PENDING_PAYMENT("Chờ thanh toán"),
+    PAYMENT_COMPLAINT_PENDING("Chờ xác minh thanh toán"),
     PAID("Đã thanh toán"),
     PREPARING("Đang chuẩn bị vé"),
     PENDING_PICKUP("Chờ khách đến lấy"),

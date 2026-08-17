@@ -52,6 +52,7 @@ import dayjs from 'dayjs';
 import {
     getOrderDetailStatusAdminBadgeModifier,
     resolveOrderDetailStatusBadge,
+    OrderDetailStatus,
 } from '../../../../../types/order.type';
 import { resolveLotteryTicketSerialAdminBadge } from '../../utils/lotteryTicketSerialAdminBadge.util';
 import { AdminStatusBadge } from '../../../../components/ui/AdminStatusBadge';
@@ -1139,10 +1140,15 @@ export function OrderInspectionSection({
                                                                 label={serialBadge.label}
                                                                 modifier={serialBadge.modifier}
                                                             />
-                                                            <AdminStatusBadge
-                                                                label={activityBadge.label}
-                                                                modifier={getOrderDetailStatusAdminBadgeModifier(ticket.status)}
-                                                            />
+                                                            {ticket.status &&
+                                                            ticket.status !== OrderDetailStatus.PROXY_HOLDING &&
+                                                            ticket.status !== 'PROXY_HOLDING' &&
+                                                            activityBadge.label !== 'Công ty đang giữ vé' && (
+                                                                <AdminStatusBadge
+                                                                    label={activityBadge.label}
+                                                                    modifier={getOrderDetailStatusAdminBadgeModifier(ticket.status)}
+                                                                />
+                                                            )}
                                                         </Stack>
                                                     </TableCell>
                                                     <TableCell align="right">

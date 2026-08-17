@@ -57,12 +57,12 @@ public class PrizePayoutEligibilityService {
 
     /** Still held by agent (or expired while held). */
     private static final EnumSet<LotteryTicketSerialStatus> ONLINE_HELD_SERIAL_STATUSES = EnumSet.of(
-            LotteryTicketSerialStatus.PROXY_HOLDING,
+            LotteryTicketSerialStatus.SOLD,
             LotteryTicketSerialStatus.EXPIRED);
 
     /** IN_PERSON also allows tickets already handed to the customer. */
     private static final EnumSet<LotteryTicketSerialStatus> IN_PERSON_SERIAL_STATUSES = EnumSet.of(
-            LotteryTicketSerialStatus.PROXY_HOLDING,
+            LotteryTicketSerialStatus.SOLD,
             LotteryTicketSerialStatus.EXPIRED,
             LotteryTicketSerialStatus.SOLD);
 

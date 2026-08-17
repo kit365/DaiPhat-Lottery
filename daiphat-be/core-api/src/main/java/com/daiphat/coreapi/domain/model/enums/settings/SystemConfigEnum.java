@@ -366,6 +366,16 @@ public enum SystemConfigEnum {
             "{}",
             false
     ),
+    ORDER_PAYMENT_COMPLAINT_REMINDER_ENABLED(
+            ConfigType.ORDER_SETTING,
+            DataType.BOOLEAN,
+            "true",
+            "Bật thông báo nhắc nhân viên khi có chứng từ thanh toán của đơn đã quá thời gian thanh toán.",
+            "Nhắc xử lý khiếu nại thanh toán",
+            null,
+            "{\"allowedValues\":[\"true\",\"false\"]}",
+            true
+    ),
     // Phase 3: snapshotted onto allocation batch at confirm; used for late-return settlement.
     VENDOR_RETURN_CUTOFF(
             ConfigType.VENDOR_SETTING,

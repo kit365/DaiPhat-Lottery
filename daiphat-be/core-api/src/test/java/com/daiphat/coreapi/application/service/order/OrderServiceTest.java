@@ -12,19 +12,23 @@ import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePor
 import com.daiphat.coreapi.application.port.in.user.UserLookupServicePort;
 import com.daiphat.coreapi.application.port.out.order.PaymentCountdownCachePort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
+import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.service.refund.OrderRefundGraceService;
 import com.daiphat.coreapi.application.strategy.payment.PaymentGatewayStrategyFactory;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.UserModel;
 import com.daiphat.coreapi.domain.model.enums.order.OrderReceiveType;
+import com.daiphat.coreapi.domain.model.enums.order.OrderCancelType;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
+import com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import com.daiphat.coreapi.domain.model.orders.OrderDetailModel;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.domain.model.orders.TransactionModel;
+import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -83,6 +87,7 @@ private static final String DEFAULT_CUSTOMER_NAME = "Kiet";
     private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
     private final OrderRefundGraceService orderRefundGraceService = mock(OrderRefundGraceService.class);
     private final PaymentTimeoutConfigService paymentTimeoutConfigService = mock(PaymentTimeoutConfigService.class);
+    private final StoragePort storagePort = mock(StoragePort.class);
 
     private OrderServicePort orderService;
 
@@ -111,7 +116,8 @@ private static final String DEFAULT_CUSTOMER_NAME = "Kiet";
                 eventPublisher,
                 orderRefundGraceService,
                 paymentTimeoutConfigService,
-                mock(com.daiphat.coreapi.application.service.support.OrderComplaintEligibilityService.class)
+                mock(com.daiphat.coreapi.application.service.support.OrderComplaintEligibilityService.class),
+                storagePort
         );
         when(orderRefundGraceService.evaluate(any())).thenReturn(
                 new OrderRefundGraceService.RefundGraceEvaluation(false, null, 0L, 0, null, null)
@@ -1101,6 +1107,43 @@ private static final String DEFAULT_CUSTOMER_NAME = "Kiet";
         assertThat(result).isNotNull();
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
         verify(lotteryTicketServicePort).releaseReservationForOrder(8L);
+    }
+
+    @Test
+    @DisplayName("payment-timeout complaint approval reconsumes the released serial and restores handover state")
+    void reviewPaymentTimeoutComplaint_approved_restoresReleasedTicketLifecycle() {
+        UUID orderId = UUID.randomUUID();
+        UUID operatorId = UUID.randomUUID();
+        OrderDetailModel detail = OrderDetailModel.builder()
+                .id(11L)
+                .lotteryTicketSerialId(8L)
+                .status(OrderDetailStatus.CANCELLED)
+                .build();
+        OrderModel order = OrderModel.builder()
+                .id(orderId)
+                .orderType(OrderType.ONLINE)
+                .status(OrderStatus.CANCELLED)
+                .cancelType(OrderCancelType.SYSTEM_PAYMENT_TIMEOUT)
+                .totalAmount(BigDecimal.valueOf(10_000))
+                .orderDetails(new java.util.ArrayList<>(List.of(detail)))
+                .transactions(new java.util.ArrayList<>())
+                .build();
+        order.submitPaymentTimeoutComplaint("https://storage.example/proof.png", LocalDateTime.now());
+
+        LotteryTicketSerialModel serial = new LotteryTicketSerialModel();
+        serial.setId(8L);
+        serial.setTicketId(9L);
+        when(userLookupServicePort.findByIdOrThrow(operatorId)).thenReturn(new UserModel());
+        when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(java.util.Optional.of(order));
+        when(orderRepositoryPort.save(any(OrderModel.class))).thenReturn(order);
+        when(lotteryTicketSerialServicePort.getByIdOrThrow(8L)).thenReturn(serial);
+
+        OrderResponse result = orderService.reviewPaymentTimeoutComplaint(orderId, true, null, operatorId);
+
+        assertThat(result).isNotNull();
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.PAID);
+        assertThat(detail.getStatus()).isEqualTo(OrderDetailStatus.PROXY_HOLDING);
+        verify(lotteryTicketServicePort).markSoldForOrder(8L);
     }
 
     @Test
