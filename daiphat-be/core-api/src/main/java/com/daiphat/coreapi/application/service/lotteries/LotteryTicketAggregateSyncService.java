@@ -30,7 +30,7 @@ public class LotteryTicketAggregateSyncService implements LotteryTicketAggregate
             List.of(LotteryTicketSerialStatus.SOLD);
     private static final Collection<LotteryTicketSerialStatus> EXPIRABLE_STATUSES = List.of(
             LotteryTicketSerialStatus.IN_STOCK,
-            LotteryTicketSerialStatus.SOLD
+            LotteryTicketSerialStatus.RESERVED
     );
 
     private final LotteryTicketRepositoryPort lotteryTicketRepositoryPort;

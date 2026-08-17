@@ -44,7 +44,7 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
     private static final List<LotteryTicketSerialStatus> AVAILABLE_STATUSES = List.of(LotteryTicketSerialStatus.IN_STOCK);
     private static final List<LotteryTicketSerialStatus> EXPIRABLE_STATUSES = List.of(
             LotteryTicketSerialStatus.IN_STOCK,
-            LotteryTicketSerialStatus.SOLD
+            LotteryTicketSerialStatus.RESERVED
     );
 
     private final LotteryTicketSerialRepositoryPort lotteryTicketSerialRepositoryPort;

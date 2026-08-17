@@ -1386,8 +1386,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
                     .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_TICKET_NOT_FOUND));
             if ("EXPIRED".equals(resolution)) {
                 if (serial.getStatus() == LotteryTicketSerialStatus.IN_STOCK
-                        || serial.getStatus() == LotteryTicketSerialStatus.RESERVED
-                        || serial.getStatus() == LotteryTicketSerialStatus.SOLD) {
+                        || serial.getStatus() == LotteryTicketSerialStatus.RESERVED) {
                     serial.expire();
                     lotteryTicketSerialRepositoryPort.save(serial);
                 }
