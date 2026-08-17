@@ -34,9 +34,9 @@ import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
-import ConfirmationNumberOutlinedIcon from '@mui/icons-material/ConfirmationNumberOutlined';
 import type { SettlementAdjustmentReasonCode, SettlementResolvableSerial } from '../../types/supplierSettlement.type';
 import { formatSettlementMoney } from '../../utils/settlementCashflow';
+import { AdminStatusBadge } from '@/admin/components/ui/AdminStatusBadge';
 
 interface MissingReturnTicketsPanelProps {
     serials: SettlementResolvableSerial[];
@@ -179,15 +179,9 @@ export const MissingReturnTicketsPanel = ({
                         </Typography>
                     </Box>
                 </Stack>
-                <Chip
-                    icon={<ConfirmationNumberOutlinedIcon style={{ fontSize: '0.95rem' }} />}
+                <AdminStatusBadge
                     label={`Tổng ${serials.length} vé chuẩn bị trả`}
-                    sx={{
-                        fontWeight: 700,
-                        bgcolor: '#f8fafc',
-                        color: '#475569',
-                        border: '1px solid #e2e8f0',
-                    }}
+                    modifier="admin-status-badge--draft"
                 />
             </Stack>
 

@@ -229,13 +229,20 @@ export type ImportBatchFileIssueCode =
     | 'NUMBERS_INVALID'
     | 'NUMBERS_LENGTH_INVALID'
     | 'NUMBERS_DUPLICATED_IN_GROUP'
+    | 'NUMBERS_MERGED_INTO_ROW'
     | 'SERIALS_REQUIRED'
     | 'SERIAL_DUPLICATED_IN_FILE'
     | 'SERIAL_ALREADY_IMPORTED'
     | 'QUANTITY_ABOVE_SERIAL_COUNT'
     | 'QUANTITY_BELOW_SERIAL_COUNT'
     | 'TICKET_IMAGE_INVALID'
-    | 'TICKET_IMAGE_COUNT_MISMATCH';
+    | 'TICKET_IMAGE_COUNT_MISMATCH'
+    | 'STATION_PRICING_MISMATCH'
+    | 'STATION_SCHEDULE_MISMATCH'
+    | 'PARTIAL_IMPORT_DISABLED'
+    | 'SUPPLIER_IDENTITY_MISMATCH'
+    | 'SUPPLIER_IDENTITY_NOT_DECLARED'
+    | 'STATION_INACTIVE';
 
 /**
  * Which column of the uploaded file feeds which field. Columns are addressed by
@@ -269,6 +276,8 @@ export interface ImportBatchFileMapping {
     /** Separator inside the serial and image cells; defaults to ";". */
     serialSeparator?: string | null;
     importCostColumn?: string | null;
+    salePriceColumn?: string | null;
+    commissionRateColumn?: string | null;
 }
 
 /** True when the mapping carries the tickets themselves, not just quantities. */
@@ -308,6 +317,15 @@ export interface ImportBatchFileRow {
     importCost?: number | null;
     status: ImportBatchFileRowStatus;
     issues: ImportBatchFileIssue[];
+    /**
+     * Set when this line handed its serials to an earlier line carrying the same
+     * lottery number — that line's row number.
+     *
+     * <p>A file prints one serial per line, so a four-ticket number occupies four
+     * consecutive lines and only the first becomes a ticket. Without this the
+     * preview shows the same serial twice and looks like a duplicate.
+     */
+    mergedIntoRowNumber?: number | null;
 }
 
 /** All rows of one draw date - the unit that becomes a single import batch. */
@@ -381,6 +399,8 @@ export interface ImportBatchFileScheduleMismatch {
 export interface ImportBatchFilePricingMismatch {
     lotteryStationId: number;
     stationName: string;
+    /** Line of the file the disagreeing figures came from, for locating the cell. */
+    rowNumber?: number;
     salePriceInFile?: number;
     salePriceInSystem?: number;
     salePriceMismatch: boolean;

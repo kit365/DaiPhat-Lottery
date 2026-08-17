@@ -4,6 +4,7 @@ import { formatSupplierTime } from '../../../supplier/utils/supplierTimeFields';
 import {
     buildImportIntakeBlockedTooltip,
     buildImportIntakeClosedMessage,
+    DEFAULT_RETURN_BUFFER_MINUTES,
     DEFAULT_RETURN_CUTOFF_TIME,
     isBeforeSupplierImportAllowFrom,
     isDrawDateToday,
@@ -96,7 +97,7 @@ export const evaluateImportBatchIntake = (
 
 export const useImportBatchIntakeGate = () => {
     const { data: timePolicy } = useImportBatchTimePolicy();
-    const returnBufferMinutes = timePolicy?.returnBufferMinutes ?? 45;
+    const returnBufferMinutes = timePolicy?.returnBufferMinutes ?? DEFAULT_RETURN_BUFFER_MINUTES;
     const [nowTick, setNowTick] = useState(() => dayjs());
 
     const evaluate = useCallback(

@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.application.mapper.lotteries;
 
 import com.daiphat.coreapi.application.dto.response.lotteries.SettlementDiscrepancyItemResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.StationCommissionSnapshotResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.SupplierSettlementResponse;
 import com.daiphat.coreapi.application.port.out.lotteries.LotterySupplierRepositoryPort;
 import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementReconciliationPhase;
@@ -82,6 +83,9 @@ public class SupplierSettlementApplicationMapper {
                 .originalTicketUnitPrice(model.getOriginalTicketUnitPrice())
                 .reconciledTicketUnitPrice(model.getReconciledTicketUnitPrice())
                 .actualTicketPrice(model.getReconciledTicketUnitPrice())
+                .systemTicketImportPrice(model.getSystemTicketImportPrice())
+                .actualTicketImportPrice(model.getActualTicketImportPrice())
+                .stationCommissionSnapshots(toStationCommissionResponses(model))
                 .initialEstimatedSettlementValue(model.getInitialEstimatedSettlementValue())
                 .finalSettlementValue(model.getFinalSettlementValue())
                 .actualPaidAmount(model.getActualPaidAmount())
@@ -112,6 +116,24 @@ public class SupplierSettlementApplicationMapper {
                 .reconciliationWindowStartAt(windowStart)
                 .inReconciliationWindow(inWindow)
                 .build();
+    }
+
+    private java.util.List<StationCommissionSnapshotResponse> toStationCommissionResponses(
+            SupplierSettlementModel model
+    ) {
+        if (model.getStationCommissionSnapshots() == null || model.getStationCommissionSnapshots().isEmpty()) {
+            return java.util.List.of();
+        }
+        return model.getStationCommissionSnapshots().stream()
+                .filter(java.util.Objects::nonNull)
+                .filter(item -> item.getLotteryStationId() != null)
+                .map(item -> StationCommissionSnapshotResponse.builder()
+                        .lotteryStationId(item.getLotteryStationId())
+                        .importedQuantity(item.getImportedQuantity())
+                        .systemCommissionRate(item.getSystemCommissionRate())
+                        .actualCommissionRate(item.getActualCommissionRate())
+                        .build())
+                .toList();
     }
 
     private java.util.List<SettlementDiscrepancyItemResponse> toDiscrepancyItemResponses(SupplierSettlementModel model) {

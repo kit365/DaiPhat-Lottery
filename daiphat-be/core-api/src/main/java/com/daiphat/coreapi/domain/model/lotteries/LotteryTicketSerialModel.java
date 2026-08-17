@@ -89,12 +89,23 @@ public class LotteryTicketSerialModel {
         this.damagedReason = null;
     }
 
+    /** Replaced by another serial after a data-entry cancel — not inventory, not sellable. */
+    public boolean isVoided() {
+        return this.ticketCondition != null && this.ticketCondition.isVoided();
+    }
+
+    /** Serials that still exist as physical inventory (VOIDED replacements are excluded). */
+    public boolean isVisibleInventory() {
+        return this.deletedAt == null && !isVoided();
+    }
+
     /** Sellable inventory: in stock, good condition, not linked to a return batch line. */
     public boolean isAvailableForSale() {
         return this.status == LotteryTicketSerialStatus.IN_STOCK
                 && (this.ticketCondition == null || this.ticketCondition == TicketCondition.GOOD)
                 && this.returnBatchLineId == null
-                && this.deletedAt == null;
+                && this.deletedAt == null
+                && !isVoided();
     }
 
     public void reserve(UUID orderId, LocalDateTime expiresAt) {
@@ -166,6 +177,9 @@ public class LotteryTicketSerialModel {
     }
 
     public void expire() {
+        if (isVoided()) {
+            return;
+        }
         if (this.status != LotteryTicketSerialStatus.IN_STOCK
                 && this.status != LotteryTicketSerialStatus.RESERVED) {
             throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
@@ -194,6 +208,21 @@ public class LotteryTicketSerialModel {
     public void markVoided(LotteryTicketSerialFaultedBy faultedBy, String reason) {
         applyConditionFault(TicketCondition.VOIDED, faultedBy, reason);
         this.damagedEvidenceUrl = null;
+    }
+
+    /** Move this physical serial onto another lottery number without cloning. */
+    public void reassignToTicket(Long newTicketId, Long newStationId, LocalDate newDrawDate) {
+        if (newTicketId == null) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "Vé số đích không được để trống.");
+        }
+        this.ticketId = newTicketId;
+        if (newStationId != null) {
+            this.stationId = newStationId;
+        }
+        if (newDrawDate != null) {
+            this.drawDate = newDrawDate;
+        }
+        this.replacedForTicketId = null;
     }
 
     public boolean isInternalInventoryIncidentStatus() {

@@ -181,6 +181,13 @@ public enum ErrorCode {
     PRIZE_STRUCTURE_NOT_FOUND("LT_005", "Cấu trúc giải thưởng không tồn tại.", HttpStatus.NOT_FOUND),
     LOTTERY_TICKET_NOT_FOUND("LT_006", "Vé số không tồn tại.", HttpStatus.NOT_FOUND),
     LOTTERY_TICKET_INVALID_STATUS("LT_007", "Trạng thái vé số không hợp lệ cho thao tác này.", HttpStatus.BAD_REQUEST),
+    /**
+     * The ticket may no longer be cancelled, damaged or written off: the return
+     * sweep for its draw date has begun, so its stock is already being counted
+     * for the supplier. Carries the reason so the operator reads the hour that
+     * closed the shelf rather than a generic refusal.
+     */
+    LOTTERY_TICKET_CANCEL_WINDOW_CLOSED("LT_008", "%s", HttpStatus.BAD_REQUEST),
     LOTTERY_TICKET_SERIAL_EXISTED("LT_008", "Số sê-ri vé số đã tồn tại trong hệ thống.", HttpStatus.BAD_REQUEST),
     PRIZE_STRUCTURE_DUPLICATE_CODE("LT_009", "Mã giải thưởng bị trùng trong cùng sản phẩm.", HttpStatus.BAD_REQUEST),
     LOTTERY_STATION_INVALID_TYPE("LT_010", "Loại nhà đài không hợp lệ.", HttpStatus.BAD_REQUEST),

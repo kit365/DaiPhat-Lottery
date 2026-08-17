@@ -1,9 +1,9 @@
 "use client";
 
 import AccessTimeOutlinedIcon from '@mui/icons-material/AccessTimeOutlined';
-import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
-import { Box, Chip, Paper, Stack, Typography } from '@mui/material';
+import { Box, Paper, Stack, Typography } from '@mui/material';
 import dayjs from 'dayjs';
+import { AdminStatusBadge } from '@/admin/components/ui/AdminStatusBadge';
 
 interface Props {
     reconciliationWindowStartAt?: string | null;
@@ -63,18 +63,9 @@ export const ReconciliationWindowNoticeBanner = ({
                         </Typography>
 
                         {formattedStartTime && (
-                            <Chip
-                                size="small"
-                                icon={<AccessTimeOutlinedIcon sx={{ fontSize: '0.85rem !important', color: '#1d4ed8' }} />}
+                            <AdminStatusBadge
                                 label={`Mở lúc: ${formattedStartTime}`}
-                                sx={{
-                                    bgcolor: '#dbeafe',
-                                    color: '#1e40af',
-                                    fontWeight: 700,
-                                    fontSize: '0.725rem',
-                                    border: '1px solid #bfdbfe',
-                                    height: 24,
-                                }}
+                                modifier="admin-status-badge--active"
                             />
                         )}
                     </Stack>
@@ -92,18 +83,9 @@ export const ReconciliationWindowNoticeBanner = ({
             </Stack>
 
             <Box sx={{ alignSelf: { xs: 'flex-start', sm: 'center' }, flexShrink: 0 }}>
-                <Chip
-                    size="small"
-                    icon={<LockOutlinedIcon sx={{ fontSize: '0.85rem !important', color: '#64748b' }} />}
+                <AdminStatusBadge
                     label="Tạm khóa kiểm tra"
-                    sx={{
-                        bgcolor: '#ffffff',
-                        color: '#475569',
-                        fontWeight: 700,
-                        fontSize: '0.725rem',
-                        border: '1px solid #cbd5e1',
-                        height: 26,
-                    }}
+                    modifier="admin-status-badge--draft"
                 />
             </Box>
         </Paper>

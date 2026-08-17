@@ -7,12 +7,11 @@ import CalculateOutlinedIcon from '@mui/icons-material/CalculateOutlined';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import EditNoteOutlinedIcon from '@mui/icons-material/EditNoteOutlined';
 import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
 import LocalOfferOutlinedIcon from '@mui/icons-material/LocalOfferOutlined';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
-import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
-import PointOfSaleOutlinedIcon from '@mui/icons-material/PointOfSaleOutlined';
 import TrendingDownOutlinedIcon from '@mui/icons-material/TrendingDownOutlined';
 import TrendingFlatOutlinedIcon from '@mui/icons-material/TrendingFlatOutlined';
 import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined';
@@ -20,7 +19,6 @@ import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import {
     Box,
     Button,
-    Chip,
     Divider,
     Grid,
     Paper,
@@ -28,6 +26,7 @@ import {
     Table,
     TableBody,
     TableCell,
+    TableFooter,
     TableHead,
     TableRow,
     Typography,
@@ -51,11 +50,17 @@ import {
 import {
     getDiscrepancyItemLabel,
     getDetectedDiscrepancyItems,
+    getDiscrepancyItemBadgeModifier,
+    getMatchBadgeModifier,
+    getReturnMatchingLockDetails,
     isReturnBatchHandedOver,
     isReturnMatchingOverdueUnhanded,
+    resolveLiveSystemImportQuantity,
     resolveLiveSystemReturnQuantity,
     weightedStationNetUnitPrice,
 } from '../../utils/settlementLabels';
+import { AllStationsTable } from './SettlementReconciliationTabs';
+import { AdminStatusBadge } from '@/admin/components/ui/AdminStatusBadge';
 
 interface SettlementReconciliationSummaryCardProps {
     settlement: SupplierSettlement;
@@ -67,7 +72,7 @@ interface SettlementReconciliationSummaryCardProps {
     returnBatches?: SettlementOverviewReturnBatch[];
     onEditMatching?: () => void;
     canRematch?: boolean;
-    mode?: 'full' | 'discrepancy_summary';
+    mode?: 'full' | 'discrepancy_summary' | 'completion_min';
 }
 
 const ledgerRowSx = {
@@ -90,11 +95,46 @@ const ADJUSTMENT_REASON_LABELS: Record<SettlementAdjustmentReasonCode, string> =
     OTHER: 'Khác',
 };
 
+const cleanAdjustmentNote = (raw?: string | null): string | null => {
+    if (!raw) return null;
+    return raw
+        .replace(/\(UNDER_IMPORTED\)/gi, '(Nhập thiếu)')
+        .replace(/\(DAMAGED\)/gi, '(Bị hư hỏng / rách)')
+        .replace(/\(LOST\)/gi, '(Thất lạc)')
+        .replace(/\(VOIDED\)/gi, '(Báo hủy)')
+        .replace(/UNDER_IMPORTED/gi, 'Nhập thiếu')
+        .replace(/DAMAGED/gi, 'Hư hỏng')
+        .replace(/LOST/gi, 'Thất lạc')
+        .replace(/VOIDED/gi, 'Báo hủy');
+};
+
+const uniqueResolutionNotes = (rows: SupplierSettlementAdjustment[]): string[] => {
+    const notes = rows
+        .map((row) => cleanAdjustmentNote(row.note)?.trim())
+        .filter((note): note is string => Boolean(note));
+    return Array.from(new Set(notes));
+};
+
+const describeResolutionDetail = (
+    rows: SupplierSettlementAdjustment[],
+    fallback: string
+): string => {
+    const notes = uniqueResolutionNotes(rows);
+    if (notes.length === 1) return notes[0];
+    if (notes.length > 1) return notes.join(' · ');
+    return fallback;
+};
+
 const scaleMoney = (value: number): number => {
     if (!Number.isFinite(value)) return 0;
     const factor = 1_000;
     const rounded = Math.round((Math.abs(value) + Number.EPSILON) * factor) / factor;
     return value < 0 ? -rounded : rounded;
+};
+
+const formatSignedQty = (value: number) => {
+    if (!Number.isFinite(value) || value === 0) return '0';
+    return `${value > 0 ? '+' : '−'}${Math.abs(value).toLocaleString('vi-VN')}`;
 };
 
 const StatusChip = ({
@@ -106,24 +146,9 @@ const StatusChip = ({
     okLabel: string;
     badLabel: string;
 }) => (
-    <Chip
-        size="small"
-        icon={
-            ok ? (
-                <CheckCircleOutlinedIcon style={{ fontSize: '0.85rem', color: '#15803d' }} />
-            ) : (
-                <WarningAmberOutlinedIcon style={{ fontSize: '0.85rem', color: '#be123c' }} />
-            )
-        }
+    <AdminStatusBadge
         label={ok ? okLabel : badLabel}
-        sx={{
-            height: 22,
-            fontWeight: 800,
-            fontSize: '0.675rem',
-            bgcolor: ok ? '#f0fdf4' : '#fff1f2',
-            color: ok ? '#15803d' : '#be123c',
-            border: `1px solid ${ok ? '#bbf7d0' : '#fecdd3'}`,
-        }}
+        modifier={getMatchBadgeModifier(ok)}
     />
 );
 
@@ -187,28 +212,37 @@ const MetricCompareRow = ({
 }) => (
     <Box
         sx={{
-            py: 1,
-            px: 1.25,
-            borderRadius: '8px',
-            bgcolor: isDiff ? (diffType === 'error' ? 'rgba(254, 226, 226, 0.45)' : 'rgba(254, 243, 199, 0.45)') : '#ffffff',
+            py: 1.25,
+            px: 1.5,
+            borderRadius: '10px',
+            bgcolor: isDiff
+                ? diffType === 'error'
+                    ? '#fff5f5'
+                    : '#fffbeb'
+                : '#ffffff',
             border: '1px solid',
-            borderColor: isDiff ? (diffType === 'error' ? '#fecaca' : '#fed7aa') : '#f1f5f9',
-            mb: 0.75,
+            borderColor: isDiff
+                ? diffType === 'error'
+                    ? '#fecaca'
+                    : '#fde68a'
+                : '#f1f5f9',
+            mb: 1,
+            boxShadow: isDiff ? '0 1px 3px rgba(0,0,0,0.02)' : 'none',
         }}
     >
         <Grid container spacing={1} alignItems="center">
-            <Grid size={{ xs: 12, sm: 3.8 }}>
-                <Typography variant="caption" fontWeight={700} color="#334155" sx={{ display: 'block' }}>
+            <Grid size={{ xs: 12, sm: 3.6 }}>
+                <Typography variant="caption" fontWeight={800} color="#1e293b" sx={{ display: 'block' }}>
                     {label}
                 </Typography>
                 {subtext && (
-                    <Typography variant="caption" color="#94a3b8" sx={{ display: 'block', fontSize: '0.65rem' }}>
+                    <Typography variant="caption" color="#64748b" sx={{ display: 'block', fontSize: '0.7rem' }}>
                         {subtext}
                     </Typography>
                 )}
             </Grid>
             <Grid size={{ xs: 4, sm: 2.7 }}>
-                <Typography variant="caption" color="#64748b" sx={{ display: 'block', fontSize: '0.65rem' }}>
+                <Typography variant="caption" color="#64748b" sx={{ display: 'block', fontSize: '0.675rem', fontWeight: 600 }}>
                     Hệ thống
                 </Typography>
                 <Typography variant="body2" fontWeight={700} color="#0f172a">
@@ -216,16 +250,16 @@ const MetricCompareRow = ({
                 </Typography>
             </Grid>
             <Grid size={{ xs: 4, sm: 2.7 }}>
-                <Typography variant="caption" color="#1d4ed8" sx={{ display: 'block', fontSize: '0.65rem', fontWeight: 600 }}>
+                <Typography variant="caption" color="#1d4ed8" sx={{ display: 'block', fontSize: '0.675rem', fontWeight: 700 }}>
                     Thực tế NCC
                 </Typography>
                 <Typography variant="body2" fontWeight={800} color="#1e40af">
                     {actualVal}
                 </Typography>
             </Grid>
-            <Grid size={{ xs: 4, sm: 2.8 }} sx={{ textAlign: { xs: 'left', sm: 'right' } }}>
-                <Typography variant="caption" color="#64748b" sx={{ display: 'block', fontSize: '0.65rem' }}>
-                    Chênh lệch
+            <Grid size={{ xs: 4, sm: 3 }} sx={{ textAlign: { xs: 'left', sm: 'right' } }}>
+                <Typography variant="caption" color="#64748b" sx={{ display: 'block', fontSize: '0.675rem', fontWeight: 600 }}>
+                    Chênh lệch (NCC so với HT)
                 </Typography>
                 <Typography
                     variant="body2"
@@ -234,9 +268,9 @@ const MetricCompareRow = ({
                         !isDiff
                             ? '#15803d'
                             : diffType === 'error'
-                            ? '#be123c'
+                            ? '#dc2626'
                             : diffType === 'warning'
-                            ? '#b45309'
+                            ? '#d97706'
                             : '#334155'
                     }
                 >
@@ -259,7 +293,7 @@ export const SettlementReconciliationSummaryCard = ({
     canRematch,
     mode = 'full',
 }: SettlementReconciliationSummaryCardProps) => {
-    const systemImportQty = settlement.systemImportQuantity ?? 0;
+    const systemImportQty = resolveLiveSystemImportQuantity(settlement, importBatches, inventoryByStation);
     const storedSystemImportVal = Number(settlement.systemImportValue ?? 0);
     const actualImportQty = settlement.actualTicketImportQuantity ?? systemImportQty;
     const actualImportVal = Number(settlement.actualTicketImportValue ?? storedSystemImportVal);
@@ -281,8 +315,6 @@ export const SettlementReconciliationSummaryCard = ({
         baselineUnitPrice > 0 ? scaleMoney(baselineUnitPrice * systemImportQty) : storedSystemImportVal;
     const afterHhSystemReturnVal =
         baselineUnitPrice > 0 ? scaleMoney(baselineUnitPrice * systemReturnQty) : storedSystemReturnVal;
-    const importBookGap = scaleMoney(storedSystemImportVal - afterHhSystemImportVal);
-    const returnBookGap = scaleMoney(storedSystemReturnVal - afterHhSystemReturnVal);
 
     const importQtyDiff = actualImportQty - systemImportQty;
     const importValDiff = scaleMoney(actualImportVal - afterHhSystemImportVal);
@@ -309,7 +341,8 @@ export const SettlementReconciliationSummaryCard = ({
     const differenceAmount = toAgencyCashflow(payableDifferenceAmount);
 
     const settlementAdjustments = adjustments.filter((row) => row.groupType === 'SETTLEMENT');
-    const inventoryAdjustments = adjustments.filter((row) => row.groupType === 'IMPORT' || row.groupType === 'RETURN');
+    const importAdjustments = adjustments.filter((row) => row.groupType === 'IMPORT');
+    const returnAdjustments = adjustments.filter((row) => row.groupType === 'RETURN');
     const additionalCostTotal = settlementAdjustments.reduce((sum, row) => sum + Number(row.amount || 0), 0);
 
     const actualPaid =
@@ -326,6 +359,13 @@ export const SettlementReconciliationSummaryCard = ({
         },
         returnBatches
     ) || (Boolean(settlement.isReturnExpired) && actualReturnQty === 0);
+
+    const returnLockDetails = getReturnMatchingLockDetails(returnBatches, {
+        isReturnExpired: settlement.isReturnExpired,
+        periodTo: settlement.periodTo,
+        periodFrom: settlement.periodFrom,
+    });
+    const isReturnInputsLocked = returnLockDetails.inputsLocked;
 
     const handedOverReturnQty = returnBatches
         .filter((batch) => isReturnBatchHandedOver(batch.status))
@@ -358,6 +398,8 @@ export const SettlementReconciliationSummaryCard = ({
     }, [kpis, inventoryByStation]);
 
     const incidentTotal = inventoryTotals.damaged + inventoryTotals.lost + inventoryTotals.voided;
+    const voidedExplainsImportGap =
+        inventoryTotals.voided > 0 && importQtyDiff === inventoryTotals.voided;
     const discrepancyItems = getDetectedDiscrepancyItems(settlement, {
         afterCommissionUnitPrice: afterHhUnitPrice,
     });
@@ -397,6 +439,605 @@ export const SettlementReconciliationSummaryCard = ({
             icon: <TrendingDownOutlinedIcon sx={{ fontSize: '1rem' }} />,
         };
     }, [hasLiveAdjustment, differenceAmount]);
+
+    if (mode === 'completion_min') {
+        const importItem = discrepancyItems.find((item) => item.type === 'IMPORT_QUANTITY');
+        const returnItem = discrepancyItems.find((item) => item.type === 'RETURN_QUANTITY');
+        const unitPriceItem = discrepancyItems.find((item) => item.type === 'IMPORT_UNIT_PRICE');
+        const types = settlement.discrepancyTypes || [];
+        const hadImport =
+            Boolean(importItem)
+            || Boolean(settlement.importDiscrepancyResolved)
+            || importAdjustments.length > 0
+            || types.includes('IMPORT_QUANTITY');
+        const hadReturn =
+            Boolean(returnItem)
+            || Boolean(settlement.returnDiscrepancyResolved)
+            || returnAdjustments.length > 0
+            || types.includes('RETURN_QUANTITY');
+        const hadUnitPrice =
+            Boolean(unitPriceItem)
+            || types.includes('IMPORT_UNIT_PRICE');
+        const importDetail = describeResolutionDetail(
+            importAdjustments,
+            importItem?.direction === 'POSITIVE'
+                ? 'Đã bổ sung vé hệ thống ghi thiếu (Nhập thiếu).'
+                : importItem?.direction === 'NEGATIVE'
+                  ? 'Đã ghi nhận vé hệ thống ghi thừa.'
+                  : 'Đã xử lý chênh lệch nhập vé.'
+        );
+        const returnDetail = describeResolutionDetail(
+            returnAdjustments,
+            returnItem?.direction === 'POSITIVE'
+                ? 'Đã ghi nhận vé trả thừa so với hệ thống.'
+                : returnItem?.direction === 'NEGATIVE'
+                  ? 'Đã ghi nhận vé hệ thống ghi thừa khi trả.'
+                  : 'Đã xử lý chênh lệch trả vé.'
+        );
+        const systemImportPrice = Number(settlement.systemTicketImportPrice ?? originalUnitPrice);
+        const actualImportPrice = Number(settlement.actualTicketImportPrice ?? 0);
+        const displayActualImportPrice = actualImportPrice || reconciledUnitPrice;
+        const importPriceChanged = Math.abs(systemImportPrice - displayActualImportPrice) > 0.001;
+        const uniqueCommissionRates = Array.from(
+            new Set(stationPricing.map((row) => Number(row.commissionRate || 0)))
+        );
+
+        const resolutionRows = [
+            {
+                key: 'import',
+                title: 'Nhập vé',
+                skipped: !hadImport,
+                resolved: Boolean(settlement.importDiscrepancyResolved) || !hadImport,
+                detail: !hadImport
+                    ? 'Không lệch số lượng nhập.'
+                    : Boolean(settlement.importDiscrepancyResolved)
+                      ? importDetail
+                      : 'Chưa xử lý xong chênh lệch nhập.',
+            },
+            {
+                key: 'return',
+                title: 'Trả vé',
+                skipped: !hadReturn,
+                resolved: Boolean(settlement.returnDiscrepancyResolved) || !hadReturn,
+                detail: !hadReturn
+                    ? 'Không lệch số lượng trả.'
+                    : Boolean(settlement.returnDiscrepancyResolved)
+                      ? returnDetail
+                      : 'Chưa xử lý xong chênh lệch trả.',
+            },
+            {
+                key: 'price',
+                title: 'Giá nhập',
+                skipped: !hadUnitPrice,
+                resolved: Boolean(settlement.unitPriceDiscrepancyResolved) || !hadUnitPrice,
+                detail: !hadUnitPrice
+                    ? 'Giá nhập và hoa hồng không đổi.'
+                    : unitPriceItem
+                      ? getDiscrepancyItemLabel(unitPriceItem)
+                      : 'Đã ghi nhận điều chỉnh giá nhập.',
+            },
+        ];
+
+        return (
+            <Stack spacing={2.5} sx={{ mb: 2.5 }}>
+                {/* 1. Tóm tắt hoàn tất đối soát */}
+                <Paper
+                    variant="outlined"
+                    sx={{
+                        p: { xs: 2, md: 2.5 },
+                        borderRadius: '16px',
+                        borderColor: '#e2e8f0',
+                        bgcolor: '#ffffff',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+                    }}
+                >
+                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }} flexWrap="wrap" gap={1}>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                            <Box
+                                sx={{
+                                    width: 32,
+                                    height: 32,
+                                    borderRadius: '8px',
+                                    bgcolor: '#eff6ff',
+                                    color: '#2563eb',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                }}
+                            >
+                                <FactCheckOutlinedIcon sx={{ fontSize: '1.2rem' }} />
+                            </Box>
+                            <Typography variant="subtitle1" fontWeight={800} color="#0f172a">
+                                Tóm tắt hoàn tất đối soát
+                            </Typography>
+                        </Stack>
+                        <AdminStatusBadge
+                            label={fullyMatched ? 'Khớp toàn bộ dữ liệu' : 'Còn chênh lệch cần rà soát'}
+                            modifier={fullyMatched ? 'admin-status-badge--success' : 'admin-status-badge--pending'}
+                        />
+                    </Stack>
+
+                    <Grid container spacing={1.5} sx={{ mb: 2 }}>
+                        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                            <Box
+                                sx={{
+                                    p: 1.75,
+                                    borderRadius: '12px',
+                                    bgcolor: '#f8fafc',
+                                    border: '1px solid #e2e8f0',
+                                    height: '100%',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    justifyContent: 'space-between',
+                                }}
+                            >
+                                <Box>
+                                    <Typography variant="caption" color="#64748b" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: '0.4px', display: 'block', mb: 0.75 }}>
+                                        Số lượng nhập vé
+                                    </Typography>
+                                    <Typography fontWeight={800} color="#0f172a" sx={{ fontSize: '1.35rem', lineHeight: 1.2 }}>
+                                        {actualImportQty.toLocaleString('vi-VN')}{' '}
+                                        <Typography component="span" variant="body2" color="#64748b" fontWeight={600}>vé</Typography>
+                                    </Typography>
+                                    <Typography variant="caption" color="#64748b" sx={{ display: 'block', mt: 0.5 }}>
+                                        Hệ thống: <strong>{systemImportQty.toLocaleString('vi-VN')} vé</strong>
+                                    </Typography>
+                                </Box>
+                                <Box sx={{ mt: 1.5 }}>
+                                    <AdminStatusBadge
+                                        label={importQtyDiff === 0 ? 'Khớp 0 vé' : `Chênh lệch: ${formatSignedQty(importQtyDiff)} vé`}
+                                        modifier={
+                                            importQtyDiff === 0
+                                                ? 'admin-status-badge--success'
+                                                : importQtyDiff > 0
+                                                  ? 'admin-status-badge--inactive'
+                                                  : 'admin-status-badge--pending'
+                                        }
+                                    />
+                                </Box>
+                            </Box>
+                        </Grid>
+
+                        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                            <Box
+                                sx={{
+                                    p: 1.75,
+                                    borderRadius: '12px',
+                                    bgcolor: '#f8fafc',
+                                    border: '1px solid #e2e8f0',
+                                    height: '100%',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    justifyContent: 'space-between',
+                                }}
+                            >
+                                <Box>
+                                    <Typography variant="caption" color="#64748b" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: '0.4px', display: 'block', mb: 0.75 }}>
+                                        Số lượng trả vé
+                                    </Typography>
+                                    <Typography fontWeight={800} color="#0f172a" sx={{ fontSize: '1.35rem', lineHeight: 1.2 }}>
+                                        {actualReturnQty.toLocaleString('vi-VN')}{' '}
+                                        <Typography component="span" variant="body2" color="#64748b" fontWeight={600}>vé</Typography>
+                                    </Typography>
+                                    <Typography variant="caption" color="#64748b" sx={{ display: 'block', mt: 0.5 }}>
+                                        Hệ thống: <strong>{systemReturnQty.toLocaleString('vi-VN')} vé</strong>
+                                    </Typography>
+                                </Box>
+                                <Box sx={{ mt: 1.5 }}>
+                                    <AdminStatusBadge
+                                        label={
+                                            isReturnInputsLocked
+                                                ? 'Đã khóa sổ trả'
+                                                : returnQtyDiff === 0
+                                                  ? 'Khớp 0 vé'
+                                                  : `Chênh lệch: ${formatSignedQty(returnQtyDiff)} vé`
+                                        }
+                                        modifier={
+                                            isReturnInputsLocked
+                                                ? 'admin-status-badge--pending'
+                                                : returnQtyDiff === 0
+                                                  ? 'admin-status-badge--success'
+                                                  : 'admin-status-badge--inactive'
+                                        }
+                                    />
+                                </Box>
+                            </Box>
+                        </Grid>
+
+                        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                            <Box
+                                sx={{
+                                    p: 1.75,
+                                    borderRadius: '12px',
+                                    bgcolor: '#eff6ff',
+                                    border: '1px solid #bfdbfe',
+                                    height: '100%',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    justifyContent: 'space-between',
+                                }}
+                            >
+                                <Box>
+                                    <Typography variant="caption" color="#1e40af" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: '0.4px', display: 'block', mb: 0.75 }}>
+                                        {finalVal != null && finalVal < 0 ? 'NCC hoàn / ghi có' : 'Tiền vé sau đối chiếu'}
+                                    </Typography>
+                                    <Typography fontWeight={900} color="#1d4ed8" sx={{ fontSize: '1.35rem', lineHeight: 1.2 }}>
+                                        {finalVal == null ? '—' : `${formatSettlementMoney(Math.abs(finalVal))} VNĐ`}
+                                    </Typography>
+                                    <Typography variant="caption" color="#3b82f6" sx={{ display: 'block', mt: 0.5, fontWeight: 600 }}>
+                                        {formatSettlementMoney(reconciledUnitPrice)} đ × {netQty.toLocaleString('vi-VN')} vé ròng
+                                    </Typography>
+                                </Box>
+                                <Box sx={{ mt: 1.5 }}>
+                                    <AdminStatusBadge
+                                        label="Đã chốt số liệu"
+                                        modifier="admin-status-badge--active"
+                                    />
+                                </Box>
+                            </Box>
+                        </Grid>
+
+                        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                            <Box
+                                sx={{
+                                    p: 1.75,
+                                    borderRadius: '12px',
+                                    bgcolor: paymentDiff == null || paymentDiff >= 0 ? '#f0fdf4' : '#fff1f2',
+                                    border: `1px solid ${paymentDiff == null || paymentDiff >= 0 ? '#bbf7d0' : '#fecdd3'}`,
+                                    height: '100%',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    justifyContent: 'space-between',
+                                }}
+                            >
+                                <Box>
+                                    <Typography variant="caption" color={paymentDiff == null || paymentDiff >= 0 ? '#166534' : '#991b1b'} fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: '0.4px', display: 'block', mb: 0.75 }}>
+                                        {isSupplierRefund ? 'NCC hoàn thực tế' : 'Số tiền cần trả thực tế'}
+                                    </Typography>
+                                    <Typography fontWeight={900} color={paymentDiff == null || paymentDiff >= 0 ? '#15803d' : '#be123c'} sx={{ fontSize: '1.35rem', lineHeight: 1.2 }}>
+                                        {actualPaid == null ? '—' : `${formatSettlementMoney(Math.abs(actualPaid))} VNĐ`}
+                                    </Typography>
+                                    <Typography variant="caption" color={paymentDiff == null || paymentDiff >= 0 ? '#16a34a' : '#be123c'} sx={{ display: 'block', mt: 0.5, fontWeight: 600 }}>
+                                        {paymentDiff == null
+                                            ? 'Khớp chênh lệch đối soát'
+                                            : paymentDiff === 0
+                                              ? 'Khớp 0 VNĐ'
+                                              : `${paymentDiff > 0 ? 'Dư / giảm chi' : 'Chi vượt'} ${formatSignedCashflow(paymentDiff, formatSettlementMoney)} VNĐ`}
+                                    </Typography>
+                                </Box>
+                                <Box sx={{ mt: 1.5 }}>
+                                    <AdminStatusBadge
+                                        label={paymentDiff == null || paymentDiff === 0 ? 'Đã khớp thanh toán' : 'Chênh lệch dòng tiền'}
+                                        modifier={
+                                            paymentDiff == null || paymentDiff === 0
+                                                ? 'admin-status-badge--success'
+                                                : 'admin-status-badge--inactive'
+                                        }
+                                    />
+                                </Box>
+                            </Box>
+                        </Grid>
+                    </Grid>
+
+                    {/* Sub-bar Thống kê vé sự cố */}
+                    <Box
+                        sx={{
+                            p: 1.5,
+                            borderRadius: '12px',
+                            bgcolor: '#f8fafc',
+                            border: '1px solid #e2e8f0',
+                            display: 'flex',
+                            flexDirection: { xs: 'column', sm: 'row' },
+                            alignItems: { xs: 'flex-start', sm: 'center' },
+                            justifyContent: 'space-between',
+                            gap: 1.5,
+                        }}
+                    >
+                        <Stack direction="row" spacing={1} alignItems="center">
+                            <WarningAmberOutlinedIcon sx={{ color: '#ea580c', fontSize: '1.15rem' }} />
+                            <Typography variant="body2" fontWeight={700} color="#334155">
+                                Vé sự cố trong kỳ: <Typography component="span" fontWeight={800} color="#0f172a">{incidentTotal.toLocaleString('vi-VN')} vé</Typography>
+                            </Typography>
+                        </Stack>
+
+                        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                            <AdminStatusBadge
+                                label={`Thất lạc: ${inventoryTotals.lost.toLocaleString('vi-VN')} vé`}
+                                modifier={inventoryTotals.lost > 0 ? 'admin-status-badge--inactive' : 'admin-status-badge--draft'}
+                            />
+                            <AdminStatusBadge
+                                label={`Hư hỏng: ${inventoryTotals.damaged.toLocaleString('vi-VN')} vé`}
+                                modifier={inventoryTotals.damaged > 0 ? 'admin-status-badge--pending' : 'admin-status-badge--draft'}
+                            />
+                            <AdminStatusBadge
+                                label={`Báo hủy: ${inventoryTotals.voided.toLocaleString('vi-VN')} vé`}
+                                modifier={inventoryTotals.voided > 0 ? 'admin-status-badge--draft' : 'admin-status-badge--draft'}
+                            />
+                        </Stack>
+                    </Box>
+                </Paper>
+
+                {/* 2. KẾT QUẢ XỬ LÝ CHÊNH LỆCH */}
+                <Paper
+                    elevation={0}
+                    sx={{
+                        p: { xs: 2, md: 2.5 },
+                        borderRadius: '16px',
+                        border: '1px solid #e2e8f0',
+                        bgcolor: '#ffffff',
+                    }}
+                >
+                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+                        <Box
+                            sx={{
+                                width: 28,
+                                height: 28,
+                                borderRadius: '7px',
+                                bgcolor: '#f0fdf4',
+                                color: '#16a34a',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                            }}
+                        >
+                            <FactCheckOutlinedIcon sx={{ fontSize: '1.1rem' }} />
+                        </Box>
+                        <Typography variant="subtitle2" fontWeight={800} color="#0f172a" sx={{ textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                            Kết quả xử lý chênh lệch
+                        </Typography>
+                    </Stack>
+
+                    <Stack spacing={1}>
+                        {resolutionRows.map((row) => (
+                            <Stack
+                                key={row.key}
+                                direction="row"
+                                justifyContent="space-between"
+                                alignItems="flex-start"
+                                gap={2}
+                                sx={{
+                                    px: 1.75,
+                                    py: 1.35,
+                                    borderRadius: '10px',
+                                    border: '1px solid',
+                                    borderColor: row.skipped ? '#e2e8f0' : row.resolved ? '#bbf7d0' : '#fed7aa',
+                                    bgcolor: row.skipped ? '#f8fafc' : row.resolved ? '#f9fefb' : '#fffbf5',
+                                }}
+                            >
+                                <Box sx={{ minWidth: 0 }}>
+                                    <Typography variant="body2" fontWeight={800} color="#0f172a">
+                                        {row.title}
+                                    </Typography>
+                                    <Typography variant="caption" color="#64748b" sx={{ display: 'block', mt: 0.25 }}>
+                                        {row.detail}
+                                    </Typography>
+                                </Box>
+                                <AdminStatusBadge
+                                    label={row.skipped ? 'Không lệch' : row.resolved ? 'Đã xử lý' : 'Chưa xử lý'}
+                                    modifier={
+                                        row.skipped
+                                            ? 'admin-status-badge--draft'
+                                            : row.resolved
+                                              ? 'admin-status-badge--success'
+                                              : 'admin-status-badge--pending'
+                                    }
+                                />
+                            </Stack>
+                        ))}
+                    </Stack>
+                </Paper>
+
+                {/* 3. GIÁ NHẬP & HOA HỒNG */}
+                <Paper
+                    elevation={0}
+                    sx={{
+                        p: { xs: 2, md: 2.5 },
+                        borderRadius: '16px',
+                        border: '1px solid #e2e8f0',
+                        bgcolor: '#ffffff',
+                    }}
+                >
+                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.75 }}>
+                        <Box
+                            sx={{
+                                width: 28,
+                                height: 28,
+                                borderRadius: '7px',
+                                bgcolor: '#eff6ff',
+                                color: '#2563eb',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                            }}
+                        >
+                            <LocalOfferOutlinedIcon sx={{ fontSize: '1.1rem' }} />
+                        </Box>
+                        <Typography variant="subtitle2" fontWeight={800} color="#0f172a" sx={{ textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                            Giá nhập & hoa hồng
+                        </Typography>
+                    </Stack>
+
+                    <Typography variant="body2" color="#334155" sx={{ mb: stationPricing.length > 0 ? 1.5 : 0 }}>
+                        Giá nhập{' '}
+                        <Box component="span" fontWeight={800}>
+                            {importPriceChanged
+                                ? `${formatSettlementMoney(systemImportPrice)} → ${formatSettlementMoney(displayActualImportPrice)}`
+                                : formatSettlementMoney(displayActualImportPrice)}
+                        </Box>
+                        {' '}VNĐ/vé
+                        {' · '}
+                        Giá sau HH{' '}
+                        <Box component="span" fontWeight={800} color="#1d4ed8">
+                            {formatSettlementMoney(reconciledUnitPrice)}
+                        </Box>
+                        {' '}VNĐ/vé
+                        {uniqueCommissionRates.length === 1 && (
+                            <>
+                                {' · '}HH{' '}
+                                <Box component="span" fontWeight={800}>
+                                    {(uniqueCommissionRates[0] * 100).toLocaleString('vi-VN', { maximumFractionDigits: 2 })}%
+                                </Box>
+                            </>
+                        )}
+                    </Typography>
+
+                    {stationPricing.length > 0 && (
+                        <Table size="small">
+                            <TableHead>
+                                <TableRow sx={{ '& th': { bgcolor: '#f8fafc', fontWeight: 800, color: '#475569', fontSize: '0.75rem', py: 1 } }}>
+                                    <TableCell>Nhà đài</TableCell>
+                                    <TableCell align="right">Hoa hồng</TableCell>
+                                    <TableCell align="right">Giá sau HH</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {stationPricing.map((row) => (
+                                    <TableRow key={row.lotteryStationId}>
+                                        <TableCell sx={{ fontWeight: 700, py: 1 }}>
+                                            {row.lotteryStationName || `Đài #${row.lotteryStationId}`}
+                                        </TableCell>
+                                        <TableCell align="right" sx={{ py: 1 }}>
+                                            {(Number(row.commissionRate || 0) * 100).toLocaleString('vi-VN', { maximumFractionDigits: 2 })}%
+                                        </TableCell>
+                                        <TableCell align="right" sx={{ fontWeight: 800, py: 1 }}>
+                                            {formatSettlementMoney(row.netUnitPrice)} VNĐ
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    )}
+                </Paper>
+
+                {/* 4. CHI PHÍ PHÁT SINH & SỔ TIỀN */}
+                <Paper
+                    elevation={0}
+                    sx={{
+                        borderRadius: '16px',
+                        border: '1px solid #e2e8f0',
+                        bgcolor: '#ffffff',
+                        overflow: 'hidden',
+                    }}
+                >
+                    <Box sx={{ px: { xs: 2, md: 2.5 }, pt: 2.25, pb: 1.5, borderBottom: '1px solid #f1f5f9' }}>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                            <Box
+                                sx={{
+                                    width: 28,
+                                    height: 28,
+                                    borderRadius: '7px',
+                                    bgcolor: '#f1f5f9',
+                                    color: '#0f172a',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                }}
+                            >
+                                <PaymentsOutlinedIcon sx={{ fontSize: '1.1rem' }} />
+                            </Box>
+                            <Typography variant="subtitle2" fontWeight={800} color="#0f172a" sx={{ textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                                Bảng tổng hợp dòng tiền thanh toán
+                            </Typography>
+                        </Stack>
+                    </Box>
+
+                    <Stack divider={<Divider sx={{ borderColor: '#f1f5f9' }} />}>
+                        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={ledgerRowSx} gap={2}>
+                            <Box>
+                                <Typography variant="body2" fontWeight={700} color="#334155">Tạm tính ban đầu (Hệ thống)</Typography>
+                                <Typography variant="caption" color="#64748b" sx={{ display: 'block' }}>
+                                    (Giá nhập sau HH × SL nhập HT) − tiền vé ế hoàn HT
+                                </Typography>
+                            </Box>
+                            <Typography fontWeight={700} color="#475569" sx={{ whiteSpace: 'nowrap' }}>
+                                {formatSettlementMoney(initialEstimatedVal)} VNĐ
+                            </Typography>
+                        </Stack>
+
+                        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={ledgerRowSx} gap={2}>
+                            <Box>
+                                <Typography variant="body2" fontWeight={700} color="#1d4ed8">Tiền vé sau đối chiếu (ròng)</Typography>
+                                <Typography variant="caption" color="#64748b" sx={{ display: 'block' }}>
+                                    {formatSettlementMoney(reconciledUnitPrice)} đ × {netQty.toLocaleString('vi-VN')} vé ròng
+                                </Typography>
+                            </Box>
+                            <Typography fontWeight={800} color="#1d4ed8" sx={{ whiteSpace: 'nowrap' }}>
+                                {formatSettlementMoney(ticketNetVal)} VNĐ
+                            </Typography>
+                        </Stack>
+
+                        {settlementAdjustments.length > 0 ? (
+                            settlementAdjustments.map((row) => (
+                                <Stack
+                                    key={row.id}
+                                    direction="row"
+                                    justifyContent="space-between"
+                                    alignItems="center"
+                                    sx={ledgerRowSx}
+                                    gap={2}
+                                >
+                                    <Box>
+                                        <Typography variant="body2" fontWeight={700} color="#475569">
+                                            {row.customName || row.reasonLabel || ADJUSTMENT_REASON_LABELS[row.reasonCode] || row.reasonCode}
+                                        </Typography>
+                                        <Typography variant="caption" color="#94a3b8" sx={{ display: 'block' }}>
+                                            {cleanAdjustmentNote(row.note) || 'Chi phí phát sinh từ bước đối chiếu'}
+                                        </Typography>
+                                    </Box>
+                                    <Typography
+                                        fontWeight={800}
+                                        color={Number(row.amount) > 0 ? '#dc2626' : Number(row.amount) < 0 ? '#15803d' : '#475569'}
+                                        sx={{ whiteSpace: 'nowrap' }}
+                                    >
+                                        {Number(row.amount) > 0 ? '+' : ''}{formatSettlementMoney(row.amount)} VNĐ
+                                    </Typography>
+                                </Stack>
+                            ))
+                        ) : (
+                            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={ledgerRowSx}>
+                                <Typography variant="body2" color="#64748b">Không có chi phí phát sinh</Typography>
+                                <Typography fontWeight={700} color="#94a3b8">0 VNĐ</Typography>
+                            </Stack>
+                        )}
+
+                        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ ...ledgerRowSx, bgcolor: '#eff6ff' }} gap={2}>
+                            <Box>
+                                <Typography variant="body2" fontWeight={800} color="#1e40af">
+                                    {finalVal != null && finalVal < 0 ? 'NCC hoàn / ghi có' : 'Chênh lệch sau đối soát'}
+                                </Typography>
+                                <Typography variant="caption" color="#3b82f6" sx={{ display: 'block' }}>
+                                    Tiền vé sau đối chiếu + chi phí phát sinh
+                                </Typography>
+                            </Box>
+                            <Typography fontWeight={900} color="#1d4ed8" sx={{ fontSize: '1rem', whiteSpace: 'nowrap' }}>
+                                {finalVal == null
+                                    ? '—'
+                                    : `${finalVal < 0 ? `+${formatSettlementMoney(Math.abs(finalVal))}` : formatSettlementMoney(finalVal)} VNĐ`}
+                            </Typography>
+                        </Stack>
+
+                        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ ...ledgerRowSx, bgcolor: '#f0fdf4' }} gap={2}>
+                            <Box>
+                                <Typography variant="body2" fontWeight={800} color="#166534">
+                                    {isSupplierRefund ? 'Số tiền NCC hoàn thực tế' : 'Số tiền cần trả thực tế'}
+                                </Typography>
+                                <Typography variant="caption" color="#16a34a" sx={{ display: 'block' }}>
+                                    {paymentDiff == null
+                                        ? 'Chưa nhập số tiền cần trả thực tế'
+                                        : paymentDiff === 0
+                                          ? 'Khớp hoàn toàn với chênh lệch sau đối soát'
+                                          : `${paymentDiff > 0 ? 'Dư / giảm chi' : 'Chi vượt'} ${formatSignedCashflow(paymentDiff, formatSettlementMoney)} VNĐ`}
+                                </Typography>
+                            </Box>
+                            <Typography fontWeight={900} color="#15803d" sx={{ fontSize: '1.1rem', whiteSpace: 'nowrap' }}>
+                                {actualPaid == null ? '—' : `${formatSettlementMoney(Math.abs(actualPaid))} VNĐ`}
+                            </Typography>
+                        </Stack>
+                    </Stack>
+                </Paper>
+            </Stack>
+        );
+    }
 
     const sectionTitleSx = {
         textTransform: 'uppercase',
@@ -453,15 +1094,7 @@ export const SettlementReconciliationSummaryCard = ({
                 </Stack>
 
                 <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                    <Chip
-                        size="small"
-                        icon={
-                            fullyMatched ? (
-                                <CheckCircleOutlinedIcon style={{ fontSize: '0.95rem', color: '#15803d' }} />
-                            ) : (
-                                <WarningAmberOutlinedIcon style={{ fontSize: '0.95rem', color: '#c2410c' }} />
-                            )
-                        }
+                    <AdminStatusBadge
                         label={
                             fullyMatched
                                 ? 'Khớp toàn bộ dữ liệu'
@@ -469,13 +1102,7 @@ export const SettlementReconciliationSummaryCard = ({
                                   ? 'Khớp số lượng · lệch giá trị / hoa hồng'
                                   : `Phát hiện ${discrepancyItems.length || (importQtyDiff !== 0 ? 1 : 0) + (returnQtyDiff !== 0 ? 1 : 0) + (unitPriceDiff !== 0 ? 1 : 0)} chênh lệch`
                         }
-                        sx={{
-                            fontWeight: 800,
-                            fontSize: '0.75rem',
-                            bgcolor: fullyMatched ? '#f0fdf4' : '#fff7ed',
-                            color: fullyMatched ? '#15803d' : '#c2410c',
-                            border: `1px solid ${fullyMatched ? '#bbf7d0' : '#fed7aa'}`,
-                        }}
+                        modifier={fullyMatched ? 'admin-status-badge--success' : 'admin-status-badge--pending'}
                     />
                     {canRematch && onEditMatching && (
                         <Button
@@ -528,13 +1155,10 @@ export const SettlementReconciliationSummaryCard = ({
                                 || (item.type === 'IMPORT_QUANTITY' && Boolean(settlement.importDiscrepancyResolved))
                                 || (item.type === 'RETURN_QUANTITY' && Boolean(settlement.returnDiscrepancyResolved));
                             return (
-                                <Chip
+                                <AdminStatusBadge
                                     key={`${item.type}-${item.direction}`}
-                                    size="small"
-                                    color={resolved ? 'success' : item.direction === 'NEGATIVE' ? 'warning' : 'error'}
-                                    variant={resolved ? 'filled' : 'outlined'}
                                     label={`${getDiscrepancyItemLabel(item)}${resolved ? ' · đã xử lý' : ''}`}
-                                    sx={{ fontWeight: 700, bgcolor: resolved ? undefined : '#ffffff' }}
+                                    modifier={getDiscrepancyItemBadgeModifier(resolved, item.direction)}
                                 />
                             );
                         })}
@@ -543,26 +1167,55 @@ export const SettlementReconciliationSummaryCard = ({
             )}
 
             {/* SECTION A: SỐ LIỆU ĐÃ ĐỐI CHIẾU */}
-            <Paper elevation={0} sx={{ p: 2.25, mb: 2.5, borderRadius: '14px', border: '1px solid #e2e8f0', bgcolor: '#ffffff' }}>
-                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.75 }}>
-                    <Typography variant="caption" fontWeight={800} color="#475569" sx={sectionTitleSx}>
-                        A. Số liệu đã đối chiếu (Nhập vé vs Trả vé)
-                    </Typography>
-                    <Typography variant="caption" color="#64748b">
-                        Đơn vị tính: Vé / VNĐ sau hoa hồng
+            <Paper elevation={0} sx={{ p: 2.5, mb: 2.5, borderRadius: '16px', border: '1px solid #e2e8f0', bgcolor: '#ffffff' }}>
+                <Stack spacing={0.75} sx={{ mb: 2 }}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={1}>
+                        <Typography variant="caption" fontWeight={800} color="#334155" sx={{ ...sectionTitleSx, mb: 0 }}>
+                            A. Đối chiếu nhập / trả với nhà cung cấp
+                        </Typography>
+                        <Typography variant="caption" color="#64748b" sx={{ flexShrink: 0, fontWeight: 600 }}>
+                            Đơn vị: VNĐ sau hoa hồng
+                        </Typography>
+                    </Stack>
+                    <Typography variant="caption" color="#64748b" sx={{ display: 'block', lineHeight: 1.5 }}>
+                        <strong>Hệ thống</strong>: Số lượng và giá trị vé hợp lệ đã ghi nhận trong phần mềm (không bao gồm vé sự cố / hủy). · <strong>Thực tế NCC</strong>: Số lượng và giá trị do đại lý khai báo đối soát với nhà cung cấp. · <strong>Chênh lệch (NCC so với HT)</strong>: Dương (+) là hệ thống ghi thiếu so với NCC, Âm (−) là hệ thống ghi thừa so với NCC.
                     </Typography>
                 </Stack>
 
+                {voidedExplainsImportGap && (
+                    <Box
+                        sx={{
+                            mb: 2,
+                            p: 1.5,
+                            borderRadius: '12px',
+                            bgcolor: '#f0fdf4',
+                            border: '1px solid #bbf7d0',
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: 1.25,
+                        }}
+                    >
+                        <CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: '1.25rem', mt: 0.2, flexShrink: 0 }} />
+                        <Box>
+                            <Typography variant="subtitle2" fontWeight={800} color="#15803d" sx={{ fontSize: '0.875rem' }}>
+                                Chênh lệch nhập +{inventoryTotals.voided.toLocaleString('vi-VN')} vé được giải trình bởi {inventoryTotals.voided.toLocaleString('vi-VN')} vé hủy trong kho
+                            </Typography>
+                            <Typography variant="caption" color="#166534" sx={{ display: 'block', mt: 0.25, lineHeight: 1.5 }}>
+                                Hệ thống tự động loại trừ vé hủy ra khỏi số nhập hợp lệ. Công thức kiểm tra: <strong>{systemImportQty.toLocaleString('vi-VN')} vé hợp lệ + {inventoryTotals.voided.toLocaleString('vi-VN')} vé hủy = {actualImportQty.toLocaleString('vi-VN')} vé</strong> (Khớp hoàn toàn với số thực tế NCC giao).
+                            </Typography>
+                        </Box>
+                    </Box>
+                )}
+
                 <Grid container spacing={2} sx={{ mb: 2 }}>
-                    {/* Card 1: Số liệu Nhập vé */}
                     <Grid size={{ xs: 12, md: 6 }}>
                         <Box
                             sx={{
-                                p: 1.75,
-                                borderRadius: '12px',
+                                p: 2,
+                                borderRadius: '14px',
                                 border: '1px solid',
-                                borderColor: importQtyDiff !== 0 ? '#fecdd3' : importValDiff !== 0 ? '#fed7aa' : '#bbf7d0',
-                                bgcolor: importQtyDiff !== 0 ? '#fff5f5' : importValDiff !== 0 ? '#fffbf5' : '#f9fefb',
+                                borderColor: importQtyDiff > 0 ? '#fecaca' : importQtyDiff < 0 ? '#fde68a' : importValDiff !== 0 ? '#fed7aa' : '#bbf7d0',
+                                bgcolor: importQtyDiff > 0 ? '#fef8f8' : importQtyDiff < 0 ? '#fffdf5' : importValDiff !== 0 ? '#fffbf5' : '#f9fefb',
                                 height: '100%',
                                 display: 'flex',
                                 flexDirection: 'column',
@@ -570,14 +1223,27 @@ export const SettlementReconciliationSummaryCard = ({
                             }}
                         >
                             <Box>
-                                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }} gap={1}>
-                                    <Stack direction="row" spacing={0.75} alignItems="center">
-                                        <Inventory2OutlinedIcon sx={{ fontSize: '1.1rem', color: '#2563eb' }} />
-                                        <Typography variant="body2" fontWeight={800} color="#0f172a">
-                                            Số liệu Nhập vé
+                                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.75 }} gap={1}>
+                                    <Stack direction="row" spacing={1} alignItems="center">
+                                        <Box
+                                            sx={{
+                                                width: 32,
+                                                height: 32,
+                                                borderRadius: '8px',
+                                                bgcolor: '#eff6ff',
+                                                color: '#2563eb',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                            }}
+                                        >
+                                            <Inventory2OutlinedIcon sx={{ fontSize: '1.2rem' }} />
+                                        </Box>
+                                        <Typography variant="subtitle2" fontWeight={800} color="#0f172a">
+                                            Nhập vé
                                         </Typography>
                                     </Stack>
-                                    <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap justifyContent="flex-end">
+                                    <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap justifyContent="flex-end">
                                         <StatusChip
                                             ok={importQtyDiff === 0}
                                             okLabel="Khớp SL"
@@ -591,9 +1257,9 @@ export const SettlementReconciliationSummaryCard = ({
                                     </Stack>
                                 </Stack>
 
-                                {/* Metric 1: Số lượng vé nhập */}
                                 <MetricCompareRow
                                     label="Số lượng vé"
+                                    subtext="Vé hợp lệ đã nhập"
                                     systemVal={`${systemImportQty.toLocaleString('vi-VN')} vé`}
                                     actualVal={`${actualImportQty.toLocaleString('vi-VN')} vé`}
                                     diffVal={
@@ -602,13 +1268,12 @@ export const SettlementReconciliationSummaryCard = ({
                                             : `${importQtyDiff > 0 ? '+' : ''}${importQtyDiff.toLocaleString('vi-VN')} vé`
                                     }
                                     isDiff={importQtyDiff !== 0}
-                                    diffType={importQtyDiff !== 0 ? 'error' : 'success'}
+                                    diffType={importQtyDiff > 0 ? 'error' : importQtyDiff < 0 ? 'warning' : 'success'}
                                 />
 
-                                {/* Metric 2: Thành tiền sau hoa hồng */}
                                 <MetricCompareRow
                                     label="Giá trị sau hoa hồng"
-                                    subtext="Tiền vốn tính theo đài"
+                                    subtext={`${formatSettlementMoney(baselineUnitPrice)} đ/vé`}
                                     systemVal={`${formatSettlementMoney(afterHhSystemImportVal)} đ`}
                                     actualVal={`${formatSettlementMoney(actualImportVal)} đ`}
                                     diffVal={
@@ -617,54 +1282,59 @@ export const SettlementReconciliationSummaryCard = ({
                                             : `${importValDiff > 0 ? '+' : ''}${formatSettlementMoney(importValDiff)} đ`
                                     }
                                     isDiff={importValDiff !== 0}
-                                    diffType={importValDiff !== 0 ? (importQtyDiff !== 0 ? 'error' : 'warning') : 'success'}
+                                    diffType={importValDiff > 0 ? 'error' : importValDiff < 0 ? 'warning' : 'success'}
                                 />
-
-                                {/* Metric 3: Mệnh giá ghi sổ trước hoa hồng (nếu có gap) */}
-                                {importBookGap !== 0 && (
-                                    <MetricCompareRow
-                                        label="Mệnh giá ghi sổ"
-                                        subtext="Trước khi quy đổi HH"
-                                        systemVal={`${formatSettlementMoney(storedSystemImportVal)} đ`}
-                                        actualVal={`${formatSettlementMoney(actualImportQty * 10000)} đ`}
-                                        diffVal={`HH −${formatSettlementMoney(Math.abs(importBookGap))} đ`}
-                                        isDiff={false}
-                                        diffType="neutral"
-                                    />
-                                )}
                             </Box>
 
-                            {/* Alert footer on Diff */}
                             {(importQtyDiff !== 0 || importValDiff !== 0) && (
                                 <Box
                                     sx={{
-                                        mt: 1,
-                                        p: 1,
-                                        borderRadius: '8px',
-                                        bgcolor: '#ffffff',
-                                        border: '1px dashed #fca5a5',
+                                        mt: 1.5,
+                                        p: 1.25,
+                                        borderRadius: '10px',
+                                        bgcolor: importQtyDiff > 0 ? '#fef2f2' : '#fffbeb',
+                                        border: `1px solid ${importQtyDiff > 0 ? '#fecaca' : '#fde68a'}`,
                                         display: 'flex',
                                         alignItems: 'center',
-                                        gap: 0.75,
+                                        gap: 1,
                                     }}
                                 >
-                                    <Typography variant="caption" fontWeight={700} color="#be123c">
-                                        ⚠ {importQtyDiff < 0 ? `Hệ thống thừa ${Math.abs(importQtyDiff)} vé nhập` : `Hệ thống thiếu ${importQtyDiff} vé nhập`} so với thực tế NCC (Chênh lệch: {formatSignedCashflow(importValDiff, formatSettlementMoney)} VNĐ).
+                                    <InfoOutlinedIcon sx={{ color: importQtyDiff > 0 ? '#dc2626' : '#d97706', fontSize: '1.15rem', flexShrink: 0 }} />
+                                    <Typography variant="caption" fontWeight={700} color={importQtyDiff > 0 ? '#991b1b' : '#92400e'} sx={{ lineHeight: 1.45 }}>
+                                        {importQtyDiff < 0
+                                            ? `Hệ thống ghi thừa ${Math.abs(importQtyDiff).toLocaleString('vi-VN')} vé so với NCC.`
+                                            : `Hệ thống ghi thiếu ${importQtyDiff.toLocaleString('vi-VN')} vé so với NCC.`}
+                                        {' '}Chênh tiền sau hoa hồng: {formatSignedCashflow(importValDiff, formatSettlementMoney)} VNĐ.
                                     </Typography>
                                 </Box>
                             )}
                         </Box>
                     </Grid>
 
-                    {/* Card 2: Số liệu Trả vé */}
                     <Grid size={{ xs: 12, md: 6 }}>
                         <Box
                             sx={{
-                                p: 1.75,
-                                borderRadius: '12px',
+                                p: 2,
+                                borderRadius: '14px',
                                 border: '1px solid',
-                                borderColor: returnQtyDiff !== 0 ? '#fecdd3' : returnValDiff !== 0 ? '#fed7aa' : '#bbf7d0',
-                                bgcolor: returnQtyDiff !== 0 ? '#fff5f5' : returnValDiff !== 0 ? '#fffbf5' : '#f9fefb',
+                                borderColor: isReturnInputsLocked
+                                    ? '#fed7aa'
+                                    : returnQtyDiff > 0
+                                      ? '#fecaca'
+                                      : returnQtyDiff < 0
+                                        ? '#fde68a'
+                                        : returnValDiff !== 0
+                                          ? '#fed7aa'
+                                          : '#bbf7d0',
+                                bgcolor: isReturnInputsLocked
+                                    ? '#fffbf5'
+                                    : returnQtyDiff > 0
+                                      ? '#fef8f8'
+                                      : returnQtyDiff < 0
+                                        ? '#fffdf5'
+                                        : returnValDiff !== 0
+                                          ? '#fffbf5'
+                                          : '#f9fefb',
                                 height: '100%',
                                 display: 'flex',
                                 flexDirection: 'column',
@@ -672,101 +1342,137 @@ export const SettlementReconciliationSummaryCard = ({
                             }}
                         >
                             <Box>
-                                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }} gap={1}>
-                                    <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
-                                        <AssignmentReturnOutlinedIcon sx={{ fontSize: '1.1rem', color: '#ea580c' }} />
-                                        <Typography variant="body2" fontWeight={800} color="#0f172a">
-                                            Số liệu Trả vé
+                                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.75 }} gap={1}>
+                                    <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                                        <Box
+                                            sx={{
+                                                width: 32,
+                                                height: 32,
+                                                borderRadius: '8px',
+                                                bgcolor: '#fff7ed',
+                                                color: '#ea580c',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                            }}
+                                        >
+                                            {isReturnInputsLocked ? (
+                                                <LockOutlinedIcon sx={{ fontSize: '1.2rem' }} />
+                                            ) : (
+                                                <AssignmentReturnOutlinedIcon sx={{ fontSize: '1.2rem' }} />
+                                            )}
+                                        </Box>
+                                        <Typography variant="subtitle2" fontWeight={800} color="#0f172a">
+                                            Trả vé
                                         </Typography>
-                                        {isReturnForfeited && (
-                                            <Chip
-                                                size="small"
-                                                icon={<LockOutlinedIcon style={{ fontSize: '0.75rem', color: '#c2410c' }} />}
-                                                label="Đại lý chịu"
-                                                sx={{
-                                                    height: 20,
-                                                    fontSize: '0.65rem',
-                                                    fontWeight: 800,
-                                                    bgcolor: '#fff7ed',
-                                                    color: '#c2410c',
-                                                    border: '1px solid #fed7aa',
-                                                }}
+                                    </Stack>
+
+                                    {isReturnInputsLocked ? (
+                                        <AdminStatusBadge
+                                            label={
+                                                returnLockDetails.overdue || returnLockDetails.allCancelled
+                                                    ? 'Khóa sổ · Quá hạn trả'
+                                                    : 'Khóa sổ · Chưa bàn giao'
+                                            }
+                                            modifier="admin-status-badge--pending"
+                                        />
+                                    ) : (
+                                        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap justifyContent="flex-end">
+                                            {isReturnForfeited && (
+                                                <AdminStatusBadge
+                                                    label="Đại lý chịu"
+                                                    modifier="admin-status-badge--pending"
+                                                />
+                                            )}
+                                            <StatusChip
+                                                ok={returnQtyDiff === 0}
+                                                okLabel="Khớp SL"
+                                                badLabel={`Lệch ${returnQtyDiff > 0 ? `+${returnQtyDiff}` : returnQtyDiff} vé`}
                                             />
-                                        )}
-                                    </Stack>
-                                    <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap justifyContent="flex-end">
-                                        <StatusChip
-                                            ok={returnQtyDiff === 0}
-                                            okLabel="Khớp SL"
-                                            badLabel={`Lệch ${returnQtyDiff > 0 ? `+${returnQtyDiff}` : returnQtyDiff} vé`}
-                                        />
-                                        <StatusChip
-                                            ok={returnValDiff === 0}
-                                            okLabel="Khớp giá sau HH"
-                                            badLabel="Lệch giá sau HH"
-                                        />
-                                    </Stack>
+                                            <StatusChip
+                                                ok={returnValDiff === 0}
+                                                okLabel="Khớp giá sau HH"
+                                                badLabel="Lệch giá sau HH"
+                                            />
+                                        </Stack>
+                                    )}
                                 </Stack>
 
-                                {/* Metric 1: Số lượng vé trả */}
-                                <MetricCompareRow
-                                    label="Số lượng vé"
-                                    systemVal={`${systemReturnQty.toLocaleString('vi-VN')} vé`}
-                                    actualVal={`${actualReturnQty.toLocaleString('vi-VN')} vé`}
-                                    diffVal={
-                                        returnQtyDiff === 0
-                                            ? '0 vé (Khớp)'
-                                            : `${returnQtyDiff > 0 ? '+' : ''}${returnQtyDiff.toLocaleString('vi-VN')} vé`
-                                    }
-                                    isDiff={returnQtyDiff !== 0}
-                                    diffType={returnQtyDiff !== 0 ? 'error' : 'success'}
-                                />
-
-                                {/* Metric 2: Thành tiền sau hoa hồng */}
-                                <MetricCompareRow
-                                    label="Giá trị sau hoa hồng"
-                                    subtext="Tiền vốn tính theo đài"
-                                    systemVal={`${formatSettlementMoney(afterHhSystemReturnVal)} đ`}
-                                    actualVal={`${formatSettlementMoney(actualReturnVal)} đ`}
-                                    diffVal={
-                                        returnValDiff === 0
-                                            ? '0 đ (Khớp)'
-                                            : `${returnValDiff > 0 ? '+' : ''}${formatSettlementMoney(returnValDiff)} đ`
-                                    }
-                                    isDiff={returnValDiff !== 0}
-                                    diffType={returnValDiff !== 0 ? 'error' : 'success'}
-                                />
-
-                                {/* Metric 3: Mệnh giá ghi sổ trước hoa hồng (nếu có gap) */}
-                                {returnBookGap !== 0 && (
+                                <Box>
                                     <MetricCompareRow
-                                        label="Mệnh giá ghi sổ"
-                                        subtext="Trước khi quy đổi HH"
-                                        systemVal={`${formatSettlementMoney(storedSystemReturnVal)} đ`}
-                                        actualVal={`${formatSettlementMoney(actualReturnQty * 10000)} đ`}
-                                        diffVal={`HH −${formatSettlementMoney(Math.abs(returnBookGap))} đ`}
-                                        isDiff={false}
-                                        diffType="neutral"
+                                        label="Số lượng vé"
+                                        subtext="Vé ế hoàn trả NCC"
+                                        systemVal={`${systemReturnQty.toLocaleString('vi-VN')} vé`}
+                                        actualVal={`${actualReturnQty.toLocaleString('vi-VN')} vé`}
+                                        diffVal={
+                                            isReturnInputsLocked
+                                                ? '0 vé (Đã khóa)'
+                                                : returnQtyDiff === 0
+                                                  ? '0 vé (Khớp)'
+                                                  : `${returnQtyDiff > 0 ? '+' : ''}${returnQtyDiff.toLocaleString('vi-VN')} vé`
+                                        }
+                                        isDiff={!isReturnInputsLocked && returnQtyDiff !== 0}
+                                        diffType={isReturnInputsLocked ? 'neutral' : returnQtyDiff > 0 ? 'error' : returnQtyDiff < 0 ? 'warning' : 'success'}
                                     />
-                                )}
+
+                                    <MetricCompareRow
+                                        label="Giá trị sau hoa hồng"
+                                        subtext={`${formatSettlementMoney(baselineUnitPrice)} đ/vé`}
+                                        systemVal={`${formatSettlementMoney(afterHhSystemReturnVal)} đ`}
+                                        actualVal={`${formatSettlementMoney(actualReturnVal)} đ`}
+                                        diffVal={
+                                            isReturnInputsLocked
+                                                ? '0 đ (Đã khóa)'
+                                                : returnValDiff === 0
+                                                  ? '0 đ (Khớp)'
+                                                  : `${returnValDiff > 0 ? '+' : ''}${formatSettlementMoney(returnValDiff)} đ`
+                                        }
+                                        isDiff={!isReturnInputsLocked && returnValDiff !== 0}
+                                        diffType={isReturnInputsLocked ? 'neutral' : returnValDiff > 0 ? 'error' : returnValDiff < 0 ? 'warning' : 'success'}
+                                    />
+                                </Box>
                             </Box>
 
-                            {/* Alert footer on Diff */}
-                            {(returnQtyDiff !== 0 || returnValDiff !== 0) && (
+                            {isReturnInputsLocked && (
                                 <Box
                                     sx={{
-                                        mt: 1,
-                                        p: 1,
-                                        borderRadius: '8px',
+                                        mt: 1.5,
+                                        p: 1.25,
+                                        borderRadius: '10px',
                                         bgcolor: '#ffffff',
-                                        border: '1px dashed #fca5a5',
+                                        border: '1px solid #fed7aa',
                                         display: 'flex',
                                         alignItems: 'center',
-                                        gap: 0.75,
+                                        gap: 1.25,
                                     }}
                                 >
-                                    <Typography variant="caption" fontWeight={700} color="#be123c">
-                                        ⚠ {returnQtyDiff < 0 ? `Hệ thống thừa ${Math.abs(returnQtyDiff)} vé trả` : `Hệ thống thiếu ${returnQtyDiff} vé trả`} so với thực tế NCC.
+                                    <LockOutlinedIcon sx={{ color: '#ea580c', fontSize: '1.2rem', flexShrink: 0 }} />
+                                    <Typography variant="caption" fontWeight={700} color="#9a3412" sx={{ lineHeight: 1.45 }}>
+                                        {returnLockDetails.summaryMessage
+                                            || returnLockDetails.emptyStateMessage
+                                            || 'Đã quá giờ trả vé. Các vé còn tồn kho không được trả và đại lý phải chịu khoản này.'}
+                                    </Typography>
+                                </Box>
+                            )}
+
+                            {!isReturnInputsLocked && (returnQtyDiff !== 0 || returnValDiff !== 0) && (
+                                <Box
+                                    sx={{
+                                        mt: 1.5,
+                                        p: 1.25,
+                                        borderRadius: '10px',
+                                        bgcolor: returnQtyDiff > 0 ? '#fef2f2' : '#fffbeb',
+                                        border: `1px solid ${returnQtyDiff > 0 ? '#fecaca' : '#fde68a'}`,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 1,
+                                    }}
+                                >
+                                    <InfoOutlinedIcon sx={{ color: returnQtyDiff > 0 ? '#dc2626' : '#d97706', fontSize: '1.15rem', flexShrink: 0 }} />
+                                    <Typography variant="caption" fontWeight={700} color={returnQtyDiff > 0 ? '#991b1b' : '#92400e'}>
+                                        {returnQtyDiff < 0
+                                            ? `Hệ thống ghi thừa ${Math.abs(returnQtyDiff).toLocaleString('vi-VN')} vé trả so với NCC.`
+                                            : `Hệ thống ghi thiếu ${returnQtyDiff.toLocaleString('vi-VN')} vé trả so với NCC.`}
                                     </Typography>
                                 </Box>
                             )}
@@ -774,121 +1480,25 @@ export const SettlementReconciliationSummaryCard = ({
                     </Grid>
                 </Grid>
 
-                {/* Summary Ribbon */}
-                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ pt: 1, borderTop: '1px solid #f1f5f9' }}>
-                    <Chip
-                        size="small"
-                        icon={<ReceiptLongOutlinedIcon style={{ fontSize: '0.85rem', color: '#1d4ed8' }} />}
-                        label={`${importBatches.length} phiếu nhập · ${systemImportQty.toLocaleString('vi-VN')} vé HT`}
-                        sx={{ fontWeight: 700, bgcolor: '#eff6ff', color: '#1d4ed8' }}
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ pt: 1.5, borderTop: '1px solid #f1f5f9' }}>
+                    <AdminStatusBadge
+                        label={`${importBatches.length} phiếu nhập · Hệ thống: ${systemImportQty.toLocaleString('vi-VN')} vé`}
+                        modifier="admin-status-badge--active"
                     />
-                    <Chip
-                        size="small"
-                        icon={<AssignmentReturnOutlinedIcon style={{ fontSize: '0.85rem', color: '#c2410c' }} />}
+                    <AdminStatusBadge
                         label={`${returnBatches.length} phiếu trả · ${handedOverReturnQty.toLocaleString('vi-VN')} vé đã bàn giao`}
-                        sx={{ fontWeight: 700, bgcolor: '#fff7ed', color: '#c2410c' }}
+                        modifier="admin-status-badge--pending"
                     />
-                    <Chip
-                        size="small"
-                        label={`Thực nhập ròng: ${netQty.toLocaleString('vi-VN')} vé (${formatSettlementMoney(ticketNetVal)} VNĐ)`}
-                        sx={{ fontWeight: 800, bgcolor: '#f8fafc', color: '#0f172a', border: '1px solid #e2e8f0' }}
+                    <AdminStatusBadge
+                        label={`Nhập ròng NCC: ${actualImportQty.toLocaleString('vi-VN')} − ${actualReturnQty.toLocaleString('vi-VN')} = ${netQty.toLocaleString('vi-VN')} vé`}
+                        modifier="admin-status-badge--draft"
                     />
                 </Stack>
             </Paper>
 
-            {/* SECTION B: TỒN KHO KỲ & XỬ LÝ VÉ */}
-            <Paper elevation={0} sx={{ p: 2.25, mb: 2.5, borderRadius: '14px', border: '1px solid #e2e8f0', bgcolor: '#ffffff' }}>
-                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.75 }}>
-                    <Typography variant="caption" fontWeight={800} color="#475569" sx={sectionTitleSx}>
-                        B. Tồn kho kỳ & Xử lý vé trong kỳ
-                    </Typography>
-                    <Typography variant="caption" color="#64748b">
-                        Cập nhật từ dữ liệu quét mã & kiểm kho chi tiết
-                    </Typography>
-                </Stack>
-
-                <Grid container spacing={1.5}>
-                    {/* Pod 1: Phân phối & Bán vé (3 thẻ) */}
-                    <Grid size={{ xs: 12, md: 5 }}>
-                        <Paper variant="outlined" sx={{ p: 1.5, borderRadius: '12px', bgcolor: '#f8fafc', borderColor: '#e2e8f0', height: '100%' }}>
-                            <Typography variant="caption" fontWeight={800} color="#475569" sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 0.75, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                <PointOfSaleOutlinedIcon sx={{ fontSize: '0.95rem', color: '#2563eb' }} /> 1. Nhập & Bán vé trong kỳ
-                            </Typography>
-                            <Grid container spacing={1}>
-                                <Grid size={{ xs: 4 }}>
-                                    <MiniStatCard label="Nhập HT" value={inventoryTotals.imported.toLocaleString('vi-VN')} color="#0f172a" bg="#ffffff" />
-                                </Grid>
-                                <Grid size={{ xs: 4 }}>
-                                    <MiniStatCard label="Đã bán" value={inventoryTotals.sold.toLocaleString('vi-VN')} color="#ea580c" bg="#ffffff" />
-                                </Grid>
-                                <Grid size={{ xs: 4 }}>
-                                    <MiniStatCard label="Tồn GOOD" value={inventoryTotals.remaining.toLocaleString('vi-VN')} color="#16a34a" bg="#ffffff" />
-                                </Grid>
-                            </Grid>
-                        </Paper>
-                    </Grid>
-
-                    {/* Pod 2: Trả ế NCC (1 thẻ) */}
-                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                        <Paper variant="outlined" sx={{ p: 1.5, borderRadius: '12px', bgcolor: '#f8fafc', borderColor: '#e2e8f0', height: '100%' }}>
-                            <Typography variant="caption" fontWeight={800} color="#475569" sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 0.75, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                <AssignmentReturnOutlinedIcon sx={{ fontSize: '0.95rem', color: '#ea580c' }} /> 2. Trả ế nhà cung cấp
-                            </Typography>
-                            <MiniStatCard
-                                label="Đã lập phiếu trả"
-                                value={inventoryTotals.returned.toLocaleString('vi-VN')}
-                                hint={handedOverReturnQty > 0 ? `Đã bàn giao: ${handedOverReturnQty.toLocaleString('vi-VN')} vé` : undefined}
-                                color="#0f172a"
-                                bg="#ffffff"
-                            />
-                        </Paper>
-                    </Grid>
-
-                    {/* Pod 3: Sự cố / Rủi ro (3 thẻ + Badge tổng) */}
-                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                        <Paper
-                            variant="outlined"
-                            sx={{
-                                p: 1.5,
-                                borderRadius: '12px',
-                                bgcolor: incidentTotal > 0 ? '#fff5f5' : '#f8fafc',
-                                borderColor: incidentTotal > 0 ? '#fecdd3' : '#e2e8f0',
-                                height: '100%',
-                            }}
-                        >
-                            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-                                <Typography variant="caption" fontWeight={800} color={incidentTotal > 0 ? '#be123c' : '#475569'} sx={{ display: 'flex', alignItems: 'center', gap: 0.75, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                    <WarningAmberOutlinedIcon sx={{ fontSize: '0.95rem', color: incidentTotal > 0 ? '#be123c' : '#64748b' }} /> 3. Vé sự cố trong kỳ
-                                </Typography>
-                                {incidentTotal > 0 && (
-                                    <Chip
-                                        size="small"
-                                        label={`Tổng ${incidentTotal.toLocaleString('vi-VN')} sự cố`}
-                                        sx={{ height: 20, fontSize: '0.65rem', fontWeight: 800, bgcolor: '#ffffff', color: '#be123c', border: '1px solid #fecdd3' }}
-                                    />
-                                )}
-                            </Stack>
-                            <Grid container spacing={1}>
-                                <Grid size={{ xs: 4 }}>
-                                    <MiniStatCard label="Vé Lạc" value={inventoryTotals.lost.toLocaleString('vi-VN')} color={inventoryTotals.lost > 0 ? '#be123c' : '#64748b'} bg="#ffffff" />
-                                </Grid>
-                                <Grid size={{ xs: 4 }}>
-                                    <MiniStatCard label="Vé Hỏng" value={inventoryTotals.damaged.toLocaleString('vi-VN')} color={inventoryTotals.damaged > 0 ? '#b45309' : '#64748b'} bg="#ffffff" />
-                                </Grid>
-                                <Grid size={{ xs: 4 }}>
-                                    <MiniStatCard label="Vé Hủy" value={inventoryTotals.voided.toLocaleString('vi-VN')} color={inventoryTotals.voided > 0 ? '#64748b' : '#64748b'} bg="#ffffff" />
-                                </Grid>
-                            </Grid>
-                        </Paper>
-                    </Grid>
-                </Grid>
-
-                {inventoryAdjustments.length > 0 && (
-                    <Typography variant="caption" color="#64748b" sx={{ display: 'block', mt: 1.5 }}>
-                        Đã ghi nhận {inventoryAdjustments.length} điều chỉnh nhập/trả từ quá trình đối soát chênh lệch.
-                    </Typography>
-                )}
-            </Paper>
+            <Box sx={{ mb: 2.5 }}>
+                <AllStationsTable inventoryByStation={inventoryByStation} />
+            </Box>
 
             {mode !== 'discrepancy_summary' && (
                 <>
@@ -975,8 +1585,11 @@ export const SettlementReconciliationSummaryCard = ({
                             <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={ledgerRowSx} gap={2}>
                                 <Box>
                                     <Typography variant="body2" fontWeight={700} color="#334155">Tạm tính ban đầu</Typography>
-                                    <Typography variant="caption" color="#94a3b8">
-                                        Giá vốn sau HH × (SL nhập hệ thống − SL trả hệ thống)
+                                    <Typography variant="caption" color="#94a3b8" sx={{ display: 'block' }}>
+                                        (Giá nhập sau HH × SL nhập HT) − tiền vé ế hoàn HT
+                                    </Typography>
+                                    <Typography variant="caption" color="#64748b" sx={{ display: 'block' }}>
+                                        {formatSettlementMoney(afterHhSystemImportVal)} − {formatSettlementMoney(afterHhSystemReturnVal)}
                                     </Typography>
                                 </Box>
                                 <Typography fontWeight={800} sx={{ whiteSpace: 'nowrap' }}>
@@ -1127,26 +1740,19 @@ export const SettlementReconciliationSummaryCard = ({
                                         </Box>
                                     </Stack>
                                     {paymentDiff != null && (
-                                        <Chip
-                                            size="small"
-                                            icon={
-                                                paymentDiff === 0 ? (
-                                                    <CheckCircleOutlinedIcon style={{ fontSize: '0.85rem', color: '#15803d' }} />
-                                                ) : (
-                                                    <WarningAmberOutlinedIcon style={{ fontSize: '0.85rem', color: paymentDiff > 0 ? '#15803d' : '#be123c' }} />
-                                                )
-                                            }
+                                        <AdminStatusBadge
                                             label={
                                                 paymentDiff === 0
                                                     ? 'Khớp 0 VNĐ'
                                                     : `${paymentDiff > 0 ? 'Dư / giảm chi' : 'Chi vượt'} ${formatSignedCashflow(paymentDiff, formatSettlementMoney)} VNĐ`
                                             }
-                                            sx={{
-                                                fontWeight: 800,
-                                                bgcolor: paymentDiff === 0 || paymentDiff > 0 ? '#f0fdf4' : '#fff1f2',
-                                                color: paymentDiff === 0 || paymentDiff > 0 ? '#15803d' : '#be123c',
-                                                border: `1px solid ${paymentDiff === 0 || paymentDiff > 0 ? '#bbf7d0' : '#fecdd3'}`,
-                                            }}
+                                            modifier={
+                                                paymentDiff === 0
+                                                    ? 'admin-status-badge--success'
+                                                    : paymentDiff > 0
+                                                      ? 'admin-status-badge--success'
+                                                      : 'admin-status-badge--inactive'
+                                            }
                                         />
                                     )}
                                 </Stack>

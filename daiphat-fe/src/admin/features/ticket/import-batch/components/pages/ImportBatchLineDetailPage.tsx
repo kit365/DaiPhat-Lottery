@@ -73,7 +73,11 @@ import { isSerialIncidentEligible } from '../../utils/serialIncidentWorkflow';
 import { isLineIncomplete, isLinePaused } from '../../utils/importBatchProgress';
 import { AdminLuckyDisplay } from '@/shared/lucky-number';
 
-const asSerials = (serials: unknown): any[] => (Array.isArray(serials) ? serials : []);
+const asSerials = (serials: unknown): any[] =>
+    (Array.isArray(serials) ? serials : []).filter((serial) => {
+        const condition = String(serial?.ticketCondition || '').toUpperCase();
+        return condition !== 'VOIDED';
+    });
 
 const ticketNumberSx = {
     fontWeight: 700,

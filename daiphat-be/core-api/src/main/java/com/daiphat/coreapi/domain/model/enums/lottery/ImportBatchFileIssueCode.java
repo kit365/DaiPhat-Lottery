@@ -16,12 +16,13 @@ public enum ImportBatchFileIssueCode {
 
     // ---- group level -------------------------------------------------
     /**
-     * Not an error: the file legitimately covers a whole week while file import
-     * only accepts today's draw date. The same file is re-uploaded each day.
+     * Not an error: a supplier file routinely covers a whole week, while a batch
+     * can only be created for today or tomorrow. The same file is re-uploaded on
+     * successive days as its rows come into range.
      */
     DRAW_DATE_OUT_OF_WINDOW(
             ImportBatchFileIssueSeverity.SKIPPED,
-            "Ngày quay nằm ngoài phạm vi cho phép. Nhập vé từ tệp chỉ áp dụng cho ngày quay hôm nay."
+            "Ngày quay nằm ngoài phạm vi cho phép (chỉ tạo được phiếu cho hôm nay hoặc ngày mai)."
     ),
     DRAFT_ALREADY_EXISTS(
             ImportBatchFileIssueSeverity.WARNING,
@@ -136,6 +137,19 @@ public enum ImportBatchFileIssueCode {
     NUMBERS_DUPLICATED_IN_GROUP(
             ImportBatchFileIssueSeverity.WARNING,
             "Dãy số xuất hiện nhiều lần cho cùng nhà đài. Các sê-ri đã được gộp chung."
+    ),
+    /**
+     * Not a defect: one lottery number covers several physical tickets, so a file
+     * that prints one serial per line repeats the number on consecutive lines. The
+     * first line becomes the ticket and the rest hand their serials to it.
+     *
+     * <p>Carries its own code rather than reusing NUMBERS_DUPLICATED_IN_GROUP so
+     * the routine case stays out of the warning count, while still explaining why
+     * the line is marked skipped — silence there reads like the line was lost.
+     */
+    NUMBERS_MERGED_INTO_ROW(
+            ImportBatchFileIssueSeverity.SKIPPED,
+            "Sê-ri của dòng này đã được gộp vào dòng đầu tiên có cùng dãy số."
     ),
     SERIALS_REQUIRED(
             ImportBatchFileIssueSeverity.ERROR,

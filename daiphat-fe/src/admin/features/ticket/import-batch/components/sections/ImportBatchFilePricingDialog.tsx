@@ -196,7 +196,16 @@ export const ImportBatchFilePricingDialog = ({
 
                             return (
                                 <TableRow key={row.lotteryStationId} hover>
-                                    <TableCell sx={{ fontWeight: 600 }}>{row.stationName}</TableCell>
+                                    <TableCell sx={{ fontWeight: 600 }}>
+                                        <Stack spacing={0.25}>
+                                            <span>{row.stationName}</span>
+                                            {source?.rowNumber != null && (
+                                                <Typography variant="caption" color="text.secondary">
+                                                    Lệch ở dòng #{source.rowNumber} của tệp
+                                                </Typography>
+                                            )}
+                                        </Stack>
+                                    </TableCell>
 
                                     <TableCell>
                                         <Stack spacing={0.25}>

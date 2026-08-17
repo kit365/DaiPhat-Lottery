@@ -1,3 +1,4 @@
+import ExcelJS from 'exceljs';
 import dayjs from 'dayjs';
 import type {
     ImportBatchFileGroup,
@@ -5,54 +6,66 @@ import type {
     ImportBatchFilePreviewResult,
     ImportBatchFileRow,
 } from '../types/importBatch.type';
+import { formatPreviewIssueNote, resolveGroupBlockingNote } from './importBatchFileImport';
+import {
+    COL,
+    DOCUMENT_PAGE_SETUP,
+    FALLBACK_ISSUER,
+    IMPORT_BATCH_TICKET_HEADERS,
+    LEFT_ALIGNED_COLUMNS,
+    MONEY_FORMAT,
+    PERCENT_FORMAT,
+    TICKET_COLUMN_COUNT,
+    TICKET_COLUMN_WIDTHS,
+    ZEBRA,
+    buildLetterhead,
+    buildSignatureBlock,
+    buildTotalsRow,
+    styleHeaderRow,
+    thinBorder,
+    type ImportBatchTemplateIssuer,
+    type ImportBatchTemplateSupplier,
+} from './importBatchDocumentLayout';
 
 /**
- * Same field set as the delivery note, in the same order, plus what the preview
- * made of each row.
+ * The delivery note as the system read it back.
  *
- * <p>Kept in step with ImportBatchDocumentWriter.TICKET_HEADERS on the server and
- * TICKET_HEADERS in importBatchFileTemplate: this report is read side by side
- * with the file it describes, and a reader should not have to translate columns.
+ * <p>Same form, same columns, same order as the file that was uploaded — the
+ * operator lays the two side by side, so anything that moved would have to be
+ * re-found. Only the title changes and two columns are appended: what the system
+ * made of each line, and why.
  */
-const HEADERS = [
-    'Dòng',
-    'Mã đài',
-    'Nhà đài (trong tệp)',
-    'Nhà đài khớp',
-    'Ngày quay',
-    'Lịch quay',
-    'Loại lô',
-    'Dãy số',
-    'Số sê-ri',
-    'Khai báo',
-    'Nhập được',
-    'Giá nhập',
-    'Giá bán',
-    'Hoa hồng (%)',
-    'Thành tiền',
-    'Trạng thái',
-    'Ghi chú',
-];
+
+/** The two columns this document adds after the uploaded file's own. */
+const REVIEW_HEADERS = ['Trạng thái', 'Ghi chú'] as const;
+
+const HEADERS = [...IMPORT_BATCH_TICKET_HEADERS, ...REVIEW_HEADERS] as const;
+
+const COLUMN_WIDTHS = [...TICKET_COLUMN_WIDTHS, 18, 44];
+
+/** 1-based positions of the appended columns. */
+const REVIEW_COL = {
+    status: TICKET_COLUMN_COUNT + 1,
+    note: TICKET_COLUMN_COUNT + 2,
+} as const;
+
+const LAST_COLUMN = REVIEW_COL.note;
+
+const ERROR_BG = 'FFFEF2F2';
+const WARNING_BG = 'FFFFF7ED';
+const SKIPPED_BG = 'FFF1F5F9';
 
 /** What the operator needs to do about a row, in their own words. */
 export type ImportBatchProgressStatus =
-    | 'Nhập đủ'
-    | 'Chưa nhập đủ'
-    | 'Lỗi nhập'
-    | 'Không tạo được'
-    | 'Ngoài phạm vi ngày quay'
-    | 'Đã gộp vào dòng khác';
+    | 'Hợp lệ'
+    | 'Cần xem lại'
+    | 'Lỗi'
+    | 'Bỏ qua'
+    | 'Ngoài hạn nhập'
+    /** The row is sound but its whole draw date is barred from import. */
+    | 'Không hợp lệ';
 
 const formatDate = (value?: string) => (value ? dayjs(value).format('DD/MM/YYYY') : '');
-
-const formatNumber = (value?: number | null) =>
-    value == null ? '' : String(Math.round(value * 100) / 100);
-
-const BATCH_TYPE_LABELS: Record<string, string> = {
-    NEW: 'Nhập mới',
-    SUPPLEMENTARY: 'Nhập bổ sung',
-    ADJUSTMENT: 'Nhập vé điều chỉnh',
-};
 
 /** Per-station facts the preview response does not carry but the document names. */
 export type ImportBatchProgressStationPricing = {
@@ -61,92 +74,95 @@ export type ImportBatchProgressStationPricing = {
     commissionPercent?: number;
 };
 
-/**
- * Who and what this reconciliation report is about.
- *
- * <p>The same identifying block the delivery note prints, so a report filed
- * beside the file it describes stands on its own months later - a bare table of
- * rows names neither the supplier nor the file it came from.
- */
 export type ImportBatchProgressContext = {
-    issuerName?: string;
-    supplierName?: string;
-    supplierCode?: string;
-    supplierTaxCode?: string;
+    issuer?: ImportBatchTemplateIssuer;
+    supplier?: ImportBatchTemplateSupplier;
     operatorName?: string;
     sourceFileName?: string;
-    /** Keyed by lotteryStationId. */
     stationPricing?: Record<number, ImportBatchProgressStationPricing>;
 };
 
-/**
- * Label / value rows above the table.
- *
- * <p>Written as two-cell rows so the backend's letterhead reader sees exactly the
- * shape it expects: were this report ever uploaded, the supplier check would read
- * it correctly rather than mistaking a heading for data.
- */
-const buildLetterheadRows = (
-    preview: ImportBatchFilePreviewResult,
-    context?: ImportBatchProgressContext
-): string[][] => {
-    const drawDates = preview.groups
-        .map((group) => formatDate(group.drawDate))
-        .filter(Boolean)
-        .join(' · ');
+// ------------------------------------------------------------ cell reads
 
-    return [
-        [context?.issuerName ?? 'ĐẠI PHÁT', '', 'Mẫu số: 02-VT/ĐC'],
-        ['BẢNG ĐỐI CHIẾU NHẬP VÉ TỪ TỆP', ''],
-        ['Nhà cung cấp:', context?.supplierName ?? ''],
-        ['Mã nhà cung cấp:', context?.supplierCode ?? ''],
-        ['Mã số thuế:', context?.supplierTaxCode ?? ''],
-        ['Người nhập lô:', context?.operatorName ?? ''],
-        ['Tệp nguồn:', context?.sourceFileName ?? ''],
-        ['Ngày quay trong tệp:', drawDates],
-        ['Thời điểm đối chiếu:', dayjs().format('HH:mm DD/MM/YYYY')],
-        ['Tổng số dòng:', String(preview.totalRows)],
-        ['Nhập được:', String(preview.importableRows)],
-        ['Bỏ qua:', String(preview.skippedRows)],
-        ['Lỗi:', String(preview.errorRows)],
-        [],
-    ];
+const rawValue = (row: ImportBatchFileRow, column?: string | null): string =>
+    column ? String(row.rawValues?.[column] ?? '').trim() : '';
+
+const normalizeHeader = (value: string) =>
+    value
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .replace(/[^a-z0-9%]/g, '');
+
+/**
+ * Reads a cell the mapping does not name.
+ *
+ * <p>rawValues only carries the columns the mapping bound, so a column such as
+ * "Thành tiền" is simply absent — it is a spreadsheet formula the backend never
+ * reads. Falling back to a header lookup keeps the document honest about that
+ * rather than inventing a value.
+ */
+const cellByHeader = (row: ImportBatchFileRow, header: string): string => {
+    const exact = row.rawValues?.[header];
+    if (exact != null && String(exact).trim()) {
+        return String(exact).trim();
+    }
+    const wanted = normalizeHeader(header);
+    const match = Object.entries(row.rawValues ?? {}).find(
+        ([key]) => normalizeHeader(key) === wanted
+    );
+    return match ? String(match[1] ?? '').trim() : '';
 };
 
-/**
- * Decides the progress status of one row.
- *
- * <p>The group is checked before the row: a row can be perfectly readable and
- * still produce nothing because its whole draw date is blocked, and reporting
- * that row as "nhập đủ" would be a lie.
- */
+const toNumber = (value: string): number | string => {
+    if (!value) {
+        return '';
+    }
+    // Vietnamese exports write 9.500 or 9,500 for the same figure.
+    const cleaned = value.replace(/[\s.,](?=\d{3}\b)/g, '').replace(',', '.');
+    const parsed = Number(cleaned);
+    return Number.isFinite(parsed) ? parsed : value;
+};
+
+// -------------------------------------------------------- row verdicts
+
 export const resolveProgressStatus = (
     group: ImportBatchFileGroup,
     row: ImportBatchFileRow
 ): ImportBatchProgressStatus => {
-    if (group.status === 'OUT_OF_WINDOW') {
-        return 'Ngoài phạm vi ngày quay';
+    if (
+        group.status === 'OUT_OF_WINDOW' ||
+        row.issues.some((issue) => issue.code === 'DRAW_DATE_OUT_OF_WINDOW')
+    ) {
+        return 'Ngoài hạn nhập';
     }
     if (row.status === 'ERROR') {
-        return 'Lỗi nhập';
+        return 'Lỗi';
     }
-    if (row.status === 'SKIPPED') {
-        return 'Đã gộp vào dòng khác';
+    // The group's verdict outranks the row's: nothing here will be imported, so
+    // the document must not record the line as valid.
+    if (resolveGroupBlockingNote(group)) {
+        return 'Không hợp lệ';
     }
-    if (group.status === 'BLOCKED') {
-        return 'Không tạo được';
+    if (row.status === 'WARNING') {
+        return 'Cần xem lại';
     }
-
-    const declared = row.declareQuantity ?? 0;
-    const actual = row.serialCount ?? row.serialNumbers?.length ?? declared;
-    return actual < declared ? 'Chưa nhập đủ' : 'Nhập đủ';
+    // A line whose serial was handed to an earlier line of the same lottery
+    // number is accepted, not skipped: the ticket exists after import. Merging is
+    // how one number covering several physical tickets is stored, so reporting it
+    // as anything other than valid describes plumbing rather than an outcome.
+    if (row.status === 'SKIPPED' && row.mergedIntoRowNumber == null) {
+        return 'Bỏ qua';
+    }
+    return 'Hợp lệ';
 };
 
 /**
- * The system's explanation for that status.
+ * Why a line is not simply valid. Silent when it is.
  *
- * <p>Group-level reasons are folded into every row of the group, because someone
- * filtering the file down to one bad row must still see why it failed.
+ * <p>Merging is deliberately not reported: it is internal storage mechanics, and
+ * a note about it on a document that gets signed and filed only invites the
+ * question of whether a ticket went missing.
  */
 export const resolveProgressNote = (
     group: ImportBatchFileGroup,
@@ -155,108 +171,314 @@ export const resolveProgressNote = (
 ): string => {
     const notes: string[] = [];
 
-    if (status === 'Không tạo được' || status === 'Ngoài phạm vi ngày quay') {
-        group.groupIssues.forEach((issue) => notes.push(issue.message));
+    // First, because it is the reason nothing on this line was imported.
+    const blocked = resolveGroupBlockingNote(group);
+    if (blocked) {
+        notes.push(blocked.short);
     }
 
-    row.issues.forEach((issue) => notes.push(issue.message));
+    row.issues
+        .filter(
+            (issue) =>
+                issue.code !== 'NUMBERS_MERGED_INTO_ROW' &&
+                issue.code !== 'NUMBERS_DUPLICATED_IN_GROUP'
+        )
+        .forEach((issue) => notes.push(formatPreviewIssueNote(issue)));
 
-    if (status === 'Chưa nhập đủ' && notes.length === 0) {
-        const declared = row.declareQuantity ?? 0;
-        const actual = row.serialCount ?? row.serialNumbers?.length ?? 0;
-        notes.push(`Thiếu ${declared - actual} vé so với số khai báo.`);
+    if (status === 'Ngoài hạn nhập' && notes.length === 0) {
+        group.groupIssues.forEach((issue) => notes.push(formatPreviewIssueNote(issue)));
     }
 
-    // Duplicates are common once group reasons are folded in.
-    return Array.from(new Set(notes)).join(' | ');
+    return Array.from(new Set(notes.filter(Boolean))).join(' · ');
 };
 
-const escapeCell = (value: string): string => {
-    if (!value) {
-        return '';
-    }
-    const needsQuoting = /[",\n\r]/.test(value) || value.startsWith(' ') || value.endsWith(' ');
-    return needsQuoting ? `"${value.replace(/"/g, '""')}"` : value;
+// ------------------------------------------------------------ the table
+
+type ExportRow = {
+    /** Line of the uploaded file, so a note referring to it can be resolved. */
+    fileLine: number;
+    values: Array<string | number>;
+    status: ImportBatchProgressStatus;
+    group: ImportBatchFileGroup;
+    row: ImportBatchFileRow;
+};
+
+/** Tickets this line of the file stands for — one row may pack several serials. */
+const countSerials = (serialCell: string): number => {
+    const counted = serialCell
+        .split(/[;,]/)
+        .map((part) => part.trim())
+        .filter(Boolean).length;
+    return counted > 0 ? counted : 1;
 };
 
 /**
- * Builds the progress report: every row of the uploaded file with what the system
- * made of it.
+ * What one ticket on this line actually costs.
  *
- * <p>Generated here rather than on the server because the preview response already
- * holds everything, so the report is available the moment the operator looks at it
- * - and it describes what they are seeing on screen, not a later re-read.
+ * <p>Giá nhập is the figure the batch is costed with, so it wins when the file
+ * states it. When it does not, it is derived the way the system derives it
+ * everywhere else — giá bán × (1 − hoa hồng) — rather than left blank, which is
+ * how this column came out empty.
  */
-export const buildImportBatchProgressCsv = (
+const resolveUnitCost = (
+    importCost: number | string,
+    salePrice: number | string,
+    commissionPercent: number | string
+): number | undefined => {
+    if (typeof importCost === 'number' && Number.isFinite(importCost)) {
+        return importCost;
+    }
+    if (typeof salePrice !== 'number' || !Number.isFinite(salePrice)) {
+        return undefined;
+    }
+    const commission =
+        typeof commissionPercent === 'number' && Number.isFinite(commissionPercent)
+            ? commissionPercent
+            : 0;
+    return Math.round(salePrice * (1 - commission / 100));
+};
+
+const buildExportRow = (
+    group: ImportBatchFileGroup,
+    row: ImportBatchFileRow,
+    mapping: ImportBatchFileMapping | null
+): ExportRow => {
+    const status = resolveProgressStatus(group, row);
+    const serialFromFile = rawValue(row, mapping?.serialsColumn) || cellByHeader(row, 'Số sê-ri');
+    const serialCell = serialFromFile || (row.serialNumbers ?? []).join('; ');
+
+    const importCost = toNumber(
+        rawValue(row, mapping?.importCostColumn) || cellByHeader(row, 'Giá nhập')
+    );
+    const salePrice = toNumber(
+        rawValue(row, mapping?.salePriceColumn) || cellByHeader(row, 'Giá bán')
+    );
+    const commissionPercent = toNumber(
+        rawValue(row, mapping?.commissionRateColumn) || cellByHeader(row, 'Hoa hồng (%)')
+    );
+    // Derived when the file omits it, so the column is never blank on a line the
+    // supplier priced through sale price and commission alone.
+    const unitCost = resolveUnitCost(importCost, salePrice, commissionPercent);
+
+    return {
+        fileLine: row.rowNumber,
+        status,
+        group,
+        row,
+        values: [
+            // Filled in once the rows are ordered: the column is a running count
+            // of this document, not the line number of the file.
+            '',
+            rawValue(row, mapping?.stationCodeColumn) || cellByHeader(row, 'Mã đài'),
+            rawValue(row, mapping?.stationColumn) || row.stationName || cellByHeader(row, 'Nhà đài'),
+            rawValue(row, mapping?.drawDateColumn) ||
+                formatDate(row.drawDate ?? group.drawDate) ||
+                cellByHeader(row, 'Ngày quay'),
+            rawValue(row, mapping?.numbersColumn) || row.numbers || cellByHeader(row, 'Dãy số'),
+            serialCell,
+            rawValue(row, mapping?.ticketImageColumn) || cellByHeader(row, 'Ảnh vé'),
+            salePrice,
+            commissionPercent,
+            // Giá nhập closes the ticket columns, read after the sale price and
+            // commission it derives from.
+            importCost !== '' ? importCost : (unitCost ?? ''),
+            status,
+            // Filled in once every line has an STT — see collectExportRows.
+            '',
+        ],
+    };
+};
+
+const collectExportRows = (
+    preview: ImportBatchFilePreviewResult,
+    mapping: ImportBatchFileMapping | null
+): ExportRow[] => {
+    const rows: ExportRow[] = [];
+    preview.groups.forEach((group) => {
+        group.rows.forEach((row) => rows.push(buildExportRow(group, row, mapping)));
+    });
+    // Back into file order, so the document reads like the upload it mirrors.
+    rows.sort((left, right) => left.fileLine - right.fileLine);
+
+    rows.forEach((exportRow, index) => {
+        exportRow.values[COL.index - 1] = index + 1;
+        exportRow.values[REVIEW_COL.note - 1] = resolveProgressNote(
+            exportRow.group,
+            exportRow.row,
+            exportRow.status
+        );
+    });
+    return rows;
+};
+
+const fillArgb = (status: ImportBatchProgressStatus): string | undefined => {
+    if (status === 'Lỗi') {
+        return ERROR_BG;
+    }
+    if (status === 'Không hợp lệ') {
+        return ERROR_BG;
+    }
+    if (status === 'Cần xem lại' || status === 'Ngoài hạn nhập') {
+        return WARNING_BG;
+    }
+    if (status === 'Bỏ qua') {
+        return SKIPPED_BG;
+    }
+    return undefined;
+};
+
+const summarize = (rows: ExportRow[]) => {
+    const byStatus = new Map<ImportBatchProgressStatus, number>();
+    rows.forEach((row) => byStatus.set(row.status, (byStatus.get(row.status) ?? 0) + 1));
+    return [...byStatus.entries()]
+        .map(([status, count]) => `${status}: ${count.toLocaleString('vi-VN')}`)
+        .join(' · ');
+};
+
+// ---------------------------------------------------------------- entry
+
+export const buildImportBatchProgressWorkbook = (
     preview: ImportBatchFilePreviewResult,
     mapping: ImportBatchFileMapping | null,
     context?: ImportBatchProgressContext
-): string => {
-    const rows: string[][] = [];
+): ExcelJS.Workbook => {
+    const workbook = new ExcelJS.Workbook();
+    const issuer = context?.issuer ?? FALLBACK_ISSUER;
+    workbook.creator = issuer.legalName;
+    workbook.created = new Date();
 
-    preview.groups.forEach((group) => {
-        const stationById = new Map(
-            group.stations.map((station) => [station.lotteryStationId, station])
-        );
-
-        group.rows.forEach((row) => {
-            const status = resolveProgressStatus(group, row);
-            const rawValue = (column?: string | null) =>
-                column ? row.rawValues[column] ?? '' : '';
-
-            const station = row.lotteryStationId
-                ? stationById.get(row.lotteryStationId)
-                : undefined;
-            const pricing = row.lotteryStationId
-                ? context?.stationPricing?.[row.lotteryStationId]
-                : undefined;
-            const serialCount = row.serialCount ?? row.serialNumbers?.length ?? 0;
-            const importCost = row.importCost ?? station?.importCost;
-
-            rows.push([
-                String(row.rowNumber),
-                rawValue(mapping?.stationCodeColumn),
-                rawValue(mapping?.stationColumn),
-                row.stationName ?? '',
-                formatDate(row.drawDate ?? group.drawDate),
-                pricing?.drawSchedule ?? '',
-                row.resolvedBatchType ? BATCH_TYPE_LABELS[row.resolvedBatchType] : '',
-                row.numbers ?? '',
-                (row.serialNumbers ?? []).join('; '),
-                String(row.declareQuantity ?? ''),
-                String(serialCount || ''),
-                formatNumber(importCost),
-                formatNumber(pricing?.salePrice),
-                formatNumber(pricing?.commissionPercent),
-                formatNumber(importCost != null && serialCount ? importCost * serialCount : undefined),
-                status,
-                resolveProgressNote(group, row, status),
-            ]);
-        });
+    const sheet = workbook.addWorksheet('Đối chiếu sau nhập', {
+        pageSetup: DOCUMENT_PAGE_SETUP,
+    });
+    COLUMN_WIDTHS.forEach((width, index) => {
+        sheet.getColumn(index + 1).width = width;
     });
 
-    return [...buildLetterheadRows(preview, context), HEADERS, ...rows]
-        .map((row) => row.map(escapeCell).join(','))
-        .join('\r\n');
+    const rows = collectExportRows(preview, mapping);
+    const drawDates =
+        [...new Set(preview.groups.map((group) => formatDate(group.drawDate)).filter(Boolean))].join(
+            ' · '
+        ) || '—';
+
+    const headerRowNumber = buildLetterhead(sheet, {
+        title: 'PHIẾU ĐỐI CHIẾU SAU NHẬP',
+        subtitle: `Đối chiếu tệp nhập vé · Ngày quay: ${drawDates}`,
+        formCode: 'Mẫu số: 02-VT/ĐC',
+        documentNumber: `Lập lúc: ${dayjs().format('DD/MM/YYYY HH:mm')}`,
+        supplier: context?.supplier,
+        issuer,
+        drawDates,
+        lastColumn: LAST_COLUMN,
+        extraFields: [
+            ['Tệp gốc:', context?.sourceFileName],
+            ['Người đối chiếu:', context?.operatorName],
+        ],
+    });
+
+    const headerRow = sheet.getRow(headerRowNumber);
+    HEADERS.forEach((label, index) => {
+        headerRow.getCell(index + 1).value = label;
+    });
+    styleHeaderRow(headerRow, LAST_COLUMN);
+    sheet.views = [{ state: 'frozen', ySplit: headerRowNumber }];
+
+    const firstDataRow = headerRowNumber + 1;
+    rows.forEach((exportRow, index) => {
+        const rowNumber = firstDataRow + index;
+        const row = sheet.getRow(rowNumber);
+        const tint = fillArgb(exportRow.status);
+
+        exportRow.values.forEach((value, offset) => {
+            row.getCell(offset + 1).value = value;
+        });
+
+        for (let column = 1; column <= LAST_COLUMN; column++) {
+            const cell = row.getCell(column);
+            cell.border = thinBorder;
+            cell.alignment = {
+                vertical: 'middle',
+                horizontal:
+                    LEFT_ALIGNED_COLUMNS.includes(column) || column === REVIEW_COL.note
+                        ? 'left'
+                        : 'center',
+                wrapText: column === REVIEW_COL.note,
+            };
+            if (tint) {
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: tint } };
+            } else if (index % 2 === 1) {
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ZEBRA } };
+            }
+        }
+        row.getCell(COL.salePrice).numFmt = MONEY_FORMAT;
+        row.getCell(COL.commission).numFmt = PERCENT_FORMAT;
+        row.getCell(COL.importCost).numFmt = MONEY_FORMAT;
+        row.height = 22;
+    });
+
+    const lastDataRow = firstDataRow + rows.length - 1;
+    if (rows.length > 0) {
+        buildTotalsRow(
+            sheet,
+            lastDataRow + 1,
+            `TỔNG CỘNG: ${rows.length.toLocaleString('vi-VN')} dòng  (${summarize(rows)})`,
+            LAST_COLUMN
+            // Nothing to total: Giá nhập is a unit price, not a line amount.
+        );
+        buildSignatureBlock(sheet, lastDataRow + 4, [
+            ['NGƯỜI ĐỐI CHIẾU', COL.index, COL.drawDate],
+            ['THỦ KHO', COL.numbers, COL.image],
+            ['KẾ TOÁN', COL.salePrice, LAST_COLUMN],
+        ]);
+    }
+
+    sheet.autoFilter = {
+        from: { row: headerRowNumber, column: 1 },
+        to: { row: headerRowNumber, column: LAST_COLUMN },
+    };
+    return workbook;
 };
 
-export const downloadImportBatchProgressCsv = (
+/**
+ * File name stem for a reconciliation download.
+ *
+ * <p>Strips the extension, then any prefix and timestamp this function itself
+ * added on an earlier round. Exporting, re-uploading and exporting again is
+ * normal, and without this the name grew a "phieu-doi-chieu-" on every pass
+ * until it no longer fit the cell that displays it.
+ */
+export const reconciliationFileStem = (sourceFileName?: string): string => {
+    let base = (sourceFileName ?? 'nhap-ve').replace(/\.[^.]+$/, '');
+    let previous: string;
+    do {
+        previous = base;
+        base = base
+            .replace(/^phieu-doi-chieu-/i, '')
+            .replace(/^doi-chieu-/i, '')
+            .replace(/-\d{8}-\d{4}$/, '');
+    } while (base !== previous && base.length > 0);
+
+    return `phieu-doi-chieu-${base || 'nhap-ve'}`;
+};
+
+export const downloadImportBatchProgressCsv = async (
     preview: ImportBatchFilePreviewResult,
     mapping: ImportBatchFileMapping | null,
     sourceFileName?: string,
     context?: ImportBatchProgressContext
 ) => {
-    const resolved: ImportBatchProgressContext = { ...context, sourceFileName };
-    // The BOM makes Excel read it as UTF-8 rather than the system code page.
-    const blob = new Blob(['﻿' + buildImportBatchProgressCsv(preview, mapping, resolved)], {
-        type: 'text/csv;charset=utf-8;',
+    const workbook = buildImportBatchProgressWorkbook(preview, mapping, {
+        ...context,
+        sourceFileName: context?.sourceFileName ?? sourceFileName,
+    });
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     });
 
-    const base = (sourceFileName ?? 'nhap-ve').replace(/\.[^.]+$/, '');
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `tien-do-${base}-${dayjs().format('YYYYMMDD-HHmm')}.csv`;
+    link.download = `${reconciliationFileStem(sourceFileName)}-${dayjs().format('YYYYMMDD-HHmm')}.xlsx`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

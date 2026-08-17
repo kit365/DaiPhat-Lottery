@@ -61,6 +61,10 @@ public class SupplierSettlementModel {
     private BigDecimal actualReturnTicketValue;
     private BigDecimal originalTicketUnitPrice;
     private BigDecimal reconciledTicketUnitPrice;
+    private BigDecimal systemTicketImportPrice;
+    private BigDecimal actualTicketImportPrice;
+    @Builder.Default
+    private List<StationCommissionSnapshot> stationCommissionSnapshots = new ArrayList<>();
     private BigDecimal initialEstimatedSettlementValue;
     private BigDecimal finalSettlementValue;
     private BigDecimal actualPaidAmount;
@@ -89,6 +93,8 @@ public class SupplierSettlementModel {
     private String reconciliationNote;
     private LocalDateTime matchingConfirmedAt;
     private UUID matchingConfirmedBy;
+    private LocalDateTime systemImportQuantityFrozenAt;
+    private LocalDateTime systemReturnQuantityFrozenAt;
     private LocalDateTime completedAt;
     private UUID completedBy;
 

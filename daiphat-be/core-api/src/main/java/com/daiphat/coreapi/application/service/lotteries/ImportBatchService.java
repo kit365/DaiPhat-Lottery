@@ -115,7 +115,7 @@ public class ImportBatchService implements ImportBatchServicePort {
         LocalDateTime now = LocalDateTime.now(clock);
         validateDrawDateRange(request.drawDate(), now);
         LotterySupplierModel supplier = lotterySupplierServicePort.getActiveModelById(request.supplierId());
-        validateSupplierImportAllowFrom(supplier);
+        validateSupplierImportAllowFrom(supplier, request.drawDate(), now);
         validateSupplierReturnCutOff(supplier, request.drawDate(), now);
 
         ImportBatchImportMode resolvedImportMode = importBatchImportModeResolver.resolve(request.drawDate(), now);
@@ -279,7 +279,7 @@ public class ImportBatchService implements ImportBatchServicePort {
         }
         String existing = trimToNull(batch.getInvoiceEvidenceUrl());
         if (existing != null && !existing.equals(trimmed)) {
-            throw new DomainException(ErrorCode.IMPORT_BATCH_INVOICE_EVIDENCE_LOCKED);
+            deleteStoredUrlQuietly(existing);
         }
         batch.setInvoiceEvidenceUrl(trimmed);
         batch.setUpdatedAt(LocalDateTime.now(clock));
@@ -815,19 +815,21 @@ public class ImportBatchService implements ImportBatchServicePort {
         return importBatchApplicationMapper.toResponse(importBatchRepositoryPort.save(batch));
     }
 
-    private void validateSupplierImportAllowFrom(LotterySupplierModel supplier) {
-        if (supplier == null || supplier.getImportAllowFrom() == null) {
-            return;
-        }
-        LocalTime now = LocalDateTime.now(clock).toLocalTime();
-        if (now.isBefore(supplier.getImportAllowFrom())) {
+    /**
+     * Delegates to the shared window policy rather than comparing the clock here.
+     * Both ends of a supplier's operating hours are now decided in one place, so
+     * the manual flow and the file upload can never disagree about whether the
+     * counter is open.
+     */
+    private void validateSupplierImportAllowFrom(
+            LotterySupplierModel supplier,
+            LocalDate drawDate,
+            LocalDateTime now
+    ) {
+        if (intakeWindowPolicy.isBeforeIntakeOpen(supplier, drawDate, now)) {
             throw new DomainException(
                     ErrorCode.IMPORT_BATCH_IMPORT_NOT_YET_ALLOWED,
-                    String.format(
-                            "Chưa đến giờ cho phép nhập vé của nhà cung cấp %s (từ %s).",
-                            supplier.getName(),
-                            supplier.getImportAllowFrom().format(TIME_DISPLAY)
-                    )
+                    intakeWindowPolicy.notOpenMessage(supplier, drawDate)
             );
         }
     }
