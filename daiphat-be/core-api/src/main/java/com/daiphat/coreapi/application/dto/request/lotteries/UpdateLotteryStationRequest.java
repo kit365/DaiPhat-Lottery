@@ -31,6 +31,11 @@ public record UpdateLotteryStationRequest(
         @JsonFormat(pattern = "HH:mm")
         LocalTime drawTime,
 
+        /** Null clears override (use global). Omit field to leave unchanged is not supported - pass null explicitly to clear. */
+        @jakarta.validation.constraints.Min(1)
+        @jakarta.validation.constraints.Max(365)
+        Integer prizeRedemptionOfficialDeadlineDays,
+
         // Hiển thị
         String image,
         String description,

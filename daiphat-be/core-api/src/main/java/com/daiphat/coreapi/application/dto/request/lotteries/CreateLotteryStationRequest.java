@@ -38,6 +38,11 @@ public record CreateLotteryStationRequest(
         @JsonFormat(pattern = "HH:mm")
         LocalTime drawTime,
 
+        /** Null = use global PRIZE_REDEMPTION_OFFICIAL_DEADLINE_DAYS. */
+        @jakarta.validation.constraints.Min(1)
+        @jakarta.validation.constraints.Max(365)
+        Integer prizeRedemptionOfficialDeadlineDays,
+
         // Hiển thị
         String image,
         String description

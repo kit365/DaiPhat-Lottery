@@ -28,6 +28,7 @@ public record LotteryStationResponse(
         @JsonFormat(pattern = "HH:mm")
         LocalTime drawTime,
         LocalDate nextDrawDate,
+        Integer prizeRedemptionOfficialDeadlineDays,
         UUID approvedById,
         LocalDateTime approvedAt,
         String image,
