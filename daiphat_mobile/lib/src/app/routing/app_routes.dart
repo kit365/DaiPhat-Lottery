@@ -30,6 +30,7 @@ enum AppRoute {
   orderDetail,
   adminScan,
   fortune,
+  schedule,
 }
 
 extension AppRouteDefinition on AppRoute {
@@ -97,6 +98,8 @@ extension AppRouteDefinition on AppRoute {
         return '/admin/scan';
       case AppRoute.fortune:
         return '/fortune';
+      case AppRoute.schedule:
+        return '/schedule';
     }
   }
 
@@ -164,6 +167,8 @@ extension AppRouteDefinition on AppRoute {
         return 'admin_scan';
       case AppRoute.fortune:
         return 'fortune';
+      case AppRoute.schedule:
+        return 'schedule';
     }
   }
 
@@ -197,6 +202,7 @@ extension AppRouteDefinition on AppRoute {
       case AppRoute.orderDetail:
       case AppRoute.adminScan:
       case AppRoute.fortune:
+      case AppRoute.schedule:
         return true;
       case AppRoute.home:
       case AppRoute.buyTicket:
