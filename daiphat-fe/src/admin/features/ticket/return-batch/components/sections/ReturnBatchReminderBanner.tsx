@@ -64,7 +64,7 @@ export const ReturnBatchReminderBanner = ({ batches }: ReturnBatchReminderBanner
             const cutOffTimeStr = batch.returnCutOffTime || '';
             const drawDateStr = batch.drawDate || '';
             const bufferMin = batch.returnBufferMinutes ?? 30;
-            const reminderMin = batch.returnReminderMinutes ?? 15;
+            const reminderMin = batch.returnReminderMinutes ?? 10;
 
             if (!cutOffTimeStr || !drawDateStr) {
                 return {
@@ -85,7 +85,10 @@ export const ReturnBatchReminderBanner = ({ batches }: ReturnBatchReminderBanner
             const m = parseInt(mStr, 10) || 0;
 
             const cutOffDateTime = dayjs(drawDateStr).hour(h).minute(m).second(0).millisecond(0);
-            const windowStartDateTime = cutOffDateTime.subtract(bufferMin, 'minute');
+            const windowStartDateTime =
+                bufferMin <= 0
+                    ? dayjs(drawDateStr).startOf('day')
+                    : cutOffDateTime.subtract(bufferMin, 'minute');
             const urgentStartDateTime = cutOffDateTime.subtract(reminderMin, 'minute');
 
             const isToday = now.format('YYYY-MM-DD') === dayjs(drawDateStr).format('YYYY-MM-DD');
@@ -260,7 +263,7 @@ export const ReturnBatchReminderBanner = ({ batches }: ReturnBatchReminderBanner
 
                     {/* Right: Single Clear Action CTA */}
                     <Box>
-                        {batch.status === 'PENDING_INSPECTION' && (
+                        {variant !== 'expired' && batch.status === 'PENDING_INSPECTION' && (
                             <Button
                                 size="small"
                                 variant="contained"
@@ -271,13 +274,13 @@ export const ReturnBatchReminderBanner = ({ batches }: ReturnBatchReminderBanner
                                     textTransform: 'none',
                                     fontWeight: 800,
                                     fontSize: '0.8125rem',
-                                    bgcolor: variant === 'urgent' || variant === 'expired' ? '#e11d48' : '#2563eb',
+                                    bgcolor: variant === 'urgent' ? '#e11d48' : '#2563eb',
                                     color: '#ffffff',
                                     px: 2,
                                     py: 0.6,
                                     boxShadow: 'none',
                                     '&:hover': {
-                                        bgcolor: variant === 'urgent' || variant === 'expired' ? '#be123c' : '#1d4ed8',
+                                        bgcolor: variant === 'urgent' ? '#be123c' : '#1d4ed8',
                                         boxShadow: 'none',
                                     },
                                 }}
@@ -286,7 +289,7 @@ export const ReturnBatchReminderBanner = ({ batches }: ReturnBatchReminderBanner
                             </Button>
                         )}
 
-                        {batch.status === 'INSPECTING' && (
+                        {variant !== 'expired' && batch.status === 'INSPECTING' && (
                             <Button
                                 size="small"
                                 variant="contained"
@@ -312,7 +315,7 @@ export const ReturnBatchReminderBanner = ({ batches }: ReturnBatchReminderBanner
                             </Button>
                         )}
 
-                        {batch.status === 'PENDING_HANDOVER' && (
+                        {variant !== 'expired' && batch.status === 'PENDING_HANDOVER' && (
                             <Button
                                 size="small"
                                 variant="contained"
@@ -338,9 +341,10 @@ export const ReturnBatchReminderBanner = ({ batches }: ReturnBatchReminderBanner
                             </Button>
                         )}
 
-                        {batch.status !== 'PENDING_INSPECTION' &&
-                            batch.status !== 'INSPECTING' &&
-                            batch.status !== 'PENDING_HANDOVER' && (
+                        {(variant === 'expired' ||
+                            (batch.status !== 'PENDING_INSPECTION' &&
+                                batch.status !== 'INSPECTING' &&
+                                batch.status !== 'PENDING_HANDOVER')) && (
                                 <Button
                                     size="small"
                                     variant="outlined"

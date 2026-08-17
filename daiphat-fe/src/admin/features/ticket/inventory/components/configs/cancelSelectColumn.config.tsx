@@ -1,4 +1,4 @@
-import { Box, Checkbox } from '@mui/material';
+import { Box, Checkbox, Tooltip } from '@mui/material';
 import { GridColDef } from '@mui/x-data-grid';
 import type { CancelSelectedSerial, CancelTicketLike } from '../../../import-batch/hooks/useCancelTicketSelection';
 
@@ -22,6 +22,8 @@ const checkboxCellSx = {
     width: '100%',
 };
 
+const INELIGIBLE_TICKET_HINT = 'Vé hết hạn hoặc đã hủy — không thể chọn';
+
 export const buildCancelSelectColumn = ({
     selectedSerials,
     totalCancelableSerialsCount,
@@ -42,34 +44,80 @@ export const buildCancelSelectColumn = ({
     headerAlign: 'center',
     headerClassName: 'admin-datagrid-cancel-select-header',
     cellClassName: 'admin-datagrid-cancel-select-cell',
-    renderHeader: () => (
-        <Box sx={checkboxCellSx}>
+    renderHeader: () => {
+        const hasCancelable = totalCancelableSerialsCount > 0;
+        const headerCheckbox = (
             <Checkbox
                 size="small"
+                disabled={!hasCancelable}
                 indeterminate={
                     selectedSerials.length > 0 && selectedSerials.length < totalCancelableSerialsCount
                 }
-                checked={
-                    totalCancelableSerialsCount > 0 && selectedSerials.length === totalCancelableSerialsCount
-                }
-                onChange={(event) => onSelectAll(event.target.checked)}
+                checked={hasCancelable && selectedSerials.length === totalCancelableSerialsCount}
+                onChange={(event) => {
+                    if (!hasCancelable) {
+                        return;
+                    }
+                    onSelectAll(event.target.checked);
+                }}
+                sx={{
+                    opacity: hasCancelable ? 1 : 0.38,
+                    color: 'action.disabled',
+                    '&.Mui-disabled': {
+                        color: 'action.disabled',
+                    },
+                }}
             />
-        </Box>
-    ),
+        );
+
+        return (
+            <Box sx={checkboxCellSx}>
+                {hasCancelable ? (
+                    headerCheckbox
+                ) : (
+                    <Tooltip title="Không có vé đủ điều kiện để chọn trên trang này" arrow>
+                        <span>{headerCheckbox}</span>
+                    </Tooltip>
+                )}
+            </Box>
+        );
+    },
     renderCell: (params) => {
         const ticket = params.row as CancelTicketLike;
         const { isChecked, isIndeterminate, isSelectable } = getTicketSelectionState(ticket);
 
+        const rowCheckbox = (
+            <Checkbox
+                size="small"
+                disabled={!isSelectable}
+                checked={isSelectable && isChecked}
+                indeterminate={isSelectable && isIndeterminate}
+                onChange={(event) => {
+                    if (!isSelectable) {
+                        return;
+                    }
+                    onSelectTicket(ticket, event.target.checked);
+                }}
+                onClick={(event) => event.stopPropagation()}
+                sx={{
+                    opacity: isSelectable ? 1 : 0.38,
+                    color: isSelectable ? undefined : 'action.disabled',
+                    '&.Mui-disabled': {
+                        color: 'action.disabled',
+                    },
+                }}
+            />
+        );
+
         return (
-            <Box sx={checkboxCellSx}>
-                <Checkbox
-                    size="small"
-                    disabled={!isSelectable}
-                    checked={isChecked}
-                    indeterminate={isIndeterminate}
-                    onChange={(event) => onSelectTicket(ticket, event.target.checked)}
-                    onClick={(event) => event.stopPropagation()}
-                />
+            <Box sx={{ ...checkboxCellSx, opacity: isSelectable ? 1 : 0.55 }}>
+                {isSelectable ? (
+                    rowCheckbox
+                ) : (
+                    <Tooltip title={INELIGIBLE_TICKET_HINT} arrow>
+                        <span>{rowCheckbox}</span>
+                    </Tooltip>
+                )}
             </Box>
         );
     },
