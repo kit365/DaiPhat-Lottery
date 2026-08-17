@@ -5,7 +5,6 @@ import { useRouteParams } from "@/hooks/useRouteParams";
 import { usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { PROVINCE_ICON_FALLBACK } from '../../../../constants/clientBannerAssets';
 import QRCode from 'react-qr-code';
 import { useGetMyOrderDetail } from '../../../../hooks/useOrder';
 import { useGetPendingPaymentCountdown, useProcessPayment, useSyncPaymentFromGateway } from '../../../../hooks/useTransaction';
@@ -21,6 +20,7 @@ import {
 } from '../../../../components/notification/UnavailableReferenceState';
 import { RefundRequestModal } from '../../../../components/refund/RefundRequestModal';
 import { PaymentQrDialog } from '../../../../components/payment/PaymentQrDialog';
+import { PaymentTimeoutComplaintCard } from '../../../../components/payment/PaymentTimeoutComplaintCard';
 import { OrderComplaintButton } from '../../../../components/support/OrderComplaintButton';
 import { useGetOrderRefundEligibility } from '../../../../hooks/useRefund';
 import { useRefundCountdown } from '../../../../hooks/useRefundCountdown';
@@ -30,7 +30,10 @@ import { LuckyNumber } from '../../../../components/ui/LuckyNumber';
 const OrderStepper = ({ order }: { order: any }) => {
     const currentStatus = order?.status;
 
-    if (currentStatus === OrderStatus.CANCELLED) {
+    if (
+        currentStatus === OrderStatus.CANCELLED ||
+        currentStatus === OrderStatus.PAYMENT_COMPLAINT_PENDING
+    ) {
         return null;
     }
 
@@ -297,6 +300,10 @@ export const OrderDetailTab = () => {
     const displayStatus =
         isPendingPayment && isPaymentCountdownExpired ? OrderStatus.CANCELLED : order.status;
     const isPaidOrCompleted = [OrderStatus.PAID, OrderStatus.PREPARING, OrderStatus.PENDING_PICKUP, OrderStatus.COMPLETED].includes(order.status);
+    const isPaymentTimeoutCancellation = order.cancelType === 'SYSTEM_PAYMENT_TIMEOUT';
+    const showPaymentTimeoutComplaint =
+        isPaymentTimeoutCancellation &&
+        [OrderStatus.CANCELLED, OrderStatus.PAYMENT_COMPLAINT_PENDING].includes(order.status);
 
     const handleCopyOrderCode = () => {
         if (order.orderCode) {
@@ -367,7 +374,7 @@ export const OrderDetailTab = () => {
                     <h1 className="client-heading m-0">Chi tiết đơn hàng</h1>
                 </div>
                 <div className="flex items-center gap-2.5 flex-wrap">
-                    {!showPendingPaymentUi && (
+                    {!showPendingPaymentUi && !showPaymentTimeoutComplaint && (
                         <OrderComplaintButton
                             orderId={order.id}
                             variant="outline"
@@ -431,8 +438,23 @@ export const OrderDetailTab = () => {
                 </div>
             )}
 
+            {showPaymentTimeoutComplaint && (
+                <PaymentTimeoutComplaintCard
+                    orderId={order.id}
+                    status={order.status}
+                    cancelType={order.cancelType}
+                    evidenceUrl={order.paymentComplaintEvidenceUrl}
+                    submittedAt={order.paymentComplaintSubmittedAt}
+                    resolvedAt={order.paymentComplaintResolvedAt}
+                    resolutionReason={order.paymentComplaintResolutionReason}
+                    onSubmitted={() => void refetchOrder()}
+                />
+            )}
+
             {/* Stepper trạng thái đơn hàng */}
-            {order.orderType !== 'DIRECT' && displayStatus !== OrderStatus.CANCELLED && (
+            {order.orderType !== 'DIRECT' &&
+                displayStatus !== OrderStatus.CANCELLED &&
+                displayStatus !== OrderStatus.PAYMENT_COMPLAINT_PENDING && (
                 <div className="mt-6">
                     <OrderStepper order={{ ...order, status: displayStatus }} />
                 </div>
@@ -566,13 +588,12 @@ export const OrderDetailTab = () => {
                                             </span>
                                             <div className="flex flex-col min-w-0 sm:border-l sm:border-[#E5E8EB] sm:pl-4">
                                                 <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                                                    <img src={detail.lotteryTicket?.station?.logoUrl || PROVINCE_ICON_FALLBACK} alt="" className="w-5 h-5 rounded-full border border-gray-200 shrink-0" />
                                                     <span className="font-bold text-[14px] text-[#212B36] truncate">{stationName}</span>
                                                     {detail.status ? (
                                                         <OrderDetailStatusBadge status={detail.status} />
                                                     ) : null}
                                                 </div>
-                                                <span className="text-[13px] text-[#637381] pl-7">
+                                                <span className="text-[13px] text-[#637381] mt-0.5">
                                                     {drawDate} • 16:15
                                                 </span>
                                             </div>

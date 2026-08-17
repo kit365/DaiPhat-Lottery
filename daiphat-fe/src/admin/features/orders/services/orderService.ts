@@ -3,6 +3,7 @@ import { withAuthHeaders } from '../../../../api/authHeaders';
 import { OrderFilterParams, OrderResponse } from '../../../../types/order.type';
 import { ApiResponse, PageResponse } from '../../../../types/api.type';
 import type {
+    ConfirmOrderHandoverRequest,
     CreatePartialRefundRequest,
     HandleOrderTicketIncidentRequest,
     HandleOrderTicketIncidentResponse,
@@ -57,6 +58,26 @@ export const updateOrderStatus = async (id: string, status: string, reason?: str
     return response.data;
 };
 
+export const uploadOrderHandoverEvidence = async (id: string, file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiApp.post(`/orders/${id}/handover/evidence`, formData, {
+        timeout: 60_000,
+        skipGlobalErrorToast: true,
+    } as any);
+    const url = response.data?.data?.url;
+    if (!url) throw new Error(response.data?.message || 'Không nhận được URL ảnh bàn giao.');
+    return url;
+};
+
+export const confirmOrderHandover = async (
+    id: string,
+    data: ConfirmOrderHandoverRequest,
+): Promise<ApiResponse<OrderResponse>> => {
+    const response = await apiApp.post(`/orders/${id}/handover`, data, withAuthHeaders());
+    return response.data;
+};
+
 export const createOrder = async (data: unknown) => {
     const response = await apiApp.post(`/orders/direct`, data, withAuthHeaders());
     return response.data;
@@ -90,6 +111,26 @@ export const createPartialRefund = async (
         `/staff/orders/${orderId}/partial-refund`,
         data,
         withAuthHeaders()
+    );
+    return response.data;
+};
+
+export const reviewPaymentTimeoutComplaint = async (
+    id: string,
+    data: { approved: boolean; reason?: string },
+): Promise<ApiResponse<OrderResponse>> => {
+    const response = await apiApp.post(
+        `/orders/${id}/payment-timeout-complaint/review`,
+        data,
+        withAuthHeaders(),
+    );
+    return response.data;
+};
+
+export const getPendingPaymentTimeoutComplaintCount = async (): Promise<ApiResponse<number>> => {
+    const response = await apiApp.get(
+        `/orders/payment-timeout-complaints/pending-count`,
+        withAuthHeaders(),
     );
     return response.data;
 };

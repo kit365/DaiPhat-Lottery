@@ -117,10 +117,7 @@ public class TransactionService implements TransactionServicePort {
                 null
         ));
         reconcileDirectOrderPayment(order);
-        order.getOrderDetails().forEach(detail -> lotteryTicketServicePort.markProxyHoldingForPaidOrder(
-                detail.getLotteryTicketSerialId(),
-                orderId
-        ));
+        markPaidOrderTicketsSoldAndHeld(order);
         OrderModel saved = orderRepositoryPort.save(order);
         clearFailureAttempts(transaction);
         clearCountdownIfResolved(saved);
@@ -258,10 +255,7 @@ public class TransactionService implements TransactionServicePort {
             strategy.handleSuccess(order, transaction, callbackResult);
             clearFailureAttempts(transaction);
             reconcileDirectOrderPayment(order);
-            order.getOrderDetails().forEach(detail -> lotteryTicketServicePort.markProxyHoldingForPaidOrder(
-                    detail.getLotteryTicketSerialId(),
-                    order.getId()
-            ));
+            markPaidOrderTicketsSoldAndHeld(order);
         } else {
             strategy.handleFailure(order, transaction, callbackResult);
             enforceFailureAttemptLimit(order, transaction);
@@ -291,6 +285,17 @@ public class TransactionService implements TransactionServicePort {
         clearCountdownIfResolved(saved);
         log.info("Collected cash for direct order: {}", orderId);
         return saved;
+    }
+
+    /** Payment consumes the serial; company custody until pickup is an order-detail concern. */
+    private void markPaidOrderTicketsSoldAndHeld(OrderModel order) {
+        order.getOrderDetails().forEach(detail -> {
+            Long serialId = detail.getReplacedByTicketSerialId() != null
+                    ? detail.getReplacedByTicketSerialId()
+                    : detail.getLotteryTicketSerialId();
+            lotteryTicketServicePort.markSoldForOrder(serialId);
+            detail.markProxyHolding();
+        });
     }
 
     @Override

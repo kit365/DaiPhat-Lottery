@@ -37,6 +37,12 @@ public class OrderPersistenceMapper {
         entity.setCancelledAt(model.getCancelledAt());
         entity.setCancelReason(model.getCancelReason());
         entity.setCancelType(model.getCancelType());
+        entity.setHandoverEvidenceUrl(model.getHandoverEvidenceUrl());
+        entity.setPaymentComplaintEvidenceUrl(model.getPaymentComplaintEvidenceUrl());
+        entity.setPaymentComplaintSubmittedAt(model.getPaymentComplaintSubmittedAt());
+        entity.setPaymentComplaintResolvedAt(model.getPaymentComplaintResolvedAt());
+        entity.setPaymentComplaintResolvedBy(userRef(model.getPaymentComplaintResolvedBy()));
+        entity.setPaymentComplaintResolutionReason(model.getPaymentComplaintResolutionReason());
         entity.setActualPickedUpAt(model.getActualPickedUpAt());
         entity.setPickedUpBy(userRef(model.getPickedUpBy()));
         entity.setCreatedAt(model.getCreatedAt());
@@ -94,6 +100,12 @@ public class OrderPersistenceMapper {
                 .cancelledAt(entity.getCancelledAt())
                 .cancelReason(entity.getCancelReason())
                 .cancelType(entity.getCancelType())
+                .handoverEvidenceUrl(entity.getHandoverEvidenceUrl())
+                .paymentComplaintEvidenceUrl(entity.getPaymentComplaintEvidenceUrl())
+                .paymentComplaintSubmittedAt(entity.getPaymentComplaintSubmittedAt())
+                .paymentComplaintResolvedAt(entity.getPaymentComplaintResolvedAt())
+                .paymentComplaintResolvedBy(userId(entity.getPaymentComplaintResolvedBy()))
+                .paymentComplaintResolutionReason(entity.getPaymentComplaintResolutionReason())
                 .actualPickedUpAt(entity.getActualPickedUpAt())
                 .pickedUpBy(userId(entity.getPickedUpBy()))
                 .createdAt(entity.getCreatedAt())
@@ -114,6 +126,11 @@ public class OrderPersistenceMapper {
         entity.setQuantity(model.getQuantity() != null ? model.getQuantity() : 1);
         entity.setPrice(model.getPrice());
         entity.setStatus(model.getStatus());
+        entity.setRejectionReason(model.getRejectionReason());
+        entity.setRejectedAt(model.getRejectedAt());
+        entity.setRejectedBy(model.getRejectedBy());
+        entity.setHandedOverAt(model.getHandedOverAt());
+        entity.setHandedOverBy(model.getHandedOverBy());
         entity.setCreatedAt(model.getCreatedAt());
         entity.setUpdatedAt(model.getUpdatedAt());
         entity.setCreatedBy(model.getCreatedBy());
@@ -144,6 +161,11 @@ public class OrderPersistenceMapper {
                 .allocatedSerialIds(allocatedSerialIds)
                 .price(entity.getPrice())
                 .status(entity.getStatus())
+                .rejectionReason(entity.getRejectionReason())
+                .rejectedAt(entity.getRejectedAt())
+                .rejectedBy(entity.getRejectedBy())
+                .handedOverAt(entity.getHandedOverAt())
+                .handedOverBy(entity.getHandedOverBy())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .createdBy(entity.getCreatedBy())

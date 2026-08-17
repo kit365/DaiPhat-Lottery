@@ -35,3 +35,16 @@ export interface CreatePartialRefundRequest {
     /** @deprecated Prefer refundReason. */
     refundNote?: string;
 }
+
+export type OrderHandoverDecision = 'HANDED_OVER' | 'REJECTED_BY_CUSTOMER';
+
+export interface OrderHandoverItemRequest {
+    orderDetailId: number;
+    decision: OrderHandoverDecision;
+    reason?: string;
+}
+
+export interface ConfirmOrderHandoverRequest {
+    items: OrderHandoverItemRequest[];
+    handoverEvidenceUrl?: string;
+}

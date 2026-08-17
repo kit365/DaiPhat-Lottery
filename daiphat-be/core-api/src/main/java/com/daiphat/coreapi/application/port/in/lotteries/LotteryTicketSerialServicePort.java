@@ -56,8 +56,6 @@ public interface LotteryTicketSerialServicePort {
 
     LotteryTicketSerialModel markSold(Long ticketSerialId);
 
-    LotteryTicketSerialModel markProxyHoldingForPaidOrder(Long ticketSerialId, java.util.UUID orderId);
-
     LotteryTicketSerialModel releaseReservation(Long ticketSerialId, boolean expireAfterRelease);
 
     LotteryTicketSerialModel returnSoldToStock(Long ticketSerialId);

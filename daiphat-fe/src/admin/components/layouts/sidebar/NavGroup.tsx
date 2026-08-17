@@ -20,6 +20,7 @@ export const NavGroup = memo(({ title, data }: Props) => {
     const isStaff = normalizedRole.includes('STAFF');
 
     const filteredData = data.filter(item => {
+        if (item.hidden) return false;
         if (isStaff && item.hideIfStaff) return false;
 
         const hasItemAccess = hasPermission(user, item.permission);
