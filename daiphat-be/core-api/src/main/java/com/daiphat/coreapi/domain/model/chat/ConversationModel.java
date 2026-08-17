@@ -47,6 +47,11 @@ public class ConversationModel {
             ConversationStatus.WAITING_FOR_OPERATOR
     );
 
+    public static final List<ConversationStatus> LIVE_ASSIGNMENT_STATUSES = List.of(
+            ConversationStatus.ACTIVE,
+            ConversationStatus.WAITING_FOR_CUSTOMER
+    );
+
     private Long id;
     private String title;
 

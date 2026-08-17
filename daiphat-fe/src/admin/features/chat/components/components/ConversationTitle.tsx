@@ -18,7 +18,6 @@ export const ConversationTitle: React.FC<Props> = ({ conversation, sx, noWrap, .
 
     const text = (() => {
         if (!conversation) return 'Khách hàng';
-        if (!conversation.assignedOperatorId) return 'Yêu cầu hỗ trợ từ khách hàng';
         const embeddedName = conversation.customerName || conversation.customer?.name || conversation.customer?.fullName;
         if (embeddedName) return embeddedName;
         if (conversation.title && conversation.title !== 'Yêu cầu hỗ trợ từ khách hàng') return conversation.title;

@@ -5,6 +5,7 @@ import com.daiphat.coreapi.domain.model.enums.lottery.SerialPayoutState;
 import com.daiphat.coreapi.domain.model.enums.order.OrderReceiveType;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.order.TicketDrawResultStatus;
+import com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus;
 import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutChannel;
 import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutRequestStatus;
 import com.daiphat.coreapi.domain.model.enums.payout.PrizeRedemptionZone;
@@ -24,6 +25,8 @@ public record PurchasedTicketResponse(
         Long serialId,
         String serialNumber,
         LotteryTicketSerialStatus serialStatus,
+        /** Line-level handover / custody status (authoritative for pickup vs rejection). */
+        OrderDetailStatus orderDetailStatus,
         SerialPayoutState payoutState,
         String numbers,
         String stationName,
@@ -38,7 +41,10 @@ public record PurchasedTicketResponse(
         PrizePayoutRequestStatus activePayoutStatus,
         OrderType orderType,
         OrderReceiveType receiveType,
+        /** Set only when this line was handed over; not the order-level mixed pickup time. */
         LocalDateTime actualPickedUpAt,
+        LocalDateTime handedOverAt,
+        LocalDateTime rejectedAt,
         PrizePayoutChannel claimChannel,
         boolean canClaimOnline,
         /** Online / customer-facing redemption deadline. */

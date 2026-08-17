@@ -11,7 +11,17 @@ export type LotteryTicketSerialStatus =
     | 'RESERVED'
     | 'PROXY_HOLDING'
     | 'SOLD'
-    | 'EXPIRED';
+    | 'EXPIRED'
+    | 'WITH_STREET_AGENT';
+
+export type OrderDetailStatus =
+    | 'PROXY_HOLDING'
+    | 'HANDOVER_IN_PROGRESS'
+    | 'HANDED_OVER'
+    | 'REJECTED_BY_CUSTOMER'
+    | 'REFUND_PENDING'
+    | 'REFUNDED'
+    | 'CANCELLED';
 
 export type TicketCondition = 'GOOD' | 'DAMAGED' | 'LOST' | 'VOIDED';
 
@@ -65,6 +75,8 @@ export interface PurchasedTicket {
     serialId?: number;
     serialNumber?: string;
     serialStatus?: LotteryTicketSerialStatus;
+    /** Line-level custody / handover status (source of truth for nhận vé). */
+    orderDetailStatus?: OrderDetailStatus | null;
     ticketCondition?: TicketCondition;
     payoutState?: SerialPayoutState;
     numbers: string;
@@ -80,8 +92,10 @@ export interface PurchasedTicket {
     activePayoutStatus?: PrizePayoutRequestStatus;
     orderType?: 'ONLINE' | 'OFFLINE';
     receiveType?: 'COUNTER_PICKUP';
-    /** Khi có giá trị = khách đã lấy vé tại quầy. */
+    /** When set = this line was handed over (not order-level mixed pickup). */
     actualPickedUpAt?: string | null;
+    handedOverAt?: string | null;
+    rejectedAt?: string | null;
     claimChannel?: 'ONLINE' | 'IN_PERSON';
     canClaimOnline?: boolean;
     customerRedemptionDeadline?: string | null;

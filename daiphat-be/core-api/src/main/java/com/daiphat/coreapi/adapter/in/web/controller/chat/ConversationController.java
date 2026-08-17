@@ -231,6 +231,19 @@ public class ConversationController {
         );
     }
 
+    @GetMapping("/management/{conversationId}/previous-session-messages")
+    @PreAuthorize("hasAnyAuthority('"
+            + RoleConstants.ROLE_STAFF_OPERATOR + "', '"
+            + RoleConstants.ADMIN + "')")
+    public ApiResponse<List<com.daiphat.coreapi.application.dto.response.chat.MessageResponse>> getPreviousSessionMessages(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            @PathVariable Long conversationId) {
+        return ApiResponse.success(
+                "Lấy lịch sử phiên hỗ trợ trước thành công.",
+                conversationServicePort.getPreviousSessionMessages(principal.getId(), conversationId)
+        );
+    }
+
     @GetMapping("/management/{conversationId}/pre-handoff-messages")
     @PreAuthorize("hasAnyAuthority('"
             + RoleConstants.ROLE_STAFF_OPERATOR + "', '"

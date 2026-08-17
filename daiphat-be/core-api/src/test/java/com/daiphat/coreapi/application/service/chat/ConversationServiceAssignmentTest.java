@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.application.service.chat;
 
+import com.daiphat.coreapi.application.config.ChatAssignmentProperties;
 import com.daiphat.coreapi.application.config.ChatConversationProperties;
 import com.daiphat.coreapi.application.config.ChatMessageProperties;
 import com.daiphat.coreapi.application.constant.chat.bot.ChatAiMessages;
@@ -12,9 +13,11 @@ import com.daiphat.coreapi.application.dto.response.chat.ConversationResponse;
 import com.daiphat.coreapi.application.dto.response.chat.MessageResponse;
 import com.daiphat.coreapi.application.mapper.chat.ChatApplicationMapper;
 import com.daiphat.coreapi.application.port.in.chat.ChatEscalationPort;
+import com.daiphat.coreapi.application.port.in.chat.ChatStaffContextPort;
 import com.daiphat.coreapi.application.port.in.user.UserLookupServicePort;
 import com.daiphat.coreapi.application.port.out.chat.ChatConversationEventPublisherPort;
 import com.daiphat.coreapi.application.port.out.chat.ChatMessagePublisherPort;
+import com.daiphat.coreapi.application.port.out.chat.ChatOperatorPresencePort;
 import com.daiphat.coreapi.application.port.out.chat.ConversationRepositoryPort;
 import com.daiphat.coreapi.application.port.out.chat.MessageRepositoryPort;
 import com.daiphat.coreapi.application.port.in.chat.ChatBotPort;
@@ -89,6 +92,10 @@ class ConversationServiceAssignmentTest {
     private ChatEscalationPort chatEscalationPort;
     @Mock
     private ChatMessageProperties chatMessageProperties;
+    @Mock
+    private ChatOperatorPresencePort chatOperatorPresencePort;
+    @Mock
+    private ChatStaffContextPort chatStaffContextPort;
 
     private ConversationService conversationService;
 
@@ -96,7 +103,7 @@ class ConversationServiceAssignmentTest {
     void setUp() {
         lenient().when(chatMessageProperties.getHandoff()).thenReturn(ChatAiMessages.HANDOFF);
         lenient().when(chatMessageProperties.getNoOperatorOnline()).thenReturn(ChatAiMessages.NO_OPERATOR_ONLINE);
-        lenient().when(chatApplicationMapper.enrichConversationResponse(any(), any(), any()))
+        lenient().when(chatApplicationMapper.enrichConversationResponse(any(), any(), any(), any()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
         lenient().when(chatApplicationMapper.markAsRead(any())).thenAnswer(invocation -> {
             MessageResponse response = invocation.getArgument(0);
@@ -142,6 +149,18 @@ class ConversationServiceAssignmentTest {
         lenient().when(chatApplicationMapper.enrichSocketResponse(any(), any()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
+        ChatAssignmentProperties chatAssignmentProperties = new ChatAssignmentProperties();
+        chatAssignmentProperties.setMaxConcurrentLive(1);
+        ChatLiveAssignmentService chatLiveAssignmentService = new ChatLiveAssignmentService(
+                conversationRepositoryPort,
+                messageRepositoryPort,
+                userLookupServicePort,
+                chatApplicationMapper,
+                chatConversationEventPublisherPort,
+                chatMessagePublisherPort,
+                chatAssignmentProperties,
+                chatOperatorPresencePort
+        );
         conversationService = new ConversationService(
                 conversationRepositoryPort,
                 messageRepositoryPort,
@@ -152,8 +171,18 @@ class ConversationServiceAssignmentTest {
                 chatConversationProperties,
                 chatBotPort,
                 chatEscalationPort,
-                chatMessageProperties
+                chatMessageProperties,
+                chatLiveAssignmentService,
+                chatStaffContextPort
         );
+
+        lenient().when(chatStaffContextPort.build(any())).thenReturn(null);
+
+        lenient().when(conversationRepositoryPort.countLiveAssignments(any())).thenReturn(0L);
+        lenient().when(conversationRepositoryPort.findNextWaitingForOperatorForUpdate(any()))
+                .thenReturn(Optional.empty());
+        lenient().when(chatOperatorPresencePort.isOperatorOnline(any())).thenReturn(false);
+        lenient().when(chatOperatorPresencePort.findOnlineOperators()).thenReturn(List.of());
     }
 
     @Test
@@ -308,15 +337,25 @@ class ConversationServiceAssignmentTest {
     }
 
     @Test
-    void cancelStaffRequest_whenAssigned_throws() {
+    void cancelStaffRequest_whenAssigned_disconnectsInsteadOfFailing() {
         ConversationModel conversation = conversation(ConversationStatus.ACTIVE, OPERATOR_A);
         when(userLookupServicePort.findActiveByIdOrThrow(CUSTOMER_ID)).thenReturn(user("Customer"));
         when(conversationRepositoryPort.findByIdForUpdate(CONVERSATION_ID)).thenReturn(Optional.of(conversation));
+        when(conversationRepositoryPort.findById(CONVERSATION_ID)).thenReturn(Optional.of(conversation));
+        when(conversationRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(messageRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(messageRepositoryPort.findByConversationId(CONVERSATION_ID)).thenReturn(List.of());
+        when(chatApplicationMapper.toConversationResponse(any()))
+                .thenReturn(mockConversationResponse(ConversationStatus.OPEN, null));
+        when(chatApplicationMapper.toMessageResponses(any())).thenReturn(List.of());
 
-        assertThatThrownBy(() -> conversationService.cancelStaffRequest(CUSTOMER_ID, CONVERSATION_ID))
-                .isInstanceOf(DomainException.class)
-                .extracting(ex -> ((DomainException) ex).getErrorCode())
-                .isEqualTo(ErrorCode.CONVERSATION_CANNOT_CANCEL_STAFF_REQUEST);
+        conversationService.cancelStaffRequest(CUSTOMER_ID, CONVERSATION_ID);
+
+        assertThat(conversation.getStatus()).isEqualTo(ConversationStatus.OPEN);
+        assertThat(conversation.getAssignedOperatorId()).isNull();
+        verify(messageRepositoryPort).save(argThat((MessageModel message) ->
+                message.getContent() != null
+                        && message.getContent().contains("ngắt kết nối")));
     }
 
     @Test
@@ -408,10 +447,58 @@ class ConversationServiceAssignmentTest {
     }
 
     @Test
+    void assignConversationToMe_whenOperatorAlreadyHasLiveChat_throwsCapacity() {
+        ConversationModel waiting = conversation(ConversationStatus.WAITING_FOR_OPERATOR, null);
+        when(userLookupServicePort.findActiveByIdOrThrow(OPERATOR_A)).thenReturn(operator("Operator A", OPERATOR_A));
+        when(conversationRepositoryPort.findByIdForUpdate(CONVERSATION_ID)).thenReturn(Optional.of(waiting));
+        when(conversationRepositoryPort.countLiveAssignments(OPERATOR_A)).thenReturn(1L);
+
+        assertThatThrownBy(() -> conversationService.assignConversationToMe(OPERATOR_A, CONVERSATION_ID))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.CONVERSATION_OPERATOR_AT_CAPACITY);
+
+        verify(conversationRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    void unassignConversation_whenOnline_dispatchesOldestWaitingExcludingCurrent() {
+        ConversationModel current = conversation(ConversationStatus.ACTIVE, OPERATOR_A);
+        ConversationModel next = ConversationModel.builder()
+                .id(11L)
+                .title("Next customer")
+                .customerId(UUID.fromString("55555555-5555-5555-5555-555555555555"))
+                .status(ConversationStatus.WAITING_FOR_OPERATOR)
+                .build();
+
+        when(userLookupServicePort.findActiveByIdOrThrow(OPERATOR_A)).thenReturn(operator("Operator A", OPERATOR_A));
+        when(conversationRepositoryPort.findByIdForUpdate(CONVERSATION_ID)).thenReturn(Optional.of(current));
+        when(conversationRepositoryPort.findById(CONVERSATION_ID)).thenReturn(Optional.of(current));
+        when(conversationRepositoryPort.findById(11L)).thenReturn(Optional.of(next));
+        when(conversationRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(conversationRepositoryPort.findNextWaitingForOperatorForUpdate(CONVERSATION_ID))
+                .thenReturn(Optional.of(next));
+        when(chatOperatorPresencePort.isOperatorOnline(OPERATOR_A)).thenReturn(true);
+        when(messageRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(messageRepositoryPort.findByConversationId(any())).thenReturn(List.of());
+        when(chatApplicationMapper.toConversationResponse(any()))
+                .thenReturn(mockConversationResponse(ConversationStatus.WAITING_FOR_OPERATOR, null));
+        when(chatApplicationMapper.toMessageResponses(any())).thenReturn(List.of());
+
+        conversationService.unassignConversation(OPERATOR_A, CONVERSATION_ID);
+
+        assertThat(current.getAssignedOperatorId()).isNull();
+        assertThat(next.getAssignedOperatorId()).isEqualTo(OPERATOR_A);
+        assertThat(next.getStatus()).isEqualTo(ConversationStatus.ACTIVE);
+        verify(conversationRepositoryPort).findNextWaitingForOperatorForUpdate(CONVERSATION_ID);
+    }
+
+    @Test
     void unassignConversation_returnsConversationToWaitingPool() {
         ConversationModel conversation = conversation(ConversationStatus.ACTIVE, OPERATOR_A);
         when(userLookupServicePort.findActiveByIdOrThrow(OPERATOR_A)).thenReturn(user("Operator A"));
         when(conversationRepositoryPort.findByIdForUpdate(CONVERSATION_ID)).thenReturn(Optional.of(conversation));
+        when(conversationRepositoryPort.findById(CONVERSATION_ID)).thenReturn(Optional.of(conversation));
         when(conversationRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(messageRepositoryPort.findByConversationId(CONVERSATION_ID)).thenReturn(List.of());
         when(chatApplicationMapper.toConversationResponse(any()))
@@ -476,6 +563,39 @@ class ConversationServiceAssignmentTest {
         verify(messageRepositoryPort).save(any(MessageModel.class));
         verify(chatConversationEventPublisherPort).publishToOperators(any());
         verify(chatConversationEventPublisherPort).publishToConversation(eq(CONVERSATION_ID), any());
+        verify(conversationRepositoryPort).findNextWaitingForOperatorForUpdate(CONVERSATION_ID);
+    }
+
+    @Test
+    void closeConversation_adminClosingOthersChat_doesNotAutoDispatchNext() {
+        ConversationModel conversation = conversation(ConversationStatus.ACTIVE, OPERATOR_A);
+        when(userLookupServicePort.findActiveByIdOrThrow(ADMIN_ID)).thenReturn(admin());
+        when(conversationRepositoryPort.findByIdForUpdate(CONVERSATION_ID)).thenReturn(Optional.of(conversation));
+        when(conversationRepositoryPort.findById(CONVERSATION_ID)).thenReturn(Optional.of(conversation));
+        when(conversationRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(messageRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(messageRepositoryPort.findByConversationId(CONVERSATION_ID)).thenReturn(List.of());
+        when(chatApplicationMapper.toConversationResponse(any()))
+                .thenReturn(mockConversationResponse(ConversationStatus.CLOSED, null));
+        when(chatApplicationMapper.toMessageResponses(any())).thenReturn(List.of());
+
+        conversationService.closeConversation(ADMIN_ID, CONVERSATION_ID, null);
+
+        assertThat(conversation.getStatus()).isEqualTo(ConversationStatus.CLOSED);
+        assertThat(conversation.getAssignedOperatorId()).isNull();
+        verify(conversationRepositoryPort, never()).findNextWaitingForOperatorForUpdate(any());
+    }
+
+    @Test
+    void getManagementConversationDetail_closedConversation_returnsAlreadyClosedForStaff() {
+        ConversationModel conversation = conversation(ConversationStatus.CLOSED, null);
+        when(userLookupServicePort.findActiveByIdOrThrow(OPERATOR_B)).thenReturn(operator("Operator B", OPERATOR_B));
+        when(conversationRepositoryPort.findById(CONVERSATION_ID)).thenReturn(Optional.of(conversation));
+
+        assertThatThrownBy(() -> conversationService.getManagementConversationDetail(OPERATOR_B, CONVERSATION_ID))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.CONVERSATION_ALREADY_CLOSED);
     }
 
     @Test
@@ -924,6 +1044,50 @@ class ConversationServiceAssignmentTest {
 
         assertThat(response.items()).hasSize(1);
         verify(messageRepositoryPort, never()).findOperatorParticipatedConversationIds(any(), any());
+    }
+
+    @Test
+    void getCustomerChatTimeline_excludesClosedPreviousSessionWhileStaffHasLiveChat() {
+        ConversationModel live = conversation(ConversationStatus.ACTIVE, OPERATOR_A);
+        ConversationModel previous = conversation(ConversationStatus.CLOSED, null);
+        previous.setId(99L);
+        previous.setLastAssignedOperatorId(OPERATOR_A);
+        MessageModel liveMessage = MessageModel.builder()
+                .id(21L)
+                .conversationId(CONVERSATION_ID)
+                .senderType(MessageSenderType.CUSTOMER)
+                .content("Current session")
+                .createdAt(LocalDateTime.of(2026, 8, 10, 9, 0))
+                .build();
+
+        when(userLookupServicePort.findActiveByIdOrThrow(OPERATOR_A)).thenReturn(operator("Operator A", OPERATOR_A));
+        when(conversationRepositoryPort.findByCustomerId(CUSTOMER_ID)).thenReturn(List.of(live, previous));
+        when(messageRepositoryPort.existsOperatorParticipation(CUSTOMER_ID, OPERATOR_A)).thenReturn(true);
+        when(messageRepositoryPort.findOperatorParticipatedConversationIds(CUSTOMER_ID, OPERATOR_A))
+                .thenReturn(List.of(CONVERSATION_ID, 99L));
+        when(messageRepositoryPort.findCustomerTimelinePage(
+                eq(CUSTOMER_ID),
+                isNull(),
+                isNull(),
+                eq(31),
+                argThat((Collection<Long> ids) -> ids != null
+                        && ids.contains(CONVERSATION_ID)
+                        && !ids.contains(99L))
+        )).thenReturn(List.of(liveMessage));
+        when(messageRepositoryPort.findCustomerTimelineMessageBefore(
+                eq(CUSTOMER_ID),
+                eq(liveMessage.getCreatedAt()),
+                eq(liveMessage.getId()),
+                argThat((Collection<Long> ids) -> ids != null && !ids.contains(99L))
+        )).thenReturn(Optional.empty());
+        when(chatApplicationMapper.toMessageResponse(liveMessage))
+                .thenReturn(MessageResponse.builder().id(21L).content("Current session").build());
+
+        CustomerChatTimelineResponse response = conversationService.getCustomerChatTimeline(
+                OPERATOR_A, CUSTOMER_ID, 30, null, null);
+
+        assertThat(response.items()).extracting(item -> item.message().content())
+                .containsExactly("Current session");
     }
 
     @Test

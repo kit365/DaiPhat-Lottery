@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 
-import { useQueryClient } from '@tanstack/react-query';
+import { QueryClient, useQueryClient } from '@tanstack/react-query';
 import { AppToast } from '../../../../utils/toast.util';
 import { chatService } from '../services/chatService';
 import {
@@ -115,116 +115,152 @@ export const useChatSocket = ({
     return { isConnected, sendMessage, connect };
 };
 
+const patchInboxConversation = (queryClient: QueryClient, event: ChatConversationSocketEvent) => {
+    queryClient.setQueryData<Conversation[]>(ADMIN_CHAT_CONVERSATIONS_KEY, (prev = []) => {
+        if (event.status === ConversationStatusEnum.CLOSED) {
+            return prev.filter((conversation) => conversation.id !== event.conversationId);
+        }
+        const exists = prev.some((conversation) => conversation.id === event.conversationId);
+        if (!exists) {
+            return prev;
+        }
+        return prev.map((conversation) =>
+            conversation.id === event.conversationId
+                ? {
+                      ...conversation,
+                      status: event.status ?? conversation.status,
+                      assignedOperatorId:
+                          event.assignedOperatorId !== undefined
+                              ? event.assignedOperatorId
+                              : conversation.assignedOperatorId,
+                      updatedAt: event.createdAt ?? conversation.updatedAt,
+                  }
+                : conversation
+        );
+    });
+};
 
 interface UseChatOperatorSocketOptions {
     enabled?: boolean;
     currentUserId?: string | null;
+    selectedConversationId?: number | null;
     onConversationRemoved?: (conversationId: number) => void;
+    onAssignedToMe?: (conversationId: number) => void;
 }
 
 export const useChatOperatorSocket = ({
     enabled = true,
     currentUserId,
+    selectedConversationId,
     onConversationRemoved,
+    onAssignedToMe,
 }: UseChatOperatorSocketOptions = {}) => {
     const queryClient = useQueryClient();
     const { connect, socketService } = useWebSocket();
+    const currentUserIdRef = useRef(currentUserId);
+    const selectedIdRef = useRef(selectedConversationId);
+    const onRemovedRef = useRef(onConversationRemoved);
+    const onAssignedRef = useRef(onAssignedToMe);
+
+    useEffect(() => {
+        currentUserIdRef.current = currentUserId;
+        selectedIdRef.current = selectedConversationId;
+        onRemovedRef.current = onConversationRemoved;
+        onAssignedRef.current = onAssignedToMe;
+    }, [currentUserId, onAssignedToMe, onConversationRemoved, selectedConversationId]);
 
     const handleOperatorEvent = useCallback(
         (event: ChatConversationSocketEvent) => {
-            const showConversationToast = (messageTemplate: (title: string) => string) => {
-                const conversations = queryClient.getQueryData<Conversation[]>(ADMIN_CHAT_CONVERSATIONS_KEY) ?? [];
-                const cachedConv = conversations.find((item) => item.id === event.conversationId);
-                if (cachedConv?.title) {
-                    AppToast.info(messageTemplate(cachedConv.title));
-                } else {
-                    chatService.getConversationDetail(event.conversationId)
-                        .then((detail) => {
-                            AppToast.info(messageTemplate(detail.conversation.title));
-                        })
-                        .catch(() => {
-                            AppToast.info(messageTemplate(`#${event.conversationId}`));
-                        });
-                }
-            };
+            const conversationsBeforePatch =
+                queryClient.getQueryData<Conversation[]>(ADMIN_CHAT_CONVERSATIONS_KEY) ?? [];
+            const cachedBeforePatch = conversationsBeforePatch.find(
+                (item) => item.id === event.conversationId
+            );
 
-            if (event.eventType === 'CONVERSATION_TAKEN') {
-                if (event.assignedOperatorId && event.assignedOperatorId !== currentUserId) {
-                    queryClient.setQueryData<Conversation[]>(
-                        ADMIN_CHAT_CONVERSATIONS_KEY,
-                        (prev = []) => prev.filter((conversation) => conversation.id !== event.conversationId)
-                    );
-                    onConversationRemoved?.(event.conversationId);
-                    showConversationToast((title) => `Hội thoại "${title}" đã được nhân viên khác nhận.`);
+            const showConversationToast = (messageTemplate: (title: string) => string) => {
+                const title =
+                    cachedBeforePatch?.customerName
+                    || cachedBeforePatch?.title
+                    || null;
+                if (title) {
+                    AppToast.info(messageTemplate(title));
                     return;
                 }
+                chatService.getConversationDetail(event.conversationId)
+                    .then((detail) => {
+                        AppToast.info(
+                            messageTemplate(
+                                detail.conversation.customerName || detail.conversation.title
+                            )
+                        );
+                    })
+                    .catch(() => {
+                        AppToast.info(messageTemplate(`#${event.conversationId}`));
+                    });
+            };
 
-                queryClient.setQueryData<Conversation[]>(
-                    ADMIN_CHAT_CONVERSATIONS_KEY,
-                    (prev = []) =>
-                        prev.map((conversation) =>
-                            conversation.id === event.conversationId
-                                ? {
-                                      ...conversation,
-                                      status: event.status,
-                                      assignedOperatorId:
-                                          event.assignedOperatorId ?? conversation.assignedOperatorId,
-                                  }
-                                : conversation
-                        )
-                );
-                queryClient.invalidateQueries({ queryKey: adminChatDetailKey(event.conversationId) });
-                return;
-            }
+            patchInboxConversation(queryClient, event);
+            queryClient.invalidateQueries({ queryKey: adminChatDetailKey(event.conversationId) });
+            void queryClient.refetchQueries({ queryKey: ADMIN_CHAT_CONVERSATIONS_KEY });
 
-            if (event.eventType === 'CONVERSATION_ASSIGNED') {
-                queryClient.setQueryData<Conversation[]>(
-                    ADMIN_CHAT_CONVERSATIONS_KEY,
-                    (prev = []) =>
-                        prev.map((conversation) =>
-                            conversation.id === event.conversationId
-                                ? {
-                                      ...conversation,
-                                      status: event.status,
-                                      assignedOperatorId:
-                                          event.assignedOperatorId ?? conversation.assignedOperatorId,
-                                  }
-                                : conversation
-                        )
-                );
-                queryClient.invalidateQueries({ queryKey: adminChatDetailKey(event.conversationId) });
-                return;
+            const customerId = cachedBeforePatch?.customerId;
+            if (customerId) {
+                queryClient.invalidateQueries({
+                    queryKey: adminChatCustomerTimelineKey(customerId),
+                });
             }
 
             if (event.eventType === 'CONVERSATION_CLOSED') {
-                queryClient.setQueryData<Conversation[]>(
-                    ADMIN_CHAT_CONVERSATIONS_KEY,
-                    (prev = []) =>
-                        prev.map((conversation) =>
-                            conversation.id === event.conversationId
-                                ? { ...conversation, status: event.status }
-                                : conversation
-                        )
-                );
-                queryClient.invalidateQueries({ queryKey: adminChatDetailKey(event.conversationId) });
-                const conversations = queryClient.getQueryData<Conversation[]>(ADMIN_CHAT_CONVERSATIONS_KEY) ?? [];
-                const conversation = conversations.find((item) => item.id === event.conversationId);
-                if (conversation?.customerId) {
-                    queryClient.invalidateQueries({
-                        queryKey: adminChatCustomerTimelineKey(conversation.customerId),
-                    });
+                const currentUserId = currentUserIdRef.current;
+                const wasAssignedToMe =
+                    !!currentUserId
+                    && (
+                        cachedBeforePatch?.assignedOperatorId === currentUserId
+                        || event.lastAssignedOperatorId === currentUserId
+                    );
+                const closedBySomeoneElse =
+                    !!event.closedBy
+                    && event.closedBy !== currentUserId;
+
+                if (wasAssignedToMe && closedBySomeoneElse) {
+                    showConversationToast(
+                        (title) => `Hội thoại "${title}" đã được admin giải quyết.`
+                    );
+                }
+
+                if (event.conversationId === selectedIdRef.current) {
+                    onRemovedRef.current?.(event.conversationId);
                 }
                 return;
             }
 
-            queryClient.invalidateQueries({ queryKey: ADMIN_CHAT_CONVERSATIONS_KEY });
-            queryClient.invalidateQueries({ queryKey: adminChatDetailKey(event.conversationId) });
+            if (event.eventType === 'CONVERSATION_TAKEN') {
+                if (
+                    event.assignedOperatorId
+                    && event.assignedOperatorId !== currentUserIdRef.current
+                ) {
+                    if (event.conversationId === selectedIdRef.current) {
+                        onRemovedRef.current?.(event.conversationId);
+                    }
+                    showConversationToast((title) => `Hội thoại "${title}" đã được nhân viên khác nhận.`);
+                    return;
+                }
+                if (
+                    event.assignedOperatorId
+                    && event.assignedOperatorId === currentUserIdRef.current
+                    && event.conversationId !== selectedIdRef.current
+                ) {
+                    onAssignedRef.current?.(event.conversationId);
+                    AppToast.info('Đã nhận khách tiếp theo từ hàng đợi.');
+                }
+                return;
+            }
 
             if (event.eventType === 'CONVERSATION_ESCALATED') {
                 showConversationToast((title) => `Hội thoại "${title}" đang chờ nhân viên nhận.`);
             }
         },
-        [currentUserId, onConversationRemoved, queryClient]
+        [queryClient]
     );
 
     useEffect(() => {
@@ -348,9 +384,18 @@ export const useAdminChatInboxSocket = ({
         [queryClient]
     );
 
+    const handleInboxConversationEvent = useCallback(
+        (event: ChatConversationSocketEvent) => {
+            patchInboxConversation(queryClient, event);
+            void queryClient.refetchQueries({ queryKey: ADMIN_CHAT_CONVERSATIONS_KEY });
+        },
+        [queryClient]
+    );
+
     useChatSocket({
         additionalConversationIds: conversationIds,
         onMessage: handleInboxMessage,
+        onConversationEvent: handleInboxConversationEvent,
         enabled: enabled && conversationIds.length > 0,
     });
 };

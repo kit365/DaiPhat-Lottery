@@ -5,10 +5,10 @@ import { Button } from '@/admin/components/ui/Button';
 
 import { ConversationTitle } from '../components/ConversationTitle';
 import { ConversationAvatarLetter } from '../components/ConversationAvatarLetter';
-import { getConversationDisplayTitle, getConversationAvatarLetter, getAssigneeDisplayLabel, getConversationPreviewText, getManagementUnreadCount } from '../utils';
+import { getConversationDisplayTitle, getConversationAvatarLetter, getAssigneeDisplayLabel, getConversationPreviewText, getManagementUnreadCount, findOwnLiveConversation } from '../utils';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
-    Box, Card, Tabs, Tab, styled, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Checkbox, Stack, Avatar, Chip, Toolbar, Tooltip, SvgIcon, Badge } from '@mui/material';
+    Box, Card, Tabs, Tab, styled, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Checkbox, Stack, Avatar, Chip, Toolbar, Tooltip, SvgIcon, Badge, Alert } from '@mui/material';
 import { Icon } from '@/admin/components/ui/AdminIcon';
 import { adminChatDetailKey, ADMIN_CHAT_CONVERSATIONS_KEY } from '../../hooks/useChat';
 import { MessageSenderRole, ConversationStatusEnum } from '../../../../../types/chat.type';
@@ -109,9 +109,21 @@ interface ChatListProps {
     onToggleMode?: () => void;
     viewMode?: 'TABLE' | 'MESSENGER';
     messengerContent?: (filteredConversations: Conversation[]) => React.ReactNode;
+    chatLocked?: boolean;
+    lockedConversationId?: number | null;
+    onReturnToLockedChat?: () => void;
 }
 
-export const ChatList = ({ conversations, onSelectConversation, onToggleMode, viewMode = 'TABLE', messengerContent }: ChatListProps) => {
+export const ChatList = ({
+    conversations,
+    onSelectConversation,
+    onToggleMode,
+    viewMode = 'TABLE',
+    messengerContent,
+    chatLocked = false,
+    lockedConversationId = null,
+    onReturnToLockedChat,
+}: ChatListProps) => {
     const user = useAuthStore((state) => state.user);
     const currentUserId = user?.id;
     const roleCode = getRoleCode(user?.role);
@@ -153,6 +165,15 @@ export const ChatList = ({ conversations, onSelectConversation, onToggleMode, vi
     const [settings, setSettings] = useState({ density: 'medium', striped: false, bordered: false });
 
     const waitingCount = conversations.filter(c => c.status === ConversationStatusEnum.WAITING_FOR_OPERATOR).length;
+    const ownLiveConversation = findOwnLiveConversation(conversations, currentUserId);
+
+    const handleRowSelect = (id: number) => {
+        if (chatLocked && lockedConversationId != null && id !== lockedConversationId) {
+            toast.info('Hãy xử lý xong khách đang hỗ trợ trước khi mở hội thoại khác.');
+            return;
+        }
+        onSelectConversation(id);
+    };
 
     const handleTabChange = (event: React.SyntheticEvent, newValue: string) => {
         setTabStatus(newValue);
@@ -310,6 +331,14 @@ export const ChatList = ({ conversations, onSelectConversation, onToggleMode, vi
                     />
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    {ownLiveConversation && (
+                        <Chip
+                            size="small"
+                            color="success"
+                            label="Đang hỗ trợ 1 khách"
+                            sx={{ fontWeight: 600 }}
+                        />
+                    )}
                     <JiraFilter
                         fields={[{ id: 'assignee', label: 'Phân công', options: assigneeOptions }]}
                         selectedFilters={{ assignee: assigneeFilters }}
@@ -356,7 +385,7 @@ export const ChatList = ({ conversations, onSelectConversation, onToggleMode, vi
                         )}
                     />
 
-                                        {onToggleMode && (
+                                        {onToggleMode && !chatLocked && (
                         <Tooltip title="Chế độ Message">
                             <Button
                                 variant="text"
@@ -392,9 +421,21 @@ export const ChatList = ({ conversations, onSelectConversation, onToggleMode, vi
                 </Box>
             </Toolbar>
 
-
-
-
+            {chatLocked && (
+                <Alert
+                    severity="info"
+                    sx={{ mx: 2.5, mt: 0, mb: 1.5 }}
+                    action={
+                        onReturnToLockedChat ? (
+                            <Button variant="contained" size="small" onClick={onReturnToLockedChat}>
+                                Tiếp tục chat
+                            </Button>
+                        ) : undefined
+                    }
+                >
+                    Bạn đang hỗ trợ 1 khách. Có thể xem danh sách khi chờ khách trả lời, nhưng không nhận hoặc mở hội thoại khác cho đến khi xử lý xong.
+                </Alert>
+            )}
 
             <TableContainer sx={{ position: 'relative', overflow: 'auto', flex: 1, display: 'flex', flexDirection: 'column' }}>
                 <Table sx={{ minWidth: 960 }} size="medium">
@@ -431,17 +472,20 @@ export const ChatList = ({ conversations, onSelectConversation, onToggleMode, vi
                                 const isItemSelected = selected.indexOf(String(row.id)) !== -1;
                                 const hasUnread = getManagementUnreadCount(row) > 0;
 
+                                const isLockedOther = chatLocked && lockedConversationId != null && row.id !== lockedConversationId;
+
                                 return (
                                     <TableRow
-                                        hover
+                                        hover={!isLockedOther}
                                         key={row.id}
                                         selected={isItemSelected}
                                         sx={{
-                                            cursor: 'pointer',
+                                            cursor: isLockedOther ? 'not-allowed' : 'pointer',
+                                            opacity: isLockedOther ? 0.55 : 1,
                                             bgcolor: hasUnread ? 'var(--palette-action-hover)' : 'inherit',
-                                            '&:hover': { bgcolor: 'var(--palette-action-hover)' },
+                                            '&:hover': { bgcolor: isLockedOther ? 'inherit' : 'var(--palette-action-hover)' },
                                         }}
-                                        onClick={() => onSelectConversation(row.id)}
+                                        onClick={() => handleRowSelect(row.id)}
                                     >
                                         <TableCell padding="checkbox" sx={{ ...BODY_CELL_SX, textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
                                             <Checkbox
@@ -509,7 +553,7 @@ export const ChatList = ({ conversations, onSelectConversation, onToggleMode, vi
                                                         id: 'open',
                                                         label: 'Mở chat',
                                                         icon: 'view',
-                                                        onClick: () => onSelectConversation(row.id),
+                                                        onClick: () => handleRowSelect(row.id),
                                                     },
                                                 ]}
                                             />

@@ -133,6 +133,10 @@ public class GlobalExceptionAdvice {
             return "Một hoặc nhiều vé đã được phân bổ cho đơn hàng khác.";
         }
 
+        if (rawMessage.contains("uk_conversations_one_live_operator")) {
+            return ErrorCode.CONVERSATION_OPERATOR_AT_CAPACITY.getMessage();
+        }
+
         return ErrorCode.INVALID_INPUT.getMessage();
     }
 

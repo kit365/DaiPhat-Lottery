@@ -5,8 +5,11 @@ import com.daiphat.coreapi.domain.model.enums.chat.ConversationStatus;
 import com.daiphat.coreapi.domain.model.enums.chat.LastMessageFrom;
 import com.daiphat.coreapi.infrastructure.persistence.entity.chat.ConversationEntity;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
@@ -61,6 +64,25 @@ public interface ConversationRepository extends JpaRepository<ConversationEntity
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<ConversationEntity> findByIdAndDeletedAtIsNull(Long id);
+
+    long countByDeletedAtIsNullAndAssignedOperator_IdAndStatusIn(
+            UUID operatorId,
+            Collection<ConversationStatus> statuses
+    );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            SELECT c FROM ConversationEntity c
+            WHERE c.deletedAt IS NULL
+              AND c.status = com.daiphat.coreapi.domain.model.enums.chat.ConversationStatus.WAITING_FOR_OPERATOR
+              AND c.assignedOperator IS NULL
+              AND (:excludeId IS NULL OR c.id <> :excludeId)
+            ORDER BY c.escalatedAt ASC NULLS LAST, c.id ASC
+            """)
+    List<ConversationEntity> findWaitingForOperatorQueueForUpdate(
+            @Param("excludeId") Long excludeId,
+            Pageable pageable
+    );
 
     List<ConversationEntity> findByDeletedAtIsNullAndStatusInAndLastMessageFromInAndLastMessageAtBefore(
             Collection<ConversationStatus> statuses,

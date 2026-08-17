@@ -59,7 +59,8 @@ public interface ChatApplicationMapper {
     default ConversationResponse enrichConversationResponse(
             ConversationResponse response,
             String assignedOperatorName,
-            Integer unreadCount
+            Integer unreadCount,
+            String customerName
     ) {
         if (response == null) {
             return null;
@@ -71,6 +72,7 @@ public interface ChatApplicationMapper {
                 .customerId(response.customerId())
                 .assignedOperatorId(response.assignedOperatorId())
                 .assignedOperatorName(assignedOperatorName)
+                .customerName(blankToNull(customerName))
                 .customerLastReadAt(response.customerLastReadAt())
                 .operatorLastReadAt(response.operatorLastReadAt())
                 .unreadCount(unreadCount)
@@ -81,6 +83,13 @@ public interface ChatApplicationMapper {
                 .escalatedAt(response.escalatedAt())
                 .handoffSummary(response.handoffSummary())
                 .build();
+    }
+
+    private static String blankToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 
     default ChatMessageSocketResponse enrichSocketResponse(

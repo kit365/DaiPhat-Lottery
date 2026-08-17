@@ -1582,7 +1582,17 @@ export const ChatbotPopup = ({ defaultOpen = false }: { defaultOpen?: boolean })
         setConversationId(event.conversationId);
         sessionStorage.setItem(CHAT_LAST_CONVERSATION_KEY, String(event.conversationId));
       }
-      setConversationStatus(event.status);
+      setConversationStatus((prev) => {
+        // Do not let a stale AFTER_COMMIT ESCALATED(WAITING) wipe an ACTIVE assignment.
+        if (
+          event.eventType === 'CONVERSATION_ESCALATED'
+          && event.status === 'WAITING_FOR_OPERATOR'
+          && (prev === 'ACTIVE' || prev === 'WAITING_FOR_CUSTOMER')
+        ) {
+          return prev;
+        }
+        return event.status ?? prev;
+      });
     },
     []
   );
@@ -1591,6 +1601,14 @@ export const ChatbotPopup = ({ defaultOpen = false }: { defaultOpen?: boolean })
     syncConversationFromEvent(event);
 
     if (event.eventType === 'CONVERSATION_ESCALATED') {
+      if (
+        event.status === 'ACTIVE'
+        || event.status === 'WAITING_FOR_CUSTOMER'
+        || event.assignedOperatorId
+      ) {
+        void refreshTimelineMessages();
+        return;
+      }
       if (event.reason && BACKEND_HANDOFF_ESCALATION_REASONS.includes(event.reason)) {
         void refreshTimelineMessages();
         return;
@@ -2388,7 +2406,7 @@ export const ChatbotPopup = ({ defaultOpen = false }: { defaultOpen?: boolean })
                     </div>
                     <div className="max-w-[85%] min-w-0 items-start flex flex-col">
                       <div className="bg-white text-gray-800 rounded-2xl rounded-bl-sm shadow-sm border border-gray-100 px-4 py-2.5 text-[15px]">
-                        {msg.text || 'Bạn có thể dùng nút Xem lịch xổ / Kết quả bên dưới.'}
+                        {msg.text || 'Bạn có thể dùng nút Kết quả bên dưới, hoặc hỏi Đại Phát về lịch xổ.'}
                       </div>
                       <span className="text-[11px] text-gray-400 mt-1 px-1">{msg.timestamp}</span>
                     </div>
