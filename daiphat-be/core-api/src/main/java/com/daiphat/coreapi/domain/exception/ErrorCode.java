@@ -733,6 +733,11 @@ public enum ErrorCode {
             "Bạn đang tạm hạn chế gặp nhân viên do hội thoại trước bị đánh dấu spam. Vui lòng gửi Khiếu nại/Hỗ trợ hoặc thử lại sau.",
             HttpStatus.TOO_MANY_REQUESTS
     ),
+    CONVERSATION_OPERATOR_AT_CAPACITY(
+            "CHT_016",
+            "Bạn đang hỗ trợ một khách hàng khác. Hãy đóng hoặc trả hội thoại hiện tại trước khi nhận khách mới.",
+            HttpStatus.CONFLICT
+    ),
 
     // System Config Errors
     SYSTEM_CONFIG_NOT_FOUND("CFG_001", "Cấu hình hệ thống không tồn tại.", HttpStatus.NOT_FOUND),
