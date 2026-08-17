@@ -2,7 +2,7 @@
 -- Production-like import_batches/lines + COMPLETED results + 10 COMPLETED online orders.
 -- Serials are SOLD (company-hold lives on order_details.PROXY_HOLDING).
 -- Online-claimable prizes (<= 10M) keep order_details.PROXY_HOLDING; larger prizes are HANDED_OVER.
--- Requires: stations, prize_structures, user email, supplier MINHCHINH (V202608181200).
+-- Requires: stations, prize_structures, user email, supplier MINHCHINH (V202608181500).
 
 CREATE OR REPLACE FUNCTION win50_digit_block(p_seed text, p_len int, p_salt int)
 RETURNS text
