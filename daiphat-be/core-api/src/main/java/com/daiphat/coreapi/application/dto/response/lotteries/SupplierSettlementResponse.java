@@ -45,6 +45,9 @@ public record SupplierSettlementResponse(
         BigDecimal reconciledTicketUnitPrice,
         /** Temporary API alias of {@link #reconciledTicketUnitPrice}. */
         BigDecimal actualTicketPrice,
+        BigDecimal systemTicketImportPrice,
+        BigDecimal actualTicketImportPrice,
+        List<StationCommissionSnapshotResponse> stationCommissionSnapshots,
         BigDecimal initialEstimatedSettlementValue,
         BigDecimal finalSettlementValue,
         BigDecimal actualPaidAmount,

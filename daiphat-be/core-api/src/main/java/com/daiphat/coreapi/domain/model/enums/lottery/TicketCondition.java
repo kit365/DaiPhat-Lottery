@@ -10,7 +10,9 @@ public enum TicketCondition implements LabeledEnum {
     GOOD("Tốt"),
     DAMAGED("Vé hỏng / rách"),
     LOST("Vé thất lạc"),
-    VOIDED("Hủy do lỗi nhập liệu");
+    VOIDED("Hủy do lỗi nhập liệu"),
+    /** Settlement placeholder: tickets received from supplier but not yet recorded in the system. */
+    UNDER_IMPORTED("Nhập thiếu");
 
     private final String displayName;
 
@@ -28,8 +30,8 @@ public enum TicketCondition implements LabeledEnum {
         return this == VOIDED;
     }
 
-    /** Any non-sellable / terminal condition report (DAMAGED, LOST, VOIDED). */
+    /** Any non-sellable / terminal condition report (DAMAGED, LOST, VOIDED, UNDER_IMPORTED). */
     public boolean isIncidentReported() {
-        return isFaulty() || isVoided();
+        return isFaulty() || isVoided() || this == UNDER_IMPORTED;
     }
 }

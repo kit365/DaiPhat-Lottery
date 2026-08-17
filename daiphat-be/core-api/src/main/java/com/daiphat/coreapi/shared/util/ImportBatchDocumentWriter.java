@@ -50,11 +50,18 @@ import java.util.List;
 @Slf4j
 public class ImportBatchDocumentWriter {
 
+    /**
+     * One row is one physical ticket, so a "thành tiền" column would only ever
+     * repeat the unit price. Giá nhập closes the row instead, read after the sale
+     * price and commission it derives from. Kept identical to
+     * IMPORT_BATCH_TICKET_HEADERS on the client, so a downloaded template and an
+     * exported batch line up column for column.
+     */
     public static final List<String> TICKET_HEADERS = List.of(
             "STT", "Mã đài", "Nhà đài", "Ngày quay", "Dãy số", "Số sê-ri", "Ảnh vé",
-            "Giá nhập", "Giá bán", "Hoa hồng (%)", "Thành tiền");
+            "Giá bán", "Hoa hồng (%)", "Giá nhập");
 
-    private static final int[] TICKET_WIDTHS = {6, 10, 22, 13, 12, 20, 26, 13, 13, 13, 15};
+    private static final int[] TICKET_WIDTHS = {6, 10, 22, 13, 12, 20, 26, 13, 13, 15};
 
     /**
      * Shape used when the batch has no tickets yet. A declared-only batch must
@@ -151,10 +158,14 @@ public class ImportBatchDocumentWriter {
         for (int column = labelSpan + 1; column < lastColumn; column++) {
             text(totals, column, "", styles.total());
         }
-        money(totals, lastColumn, carriesTickets
-                        ? document.totals().importedCostValue()
-                        : document.totals().declaredCostValue(),
-                styles.totalMoney());
+        // A declaration line states a quantity, so its column of line amounts adds
+        // up. A ticket line states a unit price, and a column of unit prices does
+        // not - totalling it would put a meaningless figure under a signature.
+        if (carriesTickets) {
+            text(totals, lastColumn, "", styles.total());
+        } else {
+            money(totals, lastColumn, document.totals().declaredCostValue(), styles.totalMoney());
+        }
 
         buildSignatureBlock(sheet, styles, rowNumber + 1, lastColumn);
     }
@@ -180,10 +191,9 @@ public class ImportBatchDocumentWriter {
             text(row, 4, ticket.numbers(), styles.body(zebra));
             text(row, 5, ticket.serialNumber(), styles.bodyLeft(zebra));
             text(row, 6, ticket.ticketImage(), styles.bodyLeft(zebra));
-            money(row, 7, ticket.importCost(), styles.money(zebra));
-            money(row, 8, ticket.salePrice(), styles.money(zebra));
-            money(row, 9, ticket.commissionPercent(), styles.percent(zebra));
-            money(row, 10, ticket.importCost(), styles.money(zebra));
+            money(row, 7, ticket.salePrice(), styles.money(zebra));
+            money(row, 8, ticket.commissionPercent(), styles.percent(zebra));
+            money(row, 9, ticket.importCost(), styles.money(zebra));
         }
         return rowNumber;
     }

@@ -35,8 +35,7 @@ export const getSerialIncidentGroup = (status?: string | null): SerialIncidentGr
 
 /**
  * Serials that can be selected for warehouse cancel / fault report.
- * RESERVED (đang giữ chỗ) is excluded — must wait for payment timeout / order cancel first.
- * PROXY_HOLDING remains eligible (paid order, agent holding).
+ * IN_STOCK, RESERVED and PROXY_HOLDING are eligible.
  * Faulty ticketCondition or linked returnBatchLineId are not eligible.
  */
 export const isSerialIncidentEligible = (
@@ -53,7 +52,11 @@ export const isSerialIncidentEligible = (
               };
 
     const normalized = normalizeSerialStatus(fields.status);
-    if (normalized !== 'IN_STOCK' && normalized !== 'PROXY_HOLDING') {
+    if (
+        normalized !== 'IN_STOCK'
+        && normalized !== 'RESERVED'
+        && normalized !== 'PROXY_HOLDING'
+    ) {
         return false;
     }
     if (
@@ -83,7 +86,10 @@ export type SerialRefundScopeItem = {
 };
 
 export const getActiveTransactionSerials = <T extends SerialRefundScopeItem>(serials: T[]): T[] =>
-    serials.filter((serial) => isActiveTransactionSerialStatus(serial.status));
+    serials.filter((serial) => {
+        if (isActiveTransactionSerialStatus(serial.status)) return true;
+        return normalizeSerialStatus(serial.status) === 'IN_STOCK' && Boolean(serial.reservedByOrderId);
+    });
 
 export const groupSerialsByOrderId = <T extends SerialRefundScopeItem>(
     serials: T[]
@@ -106,8 +112,9 @@ export const needsRefundPrepStep = (
 ): boolean => {
     const activeSerials = getActiveTransactionSerials(targetSerials);
     if (activeSerials.length === 0) return false;
-    if (cancelMode === 'TICKET') {
-        return ticketFaultedBy === 'INTERNAL_FAULT';
+    // Ticket-level data-entry moves serials onto the new lottery number; orders stay attached.
+    if (cancelMode === 'TICKET' && ticketFaultedBy === 'DATA_ENTRY_FAULT') {
+        return false;
     }
     return true;
 };
@@ -174,6 +181,14 @@ export const areAllIncidentSerialsFaultyReported = (
 export const DUPLICATE_REPLACEMENT_SERIAL_MESSAGE =
     'Số sê-ri thay thế không được trùng với sê-ri khác trong danh sách.';
 
+export const SAME_CURRENT_REPLACEMENT_SERIAL_MESSAGE =
+    'Số sê-ri thay thế phải khác số sê-ri hiện tại.';
+
+const REPLACEMENT_SERIAL_CONFLICT_MESSAGES = new Set([
+    DUPLICATE_REPLACEMENT_SERIAL_MESSAGE,
+    SAME_CURRENT_REPLACEMENT_SERIAL_MESSAGE,
+]);
+
 export const normalizeReplacementSerial = (value?: string | null): string =>
     (value ?? '').trim().toLowerCase();
 
@@ -200,6 +215,22 @@ export const findDuplicateReplacementSerialIds = (
     });
 
     return duplicateIds;
+};
+
+export const findSameCurrentReplacementSerialIds = (
+    entries: Array<{ id: string | number; replacementSerial?: string; currentSerial?: string }>
+): Set<string | number> => {
+    const sameCurrentIds = new Set<string | number>();
+
+    entries.forEach(({ id, replacementSerial, currentSerial }) => {
+        const replacement = normalizeReplacementSerial(replacementSerial);
+        const current = normalizeReplacementSerial(currentSerial);
+        if (replacement && current && replacement === current) {
+            sameCurrentIds.add(id);
+        }
+    });
+
+    return sameCurrentIds;
 };
 
 type ReplacementSerialFormSlice = {
@@ -230,12 +261,23 @@ export const getReplacementSerialScopeIds = (
 
 export const applyReplacementSerialDuplicateErrors = <T extends ReplacementSerialFormSlice>(
     formsState: Record<string | number, T>,
-    scopeIds: Array<string | number>
+    scopeIds: Array<string | number>,
+    currentSerials: Array<{ id: string | number; serialNumber?: string }> = []
 ): Record<string | number, T> => {
+    const currentById = new Map(
+        currentSerials.map((serial) => [String(serial.id), serial.serialNumber])
+    );
     const duplicateIds = findDuplicateReplacementSerialIds(
         scopeIds.map((scopeId) => ({
             id: scopeId,
             replacementSerial: formsState[scopeId]?.replacementSerial,
+        }))
+    );
+    const sameCurrentIds = findSameCurrentReplacementSerialIds(
+        scopeIds.map((scopeId) => ({
+            id: scopeId,
+            replacementSerial: formsState[scopeId]?.replacementSerial,
+            currentSerial: currentById.get(String(scopeId)),
         }))
     );
 
@@ -245,9 +287,14 @@ export const applyReplacementSerialDuplicateErrors = <T extends ReplacementSeria
         if (!form) return;
 
         const errors = { ...(form.errors ?? {}) };
-        if (duplicateIds.has(scopeId)) {
+        if (sameCurrentIds.has(scopeId)) {
+            errors.replacementSerial = SAME_CURRENT_REPLACEMENT_SERIAL_MESSAGE;
+        } else if (duplicateIds.has(scopeId)) {
             errors.replacementSerial = DUPLICATE_REPLACEMENT_SERIAL_MESSAGE;
-        } else if (errors.replacementSerial === DUPLICATE_REPLACEMENT_SERIAL_MESSAGE) {
+        } else if (
+            errors.replacementSerial
+            && REPLACEMENT_SERIAL_CONFLICT_MESSAGES.has(errors.replacementSerial)
+        ) {
             delete errors.replacementSerial;
         }
 
@@ -261,5 +308,20 @@ export const hasDuplicateReplacementSerialErrors = (
     formsState: Record<string | number, ReplacementSerialFormSlice>
 ): boolean =>
     Object.values(formsState).some(
-        (form) => form.errors?.replacementSerial === DUPLICATE_REPLACEMENT_SERIAL_MESSAGE
+        (form) =>
+            !!form.errors?.replacementSerial
+            && REPLACEMENT_SERIAL_CONFLICT_MESSAGES.has(form.errors.replacementSerial)
     );
+
+export const getReplacementSerialConflictToastMessage = (
+    formsState: Record<string | number, ReplacementSerialFormSlice>
+): string | null => {
+    const messages = Object.values(formsState).map((form) => form.errors?.replacementSerial);
+    if (messages.includes(SAME_CURRENT_REPLACEMENT_SERIAL_MESSAGE)) {
+        return SAME_CURRENT_REPLACEMENT_SERIAL_MESSAGE;
+    }
+    if (messages.includes(DUPLICATE_REPLACEMENT_SERIAL_MESSAGE)) {
+        return DUPLICATE_REPLACEMENT_SERIAL_MESSAGE;
+    }
+    return null;
+};

@@ -16,6 +16,8 @@ public record ConfirmSettlementMatchingRequest(
         @DecimalMin("0.001") BigDecimal reconciledTicketUnitPrice,
         String reconciliationNote,
         BigDecimal actualPaidAmount,
-        @Valid List<SettlementMatchingAdjustmentItem> additionalCosts
+        @Valid List<SettlementMatchingAdjustmentItem> additionalCosts,
+        @DecimalMin("0.001") BigDecimal actualTicketImportPrice,
+        @Valid List<SettlementStationCommissionItem> stationCommissions
 ) {
 }

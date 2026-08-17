@@ -25,6 +25,7 @@ export type MatchingActualsDraft = {
     note: string;
     additionalCostRows: MatchingActualsDraftCostRow[];
     pendingStationPricing: MatchingActualsDraftStationPricing[];
+    actualImportPrice?: number;
     selectedImportId: number | null;
     importEvidenceTab: 'receipt' | 'ticketList';
     /** Cloudinary/storage URLs kept in draft until xác nhận đối chiếu. */

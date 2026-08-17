@@ -1,5 +1,36 @@
 import ExcelJS from 'exceljs';
 import dayjs from 'dayjs';
+import {
+    COL,
+    DELIVERY_SIGNATURE_ROLES,
+    DOCUMENT_PAGE_SETUP,
+    FALLBACK_ISSUER,
+    IMPORT_BATCH_TICKET_HEADERS,
+    INK,
+    LEFT_ALIGNED_COLUMNS,
+    MONEY_FORMAT,
+    NOTE_BG,
+    TOTAL_BG,
+    mediumBorder,
+    PERCENT_FORMAT,
+    TICKET_COLUMN_COUNT,
+    TICKET_COLUMN_WIDTHS,
+    ZEBRA,
+    buildLetterhead,
+    buildSignatureBlock,
+    buildTotalsRow,
+    mergeAcross,
+    styleHeaderRow,
+    thinBorder,
+    type ImportBatchTemplateIssuer,
+    type ImportBatchTemplateSupplier,
+} from './importBatchDocumentLayout';
+
+export {
+    IMPORT_BATCH_TICKET_HEADERS,
+    type ImportBatchTemplateIssuer,
+    type ImportBatchTemplateSupplier,
+};
 
 export const IMPORT_BATCH_FILE_ACCEPT = '.csv,.xlsx';
 
@@ -11,37 +42,9 @@ export const IMPORT_BATCH_FILE_SERIAL_SEPARATOR = ';';
  * template needs no manual column mapping at all. Keep in sync with
  * ImportBatchFileMappingDetector.
  */
-const TICKET_HEADERS = [
-    'STT',
-    'Mã đài',
-    'Nhà đài',
-    'Ngày quay',
-    'Dãy số',
-    'Số sê-ri',
-    'Ảnh vé',
-    'Giá nhập',
-    'Giá bán',
-    'Hoa hồng (%)',
-    'Thành tiền',
-] as const;
-
-const COLUMN_WIDTHS = [6, 10, 22, 13, 12, 20, 26, 13, 13, 13, 15];
-const COLUMN_COUNT = TICKET_HEADERS.length;
-
-/** 1-based column positions used by the styling and formula code below. */
-const COL = {
-    index: 1,
-    stationCode: 2,
-    stationName: 3,
-    drawDate: 4,
-    numbers: 5,
-    serial: 6,
-    image: 7,
-    importCost: 8,
-    salePrice: 9,
-    commission: 10,
-    lineTotal: 11,
-} as const;
+const TICKET_HEADERS = IMPORT_BATCH_TICKET_HEADERS;
+const COLUMN_WIDTHS = TICKET_COLUMN_WIDTHS;
+const COLUMN_COUNT = TICKET_COLUMN_COUNT;
 
 /** Station facts the template pre-fills so the file is usable as-is. */
 export type ImportBatchTemplateStation = {
@@ -53,67 +56,7 @@ export type ImportBatchTemplateStation = {
     drawSchedule?: string;
 };
 
-/**
- * Supplier facts printed into the letterhead. The backend reads these back and
- * refuses the upload if they name a different company than the one selected, so
- * they are part of the document's meaning, not decoration.
- */
-export type ImportBatchTemplateSupplier = {
-    name: string;
-    code?: string;
-    taxCode?: string;
-    contactName?: string;
-    contactPhone?: string;
-    contactEmail?: string;
-    address?: string;
-};
-
-/**
- * The receiving party: tickets travel from the supplier into this company's
- * warehouse. Sourced from system_config so the legal name and tax code printed
- * here match the ones the server prints on an exported batch.
- */
-export type ImportBatchTemplateIssuer = {
-    legalName: string;
-    taxCode?: string;
-    address?: string;
-    phone?: string;
-    email?: string;
-};
-
-const FALLBACK_ISSUER: ImportBatchTemplateIssuer = {
-    legalName: 'ĐẠI PHÁT',
-};
-
 const FORM_CODE = 'Mẫu số: 01-VT/NV';
-
-const BRAND = 'FFEE1314';
-const HEADER_TEXT = 'FFFFFFFF';
-// Slate-500 rather than a hairline grey: at 100% zoom in Excel a CBD5E1 rule is
-// indistinguishable from the sheet's own gridlines, so a printed copy of the
-// delivery note came out looking like an unruled list.
-const BORDER = 'FF64748B';
-const STRONG_BORDER = 'FF334155';
-const ZEBRA = 'FFF8FAFC';
-const NOTE_BG = 'FFFFF9E6';
-const PARTY_BG = 'FFF1F5F9';
-const TOTAL_BG = 'FFFEF2F2';
-const INK = 'FF0F172A';
-const MUTED = 'FF64748B';
-
-const thinBorder: Partial<ExcelJS.Borders> = {
-    top: { style: 'thin', color: { argb: BORDER } },
-    left: { style: 'thin', color: { argb: BORDER } },
-    bottom: { style: 'thin', color: { argb: BORDER } },
-    right: { style: 'thin', color: { argb: BORDER } },
-};
-
-const mediumBorder: Partial<ExcelJS.Borders> = {
-    top: { style: 'medium', color: { argb: STRONG_BORDER } },
-    left: { style: 'thin', color: { argb: STRONG_BORDER } },
-    bottom: { style: 'medium', color: { argb: STRONG_BORDER } },
-    right: { style: 'thin', color: { argb: STRONG_BORDER } },
-};
 
 const FALLBACK_STATIONS: ImportBatchTemplateStation[] = [
     { name: 'Tiền Giang', code: 'TG', price: 10000, commissionRate: 0.1 },
@@ -127,15 +70,7 @@ export const TEMPLATE_SERIALS_PER_STATION = 100;
 /** Serials printed under one lottery number, mirroring how a booklet arrives. */
 const SERIALS_PER_NUMBER = 4;
 
-const MONEY_FORMAT = '#,##0';
 
-/**
- * "General", not "0.##": a decimal point written in an Excel format code is
- * always printed, so "0.##" renders a whole 5% as "5." — which reads like a
- * truncated number. General shows 5 as "5" and 12.5 as "12.5", which is what a
- * commission rate needs.
- */
-const PERCENT_FORMAT = 'General';
 
 type TicketRow = {
     stationCode: string;
@@ -211,146 +146,7 @@ const buildTicketRows = (days: ImportBatchTemplateDay[]): TicketRow[] => {
     );
 };
 
-// ----------------------------------------------------------- letterhead
-
-const mergeAcross = (sheet: ExcelJS.Worksheet, row: number, from: number, to: number) => {
-    sheet.mergeCells(row, from, row, to);
-};
-
-/** Label / value pair as an accounting form prints it, label bold on the left. */
-const writeField = (
-    sheet: ExcelJS.Worksheet,
-    row: number,
-    labelColumn: number,
-    valueColumn: number,
-    valueEndColumn: number,
-    label: string,
-    value?: string
-) => {
-    const labelCell = sheet.getCell(row, labelColumn);
-    labelCell.value = label;
-    labelCell.font = { bold: true, size: 10, color: { argb: INK } };
-    labelCell.alignment = { vertical: 'middle' };
-
-    if (valueEndColumn > valueColumn) {
-        mergeAcross(sheet, row, valueColumn, valueEndColumn);
-    }
-    const valueCell = sheet.getCell(row, valueColumn);
-    valueCell.value = value && value.trim() ? value : '.'.repeat(30);
-    valueCell.font = { size: 10, color: { argb: value && value.trim() ? INK : MUTED } };
-    valueCell.alignment = { vertical: 'middle' };
-};
-
-/**
- * Writes the document head: issuer, title, and the party block naming the
- * supplier. Ends on a blank row so the table below reads as its own block.
- *
- * @returns the 1-based row the column headers should be written to
- */
-const buildLetterhead = (
-    sheet: ExcelJS.Worksheet,
-    supplier: ImportBatchTemplateSupplier | undefined,
-    issuerInfo: ImportBatchTemplateIssuer,
-    days: ImportBatchTemplateDay[]
-): number => {
-    const drawDates = days.map((day) => day.drawDate).join(' · ');
-    mergeAcross(sheet, 1, COL.index, COL.numbers);
-    const issuer = sheet.getCell(1, COL.index);
-    issuer.value = issuerInfo.legalName;
-    issuer.font = { bold: true, size: 12, color: { argb: BRAND } };
-
-    mergeAcross(sheet, 1, COL.serial, COL.lineTotal);
-    const formCode = sheet.getCell(1, COL.serial);
-    formCode.value = FORM_CODE;
-    formCode.font = { italic: true, size: 10, color: { argb: MUTED } };
-    formCode.alignment = { horizontal: 'right' };
-
-    mergeAcross(sheet, 2, COL.index, COL.numbers);
-    const address = sheet.getCell(2, COL.index);
-    address.value = `Địa chỉ: ${issuerInfo.address ?? '—'}`;
-    address.font = { size: 10, color: { argb: MUTED } };
-
-    mergeAcross(sheet, 2, COL.serial, COL.lineTotal);
-    const docNumber = sheet.getCell(2, COL.serial);
-    docNumber.value = 'Số phiếu: ...........................';
-    docNumber.font = { size: 10, color: { argb: MUTED } };
-    docNumber.alignment = { horizontal: 'right' };
-
-    mergeAcross(sheet, 4, COL.index, COL.lineTotal);
-    const title = sheet.getCell(4, COL.index);
-    title.value = 'PHIẾU GIAO NHẬN VÉ XỔ SỐ';
-    title.font = { bold: true, size: 16, color: { argb: INK } };
-    title.alignment = { horizontal: 'center', vertical: 'middle' };
-    sheet.getRow(4).height = 28;
-
-    mergeAcross(sheet, 5, COL.index, COL.lineTotal);
-    const subtitle = sheet.getCell(5, COL.index);
-    subtitle.value =
-        days.length > 1
-            ? `Ngày quay thưởng: ${drawDates} (${days.length} ngày)`
-            : `Ngày quay thưởng: ${drawDates}`;
-    subtitle.font = { italic: true, size: 11, color: { argb: MUTED } };
-    subtitle.alignment = { horizontal: 'center' };
-
-    // Party block. The labels here are the ones SupplierIdentityScanner reads, so
-    // renaming one silently turns the supplier check off for this template.
-    // Left column is the supplier (bên giao), right column is us (bên nhận).
-    // Every receiving-side label carries a qualifier such as "bên nhận" or
-    // "người nhập" — SupplierIdentityScanner skips those, so our own tax code is
-    // never compared against the supplier's. Drop the qualifier and the check
-    // starts rejecting correct files.
-    //
-    // The operator's own name, phone and email are deliberately absent here,
-    // unlike on an exported batch: a blank template has nobody to name yet, and a
-    // row of dots is noise. The server fills those fields in when it exports a
-    // real batch — see ImportBatchDocumentWriter.
-    const partyRows: Array<[string, string | undefined, string, string | undefined]> = [
-        ['Nhà cung cấp:', supplier?.name, 'Bên nhận:', issuerInfo.legalName],
-        ['Mã nhà cung cấp:', supplier?.code, 'Mã số thuế bên nhận:', issuerInfo.taxCode],
-        ['Mã số thuế:', supplier?.taxCode, 'SĐT bên nhận:', issuerInfo.phone],
-        ['Người liên hệ:', supplier?.contactName, 'Email bên nhận:', issuerInfo.email],
-        ['Số điện thoại:', supplier?.contactPhone, 'Ngày quay:', drawDates],
-        ['Email:', supplier?.contactEmail, 'Ngày lập phiếu:', dayjs().format('DD/MM/YYYY')],
-        ['Địa chỉ:', supplier?.address, '', undefined],
-    ];
-
-    partyRows.forEach(([leftLabel, leftValue, rightLabel, rightValue], offset) => {
-        const row = FIRST_PARTY_ROW + offset;
-        writeField(sheet, row, COL.index, COL.stationCode, COL.numbers, leftLabel, leftValue);
-        if (rightLabel) {
-            writeField(sheet, row, COL.serial, COL.importCost, COL.lineTotal, rightLabel, rightValue);
-        }
-        sheet.getRow(row).height = 18;
-        for (let column = COL.index; column <= COL.lineTotal; column++) {
-            const cell = sheet.getCell(row, column);
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: PARTY_BG } };
-            // Boxed like the party block of a printed delivery note, so the two
-            // sides read as two columns of a form rather than as floating text.
-            cell.border = thinBorder;
-        }
-    });
-
-    // One blank row separates the party block from the table.
-    return FIRST_PARTY_ROW + partyRows.length + 1;
-};
-
-/** 1-based row the label/value block starts on, after the title and subtitle. */
-const FIRST_PARTY_ROW = 7;
-
 // ---------------------------------------------------------------- table
-
-const styleHeaderRow = (row: ExcelJS.Row, columnCount: number) => {
-    row.height = 30;
-    for (let column = 1; column <= columnCount; column++) {
-        const cell = row.getCell(column);
-        cell.font = { bold: true, color: { argb: HEADER_TEXT }, size: 11 };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND } };
-        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-        cell.border = mediumBorder;
-    }
-};
-
-const LEFT_ALIGNED_COLUMNS: number[] = [COL.stationName, COL.serial, COL.image];
 
 const buildTicketSheet = (
     workbook: ExcelJS.Workbook,
@@ -359,20 +155,25 @@ const buildTicketSheet = (
     issuerInfo: ImportBatchTemplateIssuer
 ) => {
     const sheet = workbook.addWorksheet('Phiếu nhập vé', {
-        pageSetup: {
-            paperSize: 9,
-            orientation: 'landscape',
-            fitToPage: true,
-            fitToWidth: 1,
-            fitToHeight: 0,
-            margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.3, footer: 0.3 },
-        },
+        pageSetup: DOCUMENT_PAGE_SETUP,
     });
     COLUMN_WIDTHS.forEach((width, index) => {
         sheet.getColumn(index + 1).width = width;
     });
 
-    const headerRowNumber = buildLetterhead(sheet, supplier, issuerInfo, days);
+    const drawDates = days.map((day) => day.drawDate).join(' · ');
+    const headerRowNumber = buildLetterhead(sheet, {
+        title: 'PHIẾU GIAO NHẬN VÉ XỔ SỐ',
+        subtitle:
+            days.length > 1
+                ? `Ngày quay thưởng: ${drawDates} (${days.length} ngày)`
+                : `Ngày quay thưởng: ${drawDates}`,
+        formCode: FORM_CODE,
+        supplier,
+        issuer: issuerInfo,
+        drawDates,
+        lastColumn: COL.importCost,
+    });
 
     const headerRow = sheet.getRow(headerRowNumber);
     TICKET_HEADERS.forEach((label, index) => {
@@ -395,12 +196,9 @@ const buildTicketSheet = (
         row.getCell(COL.numbers).value = ticket.numbers;
         row.getCell(COL.serial).value = ticket.serial;
         row.getCell(COL.image).value = '';
-        row.getCell(COL.importCost).value = ticket.importCost;
         row.getCell(COL.salePrice).value = ticket.salePrice;
         row.getCell(COL.commission).value = ticket.commissionPercent;
-        // A live formula, so correcting a price updates the line total the way an
-        // accountant expects. The backend ignores this column.
-        row.getCell(COL.lineTotal).value = { formula: `H${rowNumber}` };
+        row.getCell(COL.importCost).value = ticket.importCost;
 
         for (let column = 1; column <= COLUMN_COUNT; column++) {
             const cell = row.getCell(column);
@@ -413,15 +211,32 @@ const buildTicketSheet = (
                 cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ZEBRA } };
             }
         }
-        row.getCell(COL.importCost).numFmt = MONEY_FORMAT;
         row.getCell(COL.salePrice).numFmt = MONEY_FORMAT;
         row.getCell(COL.commission).numFmt = PERCENT_FORMAT;
-        row.getCell(COL.lineTotal).numFmt = MONEY_FORMAT;
+        row.getCell(COL.importCost).numFmt = MONEY_FORMAT;
     });
 
     const lastDataRow = firstDataRow + rows.length - 1;
-    buildTotalsRow(sheet, firstDataRow, lastDataRow, rows, days);
-    buildSignatureBlock(sheet, lastDataRow + 3);
+    // Each draw date becomes its own import batch, so a multi-day file needs the
+    // per-date counts spelled out - the grand total alone reconciles nothing.
+    const perDay = days
+        .map((day) => {
+            const count = rows.filter((ticket) => ticket.drawDate === day.drawDate).length;
+            return `${day.drawDate}: ${count.toLocaleString('vi-VN')}`;
+        })
+        .join(' · ');
+    const total = rows.length.toLocaleString('vi-VN');
+    buildTotalsRow(
+        sheet,
+        lastDataRow + 1,
+        days.length > 1
+            ? `TỔNG CỘNG: ${total} tờ vé  (${perDay})`
+            : `TỔNG CỘNG: ${total} tờ vé`,
+        COL.importCost
+        // No figure closes the row: Giá nhập is a unit price, and a column of
+        // unit prices does not add up to anything an accountant would sign.
+    );
+    buildSignatureBlock(sheet, lastDataRow + 3, DELIVERY_SIGNATURE_ROLES);
 
     sheet.autoFilter = {
         from: { row: headerRowNumber, column: 1 },
@@ -435,70 +250,6 @@ const buildTicketSheet = (
  * and names no station, which is how the backend recognises the table has ended
  * and stops reading rows.
  */
-const buildTotalsRow = (
-    sheet: ExcelJS.Worksheet,
-    firstDataRow: number,
-    lastDataRow: number,
-    rows: TicketRow[],
-    days: ImportBatchTemplateDay[]
-) => {
-    const rowNumber = lastDataRow + 1;
-    const row = sheet.getRow(rowNumber);
-
-    // Each draw date becomes its own import batch, so a multi-day file needs the
-    // per-date counts spelled out - the grand total alone reconciles nothing.
-    const perDay = days
-        .map((day) => {
-            const count = rows.filter((ticket) => ticket.drawDate === day.drawDate).length;
-            return `${day.drawDate}: ${count.toLocaleString('vi-VN')}`;
-        })
-        .join(' · ');
-    const total = rows.length.toLocaleString('vi-VN');
-
-    mergeAcross(sheet, rowNumber, COL.index, COL.serial);
-    row.getCell(COL.index).value =
-        days.length > 1
-            ? `TỔNG CỘNG: ${total} tờ vé  (${perDay})`
-            : `TỔNG CỘNG: ${total} tờ vé`;
-    row.getCell(COL.lineTotal).value = {
-        formula: `SUM(K${firstDataRow}:K${lastDataRow})`,
-    };
-
-    for (let column = 1; column <= COLUMN_COUNT; column++) {
-        const cell = row.getCell(column);
-        cell.font = { bold: true, size: 11, color: { argb: INK } };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: TOTAL_BG } };
-        cell.border = mediumBorder;
-        cell.alignment = { vertical: 'middle', horizontal: column === COL.index ? 'left' : 'center' };
-    }
-    row.getCell(COL.lineTotal).numFmt = MONEY_FORMAT;
-    row.height = 24;
-};
-
-const SIGNATURE_ROLES: Array<[string, number, number]> = [
-    ['NGƯỜI GIAO VÉ', COL.index, COL.drawDate],
-    ['THỦ KHO NHẬN VÉ', COL.numbers, COL.image],
-    ['KẾ TOÁN', COL.importCost, COL.lineTotal],
-];
-
-const buildSignatureBlock = (sheet: ExcelJS.Worksheet, startRow: number) => {
-    SIGNATURE_ROLES.forEach(([role, from, to]) => {
-        mergeAcross(sheet, startRow, from, to);
-        const roleCell = sheet.getCell(startRow, from);
-        roleCell.value = role;
-        roleCell.font = { bold: true, size: 11, color: { argb: INK } };
-        roleCell.alignment = { horizontal: 'center' };
-
-        mergeAcross(sheet, startRow + 1, from, to);
-        const hintCell = sheet.getCell(startRow + 1, from);
-        hintCell.value = '(Ký, ghi rõ họ tên)';
-        hintCell.font = { italic: true, size: 10, color: { argb: MUTED } };
-        hintCell.alignment = { horizontal: 'center' };
-    });
-    // Empty rows leaving room to sign on a printed copy.
-    sheet.getRow(startRow + 2).height = 60;
-};
-
 // -------------------------------------------------------- station sheet
 
 /**
@@ -630,7 +381,7 @@ const GUIDE_ROWS: Array<[string, string]> = [
     ['STT', 'Số thứ tự dòng, chỉ để dễ đối chiếu khi in. Hệ thống bỏ qua cột này.'],
     ['Mã đài', 'Mã nghiệp vụ của đài. Ưu tiên dùng mã vì khớp chính xác. Để trống được nếu không rõ, hệ thống sẽ khớp theo tên.'],
     ['Nhà đài', 'Tên đài xổ số. Bắt buộc khi không có mã đài.'],
-    ['Ngày quay', 'Định dạng DD/MM/YYYY. Mỗi ngày quay trong tệp sẽ thành một phiếu nhập riêng. Nhập từ tệp chỉ tạo được phiếu cho ngày quay hôm nay.'],
+    ['Ngày quay', 'Định dạng DD/MM/YYYY. Mỗi ngày quay trong tệp sẽ thành một phiếu nhập riêng. Chỉ tạo được phiếu cho hôm nay hoặc ngày mai.'],
     ['Dãy số', 'Bộ số in trên vé. Các dòng cùng dãy số sẽ được gộp thành một loại vé.'],
     ['Số sê-ri', `Sê-ri của tờ vé. Nếu muốn gộp nhiều tờ vào một dòng thì ngăn cách bằng dấu "${IMPORT_BATCH_FILE_SERIAL_SEPARATOR}". Mỗi sê-ri là một tờ vé vật lý và phải duy nhất trong cả tệp.`],
     ['Ảnh vé', 'Đường dẫn ảnh, để trống nếu không có. Nhiều ảnh ngăn cách như cột sê-ri.'],

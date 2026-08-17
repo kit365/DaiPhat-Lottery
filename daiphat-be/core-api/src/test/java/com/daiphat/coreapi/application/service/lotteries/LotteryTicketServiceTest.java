@@ -1492,13 +1492,15 @@ class LotteryTicketServiceTest {
     }
 
     @Test
-    @DisplayName("[DP-325] REPLACE_DIGITS: Void serial cũ (DATA_ENTRY_FAULT), soft-delete vé cũ, tạo serial mới với replacedForTicketId")
-    void replaceDigits_softDeletesOldTicketAndSetsReplaceTicketId() {
+    @DisplayName("[DP-325] REPLACE_DIGITS: Chuyển ticketId của serial cũ sang dãy mới, không clone, không VOID, soft-delete vé cũ")
+    void replaceDigits_reassignsSerialsToNewTicketWithoutClone() {
         LotteryTicketSerialModel serial = LotteryTicketSerialModel.builder()
                 .id(1L)
                 .ticketId(TICKET_ID)
                 .serialNumber(SERIAL_NUMBER)
                 .status(LotteryTicketSerialStatus.IN_STOCK)
+                .stationId(PRODUCT_ID)
+                .drawDate(existingModel.getDrawDate())
                 .build();
         LotteryTicketModel newTicket = LotteryTicketModel.builder()
                 .id(REPLACEMENT_TICKET_ID)
@@ -1536,13 +1538,15 @@ class LotteryTicketServiceTest {
         lotteryTicketService.replaceDigits(TICKET_ID, request, IMPORTED_BY_ID);
 
         assertThat(existingModel.isDeleted()).isTrue();
+        assertThat(serial.getTicketId()).isEqualTo(REPLACEMENT_TICKET_ID);
+        assertThat(serial.getSerialNumber()).isEqualTo(SERIAL_NUMBER);
+        assertThat(serial.getReplacedForTicketId()).isNull();
+        assertThat(serial.getTicketCondition()).isNotEqualTo(
+                com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.VOIDED);
         verify(lotteryTicketSerialRepositoryPort).save(argThat(s ->
-                s.getTicketCondition() == com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.VOIDED
-                        && s.getStatus() == LotteryTicketSerialStatus.IN_STOCK
-                        && s.getFaultedBy() == com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialFaultedBy.DATA_ENTRY_FAULT));
-        verify(lotteryTicketSerialRepositoryPort).save(argThat(s ->
-                s.getTicketId().equals(REPLACEMENT_TICKET_ID) && Long.valueOf(1L).equals(s.getReplacedForTicketId())));
-        // Old ticket is loaded once up front, then soft-deleted — never recomputed afterwards.
+                s.getTicketId().equals(REPLACEMENT_TICKET_ID)
+                        && SERIAL_NUMBER.equals(s.getSerialNumber())
+                        && s.getReplacedForTicketId() == null));
         verify(lotteryTicketRepositoryPort, times(1)).findById(TICKET_ID);
         verify(lotteryTicketRepositoryPort, atLeastOnce()).findById(REPLACEMENT_TICKET_ID);
         verify(lotteryStationServicePort, atLeastOnce()).recalculateInventory(PRODUCT_ID);

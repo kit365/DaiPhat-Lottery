@@ -23,7 +23,7 @@ export type OrderDetailStatus =
     | 'REFUNDED'
     | 'CANCELLED';
 
-export type TicketCondition = 'GOOD' | 'DAMAGED' | 'LOST' | 'VOIDED';
+export type TicketCondition = 'GOOD' | 'DAMAGED' | 'LOST' | 'VOIDED' | 'UNDER_IMPORTED';
 
 export type PrizePayoutRequestStatus = 'PENDING' | 'COMPLETED' | 'REJECTED' | 'CANCELLED';
 

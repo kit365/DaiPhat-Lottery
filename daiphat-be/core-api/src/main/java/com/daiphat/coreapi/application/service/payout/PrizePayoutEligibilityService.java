@@ -11,6 +11,7 @@ import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryResultStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.SerialPayoutState;
+import com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.order.TicketDrawResultStatus;
 import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutChannel;
@@ -470,6 +471,11 @@ public class PrizePayoutEligibilityService {
     }
 
     private void validateCommonBlocking(LotteryTicketSerialEntity serial) {
+        if (serial.getTicketCondition() != null && serial.getTicketCondition() == TicketCondition.VOIDED) {
+            throw new DomainException(
+                    ErrorCode.PRIZE_PAYOUT_NOT_ELIGIBLE,
+                    "Vé đã bị hủy do nhập sai và được thay thế — không thể trả thưởng trên sê-ri này.");
+        }
         SerialPayoutState payoutState = serial.getPayoutState() != null ? serial.getPayoutState() : SerialPayoutState.NONE;
         if (payoutState == SerialPayoutState.PAID_OUT) {
             throw new DomainException(ErrorCode.PRIZE_PAYOUT_ALREADY_REQUESTED, "Vé đã được trả thưởng.");

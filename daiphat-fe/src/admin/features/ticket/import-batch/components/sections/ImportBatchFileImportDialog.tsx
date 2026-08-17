@@ -13,6 +13,7 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined';
+import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import {
@@ -23,13 +24,13 @@ import {
     Chip,
     CircularProgress,
     Collapse,
+    Divider,
     Dialog,
     DialogActions,
     DialogContent,
     DialogTitle,
     FormControlLabel,
     IconButton,
-    Link,
     MenuItem,
     Paper,
     Stack,
@@ -66,6 +67,7 @@ import type {
     ImportBatchFileMapping,
     ImportBatchFilePreviewResult,
     ImportBatchFileRow,
+    ImportBatchFileIssue,
     ImportBatchFilePricingMismatch,
     ImportBatchFileScheduleMismatch,
 } from '../../types/importBatch.type';
@@ -84,8 +86,18 @@ import {
 import { formatImportCost } from '../../utils/importCostCalculator';
 import {
     collectAnomalies,
+    collectPreviewRowNotes,
+    formatPreviewIssueNote,
+    groupPreviewTicketRows,
+    hasDrawDateIssue,
+    isDrawDateOutsideWindow,
     isGroupSelectable,
+    listPreviewSerials,
+    previewTicketDisplayStatus,
+    type PreviewDisplayStatus,
+    readPreviewFileValues,
     type ImportBatchFileAnomaly,
+    type PreviewTicketLine,
 } from '../../utils/importBatchFileImport';
 import {
     IMPORT_BATCH_FILE_ACCEPT,
@@ -94,7 +106,11 @@ import {
     type ImportBatchTemplateIssuer,
 } from '../../utils/importBatchFileTemplate';
 import { usePublicSystemConfigValues } from '@/client/hooks/usePublicSystemConfigValues';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { useStationsByDrawDate } from '../../../../station/hooks/useStation';
+import { useImportBatchTimePolicy } from '../../hooks/useImportBatch';
+import { evaluateImportBatchIntake } from '../../hooks/useImportBatchIntakeGate';
+import { DEFAULT_RETURN_BUFFER_MINUTES } from '../../utils/importBatchDrawDate';
 import { useImportBatchIntakeGate } from '../../hooks/useImportBatchIntakeGate';
 import { AdminLuckyDisplay } from '@/shared/lucky-number';
 import type { Station } from '../../../../station/types/station.type';
@@ -152,14 +168,269 @@ const TEMPLATE_BUTTON_SX = {
 
 const formatDate = (value?: string) => (value ? dayjs(value).format('DD/MM/YYYY') : '—');
 
+type PreviewNotice = {
+    id: string;
+    severity: 'success' | 'info' | 'warning' | 'error';
+    title: string;
+    detail?: string;
+    actionLabel?: string;
+    onAction?: () => void;
+};
+
+const NOTICE_TONE: Record<PreviewNotice['severity'], { border: string; bg: string; color: string; chip: 'success' | 'info' | 'warning' | 'error' | 'default' }> = {
+    error: { border: '#fecaca', bg: '#fef2f2', color: '#b91c1c', chip: 'error' },
+    warning: { border: '#fed7aa', bg: '#fff7ed', color: '#c2410c', chip: 'warning' },
+    info: { border: '#bae6fd', bg: '#f0f9ff', color: '#0369a1', chip: 'info' },
+    success: { border: '#bbf7d0', bg: '#f0fdf4', color: '#15803d', chip: 'success' },
+};
+
+const PreviewNoticeBoard = ({
+    notices,
+    successLabel,
+}: {
+    notices: PreviewNotice[];
+    successLabel?: string;
+}) => {
+    if (notices.length === 0) {
+        if (!successLabel) {
+            return null;
+        }
+        return (
+            <Chip
+                size="small"
+                icon={<CheckCircleIcon />}
+                label={successLabel}
+                color="success"
+                variant="outlined"
+                sx={{ alignSelf: 'flex-start', height: 28, fontWeight: 700, '& .MuiChip-icon': { fontSize: 16 } }}
+            />
+        );
+    }
+
+    const errorCount = notices.filter((item) => item.severity === 'error').length;
+    const warningCount = notices.filter((item) => item.severity === 'warning').length;
+    const worst = errorCount > 0 ? 'error' : warningCount > 0 ? 'warning' : notices[0]?.severity ?? 'success';
+    const tone = NOTICE_TONE[worst];
+
+    return (
+        <Paper
+            elevation={0}
+            sx={{
+                border: `1px solid ${tone.border}`,
+                borderRadius: '14px',
+                bgcolor: '#fff',
+                overflow: 'hidden',
+            }}
+        >
+            <Stack
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                flexWrap="wrap"
+                gap={1}
+                sx={{ px: 1.75, py: 1.1, bgcolor: tone.bg, borderBottom: notices.length > 0 ? `1px solid ${tone.border}` : 'none' }}
+            >
+                <Stack direction="row" spacing={1} alignItems="center">
+                    {worst === 'error' ? (
+                        <WarningAmberIcon sx={{ color: tone.color, fontSize: 20 }} />
+                    ) : worst === 'success' || notices.length === 0 ? (
+                        <CheckCircleIcon sx={{ color: '#16a34a', fontSize: 20 }} />
+                    ) : (
+                        <InfoOutlinedIcon sx={{ color: tone.color, fontSize: 20 }} />
+                    )}
+                    <Typography variant="subtitle2" fontWeight={800} color={tone.color}>
+                        {notices.length === 0 ? 'Sẵn sàng xem trước' : `Cần xử lý (${notices.length})`}
+                    </Typography>
+                    {errorCount > 0 && <Chip size="small" color="error" label={`${errorCount} lỗi`} sx={{ height: 20, fontWeight: 700, fontSize: '0.7rem' }} />}
+                    {warningCount > 0 && <Chip size="small" color="warning" label={`${warningCount} cảnh báo`} sx={{ height: 20, fontWeight: 700, fontSize: '0.7rem' }} />}
+                </Stack>
+                {successLabel && (
+                    <Chip
+                        size="small"
+                        icon={<CheckCircleIcon />}
+                        label={successLabel}
+                        color="success"
+                        variant="outlined"
+                        sx={{ height: 24, fontWeight: 700, '& .MuiChip-icon': { fontSize: 16 } }}
+                    />
+                )}
+            </Stack>
+
+            {notices.length > 0 && (
+                <Stack divider={<Divider />}>
+                    {notices.map((notice) => {
+                        const itemTone = NOTICE_TONE[notice.severity];
+                        return (
+                            <Stack
+                                key={notice.id}
+                                direction={{ xs: 'column', sm: 'row' }}
+                                alignItems={{ sm: 'center' }}
+                                justifyContent="space-between"
+                                gap={1}
+                                sx={{ px: 1.75, py: 1.1 }}
+                            >
+                                <Box sx={{ minWidth: 0, flex: 1 }}>
+                                    <Stack direction="row" spacing={1} alignItems="flex-start">
+                                        <Chip
+                                            size="small"
+                                            color={itemTone.chip}
+                                            label={notice.severity === 'error' ? 'Lỗi' : notice.severity === 'warning' ? 'Cảnh báo' : 'Thông tin'}
+                                            sx={{ height: 20, fontWeight: 800, fontSize: '0.65rem', mt: 0.15 }}
+                                        />
+                                        <Box sx={{ minWidth: 0 }}>
+                                            <Typography variant="body2" fontWeight={800} color="#0f172a" sx={{ lineHeight: 1.3 }}>
+                                                {notice.title}
+                                            </Typography>
+                                            {notice.detail && (
+                                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.35 }}>
+                                                    {notice.detail}
+                                                </Typography>
+                                            )}
+                                        </Box>
+                                    </Stack>
+                                </Box>
+                                {notice.actionLabel && notice.onAction && (
+                                    <Button
+                                        size="small"
+                                        variant="contained"
+                                        color={notice.severity === 'error' ? 'error' : 'warning'}
+                                        onClick={notice.onAction}
+                                        sx={{ textTransform: 'none', fontWeight: 700, flexShrink: 0, borderRadius: '8px' }}
+                                    >
+                                        {notice.actionLabel}
+                                    </Button>
+                                )}
+                            </Stack>
+                        );
+                    })}
+                </Stack>
+            )}
+        </Paper>
+    );
+};
+
+const GROUP_ISSUE_TITLE: Record<string, string> = {
+    DRAW_DATE_OUT_OF_WINDOW: 'Ngoài phạm vi nhập hôm nay',
+    DRAFT_ALREADY_EXISTS: 'Đã có phiếu nhập cho ngày này',
+    SUPPLIER_IMPORT_NOT_ALLOWED: 'Chưa đến giờ nhập vé',
+    SUPPLIER_RETURN_CUT_OFF_PASSED: 'Đã quá giờ nhận vé',
+    NO_VALID_ROW: 'Không có dòng hợp lệ để tạo phiếu',
+    STATION_PRICING_MISMATCH: 'Giá lệch so với hệ thống',
+    STATION_SCHEDULE_MISMATCH: 'Lịch quay không khớp',
+    PARTIAL_IMPORT_DISABLED: 'Không cho phép nhập một phần',
+    SUPPLIER_IDENTITY_MISMATCH: 'Tệp không khớp nhà cung cấp đã chọn',
+    SUPPLIER_IDENTITY_NOT_DECLARED: 'Tệp không ghi thông tin nhà cung cấp',
+};
+
+const FILE_LEVEL_GROUP_ISSUE_CODES = new Set([
+    'SUPPLIER_IDENTITY_MISMATCH',
+    'SUPPLIER_IDENTITY_NOT_DECLARED',
+]);
+
+const GroupIssuesList = ({
+    issues,
+    onOpenPricing,
+    onOpenSchedule,
+}: {
+    issues: ImportBatchFileIssue[];
+    onOpenPricing?: () => void;
+    onOpenSchedule?: () => void;
+}) => {
+    const visible = issues.filter(
+        (issue) => !FILE_LEVEL_GROUP_ISSUE_CODES.has(issue.code) && issue.code !== 'DRAFT_ALREADY_EXISTS'
+    );
+    if (visible.length === 0) {
+        return null;
+    }
+
+    const worst = visible.some((issue) => issue.severity === 'ERROR')
+        ? 'error'
+        : visible.some((issue) => issue.severity === 'WARNING')
+          ? 'warning'
+          : 'info';
+    const tone = NOTICE_TONE[worst];
+
+    return (
+        <Paper
+            elevation={0}
+            sx={{
+                mt: 1.5,
+                border: `1px solid ${tone.border}`,
+                borderRadius: '12px',
+                overflow: 'hidden',
+                bgcolor: '#fff',
+            }}
+        >
+            <Stack divider={<Divider />}>
+                {visible.map((issue, index) => {
+                    const itemTone = NOTICE_TONE[
+                        issue.severity === 'ERROR' ? 'error' : issue.severity === 'WARNING' ? 'warning' : 'info'
+                    ];
+                    const action =
+                        issue.code === 'STATION_PRICING_MISMATCH'
+                            ? { label: 'Đối chiếu giá', onClick: onOpenPricing }
+                            : issue.code === 'STATION_SCHEDULE_MISMATCH'
+                              ? { label: 'Sửa lịch quay', onClick: onOpenSchedule }
+                              : undefined;
+                    return (
+                        <Stack
+                            key={`${issue.code}-${index}`}
+                            direction="row"
+                            alignItems="flex-start"
+                            justifyContent="space-between"
+                            gap={1}
+                            sx={{ px: 1.5, py: 1, bgcolor: index === 0 ? itemTone.bg : '#fff' }}
+                        >
+                            <Box sx={{ minWidth: 0 }}>
+                                <Typography variant="body2" fontWeight={800} color={itemTone.color} sx={{ lineHeight: 1.3 }}>
+                                    {GROUP_ISSUE_TITLE[issue.code] ?? issue.message}
+                                </Typography>
+                                {GROUP_ISSUE_TITLE[issue.code] && (
+                                    <Typography
+                                        variant="caption"
+                                        color="text.secondary"
+                                        sx={{
+                                            display: '-webkit-box',
+                                            WebkitLineClamp: 2,
+                                            WebkitBoxOrient: 'vertical',
+                                            overflow: 'hidden',
+                                            lineHeight: 1.35,
+                                        }}
+                                    >
+                                        {issue.message}
+                                    </Typography>
+                                )}
+                            </Box>
+                            {action?.onClick && (
+                                <Button
+                                    size="small"
+                                    variant="text"
+                                    color={issue.severity === 'ERROR' ? 'error' : 'warning'}
+                                    onClick={action.onClick}
+                                    sx={{ textTransform: 'none', fontWeight: 800, flexShrink: 0, minWidth: 0, px: 0.5 }}
+                                >
+                                    {action.label}
+                                </Button>
+                            )}
+                        </Stack>
+                    );
+                })}
+            </Stack>
+        </Paper>
+    );
+};
+
 const ROW_STATUS_CHIP: Record<
-    ImportBatchFileRow['status'],
+    PreviewDisplayStatus,
     { label: string; color: 'success' | 'warning' | 'error' | 'default' }
 > = {
     OK: { label: 'Hợp lệ', color: 'success' },
     WARNING: { label: 'Cần xem lại', color: 'warning' },
     ERROR: { label: 'Lỗi', color: 'error' },
     SKIPPED: { label: 'Bỏ qua', color: 'default' },
+    // The row itself is sound; the whole draw date is barred. "Lỗi" would send
+    // the operator looking for a mistake in a row that has none.
+    BLOCKED: { label: 'Không hợp lệ', color: 'error' },
 };
 
 const CustomStepConnector = styled(StepConnector)(() => ({
@@ -197,6 +468,10 @@ export const ImportBatchFileImportDialog = ({
     const { data: yesterdayStations } = useStationsByDrawDate(
         dayjs().subtract(1, 'day').format('YYYY-MM-DD')
     );
+    const { data: tomorrowStations } = useStationsByDrawDate(
+        dayjs().add(1, 'day').format('YYYY-MM-DD')
+    );
+    const { data: intakeTimePolicy } = useImportBatchTimePolicy();
 
     const [step, setStep] = useState(0);
     const [busy, setBusy] = useState(false);
@@ -233,6 +508,44 @@ export const ImportBatchFileImportDialog = ({
             });
         });
         return [...byStation.values()];
+    }, [preview]);
+
+    /**
+     * How the file's draw dates line up with the only date import accepts.
+     *
+     * <p>A supplier file legitimately covers a whole week, so a date other than
+     * today is normally a benign skip. But that same shape appears when the date
+     * column is simply wrong, and then the operator sees a preview reporting zero
+     * errors while importing nothing. Telling the two apart is the point: nothing
+     * importable at all is a problem with this upload, not a fact about the file.
+     */
+    const drawDateProblem = useMemo(() => {
+        const groups = preview?.groups ?? [];
+        if (groups.length === 0) {
+            return null;
+        }
+        const outOfWindow = groups.filter((group) => group.status === 'OUT_OF_WINDOW');
+        const unreadable = groups.filter((group) => !group.drawDate);
+        if (outOfWindow.length === 0 && unreadable.length === 0) {
+            return null;
+        }
+
+        const countRows = (list: ImportBatchFileGroup[]) =>
+            list.reduce((sum, group) => sum + (group.rows?.length ?? 0), 0);
+
+        return {
+            // Nothing to import means this upload cannot go anywhere, whatever the
+            // reason; that deserves an error rather than a quiet skip count.
+            blocking: !groups.some(isGroupSelectable),
+            outOfWindowRows: countRows(outOfWindow),
+            unreadableRows: countRows(unreadable),
+            dates: outOfWindow
+                .map((group) => formatDate(group.drawDate))
+                .filter(Boolean)
+                .join(', '),
+            today: formatDate(preview?.windowFrom),
+            until: formatDate(preview?.windowTo),
+        };
     }, [preview]);
 
     /**
@@ -280,6 +593,28 @@ export const ImportBatchFileImportDialog = ({
     );
 
     const issuerConfig = usePublicSystemConfigValues(ISSUER_CONFIG_KEYS, ISSUER_CONFIG_DEFAULTS);
+    /**
+     * Who is running this reconciliation. Falls back through the names a session
+     * can carry, so the line is only left blank when nothing identifies the user.
+     */
+    const currentUser = useAuthStore((state) => state.user);
+    const operatorName = useMemo(() => {
+        if (!currentUser) {
+            return undefined;
+        }
+        const composed = [currentUser.firstName, currentUser.lastName]
+            .filter(Boolean)
+            .join(' ')
+            .trim();
+        return (
+            currentUser.fullName?.trim() ||
+            composed ||
+            currentUser.username?.trim() ||
+            currentUser.email?.trim() ||
+            undefined
+        );
+    }, [currentUser]);
+
     const templateIssuer: ImportBatchTemplateIssuer = useMemo(
         () => ({
             legalName: issuerConfig.SITE_LEGAL_NAME,
@@ -306,6 +641,27 @@ export const ImportBatchFileImportDialog = ({
         [selectedSupplier]
     );
 
+    /**
+     * Which draw date the template should be prepared for.
+     *
+     * <p>Once this supplier's intake has closed for today — at
+     * returnCutOffTime − returnBufferTime, when staff start checking tickets for
+     * return — no more tickets can be taken for today. The operator is by then
+     * preparing tomorrow's delivery, so the template follows them: tomorrow's
+     * date, and with it tomorrow's stations, which are a different set on a
+     * different weekday.
+     */
+    const templateIntake = useMemo(
+        () =>
+            evaluateImportBatchIntake(
+                selectedSupplier,
+                dayjs().format('YYYY-MM-DD'),
+                intakeTimePolicy?.returnBufferMinutes ?? DEFAULT_RETURN_BUFFER_MINUTES
+            ),
+        [selectedSupplier, intakeTimePolicy?.returnBufferMinutes]
+    );
+    const templateTargetsTomorrow = templateIntake.blocked;
+
     const toTemplateStations = (stations?: Station[]) =>
         (stations ?? []).map((station) => ({
             name: station.name,
@@ -322,7 +678,11 @@ export const ImportBatchFileImportDialog = ({
      */
     const stationPricing = useMemo(() => {
         const byId: Record<number, ImportBatchProgressStationPricing> = {};
-        [...(todayStations ?? []), ...(yesterdayStations ?? [])].forEach((station) => {
+        [
+            ...(todayStations ?? []),
+            ...(yesterdayStations ?? []),
+            ...(tomorrowStations ?? []),
+        ].forEach((station) => {
             byId[Number(station.id)] = {
                 drawSchedule: station.drawSchedule,
                 salePrice: station.price,
@@ -331,8 +691,21 @@ export const ImportBatchFileImportDialog = ({
             };
         });
         return byId;
-    }, [todayStations, yesterdayStations]);
+    }, [todayStations, yesterdayStations, tomorrowStations]);
 
+    /**
+     * The day the "Mẫu nhập vé chi tiết" button issues. Named for its role rather
+     * than for "today", because after the cut-off it is tomorrow.
+     */
+    const primaryTemplateDay: ImportBatchTemplateDay = templateTargetsTomorrow
+        ? {
+              drawDate: dayjs().add(1, 'day').format('DD/MM/YYYY'),
+              stations: toTemplateStations(tomorrowStations),
+          }
+        : {
+              drawDate: dayjs().format('DD/MM/YYYY'),
+              stations: toTemplateStations(todayStations),
+          };
     const todayTemplateDay: ImportBatchTemplateDay = {
         drawDate: dayjs().format('DD/MM/YYYY'),
         stations: toTemplateStations(todayStations),
@@ -347,6 +720,82 @@ export const ImportBatchFileImportDialog = ({
      * verdict. Read it from the preview root and show it once.
      */
     const supplierIdentity = preview?.supplierIdentity;
+    const supplierIdentityMismatched = !!supplierIdentity?.mismatched;
+    const supplierIdentityMatched =
+        !!supplierIdentity?.declared
+        && !supplierIdentity.mismatched
+        && (supplierIdentity.fields ?? []).every((field) => field.matched);
+    const supplierMatchedLabel = supplierIdentityMatched && selectedSupplier
+        ? `NCC khớp: ${selectedSupplier.name}`
+        : undefined;
+
+    const previewNotices = useMemo((): PreviewNotice[] => {
+        const notices: PreviewNotice[] = [];
+        const softMismatches = supplierIdentity?.declared && !supplierIdentity.mismatched
+            ? supplierIdentity.fields.filter((field) => !field.matched)
+            : [];
+
+        if (supplierIdentity && !supplierIdentity.declared && selectedSupplier) {
+            notices.push({
+                id: 'supplier-undeclared',
+                severity: 'info',
+                title: 'Tệp không ghi thông tin nhà cung cấp',
+                detail: `Hệ thống không đối chiếu được. Vui lòng tự kiểm tra tệp này đúng là của ${selectedSupplier.name}.`,
+            });
+        } else if (softMismatches.length > 0 && selectedSupplier) {
+            notices.push({
+                id: 'supplier-soft',
+                severity: 'warning',
+                title: `Thông tin nhà cung cấp khớp với ${selectedSupplier.name}`,
+                detail: `${softMismatches.map((field) => field.label.toLowerCase()).join(', ')} khác với hệ thống nhưng không chặn việc nhập.`,
+                actionLabel: 'Sửa thông tin NCC',
+                onAction: () => setSupplierEditOpen(true),
+            });
+        }
+
+        if (drawDateProblem) {
+            notices.push({
+                id: 'draw-date',
+                severity: drawDateProblem.blocking ? 'error' : 'warning',
+                title: drawDateProblem.blocking
+                    ? `Tệp không có dòng nào trong phạm vi tạo phiếu (${drawDateProblem.today} – ${drawDateProblem.until})`
+                    : `${drawDateProblem.outOfWindowRows + drawDateProblem.unreadableRows} dòng nằm ngoài phạm vi tạo phiếu`,
+                detail: [
+                    drawDateProblem.outOfWindowRows > 0
+                        ? `${drawDateProblem.outOfWindowRows} dòng thuộc ngày ${drawDateProblem.dates}.`
+                        : '',
+                    drawDateProblem.unreadableRows > 0
+                        ? `${drawDateProblem.unreadableRows} dòng không đọc được ngày quay.`
+                        : '',
+                    `Chỉ tạo được phiếu cho hôm nay (${drawDateProblem.today}) hoặc ngày mai (${drawDateProblem.until}).`,
+                ].filter(Boolean).join(' '),
+            });
+        }
+
+        if (scheduleMismatches.length > 0) {
+            notices.push({
+                id: 'schedule',
+                severity: 'error',
+                title: `${scheduleMismatches.length} nhà đài không có lịch quay vào ngày ghi trong tệp`,
+                detail: 'Vé của các đài này bị bỏ qua. Nếu đài thực sự có quay, hãy bổ sung thứ còn thiếu rồi xem trước lại.',
+                actionLabel: 'Sửa lịch quay',
+                onAction: () => setScheduleOpen(true),
+            });
+        }
+
+        if (pricingMismatches.length > 0) {
+            notices.push({
+                id: 'pricing',
+                severity: 'error',
+                title: `${pricingMismatches.length} nhà đài có giá lệch giữa tệp và hệ thống`,
+                detail: 'Phiếu nhập được tính tiền theo cấu hình đài, nên phải thống nhất giá trước khi tạo phiếu.',
+                actionLabel: 'Đối chiếu giá',
+                onAction: () => setPricingOpen(true),
+            });
+        }
+
+        return notices;
+    }, [drawDateProblem, pricingMismatches, scheduleMismatches, selectedSupplier, supplierIdentity]);
 
     const headerOptions = inspectResult?.detectedHeaders ?? [];
     const importsTickets = mappingImportsTickets(mapping);
@@ -904,7 +1353,11 @@ export const ImportBatchFileImportDialog = ({
                                     Tệp mẫu chuẩn:
                                 </Typography>
                                 <Tooltip
-                                    title={`Vé của ${todayTemplateDay.stations.length} đài quay hôm nay (${todayTemplateDay.drawDate})`}
+                                    title={
+                                        templateTargetsTomorrow
+                                            ? `Đã quá giờ nhận vé cho hôm nay, nên mẫu được lập cho ngày quay ${primaryTemplateDay.drawDate} với ${primaryTemplateDay.stations.length} đài quay hôm đó. Tải lên được ngay bây giờ — lô ngày mai chỉ đóng khi tới giờ chốt của chính ngày đó.`
+                                            : `Vé của ${primaryTemplateDay.stations.length} đài quay hôm nay (${primaryTemplateDay.drawDate})`
+                                    }
                                 >
                                     <span>
                                         <Button
@@ -914,14 +1367,16 @@ export const ImportBatchFileImportDialog = ({
                                             disabled={!supplierId}
                                             onClick={() =>
                                                 void downloadImportBatchFileTemplate(
-                                                    [todayTemplateDay],
+                                                    [primaryTemplateDay],
                                                     templateSupplier || undefined,
                                                     templateIssuer
                                                 )
                                             }
                                             sx={TEMPLATE_BUTTON_SX}
                                         >
-                                            Mẫu nhập vé chi tiết
+                                            {templateTargetsTomorrow
+                                                ? `Mẫu nhập vé — ngày mai (${primaryTemplateDay.drawDate})`
+                                                : 'Mẫu nhập vé chi tiết'}
                                         </Button>
                                     </span>
                                 </Tooltip>
@@ -1102,7 +1557,7 @@ export const ImportBatchFileImportDialog = ({
                 {/* ── STEP 2: Xem trước & Tạo phiếu ── */}
                 {step === 2 && preview && (
                     <Stack spacing={3}>
-                        {supplierIdentity && selectedSupplier && (
+                        {supplierIdentityMismatched && supplierIdentity && selectedSupplier && (
                             <ImportBatchFileSupplierIdentityPanel
                                 identity={supplierIdentity}
                                 supplierName={selectedSupplier.name}
@@ -1110,60 +1565,10 @@ export const ImportBatchFileImportDialog = ({
                             />
                         )}
 
-                        {scheduleMismatches.length > 0 && (
-                            <Alert
-                                severity="error"
-                                sx={{ borderRadius: '12px' }}
-                                action={
-                                    <Button
-                                        size="small"
-                                        variant="contained"
-                                        color="error"
-                                        onClick={() => setScheduleOpen(true)}
-                                        sx={{ textTransform: 'none', fontWeight: 700 }}
-                                    >
-                                        Sửa lịch quay
-                                    </Button>
-                                }
-                            >
-                                <Typography variant="body2" fontWeight={700}>
-                                    {scheduleMismatches.length} nhà đài không có lịch quay vào ngày
-                                    quay ghi trong tệp
-                                </Typography>
-                                <Typography variant="caption">
-                                    Các đài này có trong hệ thống nhưng lịch quay hằng tuần không bao
-                                    gồm thứ của ngày quay, nên vé của họ bị bỏ qua. Nếu đài thực sự có
-                                    quay, hãy bổ sung thứ còn thiếu rồi xem trước lại.
-                                </Typography>
-                            </Alert>
-                        )}
-
-                        {pricingMismatches.length > 0 && (
-                            <Alert
-                                severity="error"
-                                sx={{ borderRadius: '12px' }}
-                                action={
-                                    <Button
-                                        size="small"
-                                        variant="contained"
-                                        color="error"
-                                        onClick={() => setPricingOpen(true)}
-                                        sx={{ textTransform: 'none', fontWeight: 700 }}
-                                    >
-                                        Đối chiếu giá
-                                    </Button>
-                                }
-                            >
-                                <Typography variant="body2" fontWeight={700}>
-                                    {pricingMismatches.length} nhà đài có giá lệch giữa tệp và hệ thống
-                                </Typography>
-                                <Typography variant="caption">
-                                    Phiếu nhập được tính tiền theo cấu hình đài, nên phải thống nhất giá
-                                    trước khi tạo phiếu. Chi tiết từng đài xem ở cảnh báo của mỗi ngày quay
-                                    bên dưới.
-                                </Typography>
-                            </Alert>
-                        )}
+                        <PreviewNoticeBoard
+                            notices={previewNotices}
+                            successLabel={supplierMatchedLabel}
+                        />
 
                         {/* KPI Summary Cards */}
                         <Box
@@ -1273,11 +1678,17 @@ export const ImportBatchFileImportDialog = ({
                                 size="small"
                                 startIcon={<FactCheckOutlinedIcon />}
                                 onClick={() =>
-                                    downloadImportBatchProgressCsv(preview, mapping, file?.name, {
-                                        issuerName: templateIssuer.legalName,
-                                        supplierName: selectedSupplier?.name,
-                                        supplierCode: selectedSupplier?.code,
-                                        supplierTaxCode: selectedSupplier?.taxCode,
+                                    void downloadImportBatchProgressCsv(preview, mapping, file?.name, {
+                                        // The same two parties the uploaded delivery
+                                        // note names, so the reconciliation copy can
+                                        // be filed beside it.
+                                        issuer: templateIssuer,
+                                        // The person who ran the preview is the one
+                                        // vouching for what this document says, so the
+                                        // signature line names them rather than
+                                        // leaving a blank to be filled in by hand.
+                                        operatorName,
+                                        supplier: templateSupplier || undefined,
                                         stationPricing,
                                     })
                                 }
@@ -1290,7 +1701,7 @@ export const ImportBatchFileImportDialog = ({
                                     '&:hover': { borderColor: '#94a3b8', bgcolor: '#f8fafc' },
                                 }}
                             >
-                                Xuất bảng đối chiếu CSV
+                                Xuất bảng đối chiếu
                             </Button>
                         </Paper>
 
@@ -1299,6 +1710,7 @@ export const ImportBatchFileImportDialog = ({
                             anomalies={collectAnomalies(preview.groups)}
                             mapping={mapping}
                             busy={busy}
+                            hideEmptySuccess={previewNotices.length > 0 || !!supplierMatchedLabel}
                             onChooseStation={handleChooseStation}
                         />
 
@@ -1315,12 +1727,16 @@ export const ImportBatchFileImportDialog = ({
                                     forceCreate={!!group.drawDate && forceCreateDates.includes(group.drawDate)}
                                     busy={busy}
                                     importsTickets={preview.importsTickets}
-                                    stationColumn={mapping?.stationColumn ?? ''}
+                                    mapping={mapping}
+                                    windowFrom={preview.windowFrom}
+                                    windowTo={preview.windowTo}
                                     onToggle={() => group.drawDate && toggleDate(group.drawDate)}
                                     onToggleForceCreate={() =>
                                         group.drawDate && toggleForceCreate(group.drawDate)
                                     }
                                     onChooseStation={handleChooseStation}
+                                    onOpenPricing={() => setPricingOpen(true)}
+                                    onOpenSchedule={() => setScheduleOpen(true)}
                                 />
                             ))}
                         </Stack>
@@ -1584,27 +2000,32 @@ type AnomalyTableProps = {
     anomalies: ImportBatchFileAnomaly[];
     mapping: ImportBatchFileMapping | null;
     busy: boolean;
+    hideEmptySuccess?: boolean;
     onChooseStation: (row: ImportBatchFileRow, lotteryStationId: number) => void;
 };
 
-const AnomalyTable = ({ anomalies, mapping, busy, onChooseStation }: AnomalyTableProps) => {
+const AnomalyTable = ({ anomalies, mapping, busy, hideEmptySuccess, onChooseStation }: AnomalyTableProps) => {
     if (anomalies.length === 0) {
+        if (hideEmptySuccess) {
+            return null;
+        }
         return (
             <Paper
                 elevation={0}
                 sx={{
-                    p: 2,
+                    px: 1.75,
+                    py: 1.1,
                     borderRadius: '14px',
                     border: '1px solid #bbf7d0',
                     bgcolor: '#f0fdf4',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 1.5,
+                    gap: 1,
                 }}
             >
-                <CheckCircleIcon sx={{ color: '#16a34a' }} />
+                <CheckCircleIcon sx={{ color: '#16a34a', fontSize: 20 }} />
                 <Typography variant="body2" fontWeight={700} color="#15803d">
-                    Dữ liệu hoàn hảo! Tất cả nhà đài, ngày quay và số lượng vé đều hợp lệ và khớp chuẩn với hệ thống.
+                    Tất cả nhà đài, ngày quay và số lượng vé đều hợp lệ.
                 </Typography>
             </Paper>
         );
@@ -1676,14 +2097,19 @@ const AnomalyTable = ({ anomalies, mapping, busy, onChooseStation }: AnomalyTabl
                                             {row.issues
                                                 .filter((issue) => issue.severity !== 'SKIPPED')
                                                 .map((issue, index) => (
-                                                    <Typography
+                                                    <Tooltip
                                                         key={`${issue.code}-${index}`}
-                                                        variant="caption"
-                                                        fontWeight={600}
-                                                        color={issue.severity === 'ERROR' ? 'error.main' : 'warning.main'}
+                                                        title={issue.message}
                                                     >
-                                                        • {issue.message}
-                                                    </Typography>
+                                                        <Typography
+                                                            variant="caption"
+                                                            fontWeight={600}
+                                                            color={issue.severity === 'ERROR' ? 'error.main' : 'warning.main'}
+                                                            sx={{ display: 'block' }}
+                                                        >
+                                                            • {formatPreviewIssueNote(issue)}
+                                                        </Typography>
+                                                    </Tooltip>
                                                 ))}
                                         </Stack>
                                     </TableCell>
@@ -1731,10 +2157,14 @@ type PreviewGroupProps = {
     forceCreate: boolean;
     busy: boolean;
     importsTickets: boolean;
-    stationColumn: string;
+    mapping: ImportBatchFileMapping | null;
+    windowFrom?: string | null;
+    windowTo?: string | null;
     onToggle: () => void;
     onToggleForceCreate: () => void;
     onChooseStation: (row: ImportBatchFileRow, lotteryStationId: number) => void;
+    onOpenPricing: () => void;
+    onOpenSchedule: () => void;
 };
 
 const PreviewGroup = ({
@@ -1743,13 +2173,27 @@ const PreviewGroup = ({
     forceCreate,
     busy,
     importsTickets,
-    stationColumn,
+    mapping,
+    windowFrom,
+    windowTo,
     onToggle,
     onToggleForceCreate,
     onChooseStation,
+    onOpenPricing,
+    onOpenSchedule,
 }: PreviewGroupProps) => {
-    const [openRows, setOpenRows] = useState(false);
+    const offWindow = group.status === 'OUT_OF_WINDOW' || !group.drawDate;
+    const [openRows, setOpenRows] = useState(offWindow);
     const selectable = isGroupSelectable(group);
+    const ticketLines = useMemo(
+        () => groupPreviewTicketRows(group.rows ?? [], mapping),
+        [group.rows, mapping]
+    );
+    const showFilePricing = ticketLines.some((line) => {
+        const values = readPreviewFileValues(line.row, mapping);
+        return Boolean(values.salePrice || values.commission);
+    });
+    const stationColumn = mapping?.stationColumn ?? '';
 
     return (
         <Paper
@@ -1812,26 +2256,16 @@ const PreviewGroup = ({
                         endIcon={openRows ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
                         sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px' }}
                     >
-                        {openRows ? 'Thu gọn' : 'Chi tiết dòng'}
+                        {openRows ? 'Thu gọn' : `Danh sách vé (${ticketLines.length})`}
                     </Button>
                 </Stack>
             </Stack>
 
-            {group.groupIssues.map((issue, index) => (
-                <Alert
-                    key={`${issue.code}-${index}`}
-                    severity={
-                        issue.severity === 'ERROR'
-                            ? 'error'
-                            : issue.severity === 'WARNING'
-                              ? 'warning'
-                              : 'info'
-                    }
-                    sx={{ mt: 1.5, borderRadius: '10px' }}
-                >
-                    {issue.message}
-                </Alert>
-            ))}
+            <GroupIssuesList
+                issues={group.groupIssues}
+                onOpenPricing={onOpenPricing}
+                onOpenSchedule={onOpenSchedule}
+            />
 
             {group.existingEditableBatchId && (
                 <FormControlLabel
@@ -1894,30 +2328,55 @@ const PreviewGroup = ({
 
             {/* Expandable Rows Table */}
             <Collapse in={openRows} timeout="auto" unmountOnExit>
-                {group.status !== 'OUT_OF_WINDOW' && (
-                    <Box sx={{ overflowX: 'auto', mt: 2, border: '1px solid #f1f5f9', borderRadius: '12px' }}>
-                        <Table size="small">
-                            <TableHead sx={{ bgcolor: '#f8fafc' }}>
+                {ticketLines.length > 0 && (
+                    <Box sx={{ overflowX: 'auto', mt: 2, border: '1px solid #e2e8f0', borderRadius: '12px' }}>
+                        <Table
+                            size="small"
+                            sx={{
+                                '& .MuiTableCell-root': {
+                                    py: 0.85,
+                                    px: 1.25,
+                                    fontSize: '0.8125rem',
+                                    borderColor: '#f1f5f9',
+                                },
+                                '& .MuiTableHead-root .MuiTableCell-root': {
+                                    py: 0.7,
+                                    fontSize: '0.68rem',
+                                    fontWeight: 800,
+                                    letterSpacing: '0.04em',
+                                    textTransform: 'uppercase',
+                                    color: '#64748b',
+                                    bgcolor: '#f8fafc',
+                                },
+                            }}
+                        >
+                            <TableHead>
                                 <TableRow>
-                                    {importsTickets && <TableCell sx={{ width: 44 }} />}
-                                    <TableCell sx={{ fontWeight: 800 }}>Dòng</TableCell>
-                                    <TableCell sx={{ fontWeight: 800 }}>Tên đài tệp</TableCell>
-                                    <TableCell sx={{ fontWeight: 800 }}>Khớp hệ thống</TableCell>
-                                    {importsTickets && <TableCell sx={{ fontWeight: 800 }}>Dãy số</TableCell>}
-                                    <TableCell align="right" sx={{ fontWeight: 800 }}>Khai báo</TableCell>
-                                    {importsTickets && <TableCell align="right" sx={{ fontWeight: 800 }}>Sê-ri</TableCell>}
-                                    <TableCell sx={{ fontWeight: 800 }}>Trạng thái</TableCell>
-                                    <TableCell sx={{ fontWeight: 800 }}>Ghi chú</TableCell>
+                                    <TableCell sx={{ width: 56 }}>STT</TableCell>
+                                    <TableCell>Đài</TableCell>
+                                    <TableCell>Ngày quay</TableCell>
+                                    {importsTickets && <TableCell>Dãy số</TableCell>}
+                                    <TableCell align="right">Giá nhập</TableCell>
+                                    {showFilePricing && <TableCell align="right">Giá bán</TableCell>}
+                                    {showFilePricing && <TableCell align="right">HH</TableCell>}
+                                    <TableCell>Trạng thái</TableCell>
+                                    <TableCell sx={{ minWidth: 180 }}>Ghi chú</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {group.rows.map((row) => (
+                                {ticketLines.map((line, index) => (
                                     <PreviewRow
-                                        key={row.rowNumber}
-                                        row={row}
+                                        key={line.row.rowNumber}
+                                        index={index}
+                                        line={line}
                                         busy={busy}
                                         importsTickets={importsTickets}
+                                        showFilePricing={showFilePricing}
+                                        mapping={mapping}
                                         stationColumn={stationColumn}
+                                        windowFrom={windowFrom}
+                                        windowTo={windowTo}
+                                        group={group}
                                         onChooseStation={onChooseStation}
                                     />
                                 ))}
@@ -1931,148 +2390,346 @@ const PreviewGroup = ({
 };
 
 type PreviewRowProps = {
-    row: ImportBatchFileRow;
+    index: number;
+    line: PreviewTicketLine;
     busy: boolean;
     importsTickets: boolean;
+    showFilePricing: boolean;
+    mapping: ImportBatchFileMapping | null;
     stationColumn: string;
+    windowFrom?: string | null;
+    windowTo?: string | null;
+    /** Needed because a blocked draw date overrides every row's own status. */
+    group: ImportBatchFileGroup;
     onChooseStation: (row: ImportBatchFileRow, lotteryStationId: number) => void;
 };
 
+const formatCommissionDisplay = (value: string) => {
+    if (!value) {
+        return '—';
+    }
+    return value.includes('%') ? value : `${value}%`;
+};
+
 const PreviewRow = ({
-    row,
+    index,
+    line,
     busy,
     importsTickets,
+    showFilePricing,
+    mapping,
     stationColumn,
+    windowFrom,
+    windowTo,
+    group,
     onChooseStation,
 }: PreviewRowProps) => {
     const [expanded, setExpanded] = useState(false);
-    const chip = ROW_STATUS_CHIP[row.status];
+    const row = line.row;
+    const displayStatus = previewTicketDisplayStatus(line, group);
+    const chip = ROW_STATUS_CHIP[displayStatus];
     const suggestions = row.issues.flatMap((issue) => issue.suggestions ?? []);
-    const rawStation = row.rawValues[stationColumn] ?? '';
-    const serials = row.serialNumbers ?? [];
-    const columnCount = importsTickets ? 9 : 6;
+    const rawStation = (row.rawValues[stationColumn] ?? '').trim();
+    const serialEntries = listPreviewSerials(line);
+    const errorSerialCount = serialEntries.filter((item) => item.status === 'ERROR').length;
+    const matchedStation = (row.stationName ?? '').trim();
+    const stationMatchesFile =
+        !rawStation || !matchedStation || rawStation.toLowerCase() === matchedStation.toLowerCase();
+    const fileValues = readPreviewFileValues(row, mapping);
+    const notes = collectPreviewRowNotes(line, group);
+    const dateIssue = hasDrawDateIssue(row) || line.attachedRows.some(hasDrawDateIssue);
+    const offWindow = isDrawDateOutsideWindow(row.drawDate, windowFrom, windowTo);
+    const dateInvalid = !row.drawDate || row.issues.some((issue) => issue.code === 'DRAW_DATE_INVALID');
+    const columnCount = 6 + (importsTickets ? 1 : 0) + (showFilePricing ? 2 : 0);
+    const canExpand = importsTickets && serialEntries.length > 0;
+    const formattedImportCost = formatImportCost(row.importCost);
+    const showFileImportCost =
+        Boolean(fileValues.importCost)
+        && fileValues.importCost.replace(/\s/g, '') !== formattedImportCost.replace(/\s/g, '');
 
     return (
         <>
-            <TableRow hover sx={{ '& > *': { borderBottom: expanded ? 'unset' : undefined } }}>
-                {importsTickets && (
-                    <TableCell sx={{ width: 44 }}>
-                        {serials.length > 0 && (
-                            <IconButton
-                                size="small"
-                                aria-label={expanded ? 'Thu gọn sê-ri' : 'Xem sê-ri'}
-                                onClick={() => setExpanded((current) => !current)}
-                                sx={{ color: '#64748b' }}
-                            >
-                                {expanded ? (
-                                    <KeyboardArrowUpIcon fontSize="small" />
-                                ) : (
-                                    <KeyboardArrowDownIcon fontSize="small" />
-                                )}
-                            </IconButton>
-                        )}
-                    </TableCell>
-                )}
-                <TableCell sx={{ fontWeight: 700 }}>#{row.rowNumber}</TableCell>
-                <TableCell>{rawStation || '—'}</TableCell>
-                <TableCell>
-                    {row.stationName ??
-                        (suggestions.length > 0 ? (
-                            <TextField
-                                select
-                                size="small"
-                                label="Chọn đài"
-                                value=""
-                                disabled={busy}
-                                onChange={(event) =>
-                                    onChooseStation(row, Number(event.target.value))
-                                }
-                                sx={{ minWidth: 160, '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
-                            >
-                                {suggestions.map((suggestion) => (
-                                    <MenuItem
-                                        key={suggestion.lotteryStationId}
-                                        value={suggestion.lotteryStationId}
-                                    >
-                                        {suggestion.name}
-                                    </MenuItem>
-                                ))}
-                            </TextField>
-                        ) : (
-                            '—'
-                        ))}
+            <TableRow
+                hover
+                sx={{ '& > *': { borderBottom: expanded ? 'unset' : undefined } }}
+            >
+                <TableCell sx={{ fontWeight: 700, color: '#64748b', whiteSpace: 'nowrap' }}>
+                    {index + 1}
+                </TableCell>
+                <TableCell sx={{ minWidth: 140 }}>
+                    {matchedStation ? (
+                        <Stack spacing={0.15}>
+                            <Typography variant="body2" fontWeight={700} color="#0f172a" sx={{ lineHeight: 1.25 }}>
+                                {matchedStation}
+                            </Typography>
+                            {(fileValues.stationCode || !stationMatchesFile) && (
+                                <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
+                                    {[fileValues.stationCode, !stationMatchesFile ? `Tệp: ${rawStation}` : null]
+                                        .filter(Boolean)
+                                        .join(' · ')}
+                                </Typography>
+                            )}
+                        </Stack>
+                    ) : suggestions.length > 0 ? (
+                        <TextField
+                            select
+                            size="small"
+                            label="Chọn đài"
+                            value=""
+                            disabled={busy}
+                            onChange={(event) =>
+                                onChooseStation(row, Number(event.target.value))
+                            }
+                            sx={{ minWidth: 160, '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+                        >
+                            {suggestions.map((suggestion) => (
+                                <MenuItem
+                                    key={suggestion.lotteryStationId}
+                                    value={suggestion.lotteryStationId}
+                                >
+                                    {suggestion.name}
+                                </MenuItem>
+                            ))}
+                        </TextField>
+                    ) : (
+                        <Typography variant="body2" color="text.secondary">
+                            {rawStation || fileValues.stationName || fileValues.stationCode || '—'}
+                        </Typography>
+                    )}
+                </TableCell>
+                <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                    <Typography
+                        variant="body2"
+                        fontWeight={800}
+                        color={dateIssue || offWindow || dateInvalid ? '#c2410c' : '#0f172a'}
+                    >
+                        {row.drawDate ? formatDate(row.drawDate) : 'Không đọc được'}
+                    </Typography>
+                    {(dateIssue || offWindow || dateInvalid) && (
+                        <Typography variant="caption" fontWeight={700} color="#c2410c" sx={{ display: 'block', lineHeight: 1.2 }}>
+                            {dateInvalid ? 'Sai / thiếu ngày quay' : `Ngoài hạn ${formatDate(windowFrom ?? undefined)}`}
+                        </Typography>
+                    )}
                 </TableCell>
                 {importsTickets && (
                     <TableCell>
-                        <AdminLuckyDisplay value={row.numbers} ticket sx={{ fontWeight: 800, color: '#0f172a' }} />
+                        <Stack direction="row" spacing={1} alignItems="center">
+                            <AdminLuckyDisplay value={row.numbers} ticket sx={{ fontWeight: 800, color: '#0f172a' }} />
+                            {canExpand && (
+                                <Button
+                                    size="small"
+                                    variant="text"
+                                    onClick={() => setExpanded((current) => !current)}
+                                    endIcon={expanded ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+                                    sx={{
+                                        textTransform: 'none',
+                                        fontWeight: 700,
+                                        minWidth: 0,
+                                        px: 0.75,
+                                        color: errorSerialCount > 0 ? '#c2410c' : '#64748b',
+                                    }}
+                                >
+                                    {serialEntries.length} sê-ri
+                                    {errorSerialCount > 0 ? ` · ${errorSerialCount} lỗi` : ''}
+                                </Button>
+                            )}
+                        </Stack>
                     </TableCell>
                 )}
-                <TableCell align="right" sx={{ fontWeight: 700 }}>{row.declareQuantity ?? '—'}</TableCell>
-                {importsTickets && (
-                    <TableCell align="right" sx={{ fontWeight: 700, color: '#16a34a' }}>
-                        {row.serialCount ?? serials.length}
-                    </TableCell>
-                )}
-                <TableCell>
-                    <Chip size="small" color={chip.color} label={chip.label} sx={{ fontWeight: 700, height: 22, fontSize: '0.75rem' }} />
+                <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                    <Typography variant="body2" fontWeight={700} color="#0f172a">
+                        {formattedImportCost}
+                    </Typography>
+                    {showFileImportCost && (
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.2 }}>
+                            Tệp: {fileValues.importCost}
+                        </Typography>
+                    )}
                 </TableCell>
+                {showFilePricing && (
+                    <TableCell align="right" sx={{ whiteSpace: 'nowrap', color: line.priceVariance ? '#d97706' : undefined }}>
+                        {fileValues.salePrice || '—'}
+                    </TableCell>
+                )}
+                {showFilePricing && (
+                    <TableCell align="right" sx={{ whiteSpace: 'nowrap', color: line.priceVariance ? '#d97706' : undefined }}>
+                        {formatCommissionDisplay(fileValues.commission)}
+                    </TableCell>
+                )}
                 <TableCell>
-                    <Stack spacing={0.5}>
-                        {row.issues.map((issue, index) => (
+                    <Chip
+                        size="small"
+                        color={dateIssue || offWindow || dateInvalid ? 'warning' : chip.color}
+                        label={
+                            dateInvalid
+                                ? 'Sai ngày quay'
+                                : dateIssue || offWindow
+                                    ? 'Ngoài hạn nhập'
+                                    : chip.label
+                        }
+                        sx={{ fontWeight: 700, height: 22, fontSize: '0.72rem' }}
+                    />
+                </TableCell>
+                <TableCell sx={{ minWidth: 180 }}>
+                    {!notes.short ? (
+                        <Typography variant="caption" color="text.disabled">—</Typography>
+                    ) : (
+                        <Tooltip title={<Box sx={{ whiteSpace: 'pre-line' }}>{notes.full || notes.short}</Box>}>
                             <Typography
-                                key={`${issue.code}-${index}`}
                                 variant="caption"
-                                color={issue.severity === 'ERROR' ? 'error.main' : 'text.secondary'}
+                                color={errorSerialCount > 0 || displayStatus === 'ERROR' || dateIssue || offWindow || dateInvalid ? 'error.main' : 'text.secondary'}
+                                sx={{
+                                    display: '-webkit-box',
+                                    WebkitLineClamp: 2,
+                                    WebkitBoxOrient: 'vertical',
+                                    overflow: 'hidden',
+                                    lineHeight: 1.35,
+                                    fontWeight: 600,
+                                }}
                             >
-                                {issue.message}
+                                {notes.short}
                             </Typography>
-                        ))}
-                    </Stack>
+                        </Tooltip>
+                    )}
                 </TableCell>
             </TableRow>
 
-            {importsTickets && serials.length > 0 && (
+            {canExpand && (
                 <TableRow>
-                    <TableCell sx={{ py: 0, borderBottom: 0 }} colSpan={columnCount}>
+                    <TableCell colSpan={columnCount} sx={{ py: 0, borderBottom: expanded ? undefined : 0 }}>
                         <Collapse in={expanded} timeout="auto" unmountOnExit>
-                            <Box sx={{ my: 1.5, ml: 4, mr: 1, p: 2, bgcolor: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                                <Typography variant="caption" fontWeight={800} color="#0f172a" sx={{ mb: 1, display: 'block' }}>
-                                    Danh sách {serials.length} vé sê-ri của dãy số{' '}
-                                    <AdminLuckyDisplay value={row.numbers} ticket component="span" />:
-                                </Typography>
-                                <Table size="small">
-                                    <TableHead sx={{ bgcolor: '#ffffff' }}>
+                            <Box
+                                sx={{
+                                    mx: 1.5,
+                                    my: 1.25,
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: '12px',
+                                    overflow: 'hidden',
+                                    bgcolor: '#fff',
+                                }}
+                            >
+                                <Table
+                                    size="small"
+                                    sx={{
+                                        '& .MuiTableCell-root': {
+                                            py: 0.85,
+                                            px: 1.5,
+                                            fontSize: '0.8125rem',
+                                            borderColor: '#f1f5f9',
+                                        },
+                                        '& .MuiTableHead-root .MuiTableCell-root': {
+                                            py: 0.7,
+                                            fontSize: '0.68rem',
+                                            fontWeight: 800,
+                                            letterSpacing: '0.04em',
+                                            textTransform: 'uppercase',
+                                            color: '#64748b',
+                                            bgcolor: '#f8fafc',
+                                        },
+                                    }}
+                                >
+                                    <TableHead>
                                         <TableRow>
-                                            <TableCell sx={{ width: 56, fontWeight: 800 }}>STT</TableCell>
-                                            <TableCell sx={{ fontWeight: 800 }}>Mã Sê-ri</TableCell>
-                                            <TableCell sx={{ fontWeight: 800 }}>Ảnh đính kèm</TableCell>
+                                            <TableCell sx={{ width: 44 }}>#</TableCell>
+                                            <TableCell>Sê-ri</TableCell>
+                                            <TableCell>Đài</TableCell>
+                                            <TableCell>Trạng thái</TableCell>
+                                            <TableCell>Ghi chú</TableCell>
                                         </TableRow>
                                     </TableHead>
                                     <TableBody>
-                                        {serials.map((serial, index) => {
-                                            const image = row.ticketImages?.[index] ?? null;
+                                        {serialEntries.map((entry, serialIndex) => {
+                                            const serialChip = ROW_STATUS_CHIP[entry.status];
+                                            const serialNotes = entry.issues
+                                                .map((issue) => formatPreviewIssueNote(issue))
+                                                .join(' · ');
+                                            const serialSuggestions = entry.issues.flatMap(
+                                                (issue) => issue.suggestions ?? []
+                                            );
                                             return (
-                                                <TableRow key={`${serial}-${index}`}>
-                                                    <TableCell>{index + 1}</TableCell>
-                                                    <TableCell sx={{ fontWeight: 700, color: '#0f172a' }}>{serial}</TableCell>
+                                                <TableRow
+                                                    key={`${entry.serial}-${entry.sourceRowNumber}-${serialIndex}`}
+                                                    sx={{
+                                                        bgcolor: entry.status === 'ERROR' ? '#fef2f2' : undefined,
+                                                    }}
+                                                >
+                                                    <TableCell sx={{ color: '#94a3b8', fontWeight: 700 }}>
+                                                        {serialIndex + 1}
+                                                    </TableCell>
                                                     <TableCell>
-                                                        {image ? (
-                                                            <Link
-                                                                href={image}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                variant="caption"
-                                                                sx={{ wordBreak: 'break-all', fontWeight: 600 }}
-                                                            >
-                                                                {image}
-                                                            </Link>
-                                                        ) : (
-                                                            <Typography
-                                                                variant="caption"
-                                                                color="text.secondary"
-                                                            >
-                                                                Chưa có ảnh
+                                                        <Stack direction="row" spacing={1} alignItems="center">
+                                                            <Typography variant="body2" fontWeight={800} color="#0f172a">
+                                                                {entry.serial}
                                                             </Typography>
+                                                            {entry.image && (
+                                                                <Chip
+                                                                    size="small"
+                                                                    icon={<ImageOutlinedIcon sx={{ fontSize: '14px !important' }} />}
+                                                                    label="Ảnh"
+                                                                    component="a"
+                                                                    href={entry.image}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    clickable
+                                                                    sx={{ height: 22, fontWeight: 700, fontSize: '0.7rem' }}
+                                                                />
+                                                            )}
+                                                        </Stack>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {serialSuggestions.length > 0 ? (
+                                                            <TextField
+                                                                select
+                                                                size="small"
+                                                                label="Chọn đài"
+                                                                value=""
+                                                                disabled={busy}
+                                                                onChange={(event) =>
+                                                                    onChooseStation(
+                                                                        entry.sourceRow,
+                                                                        Number(event.target.value)
+                                                                    )
+                                                                }
+                                                                sx={{ minWidth: 140, '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+                                                            >
+                                                                {serialSuggestions.map((suggestion) => (
+                                                                    <MenuItem
+                                                                        key={suggestion.lotteryStationId}
+                                                                        value={suggestion.lotteryStationId}
+                                                                    >
+                                                                        {suggestion.name}
+                                                                    </MenuItem>
+                                                                ))}
+                                                            </TextField>
+                                                        ) : (
+                                                            <Typography variant="body2" fontWeight={600} color="#334155">
+                                                                {entry.stationName || '—'}
+                                                            </Typography>
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Chip
+                                                            size="small"
+                                                            color={serialChip.color}
+                                                            label={serialChip.label}
+                                                            sx={{ fontWeight: 700, height: 22, fontSize: '0.72rem' }}
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {serialNotes ? (
+                                                            <Tooltip
+                                                                title={entry.issues.map((issue) => issue.message).join('\n')}
+                                                            >
+                                                                <Typography
+                                                                    variant="caption"
+                                                                    fontWeight={600}
+                                                                    color={entry.status === 'ERROR' ? 'error.main' : 'text.secondary'}
+                                                                >
+                                                                    {serialNotes}
+                                                                </Typography>
+                                                            </Tooltip>
+                                                        ) : (
+                                                            <Typography variant="caption" color="text.disabled">—</Typography>
                                                         )}
                                                     </TableCell>
                                                 </TableRow>

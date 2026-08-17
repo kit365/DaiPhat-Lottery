@@ -25,36 +25,40 @@ class ImportBatchDrawDateWindowPolicyTest {
         assertThat(policy.contains(TODAY.plusDays(2), NOW)).isFalse();
     }
 
+    /**
+     * A supplier hands tomorrow's tickets over during today's opening hours, so a
+     * file listing them describes a delivery that really happened. What stops such
+     * a batch is the supplier's own intake window, not the calendar — see
+     * SupplierTicketIntakeWindowPolicy.
+     */
     @Test
-    @DisplayName("File import accepts today only - not tomorrow, not yesterday")
-    void fileWindowIsTodayOnly() {
+    @DisplayName("File import accepts today and tomorrow, never a past draw")
+    void fileWindowSpansTodayAndTomorrow() {
         assertThat(policy.containsForFileImport(TODAY, NOW)).isTrue();
         assertThat(policy.containsForFileImport(TODAY.plusDays(1), NOW))
-                .as("tomorrow's tickets have not been delivered yet")
-                .isFalse();
+                .as("tomorrow's tickets are collected today")
+                .isTrue();
         assertThat(policy.containsForFileImport(TODAY.minusDays(1), NOW))
                 .as("yesterday's draw has already happened")
                 .isFalse();
+        assertThat(policy.containsForFileImport(TODAY.plusDays(2), NOW)).isFalse();
     }
 
     @Test
-    @DisplayName("The file window is reported as a single day, so the preview says so")
-    void fileWindowBoundsAreTheSameDay() {
+    @DisplayName("The file window is reported as today through tomorrow")
+    void fileWindowBounds() {
         assertThat(policy.fileImportFrom(NOW)).isEqualTo(TODAY);
-        assertThat(policy.fileImportTo(NOW)).isEqualTo(TODAY);
+        assertThat(policy.fileImportTo(NOW)).isEqualTo(TODAY.plusDays(1));
     }
 
     @Test
-    @DisplayName("The file window is strictly narrower than the manual one")
-    void fileWindowIsNarrowerThanManual() {
-        // Anything file import accepts, manual entry accepts too - never the reverse.
+    @DisplayName("Both flows accept exactly the same draw dates")
+    void bothFlowsAgree() {
         for (int offset = -3; offset <= 3; offset++) {
             LocalDate candidate = TODAY.plusDays(offset);
-            if (policy.containsForFileImport(candidate, NOW)) {
-                assertThat(policy.contains(candidate, NOW))
-                        .as("manual window must contain %s", candidate)
-                        .isTrue();
-            }
+            assertThat(policy.containsForFileImport(candidate, NOW))
+                    .as("file and manual must agree on %s", candidate)
+                    .isEqualTo(policy.contains(candidate, NOW));
         }
     }
 

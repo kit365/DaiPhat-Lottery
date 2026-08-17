@@ -242,7 +242,9 @@ class ImportBatchDocumentWriterTest {
             int headerRowIndex = findHeaderRow(sheet, "Mã đài");
             DataFormatter formatter = new DataFormatter(new Locale("vi", "VN"));
 
-            assertThat(formatter.formatCellValue(sheet.getRow(headerRowIndex + 1).getCell(9)))
+            // Hoa hồng (%) is the 9th column now that Thành tiền is gone and Giá
+            // nhập closes the row: 0-based index 8.
+            assertThat(formatter.formatCellValue(sheet.getRow(headerRowIndex + 1).getCell(8)))
                     .isEqualTo("10");
         }
     }

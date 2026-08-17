@@ -1016,12 +1016,11 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
                             supplier.getName()),
                     List.of()));
         }
-        if (isBeforeSupplierImportAllowFrom(supplier, now)) {
+        if (intakeWindowPolicy.isBeforeIntakeOpen(supplier, drawDate, now)) {
             groupIssues.add(ImportBatchFileIssueResponse.of(
                     ImportBatchFileIssueCode.SUPPLIER_IMPORT_NOT_ALLOWED,
                     null,
-                    String.format("Chưa đến giờ cho phép nhập vé của nhà cung cấp %s (từ %s).",
-                            supplier.getName(), supplier.getImportAllowFrom()),
+                    intakeWindowPolicy.notOpenMessage(supplier, drawDate),
                     List.of()));
             status = ImportBatchFileGroupStatus.BLOCKED;
         }
@@ -1178,20 +1177,21 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
      * Says which side of today the draw date falls on. "Out of window" alone
      * leaves the operator guessing whether to wait, re-export, or give up.
      */
-    private String outOfWindowMessage(LocalDate drawDate, LocalDateTime now) {
+    String outOfWindowMessage(LocalDate drawDate, LocalDateTime now) {
         LocalDate today = now.toLocalDate();
         if (drawDate.isBefore(today)) {
             return String.format(
-                    "Ngày quay %s đã qua. Nhập vé từ tệp chỉ áp dụng cho ngày quay hôm nay (%s). "
+                    "Ngày quay %s đã qua. Chỉ tạo được phiếu cho hôm nay (%s) hoặc ngày mai (%s). "
                             + "Vé còn sót của ngày đã qua chỉ được bù khi đối soát nhà cung cấp, "
                             + "do quản trị viên tạo phiếu bổ sung từ màn hình đối soát.",
-                    drawDate.format(DATE_DISPLAY), today.format(DATE_DISPLAY));
+                    drawDate.format(DATE_DISPLAY), today.format(DATE_DISPLAY),
+                    today.plusDays(1).format(DATE_DISPLAY));
         }
         return String.format(
-                "Ngày quay %s chưa tới. Nhập vé từ tệp chỉ áp dụng cho ngày quay hôm nay (%s); "
-                        + "hãy tải lại đúng tệp này vào ngày %s.",
+                "Ngày quay %s còn xa. Chỉ tạo được phiếu cho hôm nay (%s) hoặc ngày mai (%s); "
+                        + "hãy tải lại đúng tệp này khi tới gần ngày %s.",
                 drawDate.format(DATE_DISPLAY), today.format(DATE_DISPLAY),
-                drawDate.format(DATE_DISPLAY));
+                today.plusDays(1).format(DATE_DISPLAY), drawDate.format(DATE_DISPLAY));
     }
 
     /** Declaration-only file: one row is a station and the count it delivered. */
@@ -1258,6 +1258,7 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
         int declaredQuantity = readDeclaredQuantity(row, mapping, serials.size(), issues);
 
         boolean merged = false;
+        Integer mergedIntoRowNumber = null;
         if (station.isUsable() && numbers != null && !serials.isEmpty()) {
             // The same number may legitimately be split over several rows; ticket
             // creation rejects a repeated number, so the serials are merged here.
@@ -1267,10 +1268,22 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
                 context.firstRowByTicket().put(key, row.rowNumber());
             } else {
                 merged = true;
+                mergedIntoRowNumber = firstRowNumber;
                 mergeSerialsIntoRow(alreadyResolved, firstRowNumber, serials, images);
-                // One serial per row is the shape this system exports, so grouping
-                // those rows is routine. Only a row carrying several serials at once
-                // suggests the supplier split a delivery in a way worth flagging.
+                // Always say where the row went. One serial per line is the shape
+                // this system exports, so a four-ticket number produces four lines
+                // repeating that number - routine, but a line marked skipped with
+                // an empty note reads as if its ticket had been dropped.
+                issues.add(ImportBatchFileIssueResponse.of(
+                        ImportBatchFileIssueCode.NUMBERS_MERGED_INTO_ROW,
+                        null,
+                        String.format(
+                                "Dãy số %s đã có ở dòng %d. %d sê-ri của dòng này đã gộp vào dòng đó, "
+                                        + "không bị bỏ sót.",
+                                numbers, firstRowNumber, serials.size()),
+                        List.of()));
+                // A line carrying several serials at once is a different matter:
+                // the supplier split one number across lines in a way worth review.
                 if (serials.size() > 1) {
                     issues.add(ImportBatchFileIssueResponse.of(
                             ImportBatchFileIssueCode.NUMBERS_DUPLICATED_IN_GROUP,
@@ -1297,6 +1310,7 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
                 .importCost(station.importCost())
                 .status(merged ? ImportBatchFileRowStatus.SKIPPED : rowStatus(issues, usable))
                 .issues(issues)
+                .mergedIntoRowNumber(mergedIntoRowNumber)
                 .build();
     }
 
@@ -1575,9 +1589,18 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
         List<String> accepted = new ArrayList<>();
         List<String> duplicated = new ArrayList<>();
         for (String serial : parsed) {
+            // A ticket is identified by station, draw date and lottery number, and
+            // a serial belongs to one of those - which is what
+            // UNIQUE (ticket_id, serial_number) enforces. The key mirrors that
+            // tuple: the draw date is the group's, so only the number is added.
+            //
+            // Keyed on the station alone before, this rejected the same serial
+            // appearing under two different lottery numbers - which the database
+            // permits and a supplier's booklet numbering produces.
+            //
             // Serials are compared case-insensitively because a supplier writing
             // "tg001" and "TG001" means the same physical ticket.
-            String key = station.stationId() + "|" + serial.toLowerCase(Locale.ROOT);
+            String key = serialKey(station.stationId(), numbers, serial);
             if (context.seenSerials().add(key)) {
                 accepted.add(serial);
             } else {
@@ -1585,10 +1608,15 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
             }
         }
         if (!duplicated.isEmpty()) {
+            // Kept rather than deferred to the database: the same serial twice
+            // under one number breaks UNIQUE (ticket_id, serial_number), and
+            // without this the whole station's tickets would fail at commit
+            // instead of being named here while the file can still be corrected.
             issues.add(ImportBatchFileIssueResponse.of(
                     ImportBatchFileIssueCode.SERIAL_DUPLICATED_IN_FILE,
                     mapping.serialsColumn(),
-                    "Sê-ri bị trùng trong tệp: " + String.join(", ", duplicated),
+                    String.format("Sê-ri lặp lại trong tệp cho dãy số %s: %s",
+                            numbers == null ? "—" : numbers, String.join(", ", duplicated)),
                     List.of()));
         }
         if (accepted.isEmpty()) {
@@ -1597,14 +1625,40 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
 
         List<String> existing = findAlreadyImported(station.stationId(), numbers, context.drawDate(), accepted);
         if (!existing.isEmpty()) {
+            // Names the whole tuple that makes a ticket unique. "Already in the
+            // system" on its own leaves the operator unable to tell whether the
+            // clash is with this draw date or another one entirely.
             issues.add(ImportBatchFileIssueResponse.of(
                     ImportBatchFileIssueCode.SERIAL_ALREADY_IMPORTED,
                     mapping.serialsColumn(),
-                    "Sê-ri đã có trong hệ thống: " + String.join(", ", existing),
+                    String.format(
+                            "Đài %s · ngày quay %s · dãy số %s đã có các sê-ri này trong hệ thống: %s.",
+                            station.stationName() == null ? "—" : station.stationName(),
+                            context.drawDate().format(DATE_DISPLAY),
+                            numbers == null ? "—" : numbers,
+                            String.join(", ", existing)),
                     List.of()));
             accepted.removeAll(existing);
         }
         return accepted;
+    }
+
+    /**
+     * What makes two lines of a file the same physical ticket: station, draw date,
+     * lottery number and serial.
+     *
+     * <p>Mirrors {@code UNIQUE (ticket_id, serial_number)} exactly — a ticket is
+     * keyed by station, draw date and number, so those three identify the ticket
+     * and the serial identifies the row within it. The draw date is not in the key
+     * because callers scope it per draw-date group.
+     *
+     * <p>Serials compare case-insensitively: a supplier writing "tg001" and
+     * "TG001" means one ticket, not two.
+     */
+    static String serialKey(Long stationId, String numbers, String serial) {
+        return stationId
+                + "|" + (numbers == null ? "" : numbers.trim())
+                + "|" + (serial == null ? "" : serial.trim().toLowerCase(Locale.ROOT));
     }
 
     /**
@@ -1821,6 +1875,49 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
             Map<Long, LotteryStationModel> stationsById,
             ImportBatchFileMappingRequest mapping
     ) {
+        int size = Math.min(rawRows.size(), resolved.size());
+        List<PricingCandidate> candidates = new ArrayList<>(size);
+        for (int index = 0; index < size; index++) {
+            ImportBatchFileRowResponse row = resolved.get(index);
+            PendingRow raw = rawRows.get(index);
+            candidates.add(new PricingCandidate(
+                    row.rowNumber(),
+                    row.lotteryStationId(),
+                    raw.salePriceText(),
+                    raw.commissionRateText(),
+                    raw.importCostText()));
+        }
+        return scanPricing(candidates, stationsById, mapping);
+    }
+
+    /** One line's stated prices, paired with the station it resolved to. */
+    record PricingCandidate(
+            int rowNumber,
+            Long lotteryStationId,
+            String salePriceText,
+            String commissionRateText,
+            String importCostText
+    ) {
+    }
+
+    /**
+     * Finds the first line per station whose prices contradict the station record.
+     *
+     * <p>Every line naming a station is examined, whatever its row status. A line
+     * merged into an earlier one is still a physical ticket the supplier charged
+     * for; skipping those meant a price edited on the second line of a lottery
+     * number was never compared, and since one number normally occupies four
+     * consecutive lines, that was three lines in four going unchecked.
+     *
+     * <p>Only the first offending line per station is reported: a supplier states
+     * the same prices on every line, so repeating the finding hundreds of times
+     * would bury it.
+     */
+    List<ImportBatchFilePricingMismatchResponse> scanPricing(
+            List<PricingCandidate> candidates,
+            Map<Long, LotteryStationModel> stationsById,
+            ImportBatchFileMappingRequest mapping
+    ) {
         boolean fileCarriesPrices = hasText(mapping.salePriceColumn())
                 || hasText(mapping.commissionRateColumn())
                 || hasText(mapping.importCostColumn());
@@ -1830,26 +1927,28 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
 
         TabularNumberStyle numberStyle = mapping.numberStyleOrAuto();
         Map<Long, ImportBatchFilePricingMismatchResponse> byStation = new LinkedHashMap<>();
-        int size = Math.min(rawRows.size(), resolved.size());
-        for (int index = 0; index < size; index++) {
-            ImportBatchFileRowResponse row = resolved.get(index);
-            Long stationId = row.lotteryStationId();
-            if (!row.isImportable() || stationId == null || byStation.containsKey(stationId)) {
+        for (PricingCandidate candidate : candidates) {
+            Long stationId = candidate.lotteryStationId();
+            if (stationId == null || byStation.containsKey(stationId)) {
                 continue;
             }
             LotteryStationModel station = stationsById.get(stationId);
             if (station == null) {
                 continue;
             }
-            PendingRow raw = rawRows.get(index);
+
             ImportBatchFilePricingMismatchResponse comparison = pricingComparator.compare(
                     station,
-                    TabularValueParser.parseDecimal(raw.salePriceText(), numberStyle).orElse(null),
-                    TabularValueParser.parseDecimal(raw.commissionRateText(), numberStyle).orElse(null),
-                    TabularValueParser.parseDecimal(raw.importCostText(), numberStyle).orElse(null)
+                    TabularValueParser.parseDecimal(candidate.salePriceText(), numberStyle).orElse(null),
+                    TabularValueParser.parseDecimal(candidate.commissionRateText(), numberStyle).orElse(null),
+                    TabularValueParser.parseDecimal(candidate.importCostText(), numberStyle).orElse(null)
             );
             if (comparison.hasMismatch()) {
-                byStation.put(stationId, comparison);
+                // Naming the line matters in a file of hundreds: the operator has
+                // to find the cell before deciding whose figure is right.
+                byStation.put(stationId, comparison.toBuilder()
+                        .rowNumber(candidate.rowNumber())
+                        .build());
             }
         }
         return List.copyOf(byStation.values());
@@ -1866,7 +1965,11 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
             if (index > 0) {
                 message.append("; ");
             }
-            message.append(item.stationName()).append(" (");
+            message.append(item.stationName());
+            if (item.rowNumber() != null) {
+                message.append(" dòng ").append(item.rowNumber());
+            }
+            message.append(" (");
             List<String> parts = new ArrayList<>();
             if (item.salePriceMismatch()) {
                 parts.add(String.format("giá bán tệp %s / hệ thống %s",
@@ -2022,8 +2125,12 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
                         "Mỗi dòng một sê-ri thì đây là ảnh của đúng tờ vé đó. Nếu một ô chứa nhiều "
                                 + "sê-ri thì phải có một ảnh dùng chung, hoặc đủ ảnh theo đúng thứ tự. "
                                 + listNote),
-                fieldRule("importCostColumn", "Giá vốn", "OPTIONAL", false, aliases,
-                        "Chỉ để đối chiếu. Hệ thống luôn dùng giá cấu hình của nhà đài.")
+                fieldRule("importCostColumn", "Giá nhập", "OPTIONAL", false, aliases,
+                        "Chỉ để đối chiếu. Hệ thống luôn dùng giá cấu hình của nhà đài."),
+                fieldRule("salePriceColumn", "Giá bán", "OPTIONAL", false, aliases,
+                        "Chỉ để đối chiếu với giá bán đang cấu hình của nhà đài."),
+                fieldRule("commissionRateColumn", "Hoa hồng", "OPTIONAL", false, aliases,
+                        "Chỉ để đối chiếu với tỷ lệ hoa hồng đang cấu hình của nhà đài.")
         );
     }
 
@@ -2645,12 +2752,6 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
     }
 
     /** Mirrors the supplier time checks enforced by ImportBatchService.create. */
-    private boolean isBeforeSupplierImportAllowFrom(LotterySupplierModel supplier, LocalDateTime now) {
-        if (supplier == null || supplier.getImportAllowFrom() == null) {
-            return false;
-        }
-        return now.toLocalTime().isBefore(supplier.getImportAllowFrom());
-    }
 
     /** A file row after column mapping, before any resolution. */
     private record PendingRow(
