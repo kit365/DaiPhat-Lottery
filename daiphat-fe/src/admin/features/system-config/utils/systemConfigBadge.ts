@@ -13,6 +13,7 @@ export const getConfigTypeBadgeClass = (type: ConfigType) => {
             return 'admin-status-badge--success';
         case ConfigType.TICKET_IMPORT:
         case ConfigType.TICKET_RETURN:
+        case ConfigType.SETTLEMENT_SETTING:
         case ConfigType.REFUND_SETTING:
             return 'admin-status-badge--pending';
         case ConfigType.COMPLAINT_SETTING:
