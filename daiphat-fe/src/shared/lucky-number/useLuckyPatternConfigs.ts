@@ -11,6 +11,7 @@ export const useLuckyPatternConfigs = () => {
         queryFn: getLuckyPatternConfigs,
         select: (patterns): LuckyPatternConfig[] =>
             (patterns || []).filter((pattern) => pattern.active !== false),
-        staleTime: QUERY_STALE_TIMES.static,
+        staleTime: 0,
+        refetchOnWindowFocus: 'always',
     });
 };

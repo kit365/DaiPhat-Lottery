@@ -85,7 +85,7 @@ export function resolveOrderDetailTicketDisplay(detail: any): IncidentTicketDisp
         status: serialStatus,
         ticketCondition,
     });
-    const detailActive = status === OrderDetailStatus.ACTIVE || status === 'ACTIVE';
+    const detailActive = status === OrderDetailStatus.ACTIVE || status === 'ACTIVE' || status === OrderDetailStatus.PROXY_HOLDING || status === 'PROXY_HOLDING';
 
     return {
         id,

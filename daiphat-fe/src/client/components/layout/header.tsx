@@ -229,8 +229,9 @@ export const Header = () => {
                     </button>
                     
                     {/* Cart Dropdown */}
-                    <div className="absolute top-full right-0 mt-2 w-[370px] bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] border border-slate-100 opacity-0 invisible pointer-events-none translate-y-2 group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto group-hover:translate-y-0 transition-all duration-300 ease-out z-[1100] overflow-hidden">
-                      <div className="p-4 flex items-center justify-between border-b border-[#E5E8EB]">
+                    <div className="absolute top-full right-0 pt-2 opacity-0 invisible pointer-events-none translate-y-2 group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto group-hover:translate-y-0 transition-all duration-300 ease-out z-[1100]">
+                      <div className="w-[370px] bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] border border-slate-100 overflow-hidden">
+                        <div className="p-4 flex items-center justify-between border-b border-[#E5E8EB]">
                         <h4 className={HEADER_DROPDOWN_TITLE_CLASS}>Giỏ hàng <span className="text-[#ee1314]">({cartItems.length})</span></h4>
                         <span className={`${HEADER_DROPDOWN_ACTION_CLASS} cursor-pointer hover:text-[#ee1314]`} onClick={() => router.push('/cart')}>Xem giỏ hàng</span>
                       </div>
@@ -293,6 +294,7 @@ export const Header = () => {
                           </button>
                         </div>
                       )}
+                      </div>
                     </div>
                   </div>
  

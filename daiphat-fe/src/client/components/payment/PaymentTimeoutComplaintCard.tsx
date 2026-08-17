@@ -99,17 +99,12 @@ export const PaymentTimeoutComplaintCard = ({
 
     return (
         <section className="rounded-[20px] border border-[#E5E8EB] bg-white p-6 shadow-[0_2px_12px_rgb(0,0,0,0.03)]">
-            <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#FFF4E5] text-[#B76E00]">
-                    <i className="fa-solid fa-receipt" />
-                </div>
-                <div className="min-w-0 flex-1">
-                    <h3 className="text-[16px] font-bold text-[#212B36]">Chứng từ thanh toán</h3>
-                    <p className="mt-1 text-[13px] leading-relaxed text-[#637381]">
-                        Đơn đã bị hệ thống hủy do quá thời gian thanh toán. Nếu bạn đã thanh toán,
-                        hãy gửi ảnh biên lai để cửa hàng kiểm tra.
-                    </p>
-                </div>
+            <div className="flex flex-col gap-1">
+                <h3 className="text-[16px] font-bold text-[#212B36]">Chứng từ thanh toán</h3>
+                <p className="mt-1 text-[13px] leading-relaxed text-[#637381]">
+                    Đơn đã bị hệ thống hủy do quá thời gian thanh toán. Nếu bạn đã thanh toán,
+                    hãy gửi ảnh biên lai để cửa hàng kiểm tra.
+                </p>
             </div>
 
             {isPending ? (

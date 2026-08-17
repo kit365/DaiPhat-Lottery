@@ -19,5 +19,7 @@ export const useBuyTicketList = (params: BuyTicketListQueryParams, enabled = tru
             data: await fetchAllPublicBuyTickets(params),
         }),
         ...listQueryDefaults,
+        refetchOnWindowFocus: 'always',
+        staleTime: 0,
     });
 };
