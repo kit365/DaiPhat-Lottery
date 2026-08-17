@@ -1,8 +1,11 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { getPublicSchedule } from '../services/scheduleService';
-import type { LotteryStationSchedule } from '../types/schedule.types';
+import type { LotteryStationSchedule, ScheduleQueryParams } from '../types/schedule.types';
+import { publicScheduleQueryKeys } from '@/constants/queryKeys';
+import { detailQueryDefaults } from '@/shared/react-query/createAppQueryClient';
 
 export interface ScheduleByDay {
   dayId: string;
@@ -31,38 +34,6 @@ const DAY_LABELS: Record<string, string> = {
 
 const DAY_OF_WEEK_MAP = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
 
-const SCHEDULE_CACHE_TTL_MS = 60_000;
-const scheduleResponseCache = new Map<string, { data: LotteryStationSchedule[]; cachedAt: number }>();
-
-const buildScheduleCacheKey = ({
-  region,
-  normalizedStationIds,
-  highlightDate,
-  isSingleStationView,
-}: {
-  region?: string;
-  normalizedStationIds?: number[];
-  highlightDate?: string;
-  isSingleStationView: boolean;
-}): string =>
-  JSON.stringify({
-    region: region ?? null,
-    stationIds: normalizedStationIds ?? null,
-    highlightDate: isSingleStationView ? null : (highlightDate ?? null),
-  });
-
-const readScheduleCache = (key: string): LotteryStationSchedule[] | null => {
-  const entry = scheduleResponseCache.get(key);
-  if (!entry) {
-    return null;
-  }
-  if (Date.now() - entry.cachedAt > SCHEDULE_CACHE_TTL_MS) {
-    scheduleResponseCache.delete(key);
-    return null;
-  }
-  return entry.data;
-};
-
 const toDayIdFromDate = (dateIso?: string): string | null => {
   if (!dateIso) {
     return null;
@@ -73,6 +44,24 @@ const toDayIdFromDate = (dateIso?: string): string | null => {
   }
   return DAY_OF_WEEK_MAP[date.getDay()];
 };
+
+const buildScheduleQueryParams = ({
+  region,
+  normalizedStationIds,
+  highlightDate,
+  isSingleStationView,
+}: {
+  region?: string;
+  normalizedStationIds?: number[];
+  highlightDate?: string;
+  isSingleStationView: boolean;
+}): ScheduleQueryParams => ({
+  region,
+  stationId: normalizedStationIds?.length === 1 ? normalizedStationIds[0] : undefined,
+  stationIds:
+    normalizedStationIds && normalizedStationIds.length > 1 ? normalizedStationIds : undefined,
+  drawDate: isSingleStationView ? undefined : highlightDate,
+});
 
 export const useLotterySchedule = ({
   region,
@@ -93,9 +82,9 @@ export const useLotterySchedule = ({
 
   const isSingleStationView = normalizedStationIds != null && normalizedStationIds.length >= 1;
 
-  const cacheKey = useMemo(
+  const queryParams = useMemo(
     () =>
-      buildScheduleCacheKey({
+      buildScheduleQueryParams({
         region,
         normalizedStationIds,
         highlightDate,
@@ -104,65 +93,17 @@ export const useLotterySchedule = ({
     [region, normalizedStationIds, highlightDate, isSingleStationView]
   );
 
-  const [data, setData] = useState<LotteryStationSchedule[]>(
-    () => initialSchedule ?? readScheduleCache(cacheKey) ?? []
-  );
-  const [isLoading, setIsLoading] = useState(
-    () => !initialSchedule && readScheduleCache(cacheKey) == null
-  );
-  const [error, setError] = useState<string | null>(null);
-  const skipInitialFetchRef = useRef(!!initialSchedule);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchData = async () => {
-      if (skipInitialFetchRef.current) {
-        skipInitialFetchRef.current = false;
-        if (initialSchedule) {
-          scheduleResponseCache.set(cacheKey, { data: initialSchedule, cachedAt: Date.now() });
-        }
-        return;
-      }
-
-      const cached = readScheduleCache(cacheKey);
-      if (cached) {
-        setData(cached);
-        setError(null);
-        setIsLoading(false);
-        return;
-      }
-
-      setIsLoading(true);
-      setError(null);
-      try {
-        const result = await getPublicSchedule({
-          region,
-          stationId: normalizedStationIds?.length === 1 ? normalizedStationIds[0] : undefined,
-          stationIds: normalizedStationIds && normalizedStationIds.length > 1 ? normalizedStationIds : undefined,
-          drawDate: isSingleStationView ? undefined : highlightDate,
-        });
-        if (isMounted) {
-          scheduleResponseCache.set(cacheKey, { data: result, cachedAt: Date.now() });
-          setData(result);
-        }
-      } catch {
-        if (isMounted) {
-          setError('Không thể tải lịch mở thưởng. Vui lòng thử lại sau.');
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    void fetchData();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [cacheKey, region, normalizedStationIds, highlightDate, isSingleStationView]);
+  const {
+    data = [],
+    isLoading,
+    isFetching,
+    isError,
+  } = useQuery({
+    queryKey: publicScheduleQueryKeys.all(queryParams),
+    queryFn: () => getPublicSchedule(queryParams),
+    placeholderData: initialSchedule,
+    ...detailQueryDefaults,
+  });
 
   const availableRegions = useMemo(() => {
     const regions = new Set(data.map((st) => st.region));
@@ -187,7 +128,6 @@ export const useLotterySchedule = ({
   }, [availableRegions, data]);
 
   const highlightDayId = useMemo(() => toDayIdFromDate(highlightDate), [highlightDate]);
-  // Một đài có thể quay nhiều thứ/tuần — luôn hiện đủ lịch, không lọc theo ngày kết quả.
   const showFullWeek = !highlightDate || isSingleStationView;
 
   const scheduleByDay = useMemo(() => {
@@ -234,7 +174,8 @@ export const useLotterySchedule = ({
     highlightDayId,
     todayDayName,
     showFullWeek,
-    isLoading,
-    error,
+    isLoading: isLoading && data.length === 0,
+    isFetching,
+    error: isError ? 'Không thể tải lịch mở thưởng. Vui lòng thử lại sau.' : null,
   };
 };

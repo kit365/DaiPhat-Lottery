@@ -10,10 +10,11 @@ interface LotoTableProps {
   hoveredDigit?: string | null;
   onDigitClick?: (digit: string | null) => void;
   onDigitHover?: (digit: string | null) => void;
+  onProvinceFilterChange?: (province: string) => void;
   setShowLoto?: (val: boolean) => void;
 }
 
-export const LotoTable: React.FC<LotoTableProps> = ({ dataList, selectedDigit, hoveredDigit, onDigitClick, onDigitHover, setShowLoto }) => {
+export const LotoTable: React.FC<LotoTableProps> = ({ dataList, selectedDigit, hoveredDigit, onDigitClick, onDigitHover, onProvinceFilterChange, setShowLoto }) => {
   const [selectedProvince, setSelectedProvince] = useState<string>('ALL');
 
   const provinces = useMemo(() => Array.from(new Set(dataList.map(d => d.province))), [dataList]);
@@ -28,6 +29,10 @@ export const LotoTable: React.FC<LotoTableProps> = ({ dataList, selectedDigit, h
       setSelectedProvince('ALL');
     }
   }, [provinces, selectedProvince]);
+
+  useEffect(() => {
+    onProvinceFilterChange?.(selectedProvince);
+  }, [onProvinceFilterChange, selectedProvince]);
 
   const filteredDataList = useMemo(() => {
     if (selectedProvince === 'ALL') return dataList;
@@ -110,9 +115,7 @@ export const LotoTable: React.FC<LotoTableProps> = ({ dataList, selectedDigit, h
               return (
                 <tr 
                   key={row.head} 
-                  className={`transition-all h-[30px] font-client-main ${isSelected ? 'bg-[#FDE047]' : isHovered ? 'bg-[#FEF9C3]' : 'bg-white hover:bg-slate-50/50'}`}
-                  onMouseEnter={() => onDigitHover?.(row.head)}
-                  onMouseLeave={() => onDigitHover?.(null)}
+                  className={`transition-all h-[30px] font-client-main ${isSelected ? 'bg-[#FDE047]' : 'bg-white'}`}
                 >
                   {/* LEFT COLUMN: Heads when focus is tail */}
                   <td className={`py-1 px-1 md:px-2 border-r ${isSelected ? 'border-[#FDE047]/50' : 'border-gray-100'}`}>
@@ -123,8 +126,10 @@ export const LotoTable: React.FC<LotoTableProps> = ({ dataList, selectedDigit, h
                   
                   {/* CENTER COLUMN: Focus Number */}
                   <td 
-                    className={`py-0.5 px-1 text-center border-r cursor-pointer transition-colors ${isActive ? 'border-[#FDE047] font-bold' : 'border-gray-100 bg-[#FAFAFA] hover:bg-slate-100'}`}
+                    className={`py-0.5 px-1 text-center border-r cursor-pointer transition-colors ${isActive ? 'border-[#FDE047] font-bold bg-[#FEF9C3]' : 'border-gray-100 bg-[#FAFAFA] hover:bg-slate-100'}`}
                     onClick={() => onDigitClick?.(isSelected ? null : row.head)}
+                    onMouseEnter={() => onDigitHover?.(row.head)}
+                    onMouseLeave={() => onDigitHover?.(null)}
                   >
                     <span className={`text-[#ee1314] text-[15px] font-bold leading-none font-client-main transition-colors inline-flex items-center justify-center min-w-[20px] h-[20px] rounded-md ${isActive ? 'bg-white shadow-sm' : ''}`}>
                       {row.head}

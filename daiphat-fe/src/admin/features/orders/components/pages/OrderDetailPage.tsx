@@ -31,6 +31,9 @@ import { useOrderDetail, useUpdateOrderStatus } from "../../hooks/useOrder";
 import {
     OrderStatus,
     getOrderDetailStatusAdminBadgeModifier,
+    getOrderTypeLabel,
+    ORDER_TYPE_CHIP_STYLES,
+    OrderType,
     resolveOrderDetailStatusBadge,
 } from "../../../../../types/order.type";
 import { resolveLotteryTicketSerialAdminBadge } from "../../utils/lotteryTicketSerialAdminBadge.util";
@@ -305,15 +308,23 @@ export const OrderDetailPage = () => {
                                 <Grid size={{ xs: 12, sm: 6, md: 1.5 }}>
                                     <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)', display: 'block', mb: 1 }}>Loại đơn</Typography>
                                     <Chip
-                                        label={order.orderType === 'DIRECT' ? 'Tại quầy' : 'Trực tuyến'}
+                                        label={getOrderTypeLabel(order.orderType)}
                                         size="small"
                                         sx={{
                                             fontWeight: 700,
                                             height: 24,
                                             fontSize: '0.75rem',
                                             borderRadius: '6px',
-                                            color: order.orderType === 'DIRECT' ? "var(--palette-info-dark)" : "var(--palette-primary-dark)",
-                                            bgcolor: order.orderType === 'DIRECT' ? "var(--palette-info-lighter)" : "var(--palette-primary-lighter)",
+                                            color: ORDER_TYPE_CHIP_STYLES[
+                                                order.orderType === OrderType.DIRECT
+                                                    ? OrderType.DIRECT
+                                                    : OrderType.ONLINE
+                                            ].color,
+                                            bgcolor: ORDER_TYPE_CHIP_STYLES[
+                                                order.orderType === OrderType.DIRECT
+                                                    ? OrderType.DIRECT
+                                                    : OrderType.ONLINE
+                                            ].bgcolor,
                                         }}
                                     />
                                 </Grid>

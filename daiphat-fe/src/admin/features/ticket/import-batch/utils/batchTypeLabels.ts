@@ -276,3 +276,33 @@ export const getImportModeNotificationLabel = (mode?: string) => {
     if (!mode) return '—';
     return IMPORT_MODE_NOTIFICATION_LABELS[mode] ?? getImportModeLabel(mode);
 };
+
+const IMPORT_BATCH_FILE_JOB_STATUS_LABELS: Record<string, string> = {
+    PENDING: 'Chờ xử lý',
+    PROCESSING: 'Đang xử lý',
+    COMPLETED: 'Thành công',
+    PARTIAL_SUCCESS: 'Một phần',
+    FAILED: 'Thất bại',
+};
+
+export const getImportBatchFileJobStatusLabel = (status?: string) => {
+    if (!status) return '—';
+    return IMPORT_BATCH_FILE_JOB_STATUS_LABELS[status] ?? status;
+};
+
+export const getImportBatchFileJobStatusBadgeClass = (status?: string) => {
+    switch (status) {
+        case 'PENDING':
+            return 'admin-status-badge--draft';
+        case 'PROCESSING':
+            return 'admin-status-badge--active';
+        case 'COMPLETED':
+            return 'admin-status-badge--success';
+        case 'PARTIAL_SUCCESS':
+            return 'admin-status-badge--pending';
+        case 'FAILED':
+            return 'admin-status-badge--inactive';
+        default:
+            return 'admin-status-badge--draft';
+    }
+};

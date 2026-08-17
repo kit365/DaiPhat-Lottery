@@ -56,6 +56,10 @@ import {
 import { resolveLotteryTicketSerialAdminBadge } from '../../utils/lotteryTicketSerialAdminBadge.util';
 import { AdminStatusBadge } from '../../../../components/ui/AdminStatusBadge';
 import { AdminLuckyDisplay } from '@/shared/lucky-number';
+import {
+    TICKET_NUMBERS_LABEL,
+    TICKET_SERIAL_PREFIX,
+} from '@/constants/ticketDisplay.constants';
 import type { IncidentTicketDisplay } from '../../types/incidentTicket.type';
 import { resolveOrderDetailTicketDisplay } from '../../utils/resolveOrderDetailTicketDisplay';
 import { prefixAdmin, ROUTES } from '../../../../constants/routes';
@@ -597,11 +601,12 @@ export function OrderInspectionSection({
                             <Typography variant="subtitle2" sx={{ mb: 0, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: hasReplacementCandidates ? 'flex-start' : { xs: 'flex-start', md: 'center' }, gap: 1, flexWrap: 'wrap', textAlign: hasReplacementCandidates ? 'left' : { xs: 'left', md: 'center' } }}>
                                 Xử lý sự cố cho vé: 
                                 <Box component="span" sx={{ color: 'primary.main', bgcolor: 'primary.lighter', px: 1, py: 0.25, borderRadius: 1 }}>
-                                    Bộ số <AdminLuckyDisplay value={ticket.numbers} ticket />
+                                    {TICKET_NUMBERS_LABEL}{' '}
+                                    <AdminLuckyDisplay value={ticket.numbers} ticket />
                                 </Box>
                                 {ticket.serialNumber && (
                                     <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.8em', fontWeight: 500, bgcolor: 'action.hover', px: 1, py: 0.25, borderRadius: 1 }}>
-                                        SN: {ticket.serialNumber}
+                                        {TICKET_SERIAL_PREFIX}: {ticket.serialNumber}
                                     </Box>
                                 )}
                             </Typography>
@@ -698,7 +703,7 @@ export function OrderInspectionSection({
                                                     <Autocomplete
                                                         fullWidth
                                                         options={availableReplacements[ticketId] || []}
-                                                        getOptionLabel={(option) => `Bộ số: ${ticket.numbers} - SN: ${option.serialNumber}`}
+                                                        getOptionLabel={(option) => `${TICKET_NUMBERS_LABEL}: ${ticket.numbers} - ${TICKET_SERIAL_PREFIX}: ${option.serialNumber}`}
                                                         value={availableReplacements[ticketId]?.find(t => t.id === state.newTicketId) || null}
                                                         onChange={(_, newValue) => updateReplacement(ticketId, 'newTicketId', newValue?.id)}
                                                         isOptionEqualToValue={(option, value) => option.id === value.id}
@@ -745,7 +750,7 @@ export function OrderInspectionSection({
                                                                     <Box sx={{ flex: 1, minWidth: 0 }}>
                                                                         <Stack direction="row" justifyContent="space-between" alignItems="center" mb={0.5}>
                                                                             <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
-                                                                                Bộ số: <AdminLuckyDisplay value={ticket.numbers} ticket component="span" />
+                                                                                {TICKET_NUMBERS_LABEL}: <AdminLuckyDisplay value={ticket.numbers} ticket component="span" />
                                                                             </Typography>
                                                                             <Box sx={{ 
                                                                                 px: 1, py: 0.25, borderRadius: 1, 
@@ -757,7 +762,7 @@ export function OrderInspectionSection({
                                                                         </Stack>
                                                                         {option.serialNumber && (
                                                                             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontFamily: 'monospace' }}>
-                                                                                SN: {option.serialNumber}
+                                                                                {TICKET_SERIAL_PREFIX}: {option.serialNumber}
                                                                             </Typography>
                                                                         )}
                                                                     </Box>
@@ -1108,7 +1113,7 @@ export function OrderInspectionSection({
                                                                     component="div"
                                                                     sx={{ mt: 0.25, lineHeight: 1.4, wordBreak: 'break-all' }}
                                                                 >
-                                                                    SN: {ticket.serialNumber}
+                                                                    {TICKET_SERIAL_PREFIX}: {ticket.serialNumber}
                                                                 </Typography>
                                                             )}
                                                         </Box>
@@ -1436,8 +1441,7 @@ export function OrderInspectionSection({
                                     <TableHead>
                                         <TableRow sx={{ bgcolor: 'var(--palette-background-neutral)' }}>
                                             <TableCell sx={{ fontWeight: 600 }}>Ảnh</TableCell>
-                                            <TableCell sx={{ fontWeight: 600 }}>Bộ số</TableCell>
-                                            <TableCell sx={{ fontWeight: 600 }}>Serial</TableCell>
+                                            <TableCell sx={{ fontWeight: 600 }}>{TICKET_NUMBERS_LABEL}</TableCell>
                                             <TableCell sx={{ fontWeight: 600 }}>Đài</TableCell>
                                             <TableCell sx={{ fontWeight: 600 }}>Ngày xổ</TableCell>
                                             <TableCell sx={{ fontWeight: 600 }}>Mệnh giá</TableCell>
@@ -1449,7 +1453,7 @@ export function OrderInspectionSection({
                                     <TableBody>
                                         {incidentTickets.length === 0 ? (
                                             <TableRow>
-                                                <TableCell colSpan={9} align="center" sx={{ py: 4 }}>
+                                                <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
                                                     <Typography color="text.secondary">
                                                         Không có vé sự cố
                                                     </Typography>
@@ -1518,15 +1522,23 @@ export function OrderInspectionSection({
                                                             )}
                                                         </TableCell>
                                                         <TableCell sx={{ fontWeight: 700 }}>
-                                                            <AdminLuckyDisplay value={t.numbers} ticket />
-                                                        </TableCell>
-                                                        <TableCell
-                                                            sx={{
-                                                                fontFamily: 'monospace',
-                                                                fontSize: '0.75rem',
-                                                            }}
-                                                        >
-                                                            {t.serialNumber || '—'}
+                                                            <Box>
+                                                                <AdminLuckyDisplay value={t.numbers} ticket />
+                                                                {t.serialNumber && (
+                                                                    <Typography
+                                                                        variant="caption"
+                                                                        color="text.secondary"
+                                                                        component="div"
+                                                                        sx={{
+                                                                            mt: 0.25,
+                                                                            lineHeight: 1.4,
+                                                                            wordBreak: 'break-all',
+                                                                        }}
+                                                                    >
+                                                                        {TICKET_SERIAL_PREFIX}: {t.serialNumber}
+                                                                    </Typography>
+                                                                )}
+                                                            </Box>
                                                         </TableCell>
                                                         <TableCell>{t.stationName || '—'}</TableCell>
                                                         <TableCell>
@@ -1847,17 +1859,25 @@ export function OrderInspectionSection({
                                 }}
                             >
                                 <Grid container spacing={2}>
-                                    <Grid size={{ xs: 6 }}>
+                                    <Grid size={{ xs: 12 }}>
                                         <InfoField
-                                            label="Bộ số"
-                                            value={<AdminLuckyDisplay value={reportFaultTicket.numbers} ticket />}
+                                            label={TICKET_NUMBERS_LABEL}
+                                            value={
+                                                <Box>
+                                                    <AdminLuckyDisplay value={reportFaultTicket.numbers} ticket />
+                                                    {reportFaultTicket.serialNumber && (
+                                                        <Typography
+                                                            variant="caption"
+                                                            color="text.secondary"
+                                                            component="div"
+                                                            sx={{ mt: 0.5 }}
+                                                        >
+                                                            {TICKET_SERIAL_PREFIX}: {reportFaultTicket.serialNumber}
+                                                        </Typography>
+                                                    )}
+                                                </Box>
+                                            }
                                             emphasize
-                                        />
-                                    </Grid>
-                                    <Grid size={{ xs: 6 }}>
-                                        <InfoField
-                                            label="Serial"
-                                            value={reportFaultTicket.serialNumber || '—'}
                                         />
                                     </Grid>
                                     <Grid size={{ xs: 6 }}>

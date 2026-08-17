@@ -153,9 +153,7 @@ export const ROUTES = {
             PRIZE_PAYOUTS: "/profile/prize-payouts",
             COMPLAINTS: "/profile/complaints",
             BANK_ACCOUNTS: "/profile/bank-accounts",
-            FAVORITES: "/profile/favorites",
             NOTIFICATIONS: "/profile/notifications",
-            RESULT_NOTIFICATIONS: "/profile/result-notifications",
             SETTINGS: "/profile/settings",
         },
     }

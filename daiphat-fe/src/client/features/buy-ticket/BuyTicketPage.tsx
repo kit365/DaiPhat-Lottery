@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { ChevronRight, CheckCircle2, ShieldCheck, RefreshCw, ChevronDown, Filter, LayoutGrid, Heart, SlidersHorizontal, Trash2, Search } from 'lucide-react';
+import { CheckCircle2, ShieldCheck, RefreshCw, ChevronDown, Filter, LayoutGrid, SlidersHorizontal, Trash2, Search } from 'lucide-react';
 import { useCartStore, CartItem } from '../../../stores/useCartStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { AppToast as toast } from '../../../utils/toast.util';
@@ -33,13 +33,12 @@ import {
     PRESET_TAIL_RANGES,
     countActiveTicketFilters,
     hasActiveTicketFilters,
-    loadFavoriteNumbers,
-    saveFavoriteNumbers,
     toApiTailRange,
     toUiTailRangeLabel,
 } from '../../utils/buyTicketFilter.util';
 import { PublicLotteryTicket } from '../../../types/lottery-ticket.type';
 import { LuckyNumber } from '../../components/ui/LuckyNumber';
+import { useIsLuckyTicket } from '@/shared/lucky-number';
 
 dayjs.locale('vi');
 
@@ -73,6 +72,60 @@ const toSellableDateTokens = (
 
 const sameProvinceId = (left: string | number, right: string | number) =>
     String(left) === String(right);
+
+const getTicketKey = (ticket?: { id?: string | number; _id?: string | number } | null) =>
+    String(ticket?.id ?? ticket?._id ?? '');
+
+type BuyTicketGridCardProps = {
+    ticket: PublicLotteryTicket & { price?: number };
+    index: number;
+    isSelected: boolean;
+    isDeepLinked: boolean;
+    stationName: string;
+    onSelect: (ticket: PublicLotteryTicket) => void;
+};
+
+const BuyTicketGridCard = ({
+    ticket,
+    index,
+    isSelected,
+    isDeepLinked,
+    stationName,
+    onSelect,
+}: BuyTicketGridCardProps) => {
+    const num = ticket.numbers;
+    const ticketKey = String(ticket.id ?? ticket._id ?? index);
+    const isLucky = useIsLuckyTicket(num);
+
+    return (
+        <div
+            key={ticketKey}
+            data-ticket-id={ticket.id ?? ticket._id}
+            onClick={() => onSelect(ticket)}
+            className={`relative border rounded-[20px] p-3 flex flex-col items-center cursor-pointer transition-shadow duration-200 hover:shadow-md
+                ${isSelected || isDeepLinked
+                    ? `border-[#ee1314] ${isLucky ? 'bg-[#FFF8E1]' : 'bg-[#FFF4F4]/30'}`
+                    : isLucky
+                        ? 'border-[#F6D36A] bg-[#FFF8E1]'
+                        : 'border-[#E5E8EB] bg-white'}
+                ${isDeepLinked ? 'ring-2 ring-[#ee1314]/40' : ''}
+            `}
+        >
+            {isLucky && (
+                <span className="absolute top-2 right-2 rounded px-1.5 py-0.5 text-[9px] font-bold leading-none text-[#B76E00] bg-[#FFE082]">
+                    Số đẹp
+                </span>
+            )}
+            <div className="mb-2 text-center text-[11.5px] font-semibold text-[#637381] leading-snug line-clamp-2 min-h-[32px] flex items-center justify-center px-1">
+                {stationName}
+            </div>
+            <div className="font-black text-[20px] text-[#212B36] tracking-tight mb-1.5 leading-none">
+                <LuckyNumber value={String(num)} ticket showBadge={false} className="text-[20px] tracking-tight" />
+            </div>
+            <div className="font-bold text-[#ee1314] text-[14px]">{(ticket.price || 10000).toLocaleString('vi-VN')}đ</div>
+        </div>
+    );
+};
 
 import { CLIENT_PAGE_BACKGROUND } from '../../constants/clientBannerAssets';
 import { BuyTicketDateStationSelectors } from './components/BuyTicketDateStationSelectors';
@@ -112,16 +165,13 @@ export const BuyTicketPage = () => {
     const [selectedDates, setSelectedDates] = useState<string[]>(() => [defaultSellableDateToken()]);
     const [selectedProvinces, setSelectedProvinces] = useState<string[]>([]);
     const [selectedTab, setSelectedTab] = useState<'quick' | 'manual' | 'birthday'>('quick');
-    const [selectedNumbers, setSelectedNumbers] = useState<string[]>([]);
+    const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
     const [ticketQuantity, setTicketQuantity] = useState(1);
     const [isProvinceOpen, setIsProvinceOpen] = useState(false);
     const [isFilterOpen, setIsFilterOpen] = useState(false);
-    const [filterActiveTab, setFilterActiveTab] = useState<'all' | 'favorites' | 'range'>('favorites');
+    const [filterActiveTab, setFilterActiveTab] = useState<'all' | 'range'>('all');
     const [ticketSearchInput, setTicketSearchInput] = useState('');
     const [appliedSearch, setAppliedSearch] = useState('');
-    const [favoriteNumbers, setFavoriteNumbers] = useState<string[]>(() => loadFavoriteNumbers());
-    const [favoriteDraftInput, setFavoriteDraftInput] = useState('');
-    const [draftSelectedFavorites, setDraftSelectedFavorites] = useState<string[]>([]);
     const [draftRanges, setDraftRanges] = useState<string[]>([]);
     const [draftNumberTypes, setDraftNumberTypes] = useState<NumberTypeValue[]>([]);
     const [customRangeFrom, setCustomRangeFrom] = useState('00');
@@ -164,10 +214,6 @@ export const BuyTicketPage = () => {
         }, 300);
         return () => window.clearTimeout(handle);
     }, [ticketSearchInput]);
-
-    useEffect(() => {
-        saveFavoriteNumbers(favoriteNumbers);
-    }, [favoriteNumbers]);
 
     // API Hooks
     const { data: stationsTodayData, isLoading: isLoadingToday } = useStationsToday();
@@ -261,7 +307,6 @@ export const BuyTicketPage = () => {
     // clockTick buộc re-evaluate khi giữ trang mở qua giờ xổ
     const todaySellClosed = useMemo(
         () => isTodayDrawPassed(effectiveDrawTime),
-        // eslint-disable-next-line react-hooks/exhaustive-deps
         [effectiveDrawTime, clockTick]
     );
 
@@ -287,7 +332,7 @@ export const BuyTicketPage = () => {
                   ? next
                   : [...next, 'tomorrow']
         );
-        setSelectedNumbers([]);
+        setSelectedTicketId(null);
 
         if (!autoSwitchedToTomorrowRef.current) {
             autoSwitchedToTomorrowRef.current = true;
@@ -301,7 +346,7 @@ export const BuyTicketPage = () => {
         appliedTicketIdRef.current = null;
         appliedTicketNumberRef.current = null;
         if (urlTicketId || urlTicketNumber || urlStationId || urlStationIds || urlDrawDate || urlRegion) {
-            setSelectedNumbers([]);
+            setSelectedTicketId(null);
             setTicketQuantity(1);
         }
     }, [urlStationId, urlStationIds, urlRegion, urlDrawDate, urlTicketId, urlTicketNumber]);
@@ -450,11 +495,14 @@ export const BuyTicketPage = () => {
         ? ticketsRes.data.recordList
         : [];
     const totalTicketCount = ticketsRes?.data?.pagination?.totalRecords ?? availableTickets.length;
+    const selectedTicket = (availableTickets as unknown as PublicLotteryTicket[]).find(
+        (ticket) => getTicketKey(ticket) === selectedTicketId
+    );
+    const selectedNumbers = selectedTicket?.numbers != null ? [String(selectedTicket.numbers)] : [];
 
     const openFilterPanel = () => {
         const nextOpen = !isFilterOpen;
         if (nextOpen) {
-            setDraftSelectedFavorites([...appliedFilters.searches]);
             setDraftRanges(appliedFilters.tailRanges.map(toUiTailRangeLabel));
             setDraftNumberTypes([...appliedFilters.numberTypes]);
         }
@@ -463,7 +511,7 @@ export const BuyTicketPage = () => {
 
     const applyTicketFilters = () => {
         setAppliedFilters({
-            searches: [...draftSelectedFavorites],
+            searches: [],
             tailRanges: draftRanges.map(toApiTailRange),
             numberTypes: [...draftNumberTypes],
         });
@@ -471,35 +519,12 @@ export const BuyTicketPage = () => {
     };
 
     const clearTicketFilters = () => {
-        setDraftSelectedFavorites([]);
         setDraftRanges([]);
         setDraftNumberTypes([]);
         setAppliedFilters(EMPTY_APPLIED_FILTERS);
         setTicketSearchInput('');
         setAppliedSearch('');
         setIsFilterOpen(false);
-    };
-
-    const addFavoriteNumber = (raw: string) => {
-        const digits = normalizeTicketSearchDigits(raw, 6);
-        if (digits.length < 2) {
-            toast.info('Nhập ít nhất 2 chữ số để thêm dãy yêu thích');
-            return;
-        }
-        setFavoriteNumbers((prev) => (prev.includes(digits) ? prev : [...prev, digits]));
-        setDraftSelectedFavorites((prev) => (prev.includes(digits) ? prev : [...prev, digits]));
-        setFavoriteDraftInput('');
-    };
-
-    const removeFavoriteNumber = (num: string) => {
-        setFavoriteNumbers((prev) => prev.filter((item) => item !== num));
-        setDraftSelectedFavorites((prev) => prev.filter((item) => item !== num));
-    };
-
-    const toggleDraftFavorite = (num: string) => {
-        setDraftSelectedFavorites((prev) =>
-            prev.includes(num) ? prev.filter((item) => item !== num) : [...prev, num]
-        );
     };
 
     const toggleDraftRange = (label: string) => {
@@ -553,7 +578,7 @@ export const BuyTicketPage = () => {
 
         appliedTicketIdRef.current = urlTicketId;
         if (matched.numbers) {
-            setSelectedNumbers([String(matched.numbers)]);
+            setSelectedTicketId(getTicketKey(matched));
         }
         setTicketQuantity(1);
 
@@ -600,155 +625,130 @@ export const BuyTicketPage = () => {
 
         appliedTicketNumberRef.current = urlTicketNumber;
         if (matched?.numbers) {
-            setSelectedNumbers([String(matched.numbers)]);
+            setSelectedTicketId(getTicketKey(matched));
         }
         setTicketQuantity(1);
     }, [urlTicketNumber, availableTickets, isLoadingTickets, isFetchingTickets]);
 
-    const toggleNumber = (num: string) => {
-        setTicketQuantity(1); // Reset quantity when changing number
-        if (selectedNumbers.includes(num)) {
-            setSelectedNumbers(selectedNumbers.filter(n => n !== num));
-        } else {
-            setSelectedNumbers([num]);
-        }
+    const toggleTicket = (ticket: PublicLotteryTicket) => {
+        const ticketId = getTicketKey(ticket);
+        if (!ticketId) return;
+        setTicketQuantity(1);
+        setSelectedTicketId((prev) => (prev === ticketId ? null : ticketId));
     };
 
     const maxAvailable = useMemo(() => {
-        if (selectedNumbers.length === 0) return 1;
-        const num = selectedNumbers[0];
-        const ticketData = (availableTickets as unknown as PublicLotteryTicket[]).find((t) => t.numbers === num);
-        return ticketData?.quantity || 1;
-    }, [selectedNumbers, availableTickets]);
+        return selectedTicket?.quantity || 1;
+    }, [selectedTicket]);
 
     const selectedTicketProvinces = useMemo(() => {
-        if (selectedNumbers.length === 0) return activeProvinces;
-        
-        const provs = new Map<string, typeof dynamicProvinces[number]>();
-        selectedNumbers.forEach(num => {
-            const ticketData = (availableTickets as unknown as PublicLotteryTicket[]).find((t) => t.numbers === num);
-            if (ticketData) {
-                const prov = dynamicProvinces.find(
-                    (p) =>
-                        sameProvinceId(p.id, ticketData.providerId ?? '') ||
-                        sameProvinceId(p.id, ticketData.stationId ?? '')
-                );
-                if (prov && !provs.has(prov.id)) {
-                    provs.set(prov.id, prov);
-                }
-            }
-        });
-        
-        const arr = Array.from(provs.values());
-        return arr.length > 0 ? arr : activeProvinces;
-    }, [selectedNumbers, availableTickets, dynamicProvinces, activeProvinces]);
+        if (!selectedTicket) return activeProvinces;
+
+        const prov = dynamicProvinces.find(
+            (p) =>
+                sameProvinceId(p.id, selectedTicket.providerId ?? '') ||
+                sameProvinceId(p.id, selectedTicket.stationId ?? '')
+        );
+        return prov ? [prov] : activeProvinces;
+    }, [selectedTicket, dynamicProvinces, activeProvinces]);
     const totalQuantity = selectedNumbers.length * ticketQuantity;
     const pricePerTicket = 10000;
     const totalAmount = totalQuantity * pricePerTicket;
 
     const addToCart = () => {
-        if (selectedProvinces.length === 0 || selectedNumbers.length === 0) {
+        if (selectedProvinces.length === 0 || !selectedTicket) {
             toast.warning('Vui lòng chọn đài và ít nhất 1 vé số!');
             return false;
         }
 
-        let hasError = false;
-        selectedNumbers.forEach(num => {
-            const ticketData = (availableTickets as any[]).find((t: any) => t.numbers === num);
-            if (!ticketData || (!ticketData.id && !ticketData._id)) {
-                hasError = true;
-                toast.error(`Lỗi: Không tìm thấy ID cho vé số ${num}`);
-                return;
-            }
+        const ticketData = selectedTicket as any;
+        const num = String(ticketData.numbers);
+        if (!ticketData.id && !ticketData._id) {
+            toast.error(`Lỗi: Không tìm thấy ID cho vé số ${num}`);
+            return false;
+        }
 
-            const maxAvailableQty = ticketData?.quantity || 1;
-            const currentCartItem = useCartStore.getState().items.find(i =>
-                i.id === String(ticketData.id || ticketData._id)
-            );
-            const currentCartQty = currentCartItem ? currentCartItem.quantity : 0;
+        const maxAvailableQty = ticketData?.quantity || 1;
+        const currentCartItem = useCartStore.getState().items.find(i =>
+            i.id === String(ticketData.id || ticketData._id)
+        );
+        const currentCartQty = currentCartItem ? currentCartItem.quantity : 0;
 
-            if (currentCartQty + ticketQuantity > maxAvailableQty) {
-                hasError = true;
-                toast.error(`Vé số ${num} chỉ còn ${maxAvailableQty} vé (bạn đã có ${currentCartQty} vé trong giỏ)`);
-                return;
-            }
+        if (currentCartQty + ticketQuantity > maxAvailableQty) {
+            toast.error(`Vé số ${num} chỉ còn ${maxAvailableQty} vé (bạn đã có ${currentCartQty} vé trong giỏ)`);
+            return false;
+        }
 
-            const activeProv = dynamicProvinces.find(
-                (p: any) =>
-                    sameProvinceId(p.id, ticketData.providerId ?? '') ||
-                    sameProvinceId(p.id, ticketData.stationId ?? '')
-            ) || activeProvinces[0];
-            const ticketDateStr = ticketData.drawDate ? dayjs(ticketData.drawDate).format('DD/MM/YYYY') : dayjs().format('DD/MM/YYYY');
-            useCartStore.getState().addItem({
-                id: String(ticketData.id || ticketData._id),
-                province: activeProv?.name || 'Nhà đài',
-                provinceIcon: activeProv?.icon,
-                date: ticketDateStr,
-                time: activeProv?.time || '--:--',
-                kyHieu: ticketData.batchCode || "2K2",
-                numbers: num,
-                price: pricePerTicket,
-                quantity: ticketQuantity,
-                color: "#f59e0b",
-                ticketImg: ticketData.ticketImg,
-                maxStock: maxAvailableQty
-            });
+        const activeProv = dynamicProvinces.find(
+            (p: any) =>
+                sameProvinceId(p.id, ticketData.providerId ?? '') ||
+                sameProvinceId(p.id, ticketData.stationId ?? '')
+        ) || activeProvinces[0];
+        const ticketDateStr = ticketData.drawDate ? dayjs(ticketData.drawDate).format('DD/MM/YYYY') : dayjs().format('DD/MM/YYYY');
+        useCartStore.getState().addItem({
+            id: String(ticketData.id || ticketData._id),
+            province: activeProv?.name || 'Nhà đài',
+            provinceIcon: activeProv?.icon,
+            date: ticketDateStr,
+            time: activeProv?.time || '--:--',
+            kyHieu: ticketData.batchCode || "2K2",
+            numbers: num,
+            price: pricePerTicket,
+            quantity: ticketQuantity,
+            color: "#f59e0b",
+            ticketImg: ticketData.ticketImg,
+            maxStock: maxAvailableQty
         });
 
-        if (hasError) return false;
         toast.success(`Đã thêm ${totalQuantity} vé vào giỏ hàng`);
         return true;
     };
 
     const buildSelectedCartItems = () => {
-        const result: CartItem[] = [];
-        let hasError = false;
+        if (!selectedTicket) {
+            return null;
+        }
 
-        selectedNumbers.forEach((num) => {
-            const ticketData = (availableTickets as any[]).find((t: any) => t.numbers === num);
-            if (!ticketData || (!ticketData.id && !ticketData._id)) {
-                hasError = true;
-                toast.error(`Lỗi: Không tìm thấy ID cho vé số ${num}`);
-                return;
-            }
+        const ticketData = selectedTicket as any;
+        const num = String(ticketData.numbers);
+        if (!ticketData.id && !ticketData._id) {
+            toast.error(`Lỗi: Không tìm thấy ID cho vé số ${num}`);
+            return null;
+        }
 
-            const maxAvailableQty = ticketData?.quantity || 1;
-            if (ticketQuantity > maxAvailableQty) {
-                hasError = true;
-                toast.error(`Vé số ${num} chỉ còn ${maxAvailableQty} vé`);
-                return;
-            }
+        const maxAvailableQty = ticketData?.quantity || 1;
+        if (ticketQuantity > maxAvailableQty) {
+            toast.error(`Vé số ${num} chỉ còn ${maxAvailableQty} vé`);
+            return null;
+        }
 
-            const activeProv = dynamicProvinces.find(
-                (p: any) =>
-                    sameProvinceId(p.id, ticketData.providerId ?? '') ||
-                    sameProvinceId(p.id, ticketData.stationId ?? '')
-            ) || activeProvinces[0];
-            const ticketDateStr = ticketData.drawDate
-                ? dayjs(ticketData.drawDate).format('DD/MM/YYYY')
-                : dayjs().format('DD/MM/YYYY');
+        const activeProv = dynamicProvinces.find(
+            (p: any) =>
+                sameProvinceId(p.id, ticketData.providerId ?? '') ||
+                sameProvinceId(p.id, ticketData.stationId ?? '')
+        ) || activeProvinces[0];
+        const ticketDateStr = ticketData.drawDate
+            ? dayjs(ticketData.drawDate).format('DD/MM/YYYY')
+            : dayjs().format('DD/MM/YYYY');
 
-            result.push({
-                id: String(ticketData.id || ticketData._id),
-                province: activeProv?.name || 'Nhà đài',
-                provinceIcon: activeProv?.icon,
-                date: ticketDateStr,
-                time: activeProv?.time || '--:--',
-                kyHieu: ticketData.batchCode || '2K2',
-                numbers: num,
-                price: pricePerTicket,
-                quantity: ticketQuantity,
-                color: '#f59e0b',
-                ticketImg: ticketData.ticketImg,
-                maxStock: maxAvailableQty,
-            });
-        });
-
-        return hasError ? null : result;
+        return [{
+            id: String(ticketData.id || ticketData._id),
+            province: activeProv?.name || 'Nhà đài',
+            provinceIcon: activeProv?.icon,
+            date: ticketDateStr,
+            time: activeProv?.time || '--:--',
+            kyHieu: ticketData.batchCode || '2K2',
+            numbers: num,
+            price: pricePerTicket,
+            quantity: ticketQuantity,
+            color: '#f59e0b',
+            ticketImg: ticketData.ticketImg,
+            maxStock: maxAvailableQty,
+        }] as CartItem[];
     };
 
     const handleCheckout = () => {
-        if (selectedProvinces.length === 0 || selectedNumbers.length === 0) {
+        if (selectedProvinces.length === 0 || !selectedTicket) {
             toast.warning('Vui lòng chọn đài và ít nhất 1 vé số!');
             return;
         }
@@ -856,18 +856,6 @@ export const BuyTicketPage = () => {
                                                     </button>
                                                     <button
                                                         type="button"
-                                                        onClick={() => setFilterActiveTab('favorites')}
-                                                        className={`flex items-center gap-3 px-4 py-3.5 rounded-xl cursor-pointer transition-all duration-200 text-left w-full ${
-                                                            filterActiveTab === 'favorites'
-                                                                ? 'bg-white text-[#ee1314] font-extrabold shadow-xs border border-[#ee1314]/20'
-                                                                : 'text-[#64748B] hover:bg-white/70 hover:text-[#0F172A] font-semibold'
-                                                        }`}
-                                                    >
-                                                        <Heart size={18} className={filterActiveTab === 'favorites' ? 'text-[#ee1314]' : 'text-[#64748B]'} />
-                                                        <span className="text-[13.5px]">Dãy số yêu thích</span>
-                                                    </button>
-                                                    <button
-                                                        type="button"
                                                         onClick={() => setFilterActiveTab('range')}
                                                         className={`flex items-center gap-3 px-4 py-3.5 rounded-xl cursor-pointer transition-all duration-200 text-left w-full ${
                                                             filterActiveTab === 'range'
@@ -882,105 +870,6 @@ export const BuyTicketPage = () => {
 
                                                 {/* Right Content */}
                                                 <div className="flex-1 p-6 flex flex-col bg-white min-w-0 max-h-[420px] overflow-y-auto">
-                                                    {filterActiveTab === 'favorites' && (
-                                                        <div className="animate-in fade-in slide-in-from-right-4 duration-200 space-y-6">
-                                                            <div>
-                                                                <h4 className="font-extrabold text-[15px] text-[#0F172A] tracking-tight mb-1">DÃY SỐ YÊU THÍCH</h4>
-                                                                <p className="text-[13px] text-[#64748B]">Chọn nhanh các dãy số bạn đã lưu để lọc vé phù hợp.</p>
-                                                            </div>
-
-                                                            {/* Add favorite number input */}
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="flex-1 flex items-center bg-white rounded-xl border border-[#E2E8F0] focus-within:border-[#ee1314] focus-within:ring-2 focus-within:ring-[#ee1314]/10 px-3.5 h-11 shadow-xs transition-all">
-                                                                    <Search size={17} className="text-[#94A3B8] mr-2 shrink-0" />
-                                                                    <input
-                                                                        type="text"
-                                                                        inputMode="numeric"
-                                                                        value={favoriteDraftInput}
-                                                                        onChange={(e) => setFavoriteDraftInput(normalizeTicketSearchDigits(e.target.value, 6))}
-                                                                        onKeyDown={(e) => {
-                                                                            if (e.key === 'Enter') {
-                                                                                e.preventDefault();
-                                                                                addFavoriteNumber(favoriteDraftInput);
-                                                                            }
-                                                                        }}
-                                                                        placeholder="Nhập dãy số yêu thích (VD: 68, 888...)"
-                                                                        className="flex-1 bg-transparent border-none outline-none text-[14px] text-[#0F172A] font-bold placeholder:font-normal placeholder:text-[#94A3B8]"
-                                                                    />
-                                                                </div>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => addFavoriteNumber(favoriteDraftInput)}
-                                                                    className="h-11 px-4 rounded-xl border border-[#ee1314] text-[#ee1314] hover:bg-[#ee1314] hover:text-white text-[13.5px] font-bold bg-white flex items-center justify-center gap-1.5 transition-all shadow-xs shrink-0 cursor-pointer active:scale-95"
-                                                                >
-                                                                    <i className="fa-solid fa-plus text-[12px]"></i> Thêm dãy số
-                                                                </button>
-                                                            </div>
-
-                                                            {/* Saved Favorite Numbers */}
-                                                            <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl p-4">
-                                                                <div className="text-[12.5px] font-extrabold text-[#475569] uppercase tracking-wider mb-3 flex items-center gap-2">
-                                                                    <span className="w-2 h-2 rounded-full bg-[#ee1314]"></span>
-                                                                    Dãy số đã lưu ({favoriteNumbers.length})
-                                                                </div>
-                                                                <div className="flex flex-wrap gap-2.5 items-center">
-                                                                    {favoriteNumbers.length === 0 ? (
-                                                                        <p className="text-[13px] text-[#94A3B8] italic">Chưa có dãy yêu thích. Thêm hoặc chọn từ gợi ý bên dưới.</p>
-                                                                    ) : (
-                                                                        favoriteNumbers.map((num) => {
-                                                                            const selected = draftSelectedFavorites.includes(num);
-                                                                            return (
-                                                                                <div
-                                                                                    key={num}
-                                                                                    onClick={() => toggleDraftFavorite(num)}
-                                                                                    className={`h-9 px-3.5 rounded-full border text-[13.5px] font-extrabold flex items-center justify-between gap-2.5 cursor-pointer transition-all duration-150 select-none shadow-xs ${
-                                                                                        selected
-                                                                                            ? 'border-[#ee1314] bg-[#ee1314] text-white shadow-sm shadow-[#ee1314]/25 scale-[1.02]'
-                                                                                            : 'border-[#E2E8F0] text-[#1E293B] bg-white hover:border-[#ee1314]/50'
-                                                                                    }`}
-                                                                                >
-                                                                                    <LuckyNumber value={num} ticket className="text-[13.5px]" />
-                                                                                    <button
-                                                                                        type="button"
-                                                                                        onClick={(e) => {
-                                                                                            e.stopPropagation();
-                                                                                            removeFavoriteNumber(num);
-                                                                                        }}
-                                                                                        className={`w-4 h-4 rounded-full flex items-center justify-center transition-colors ${
-                                                                                            selected ? 'hover:bg-white/20 text-white' : 'hover:bg-[#E2E8F0] text-[#94A3B8] hover:text-[#ee1314]'
-                                                                                        }`}
-                                                                                    >
-                                                                                        <i className="fa-solid fa-xmark text-[11px]"></i>
-                                                                                    </button>
-                                                                                </div>
-                                                                            );
-                                                                        })
-                                                                    )}
-                                                                </div>
-                                                            </div>
-
-                                                            {/* Number Suggestions */}
-                                                            <div>
-                                                                <div className="text-[12.5px] font-extrabold text-[#475569] uppercase tracking-wider mb-3 flex items-center gap-2">
-                                                                    <span className="w-2 h-2 rounded-full bg-[#ee1314]"></span>
-                                                                    Gợi ý dãy số hot
-                                                                </div>
-                                                                <div className="flex flex-wrap gap-2">
-                                                                    {['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '111', '222', '333', '444', '555', '666', '777', '000'].map((num) => (
-                                                                        <button
-                                                                            type="button"
-                                                                            key={`s-${num}`}
-                                                                            onClick={() => addFavoriteNumber(num)}
-                                                                            className="h-9 px-3.5 rounded-xl border border-[#E2E8F0] text-[#334155] hover:text-[#ee1314] hover:border-[#ee1314]/40 hover:bg-[#FFF4F4] text-[13.5px] font-bold bg-[#F8FAFC] flex items-center justify-center cursor-pointer transition-all shadow-xs active:scale-95"
-                                                                        >
-                                                                            <LuckyNumber value={num} ticket className="text-[13.5px] font-bold" />
-                                                                        </button>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    )}
-
                                                     {filterActiveTab === 'range' && (
                                                         <div className="animate-in fade-in slide-in-from-right-4 duration-200 space-y-6">
                                                             <div>
@@ -1211,9 +1100,8 @@ export const BuyTicketPage = () => {
                                         </div>
                                     ) : availableTickets.length > 0 ? (
                                         availableTickets.map((ticket: any, i: number) => {
-                                            const num = ticket.numbers;
                                             const ticketKey = String(ticket.id ?? ticket._id ?? i);
-                                            const isSelected = selectedNumbers.includes(num);
+                                            const isSelected = selectedTicketId === ticketKey;
                                             const isDeepLinked =
                                                 deepLinkHighlightReady &&
                                                 !!urlTicketId &&
@@ -1224,27 +1112,15 @@ export const BuyTicketPage = () => {
                                                 'Nhà đài';
 
                                             return (
-                                                <div
+                                                <BuyTicketGridCard
                                                     key={ticketKey}
-                                                    data-ticket-id={ticket.id ?? ticket._id}
-                                                    onClick={() => toggleNumber(num)}
-                                                    className={`relative border rounded-[20px] p-3 flex flex-col items-center cursor-pointer transition-shadow duration-200 hover:shadow-md
-                                                        ${isSelected || isDeepLinked ? 'border-[#ee1314] bg-[#FFF4F4]/30' : 'border-[#E5E8EB] bg-white'}
-                                                        ${isDeepLinked ? 'ring-2 ring-[#ee1314]/40' : ''}
-                                                    `}
-                                                >
-                                                    <div className="mb-2 text-center text-[11.5px] font-semibold text-[#637381] leading-snug line-clamp-2 min-h-[32px] flex items-center justify-center px-1">
-                                                        {stationName}
-                                                    </div>
-
-                                                    {/* Number */}
-                                                    <div className="font-black text-[20px] text-[#212B36] tracking-tight mb-1.5 leading-none">
-                                                        <LuckyNumber value={String(num)} ticket className="text-[20px] tracking-tight" />
-                                                    </div>
-
-                                                    {/* Price */}
-                                                    <div className="font-bold text-[#ee1314] text-[14px]">{(ticket.price || 10000).toLocaleString('vi-VN')}đ</div>
-                                                </div>
+                                                    ticket={ticket}
+                                                    index={i}
+                                                    isSelected={isSelected}
+                                                    isDeepLinked={isDeepLinked}
+                                                    stationName={stationName}
+                                                    onSelect={toggleTicket}
+                                                />
                                             );
                                         })
                                     ) : (
@@ -1284,19 +1160,10 @@ export const BuyTicketPage = () => {
                             <div className="p-5">
                                 {/* Province Info */}
                                 {selectedTicketProvinces.length > 0 && (
-                                    <div className="flex items-center gap-4 mb-5">
-                                        <div className="w-[50px] h-[50px] rounded-full bg-white flex items-center justify-center shadow-sm p-1.5 shrink-0 border border-[#E5E8EB]">
-                                            {selectedTicketProvinces.length === 1 && selectedTicketProvinces[0]?.icon ? (
-                                                <img src={selectedTicketProvinces[0].icon} alt={selectedTicketProvinces[0].name} className="w-full h-full object-contain" />
-                                            ) : (
-                                                <i className="fa-solid fa-building text-[#637381] text-2xl"></i>
-                                            )}
-                                        </div>
-                                        <div>
-                                            <div className="font-bold text-[14px] text-[#212B36] mb-1">Vé số {selectedTicketProvinces.length === 1 ? selectedTicketProvinces[0].name : 'Các đài miền Nam'}</div>
-                                            <div className="text-[14px] text-[#637381]">Mở thưởng: {selectedTicketProvinces.length > 0 ? (selectedTicketProvinces.length === 1 ? selectedTicketProvinces[0].time : '16:15') : '--:--'} - {selectedDates.length > 1 ? 'Nhiều ngày' : (selectedDates[0] === 'today' ? 'Hôm nay' : (selectedDates[0] === 'tomorrow' ? 'Ngày mai' : (selectedDates[0] ? dayjs(resolveDrawDateToken(selectedDates[0])).format('DD/MM/YYYY') : '')))}</div>
-                                            <div className="text-[14px] text-[#637381] mt-0.5">Ngày: {selectedDates.length > 1 ? 'Nhiều ngày' : (selectedDates[0] ? dayjs(resolveDrawDateToken(selectedDates[0])).format('DD/MM/YYYY') : '--/--/----')}</div>
-                                        </div>
+                                    <div className="mb-5">
+                                        <div className="font-bold text-[14px] text-[#212B36] mb-1">Vé số {selectedTicketProvinces.length === 1 ? selectedTicketProvinces[0].name : 'Các đài miền Nam'}</div>
+                                        <div className="text-[14px] text-[#637381]">Mở thưởng: {selectedTicketProvinces.length > 0 ? (selectedTicketProvinces.length === 1 ? selectedTicketProvinces[0].time : '16:15') : '--:--'}{selectedDates.length <= 1 ? ` - ${selectedDates[0] === 'today' ? 'Hôm nay' : (selectedDates[0] === 'tomorrow' ? 'Ngày mai' : (selectedDates[0] ? dayjs(resolveDrawDateToken(selectedDates[0])).format('DD/MM/YYYY') : ''))}` : ''}</div>
+                                        <div className="text-[14px] text-[#637381] mt-0.5">Ngày: {selectedDates.length > 0 ? selectedDates.map((d) => dayjs(resolveDrawDateToken(d)).format('DD/MM/YYYY')).join(', ') : '--/--/----'}</div>
                                     </div>
                                 )}
 
@@ -1309,7 +1176,7 @@ export const BuyTicketPage = () => {
                                         <div className="flex flex-wrap gap-2 justify-end pl-4">
                                             {selectedNumbers.map(num => (
                                                 <div key={num} className="bg-[#FFF4F4] px-2.5 py-1 rounded-lg text-[14px] font-bold tracking-[1px] border border-[#FFEBEE] shadow-sm">
-                                                    <LuckyNumber value={num} ticket className="text-[14px] tracking-[1px]" />
+                                                    <LuckyNumber value={num} ticket showBadge={false} className="text-[14px] tracking-[1px]" />
                                                 </div>
                                             ))}
                                         </div>
@@ -1374,10 +1241,7 @@ export const BuyTicketPage = () => {
 
                         {/* Guide Section */}
                         <div className="bg-[#fafafa] rounded-[20px] p-5 mt-2 mx-1">
-                            <div className="flex justify-between items-center mb-5">
-                                <h4 className="font-bold text-[14px] uppercase text-[#212B36]">Hướng dẫn mua vé</h4>
-                                <a href="#" className="text-[#637381] text-[14px] flex items-center gap-1 hover:text-[#ee1314]">Xem chi tiết <ChevronRight size={14} /></a>
-                            </div>
+                            <h4 className="font-bold text-[14px] uppercase text-[#212B36] mb-5">Hướng dẫn mua vé</h4>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="flex items-start gap-3">
                                     <div className="w-6 h-6 rounded-full bg-[#FFF4F4] text-[#ee1314] flex items-center justify-center font-bold text-[14px] shrink-0">1</div>

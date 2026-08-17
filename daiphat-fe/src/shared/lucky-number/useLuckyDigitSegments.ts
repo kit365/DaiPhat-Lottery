@@ -24,3 +24,9 @@ export const useLuckyDigitSegments = (
             : highlightDisplayString(display, patterns);
     }, [display, options.ticket, patterns]);
 };
+
+export const useIsLuckyTicket = (value?: string | number | null): boolean => {
+    const display = value == null || value === "" ? "" : String(value);
+    const segments = useLuckyDigitSegments(display, { ticket: true });
+    return segments.some((segment) => Boolean(segment.color));
+};
