@@ -37,4 +37,13 @@ class TicketPrizeMatcherTest {
         assertThat(result).isPresent();
         assertThat(result.get().prizeCode()).isEqualTo("G8");
     }
+
+    @Test
+    @DisplayName("matches DB_PHU and KK against special number")
+    void matchesSpecialConsolationPrizes() {
+        assertThat(TicketPrizeMatcher.matches("682917", "582917", MatchFrom.SPECIAL_CONSOLATION_1, 5)).isTrue();
+        assertThat(TicketPrizeMatcher.matches("582917", "582917", MatchFrom.SPECIAL_CONSOLATION_1, 5)).isFalse();
+        assertThat(TicketPrizeMatcher.matches("592917", "582917", MatchFrom.SPECIAL_CONSOLATION_2, 5)).isTrue();
+        assertThat(TicketPrizeMatcher.matches("682917", "582917", MatchFrom.SPECIAL_CONSOLATION_2, 5)).isFalse();
+    }
 }
