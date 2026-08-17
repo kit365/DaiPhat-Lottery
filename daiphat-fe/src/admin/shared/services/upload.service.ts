@@ -11,9 +11,7 @@ export const uploadAdminImage = async (file: File): Promise<string> => {
     formData.append('file', file);
 
     const response = await apiApp.post('/lottery-tickets/images/upload', formData, {
-        // Large receipt photos can exceed the default 15s API timeout.
-        timeout: 60_000,
-        // Callers show their own toast; avoid duplicate "server busy" toasts.
+        timeout: 120_000,
         skipGlobalErrorToast: true,
     } as UploadRequestConfig);
     const url = response.data?.data?.url;

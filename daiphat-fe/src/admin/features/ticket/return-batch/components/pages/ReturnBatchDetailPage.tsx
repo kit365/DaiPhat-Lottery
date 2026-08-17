@@ -37,6 +37,7 @@ import { Button } from '../../../../../components/ui/Button';
 import { CanAccess } from '../../../../../components/auth/CanAccess';
 import { UploadSingleFile } from '../../../../../components/upload/UploadSingleFile';
 import { uploadAdminImage } from '@/admin/shared/services/upload.service';
+import { axiosRequestErrorMessage } from '@/api/requestError';
 import { PERMISSIONS } from '../../../../../constants/permission.constants';
 import { ROUTES } from '../../../../../constants/routes';
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
@@ -196,8 +197,12 @@ export const ReturnBatchDetailPage = () => {
             });
             toast.success('Đã xác nhận bàn giao — sê-ri chuyển sang Đã trả.');
             closeHandoverDialog();
-        } catch (err: any) {
-            const message = err?.response?.data?.message || err?.message || 'Không thể xác nhận bàn giao hoặc lỗi tải ảnh.';
+        } catch (err: unknown) {
+            const message = axiosRequestErrorMessage(
+                err,
+                'Không thể xác nhận bàn giao hoặc lỗi tải ảnh.',
+                'Bàn giao phiếu trả đang xử lý lâu hơn dự kiến. Kiểm tra trạng thái phiếu trước khi bấm lại, tránh bàn giao trùng.'
+            );
             setEvidenceUploadError(message);
             toast.error(message);
         } finally {
@@ -997,7 +1002,7 @@ export const ReturnBatchDetailPage = () => {
                             )}
                             {evidenceUploadError && (
                                 <Typography variant="caption" color="error" sx={{ mt: 0.75, display: 'block' }}>
-                                    Tải ảnh thất bại. Vui lòng chọn lại ảnh để thử lại.
+                                    {evidenceUploadError}
                                 </Typography>
                             )}
                         </Box>

@@ -82,7 +82,8 @@ class SupplierSettlementReconciliationReportServiceTest {
                 .contains("IB-001")
                 .contains("Vé nhập")
                 .contains("Tổng tiền nhập")
-                .contains("Sau chênh lệch");
+                .contains("Chưa thanh toán")
+                .contains("Số tiền phải trả NCC");
         assertThat(result.content()).isEqualTo(pdf);
         assertThat(result.fileName()).isEqualTo("bao-cao-doi-soat-DS-20260815-001.pdf");
     }
@@ -102,7 +103,47 @@ class SupplierSettlementReconciliationReportServiceTest {
         assertThatThrownBy(() -> service.generatePdf(10L)).isInstanceOf(DomainException.class);
     }
 
+    @Test
+    @DisplayName("PDF kỳ đã thanh toán ghi Đã thanh toán và mục ảnh biên lai")
+    void generatePdf_paidStatusIncludesReceiptSection() {
+        when(supplierSettlementServicePort.getOverview(10L)).thenReturn(paidOverview());
+        when(systemConfigRepositoryPort.findActiveByConfigKey(anyString())).thenReturn(Optional.empty());
+        when(contractPdfRendererPort.renderPdf(anyString())).thenReturn("%PDF-1.7".getBytes(StandardCharsets.US_ASCII));
+
+        service.generatePdf(10L);
+
+        ArgumentCaptor<String> htmlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(contractPdfRendererPort).renderPdf(htmlCaptor.capture());
+        assertThat(htmlCaptor.getValue())
+                .contains("Đã thanh toán")
+                .contains("Ảnh biên lai đã thanh toán")
+                .doesNotContain("Chưa thanh toán.");
+    }
+
+    private SupplierSettlementOverviewResponse paidOverview() {
+        return overview(
+                SupplierSettlementStatus.COMPLETED,
+                "Đã thanh toán",
+                SupplierSettlementReconciliationPhase.COMPLETED,
+                "Hoàn tất đối soát"
+        );
+    }
+
     private SupplierSettlementOverviewResponse overview() {
+        return overview(
+                SupplierSettlementStatus.OPEN,
+                "Đang mở",
+                SupplierSettlementReconciliationPhase.RECALCULATED,
+                "Đã tính lại"
+        );
+    }
+
+    private SupplierSettlementOverviewResponse overview(
+            SupplierSettlementStatus status,
+            String statusLabel,
+            SupplierSettlementReconciliationPhase phase,
+            String phaseLabel
+    ) {
         return SupplierSettlementOverviewResponse.builder()
                 .settlement(SupplierSettlementResponse.builder()
                         .id(10L)
@@ -111,10 +152,10 @@ class SupplierSettlementReconciliationReportServiceTest {
                         .supplierSettlementCode("DS-20260815-001")
                         .periodFrom(LocalDate.of(2026, 8, 15))
                         .periodTo(LocalDate.of(2026, 8, 15))
-                        .status(SupplierSettlementStatus.OPEN)
-                        .statusLabel("Đang mở")
-                        .reconciliationPhase(SupplierSettlementReconciliationPhase.RECALCULATED)
-                        .reconciliationPhaseLabel("Đã tính lại")
+                        .status(status)
+                        .statusLabel(statusLabel)
+                        .reconciliationPhase(phase)
+                        .reconciliationPhaseLabel(phaseLabel)
                         .matchingConfirmedAt(LocalDateTime.of(2026, 8, 15, 10, 0))
                         .systemImportQuantity(100)
                         .actualTicketImportQuantity(100)

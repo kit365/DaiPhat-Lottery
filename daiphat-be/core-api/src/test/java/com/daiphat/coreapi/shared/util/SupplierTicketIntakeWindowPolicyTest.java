@@ -54,11 +54,32 @@ class SupplierTicketIntakeWindowPolicyTest {
     }
 
     @Test
-    @DisplayName("Intake is refused before the counter opens")
-    void closedBeforeOpening() {
-        assertThat(policy.isBeforeIntakeOpen(minhChinh(), TODAY, at("07:59"))).isTrue();
+    @DisplayName("A morning receive hour opens on the previous day's morning for that draw")
+    void morningReceiveHourOpensOnPreviousDay() {
+        // Draw 17/08 opens 16/08 08:00 — overnight and early morning of the 17th stay open.
+        assertThat(policy.isBeforeIntakeOpen(minhChinh(), TODAY, at("02:26"))).isFalse();
+        assertThat(policy.isBeforeIntakeOpen(minhChinh(), TODAY, at("07:59"))).isFalse();
         assertThat(policy.isBeforeIntakeOpen(minhChinh(), TODAY, at("08:00"))).isFalse();
         assertThat(policy.isBeforeIntakeOpen(minhChinh(), TODAY, at("12:00"))).isFalse();
+
+        // Draw 18/08 opens 17/08 08:00 — 07:59 on the 17th is still too early.
+        assertThat(policy.isBeforeIntakeOpen(minhChinh(), TOMORROW, at("07:59"))).isTrue();
+        assertThat(policy.isBeforeIntakeOpen(minhChinh(), TOMORROW, at("08:00"))).isFalse();
+    }
+
+    @Test
+    @DisplayName("An afternoon receive hour stays on the draw date")
+    void afternoonReceiveHourStaysOnDrawDate() {
+        LotterySupplierModel afternoon = LotterySupplierModel.builder()
+                .id(1L)
+                .name("Minh Chính")
+                .importAllowFrom(LocalTime.of(13, 0))
+                .returnCutOffTime(LocalTime.of(18, 0))
+                .build();
+
+        assertThat(policy.isBeforeIntakeOpen(afternoon, TODAY, at("12:59"))).isTrue();
+        assertThat(policy.isBeforeIntakeOpen(afternoon, TODAY, at("13:00"))).isFalse();
+        assertThat(policy.isBeforeIntakeOpen(afternoon, TOMORROW, at("16:00"))).isTrue();
     }
 
     @Test
@@ -82,24 +103,17 @@ class SupplierTicketIntakeWindowPolicyTest {
     }
 
     /**
-     * The two ends answer different questions, so they scope differently.
-     *
-     * <p>Opening asks "is this supplier trading yet?" — a fact about right now.
-     * Before they open, nothing can be collected from them, whichever draw the
-     * tickets are for.
-     *
-     * <p>Closing asks "has the return sweep for this draw begun?" — a fact about
-     * the draw date. Tomorrow's sweep has not started today, so a batch for
-     * tomorrow may be taken in as soon as the counter opens today.
+     * Opening belongs to the draw date: a morning hour starts the previous
+     * calendar morning. Closing still belongs to the draw date's return sweep.
      */
     @Test
-    @DisplayName("Opening is judged on today's clock; closing is judged on the draw date")
+    @DisplayName("Opening is judged on the draw date; closing is judged on the draw date's sweep")
     void endsScopeDifferently() {
-        // 17/08 06:00, before the counter opens: nothing goes in, not even for the 18th.
+        // 17/08 06:00: today's draw already opened yesterday 08:00; tomorrow waits until 17/08 08:00.
         assertThat(policy.isBeforeIntakeOpen(minhChinh(), TOMORROW, at("06:00"))).isTrue();
-        assertThat(policy.isBeforeIntakeOpen(minhChinh(), TODAY, at("06:00"))).isTrue();
+        assertThat(policy.isBeforeIntakeOpen(minhChinh(), TODAY, at("06:00"))).isFalse();
 
-        // 17/08 08:00, counter open: tomorrow's tickets may be taken in now.
+        // 17/08 08:00, counter open for tomorrow as well.
         assertThat(policy.isBeforeIntakeOpen(minhChinh(), TOMORROW, at("08:00"))).isFalse();
         assertThat(policy.isIntakeClosed(minhChinh(), TOMORROW, at("08:00"))).isFalse();
 
@@ -168,7 +182,7 @@ class SupplierTicketIntakeWindowPolicyTest {
     @DisplayName("Both refusals name the supplier and the hour they refer to")
     void messagesNameTheHour() {
         assertThat(policy.notOpenMessage(minhChinh(), TODAY))
-                .contains("Minh Chính").contains("08:00").contains("2026-08-17");
+                .contains("Minh Chính").contains("08:00").contains("2026-08-16").contains("2026-08-17");
         assertThat(policy.closedMessage(minhChinh(), TODAY))
                 .contains("Minh Chính").contains("13:45").contains("2026-08-17");
     }

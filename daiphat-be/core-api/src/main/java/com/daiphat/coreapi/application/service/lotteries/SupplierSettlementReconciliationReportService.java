@@ -20,19 +20,31 @@ import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementAdjustmentGroupType;
 import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementReconciliationPhase;
+import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementStatus;
 import com.daiphat.coreapi.domain.model.enums.settings.SystemConfigEnum;
 import com.daiphat.coreapi.domain.model.settings.SystemConfigModel;
 import com.daiphat.coreapi.shared.time.VietnamClock;
 import com.daiphat.coreapi.shared.util.ImportCostCalculator;
+import com.daiphat.coreapi.shared.util.StorageUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.text.NumberFormat;
+import java.time.Duration;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
 
@@ -49,6 +61,14 @@ public class SupplierSettlementReconciliationReportService
     private final SupplierSettlementReconciliationReportHtmlRendererPort htmlRendererPort;
     private final ContractPdfRendererPort contractPdfRendererPort;
     private final VietnamClock vietnamClock;
+
+    @Value("${daiphat.storage.local.base-dir:./data/uploads}")
+    private String localUploadDir;
+
+    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(5))
+            .followRedirects(HttpClient.Redirect.NORMAL)
+            .build();
 
     @Override
     public ContractPdfDocument generatePdf(Long settlementId) {
@@ -110,7 +130,32 @@ public class SupplierSettlementReconciliationReportService
                 + " — "
                 + dash(formatDate(settlement.periodTo()));
         String settlementCode = firstNonBlank(settlement.supplierSettlementCode(), "#" + settlement.id());
-        boolean completed = settlement.reconciliationPhase() == SupplierSettlementReconciliationPhase.COMPLETED;
+        boolean paid = settlement.status() == SupplierSettlementStatus.COMPLETED;
+        String paymentStatusLabel = paid ? "Đã thanh toán" : "Chưa thanh toán";
+        List<String> evidenceUrls = settlement.paymentEvidenceUrls() == null
+                ? List.of()
+                : settlement.paymentEvidenceUrls().stream()
+                        .filter(url -> url != null && !url.isBlank())
+                        .toList();
+        List<String> evidenceImages = paid ? embedPaymentEvidenceImages(evidenceUrls) : List.of();
+
+        BigDecimal unitPrice = settlement.reconciledTicketUnitPrice() != null
+                ? settlement.reconciledTicketUnitPrice()
+                : nvl(settlement.actualTicketPrice());
+        int netQty = importQtyActual - returnQtyActual;
+        BigDecimal importTicketMoney = ImportCostCalculator.scaleMoney(
+                unitPrice.multiply(BigDecimal.valueOf(importQtyActual))
+        );
+        BigDecimal returnTicketMoney = ImportCostCalculator.scaleMoney(
+                unitPrice.multiply(BigDecimal.valueOf(returnQtyActual))
+        );
+        BigDecimal ticketNetMoney = ImportCostCalculator.scaleMoney(
+                unitPrice.multiply(BigDecimal.valueOf(netQty))
+        );
+        BigDecimal additionalCost = additionalCostTotal(overview.adjustments());
+        BigDecimal payable = settlement.finalSettlementValue() != null
+                ? finalValue
+                : ImportCostCalculator.scaleMoney(ticketNetMoney.add(additionalCost));
 
         return new SupplierSettlementReconciliationReportTemplateData(
                 stringConfig(SystemConfigEnum.SITE_NAME),
@@ -144,7 +189,16 @@ public class SupplierSettlementReconciliationReportService
                 formatMoney(actualPaid),
                 formatMoney(remaining),
                 evidenceCount + " ảnh",
-                completed,
+                paymentStatusLabel,
+                paid,
+                evidenceImages,
+                formatMoney(unitPrice),
+                formatQty(netQty),
+                formatMoney(importTicketMoney),
+                formatMoney(returnTicketMoney),
+                formatMoney(ticketNetMoney),
+                formatMoney(additionalCost),
+                formatMoney(payable),
                 toImportLots(overview.importBatches()),
                 toReturnLots(overview.returnBatches()),
                 toStations(overview.stationPricing()),
@@ -235,6 +289,81 @@ public class SupplierSettlementReconciliationReportService
             rows.add(new AdjustmentLine(name, dash(row.note()), formatSignedMoney(nvl(row.amount()))));
         }
         return rows;
+    }
+
+    private static BigDecimal additionalCostTotal(List<SupplierSettlementAdjustmentResponse> adjustments) {
+        if (adjustments == null || adjustments.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal total = BigDecimal.ZERO;
+        for (SupplierSettlementAdjustmentResponse row : adjustments) {
+            if (row == null || row.groupType() != SupplierSettlementAdjustmentGroupType.SETTLEMENT) {
+                continue;
+            }
+            total = total.add(nvl(row.amount()));
+        }
+        return ImportCostCalculator.scaleMoney(total);
+    }
+
+    private List<String> embedPaymentEvidenceImages(List<String> urls) {
+        List<String> images = new ArrayList<>();
+        for (String url : urls) {
+            String dataUri = toDataUri(url);
+            if (dataUri != null) {
+                images.add(dataUri);
+            }
+        }
+        return images;
+    }
+
+    private String toDataUri(String url) {
+        byte[] bytes = readEvidenceBytes(url);
+        if (bytes == null || bytes.length == 0) {
+            return null;
+        }
+        return "data:" + guessMimeType(url) + ";base64," + Base64.getEncoder().encodeToString(bytes);
+    }
+
+    private byte[] readEvidenceBytes(String url) {
+        try {
+            if (url.startsWith("http://") || url.startsWith("https://")) {
+                HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+                        .timeout(Duration.ofSeconds(8))
+                        .GET()
+                        .build();
+                HttpResponse<byte[]> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofByteArray());
+                if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                    return response.body();
+                }
+                return null;
+            }
+            String key = StorageUtils.extractStorageKeyFromUrl(url);
+            if (key == null || key.isBlank() || localUploadDir == null || localUploadDir.isBlank()) {
+                return null;
+            }
+            Path path = Path.of(localUploadDir).resolve(key).normalize();
+            Path base = Path.of(localUploadDir).toAbsolutePath().normalize();
+            if (!path.toAbsolutePath().normalize().startsWith(base) || !Files.isRegularFile(path)) {
+                return null;
+            }
+            return Files.readAllBytes(path);
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    private static String guessMimeType(String url) {
+        String lower = url == null ? "" : url.toLowerCase(Locale.ROOT);
+        if (lower.contains(".png")) {
+            return "image/png";
+        }
+        if (lower.contains(".webp")) {
+            return "image/webp";
+        }
+        if (lower.contains(".gif")) {
+            return "image/gif";
+        }
+        return "image/jpeg";
     }
 
     private String stringConfig(SystemConfigEnum key) {

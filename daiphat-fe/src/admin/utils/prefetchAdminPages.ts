@@ -56,7 +56,7 @@ export const prefetchAdminDestination = (
 };
 
 const ADMIN_LOGIN_DESTINATIONS = [
-    ROUTES.ADMIN.DASHBOARD.SYSTEM,
+    ROUTES.ADMIN.DASHBOARD.ECOMMERCE,
     ROUTES.ADMIN.AUTH.SETUP_PROFILE,
 ] as const;
 

@@ -237,7 +237,7 @@ const ReturnBatchPendingBadgeIcon = ({ children }: { children: ReactNode }) => {
     );
 };
 
-/** Isolated badge for supplier settlements with attention status (neither OPEN nor CLOSED). */
+/** Isolated badge for supplier settlements with attention status (neither OPEN nor COMPLETED). */
 const SupplierSettlementAttentionBadgeLabel = () => {
     const { attentionCount } = useSupplierSettlementAttentionCount();
     if (attentionCount <= 0) return null;

@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.application.port.in.lotteries;
 
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotterySupplierRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotterySupplierDefaultImportCostRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotterySupplierProfileRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotterySupplierRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
@@ -15,6 +16,9 @@ public interface LotterySupplierServicePort {
 
     /** Corrects only the identifying details, leaving timing rules alone. */
     LotterySupplierResponse updateProfile(UpdateLotterySupplierProfileRequest request);
+
+    /** Corrects only the default import cost, leaving identity and timing rules alone. */
+    LotterySupplierResponse updateDefaultImportCost(Long id, UpdateLotterySupplierDefaultImportCostRequest request);
 
     LotterySupplierResponse getById(Long id);
 

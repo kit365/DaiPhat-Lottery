@@ -46,8 +46,8 @@ public class ImportBatchDrawDateWindowPolicy {
      * <p>A supplier hands tomorrow's tickets over during today's opening hours,
      * so a file listing them is evidence of a delivery that really has happened.
      * What stops such a batch is not the calendar but the supplier's own window:
-     * intake opens at {@code importAllowFrom} today and closes for a given draw
-     * date when that date's return sweep begins — see
+     * a morning {@code importAllowFrom} opens on the previous day's morning for
+     * that draw, and intake closes when that date's return sweep begins — see
      * {@link SupplierTicketIntakeWindowPolicy}.
      *
      * <p>Past draw dates stay out. Those tickets can no longer be sold, and a

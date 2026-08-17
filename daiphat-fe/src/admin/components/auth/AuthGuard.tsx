@@ -58,7 +58,7 @@ export const AuthGuard = ({ children }: Props) => {
         }
 
         if (user && isSetupComplete && isSetupPath) {
-            router.replace(ROUTES.ADMIN.DASHBOARD.ROOT);
+            router.replace(ROUTES.ADMIN.DASHBOARD.ECOMMERCE);
         }
     }, [
         isHydrated,

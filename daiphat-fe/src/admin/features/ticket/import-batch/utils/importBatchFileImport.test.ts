@@ -1,7 +1,10 @@
+import { AxiosError } from 'axios';
 import { describe, expect, it } from 'vitest';
 import type { ImportBatchFileIssue, ImportBatchFileRow } from '../types/importBatch.type';
 import {
     collectPreviewRowNotes,
+    FILE_IMPORT_TIMEOUT_MESSAGE,
+    fileImportRequestErrorMessage,
     formatPreviewIssueNote,
     formatRowNumberRange,
     groupPreviewTicketRows,
@@ -199,5 +202,29 @@ describe('preview notes', () => {
         expect(notes.short).toBe('Giá lệch hệ thống');
         expect(notes.short).not.toContain('đã gộp vào dòng đó');
         expect(notes.full).toContain('không khớp cấu hình');
+    });
+});
+
+describe('fileImportRequestErrorMessage', () => {
+    it('translates the Axios 15s timeout into operator Vietnamese', () => {
+        const error = new AxiosError('timeout of 15000ms exceeded');
+        error.code = 'ECONNABORTED';
+        expect(fileImportRequestErrorMessage(error, 'fallback')).toBe(FILE_IMPORT_TIMEOUT_MESSAGE);
+    });
+
+    it('prefers the API message when the server did reply', () => {
+        const error = new AxiosError(
+            'Request failed with status code 400',
+            'ERR_BAD_REQUEST',
+            undefined,
+            undefined,
+            {
+                status: 400,
+                data: { message: 'Tệp này đã được dùng để tạo phiếu nhập.' },
+            } as AxiosError['response']
+        );
+        expect(fileImportRequestErrorMessage(error, 'fallback')).toBe(
+            'Tệp này đã được dùng để tạo phiếu nhập.'
+        );
     });
 });

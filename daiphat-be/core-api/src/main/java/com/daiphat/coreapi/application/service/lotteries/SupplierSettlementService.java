@@ -9,6 +9,7 @@ import com.daiphat.coreapi.application.dto.request.lotteries.SettlementStationCo
 import com.daiphat.coreapi.application.dto.request.lotteries.ResolveImportDiscrepancyRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ResolveReturnDiscrepancyRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ResolveUnitPriceDiscrepancyRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.SettlementImportPlaceholderRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ReturnBatchResponse;
@@ -234,7 +235,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         settlement.applyExpiredReturnValue(expiredReturnValue);
 
         BigDecimal remainingAmount = BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE);
-        if (settlement.getStatus() != SupplierSettlementStatus.CLOSED) {
+        if (settlement.getStatus() != SupplierSettlementStatus.COMPLETED) {
             BigDecimal paid = settlement.getTotalPaidAmount() != null
                     ? settlement.getTotalPaidAmount()
                     : BigDecimal.ZERO;
@@ -253,7 +254,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             remainingAmount = BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE);
         }
         settlement.applyRemainingAmount(remainingAmount);
-        if (settlement.getStatus() == SupplierSettlementStatus.CLOSED && settlement.getPaidAt() == null) {
+        if (settlement.getStatus() == SupplierSettlementStatus.COMPLETED && settlement.getPaidAt() == null) {
             settlement.setPaidAt(LocalDateTime.now(clock));
         }
 
@@ -359,7 +360,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
     }
 
     private boolean shouldRefreshMatchingSystemTotals(SupplierSettlementModel settlement) {
-        if (settlement.getStatus() == SupplierSettlementStatus.CLOSED) {
+        if (settlement.getStatus() == SupplierSettlementStatus.COMPLETED) {
             return false;
         }
         return settlement.getReconciliationPhase() != SupplierSettlementReconciliationPhase.COMPLETED;
@@ -519,10 +520,10 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
     public SupplierSettlementResponse updateReceiptUrl(Long settlementId, String supplierSettlementReceiptUrl) {
         SupplierSettlementModel settlement = supplierSettlementRepositoryPort.findById(settlementId)
                 .orElseThrow(() -> new DomainException(ErrorCode.SUPPLIER_SETTLEMENT_NOT_FOUND));
-        if (settlement.getStatus() == SupplierSettlementStatus.CLOSED) {
+        if (settlement.getStatus() == SupplierSettlementStatus.COMPLETED) {
             throw new DomainException(
                     ErrorCode.INVALID_INPUT,
-                    "Không thể cập nhật biên lai khi kỳ đối soát đã chốt"
+                    "Không thể cập nhật biên lai khi kỳ đối soát đã thanh toán"
             );
         }
         String trimmed = supplierSettlementReceiptUrl != null ? supplierSettlementReceiptUrl.trim() : null;
@@ -557,11 +558,11 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
     ) {
         SupplierSettlementModel settlement = supplierSettlementRepositoryPort.findById(settlementId)
                 .orElseThrow(() -> new DomainException(ErrorCode.SUPPLIER_SETTLEMENT_NOT_FOUND));
-        if (settlement.getStatus() == SupplierSettlementStatus.CLOSED
+        if (settlement.getStatus() == SupplierSettlementStatus.COMPLETED
                 || settlement.getReconciliationPhase() == SupplierSettlementReconciliationPhase.COMPLETED) {
             throw new DomainException(
                     ErrorCode.INVALID_INPUT,
-                    "Không thể cập nhật ảnh thanh toán khi kỳ đối soát đã hoàn tất."
+                    "Không thể cập nhật ảnh thanh toán khi kỳ đối soát đã thanh toán."
             );
         }
         settlement.setPaymentEvidenceUrls(normalizePaymentEvidenceUrls(paymentEvidenceUrls));
@@ -654,20 +655,24 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
 
         List<SettlementStationInventoryRow> stationRows =
                 lotteryTicketSerialRepositoryPort.aggregateInventoryByStationForSettlement(id);
-        List<SettlementStationInventoryResponse> inventoryByStation = stationRows.stream()
-                .map(row -> SettlementStationInventoryResponse.builder()
-                        .lotteryStationId(row.lotteryStationId())
-                        .lotteryStationName(row.lotteryStationName())
-                        .importedQuantity((int) row.importedQuantity())
-                        .soldQuantity((int) row.soldQuantity())
-                        .remainingQuantity((int) row.remainingQuantity())
-                        .damagedQuantity((int) row.damagedQuantity())
-                        .lostQuantity((int) row.lostQuantity())
-                        .voidedQuantity((int) row.voidedQuantity())
-                        .returnQuantity((int) row.returnQuantity())
-                        .returnValue(ImportCostCalculator.scaleMoney(row.returnValue()))
-                        .build())
-                .toList();
+        List<SettlementStationInventoryResponse> inventoryByStation = discrepancyInventoryHelper
+                .mergeUnbackedAdjustmentInventory(
+                        id,
+                        stationRows.stream()
+                                .map(row -> SettlementStationInventoryResponse.builder()
+                                        .lotteryStationId(row.lotteryStationId())
+                                        .lotteryStationName(row.lotteryStationName())
+                                        .importedQuantity((int) row.importedQuantity())
+                                        .soldQuantity((int) row.soldQuantity())
+                                        .remainingQuantity((int) row.remainingQuantity())
+                                        .damagedQuantity((int) row.damagedQuantity())
+                                        .lostQuantity((int) row.lostQuantity())
+                                        .voidedQuantity((int) row.voidedQuantity())
+                                        .returnQuantity((int) row.returnQuantity())
+                                        .returnValue(ImportCostCalculator.scaleMoney(row.returnValue()))
+                                        .build())
+                                .toList()
+                );
 
         List<SettlementStationPricingResponse> stationPricing = buildStationPricing(
                 settlement,
@@ -774,6 +779,14 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             throw new DomainException(
                     ErrorCode.INVALID_INPUT,
                     "Số lượng vé trả thực tế không được lớn hơn số lượng vé nhập thực tế."
+            );
+        }
+        if (actualReturnQty > systemReturnQty) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Số lượng vé trả thực tế không được lớn hơn số lượng vé trả hệ thống ("
+                            + systemReturnQty
+                            + " vé). Chỉ được trả bằng hoặc ít hơn."
             );
         }
 
@@ -1064,29 +1077,38 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             );
         }
         if (hasMissing) {
-            TicketCondition missingCondition = request.ticketCondition() != null
-                    ? request.ticketCondition()
-                    : TicketCondition.LOST;
-            if (missingCondition != TicketCondition.LOST
-                    && missingCondition != TicketCondition.DAMAGED
-                    && missingCondition != TicketCondition.VOIDED
-                    && missingCondition != TicketCondition.UNDER_IMPORTED) {
-                throw new DomainException(
-                        ErrorCode.INVALID_INPUT,
-                        "Tình trạng vé thiếu phải là LOST, DAMAGED, VOIDED hoặc UNDER_IMPORTED."
-                );
+            boolean needsDamagedEvidence = false;
+            int placeholderQty = 0;
+            for (SettlementImportPlaceholderRequest placeholder : request.missingPlaceholders()) {
+                if (placeholder == null) {
+                    continue;
+                }
+                TicketCondition rowCondition = placeholder.ticketCondition() != null
+                        ? placeholder.ticketCondition()
+                        : (request.ticketCondition() != null
+                                ? request.ticketCondition()
+                                : TicketCondition.UNDER_IMPORTED);
+                if (rowCondition != TicketCondition.LOST
+                        && rowCondition != TicketCondition.DAMAGED
+                        && rowCondition != TicketCondition.VOIDED
+                        && rowCondition != TicketCondition.UNDER_IMPORTED) {
+                    throw new DomainException(
+                            ErrorCode.INVALID_INPUT,
+                            "Tình trạng vé thiếu phải là LOST, DAMAGED, VOIDED hoặc UNDER_IMPORTED."
+                    );
+                }
+                if (rowCondition == TicketCondition.DAMAGED) {
+                    needsDamagedEvidence = true;
+                }
+                placeholderQty += placeholder.quantity() != null ? placeholder.quantity() : 0;
             }
-            if (missingCondition == TicketCondition.DAMAGED
+            if (needsDamagedEvidence
                     && (request.damagedEvidenceUrl() == null || request.damagedEvidenceUrl().isBlank())) {
                 throw new DomainException(
                         ErrorCode.INVALID_INPUT,
                         "Vé hư hỏng / rách bắt buộc đính kèm ảnh minh chứng."
                 );
             }
-            int placeholderQty = request.missingPlaceholders().stream()
-                    .filter(Objects::nonNull)
-                    .mapToInt(p -> p.quantity() != null ? p.quantity() : 0)
-                    .sum();
             if (requiredQuantity > 0 && placeholderQty != requiredQuantity) {
                 throw new DomainException(
                         ErrorCode.INVALID_INPUT,
@@ -1113,7 +1135,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         if (request.missingPlaceholders() != null && !request.missingPlaceholders().isEmpty()) {
             TicketCondition missingCondition = request.ticketCondition() != null
                     ? request.ticketCondition()
-                    : TicketCondition.LOST;
+                    : TicketCondition.UNDER_IMPORTED;
             List<Long> created = discrepancyInventoryHelper.createLostPlaceholders(
                     settlement,
                     request.missingPlaceholders(),
@@ -1125,18 +1147,31 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
                     request.note()
             );
             serialIds.addAll(created);
-            for (Long serialId : created) {
+            SupplierSettlementAdjustmentReasonCode reasonCode = request.reasonCode() != null
+                    ? request.reasonCode()
+                    : SupplierSettlementAdjustmentReasonCode.INSUFFICIENT_IMPORT;
+            if (created.isEmpty()) {
                 saveAdjustment(
                         settlementId,
-                        serialId,
+                        null,
                         SupplierSettlementAdjustmentGroupType.IMPORT,
-                        request.reasonCode() != null
-                                ? request.reasonCode()
-                                : SupplierSettlementAdjustmentReasonCode.MISSING_IMPORT,
+                        reasonCode,
                         BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE),
                         request.note(),
                         actorId
                 );
+            } else {
+                for (Long serialId : created) {
+                    saveAdjustment(
+                            settlementId,
+                            serialId,
+                            SupplierSettlementAdjustmentGroupType.IMPORT,
+                            reasonCode,
+                            BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE),
+                            request.note(),
+                            actorId
+                    );
+                }
             }
             recalculateAmounts(settlementId);
             settlement = supplierSettlementRepositoryPort.findById(settlementId)
@@ -1246,6 +1281,13 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         SettlementDiscrepancyItem returnItem = requireDiscrepancyItem(
                 settlement, SupplierSettlementDiscrepancyType.RETURN_QUANTITY
         );
+        if (returnItem.isPositive()) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Không xử lý thừa trả. Hãy chỉnh lại đối chiếu số liệu và nhập số lượng vé trả thực tế "
+                            + "không vượt quá số lượng trả hệ thống."
+            );
+        }
         List<Long> requestedSerialIds = request.serialIds() != null ? request.serialIds() : List.of();
         List<String> requestedExcess = request.excessSerialNumbers() != null
                 ? request.excessSerialNumbers()
@@ -1273,13 +1315,13 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         if (returnItem.isNegative() && !requestedExcess.isEmpty()) {
             throw new DomainException(
                     ErrorCode.INVALID_INPUT,
-                    "Hệ thống ghi thừa trả (âm): chỉ được xử lý các sê-ri đã ghi nhận thừa (LOST/hỏng/hủy/hết hạn), không bổ sung sê-ri trả."
+                    "Thiếu trả (âm): chỉ được xử lý các sê-ri đang có trong phiếu trả, không bổ sung sê-ri trả."
             );
         }
         if (returnItem.isPositive() && !requestedSerialIds.isEmpty()) {
             throw new DomainException(
                     ErrorCode.INVALID_INPUT,
-                    "Hệ thống ghi thiếu trả (dương): chỉ được quét bổ sung sê-ri đã trả thực tế, không xử lý sê-ri ghi thừa."
+                    "Thừa trả (dương): chỉ được quét bổ sung sê-ri đã trả thực tế, không xử lý sê-ri đang có trong phiếu trả."
             );
         }
         if (returnItem.isNegative() && request.markResolved()) {
@@ -1722,7 +1764,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             settlement.setReconciliationNote(request.reconciliationNote().trim());
         }
         settlement.setReconciliationPhase(SupplierSettlementReconciliationPhase.COMPLETED);
-        settlement.setStatus(SupplierSettlementStatus.CLOSED);
+        settlement.setStatus(SupplierSettlementStatus.COMPLETED);
         settlement.setCompletedAt(LocalDateTime.now(clock));
         settlement.setCompletedBy(actorId);
         settlement.setTotalPaidAmount(actualPaid.max(BigDecimal.ZERO));
@@ -1761,7 +1803,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
                 .initialEstimatedSettlementValue(initialValue)
                 .settlementDifferenceAmount(settlementDiff)
                 .remainingDifference(BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE))
-                .message("Đã hoàn tất đối soát nhà cung cấp.")
+                .message("Đã xác nhận thanh toán cho nhà cung cấp.")
                 .adjustments(adjustments)
                 .build();
     }
@@ -1793,9 +1835,9 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
     private SupplierSettlementModel requireOpenSettlement(Long settlementId) {
         SupplierSettlementModel settlement = supplierSettlementRepositoryPort.findById(settlementId)
                 .orElseThrow(() -> new DomainException(ErrorCode.SUPPLIER_SETTLEMENT_NOT_FOUND));
-        if (settlement.getStatus() == SupplierSettlementStatus.CLOSED
+        if (settlement.getStatus() == SupplierSettlementStatus.COMPLETED
                 || settlement.getReconciliationPhase() == SupplierSettlementReconciliationPhase.COMPLETED) {
-            throw new DomainException(ErrorCode.INVALID_INPUT, "Kỳ đối soát đã chốt, không thể thao tác.");
+            throw new DomainException(ErrorCode.INVALID_INPUT, "Kỳ đối soát đã thanh toán, không thể thao tác.");
         }
         return settlement;
     }
@@ -1928,20 +1970,24 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         List<SettlementStationInventoryRow> stationRows = java.util.Optional
                 .ofNullable(lotteryTicketSerialRepositoryPort.aggregateInventoryByStationForSettlement(settlementId))
                 .orElseGet(List::of);
-        List<SettlementStationInventoryResponse> inventoryByStation = stationRows.stream()
-                .map(row -> SettlementStationInventoryResponse.builder()
-                        .lotteryStationId(row.lotteryStationId())
-                        .lotteryStationName(row.lotteryStationName())
-                        .importedQuantity((int) row.importedQuantity())
-                        .soldQuantity((int) row.soldQuantity())
-                        .remainingQuantity((int) row.remainingQuantity())
-                        .damagedQuantity((int) row.damagedQuantity())
-                        .lostQuantity((int) row.lostQuantity())
-                        .voidedQuantity((int) row.voidedQuantity())
-                        .returnQuantity((int) row.returnQuantity())
-                        .returnValue(ImportCostCalculator.scaleMoney(row.returnValue()))
-                        .build())
-                .toList();
+        List<SettlementStationInventoryResponse> inventoryByStation = discrepancyInventoryHelper
+                .mergeUnbackedAdjustmentInventory(
+                        settlementId,
+                        stationRows.stream()
+                                .map(row -> SettlementStationInventoryResponse.builder()
+                                        .lotteryStationId(row.lotteryStationId())
+                                        .lotteryStationName(row.lotteryStationName())
+                                        .importedQuantity((int) row.importedQuantity())
+                                        .soldQuantity((int) row.soldQuantity())
+                                        .remainingQuantity((int) row.remainingQuantity())
+                                        .damagedQuantity((int) row.damagedQuantity())
+                                        .lostQuantity((int) row.lostQuantity())
+                                        .voidedQuantity((int) row.voidedQuantity())
+                                        .returnQuantity((int) row.returnQuantity())
+                                        .returnValue(ImportCostCalculator.scaleMoney(row.returnValue()))
+                                        .build())
+                                .toList()
+                );
         return buildStationPricing(settlement, importBatches, inventoryByStation, useFrozenPricing);
     }
 

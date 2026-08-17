@@ -2,6 +2,7 @@ package com.daiphat.coreapi.application.service.lotteries;
 
 import com.daiphat.coreapi.application.dto.request.lotteries.SettlementExcessImportTicketRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.SettlementImportPlaceholderRequest;
+import com.daiphat.coreapi.application.dto.response.lotteries.SettlementStationInventoryResponse;
 import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchLineRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryStationRepositoryPort;
@@ -36,13 +37,16 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -76,95 +80,184 @@ public class SupplierSettlementDiscrepancyInventoryHelper {
         if (placeholders == null || placeholders.isEmpty()) {
             return List.of();
         }
-        TicketCondition condition = ticketCondition != null ? ticketCondition : TicketCondition.LOST;
-        if (condition != TicketCondition.LOST
-                && condition != TicketCondition.DAMAGED
-                && condition != TicketCondition.VOIDED
-                && condition != TicketCondition.UNDER_IMPORTED) {
-            throw new DomainException(
-                    ErrorCode.INVALID_INPUT,
-                    "Tình trạng vé thiếu phải là LOST, DAMAGED, VOIDED hoặc UNDER_IMPORTED."
-            );
+        TicketCondition fallbackCondition = ticketCondition != null
+                ? ticketCondition
+                : TicketCondition.UNDER_IMPORTED;
+        assertPlaceholderCondition(fallbackCondition);
+
+        String evidence = damagedEvidenceUrl != null && !damagedEvidenceUrl.isBlank()
+                ? damagedEvidenceUrl.trim()
+                : null;
+        String reason = (reasonNote != null && !reasonNote.isBlank())
+                ? reasonNote.trim()
+                : "Settlement import discrepancy placeholder";
+
+        Map<Long, List<SettlementImportPlaceholderRequest>> byStation = new LinkedHashMap<>();
+        boolean needsDamagedEvidence = false;
+        for (SettlementImportPlaceholderRequest req : placeholders) {
+            if (req == null || req.lotteryStationId() == null || req.quantity() == null || req.quantity() <= 0) {
+                continue;
+            }
+            TicketCondition rowCondition = resolvePlaceholderCondition(req, fallbackCondition);
+            assertPlaceholderCondition(rowCondition);
+            if (rowCondition == TicketCondition.DAMAGED) {
+                needsDamagedEvidence = true;
+            }
+            byStation.computeIfAbsent(req.lotteryStationId(), id -> new ArrayList<>()).add(req);
         }
-        if (condition == TicketCondition.DAMAGED
-                && (damagedEvidenceUrl == null || damagedEvidenceUrl.isBlank())) {
+        if (byStation.isEmpty()) {
+            return List.of();
+        }
+        if (needsDamagedEvidence && (evidence == null || evidence.isBlank())) {
             throw new DomainException(
                     ErrorCode.INVALID_INPUT,
                     "Vé hư hỏng / rách bắt buộc đính kèm ảnh minh chứng."
             );
         }
 
-        String prefix = switch (condition) {
-            case DAMAGED -> "DMG";
-            case VOIDED -> "VOID";
-            case UNDER_IMPORTED -> "MISS";
-            default -> "LOST";
-        };
-        LotteryTicketSerialFaultedBy faultedBy =
-                condition == TicketCondition.VOIDED || condition == TicketCondition.UNDER_IMPORTED
-                        ? LotteryTicketSerialFaultedBy.DATA_ENTRY_FAULT
-                        : LotteryTicketSerialFaultedBy.ISSUER_FAULT;
-        String reason = (reasonNote != null && !reasonNote.isBlank())
-                ? reasonNote.trim()
-                : "Settlement import discrepancy " + condition.name() + " placeholder";
-        String evidence = damagedEvidenceUrl != null && !damagedEvidenceUrl.isBlank()
-                ? damagedEvidenceUrl.trim()
-                : null;
-
         ImportBatchModel batch = createAdjustmentBatch(
-                settlement, actorId, now, "ADJ-" + condition.name() + " reconciliation"
+                settlement, actorId, now, "ADJ-IMPORT reconciliation"
         );
         List<Long> createdSerialIds = new ArrayList<>();
-        Map<Long, ImportBatchLineModel> lineByStation = new HashMap<>();
+        Set<String> reservedNumbers = new HashSet<>();
 
-        for (SettlementImportPlaceholderRequest req : placeholders) {
-            if (req == null || req.lotteryStationId() == null || req.quantity() == null || req.quantity() <= 0) {
-                continue;
-            }
-            LotteryStationModel station = lotteryStationRepositoryPort.findById(req.lotteryStationId())
+        for (Map.Entry<Long, List<SettlementImportPlaceholderRequest>> entry : byStation.entrySet()) {
+            LotteryStationModel station = lotteryStationRepositoryPort.findById(entry.getKey())
                     .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_STATION_NOT_FOUND));
-            ImportBatchLineModel line = lineByStation.computeIfAbsent(
-                    station.getId(),
-                    id -> createAdjustmentLine(batch, station, unitCost, now)
-            );
-            for (int i = 0; i < req.quantity(); i++) {
-                String token = UUID.randomUUID().toString().replace("-", "");
-                String numbers = prefix + "-" + token;
-                String serialNumber = prefix + "-" + token;
-                LotteryTicketModel ticket = lotteryTicketRepositoryPort.save(LotteryTicketModel.builder()
-                        .stationId(station.getId())
-                        .numbers(numbers)
-                        .drawDate(settlement.getPeriodFrom())
-                        .priceSnapshot(unitCost != null ? unitCost : station.getPrice())
-                        .status(LotteryTicketStatus.IN_STOCK)
-                        .active(true)
-                        .quantity(1)
-                        .importedById(actorId)
-                        .importedAt(now)
-                        .build());
-                LotteryTicketSerialModel.LotteryTicketSerialModelBuilder serialBuilder = LotteryTicketSerialModel.builder()
-                        .ticketId(ticket.getId())
-                        .importBatchId(batch.getId())
-                        .importBatchLineId(line.getId())
-                        .serialNumber(serialNumber)
-                        .stationId(station.getId())
-                        .drawDate(settlement.getPeriodFrom())
-                        .status(LotteryTicketSerialStatus.IN_STOCK)
-                        .ticketCondition(condition)
-                        .faultedBy(faultedBy)
-                        .damagedReason(reason)
-                        .importedById(actorId)
-                        .importedAt(now);
-                if (condition == TicketCondition.DAMAGED) {
-                    serialBuilder.damagedEvidenceUrl(evidence);
+            ImportBatchLineModel line = createAdjustmentLine(batch, station, unitCost, now);
+            int lineQty = 0;
+            for (SettlementImportPlaceholderRequest req : entry.getValue()) {
+                TicketCondition condition = resolvePlaceholderCondition(req, fallbackCondition);
+                lineQty += req.quantity();
+                if (condition == TicketCondition.LOST) {
+                    continue;
                 }
-                LotteryTicketSerialModel saved = lotteryTicketSerialRepositoryPort.save(serialBuilder.build());
-                createdSerialIds.add(saved.getId());
-                bumpLineImported(line, unitCost);
+                String prefix = ghostSerialPrefix(condition);
+                LotteryTicketSerialFaultedBy faultedBy =
+                        condition == TicketCondition.VOIDED || condition == TicketCondition.UNDER_IMPORTED
+                                ? LotteryTicketSerialFaultedBy.DATA_ENTRY_FAULT
+                                : LotteryTicketSerialFaultedBy.ISSUER_FAULT;
+                for (int i = 0; i < req.quantity(); i++) {
+                    String numbers = nextUnusedSixDigitNumbers(
+                            station.getId(), settlement.getPeriodFrom(), reservedNumbers
+                    );
+                    String token = UUID.randomUUID().toString().replace("-", "");
+                    String serialNumber = prefix + "-" + token;
+                    LotteryTicketModel ticket = lotteryTicketRepositoryPort.save(LotteryTicketModel.builder()
+                            .stationId(station.getId())
+                            .numbers(numbers)
+                            .drawDate(settlement.getPeriodFrom())
+                            .priceSnapshot(unitCost != null ? unitCost : station.getPrice())
+                            .status(LotteryTicketStatus.IN_STOCK)
+                            .active(true)
+                            .quantity(1)
+                            .importedById(actorId)
+                            .importedAt(now)
+                            .build());
+                    LotteryTicketSerialModel.LotteryTicketSerialModelBuilder serialBuilder = LotteryTicketSerialModel.builder()
+                            .ticketId(ticket.getId())
+                            .importBatchId(batch.getId())
+                            .importBatchLineId(line.getId())
+                            .serialNumber(serialNumber)
+                            .stationId(station.getId())
+                            .drawDate(settlement.getPeriodFrom())
+                            .status(LotteryTicketSerialStatus.IN_STOCK)
+                            .ticketCondition(condition)
+                            .faultedBy(faultedBy)
+                            .damagedReason(reason)
+                            .importedById(actorId)
+                            .importedAt(now);
+                    if (condition == TicketCondition.DAMAGED) {
+                        serialBuilder.damagedEvidenceUrl(evidence);
+                    }
+                    LotteryTicketSerialModel saved = lotteryTicketSerialRepositoryPort.save(serialBuilder.build());
+                    createdSerialIds.add(saved.getId());
+                }
             }
+            setLineImported(line, lineQty, unitCost);
         }
         finalizeAdjustmentBatch(batch);
         return createdSerialIds;
+    }
+
+    /**
+     * ADJUSTMENT lines may declare LOST quantity without serials. Add that gap onto
+     * station inventory so overview imported/lost qty still matches the import-batch line.
+     */
+    public List<SettlementStationInventoryResponse> mergeUnbackedAdjustmentInventory(
+            Long settlementId,
+            List<SettlementStationInventoryResponse> inventory
+    ) {
+        List<SettlementStationInventoryResponse> base = inventory != null ? inventory : List.of();
+        if (settlementId == null) {
+            return base;
+        }
+        Map<Long, SettlementStationInventoryResponse> byStation = new LinkedHashMap<>();
+        for (SettlementStationInventoryResponse row : base) {
+            if (row != null && row.lotteryStationId() != null) {
+                byStation.put(row.lotteryStationId(), row);
+            }
+        }
+        List<ImportBatchModel> batches = importBatchRepositoryPort.findBySupplierSettlementId(settlementId);
+        if (batches == null || batches.isEmpty()) {
+            return new ArrayList<>(byStation.values());
+        }
+        for (ImportBatchModel batch : batches) {
+            if (batch == null || batch.getId() == null) {
+                continue;
+            }
+            List<ImportBatchLineModel> lines = importBatchLineRepositoryPort.findByImportBatchId(batch.getId());
+            if (lines == null) {
+                continue;
+            }
+            for (ImportBatchLineModel line : lines) {
+                if (line == null
+                        || line.isDeleted()
+                        || line.isCancelled()
+                        || line.getBatchType() != ImportBatchType.ADJUSTMENT
+                        || line.getLotteryStationId() == null) {
+                    continue;
+                }
+                int lineQty = line.getTotalQuantity() != null ? line.getTotalQuantity() : 0;
+                long serialCount = lotteryTicketSerialRepositoryPort.countByImportBatchLineId(line.getId());
+                int gap = Math.max(0, lineQty - (int) serialCount);
+                if (gap <= 0) {
+                    continue;
+                }
+                SettlementStationInventoryResponse existing = byStation.get(line.getLotteryStationId());
+                if (existing == null) {
+                    String name = lotteryStationRepositoryPort.findById(line.getLotteryStationId())
+                            .map(LotteryStationModel::getName)
+                            .orElse(null);
+                    byStation.put(line.getLotteryStationId(), SettlementStationInventoryResponse.builder()
+                            .lotteryStationId(line.getLotteryStationId())
+                            .lotteryStationName(name)
+                            .importedQuantity(gap)
+                            .soldQuantity(0)
+                            .remainingQuantity(0)
+                            .damagedQuantity(0)
+                            .lostQuantity(gap)
+                            .voidedQuantity(0)
+                            .returnQuantity(0)
+                            .returnValue(BigDecimal.ZERO)
+                            .build());
+                } else {
+                    byStation.put(existing.lotteryStationId(), SettlementStationInventoryResponse.builder()
+                            .lotteryStationId(existing.lotteryStationId())
+                            .lotteryStationName(existing.lotteryStationName())
+                            .importedQuantity(existing.importedQuantity() + gap)
+                            .soldQuantity(existing.soldQuantity())
+                            .remainingQuantity(existing.remainingQuantity())
+                            .damagedQuantity(existing.damagedQuantity())
+                            .lostQuantity(existing.lostQuantity() + gap)
+                            .voidedQuantity(existing.voidedQuantity())
+                            .returnQuantity(existing.returnQuantity())
+                            .returnValue(existing.returnValue())
+                            .build());
+                }
+            }
+        }
+        return new ArrayList<>(byStation.values());
     }
 
     public List<Long> createExcessGoodTickets(
@@ -391,6 +484,70 @@ public class SupplierSettlementDiscrepancyInventoryHelper {
                 .importedAt(now)
                 .build();
         return importBatchLineRepositoryPort.save(line);
+    }
+
+    private TicketCondition resolvePlaceholderCondition(
+            SettlementImportPlaceholderRequest req,
+            TicketCondition fallback
+    ) {
+        if (req != null && req.ticketCondition() != null) {
+            return req.ticketCondition();
+        }
+        return fallback != null ? fallback : TicketCondition.UNDER_IMPORTED;
+    }
+
+    private void assertPlaceholderCondition(TicketCondition condition) {
+        if (condition != TicketCondition.LOST
+                && condition != TicketCondition.DAMAGED
+                && condition != TicketCondition.VOIDED
+                && condition != TicketCondition.UNDER_IMPORTED) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Tình trạng vé thiếu phải là LOST, DAMAGED, VOIDED hoặc UNDER_IMPORTED."
+            );
+        }
+    }
+
+    private String ghostSerialPrefix(TicketCondition condition) {
+        return switch (condition) {
+            case DAMAGED -> "DMG";
+            case VOIDED -> "VOID";
+            case UNDER_IMPORTED -> "MISS";
+            default -> "LOST";
+        };
+    }
+
+    private String nextUnusedSixDigitNumbers(Long stationId, LocalDate drawDate, Set<String> reserved) {
+        for (int n = 990000; n <= 999999; n++) {
+            String numbers = String.format("%06d", n);
+            String key = stationId + ":" + numbers;
+            if (reserved.contains(key)) {
+                continue;
+            }
+            if (lotteryTicketRepositoryPort.findByUniqueFields(stationId, numbers, drawDate).isEmpty()) {
+                reserved.add(key);
+                return numbers;
+            }
+        }
+        throw new DomainException(
+                ErrorCode.INVALID_INPUT,
+                "Không còn số vé 6 số trống để tạo vé bổ sung cho đài này."
+        );
+    }
+
+    private void setLineImported(ImportBatchLineModel line, int qty, BigDecimal unitCost) {
+        if (qty <= 0) {
+            return;
+        }
+        line.setTotalQuantity(qty);
+        line.setDeclareQuantity(qty);
+        BigDecimal cost = line.getImportCost() != null
+                ? line.getImportCost()
+                : (unitCost != null ? unitCost : BigDecimal.ZERO);
+        line.setImportCost(cost);
+        line.setTotalCostValue(ImportCostCalculator.scaleMoney(cost.multiply(BigDecimal.valueOf(qty))));
+        line.setDeclaredCostValue(ImportCostCalculator.scaleMoney(cost.multiply(BigDecimal.valueOf(qty))));
+        importBatchLineRepositoryPort.save(line);
     }
 
     private void bumpLineImported(ImportBatchLineModel line, BigDecimal unitCost) {

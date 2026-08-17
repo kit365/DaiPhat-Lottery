@@ -2,6 +2,7 @@ package com.daiphat.coreapi.adapter.in.web.controller.lotteries;
 
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
+import com.daiphat.coreapi.application.dto.request.lotteries.BulkUpdateLotteryStationCommissionRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.BulkUpdateLotteryStationPricingRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryStationScheduleRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ConfirmSyncLotteryStationsRequest;
@@ -125,6 +126,19 @@ public class LotteryStationController {
         return ApiResponse.success(
                 "Đã cập nhật giá nhập / hoa hồng nhà đài.",
                 lotteryStationServicePort.updatePricing(request));
+    }
+
+    /**
+     * Fixes station commissions from settlement matching without touching sale
+     * price. Matching uses NCC defaultImportCost, not lottery_stations.price.
+     */
+    @PutMapping("/commissions")
+    @PreAuthorize("hasAnyAuthority('station:edit', 'provider:edit', 'importBatch:create')")
+    public ApiResponse<List<LotteryStationResponse>> updateCommissions(
+            @Valid @RequestBody BulkUpdateLotteryStationCommissionRequest request) {
+        return ApiResponse.success(
+                "Đã cập nhật hoa hồng nhà đài.",
+                lotteryStationServicePort.updateCommissions(request));
     }
 
     /**

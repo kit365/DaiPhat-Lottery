@@ -226,6 +226,33 @@ public class LotteryTicketSerialRepositoryAdapter implements LotteryTicketSerial
     }
 
     @Override
+    public int assignToReturnBatchLine(Long returnBatchLineId, Collection<Long> serialIds, java.time.LocalDateTime now) {
+        if (returnBatchLineId == null || serialIds == null || serialIds.isEmpty()) {
+            return 0;
+        }
+        int updated = 0;
+        List<Long> ids = serialIds.stream().filter(java.util.Objects::nonNull).distinct().toList();
+        final int chunkSize = 500;
+        for (int from = 0; from < ids.size(); from += chunkSize) {
+            int to = Math.min(from + chunkSize, ids.size());
+            updated += lotteryTicketSerialRepository.assignToReturnBatchLine(
+                    returnBatchLineId,
+                    ids.subList(from, to),
+                    now
+            );
+        }
+        return updated;
+    }
+
+    @Override
+    public int stampReturnedAtByReturnBatchLineId(Long returnBatchLineId, java.time.LocalDateTime now) {
+        if (returnBatchLineId == null || now == null) {
+            return 0;
+        }
+        return lotteryTicketSerialRepository.stampReturnedAtByReturnBatchLineId(returnBatchLineId, now);
+    }
+
+    @Override
     public List<LotteryTicketSerialModel> findAllByReturnBatchLineId(Long returnBatchLineId) {
         return lotteryTicketSerialRepository.findByReturnBatchLineIdAndDeletedAtIsNull(returnBatchLineId).stream()
                 .map(lotteryTicketSerialPersistenceMapper::toDomain)

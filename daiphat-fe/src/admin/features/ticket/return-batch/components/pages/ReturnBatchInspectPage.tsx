@@ -471,7 +471,7 @@ export const ReturnBatchInspectPage = () => {
             toast.success('Đã xác nhận kiểm tra vé — phiếu hoàn tất kiểm tra.');
             router.push(ROUTES.ADMIN.RETURN_BATCH.DETAIL(batchId));
         } catch (err: any) {
-            const msg = err?.response?.data?.message || 'Không thể hoàn tất kiểm tra vé.';
+            const msg = err?.response?.data?.message;
             if (
                 msg === RETURN_BATCH_INSPECTION_EXPIRED_MESSAGE ||
                 err?.response?.data?.errorCode === 'LT_120'
@@ -480,7 +480,10 @@ export const ReturnBatchInspectPage = () => {
                 refetch();
                 return;
             }
-            toast.error(msg);
+            if (!err?.response) {
+                return;
+            }
+            toast.error(msg || 'Không thể hoàn tất kiểm tra vé.');
         }
     };
 

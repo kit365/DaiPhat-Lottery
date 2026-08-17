@@ -265,6 +265,13 @@ export const getImportBatchTypeOptions = async (): Promise<
 
 const FILE_IMPORT_URL = `${BASE_URL}/file-import`;
 
+/**
+ * File import re-parses the workbook, then creates batches, lines and serials
+ * in one request. A few hundred tickets already exceeds the global 15s Axios
+ * timeout; the cap is 2_000 rows.
+ */
+const FILE_IMPORT_TIMEOUT_MS = 120_000;
+
 /** The rules the importer will apply, shown in the dialog before uploading. */
 export const getImportBatchFileConfig = async (): Promise<ImportBatchFileConfig> => {
     const response = await apiApp.get(`${FILE_IMPORT_URL}/config`, {
@@ -311,6 +318,7 @@ export const inspectImportBatchFile = async (
     const response = await apiApp.post(`${FILE_IMPORT_URL}/inspect`, formData, {
         ...withAuthHeaders(),
         params: supplierId ? { supplierId } : undefined,
+        timeout: FILE_IMPORT_TIMEOUT_MS,
         skipGlobalErrorToast: true,
     });
     return response.data;
@@ -331,6 +339,7 @@ export const previewImportBatchFile = async (
 
     const response = await apiApp.post(`${FILE_IMPORT_URL}/preview`, formData, {
         ...withAuthHeaders(),
+        timeout: FILE_IMPORT_TIMEOUT_MS,
         skipGlobalErrorToast: true,
     });
     return response.data;
@@ -354,6 +363,7 @@ export const commitImportBatchFile = async (
 
     const response = await apiApp.post(FILE_IMPORT_URL, formData, {
         ...withAuthHeaders(),
+        timeout: FILE_IMPORT_TIMEOUT_MS,
         skipGlobalErrorToast: true,
     });
     return response.data;

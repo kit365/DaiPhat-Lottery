@@ -212,6 +212,36 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
 
     List<LotteryTicketSerialEntity> findByIdInAndDeletedAtIsNull(Collection<Long> ids);
 
+    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE LotteryTicketSerialEntity s
+            SET s.returnBatchLineId = :lineId,
+                s.returnedAt = NULL,
+                s.updatedAt = :now
+            WHERE s.deletedAt IS NULL
+              AND s.returnBatchLineId IS NULL
+              AND s.id IN :ids
+            """)
+    int assignToReturnBatchLine(
+            @Param("lineId") Long lineId,
+            @Param("ids") Collection<Long> ids,
+            @Param("now") java.time.LocalDateTime now
+    );
+
+    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE LotteryTicketSerialEntity s
+            SET s.returnedAt = :now,
+                s.updatedAt = :now
+            WHERE s.deletedAt IS NULL
+              AND s.returnBatchLineId = :lineId
+              AND s.returnedAt IS NULL
+            """)
+    int stampReturnedAtByReturnBatchLineId(
+            @Param("lineId") Long lineId,
+            @Param("now") java.time.LocalDateTime now
+    );
+
     @Query("""
             select s from LotteryTicketSerialEntity s
             join fetch s.ticket t

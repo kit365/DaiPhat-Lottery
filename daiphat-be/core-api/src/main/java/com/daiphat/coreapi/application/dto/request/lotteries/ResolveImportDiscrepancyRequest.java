@@ -12,8 +12,9 @@ import java.util.List;
  * Resolve import discrepancy.
  * <ul>
  *   <li>{@code serialIds} + {@code ticketCondition} — fault existing IN_STOCK serials</li>
- *   <li>{@code missingPlaceholders} + {@code ticketCondition} — create ADJUSTMENT placeholders
- *       (LOST / DAMAGED / VOIDED / UNDER_IMPORTED); {@code damagedEvidenceUrl} required when DAMAGED</li>
+ *   <li>{@code missingPlaceholders} — create one ADJUSTMENT batch; each row may carry its own
+ *       {@code ticketCondition} (LOST / DAMAGED / VOIDED / UNDER_IMPORTED). Ghost serials are
+ *       created only when the row is not LOST. {@code damagedEvidenceUrl} required when any row is DAMAGED</li>
  *   <li>{@code excessTickets} — create ADJUSTMENT batch GOOD sellable inventory</li>
  *   <li>value-only when serial lists empty + {@code adjustmentAmount}</li>
  * </ul>

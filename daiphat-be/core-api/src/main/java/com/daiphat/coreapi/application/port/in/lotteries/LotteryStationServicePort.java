@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.application.port.in.lotteries;
 
+import com.daiphat.coreapi.application.dto.request.lotteries.BulkUpdateLotteryStationCommissionRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.BulkUpdateLotteryStationPricingRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryStationScheduleRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ConfirmSyncLotteryStationsRequest;
@@ -58,6 +59,9 @@ public interface LotteryStationServicePort {
     LotteryStationResponse update(Long id, UpdateLotteryStationRequest request);
 
     List<LotteryStationResponse> updatePricing(BulkUpdateLotteryStationPricingRequest request);
+
+    /** Corrects only commission rates, leaving {@code lottery_stations.price} (sale price) alone. */
+    List<LotteryStationResponse> updateCommissions(BulkUpdateLotteryStationCommissionRequest request);
 
     /** Corrects only the weekly draw schedule, leaving every other field alone. */
     LotteryStationResponse updateSchedule(UpdateLotteryStationScheduleRequest request);

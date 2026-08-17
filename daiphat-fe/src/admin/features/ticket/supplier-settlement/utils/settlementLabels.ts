@@ -22,8 +22,8 @@ export const getSupplierSettlementStatusLabel = (
     if (status === 'RECEIPT_OVERDUE') {
         return 'Trễ hạn thanh toán';
     }
-    if (status === 'CLOSED') {
-        return 'Đã chốt';
+    if (status === 'COMPLETED') {
+        return 'Đã thanh toán';
     }
     return '—';
 };
@@ -37,8 +37,8 @@ export const getSupplierSettlementStatusModifier = (
     if (status === 'RECEIPT_OVERDUE') {
         return 'admin-status-badge--pending';
     }
-    if (status === 'CLOSED') {
-        return 'admin-status-badge--inactive';
+    if (status === 'COMPLETED') {
+        return 'admin-status-badge--success';
     }
     return '';
 };

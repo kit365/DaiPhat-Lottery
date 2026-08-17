@@ -3,6 +3,7 @@ package com.daiphat.coreapi.adapter.in.web.controller.lotteries;
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotterySupplierRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotterySupplierDefaultImportCostRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotterySupplierProfileRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotterySupplierRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
@@ -70,6 +71,23 @@ public class LotterySupplierController {
         return ApiResponse.success(
                 "Đã cập nhật thông tin nhà cung cấp.",
                 lotterySupplierServicePort.updateProfile(request));
+    }
+
+    /**
+     * Fixes the NCC default import cost from settlement matching, which is where
+     * an actual import price disagrees with the master — hence importBatch:create
+     * is accepted alongside supplier:edit. Identity and timing rules stay as they
+     * are.
+     */
+    @PutMapping("/{id}/default-import-cost")
+    @PreAuthorize("hasAnyAuthority('supplier:edit', 'importBatch:create')")
+    public ApiResponse<LotterySupplierResponse> updateDefaultImportCost(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateLotterySupplierDefaultImportCostRequest request
+    ) {
+        return ApiResponse.success(
+                "Đã cập nhật giá nhập mặc định nhà cung cấp.",
+                lotterySupplierServicePort.updateDefaultImportCost(id, request));
     }
 
     @PutMapping("/{id}")

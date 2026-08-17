@@ -28,21 +28,37 @@ const parseClockTime = (time?: string): Dayjs | null => {
     return dayjs().hour(hour).minute(minute).second(0).millisecond(0);
 };
 
-/** True when current clock is still before the supplier's import-allow-from time. */
-export const isBeforeSupplierImportAllowFrom = (
+/** Instant the supplier starts accepting tickets for a draw date. Morning hours open the previous day. */
+export const resolveSupplierImportAllowFromAt = (
     importAllowFrom?: string,
-    now: Dayjs = dayjs()
-) => {
+    drawDate?: string
+): Dayjs | null => {
     const allowFrom = parseClockTime(importAllowFrom);
-    if (!allowFrom) {
-        return false;
+    if (!allowFrom || !drawDate) {
+        return null;
     }
-    const todayAllowFrom = now
+    const open = dayjs(drawDate)
         .hour(allowFrom.hour())
         .minute(allowFrom.minute())
         .second(0)
         .millisecond(0);
-    return now.isBefore(todayAllowFrom);
+    if (!open.isValid()) {
+        return null;
+    }
+    return allowFrom.hour() < 12 ? open.subtract(1, 'day') : open;
+};
+
+/** True when current clock is still before the supplier's import-allow-from time for this draw. */
+export const isBeforeSupplierImportAllowFrom = (
+    importAllowFrom?: string,
+    drawDate?: string,
+    now: Dayjs = dayjs()
+) => {
+    const openAt = resolveSupplierImportAllowFromAt(importAllowFrom, drawDate);
+    if (!openAt) {
+        return false;
+    }
+    return now.isBefore(openAt);
 };
 
 /** All eligible stations resolve to post-draw additional import. */

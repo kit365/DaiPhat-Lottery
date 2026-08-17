@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.application.service.lotteries;
 
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotterySupplierRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotterySupplierDefaultImportCostRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotterySupplierRequest;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotterySupplierResponse;
 import com.daiphat.coreapi.application.mapper.lotteries.LotterySupplierApplicationMapper;
@@ -181,5 +182,38 @@ class LotterySupplierServiceTest {
                 .isInstanceOf(DomainException.class)
                 .extracting(ex -> ((DomainException) ex).getErrorCode())
                 .isEqualTo(ErrorCode.LOTTERY_SUPPLIER_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("updateDefaultImportCost writes only the NCC import cost")
+    void updateDefaultImportCost_success() {
+        LotterySupplierModel model = LotterySupplierModel.builder()
+                .id(7L)
+                .name("Minh Chính")
+                .code("MINH_CHINH")
+                .contactPhone("0901234567")
+                .defaultImportCost(new java.math.BigDecimal("10000"))
+                .isActive(false)
+                .build();
+        when(lotterySupplierRepositoryPort.findById(7L)).thenReturn(Optional.of(model));
+        when(lotterySupplierRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(lotterySupplierApplicationMapper.toResponse(any())).thenReturn(
+                LotterySupplierResponse.builder()
+                        .id(7L)
+                        .defaultImportCost(new java.math.BigDecimal("11000"))
+                        .build()
+        );
+
+        lotterySupplierService.updateDefaultImportCost(
+                7L,
+                new UpdateLotterySupplierDefaultImportCostRequest(new java.math.BigDecimal("11000"))
+        );
+
+        org.mockito.ArgumentCaptor<LotterySupplierModel> captor =
+                org.mockito.ArgumentCaptor.forClass(LotterySupplierModel.class);
+        verify(lotterySupplierRepositoryPort).save(captor.capture());
+        assertThat(captor.getValue().getDefaultImportCost()).isEqualByComparingTo("11000");
+        assertThat(captor.getValue().getName()).isEqualTo("Minh Chính");
+        assertThat(captor.getValue().getContactPhone()).isEqualTo("0901234567");
     }
 }

@@ -5,28 +5,39 @@ import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutOwnershipVerificationLevel;
 import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutTicketOrigin;
+import com.daiphat.coreapi.domain.model.payout.PrizePayoutRequestModel;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryStationEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketSerialEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderDetailEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
+import com.daiphat.coreapi.infrastructure.persistence.repository.order.OrderDetailRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class PrizePayoutTicketOriginResolverTest {
+
+    @Mock
+    private OrderDetailRepository orderDetailRepository;
 
     @InjectMocks
     private PrizePayoutEligibilityService eligibilityService;
@@ -106,5 +117,28 @@ class PrizePayoutTicketOriginResolverTest {
         assertEquals(PrizePayoutTicketOrigin.INTERNAL_OFFLINE, ownership.ticketOrigin());
         assertEquals(PrizePayoutOwnershipVerificationLevel.MANUAL_ONLY, ownership.level());
         assertTrue(ownership.requiresManualOwnershipConfirm());
+    }
+
+    @Test
+    void resolveAllByOrderCode_returnsSoldCompletedOrderDetails() {
+        when(orderDetailRepository.findActiveByOrderCode("ORD-WIN50-002")).thenReturn(List.of(detail));
+        assertEquals(List.of(detail), eligibilityService.resolveAllByOrderCode("ORD-WIN50-002"));
+    }
+
+    @Test
+    void resolveAllByOrderCode_empty_isOutOfScope() {
+        when(orderDetailRepository.findActiveByOrderCode("ORD-MISSING")).thenReturn(List.of());
+        DomainException ex = assertThrows(
+                DomainException.class,
+                () -> eligibilityService.resolveAllByOrderCode("ORD-MISSING"));
+        assertEquals(ErrorCode.ORDER_DETAIL_NOT_FOUND, ex.getErrorCode());
+        assertTrue(ex.getInternalMessage().contains(PrizePayoutRequestModel.OUT_OF_SCOPE_TICKET_MESSAGE));
+    }
+
+    @Test
+    void resolveDetail_bySerialId_usesPayoutEligibleQuery() {
+        when(orderDetailRepository.findPayoutEligibleBySerialId(10L)).thenReturn(Optional.of(detail));
+        assertEquals(detail, eligibilityService.resolveDetail(null, 10L));
+        verify(orderDetailRepository, never()).findActiveBySerialId(10L);
     }
 }

@@ -1,9 +1,11 @@
 package com.daiphat.coreapi.application.service.lotteries;
 
+import com.daiphat.coreapi.application.dto.request.lotteries.BulkUpdateLotteryStationCommissionRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ConfirmSyncLotteryStationItem;
 import com.daiphat.coreapi.application.dto.request.lotteries.ConfirmSyncLotteryStationsRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryStationRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.SyncLotteryStationsRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryStationCommissionItem;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryStationRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationResponse;
@@ -952,5 +954,26 @@ class LotteryStationServiceTest {
     void decreaseRegionStationCount_null() {
         ReflectionTestUtils.invokeMethod(lotteryStationService, "decreaseRegionStationCount", (LotteryRegionModel) null);
         verify(lotteryRegionRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("updateCommissions writes commission only and leaves sale price alone")
+    void updateCommissions_doesNotTouchSalePrice() {
+        when(lotteryStationRepositoryPort.findById(1L)).thenReturn(Optional.of(stationModel));
+        when(lotteryStationRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(lotteryTicketRepositoryPort.sumQuantityByProductIdAndStatuses(eq(1L), any())).thenReturn(0L);
+        when(lotteryStationApplicationMapper.toResponse(any())).thenReturn(
+                LotteryStationResponse.builder().id(1L).build()
+        );
+
+        lotteryStationService.updateCommissions(new BulkUpdateLotteryStationCommissionRequest(List.of(
+                new UpdateLotteryStationCommissionItem(1L, new BigDecimal("0.02"))
+        )));
+
+        ArgumentCaptor<LotteryStationModel> captor = ArgumentCaptor.forClass(LotteryStationModel.class);
+        verify(lotteryStationRepositoryPort).save(captor.capture());
+        assertThat(captor.getValue().getCommissionRate()).isEqualByComparingTo("0.02");
+        assertThat(captor.getValue().getPrice()).isEqualByComparingTo("10000");
+        assertThat(captor.getValue().getName()).isEqualTo("Station A");
     }
 }
