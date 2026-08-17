@@ -272,8 +272,11 @@ export const PRIZE_PAYOUT_TICKET_ORIGIN_LABELS: Record<PrizePayoutTicketOrigin, 
 export function resolvePrizePayoutOrderType(
     detail: Pick<PrizePayoutRequestResponse, 'orderType' | 'channel' | 'ticketOrigin'>
 ): OrderType | null {
-    if (detail.orderType === OrderType.ONLINE || detail.orderType === OrderType.DIRECT) {
-        return detail.orderType;
+    if (detail.orderType === OrderType.ONLINE) {
+        return OrderType.ONLINE;
+    }
+    if (detail.orderType === OrderType.DIRECT) {
+        return OrderType.DIRECT;
     }
     if (detail.channel === 'ONLINE' || detail.ticketOrigin === 'INTERNAL_ONLINE') {
         return OrderType.ONLINE;

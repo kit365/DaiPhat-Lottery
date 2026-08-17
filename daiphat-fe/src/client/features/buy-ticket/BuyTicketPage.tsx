@@ -307,7 +307,6 @@ export const BuyTicketPage = () => {
     // clockTick buộc re-evaluate khi giữ trang mở qua giờ xổ
     const todaySellClosed = useMemo(
         () => isTodayDrawPassed(effectiveDrawTime),
-        // eslint-disable-next-line react-hooks/exhaustive-deps
         [effectiveDrawTime, clockTick]
     );
 
