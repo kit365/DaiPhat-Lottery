@@ -25,6 +25,11 @@ export const createStationSchema = z.object({
     drawDays: z.array(z.string()).min(1, "Danh sách ngày quay không được để trống"),
     drawTime: z.string().min(1, "Giờ quay không được để trống"),
 
+    /** Empty = use global PRIZE_REDEMPTION_OFFICIAL_DEADLINE_DAYS. */
+    prizeRedemptionOfficialDeadlineDays: z
+        .union([z.literal(""), z.coerce.number().int().min(1).max(365)])
+        .optional(),
+
     description: z.string().optional(),
     image: z.any().optional(),
 

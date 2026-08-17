@@ -156,7 +156,7 @@ public enum AppPermission {
     ORDER_VIEW(PermissionConstants.ORDER + PermissionConstants.VIEW,
             "Đơn mua hộ & Tra vé", "Xem đơn hàng", "Quyền xem danh sách đơn hàng mua hộ", 560),
     ORDER_CREATE(PermissionConstants.ORDER + PermissionConstants.CREATE,
-            "Đơn mua hộ & Tra vé", "Tạo đơn hàng", "Quyền tạo đơn hàng online hoặc tại quầy", 555),
+            "Đơn mua hộ & Tra vé", "Tạo đơn hàng", "Quyền tạo đơn hàng trực tuyến hoặc tại quầy", 555),
     ORDER_EDIT(PermissionConstants.ORDER + PermissionConstants.EDIT,
             "Đơn mua hộ & Tra vé", "Sửa đơn hàng", "Quyền cập nhật trạng thái và thanh toán đơn hàng", 545),
     ORDER_DELETE(PermissionConstants.ORDER + PermissionConstants.DELETE,

@@ -40,7 +40,7 @@ class PrizePayoutGuardrailsTest {
                 .when(systemConfigRepositoryPort.findActiveByConfigKey(anyString()))
                 .thenReturn(Optional.empty());
         eligibilityService = new PrizePayoutEligibilityService(
-                null, null, null, null, null, null, calculationService, systemConfigRepositoryPort);
+                null, null, null, null, null, null, calculationService, systemConfigRepositoryPort, null);
     }
 
     @Test

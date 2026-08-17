@@ -151,7 +151,7 @@ export const PrizePayoutDetailTab = () => {
                     </div>
                     {payout.status === PrizePayoutRequestStatus.REJECTED && rejectCount > 0 && (
                         <div className="flex justify-between border-b border-dashed border-[#E5E8EB] pb-2">
-                            <span className="text-[#637381]">Số lần từ chối online</span>
+                            <span className="text-[#637381]">Số lần từ chối trực tuyến</span>
                             <span className="font-medium">
                                 {rejectCount} / {maxRetry}
                             </span>

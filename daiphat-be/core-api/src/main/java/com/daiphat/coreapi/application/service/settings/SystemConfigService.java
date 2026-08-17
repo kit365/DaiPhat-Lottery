@@ -85,6 +85,7 @@ public class SystemConfigService implements SystemConfigServicePort {
         if (confidenceKey) {
             validateVendorConfidenceCrossFields(model, request.configValue());
         }
+        validatePrizeRedemptionCrossFields(model.getConfigKey(), request.configValue());
         systemConfigApplicationMapper.merge(request, model);
         SystemConfigModel saved = systemConfigRepositoryPort.save(model);
 
@@ -206,5 +207,37 @@ public class SystemConfigService implements SystemConfigServicePort {
             current.put(candidate, value);
         }
         VendorConfidencePolicyValidator.validateUpdate(key, updatedValue, current);
+    }
+
+    private void validatePrizeRedemptionCrossFields(String configKey, String updatedValue) {
+        if (!SystemConfigEnum.PRIZE_REDEMPTION_OFFICIAL_DEADLINE_DAYS.name().equals(configKey)
+                && !SystemConfigEnum.PRIZE_REDEMPTION_BUFFER_DAYS.name().equals(configKey)) {
+            return;
+        }
+        int official;
+        int buffer;
+        try {
+            if (SystemConfigEnum.PRIZE_REDEMPTION_OFFICIAL_DEADLINE_DAYS.name().equals(configKey)) {
+                official = Integer.parseInt(updatedValue.trim());
+                buffer = Integer.parseInt(readConfigOrDefault(SystemConfigEnum.PRIZE_REDEMPTION_BUFFER_DAYS));
+            } else {
+                buffer = Integer.parseInt(updatedValue.trim());
+                official = Integer.parseInt(readConfigOrDefault(SystemConfigEnum.PRIZE_REDEMPTION_OFFICIAL_DEADLINE_DAYS));
+            }
+        } catch (NumberFormatException ex) {
+            throw new DomainException(ErrorCode.SYSTEM_CONFIG_VALUE_INVALID);
+        }
+        if (buffer >= official) {
+            throw new DomainException(
+                    ErrorCode.SYSTEM_CONFIG_VALUE_INVALID,
+                    "Số ngày đệm hạn đổi thưởng phải nhỏ hơn hạn lĩnh nhà đài.");
+        }
+    }
+
+    private String readConfigOrDefault(SystemConfigEnum key) {
+        return systemConfigRepositoryPort.findActiveByConfigKey(key.name())
+                .map(SystemConfigModel::getConfigValue)
+                .filter(v -> v != null && !v.isBlank())
+                .orElse(key.getDefaultValue());
     }
 }

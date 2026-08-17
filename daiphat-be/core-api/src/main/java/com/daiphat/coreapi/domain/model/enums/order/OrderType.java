@@ -8,7 +8,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum OrderType implements LabeledEnum {
     DIRECT("Đặt tại quầy"),
-    ONLINE("Đặt online");
+    ONLINE("Đặt trực tuyến");
 
     private final String label;
 }

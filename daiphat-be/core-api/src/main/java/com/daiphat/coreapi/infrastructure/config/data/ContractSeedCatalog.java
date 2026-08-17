@@ -99,8 +99,7 @@ public final class ContractSeedCatalog {
                 .partyBRoleLabel("Bên B - Người nhận thưởng")
                 .partyASignatureLabel("ĐẠI DIỆN BÊN A")
                 .partyBSignatureLabel("BÊN B - NGƯỜI NHẬN THƯỞNG")
-                .footerNote("Bản PDF này là bản dự thảo/in từ hệ thống, dùng cùng khung pháp lý với hợp đồng cộng tác "
-                        + "bán vé số. Bản đã ký (scan PDF/ảnh) được lưu trên yêu cầu trả thưởng.")
+                .footerNote(null)
                 .basedOnId(basedOnId)
                 .isDefault(true)
                 .active(true)
@@ -113,11 +112,10 @@ public final class ContractSeedCatalog {
                         article("TICKETS", 2, "Điều 2. Vé trúng thưởng", ContractArticleKind.PRIZE_TICKET_TABLE,
                                 "<p>Danh sách vé, giải và số tiền dưới đây là phụ lục không tách rời của hợp đồng:</p>"),
                         article("PAYOUT", 3, "Điều 3. Thuế, hoa hồng và số tiền chi trả", ContractArticleKind.TEXT,
-                                "<p>{{taxPolicy}}</p>"
-                                        + "<p>{{commissionPolicy}}</p>"
-                                        + "<p>Số tiền thực nhận = giá trị giải − thuế TNCN (nếu có) − hoa hồng đại lý theo cấu "
-                                        + "hình tại thời điểm lập hợp đồng. Thay đổi cấu hình sau đó không làm thay đổi số liệu "
-                                        + "đã in trên hợp đồng này.</p>"),
+                                "{{taxPolicy}}{{commissionPolicy}}"
+                                        + "<p><strong>Số tiền thực nhận</strong> = giá trị giải − thuế TNCN (nếu có) − hoa hồng "
+                                        + "đại lý theo cấu hình tại thời điểm lập hợp đồng. Thay đổi cấu hình sau đó không làm "
+                                        + "thay đổi số liệu đã in trên hợp đồng này.</p>"),
                         article("COMMITMENT", 4, "Điều 4. Cam kết của người nhận thưởng", ContractArticleKind.TEXT,
                                 "<ol>"
                                         + "<li>Bên B xác nhận đã đối chiếu vé gốc / thông tin đơn hàng và giấy tờ tùy thân với "

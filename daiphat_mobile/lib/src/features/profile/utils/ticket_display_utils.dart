@@ -182,7 +182,17 @@ TicketPayoutDisplay? resolveTicketPayoutDisplay(PurchasedTicket ticket) {
       icon: Icons.block_outlined,
     );
   }
-  if (ticket.canClaimOnline == false || ticket.claimChannel == 'IN_PERSON') {
+  if (ticket.redemptionZone == 'PAST_ISSUER_LOCKED') {
+    return const TicketPayoutDisplay(
+      label: 'Hết hạn trả thưởng',
+      color: Color(0xFFBE123C),
+      bgColor: Color(0xFFFFF1F2),
+      icon: Icons.lock_outline,
+    );
+  }
+  if (ticket.redemptionZone == 'PAST_CUSTOMER_URGENT' ||
+      ticket.canClaimOnline == false ||
+      ticket.claimChannel == 'IN_PERSON') {
     return const TicketPayoutDisplay(
       label: 'Đổi thưởng tại đại lý',
       color: Color(0xFF6D28D9),
@@ -200,8 +210,11 @@ TicketPayoutDisplay? resolveTicketPayoutDisplay(PurchasedTicket ticket) {
 
 bool canRequestPrizePayout(PurchasedTicket ticket) {
   final status = ticket.activePayoutStatus;
+  final withinCustomerWindow = ticket.redemptionZone == null ||
+      ticket.redemptionZone == 'WITHIN_CUSTOMER';
   return ticket.drawResultStatus == 'WON' &&
       ticket.canClaimOnline == true &&
+      withinCustomerWindow &&
       ticket.serialStatus != null &&
       _payoutEligibleSerialStatuses.contains(ticket.serialStatus) &&
       (ticket.payoutState == null || ticket.payoutState == 'NONE') &&
@@ -223,7 +236,21 @@ String? getPrizePayoutIneligibilityMessage(PurchasedTicket ticket) {
     return null;
   }
   if (status == 'MANUAL_RESOLUTION') {
-    return 'Yêu cầu trả thưởng online đã bị từ chối quá số lần cho phép — vui lòng đến đại lý đổi thưởng.';
+    return 'Yêu cầu trả thưởng trực tuyến đã bị từ chối quá số lần cho phép — vui lòng đến đại lý đổi thưởng.';
+  }
+  if (ticket.redemptionZone == 'PAST_ISSUER_LOCKED') {
+    return 'Đã hết hạn trả thưởng — không thể đổi thưởng.';
+  }
+  if (ticket.redemptionZone == 'PAST_CUSTOMER_URGENT') {
+    final days = ticket.daysRemainingToIssuer;
+    if (days != null && days >= 0) {
+      if (days == 0) {
+        return 'Đã hết hạn đổi thưởng trực tuyến. Vui lòng mang vé đến đại lý trong hôm nay trước khi hết hạn chính thức.';
+      }
+      final dayLabel = days == 1 ? '1 ngày' : '$days ngày';
+      return 'Đã hết hạn đổi thưởng trực tuyến. Vui lòng mang vé đến đại lý trong $dayLabel tới (còn hạn lĩnh nhà đài).';
+    }
+    return 'Đã hết hạn đổi thưởng trực tuyến. Vui lòng mang vé đến đại lý nếu còn trong hạn lĩnh nhà đài.';
   }
   if (ticket.canClaimOnline == false || ticket.claimChannel == 'IN_PERSON') {
     return 'Vé này bắt buộc đổi thưởng trực tiếp tại đại lý.';

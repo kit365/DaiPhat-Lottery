@@ -7,7 +7,7 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum PrizePayoutChannel implements LabeledEnum {
-    ONLINE("Trả thưởng online"),
+    ONLINE("Trả thưởng trực tuyến"),
     IN_PERSON("Đổi thưởng tại đại lý");
 
     private final String displayName;

@@ -99,7 +99,7 @@ class PrizePayoutStaffServiceCreateInPersonTest {
                 20L, 10L, null, null, null, null, null, null,
                 recipientName, recipientId, recipientImage, recipientImage,
                 PrizePayoutPaymentMethod.CASH, null, manualConfirm, null,
-                "https://cdn.example/contract.jpg");
+                "https://cdn.example/contract.jpg", null);
     }
 
     @BeforeEach
@@ -124,7 +124,7 @@ class PrizePayoutStaffServiceCreateInPersonTest {
 
         lenient().when(prizePayoutEligibilityService.resolveDetail(eq(20L), any())).thenReturn(detail);
         lenient().when(prizePayoutEligibilityService.resolveDetail(eq(20L), eq(null))).thenReturn(detail);
-        lenient().doNothing().when(prizePayoutEligibilityService).validateStaffInPersonCreate(any(), any());
+        lenient().doNothing().when(prizePayoutEligibilityService).validateStaffInPersonCreate(any(), any(), anyBoolean());
         lenient().doNothing().when(prizePayoutEligibilityService).validateWonWithProof(any());
         lenient().when(prizePayoutEligibilityService.resolvePrizeMatch(any(), any())).thenReturn(
                 new PrizePayoutEligibilityService.PrizeMatchContext(
@@ -254,18 +254,17 @@ class PrizePayoutStaffServiceCreateInPersonTest {
     }
 
     @Test
-    void createInPerson_linkedBelowThreshold_noImage_ok() {
+    void createInPerson_linkedBelowThreshold_withIdImages_ok() {
         detail.getOrder().setUser(customer);
         when(prizePayoutEligibilityService.resolveOwnershipVerification(detail, serial))
                 .thenReturn(new PrizePayoutEligibilityService.OwnershipVerificationContext(
                         PrizePayoutTicketOrigin.INTERNAL_OFFLINE,
                         PrizePayoutOwnershipVerificationLevel.CUSTOMER_LINKED,
                         false));
-        when(userRepository.findById(customerId)).thenReturn(Optional.of(customer));
 
         staffService.createInPerson(
                 staffId,
-                cashRequest(false, "Nguyen Van A", "012345678901", null));
+                cashRequest(false, "Nguyen Van A", "012345678901", "https://cdn.example/cccd.jpg"));
 
         verify(prizePayoutRequestRepositoryPort, atLeastOnce()).save(any());
         verify(prizePayoutSerialLockService).markPaidOut(10L);
@@ -274,12 +273,6 @@ class PrizePayoutStaffServiceCreateInPersonTest {
     @Test
     void createInPerson_highValueWithCustomer_missingImage_fails() {
         detail.getOrder().setUser(customer);
-        when(prizePayoutCalculationService.calculate(any())).thenReturn(
-                new PrizePayoutCalculationService.PrizePayoutBreakdown(
-                        new BigDecimal("30000000.00"),
-                        new BigDecimal("2000000.00"),
-                        new BigDecimal("210000.00"),
-                        new BigDecimal("27790000.00")));
 
         DomainException ex = assertThrows(
                 DomainException.class,
@@ -313,10 +306,11 @@ class PrizePayoutStaffServiceCreateInPersonTest {
                         null, null, null, null,
                         "Tran Van C", "012345678901", "https://cdn.example/cccd.jpg", "https://cdn.example/cccd-back.jpg",
                         PrizePayoutPaymentMethod.CASH, null, true, null,
-                        "https://cdn.example/contract.jpg"));
+                        "https://cdn.example/contract.jpg", null));
 
         assertEquals(2, response.claims().size());
-        verify(prizePayoutCalculationService, org.mockito.Mockito.times(4)).calculate(any());
+        // One calculate() per ticket during batch pre-compute.
+        verify(prizePayoutCalculationService, org.mockito.Mockito.times(2)).calculate(any());
         verify(prizePayoutSerialLockService).lockSerial(10L);
         verify(prizePayoutSerialLockService).lockSerial(11L);
         verify(prizePayoutSerialLockService).markPaidOut(10L);
@@ -437,7 +431,7 @@ class PrizePayoutStaffServiceCreateInPersonTest {
                         "Vietcombank", "0123456789", "TRAN VAN C",
                         "Tran Van C", "012345678901", "https://cdn.example/cccd.jpg", "https://cdn.example/cccd-back.jpg",
                         PrizePayoutPaymentMethod.COMBINED, new BigDecimal("2000000"),
-                        true, "https://cdn.example/transfer.jpg", "https://cdn.example/contract.jpg"));
+                        true, "https://cdn.example/transfer.jpg", "https://cdn.example/contract.jpg", null));
 
         ArgumentCaptor<PrizePayoutRequestModel> captor = ArgumentCaptor.forClass(PrizePayoutRequestModel.class);
         verify(prizePayoutRequestRepositoryPort, atLeastOnce()).save(captor.capture());
@@ -460,8 +454,23 @@ class PrizePayoutStaffServiceCreateInPersonTest {
                                 20L, 10L, null, null, null, null, null, null,
                                 "Tran Van C", "012345678901", "https://cdn.example/cccd.jpg", "https://cdn.example/cccd-back.jpg",
                                 PrizePayoutPaymentMethod.COMBINED, BigDecimal.ZERO,
-                                true, null, "https://cdn.example/contract.jpg")));
+                                true, null, "https://cdn.example/contract.jpg", null)));
         assertEquals(ErrorCode.INVALID_INPUT, ex.getErrorCode());
+    }
+
+    @Test
+    void createInPerson_combined_nonThousandCash_fails() {
+        DomainException ex = assertThrows(
+                DomainException.class,
+                () -> staffService.createInPerson(
+                        staffId,
+                        new CreateStaffPrizePayoutRequest(
+                                20L, 10L, null, null, null, null, null, null,
+                                "Tran Van C", "012345678901", "https://cdn.example/cccd.jpg", "https://cdn.example/cccd-back.jpg",
+                                PrizePayoutPaymentMethod.COMBINED, new BigDecimal("123"),
+                                true, null, "https://cdn.example/contract.jpg", null)));
+        assertEquals(ErrorCode.INVALID_INPUT, ex.getErrorCode());
+        assertTrue(ex.getInternalMessage().contains("1.000"));
     }
 
     @Test

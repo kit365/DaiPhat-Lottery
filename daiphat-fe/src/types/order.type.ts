@@ -20,7 +20,7 @@ export enum OrderType {
 
 /** Nhãn loại đơn — đồng bộ admin order list, chi tiết đơn, trả thưởng. */
 export const ORDER_TYPE_LABELS: Record<OrderType, string> = {
-    [OrderType.ONLINE]: 'Online',
+    [OrderType.ONLINE]: 'Trực tuyến',
     [OrderType.DIRECT]: 'Tại quầy',
 };
 
