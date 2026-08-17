@@ -179,7 +179,7 @@ class ImportBatchFileTemplateRoundTripTest {
 
             Row header = sheet.getRow(headerRowIndex);
             Row firstTicket = sheet.getRow(headerRowIndex + 1);
-            for (int column = 0; column < 11; column++) {
+            for (int column = 0; column < 10; column++) {
                 assertThat(isRuled(header.getCell(column)))
                         .as("header cell %d is ruled", column).isTrue();
                 assertThat(isRuled(firstTicket.getCell(column)))
@@ -216,7 +216,9 @@ class ImportBatchFileTemplateRoundTripTest {
                 Row row = sheet.getRow(index);
                 Cell station = row == null ? null : row.getCell(1);
                 if (station != null && "KG".equals(station.getStringCellValue())) {
-                    rendered = formatter.formatCellValue(row.getCell(9));
+                    // Hoa hồng (%) is the 9th column now that Thành tiền is gone
+                    // and Giá nhập closes the row: 0-based index 8.
+                    rendered = formatter.formatCellValue(row.getCell(8));
                     break;
                 }
             }

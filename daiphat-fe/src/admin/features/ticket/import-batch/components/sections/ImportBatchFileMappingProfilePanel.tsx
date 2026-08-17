@@ -43,7 +43,9 @@ const FIELD_LABELS: { field: keyof ImportBatchFileMapping; label: string }[] = [
     { field: 'serialsColumn', label: 'Sê-ri' },
     { field: 'ticketImageColumn', label: 'Ảnh vé' },
     { field: 'quantityColumn', label: 'Số lượng' },
-    { field: 'importCostColumn', label: 'Giá vốn' },
+    { field: 'importCostColumn', label: 'Giá nhập' },
+    { field: 'salePriceColumn', label: 'Giá bán' },
+    { field: 'commissionRateColumn', label: 'Hoa hồng' },
 ];
 
 const formatUsed = (value?: string | null) =>

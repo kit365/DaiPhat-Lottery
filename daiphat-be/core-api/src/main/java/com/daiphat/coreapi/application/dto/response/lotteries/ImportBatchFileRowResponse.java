@@ -41,10 +41,25 @@ public record ImportBatchFileRowResponse(
         Integer serialCount,
         BigDecimal importCost,
         ImportBatchFileRowStatus status,
-        List<ImportBatchFileIssueResponse> issues
+        List<ImportBatchFileIssueResponse> issues,
+        /**
+         * Set when this line's serials were handed to an earlier line carrying the
+         * same lottery number, which is that line's row number.
+         *
+         * <p>A file prints one serial per line, so a four-ticket number occupies
+         * four consecutive lines. Only the first becomes a ticket. Without this
+         * pointer the preview would list the same serial twice — once here and
+         * once in the line that absorbed it — and look like a duplicate.
+         */
+        Integer mergedIntoRowNumber
 ) {
 
     public boolean isImportable() {
         return status == ImportBatchFileRowStatus.OK || status == ImportBatchFileRowStatus.WARNING;
+    }
+
+    /** True when this line contributed its serials to another line. */
+    public boolean isMergedAway() {
+        return mergedIntoRowNumber != null;
     }
 }

@@ -72,7 +72,7 @@ public class LotteryTicketSerialIncidentService {
             UUID actorId
     ) {
         if (priorStatus == LotteryTicketSerialStatus.IN_STOCK) {
-            handleInternalInventoryAfterFault(faultedSerial, request, actorId);
+            handleInternalInventoryAfterFault(faultedSerial, priorOrderId, request, actorId);
         } else if (priorStatus == LotteryTicketSerialStatus.RESERVED
                 || priorStatus == LotteryTicketSerialStatus.SOLD) {
             handleActiveTransactionAfterFault(
@@ -89,6 +89,7 @@ public class LotteryTicketSerialIncidentService {
 
     private void handleInternalInventoryAfterFault(
             LotteryTicketSerialModel faultedSerial,
+            UUID priorOrderId,
             ReportSerialFaultRequest request,
             UUID actorId
     ) {
@@ -104,6 +105,9 @@ public class LotteryTicketSerialIncidentService {
                 request,
                 actorId,
                 null);
+        if (priorOrderId != null) {
+            cancelOrderWithFullRefund(faultedSerial, priorOrderId, request, actorId);
+        }
     }
 
     private void handleActiveTransactionAfterFault(
@@ -116,15 +120,15 @@ public class LotteryTicketSerialIncidentService {
     ) {
         if (request.faultedBy() == LotteryTicketSerialFaultedBy.DATA_ENTRY_FAULT
                 && request.ticketCondition() == TicketCondition.VOIDED) {
-            OrderDetailModel detail = resolveActiveOrderDetail(faultedSerial);
             createReplacementSerialIfRequested(
                     faultedSerial,
-                    priorStatus,
-                    priorReservationExpiresAt,
-                    priorOrderId,
+                    LotteryTicketSerialStatus.IN_STOCK,
+                    null,
+                    null,
                     request,
                     actorId,
-                    detail);
+                    null);
+            cancelOrderWithFullRefund(faultedSerial, priorOrderId, request, actorId);
             return;
         }
 
@@ -205,12 +209,13 @@ public class LotteryTicketSerialIncidentService {
                 .ticketId(faultedSerial.getTicketId())
                 .importBatchId(faultedSerial.getImportBatchId())
                 .importBatchLineId(faultedSerial.getImportBatchLineId())
-                .ticketImg(request.replacementTicketImg())
+                .ticketImg(request.replacementTicketImg() != null && !request.replacementTicketImg().isBlank()
+                        ? request.replacementTicketImg()
+                        : faultedSerial.getTicketImg())
                 .serialNumber(request.replacementSerialNumber().trim())
                 .stationId(faultedSerial.getStationId())
                 .drawDate(faultedSerial.getDrawDate())
                 .inputSource(InputSource.MANUAL)
-                .replacedForTicketId(faultedSerial.getId())
                 .build();
         replacement.initializeImport(actorId);
 

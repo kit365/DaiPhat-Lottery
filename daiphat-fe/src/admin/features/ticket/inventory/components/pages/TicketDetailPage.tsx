@@ -118,7 +118,11 @@ export const TicketDetailPage = () => {
     const [filterCategory, setFilterCategory] = useState<"ALL" | "IN_STOCK" | "SOLD" | "FAULT">("ALL");
 
     const ticketSerials = useMemo(() => {
-        return Array.isArray(ticketDetail?.serials) ? ticketDetail.serials : [];
+        const serials = Array.isArray(ticketDetail?.serials) ? ticketDetail.serials : [];
+        return serials.filter((s: { ticketCondition?: string | null }) => {
+            const cond = (s.ticketCondition || "").toUpperCase();
+            return cond !== "VOIDED";
+        });
     }, [ticketDetail?.serials]);
 
     // Summary counts

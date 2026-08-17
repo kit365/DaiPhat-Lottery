@@ -138,10 +138,8 @@ public class ReturnBatchService implements ReturnBatchServicePort {
     @Transactional
     public ReturnBatchResponse getById(Long id) {
         ReturnBatchModel batch = getBatchOrThrow(id);
-        if (isSupplierReturn(batch) && batch.getStatus() != null && batch.getStatus().isOpenForInspection()) {
-            returnBatchAutoCancelService.cancelIfPastCutoff(batch);
-        }
         if (isSupplierReturn(batch)) {
+            returnBatchAutoCancelService.cancelIfPastCutoff(batch);
             syncSummaryIfReturnWindowOpen(id);
         }
         return toDetailResponse(id);
@@ -562,7 +560,8 @@ public class ReturnBatchService implements ReturnBatchServicePort {
         }
         ReturnBatchLineModel line = getLineOrThrow(batchId, lineId);
         ReturnBatchLineStatus newStatus = request.status();
-        if (newStatus == null) {
+        if (newStatus == null || newStatus.isCancelled()
+                || (line.getStatus() != null && line.getStatus().isCancelled())) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "Trạng thái dòng trả vé không hợp lệ.");
         }
         line.setStatus(newStatus);

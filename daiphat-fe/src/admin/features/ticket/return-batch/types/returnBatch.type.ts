@@ -10,7 +10,8 @@ export type ReturnBatchType = 'SUPPLIER_RETURN' | 'STREET_AGENT_RETURN';
 export type ReturnBatchLineStatus =
     | 'PENDING'
     | 'INSPECTING'
-    | 'INSPECTED';
+    | 'INSPECTED'
+    | 'CANCELLED';
 
 export type ReturnDeliveryMode = 'RETAILER_DELIVERS' | 'SUPPLIER_COLLECTS';
 

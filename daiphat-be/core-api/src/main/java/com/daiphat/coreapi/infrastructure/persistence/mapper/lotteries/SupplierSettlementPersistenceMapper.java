@@ -4,6 +4,7 @@ import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementDiscrepa
 import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementDiscrepancyType;
 import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementReconciliationPhase;
 import com.daiphat.coreapi.domain.model.lotteries.SettlementDiscrepancyItem;
+import com.daiphat.coreapi.domain.model.lotteries.StationCommissionSnapshot;
 import com.daiphat.coreapi.domain.model.lotteries.SupplierSettlementModel;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotterySupplierEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.SettlementDiscrepancyItemColumn;
@@ -51,6 +52,11 @@ public class SupplierSettlementPersistenceMapper {
                 .actualReturnTicketValue(entity.getActualReturnTicketValue())
                 .originalTicketUnitPrice(entity.getOriginalTicketUnitPrice())
                 .reconciledTicketUnitPrice(entity.getReconciledTicketUnitPrice())
+                .systemTicketImportPrice(entity.getSystemTicketImportPrice())
+                .actualTicketImportPrice(entity.getActualTicketImportPrice())
+                .stationCommissionSnapshots(copySnapshots(entity.getStationCommissionSnapshots()))
+                .systemImportQuantityFrozenAt(entity.getSystemImportQuantityFrozenAt())
+                .systemReturnQuantityFrozenAt(entity.getSystemReturnQuantityFrozenAt())
                 .initialEstimatedSettlementValue(entity.getInitialEstimatedSettlementValue())
                 .finalSettlementValue(entity.getFinalSettlementValue())
                 .actualPaidAmount(entity.getActualPaidAmount())
@@ -117,6 +123,11 @@ public class SupplierSettlementPersistenceMapper {
                 .actualReturnTicketValue(model.getActualReturnTicketValue())
                 .originalTicketUnitPrice(model.getOriginalTicketUnitPrice())
                 .reconciledTicketUnitPrice(model.getReconciledTicketUnitPrice())
+                .systemTicketImportPrice(model.getSystemTicketImportPrice())
+                .actualTicketImportPrice(model.getActualTicketImportPrice())
+                .stationCommissionSnapshots(copySnapshots(model.getStationCommissionSnapshots()))
+                .systemImportQuantityFrozenAt(model.getSystemImportQuantityFrozenAt())
+                .systemReturnQuantityFrozenAt(model.getSystemReturnQuantityFrozenAt())
                 .initialEstimatedSettlementValue(model.getInitialEstimatedSettlementValue())
                 .finalSettlementValue(model.getFinalSettlementValue())
                 .actualPaidAmount(model.getActualPaidAmount())
@@ -172,6 +183,11 @@ public class SupplierSettlementPersistenceMapper {
         entity.setActualReturnTicketValue(model.getActualReturnTicketValue());
         entity.setOriginalTicketUnitPrice(model.getOriginalTicketUnitPrice());
         entity.setReconciledTicketUnitPrice(model.getReconciledTicketUnitPrice());
+        entity.setSystemTicketImportPrice(model.getSystemTicketImportPrice());
+        entity.setActualTicketImportPrice(model.getActualTicketImportPrice());
+        entity.setStationCommissionSnapshots(copySnapshots(model.getStationCommissionSnapshots()));
+        entity.setSystemImportQuantityFrozenAt(model.getSystemImportQuantityFrozenAt());
+        entity.setSystemReturnQuantityFrozenAt(model.getSystemReturnQuantityFrozenAt());
         entity.setInitialEstimatedSettlementValue(model.getInitialEstimatedSettlementValue());
         entity.setFinalSettlementValue(model.getFinalSettlementValue());
         entity.setActualPaidAmount(model.getActualPaidAmount());
@@ -205,6 +221,25 @@ public class SupplierSettlementPersistenceMapper {
 
     private static List<String> copyStringList(List<String> source) {
         return source == null ? new ArrayList<>() : new ArrayList<>(source);
+    }
+
+    private static List<StationCommissionSnapshot> copySnapshots(List<StationCommissionSnapshot> source) {
+        if (source == null || source.isEmpty()) {
+            return new ArrayList<>();
+        }
+        List<StationCommissionSnapshot> copies = new ArrayList<>();
+        for (StationCommissionSnapshot snapshot : source) {
+            if (snapshot == null || snapshot.getLotteryStationId() == null) {
+                continue;
+            }
+            copies.add(StationCommissionSnapshot.builder()
+                    .lotteryStationId(snapshot.getLotteryStationId())
+                    .importedQuantity(snapshot.getImportedQuantity())
+                    .systemCommissionRate(snapshot.getSystemCommissionRate())
+                    .actualCommissionRate(snapshot.getActualCommissionRate())
+                    .build());
+        }
+        return copies;
     }
 
     private static List<SupplierSettlementDiscrepancyType> copyEnumList(

@@ -16,6 +16,8 @@ public interface ImportBatchLineRepository extends JpaRepository<ImportBatchLine
 
     List<ImportBatchLineEntity> findByImportBatch_IdAndDeletedAtIsNull(Long importBatchId);
 
+    List<ImportBatchLineEntity> findByImportBatch_Id(Long importBatchId);
+
     Optional<ImportBatchLineEntity> findByImportBatch_IdAndLotteryStation_IdAndDeletedAtIsNotNull(
             Long importBatchId,
             Long lotteryStationId

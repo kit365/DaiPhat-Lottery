@@ -7,6 +7,8 @@ import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketSerialServicePort;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
+import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchRepositoryPort;
+import com.daiphat.coreapi.application.port.out.lotteries.LotterySupplierRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.application.service.streetagent.LuckySerialTagger;
@@ -16,6 +18,7 @@ import com.daiphat.coreapi.domain.model.enums.lottery.InputSource;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
+import com.daiphat.coreapi.shared.util.SupplierTicketIntakeWindowPolicy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,6 +27,11 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.daiphat.coreapi.application.dto.request.lotteries.ReportSerialFaultRequest;
+import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialFaultedBy;
+import com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition;
+import java.time.Clock;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -51,6 +59,15 @@ class LotteryTicketSerialServiceTest {
     @Mock
     private LuckySerialTagger luckySerialTagger;
 
+    @Mock
+    private ImportBatchRepositoryPort importBatchRepositoryPort;
+
+    @Mock
+    private LotterySupplierRepositoryPort lotterySupplierRepositoryPort;
+
+    @Mock
+    private SupplierTicketIntakeWindowPolicy intakeWindowPolicy;
+
     private LotteryTicketSerialServicePort lotteryTicketSerialService;
 
     private final Long TICKET_ID = 1L;
@@ -66,7 +83,11 @@ class LotteryTicketSerialServiceTest {
                 storagePort,
                 orderRepositoryPort,
                 lotteryTicketSerialIncidentService,
-                luckySerialTagger);
+                luckySerialTagger,
+                importBatchRepositoryPort,
+                lotterySupplierRepositoryPort,
+                intakeWindowPolicy,
+                Clock.systemDefaultZone());
 
         ticketModel = LotteryTicketModel.builder().id(TICKET_ID).numbers("001234").build();
         
@@ -365,7 +386,23 @@ class LotteryTicketSerialServiceTest {
         lotteryTicketSerialService.expireActiveSerials(TICKET_ID);
         
         assertThat(serialModel.getStatus()).isEqualTo(LotteryTicketSerialStatus.EXPIRED);
+        verify(lotteryTicketSerialRepositoryPort).findByTicketIdAndStatuses(
+                TICKET_ID,
+                List.of(LotteryTicketSerialStatus.IN_STOCK, LotteryTicketSerialStatus.RESERVED));
         verify(lotteryTicketSerialRepositoryPort).save(serialModel);
+    }
+
+    @Test
+    @DisplayName("expireActiveSerials skips VOIDED serials")
+    void expireActiveSerials_skipsVoided() {
+        serialModel.setTicketCondition(com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.VOIDED);
+        when(lotteryTicketSerialRepositoryPort.findByTicketIdAndStatuses(eq(TICKET_ID), any()))
+                .thenReturn(List.of(serialModel));
+
+        lotteryTicketSerialService.expireActiveSerials(TICKET_ID);
+
+        assertThat(serialModel.getStatus()).isEqualTo(LotteryTicketSerialStatus.IN_STOCK);
+        verify(lotteryTicketSerialRepositoryPort, never()).save(serialModel);
     }
 
     @Test
@@ -405,6 +442,64 @@ class LotteryTicketSerialServiceTest {
         LotteryTicketSerialModel result = lotteryTicketSerialService.uploadImage(SERIAL_ID, req);
 
         assertThat(result.getTicketImg()).isEqualTo("url");
+    }
+
+    // === reportFault: the shelf must still be open ===
+
+    /**
+     * Cancelling a ticket after its draw date's return sweep has begun would
+     * contradict a count that is already being handed to the supplier, so the
+     * request is refused before anything is written.
+     */
+    @Test
+    @DisplayName("[DP-37] reportFault_afterReturnSweep_refused")
+    void reportFault_afterReturnSweep_refused() {
+        LotteryTicketSerialModel serial = LotteryTicketSerialModel.builder()
+                .id(SERIAL_ID)
+                .ticketId(TICKET_ID)
+                .serialNumber("SN-123")
+                .drawDate(LocalDate.of(2026, 8, 17))
+                .status(LotteryTicketSerialStatus.IN_STOCK)
+                .build();
+        when(lotteryTicketSerialRepositoryPort.findById(SERIAL_ID)).thenReturn(Optional.of(serial));
+        when(intakeWindowPolicy.isTicketChangeLocked(any(), any(), any())).thenReturn(true);
+        when(intakeWindowPolicy.ticketChangeLockedMessage(any(), any(), any()))
+                .thenReturn("Đã đến giờ kiểm vé để chuẩn bị trả.");
+
+        ReportSerialFaultRequest request = new ReportSerialFaultRequest(
+                TicketCondition.VOIDED, LotteryTicketSerialFaultedBy.DATA_ENTRY_FAULT,
+                "Hủy vé", null, null, null);
+
+        assertThatThrownBy(() ->
+                lotteryTicketSerialService.reportFault(SERIAL_ID, request, USER_ID))
+                .isInstanceOf(DomainException.class)
+                .hasMessageContaining("giờ kiểm vé");
+
+        // Nothing was written: the refusal happens before any status change.
+        verify(lotteryTicketSerialRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("[DP-37] reportFault_shelfStillOpen_proceeds")
+    void reportFault_shelfStillOpen_proceeds() {
+        LotteryTicketSerialModel serial = LotteryTicketSerialModel.builder()
+                .id(SERIAL_ID)
+                .ticketId(TICKET_ID)
+                .serialNumber("SN-123")
+                .drawDate(LocalDate.of(2026, 8, 17))
+                .status(LotteryTicketSerialStatus.IN_STOCK)
+                .build();
+        when(lotteryTicketSerialRepositoryPort.findById(SERIAL_ID)).thenReturn(Optional.of(serial));
+        when(intakeWindowPolicy.isTicketChangeLocked(any(), any(), any())).thenReturn(false);
+        when(lotteryTicketSerialRepositoryPort.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        ReportSerialFaultRequest request = new ReportSerialFaultRequest(
+                TicketCondition.VOIDED, LotteryTicketSerialFaultedBy.DATA_ENTRY_FAULT,
+                "Hủy vé", null, null, null);
+
+        lotteryTicketSerialService.reportFault(SERIAL_ID, request, USER_ID);
+
+        verify(lotteryTicketSerialRepositoryPort).save(any());
     }
 
 }

@@ -1,91 +1,51 @@
 package com.daiphat.coreapi.infrastructure.config.data;
 
-import com.daiphat.coreapi.application.port.out.contract.ContractRepositoryPort;
-import com.daiphat.coreapi.domain.model.contract.ContractArticle;
 import com.daiphat.coreapi.domain.model.contract.ContractModel;
+import com.daiphat.coreapi.infrastructure.persistence.entity.contract.ContractEntity;
+import com.daiphat.coreapi.infrastructure.persistence.mapper.contract.ContractPersistenceMapper;
+import com.daiphat.coreapi.infrastructure.persistence.repository.contract.ContractRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
-import org.springframework.core.annotation.Order;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-
 /**
- * Ensures default sales + prize-payout contract templates exist for local/prod bootstraps.
- * Idempotent by template code ({@link ContractSeedCatalog#SALES_CODE}, {@link ContractSeedCatalog#PAYOUT_CODE}).
- * Also replaces known local stub bodies ("Seed template.") left from early manual inserts.
+ * Inserts the two canonical templates only when missing.
+ * Does not overwrite operator edits after the first seed.
  */
 @Component
-@Order(120)
 @RequiredArgsConstructor
 @Slf4j
-public class ContractSeedInitializer implements ApplicationRunner {
+public class ContractSeedInitializer {
 
-    private final ContractRepositoryPort contractRepositoryPort;
+    private final ContractRepository contractRepository;
+    private final ContractPersistenceMapper contractPersistenceMapper;
 
-    @Override
+    @EventListener(ApplicationReadyEvent.class)
     @Transactional
-    public void run(ApplicationArguments args) {
-        ContractModel sales = ensureSalesTemplate();
-        ensurePayoutTemplate(sales != null ? sales.getId() : null);
+    public void seed() {
+        ContractEntity sales = insertIfMissing(ContractSeedCatalog.salesTemplate(), null);
+        ContractEntity payout = insertIfMissing(ContractSeedCatalog.payoutTemplate(sales.getId()), sales.getId());
+        log.info("System: Contract templates ready — sales={}, payout={}, basedOnSales={}.",
+                sales.getCode(), payout.getCode(), payout.getBasedOnId());
     }
 
-    private ContractModel ensureSalesTemplate() {
-        return contractRepositoryPort.findByCode(ContractSeedCatalog.SALES_CODE)
-                .map(existing -> refreshIfStub(existing, ContractSeedCatalog.salesTemplate()))
+    private ContractEntity insertIfMissing(ContractModel catalog, Long basedOnId) {
+        return contractRepository.findByCodeAndDeletedAtIsNull(catalog.getCode())
                 .orElseGet(() -> {
-                    ContractModel saved = contractRepositoryPort.save(ContractSeedCatalog.salesTemplate());
-                    log.info("Seeded default street-agent contract template id={} code={}",
-                            saved.getId(), saved.getCode());
-                    return saved;
+                    ContractEntity entity = contractPersistenceMapper.toEntity(catalog);
+                    entity.setBasedOnId(basedOnId);
+                    if (entity.getStaffName() == null || entity.getStaffName().isBlank()) {
+                        entity.setStaffName(entity.getTitle());
+                    }
+                    if (entity.getIsDefault() == null) {
+                        entity.setIsDefault(true);
+                    }
+                    entity.setActive(true);
+                    entity.setDeletedAt(null);
+                    return contractRepository.save(entity);
                 });
-    }
-
-    private void ensurePayoutTemplate(Long salesId) {
-        contractRepositoryPort.findByCode(ContractSeedCatalog.PAYOUT_CODE)
-                .ifPresentOrElse(
-                        existing -> refreshIfStub(existing, ContractSeedCatalog.payoutTemplate(salesId)),
-                        () -> {
-                            ContractModel saved = contractRepositoryPort.save(
-                                    ContractSeedCatalog.payoutTemplate(salesId));
-                            log.info("Seeded default prize-payout contract template id={} code={} basedOnId={}",
-                                    saved.getId(), saved.getCode(), salesId);
-                        });
-    }
-
-    private ContractModel refreshIfStub(ContractModel existing, ContractModel canonical) {
-        if (!isStub(existing.getArticles())) {
-            return existing;
-        }
-        existing.setTitle(canonical.getTitle());
-        existing.setStaffName(canonical.getStaffName());
-        existing.setSubtitle(canonical.getSubtitle());
-        existing.setPartyARoleLabel(canonical.getPartyARoleLabel());
-        existing.setPartyBRoleLabel(canonical.getPartyBRoleLabel());
-        existing.setPartyASignatureLabel(canonical.getPartyASignatureLabel());
-        existing.setPartyBSignatureLabel(canonical.getPartyBSignatureLabel());
-        existing.setFooterNote(canonical.getFooterNote());
-        existing.setArticles(canonical.getArticles());
-        if (canonical.getBasedOnId() != null) {
-            existing.setBasedOnId(canonical.getBasedOnId());
-        }
-        existing.setIsDefault(true);
-        existing.setActive(true);
-        ContractModel saved = contractRepositoryPort.save(existing);
-        log.info("Refreshed stub contract template id={} code={}", saved.getId(), saved.getCode());
-        return saved;
-    }
-
-    private static boolean isStub(List<ContractArticle> articles) {
-        if (articles == null || articles.isEmpty()) {
-            return true;
-        }
-        return articles.stream().anyMatch(a -> {
-            String body = a.getBody();
-            return body != null && body.toLowerCase().contains("seed template");
-        });
     }
 }

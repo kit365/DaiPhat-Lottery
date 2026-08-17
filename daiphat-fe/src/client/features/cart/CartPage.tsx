@@ -187,17 +187,16 @@ export const CartPage = () => {
                                             {/* Vé số */}
                                             <div className="flex w-full items-center justify-center text-center">
                                                 <div className="font-bold text-[16px] text-[#212B36] tracking-tight">
-                                                    <LuckyNumber value={item.numbers} ticket className="tracking-tight" />
+                                                    <LuckyNumber value={item.numbers} ticket badgePlacement="above" className="tracking-tight" />
                                                 </div>
                                             </div>
 
                                             {/* Đài & Ngày quay */}
                                             <div className="flex flex-col items-start gap-1">
                                                 <div className="flex items-center gap-2">
-                                                    <img src={item.provinceIcon || PROVINCE_ICON_FALLBACK} alt="Logo" className="w-5 h-5 rounded-full border border-gray-200" />
                                                     <span className="font-bold text-[13px] text-[#212B36]">{item.province}</span>
                                                 </div>
-                                                <div className="flex items-center gap-1.5 text-[12px] text-[#637381] pl-7">
+                                                <div className="flex items-center gap-1.5 text-[12px] text-[#637381]">
                                                     <span className="font-medium text-[#212B36]">{item.date}</span>
                                                     <span>•</span>
                                                     <span>{item.time}</span>
@@ -242,7 +241,7 @@ export const CartPage = () => {
                                     <div className="py-12 flex flex-col items-center justify-center text-center">
                                         <div className="w-24 h-24 mb-4 opacity-50"><i className="fa-solid fa-cart-arrow-down text-[60px] text-gray-300"></i></div>
                                         <p className="text-[16px] text-[#212B36] font-medium mb-2">Giỏ hàng của bạn đang trống.</p>
-                                        <button onClick={() => router.push('/mua-ve')} className="text-[#ee1314] font-bold hover:underline">Mua vé ngay</button>
+                                        <Link href="/tickets" className="text-[#ee1314] font-bold hover:underline cursor-pointer">Mua vé ngay</Link>
                                     </div>
                                 )}
                             </div>

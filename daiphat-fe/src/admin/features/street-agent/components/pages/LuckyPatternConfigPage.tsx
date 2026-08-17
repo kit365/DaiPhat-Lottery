@@ -361,7 +361,7 @@ export const LuckyPatternConfigPage = () => {
                         <CloseIcon fontSize="small" />
                     </IconButton>
                 </DialogTitle>
-                <form onSubmit={handleSubmit(onSubmit)}>
+                <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                     <DialogContent
                         sx={{
                             px: 3,

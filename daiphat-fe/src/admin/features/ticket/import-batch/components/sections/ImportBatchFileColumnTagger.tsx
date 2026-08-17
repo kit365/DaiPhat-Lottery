@@ -13,7 +13,9 @@ export type ImportBatchFileMappingField =
     | 'serialsColumn'
     | 'ticketImageColumn'
     | 'quantityColumn'
-    | 'importCostColumn';
+    | 'importCostColumn'
+    | 'salePriceColumn'
+    | 'commissionRateColumn';
 
 type FieldDefinition = {
     field: ImportBatchFileMappingField;
@@ -38,7 +40,9 @@ export const IMPORT_BATCH_FILE_FIELDS: FieldDefinition[] = [
     { field: 'serialsColumn', label: 'Danh sách sê-ri', hint: 'Nhiều sê-ri trong một ô' },
     { field: 'ticketImageColumn', label: 'Ảnh vé', hint: 'Một ảnh chung, hoặc đủ ảnh cho từng sê-ri' },
     { field: 'quantityColumn', label: 'Số lượng', hint: 'Bắt buộc nếu tệp không có sê-ri' },
-    { field: 'importCostColumn', label: 'Giá vốn', hint: 'Chỉ để đối chiếu' },
+    { field: 'importCostColumn', label: 'Giá nhập', hint: 'Chỉ để đối chiếu; hệ thống dùng giá đài' },
+    { field: 'salePriceColumn', label: 'Giá bán', hint: 'Chỉ để đối chiếu' },
+    { field: 'commissionRateColumn', label: 'Hoa hồng', hint: 'Chỉ để đối chiếu' },
 ];
 
 const FIELD_COLOR: Record<ImportBatchFileMappingField, string> = {
@@ -50,6 +54,8 @@ const FIELD_COLOR: Record<ImportBatchFileMappingField, string> = {
     ticketImageColumn: '#a855f7',
     quantityColumn: '#64748b',
     importCostColumn: '#94a3b8',
+    salePriceColumn: '#0f766e',
+    commissionRateColumn: '#7c3aed',
 };
 
 /** Spreadsheet-style column label: A, B, ... Z, AA, AB, ... */

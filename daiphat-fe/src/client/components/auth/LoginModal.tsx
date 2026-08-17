@@ -155,7 +155,7 @@ export const LoginModal = () => {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
                 transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                className="relative bg-white rounded-3xl shadow-2xl overflow-hidden max-w-[1020px] w-full max-h-[90vh] flex flex-col pointer-events-auto"
+                className="relative bg-white rounded-3xl shadow-2xl overflow-hidden max-w-[480px] w-full flex flex-col pointer-events-auto"
                 onClick={(e) => e.stopPropagation()}
             >
                 <button 
@@ -168,12 +168,9 @@ export const LoginModal = () => {
                         <line x1="6" y1="6" x2="18" y2="18"></line>
                     </svg>
                 </button>
-                <div className="flex flex-col xl:flex-row flex-1 min-h-0 items-stretch overflow-auto xl:overflow-visible">
-                    <div className="w-full xl:w-[54%] bg-white scrollbar-hide">
+                <div className="flex flex-col flex-1 min-h-0 items-stretch overflow-auto">
+                    <div className="w-full bg-white scrollbar-hide">
                         <LoginContent onSwitchToRegister={openRegisterModal} />
-                    </div>
-                    <div className="hidden xl:flex w-[46%] bg-[#102937] flex-shrink-0 items-stretch">
-                        <VisualPanelContent />
                     </div>
                 </div>
             </motion.div>

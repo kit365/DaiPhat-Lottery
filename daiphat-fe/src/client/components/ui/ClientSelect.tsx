@@ -106,7 +106,7 @@ export const ClientSelect: React.FC<ClientSelectProps> = ({
                           width: pos.width,
                           zIndex: 10000,
                       }}
-                      className="bg-white border border-[#E5E8EB] rounded-xl shadow-[0_12px_32px_rgba(0,0,0,0.12)] overflow-hidden py-1"
+                      className="client-portal bg-white border border-[#E5E8EB] rounded-xl shadow-[0_12px_32px_rgba(0,0,0,0.12)] overflow-y-auto max-h-[220px] py-1 custom-scrollbar"
                   >
                       {options.map((option) => {
                           const isSelected = option.value === value;

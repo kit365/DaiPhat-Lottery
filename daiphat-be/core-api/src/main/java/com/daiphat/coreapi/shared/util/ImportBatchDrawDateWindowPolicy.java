@@ -40,28 +40,33 @@ public class ImportBatchDrawDateWindowPolicy {
     // ------------------------------------------------- file import only
 
     /**
-     * File import accepts today's draw date and nothing else - narrower than
-     * manual entry, which may also be used for tomorrow.
+     * File import accepts the same draw dates as manual entry: today and
+     * tomorrow.
      *
-     * <p>The two differ because a file is evidence of a delivery that has already
-     * happened. Tickets for tomorrow's draw have not been handed over yet, so a
-     * file claiming them would create a batch the warehouse cannot reconcile
-     * against anything, and yesterday's are past the point where they could still
-     * be sold. Manual entry stays wider on purpose: an operator declaring
-     * tomorrow's expected quantities by hand is a legitimate, deliberate act.
+     * <p>A supplier hands tomorrow's tickets over during today's opening hours,
+     * so a file listing them is evidence of a delivery that really has happened.
+     * What stops such a batch is not the calendar but the supplier's own window:
+     * intake opens at {@code importAllowFrom} today and closes for a given draw
+     * date when that date's return sweep begins — see
+     * {@link SupplierTicketIntakeWindowPolicy}.
      *
-     * <p>A supplier file routinely covers a whole week; the other dates are
-     * reported as out of window and the same file is re-uploaded each day.
+     * <p>Past draw dates stay out. Those tickets can no longer be sold, and a
+     * shortfall found afterwards is settled through supplier reconciliation
+     * rather than by importing them late.
+     *
+     * <p>Kept as its own method rather than folded into {@link #contains} so the
+     * file flow's rule stays visible and can diverge again without silently
+     * changing manual entry.
      */
     public LocalDate fileImportFrom(LocalDateTime now) {
-        return now.toLocalDate();
+        return from(now);
     }
 
     public LocalDate fileImportTo(LocalDateTime now) {
-        return now.toLocalDate();
+        return to(now);
     }
 
     public boolean containsForFileImport(LocalDate drawDate, LocalDateTime now) {
-        return drawDate != null && drawDate.equals(now.toLocalDate());
+        return contains(drawDate, now);
     }
 }

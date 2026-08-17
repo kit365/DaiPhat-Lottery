@@ -16,6 +16,16 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
 
     Optional<LotteryTicketSerialEntity> findFirstByTicket_IdAndDeletedAtIsNullOrderByIdAsc(Long ticketId);
 
+    @Query("""
+            SELECT s FROM LotteryTicketSerialEntity s
+            WHERE s.deletedAt IS NULL
+              AND s.ticket.id = :ticketId
+              AND (s.ticketCondition IS NULL
+                   OR s.ticketCondition <> com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.VOIDED)
+            ORDER BY s.id ASC
+            """)
+    Optional<LotteryTicketSerialEntity> findFirstVisibleByTicketId(@Param("ticketId") Long ticketId);
+
     List<LotteryTicketSerialEntity> findByTicket_IdAndDeletedAtIsNull(Long ticketId);
 
     List<LotteryTicketSerialEntity> findByTicket_IdInAndDeletedAtIsNullOrderByTicket_IdAscIdAsc(List<Long> ticketIds);
@@ -30,6 +40,12 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
     Optional<LotteryTicketSerialEntity> findFirstBySerialNumberAndDeletedAtIsNull(String serialNumber);
 
     List<LotteryTicketSerialEntity> findBySerialNumberStartingWithAndDeletedAtIsNull(String serialNumberPrefix);
+
+    List<LotteryTicketSerialEntity> findBySerialNumberStartingWith(String serialNumberPrefix);
+
+    List<LotteryTicketSerialEntity> findByImportBatchLine_IdIn(Collection<Long> importBatchLineIds);
+
+    List<LotteryTicketSerialEntity> findByImportBatch_Id(Long importBatchId);
 
     @Query("""
             SELECT s FROM LotteryTicketSerialEntity s
@@ -48,7 +64,18 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
             """)
     int clearReplacedForTicketIdRefs(@Param("serialIds") Collection<Long> serialIds);
 
-    long countByTicket_IdAndStatusInAndDeletedAtIsNull(Long ticketId, Collection<LotteryTicketSerialStatus> statuses);
+    @Query("""
+            SELECT COUNT(s) FROM LotteryTicketSerialEntity s
+            WHERE s.deletedAt IS NULL
+              AND s.ticket.id = :ticketId
+              AND s.status IN :statuses
+              AND (s.ticketCondition IS NULL
+                   OR s.ticketCondition <> com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.VOIDED)
+            """)
+    long countByTicket_IdAndStatusInAndDeletedAtIsNull(
+            @Param("ticketId") Long ticketId,
+            @Param("statuses") Collection<LotteryTicketSerialStatus> statuses
+    );
 
     @Query("""
             SELECT COUNT(s) FROM LotteryTicketSerialEntity s
@@ -66,6 +93,8 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
             WHERE s.deletedAt IS NULL
               AND s.ticket.id IN :ticketIds
               AND s.status IN :statuses
+              AND (s.ticketCondition IS NULL
+                   OR s.ticketCondition <> com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.VOIDED)
             GROUP BY s.ticket.id
             """)
     List<Object[]> countGroupedByTicketIdAndStatuses(
@@ -90,6 +119,8 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
             FROM LotteryTicketSerialEntity s
             WHERE s.deletedAt IS NULL
               AND s.ticket.id IN :ticketIds
+              AND (s.ticketCondition IS NULL
+                   OR s.ticketCondition <> com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.VOIDED)
             GROUP BY s.ticket.id
             """)
     List<Object[]> countGroupedByTicketId(@Param("ticketIds") Collection<Long> ticketIds);
@@ -109,6 +140,8 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
             WHERE s.deletedAt IS NULL
               AND s.importBatchLine.id = :importBatchLineId
               AND s.status = :status
+              AND (s.ticketCondition IS NULL
+                   OR s.ticketCondition <> com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.VOIDED)
             """)
     long countByImportBatchLineIdAndStatus(
             @Param("importBatchLineId") Long importBatchLineId,
@@ -131,7 +164,10 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
 
     @Query("""
             SELECT DISTINCT s.ticket.id FROM LotteryTicketSerialEntity s
-            WHERE s.deletedAt IS NULL AND s.importBatchLine.id = :importBatchLineId
+            WHERE s.deletedAt IS NULL
+              AND s.importBatchLine.id = :importBatchLineId
+              AND (s.ticketCondition IS NULL
+                   OR s.ticketCondition <> com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition.VOIDED)
             """)
     List<Long> findDistinctTicketIdsByImportBatchLineId(@Param("importBatchLineId") Long importBatchLineId);
 
@@ -296,12 +332,16 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
                            od.lotteryTicketSerial = s 
                         OR od.replacedByTicketSerial = s 
                     )
-                    AND od.status = :#{T(com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus).ACTIVE}
+                    AND od.status IN (
+                          com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.PROXY_HOLDING,
+                          com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.HANDOVER_IN_PROGRESS,
+                          com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.HANDED_OVER
+                    )
                     AND o.status IN (
-                          :#{T(com.daiphat.coreapi.domain.model.enums.order.OrderStatus).PAID},
-                          :#{T(com.daiphat.coreapi.domain.model.enums.order.OrderStatus).PREPARING},
-                          :#{T(com.daiphat.coreapi.domain.model.enums.order.OrderStatus).PENDING_PICKUP},
-                          :#{T(com.daiphat.coreapi.domain.model.enums.order.OrderStatus).COMPLETED}
+                          com.daiphat.coreapi.domain.model.enums.order.OrderStatus.PAID,
+                          com.daiphat.coreapi.domain.model.enums.order.OrderStatus.PREPARING,
+                          com.daiphat.coreapi.domain.model.enums.order.OrderStatus.PENDING_PICKUP,
+                          com.daiphat.coreapi.domain.model.enums.order.OrderStatus.COMPLETED
                     )
                 ) THEN 1 ELSE 0 END),
                 SUM(CASE WHEN s.status = com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK
