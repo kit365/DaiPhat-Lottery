@@ -68,9 +68,13 @@ class ProfileDetailView extends StatelessWidget {
                 ),
                 
                 Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    child: ListenableBuilder(
+                  child: RefreshIndicator(
+                    color: AppColors.primary,
+                    onRefresh: () => viewModel.loadUser(),
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      child: ListenableBuilder(
           listenable: viewModel,
           builder: (context, _) {
             final user = viewModel.user;
@@ -209,6 +213,7 @@ class ProfileDetailView extends StatelessWidget {
             );
           },
         ),
+                  ),
                   ),
                 ),
               ],

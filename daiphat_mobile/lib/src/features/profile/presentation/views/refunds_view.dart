@@ -9,6 +9,7 @@ import 'package:daiphat_mobile/src/features/profile/data/models/refund_request.d
 import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/profile_status_badge.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/widgets/brand_scrollbar.dart';
 import '../viewmodels/refunds_viewmodel.dart';
 
 class RefundsView extends ConsumerStatefulWidget {
@@ -174,28 +175,32 @@ class _RefundsViewState extends ConsumerState<RefundsView> {
     if (_viewModel.items.isEmpty) {
       return _buildEmpty();
     }
-    return RefreshIndicator(
-      color: AppColors.primary,
-      onRefresh: () => _viewModel.fetch(refresh: true),
-      child: ListView.builder(
-        controller: _scrollController,
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        itemCount: _viewModel.items.length + (_viewModel.isLoadingMore ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index == _viewModel.items.length) {
-            return const Padding(
-              padding: EdgeInsets.symmetric(vertical: 20),
-              child: Center(
-                child: CircularProgressIndicator(color: AppColors.primary),
-              ),
+    return BrandScrollbar(
+      controller: _scrollController,
+      child: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: () => _viewModel.fetch(refresh: true),
+        child: ListView.builder(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          itemCount:
+              _viewModel.items.length + (_viewModel.isLoadingMore ? 1 : 0),
+          itemBuilder: (context, index) {
+            if (index == _viewModel.items.length) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                ),
+              );
+            }
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _buildCard(_viewModel.items[index]),
             );
-          }
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: _buildCard(_viewModel.items[index]),
-          );
-        },
+          },
+        ),
       ),
     );
   }

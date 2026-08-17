@@ -38,6 +38,7 @@ import 'package:daiphat_mobile/src/features/profile/presentation/views/security_
 import 'package:daiphat_mobile/src/features/admin/presentation/views/admin_scan_view.dart';
 import 'package:daiphat_mobile/src/features/admin/presentation/viewmodels/admin_scan_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/fortune/presentation/views/fortune_cast_view.dart';
+import 'package:daiphat_mobile/src/features/schedule/presentation/views/schedule_view.dart';
 import 'app_routes.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -371,6 +372,14 @@ GoRouter createAppRouter({
         profileViewModel,
         notificationViewModel,
       ),
+      _route(
+        AppRoute.schedule,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
     ],
   );
 }
@@ -425,6 +434,7 @@ Widget _buildRoute(
         ticketNumber: state.uri.queryParameters['ticketNumber'] ??
             state.uri.queryParameters['search'],
         drawDate: state.uri.queryParameters['drawDate'],
+        stationName: state.uri.queryParameters['station'],
       );
     case AppRoute.checkTicket:
       return const CheckTicketView();
@@ -521,5 +531,7 @@ Widget _buildRoute(
       return AdminScanView(viewModel: AdminScanViewModel());
     case AppRoute.fortune:
       return FortuneCastView(profileViewModel: profileViewModel);
+    case AppRoute.schedule:
+      return const ScheduleView();
   }
 }

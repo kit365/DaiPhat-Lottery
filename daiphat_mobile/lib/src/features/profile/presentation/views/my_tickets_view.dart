@@ -9,6 +9,7 @@ import 'package:daiphat_mobile/src/features/checkout/presentation/providers/chec
 import 'package:daiphat_mobile/src/features/profile/data/models/purchased_ticket.dart';
 import 'package:daiphat_mobile/src/features/profile/utils/ticket_display_utils.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/widgets/brand_scrollbar.dart';
 import '../viewmodels/my_tickets_viewmodel.dart';
 
 class MyTicketsView extends ConsumerStatefulWidget {
@@ -274,37 +275,40 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
       return _buildEmptyState();
     }
 
-    return RefreshIndicator(
-      onRefresh: () => _viewModel.fetchTickets(refresh: true),
-      color: AppColors.primary,
-      child: ListView.builder(
-        controller: _scrollController,
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        itemCount:
-            _viewModel.tickets.length + (_viewModel.isLoadingMore ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index == _viewModel.tickets.length) {
-            return const Padding(
-              padding: EdgeInsets.symmetric(vertical: 20),
-              child: Center(
-                child: CircularProgressIndicator(color: AppColors.primary),
+    return BrandScrollbar(
+      controller: _scrollController,
+      child: RefreshIndicator(
+        onRefresh: () => _viewModel.fetchTickets(refresh: true),
+        color: AppColors.primary,
+        child: ListView.builder(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          itemCount:
+              _viewModel.tickets.length + (_viewModel.isLoadingMore ? 1 : 0),
+          itemBuilder: (context, index) {
+            if (index == _viewModel.tickets.length) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                ),
+              );
+            }
+            final ticket = _viewModel.tickets[index];
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: GestureDetector(
+                onTap: () => context.pushNamed(
+                  AppRoute.myTicketDetail.name,
+                  pathParameters: {'id': ticket.detailRouteId},
+                  extra: ticket,
+                ),
+                child: _buildTicketCard(ticket),
               ),
             );
-          }
-          final ticket = _viewModel.tickets[index];
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: GestureDetector(
-              onTap: () => context.pushNamed(
-                AppRoute.myTicketDetail.name,
-                pathParameters: {'id': ticket.detailRouteId},
-                extra: ticket,
-              ),
-              child: _buildTicketCard(ticket),
-            ),
-          );
-        },
+          },
+        ),
       ),
     );
   }

@@ -8,6 +8,7 @@ import '../../data/models/lottery_ticket.dart';
 import '../../data/repositories/lottery_ticket_repository.dart';
 import '../../data/services/lottery_ticket_api_service.dart';
 import '../../utils/sellable_draw_date.dart';
+import '../../utils/ticket_search_filter.dart';
 
 enum TicketDayFilter { today, tomorrow }
 
@@ -69,6 +70,8 @@ class BuyTicketState {
     required this.selectedProvince,
     required this.selectedDay,
     required this.tickets,
+    this.searchFilter = TicketSearchFilter.empty,
+    this.availableProvinces = const [],
     this.isListLoading = false,
     this.isLoadingMore = false,
     this.hasMore = false,
@@ -79,7 +82,9 @@ class BuyTicketState {
   final String searchQuery;
   final String selectedProvince;
   final TicketDayFilter selectedDay;
+  final TicketSearchFilter searchFilter;
   final List<LotteryTicketListItem> tickets;
+  final List<String> availableProvinces;
   final bool isListLoading;
   final bool isLoadingMore;
   final bool hasMore;
@@ -93,7 +98,7 @@ class BuyTicketState {
 
   List<String> get provinces => <String>{
     'Tat ca dai',
-    ...tickets.map((ticket) => ticket.stationDisplayText),
+    ...availableProvinces,
   }.toList();
 
   List<LotteryTicketListItem> get filteredTickets {
@@ -113,7 +118,9 @@ class BuyTicketState {
     String? searchQuery,
     String? selectedProvince,
     TicketDayFilter? selectedDay,
+    TicketSearchFilter? searchFilter,
     List<LotteryTicketListItem>? tickets,
+    List<String>? availableProvinces,
     bool? isListLoading,
     bool? isLoadingMore,
     bool? hasMore,
@@ -124,7 +131,9 @@ class BuyTicketState {
       searchQuery: searchQuery ?? this.searchQuery,
       selectedProvince: selectedProvince ?? this.selectedProvince,
       selectedDay: selectedDay ?? this.selectedDay,
+      searchFilter: searchFilter ?? this.searchFilter,
       tickets: tickets ?? this.tickets,
+      availableProvinces: availableProvinces ?? this.availableProvinces,
       isListLoading: isListLoading ?? this.isListLoading,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       hasMore: hasMore ?? this.hasMore,
@@ -192,9 +201,12 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
     String searchQuery = '',
     String selectedProvince = 'Tat ca dai',
     TicketDayFilter selectedDay = TicketDayFilter.today,
+    TicketSearchFilter searchFilter = TicketSearchFilter.empty,
     int page = 1,
     List<LotteryTicketListItem> existingTickets = const [],
     bool append = false,
+    List<String> availableProvinces = const [],
+    bool refreshStations = true,
   }) async {
     // Sau 16:15 không còn bán vé hôm nay → chuyển sang ngày mai.
     var day = selectedDay;
@@ -203,21 +215,56 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
     }
 
     final trimmedSearch = searchQuery.trim();
-    final result = await _repository.fetchOpenTickets(
+    final drawDate = _drawDateIsoFor(day);
+    final ticketsFuture = _repository.fetchOpenTickets(
       page: page,
       size: LotteryTicketRepository.defaultPageSize,
-      drawDate: _drawDateIsoFor(day),
+      drawDate: drawDate,
       search: trimmedSearch.length >= 2 ? trimmedSearch : null,
+      tailRanges: searchFilter.tailRanges.isEmpty
+          ? null
+          : searchFilter.tailRanges,
+      numberTypes: searchFilter.numberTypes.isEmpty
+          ? null
+          : searchFilter.numberTypes,
     );
 
+    var stationNames = List<String>.from(availableProvinces);
+    if (!append && (refreshStations || stationNames.isEmpty)) {
+      try {
+        stationNames = await _repository.fetchStationNamesForDrawDate(drawDate);
+      } catch (_) {
+        // Giữ danh sách đài cũ nếu API lịch lỗi.
+      }
+    }
+
+    final result = await ticketsFuture;
     final mapped = result.items.map(mapLotteryTicketToListItem).toList();
     final tickets = append ? [...existingTickets, ...mapped] : mapped;
 
+    if (stationNames.isEmpty) {
+      stationNames = tickets
+          .map((ticket) => ticket.stationDisplayText)
+          .where((name) => name.trim().isNotEmpty)
+          .toSet()
+          .toList();
+    }
+
+    var province = selectedProvince;
+    if (province != 'Tat ca dai' &&
+        refreshStations &&
+        stationNames.isNotEmpty &&
+        !stationNames.contains(province)) {
+      province = 'Tat ca dai';
+    }
+
     return BuyTicketState(
       searchQuery: searchQuery,
-      selectedProvince: selectedProvince,
+      selectedProvince: province,
       selectedDay: day,
+      searchFilter: searchFilter,
       tickets: tickets,
+      availableProvinces: stationNames,
       isListLoading: false,
       isLoadingMore: false,
       hasMore: result.hasMore,
@@ -230,14 +277,17 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
     required String searchQuery,
     required String selectedProvince,
     required TicketDayFilter selectedDay,
+    TicketSearchFilter? searchFilter,
   }) async {
     final current = state.asData?.value;
+    final filter = searchFilter ?? current?.searchFilter ?? TicketSearchFilter.empty;
     if (current != null) {
       state = AsyncData(
         current.copyWith(
           searchQuery: searchQuery,
           selectedProvince: selectedProvince,
           selectedDay: selectedDay,
+          searchFilter: filter,
           isListLoading: true,
           isLoadingMore: false,
         ),
@@ -245,12 +295,19 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
     }
 
     final requestId = ++_listRequestId;
+    final keepStations = current != null &&
+        current.selectedDay == selectedDay &&
+        current.availableProvinces.isNotEmpty;
     try {
       final next = await _load(
         searchQuery: searchQuery,
         selectedProvince: selectedProvince,
         selectedDay: selectedDay,
+        searchFilter: filter,
         page: 1,
+        availableProvinces:
+            keepStations ? current.availableProvinces : const [],
+        refreshStations: !keepStations,
       );
       if (requestId != _listRequestId) return;
       state = AsyncData(next);
@@ -262,6 +319,7 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
             searchQuery: searchQuery,
             selectedProvince: selectedProvince,
             selectedDay: selectedDay,
+            searchFilter: filter,
             isListLoading: false,
             isLoadingMore: false,
           ),
@@ -327,9 +385,12 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
         searchQuery: current.searchQuery,
         selectedProvince: current.selectedProvince,
         selectedDay: current.selectedDay,
+        searchFilter: current.searchFilter,
         page: current.currentPage + 1,
         existingTickets: current.tickets,
         append: true,
+        availableProvinces: current.availableProvinces,
+        refreshStations: false,
       );
       if (requestId != _listRequestId) return;
       state = AsyncData(next);
@@ -340,9 +401,21 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
     }
   }
 
+  Future<void> applySearchFilter(TicketSearchFilter filter) async {
+    final current = state.asData?.value;
+    if (current == null) return;
+    await _reloadList(
+      searchQuery: current.searchQuery,
+      selectedProvince: current.selectedProvince,
+      selectedDay: current.selectedDay,
+      searchFilter: filter,
+    );
+  }
+
   Future<void> applyQuery({
     String searchQuery = '',
     String? drawDateIso,
+    String? stationName,
   }) async {
     var day = _defaultDayFilter();
     final iso = drawDateIso?.trim() ?? '';
@@ -366,13 +439,30 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
         selectedProvince: current.selectedProvince,
         selectedDay: day,
       );
-      return;
+    } else {
+      state = const AsyncLoading();
+      state = await AsyncValue.guard(
+        () => _load(searchQuery: searchQuery.trim(), selectedDay: day),
+      );
     }
+    _selectMatchingStation(stationName);
+  }
 
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(
-      () => _load(searchQuery: searchQuery.trim(), selectedDay: day),
-    );
+  void _selectMatchingStation(String? stationName) {
+    final wanted = stationName?.trim().toLowerCase();
+    if (wanted == null || wanted.isEmpty) return;
+    final current = state.asData?.value;
+    if (current == null) return;
+    for (final province in current.provinces) {
+      if (province == 'Tat ca dai') continue;
+      final lower = province.toLowerCase();
+      if (lower == wanted ||
+          lower.contains(wanted) ||
+          wanted.contains(lower)) {
+        selectProvince(province);
+        return;
+      }
+    }
   }
 
   Future<void> refresh() async {
