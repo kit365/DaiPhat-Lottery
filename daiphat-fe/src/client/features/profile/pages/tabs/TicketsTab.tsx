@@ -27,9 +27,16 @@ import {
     SERIAL_PAYOUT_STATE_LABELS,
 } from '../../../../../types/prize-payout.type';
 import { PrizePayoutRequestModal } from '../../../../components/prize-payout/PrizePayoutRequestModal';
+import { AdminKpiCard, AdminKpiCardsGrid } from '@/admin/components/ui/AdminKpiCard';
 import { LuckyNumber } from '../../../../components/ui/LuckyNumber';
+import { MaskedIcon } from '../../../../components/ui/MaskedIcon';
 import { AppToast as toast } from '../../../../../utils/toast.util';
 import { ROUTES } from '@/admin/constants/routes';
+import {
+    TICKET_NUMBERS_LABEL,
+    TICKET_SERIAL_PREFIX,
+    TICKET_WIN_AMOUNT_LABEL,
+} from '@/constants/ticketDisplay.constants';
 
 type StatusTab = 'Tất cả' | 'Chờ quay số' | 'Trúng thưởng' | 'Không trúng';
 type WonRedeemSubFilter = 'ALL' | 'UNREDEEMED' | 'REDEEMED';
@@ -77,6 +84,144 @@ const STATUS_UI: Record<
 const formatMoney = (value?: number) =>
     value == null ? '—' : `${Number(value).toLocaleString('vi-VN')}đ`;
 
+const CLIENT_NAVBAR_ICONS =
+    'https://pub-c5e31b5cdafb419fb247a8ac2e78df7a.r2.dev/public/assets/icons/navbar';
+
+const kpiNavbarIcon = (file: string) => (
+    <MaskedIcon src={`${CLIENT_NAVBAR_ICONS}/${file}`} size={24} />
+);
+
+const renderTicketNumbersOnly = (
+    numbers: string,
+    numbersClassName: string
+) => <LuckyNumber value={numbers} ticket className={numbersClassName} />;
+
+const renderTicketNumbersWithSerial = (
+    ticket: PurchasedTicket,
+    numbersClassName: string,
+    serialClassName = 'text-[11px] text-slate-400 font-semibold tracking-tight',
+    centered = false
+) => (
+    <div className={`flex flex-col gap-0.5 ${centered ? 'items-center text-center' : ''}`}>
+        <LuckyNumber value={ticket.numbers} ticket className={numbersClassName} />
+        {ticket.serialNumber && (
+            <span className={serialClassName}>
+                {TICKET_SERIAL_PREFIX}: {ticket.serialNumber}
+            </span>
+        )}
+    </div>
+);
+
+type PurchasedTicketGroup = {
+    key: string;
+    numbers: string;
+    stationName?: string;
+    drawDate: string;
+    price: number;
+    serials: PurchasedTicket[];
+    wonAmount: number;
+    wonSerialCount: number;
+};
+
+const normalizeTicketNumbers = (value?: string) => (value || '').replace(/\D/g, '');
+
+/** Gộp theo đài + ngày quay + vé số — BE trả từng serial là một order detail. */
+const buildTicketGroupKey = (ticket: PurchasedTicket) =>
+    [
+        normalizeDrawDateIso(ticket.drawDate),
+        normalizeStationName(ticket.stationName),
+        normalizeTicketNumbers(ticket.numbers),
+    ].join('|');
+
+const buildTicketGroups = (tickets: PurchasedTicket[]): PurchasedTicketGroup[] => {
+    const map = new Map<string, PurchasedTicket[]>();
+    tickets.forEach((ticket) => {
+        const key = buildTicketGroupKey(ticket);
+        const list = map.get(key) ?? [];
+        list.push(ticket);
+        map.set(key, list);
+    });
+
+    return Array.from(map.entries()).map(([key, serials]) => {
+        const sortedSerials = [...serials].sort((a, b) =>
+            (a.serialNumber || a.numbers).localeCompare(b.serialNumber || b.numbers, 'vi')
+        );
+        const first = sortedSerials[0];
+        const wonAmount = sortedSerials.reduce(
+            (acc, item) => acc + (item.drawResultStatus === 'WON' ? item.prizeAmount || 0 : 0),
+            0
+        );
+        const wonSerialCount = sortedSerials.filter((item) => item.drawResultStatus === 'WON').length;
+
+        return {
+            key,
+            numbers: first.numbers,
+            stationName: first.stationName,
+            drawDate: first.drawDate,
+            price: first.price,
+            serials: sortedSerials,
+            wonAmount,
+            wonSerialCount,
+        };
+    });
+};
+
+const getSerialRowPrizeOrStatus = (ticket: PurchasedTicket) => {
+    const ui = STATUS_UI[ticket.drawResultStatus] ?? STATUS_UI.PENDING_DRAW;
+
+    if (ticket.drawResultStatus === 'WON' && ticket.matchedPrizeDisplayName) {
+        return (
+            <div className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-black bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-500 text-amber-950 border border-amber-300/60 uppercase tracking-wide whitespace-nowrap">
+                <i className="fa-solid fa-star text-[10px]"></i>
+                {ticket.matchedPrizeDisplayName}
+            </div>
+        );
+    }
+
+    if (ticket.drawResultStatus === 'PENDING_DRAW') {
+        return (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-bold bg-amber-50 text-amber-600 border border-amber-200/80 whitespace-nowrap">
+                {ui.label}
+            </span>
+        );
+    }
+
+    return (
+        <span className="inline-flex px-3 py-1.5 rounded-full text-[12px] font-bold bg-slate-100 text-slate-500 border border-slate-200 whitespace-nowrap">
+            {ui.label}
+        </span>
+    );
+};
+const getGroupStatusBadge = (group: PurchasedTicketGroup) => {
+    if (group.wonSerialCount > 0) {
+        return (
+            <div className="px-3 py-1 rounded-full text-[12px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200/80 shadow-xs whitespace-nowrap">
+                {group.wonSerialCount} trúng / {group.serials.length} vé
+            </div>
+        );
+    }
+
+    const allLost = group.serials.every((item) => item.drawResultStatus === 'LOST');
+    if (allLost) {
+        return (
+            <div className="px-3 py-1 rounded-full text-[12px] font-bold bg-slate-100 text-slate-500 border border-slate-200 shadow-xs whitespace-nowrap">
+                Không trúng
+            </div>
+        );
+    }
+
+    const pendingCount = group.serials.filter((item) => item.drawResultStatus === 'PENDING_DRAW').length;
+    return (
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-extrabold bg-amber-50 text-amber-600 border border-amber-200/80 shadow-xs whitespace-nowrap">
+            <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+            </span>
+            Chờ quay ({pendingCount}/{group.serials.length})
+        </div>
+    );
+};
+
 /** Always "Thứ 2, dd/mm/yyyy" — never English Monday from dayjs `dddd`. */
 const formatDrawDate = formatVietnameseDrawDate;
 
@@ -102,6 +247,8 @@ export const TicketsTab = () => {
     const [toDateOpen, setToDateOpen] = useState(false);
     const [selectedTicket, setSelectedTicket] = useState<PurchasedTicket | null>(null);
     const [payoutModalOpen, setPayoutModalOpen] = useState(false);
+    const [payoutTicket, setPayoutTicket] = useState<PurchasedTicket | null>(null);
+    const [expandedGroupKeys, setExpandedGroupKeys] = useState<Set<string>>(new Set());
 
     const todayIso = todayIsoVn();
     const pageSize = 10;
@@ -127,6 +274,11 @@ export const TicketsTab = () => {
     });
 
     const tickets = (data?.data?.recordList ?? []) as PurchasedTicket[];
+    const ticketGroups = useMemo(() => buildTicketGroups(tickets), [tickets]);
+
+    useEffect(() => {
+        setExpandedGroupKeys(new Set(ticketGroups.map((group) => group.key)));
+    }, [ticketGroups]);
     const pagination = normalizePagination(data?.data?.pagination, page, pageSize);
     const totalPages = pagination.totalPages;
     const totalRecords = pagination.totalRecords;
@@ -135,11 +287,28 @@ export const TicketsTab = () => {
 
     // Calculators for top metrics summary
     const pendingCount = tickets.filter(t => t.drawResultStatus === 'PENDING_DRAW').length;
-    const wonCount = tickets.filter(t => t.drawResultStatus === 'WON').length;
     const totalWonAmount = tickets.reduce((acc, t) => acc + (t.drawResultStatus === 'WON' ? (t.prizeAmount || 0) : 0), 0);
 
     const openDetail = (ticket: PurchasedTicket) => setSelectedTicket(ticket);
     const closeDetail = () => setSelectedTicket(null);
+
+    const toggleGroup = (groupKey: string) => {
+        setExpandedGroupKeys((prev) => {
+            const next = new Set(prev);
+            if (next.has(groupKey)) {
+                next.delete(groupKey);
+            } else {
+                next.add(groupKey);
+            }
+            return next;
+        });
+    };
+
+    const openPayoutForTicket = (ticket: PurchasedTicket, event?: React.MouseEvent) => {
+        event?.stopPropagation();
+        setPayoutTicket(ticket);
+        setPayoutModalOpen(true);
+    };
 
     useEffect(() => {
         scrollToTop();
@@ -165,89 +334,6 @@ export const TicketsTab = () => {
         } catch {
             toast.error('Không thể sao chép mã giao dịch');
         }
-    };
-
-    const getStatusBadge = (ticket: PurchasedTicket, variant: 'list' | 'detail' = 'list') => {
-        const ui = STATUS_UI[ticket.drawResultStatus] ?? STATUS_UI.PENDING_DRAW;
-
-        if (ticket.drawResultStatus === 'PENDING_DRAW') {
-            const possession = resolveTicketPossessionDisplay(ticket);
-            return (
-                <div className="flex flex-col items-start md:items-end gap-1.5">
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-extrabold bg-amber-50 text-amber-600 border border-amber-200/80 shadow-xs">
-                        <span className="relative flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-                        </span>
-                        {ui.label}
-                        <i className="fa-solid fa-clock text-[10px] ml-0.5"></i>
-                    </div>
-                    {possession && (
-                        <div
-                            className={`px-2.5 py-1 rounded-lg text-[11.5px] font-bold border flex items-center gap-1.5 ${possession.className}`}
-                        >
-                            <i className={`${possession.icon} text-[10px]`}></i>
-                            {possession.label}
-                        </div>
-                    )}
-                </div>
-            );
-        }
-
-        if (ticket.drawResultStatus === 'WON') {
-            const payoutDisplay = resolveTicketPayoutDisplay(ticket);
-            const containerClassName =
-                variant === 'detail'
-                    ? 'flex flex-wrap items-center gap-2 md:justify-end'
-                    : 'flex flex-col items-start md:items-end gap-1.5';
-            return (
-                <div className={containerClassName}>
-                    {ticket.matchedPrizeDisplayName && (
-                        <div className="px-3 py-1 rounded-xl text-[12.5px] font-black bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-500 text-amber-950 shadow-sm border border-amber-300/60 inline-flex items-center gap-1.5 uppercase tracking-wide whitespace-nowrap">
-                            <i className="fa-solid fa-star text-[11px]"></i>
-                            {ticket.matchedPrizeDisplayName}
-                        </div>
-                    )}
-                    {payoutDisplay && (
-                        <div
-                            className={`px-2.5 py-1 rounded-lg text-[11.5px] font-bold border inline-flex items-center gap-1.5 whitespace-nowrap ${payoutDisplay.className}`}
-                        >
-                            <i className={`${payoutDisplay.icon} text-[10px]`}></i>
-                            {payoutDisplay.label}
-                        </div>
-                    )}
-                    {(() => {
-                        const possession = resolveTicketPossessionDisplay(ticket);
-                        if (!possession) return null;
-                        return (
-                            <div
-                                className={`px-2.5 py-1 rounded-lg text-[11.5px] font-bold border inline-flex items-center gap-1.5 whitespace-nowrap ${possession.className}`}
-                            >
-                                <i className={`${possession.icon} text-[10px]`}></i>
-                                {possession.label}
-                            </div>
-                        );
-                    })()}
-                </div>
-            );
-        }
-
-        const possession = resolveTicketPossessionDisplay(ticket);
-        return (
-            <div className="flex flex-col items-start md:items-end gap-1.5">
-                <div className="px-3 py-1 rounded-full text-[12px] font-bold bg-slate-100 text-slate-500 border border-slate-200 shadow-xs">
-                    {ui.label}
-                </div>
-                {possession && (
-                    <div
-                        className={`px-2.5 py-1 rounded-lg text-[11.5px] font-bold border flex items-center gap-1.5 ${possession.className}`}
-                    >
-                        <i className={`${possession.icon} text-[10px]`}></i>
-                        {possession.label}
-                    </div>
-                )}
-            </div>
-        );
     };
 
     // DETAIL VIEW (Vé chi tiết dạng cuống xé kỹ thuật số sang trọng)
@@ -299,61 +385,33 @@ export const TicketsTab = () => {
                     <div className={`h-3 bg-gradient-to-r ${isWon ? 'from-amber-400 via-amber-500 to-orange-500' : selectedTicket.drawResultStatus === 'PENDING_DRAW' ? 'from-amber-400 via-orange-500 to-amber-500' : 'from-slate-300 to-slate-400'}`}></div>
 
                     <div className="p-6 md:p-8 flex flex-col gap-6">
-                        {/* Header Row */}
-                        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 pb-6 border-b border-dashed border-slate-200">
-                            <div className="flex items-center gap-4 md:gap-5">
-                                <div
-                                    className={`w-16 h-16 md:w-20 md:h-20 rounded-2xl flex items-center justify-center shrink-0 shadow-md ${
-                                        isWon
-                                            ? 'bg-gradient-to-br from-amber-400 via-amber-500 to-orange-500 text-white'
-                                            : selectedTicket.drawResultStatus === 'PENDING_DRAW'
-                                            ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white'
-                                            : 'bg-gradient-to-br from-slate-100 to-slate-200 text-slate-600'
-                                    }`}
-                                >
-                                    <i className={`fa-solid ${isWon ? 'fa-trophy' : selectedTicket.drawResultStatus === 'PENDING_DRAW' ? 'fa-ticket-simple' : 'fa-ticket'} text-[30px] md:text-[36px]`}></i>
-                                </div>
-                                <div className="flex flex-col">
-                                    <div className="flex flex-wrap items-center gap-2 mb-1">
-                                        <h3 className="text-[20px] md:text-[24px] font-black text-slate-900 m-0 tracking-tight">
-                                            {selectedTicket.stationName || 'Vé số Đại Phát'}
-                                        </h3>
-                                    </div>
-                                    <div className="mb-1">
-                                        {getStatusBadge(selectedTicket, 'detail')}
-                                    </div>
-                                    <p className="text-[13px] md:text-[14px] text-slate-500 m-0 font-medium">
-                                        📅 Ngày mở thưởng: <span className="text-slate-800 font-bold">{formatDrawDate(selectedTicket.drawDate)}</span>
-                                    </p>
-                                </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6 items-center pb-6 border-b border-dashed border-slate-200">
+                            <div className="flex flex-col items-center md:items-start text-center md:text-left">
+                                <h3 className="text-[18px] md:text-[20px] font-black text-slate-900 m-0 tracking-tight mb-1.5">
+                                    {selectedTicket.stationName || 'Vé số Đại Phát'}
+                                </h3>
+                                <div className="mb-1.5">{getSerialRowPrizeOrStatus(selectedTicket)}</div>
+                                <p className="text-[12px] md:text-[13px] text-slate-500 m-0 font-medium">
+                                    Ngày mở thưởng:{' '}
+                                    <span className="text-slate-800 font-bold">
+                                        {formatDrawDate(selectedTicket.drawDate)}
+                                    </span>
+                                </p>
                             </div>
 
-                            <div className="flex items-center justify-between w-full md:w-auto md:justify-end gap-6 bg-slate-50 md:bg-slate-50/80 p-4 md:px-6 md:py-3.5 rounded-2xl border border-slate-100">
-                                <div className="flex flex-col">
-                                    <span className="text-[11px] uppercase tracking-wider text-slate-400 font-bold mb-0.5">Mã serial vé</span>
-                                    <span className="text-[18px] md:text-[22px] font-black tracking-tight text-red-600">
-                                        {selectedTicket.serialNumber || selectedTicket.numbers}
-                                    </span>
-                                </div>
-                                <div className="h-8 w-[1px] bg-slate-200"></div>
-                                <div className="flex flex-col items-end md:items-start">
-                                    <span className="text-[11px] uppercase tracking-wider text-slate-400 font-bold mb-0.5">Giá vé</span>
-                                    <span className="text-[16px] md:text-[18px] font-extrabold text-slate-900">
-                                        {formatMoney(selectedTicket.price)}
-                                    </span>
-                                </div>
+                            <div className="flex flex-col items-center text-center px-2">
+                                {renderTicketNumbersWithSerial(
+                                    selectedTicket,
+                                    `text-[22px] md:text-[28px] font-black tracking-tight ${isWon ? 'text-amber-950' : 'text-slate-900'}`,
+                                    'text-[11px] md:text-[12px] text-slate-500 font-bold break-all',
+                                    true
+                                )}
                             </div>
-                        </div>
 
-                        {/* 3D Glossy Numbers Display Section */}
-                        <div className="flex flex-col gap-3">
-                            <span className="text-[13px] text-slate-500 font-bold uppercase tracking-wider">Bộ số dự thưởng</span>
-                            <div className="flex items-center gap-2.5 md:gap-4 flex-wrap bg-slate-50/80 p-4 md:p-6 rounded-2xl border border-slate-200/60 shadow-inner">
-                                <LuckyNumber
-                                    value={selectedTicket.numbers}
-                                    ticket
-                                    className={`text-[18px] md:text-[24px] font-black tracking-tight ${isWon ? 'text-amber-950' : 'text-slate-900'}`}
-                                />
+                            <div className="flex flex-col items-center md:items-end text-center md:text-right">
+                                <span className="text-[18px] md:text-[20px] font-extrabold text-slate-900 tabular-nums">
+                                    {formatMoney(selectedTicket.price)}
+                                </span>
                             </div>
                         </div>
 
@@ -513,14 +571,6 @@ export const TicketsTab = () => {
                                     </Link>
                                 ) : (
                                     <div className="flex flex-col items-start md:items-end gap-1">
-                                        {payoutDisplay && (
-                                            <div
-                                                className={`px-3 py-1.5 rounded-xl text-[12.5px] font-bold border flex items-center gap-1.5 ${payoutDisplay.className}`}
-                                            >
-                                                <i className={`${payoutDisplay.icon} text-[12px]`}></i>
-                                                {payoutDisplay.label}
-                                            </div>
-                                        )}
                                         {isPayoutCompleted && payoutRequestHref ? (
                                             <Link
                                                 href={payoutRequestHref}
@@ -573,53 +623,27 @@ export const TicketsTab = () => {
     // MAIN TICKETS LIST VIEW
     return (
         <div className="flex flex-col gap-6 font-['Public_Sans',sans-serif]">
-            {/* Top Metrics Dashboard Bar */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {/* Total Tickets Card */}
-                <div className="bg-white rounded-2xl p-4 md:p-5 border border-slate-200/80 shadow-[0_4px_20px_rgba(0,0,0,0.03)] flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center shrink-0 border border-red-100 shadow-xs">
-                        <i className="fa-solid fa-ticket-simple text-[22px]"></i>
-                    </div>
-                    <div className="flex flex-col">
-                        <span className="text-[12px] font-bold text-slate-400 uppercase tracking-wider">Tổng số vé đã mua</span>
-                        <span className="text-[22px] font-black text-slate-900">{totalRecords} <span className="text-[13px] font-semibold text-slate-500">vé</span></span>
-                    </div>
-                </div>
-
-                {/* Pending Draw Card */}
-                <div className="bg-white rounded-2xl p-4 md:p-5 border border-amber-200/80 shadow-[0_4px_20px_rgba(245,158,11,0.04)] flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-100 shadow-xs relative">
-                        <i className="fa-solid fa-clock text-[22px]"></i>
-                        <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
-                        </span>
-                    </div>
-                    <div className="flex flex-col">
-                        <span className="text-[12px] font-bold text-amber-700/80 uppercase tracking-wider">Đang chờ quay số</span>
-                        <span className="text-[22px] font-black text-amber-600">{pendingCount} <span className="text-[13px] font-semibold text-amber-700/70">vé</span></span>
-                    </div>
-                </div>
-
-                {/* Won Tickets Card */}
-                <div className="bg-white rounded-2xl p-4 md:p-5 border border-amber-300 shadow-[0_4px_20px_rgba(245,158,11,0.08)] flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 via-amber-500 to-orange-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-amber-500/25">
-                        <i className="fa-solid fa-trophy text-[22px]"></i>
-                    </div>
-                    <div className="flex flex-col min-w-0">
-                        <span className="text-[12px] font-bold text-amber-900 uppercase tracking-wider">Vé trúng thưởng</span>
-                        <span className="text-[22px] font-black text-amber-700 leading-tight">
-                            {wonCount}{' '}
-                            <span className="text-[13px] font-semibold text-slate-600">vé</span>
-                            {totalWonAmount > 0 && (
-                                <span className="text-[13px] font-black text-amber-800 ml-1">
-                                    ({formatMoney(totalWonAmount)})
-                                </span>
-                            )}
-                        </span>
-                    </div>
-                </div>
-            </div>
+            <AdminKpiCardsGrid columns={{ xs: 1, sm: 2, md: 3 }} sx={{ mb: 0 }}>
+                <AdminKpiCard
+                    label="Tổng số vé đã mua"
+                    value={`${totalRecords.toLocaleString('vi-VN')} vé`}
+                    icon={kpiNavbarIcon('ic-invoice.svg')}
+                    tone="rose"
+                />
+                <AdminKpiCard
+                    label="Đang chờ quay số"
+                    value={`${pendingCount.toLocaleString('vi-VN')} vé`}
+                    icon={kpiNavbarIcon('ic-dashboard.svg')}
+                    tone="amber"
+                />
+                <AdminKpiCard
+                    label={TICKET_WIN_AMOUNT_LABEL}
+                    value={totalWonAmount > 0 ? formatMoney(totalWonAmount) : '0đ'}
+                    valueSize="compact"
+                    icon={<i className="fa-solid fa-trophy text-[22px]" />}
+                    tone="green"
+                />
+            </AdminKpiCardsGrid>
 
             {/* Filter Tabs & Search Header Container */}
             <div className="bg-white border border-slate-200/90 rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] overflow-hidden">
@@ -810,153 +834,237 @@ export const TicketsTab = () => {
                         </div>
                     ) : (
                         <AnimatePresence mode="popLayout">
-                            {tickets.map((ticket, index) => {
-                                const ui = STATUS_UI[ticket.drawResultStatus] ?? STATUS_UI.PENDING_DRAW;
-                                const isWon = ticket.drawResultStatus === 'WON';
+                            {ticketGroups.map((group, index) => {
+                                const isExpanded = expandedGroupKeys.has(group.key);
+                                const hasWonSerial = group.wonSerialCount > 0;
 
                                 return (
                                     <motion.div
-                                        key={ticketKey(ticket)}
+                                        key={group.key}
                                         layout
                                         initial={{ opacity: 0, y: 12 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0, scale: 0.95 }}
-                                        whileHover={{ y: -2 }}
                                         transition={{ duration: 0.2, delay: index * 0.03 }}
-                                        onClick={() => openDetail(ticket)}
-                                        className="relative p-4 md:p-5 hover:bg-slate-50/80 transition-all duration-200 cursor-pointer group flex flex-col md:flex-row items-stretch md:items-center gap-4 md:gap-6 border-b border-slate-100 last:border-0"
+                                        className="relative border-b border-slate-100 last:border-0"
                                     >
-                                        {/* Left & Right Notch Effect for ticket stub feel */}
-                                        <div className="absolute -left-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-[#F8F9FA] border-r border-slate-200 hidden md:block z-10"></div>
-                                        <div className="absolute -right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-[#F8F9FA] border-l border-slate-200 hidden md:block z-10"></div>
+                                        <button
+                                            type="button"
+                                            onClick={() => toggleGroup(group.key)}
+                                            className="relative w-full p-4 md:p-5 hover:bg-slate-50/80 transition-all duration-200 cursor-pointer group flex flex-col md:flex-row items-stretch md:items-center gap-4 md:gap-6 bg-transparent border-none text-left"
+                                        >
+                                            <div className="absolute -left-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-[#F8F9FA] border-r border-slate-200 hidden md:block z-10"></div>
+                                            <div className="absolute -right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-[#F8F9FA] border-l border-slate-200 hidden md:block z-10"></div>
 
-                                        {/* Mobile Top Header */}
-                                        <div className="flex md:hidden items-start justify-between w-full">
-                                            <div className="flex items-center gap-3">
-                                                <div
-                                                    className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 border shadow-xs ${
-                                                        isWon
-                                                            ? 'bg-gradient-to-br from-amber-400 via-amber-500 to-orange-500 text-white border-amber-300'
-                                                            : 'bg-amber-50 text-amber-600 border-amber-200'
-                                                    }`}
-                                                >
-                                                    <i className={`fa-solid ${isWon ? 'fa-trophy' : 'fa-ticket-simple'} text-[18px]`}></i>
-                                                </div>
-                                                <div className="flex flex-col">
+                                            <div className="flex md:hidden items-start justify-between w-full gap-3">
+                                                <div className="flex flex-col min-w-0">
                                                     <h4 className="text-[15px] font-black text-slate-900 mb-0.5">
-                                                        {ticket.stationName || 'Vé số'}
+                                                        {group.stationName || 'Vé số'}
                                                     </h4>
                                                     <p className="text-[12px] text-slate-400 font-medium">
-                                                        Ngày mở thưởng: {formatDrawDate(ticket.drawDate)}
+                                                        Ngày mở thưởng: {formatDrawDate(group.drawDate)}
                                                     </p>
                                                 </div>
+                                                {getGroupStatusBadge(group)}
                                             </div>
-                                            <div>{getStatusBadge(ticket)}</div>
-                                        </div>
 
-                                        {/* Desktop Station Header */}
-                                        <div className="hidden md:flex items-center gap-4 min-w-[220px]">
-                                            <div
-                                                className={`w-13 h-13 rounded-2xl flex items-center justify-center shrink-0 border shadow-xs transition-transform group-hover:scale-105 ${
-                                                    isWon
-                                                        ? 'bg-gradient-to-br from-amber-400 via-amber-500 to-orange-500 text-white border-amber-300/60 shadow-amber-500/20'
-                                                        : ticket.drawResultStatus === 'PENDING_DRAW'
-                                                        ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white border-amber-300/50'
-                                                        : 'bg-slate-100 text-slate-600 border-slate-200'
-                                                }`}
-                                            >
-                                                <i className={`fa-solid ${isWon ? 'fa-trophy text-amber-100' : 'fa-ticket-simple'} text-[22px]`}></i>
-                                            </div>
-                                            <div className="flex flex-col">
+                                            <div className="hidden md:flex flex-col min-w-[180px]">
                                                 <h4 className="text-[15.5px] font-black text-slate-900 mb-0.5 group-hover:text-red-600 transition-colors tracking-tight">
-                                                    {ticket.stationName || 'Vé số'}
+                                                    {group.stationName || 'Vé số'}
                                                 </h4>
                                                 <p className="text-[12px] text-slate-500 font-medium m-0">
-                                                    Ngày mở thưởng: <span className="font-bold text-slate-700">{formatDrawDate(ticket.drawDate)}</span>
+                                                    Ngày mở thưởng:{' '}
+                                                    <span className="font-bold text-slate-700">
+                                                        {formatDrawDate(group.drawDate)}
+                                                    </span>
                                                 </p>
                                             </div>
-                                        </div>
 
-                                        {/* Serial Number */}
-                                        <div className="hidden md:flex flex-col w-[160px]">
-                                            <span className="text-[10.5px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">
-                                                Mã vé
-                                            </span>
-                                            <span className="text-[15px] font-black tracking-tight text-red-600">
-                                                {ticket.serialNumber || ticket.numbers}
-                                            </span>
-                                        </div>
-
-                                        {/* 3D Glossy Lottery Ball Numbers */}
-                                        <div className="hidden md:flex flex-col flex-1">
-                                            <span className="text-[10.5px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">
-                                                Bộ số
-                                            </span>
-                                            <div className="flex items-center gap-1.5 flex-wrap">
-                                                <LuckyNumber
-                                                    value={ticket.numbers}
-                                                    ticket
-                                                    className={`text-[16px] font-black tracking-wider ${isWon ? 'text-amber-950' : 'text-slate-900'}`}
-                                                />
-                                            </div>
-                                        </div>
-
-                                        {/* Price */}
-                                        <div className="hidden md:flex flex-col w-[110px] shrink-0">
-                                            <span className="text-[10.5px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">
-                                                Giá vé
-                                            </span>
-                                            <span className="text-[15px] font-extrabold text-slate-900">
-                                                {formatMoney(ticket.price)}
-                                            </span>
-                                        </div>
-
-                                        {/* Status Badge Desktop */}
-                                        <div className="hidden md:flex flex-col items-end min-w-[160px] shrink-0">
-                                            <span className="text-[10.5px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">
-                                                Trạng thái
-                                            </span>
-                                            {getStatusBadge(ticket)}
-                                        </div>
-
-                                        {/* Mobile Details Container */}
-                                        <div className="flex md:hidden flex-col gap-3 bg-slate-50/90 rounded-2xl p-3.5 w-full border border-slate-200/80">
-                                            <div className="flex justify-between items-center border-b border-slate-200/60 pb-2">
-                                                <div className="flex flex-col">
-                                                    <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
-                                                        Mã vé
-                                                    </span>
-                                                    <span className="text-[14px] font-black text-red-600">
-                                                        {ticket.serialNumber || ticket.numbers}
-                                                    </span>
-                                                </div>
-                                                <div className="flex flex-col items-end">
-                                                    <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
-                                                        Giá vé
-                                                    </span>
-                                                    <span className="text-[14px] font-extrabold text-slate-900">
-                                                        {formatMoney(ticket.price)}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <div className="flex flex-col gap-1.5">
-                                                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
-                                                    Bộ số
+                                            <div className="hidden md:flex flex-col flex-1 min-w-[140px]">
+                                                <span className="text-[10.5px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">
+                                                    {TICKET_NUMBERS_LABEL}
                                                 </span>
-                                                <div className="flex items-center gap-1.5 flex-wrap">
-                                                    <LuckyNumber
-                                                        value={ticket.numbers}
-                                                        ticket
-                                                        className={`text-[14px] font-black ${isWon ? 'text-amber-950' : 'text-slate-900'}`}
-                                                    />
+                                                {renderTicketNumbersOnly(
+                                                    group.numbers,
+                                                    `text-[16px] font-black tracking-wider ${hasWonSerial ? 'text-amber-950' : 'text-slate-900'}`
+                                                )}
+                                            </div>
+
+                                            <div className="hidden md:flex flex-col w-[88px] shrink-0">
+                                                <span className="text-[10.5px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">
+                                                    Số lượng
+                                                </span>
+                                                <span className="text-[15px] font-extrabold text-slate-900">
+                                                    {group.serials.length} vé
+                                                </span>
+                                            </div>
+
+                                            <div className="hidden md:flex flex-col w-[110px] shrink-0">
+                                                <span className="text-[10.5px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">
+                                                    Giá vé
+                                                </span>
+                                                <span className="text-[15px] font-extrabold text-slate-900">
+                                                    {formatMoney(group.price)}
+                                                </span>
+                                            </div>
+
+                                            <div className="hidden md:flex flex-col w-[120px] shrink-0">
+                                                <span className="text-[10.5px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">
+                                                    {TICKET_WIN_AMOUNT_LABEL}
+                                                </span>
+                                                <span
+                                                    className={`text-[15px] font-extrabold ${
+                                                        group.wonAmount > 0 ? 'text-amber-600' : 'text-slate-400'
+                                                    }`}
+                                                >
+                                                    {group.wonAmount > 0 ? formatMoney(group.wonAmount) : '—'}
+                                                </span>
+                                            </div>
+
+                                            <div className="hidden md:flex flex-col items-end min-w-[160px] shrink-0">
+                                                <span className="text-[10.5px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">
+                                                    Trạng thái
+                                                </span>
+                                                {getGroupStatusBadge(group)}
+                                            </div>
+
+                                            <div className="flex md:hidden flex-col gap-3 bg-slate-50/90 rounded-2xl p-3.5 w-full border border-slate-200/80">
+                                                <div className="flex justify-between items-start gap-3 border-b border-slate-200/60 pb-2">
+                                                    <div className="flex flex-col min-w-0">
+                                                        <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
+                                                            {TICKET_NUMBERS_LABEL}
+                                                        </span>
+                                                        {renderTicketNumbersOnly(
+                                                            group.numbers,
+                                                            `text-[14px] font-black ${hasWonSerial ? 'text-amber-950' : 'text-slate-900'}`
+                                                        )}
+                                                    </div>
+                                                    <div className="flex flex-col items-end shrink-0">
+                                                        <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
+                                                            Số lượng
+                                                        </span>
+                                                        <span className="text-[14px] font-extrabold text-slate-900">
+                                                            {group.serials.length} vé
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
+                                                        {TICKET_WIN_AMOUNT_LABEL}
+                                                    </span>
+                                                    <span
+                                                        className={`text-[14px] font-extrabold ${
+                                                            group.wonAmount > 0 ? 'text-amber-600' : 'text-slate-400'
+                                                        }`}
+                                                    >
+                                                        {group.wonAmount > 0 ? formatMoney(group.wonAmount) : '—'}
+                                                    </span>
                                                 </div>
                                             </div>
-                                        </div>
 
-                                        {/* Arrow indicator */}
-                                        <div className="hidden md:flex items-center justify-center text-slate-300 group-hover:text-red-600 group-hover:translate-x-1 transition-all shrink-0 pl-1">
-                                            <i className="fa-solid fa-chevron-right text-[13px]"></i>
-                                        </div>
+                                            <div className="flex md:hidden items-center justify-between w-full pt-1 text-[12px] font-bold text-slate-500">
+                                                <span>{isExpanded ? 'Thu gọn serial' : 'Xem danh sách serial'}</span>
+                                                <i
+                                                    className={`fa-solid fa-chevron-down text-[12px] transition-transform duration-200 ${
+                                                        isExpanded ? 'rotate-180 text-red-600' : ''
+                                                    }`}
+                                                ></i>
+                                            </div>
+
+                                            <div className="hidden md:flex items-center justify-center text-slate-300 group-hover:text-red-600 transition-all shrink-0 pl-1">
+                                                <i
+                                                    className={`fa-solid fa-chevron-down text-[13px] transition-transform duration-200 ${
+                                                        isExpanded ? 'rotate-180 text-red-600' : ''
+                                                    }`}
+                                                ></i>
+                                            </div>
+                                        </button>
+
+                                        <AnimatePresence initial={false}>
+                                            {isExpanded && (
+                                                <motion.div
+                                                    initial={{ height: 0, opacity: 0 }}
+                                                    animate={{ height: 'auto', opacity: 1 }}
+                                                    exit={{ height: 0, opacity: 0 }}
+                                                    transition={{ duration: 0.2 }}
+                                                    className="overflow-hidden"
+                                                >
+                                                    <div className="px-4 md:px-5 pb-4 md:pb-5 pt-0">
+                                                        <div className="rounded-2xl border border-slate-200/90 bg-slate-50/80 p-3 md:p-4 flex flex-col gap-2">
+                                                            {group.serials.map((serial) => {
+                                                                const isWon = serial.drawResultStatus === 'WON';
+                                                                const canRedeem = canRequestPrizePayout(serial);
+                                                                const payoutDisplay = isWon
+                                                                    ? resolveTicketPayoutDisplay(serial)
+                                                                    : null;
+
+                                                                return (
+                                                                    <div
+                                                                        key={ticketKey(serial)}
+                                                                        className="grid grid-cols-1 md:grid-cols-[minmax(0,1.5fr)_minmax(120px,0.8fr)_minmax(110px,0.7fr)_auto] gap-3 md:gap-4 md:items-center rounded-xl border border-slate-200/80 bg-white px-3.5 py-3 shadow-xs"
+                                                                    >
+                                                                        <div className="min-w-0 flex items-center">
+                                                                            <span className="text-[13px] font-bold text-red-600 font-mono tracking-tight break-all">
+                                                                                {TICKET_SERIAL_PREFIX}:{' '}
+                                                                                {serial.serialNumber || serial.numbers}
+                                                                            </span>
+                                                                        </div>
+
+                                                                        <div className="flex items-center md:justify-center">
+                                                                            {getSerialRowPrizeOrStatus(serial)}
+                                                                        </div>
+
+                                                                        <div
+                                                                            className={`flex items-center md:justify-center text-[14px] font-extrabold tabular-nums ${
+                                                                                isWon && serial.prizeAmount != null
+                                                                                    ? 'text-amber-600'
+                                                                                    : 'text-slate-400'
+                                                                            }`}
+                                                                        >
+                                                                            {isWon && serial.prizeAmount != null
+                                                                                ? formatMoney(serial.prizeAmount)
+                                                                                : '—'}
+                                                                        </div>
+
+                                                                        <div className="flex items-center justify-start md:justify-end gap-2 shrink-0">
+                                                                            {canRedeem ? (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={(event) =>
+                                                                                        openPayoutForTicket(serial, event)
+                                                                                    }
+                                                                                    className="px-4 py-2 bg-gradient-to-r from-amber-500 via-amber-600 to-orange-600 text-white font-extrabold rounded-xl text-[12.5px] shadow-sm hover:brightness-105 transition-all cursor-pointer border-none whitespace-nowrap"
+                                                                                >
+                                                                                    Đổi thưởng
+                                                                                </button>
+                                                                            ) : isWon && payoutDisplay?.status === 'PENDING' && serial.activePayoutRequestId ? (
+                                                                                <Link
+                                                                                    href={`/profile/prize-payouts/${serial.activePayoutRequestId}`}
+                                                                                    onClick={(event) => event.stopPropagation()}
+                                                                                    className="px-4 py-2 bg-violet-50 text-violet-700 font-bold rounded-xl text-[12.5px] border border-violet-200 no-underline whitespace-nowrap"
+                                                                                >
+                                                                                    Đang xử lý
+                                                                                </Link>
+                                                                            ) : null}
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={(event) => {
+                                                                                    event.stopPropagation();
+                                                                                    openDetail(serial);
+                                                                                }}
+                                                                                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-[12.5px] border border-slate-200 transition-colors cursor-pointer whitespace-nowrap"
+                                                                            >
+                                                                                Chi tiết
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
                                     </motion.div>
                                 );
                             })}
@@ -977,6 +1085,17 @@ export const TicketsTab = () => {
                     </div>
                 )}
             </div>
+
+            {payoutTicket && (
+                <PrizePayoutRequestModal
+                    isOpen={payoutModalOpen}
+                    onClose={() => {
+                        setPayoutModalOpen(false);
+                        setPayoutTicket(null);
+                    }}
+                    ticket={payoutTicket}
+                />
+            )}
         </div>
     );
 };

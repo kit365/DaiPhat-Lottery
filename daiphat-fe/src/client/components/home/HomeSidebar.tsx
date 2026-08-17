@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import React from 'react';
 
@@ -5,7 +7,6 @@ import { HOME_SIDEBAR_CTA_BANNER } from '@/client/constants/clientBannerAssets';
 import { ROUTES } from '@/admin/constants/routes';
 import { LotoTable } from "./LotoTable";
 import { LotteryResult } from '../../types/lottery';
-import { TicketSearchWidget } from '../ticket-search/TicketSearchWidget';
 
 interface HomeSidebarProps {
   showLoto?: boolean;
@@ -17,13 +18,12 @@ interface HomeSidebarProps {
   hoveredDigit?: string | null;
   onDigitSelect?: (digit: string | null) => void;
   onDigitHover?: (digit: string | null) => void;
+  onLotoProvinceFilterChange?: (province: string) => void;
 }
 
-export const HomeSidebar: React.FC<HomeSidebarProps> = ({ showLoto, setShowLoto, dataList, history, onDateChange, selectedDigit, hoveredDigit, onDigitSelect, onDigitHover }) => {
+export const HomeSidebar: React.FC<HomeSidebarProps> = ({ showLoto, setShowLoto, dataList, history, onDateChange, selectedDigit, hoveredDigit, onDigitSelect, onDigitHover, onLotoProvinceFilterChange }) => {
   return (
     <aside className="w-full lg:w-[260px] xl:w-[340px] flex flex-col-reverse lg:flex-col gap-4">
-      <TicketSearchWidget />
-
       <Link
         href={ROUTES.PUBLIC.TICKETS}
         className="relative overflow-hidden rounded-[16px] shadow-sm cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98] w-full min-h-[150px] flex items-center p-5 group bg-[#e41212]"
@@ -70,6 +70,7 @@ export const HomeSidebar: React.FC<HomeSidebarProps> = ({ showLoto, setShowLoto,
             hoveredDigit={hoveredDigit}
             onDigitClick={onDigitSelect}
             onDigitHover={onDigitHover}
+            onProvinceFilterChange={onLotoProvinceFilterChange}
             setShowLoto={setShowLoto}
           />
         </div>

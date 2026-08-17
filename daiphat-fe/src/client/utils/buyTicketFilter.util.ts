@@ -1,7 +1,3 @@
-import { normalizeTicketSearchDigits } from './ticketSearchQuery.util';
-
-export const FAVORITES_STORAGE_KEY = 'daiphat.buyTicket.favoriteNumbers';
-
 export const PRESET_TAIL_RANGES = [
   '00-09',
   '10-19',
@@ -38,31 +34,6 @@ export const toUiTailRangeLabel = (apiRange: string): string => {
   const [from, to] = normalized.split('-');
   if (!from || !to) return apiRange;
   return `${from} - ${to}`;
-};
-
-export const loadFavoriteNumbers = (): string[] => {
-  try {
-    const raw = localStorage.getItem(FAVORITES_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .map((item) => normalizeTicketSearchDigits(String(item), 6))
-      .filter((item) => item.length >= 2);
-  } catch {
-    return [];
-  }
-};
-
-export const saveFavoriteNumbers = (numbers: string[]): void => {
-  const cleaned = Array.from(
-    new Set(
-      numbers
-        .map((item) => normalizeTicketSearchDigits(item, 6))
-        .filter((item) => item.length >= 2)
-    )
-  );
-  localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(cleaned));
 };
 
 export const hasActiveTicketFilters = (filters: AppliedTicketFilters): boolean =>

@@ -10,6 +10,10 @@ import {
 } from '@mui/material';
 import dayjs from 'dayjs';
 import { AdminLuckyDisplay } from '@/shared/lucky-number';
+import {
+    TICKET_NUMBERS_LABEL,
+    TICKET_SERIAL_PREFIX,
+} from '@/constants/ticketDisplay.constants';
 import { RefundEligibleTicketItem } from '@/types/refund.type';
 
 interface RefundTicketsTableProps {
@@ -52,7 +56,7 @@ export const RefundTicketsTable = ({ tickets }: RefundTicketsTableProps) => {
                 <TableHead>
                     <TableRow sx={{ bgcolor: 'var(--palette-background-neutral)' }}>
                         <TableCell align="center" sx={headerCellSx}>
-                            Bộ số
+                            {TICKET_NUMBERS_LABEL}
                         </TableCell>
                         <TableCell sx={headerCellSx}>Đài</TableCell>
                         <TableCell sx={headerCellSx}>Ngày xổ</TableCell>
@@ -90,7 +94,7 @@ export const RefundTicketsTable = ({ tickets }: RefundTicketsTableProps) => {
                                             component="div"
                                             sx={{ mt: 0.25, lineHeight: 1.4, wordBreak: 'break-all' }}
                                         >
-                                            SN: {ticket.serialNumber}
+                                            {TICKET_SERIAL_PREFIX}: {ticket.serialNumber}
                                         </Typography>
                                     )}
                                 </Box>

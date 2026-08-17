@@ -1,4 +1,4 @@
-import { OrderDetailStatus, OrderReceiveType, OrderStatus, OrderType } from '../../../../../types/order.type';
+import { OrderDetailStatus, OrderReceiveType, OrderStatus, OrderType, ORDER_TYPE_LABELS } from '../../../../../types/order.type';
 import { TransactionStatus } from '../../../../../types/transaction.type';
 
 export type RefundIncidentDraftItem = {
@@ -38,10 +38,7 @@ export type OrderDetailLineView = {
     incidentSerialCount: number;
 };
 
-export const ORDER_TYPE_LABELS: Record<string, string> = {
-    [OrderType.ONLINE]: 'Trực tuyến',
-    [OrderType.DIRECT]: 'Tại quầy',
-};
+export { ORDER_TYPE_LABELS };
 
 export const ORDER_RECEIVE_TYPE_LABELS: Record<string, string> = {
     [OrderReceiveType.COUNTER_PICKUP]: 'Nhận tại quầy',

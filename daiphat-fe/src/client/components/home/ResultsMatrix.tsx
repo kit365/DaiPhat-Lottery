@@ -13,6 +13,8 @@ interface ResultsMatrixProps {
   setSelectedDigit?: (val: string | null) => void;
   activeDigit?: string | null;
   setHoveredDigit?: (val: string | null) => void;
+  /** Khi bảng Loto lọc 1 đài — chỉ highlight cột đài đó. */
+  highlightScopeProvinces?: string[];
   statusMessage?: string;
 }
 
@@ -51,10 +53,17 @@ export const ResultsMatrix: React.FC<ResultsMatrixProps> = ({
   setSelectedDigit,
   activeDigit,
   setHoveredDigit,
+  highlightScopeProvinces,
   statusMessage,
 }) => {
   const mainDate = dataList[0]?.date || '';
   const isSingleMode = dataList.length === 1;
+
+  const resolveHighlightDigit = (province: string) => {
+    if (!activeDigit) return null;
+    if (!highlightScopeProvinces?.length) return activeDigit;
+    return highlightScopeProvinces.includes(province) ? activeDigit : null;
+  };
 
   return (
     <section className="w-full relative">
@@ -178,7 +187,7 @@ export const ResultsMatrix: React.FC<ResultsMatrixProps> = ({
               {dataList.map((d, i) => (
                 <div key={i} className={`flex-1 flex items-center justify-center ${!isSingleMode ? 'py-2 border-r border-gray-100 last:border-0 bg-white' : ''}`}>
                   <span className={`${isSingleMode ? 'text-3xl lg:text-4xl' : 'text-xl lg:text-2xl'} font-black tracking-tight text-[#ee1314]`}>
-                    {renderHighlightedNumber(getDisplayNumber(d.prizes.special, displayType), activeDigit || null)}
+                    {renderHighlightedNumber(getDisplayNumber(d.prizes.special, displayType), resolveHighlightDigit(d.province))}
                   </span>
                 </div>
               ))}
@@ -210,7 +219,7 @@ export const ResultsMatrix: React.FC<ResultsMatrixProps> = ({
                         <div className={`${isSingleMode ? `grid ${numbers.length === 2 ? 'grid-cols-2 max-w-[300px] md:max-w-[400px] lg:max-w-[500px]' : numbers.length === 3 ? 'grid-cols-3 max-w-[400px] md:max-w-[500px] lg:max-w-[600px]' : 'grid-cols-2 lg:grid-cols-4 max-w-[400px] lg:max-w-[800px]'} gap-x-4 md:gap-x-6 lg:gap-x-10 gap-y-3` : 'flex flex-col gap-y-1'} w-full mx-auto text-center`}>
                           {numbers.map((n, index) => (
                             <span key={index} className={`text-[#111111] font-bold tracking-tight font-client-main ${isSingleMode ? 'text-[16px] md:text-[18px] lg:text-[20px]' : 'text-[13px] md:text-[14px] lg:text-[15px]'}`}>
-                              {renderHighlightedNumber(getDisplayNumber(n, displayType), activeDigit || null)}
+                              {renderHighlightedNumber(getDisplayNumber(n, displayType), resolveHighlightDigit(d.province))}
                             </span>
                           ))}
                         </div>
@@ -218,7 +227,7 @@ export const ResultsMatrix: React.FC<ResultsMatrixProps> = ({
                         <div className={`${isSingleMode ? 'flex flex-wrap items-center justify-center gap-x-6 md:gap-x-8 lg:gap-x-12 gap-y-3' : 'flex flex-col items-center justify-center gap-y-1'} w-full`}>
                           {numbers.map((n, index) => (
                             <span key={index} className={`${prize.isHighlight && !activeDigit ? 'text-[#ee1314]' : 'text-[#111111]'} font-bold tracking-tight font-client-main ${isSingleMode ? (prize.isHighlight && !activeDigit ? 'text-[20px] md:text-[24px] lg:text-[28px]' : 'text-[16px] md:text-[18px] lg:text-[22px]') : (prize.isHighlight && !activeDigit ? 'text-[16px] lg:text-[18px]' : 'text-[13px] md:text-[14px] lg:text-[15px]')}`}>
-                              {renderHighlightedNumber(getDisplayNumber(n, displayType), activeDigit || null)}
+                              {renderHighlightedNumber(getDisplayNumber(n, displayType), resolveHighlightDigit(d.province))}
                             </span>
                           ))}
                         </div>

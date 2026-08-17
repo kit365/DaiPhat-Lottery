@@ -20,7 +20,7 @@ import {
     confirmSyncStations,
 } from '../services/stationService';
 import { QUERY_KEYS } from '../constants/queryKeys';
-import { publicStationsQueryKeys } from '@/constants/queryKeys';
+import { publicStationsQueryKeys, QUERY_KEYS as SHARED_QUERY_KEYS } from '@/constants/queryKeys';
 import {
     StationQueryParams,
     UpdateStationRequest,
@@ -36,6 +36,7 @@ const invalidateStationQueries = (
     queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.STATIONS_BY_DRAW_DATE] });
     queryClient.invalidateQueries({ queryKey: publicStationsQueryKeys.today() });
     queryClient.invalidateQueries({ queryKey: publicStationsQueryKeys.tomorrow() });
+    queryClient.invalidateQueries({ queryKey: [SHARED_QUERY_KEYS.PUBLIC_SCHEDULE_ALL] });
     if (stationId != null) {
         queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.STATION_DETAIL, stationId] });
     }
