@@ -81,19 +81,3 @@ export const updateSupplierDefaultImportCost = async (
     });
     return response.data;
 };
-
-/**
- * Corrects only the NCC default import cost.
- *
- * Deliberately not updateSupplier: that payload also carries intake hours,
- * payment cut-off, type and the active flag. Matching must not overwrite them.
- */
-export const updateSupplierDefaultImportCost = async (
-    supplierId: number | string,
-    defaultImportCost: number
-): Promise<ApiResponse<LotterySupplier>> => {
-    const response = await apiApp.put(`${BASE_URL}/${supplierId}/default-import-cost`, {
-        defaultImportCost,
-    });
-    return response.data;
-};
