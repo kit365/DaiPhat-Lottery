@@ -2,6 +2,7 @@ package com.daiphat.coreapi.application.service.chat;
 
 import com.daiphat.coreapi.application.event.ChatConversationEscalatedEvent;
 import com.daiphat.coreapi.application.port.in.chat.ChatAiMessagePort;
+import com.daiphat.coreapi.application.port.in.chat.ChatLiveAssignmentPort;
 import com.daiphat.coreapi.application.port.out.chat.ConversationRepositoryPort;
 import com.daiphat.coreapi.application.port.out.chat.MessageRepositoryPort;
 import com.daiphat.coreapi.domain.model.chat.ConversationModel;
@@ -17,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,6 +42,8 @@ class ChatEscalationServiceTest {
     private ApplicationEventPublisher eventPublisher;
     @Mock
     private ChatAiMessagePort chatAiMessagePort;
+    @Mock
+    private ChatLiveAssignmentPort chatLiveAssignmentPort;
 
     private ChatEscalationService chatEscalationService;
 
@@ -49,7 +53,8 @@ class ChatEscalationServiceTest {
                 conversationRepositoryPort,
                 messageRepositoryPort,
                 eventPublisher,
-                chatAiMessagePort
+                chatAiMessagePort,
+                chatLiveAssignmentPort
         );
     }
 
@@ -59,6 +64,7 @@ class ChatEscalationServiceTest {
 
         when(conversationRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(messageRepositoryPort.findByConversationId(CONVERSATION_ID)).thenReturn(List.of());
+        when(chatLiveAssignmentPort.tryAssignIdleOnlineOperator(any())).thenReturn(Optional.empty());
 
         chatEscalationService.escalateFromBot(
                 conversation,
@@ -77,6 +83,27 @@ class ChatEscalationServiceTest {
         verify(eventPublisher).publishEvent(eventCaptor.capture());
         assertThat(eventCaptor.getValue().conversationId()).isEqualTo(CONVERSATION_ID);
         assertThat(eventCaptor.getValue().reason()).isEqualTo(EscalationReason.BOT_LOW_CONFIDENCE);
+        verify(chatLiveAssignmentPort).tryAssignIdleOnlineOperator(conversation);
+    }
+
+    @Test
+    void escalateFromBot_whenAutoAssigned_skipsWaitingEscalatedEvent() {
+        ConversationModel conversation = conversation(ConversationStatus.OPEN);
+        ConversationModel assigned = conversation(ConversationStatus.ACTIVE);
+        assigned.assignToOperator(OPERATOR_ID);
+
+        when(conversationRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(messageRepositoryPort.findByConversationId(CONVERSATION_ID)).thenReturn(List.of());
+        when(chatLiveAssignmentPort.tryAssignIdleOnlineOperator(any())).thenReturn(Optional.of(assigned));
+
+        chatEscalationService.escalateFromBot(
+                conversation,
+                EscalationReason.CUSTOMER_REQUEST,
+                "Đang kết nối nhân viên..."
+        );
+
+        verify(chatLiveAssignmentPort).tryAssignIdleOnlineOperator(any());
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test
@@ -85,6 +112,7 @@ class ChatEscalationServiceTest {
 
         when(conversationRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(messageRepositoryPort.findByConversationId(CONVERSATION_ID)).thenReturn(List.of());
+        when(chatLiveAssignmentPort.tryAssignIdleOnlineOperator(any())).thenReturn(Optional.empty());
 
         chatEscalationService.escalateFromBot(
                 conversation,
@@ -120,6 +148,7 @@ class ChatEscalationServiceTest {
         verify(chatAiMessagePort).saveSystemNoticeAndPublish(conversation, "AI disabled");
         verify(chatAiMessagePort, never()).saveAndPublish(any(), any(), any());
         verify(eventPublisher, never()).publishEvent(any());
+        verify(chatLiveAssignmentPort, never()).tryAssignIdleOnlineOperator(any());
     }
 
     @Test

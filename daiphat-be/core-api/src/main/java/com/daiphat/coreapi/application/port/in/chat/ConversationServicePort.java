@@ -38,6 +38,11 @@ public interface ConversationServicePort {
             Long conversationId
     );
 
+    List<com.daiphat.coreapi.application.dto.response.chat.MessageResponse> getPreviousSessionMessages(
+            UUID userId,
+            Long conversationId
+    );
+
     CustomerChatTimelineResponse getCustomerChatTimeline(
             UUID userId,
             UUID customerId,

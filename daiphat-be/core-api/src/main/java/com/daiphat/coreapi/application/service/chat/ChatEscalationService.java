@@ -3,6 +3,7 @@ package com.daiphat.coreapi.application.service.chat;
 import com.daiphat.coreapi.application.event.ChatConversationEscalatedEvent;
 import com.daiphat.coreapi.application.port.in.chat.ChatAiMessagePort;
 import com.daiphat.coreapi.application.port.in.chat.ChatEscalationPort;
+import com.daiphat.coreapi.application.port.in.chat.ChatLiveAssignmentPort;
 import com.daiphat.coreapi.application.port.out.chat.ConversationRepositoryPort;
 import com.daiphat.coreapi.application.port.out.chat.MessageRepositoryPort;
 import com.daiphat.coreapi.domain.model.chat.ConversationModel;
@@ -26,6 +27,7 @@ public class ChatEscalationService implements ChatEscalationPort {
     private final MessageRepositoryPort messageRepositoryPort;
     private final ApplicationEventPublisher eventPublisher;
     private final ChatAiMessagePort chatAiMessagePort;
+    private final ChatLiveAssignmentPort chatLiveAssignmentPort;
 
     @Override
     @Transactional
@@ -58,7 +60,13 @@ public class ChatEscalationService implements ChatEscalationPort {
             conversation.waitForOperator();
         }
         ConversationModel savedConversation = conversationRepositoryPort.save(conversation);
-        publishEscalatedEvent(savedConversation, reason);
+        // Assign before publishing ESCALATED. The escalated socket event is AFTER_COMMIT and
+        // must not overwrite an immediate CONVERSATION_TAKEN with a stale WAITING payload —
+        // that left customers stuck on "Huỷ gặp nhân viên" while BE was already ACTIVE.
+        var assigned = chatLiveAssignmentPort.tryAssignIdleOnlineOperator(savedConversation);
+        if (assigned.isEmpty()) {
+            publishEscalatedEvent(savedConversation, reason);
+        }
     }
 
     private boolean requiresOperatorQueue(EscalationReason reason) {
