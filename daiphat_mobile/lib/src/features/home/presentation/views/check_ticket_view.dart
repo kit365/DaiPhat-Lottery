@@ -11,79 +11,309 @@ import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 class CheckTicketView extends ConsumerWidget {
   const CheckTicketView({super.key});
 
+  /// Chiều cao vùng đỏ phía sau (không gồm safe-area).
+  static const double _heroBodyHeight = 148;
+
+  /// Card trắng kéo lên chồng lên hero.
+  static const double _cardOverlap = 52;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(ticketCheckViewModelProvider);
     final vm = ref.read(ticketCheckViewModelProvider.notifier);
+    final topInset = MediaQuery.paddingOf(context).top;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F9FC),
-      body: Column(
+      backgroundColor: Colors.white,
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: () => vm.loadStations(state.selectedDate),
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            children: [
+              // Hero + card chồng lên — cùng cuộn (non-sticky).
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  // Nền đỏ + đồ trang trí phía sau
+                  SizedBox(
+                    height: topInset + _heroBodyHeight,
+                    width: double.infinity,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        const DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                AppColors.primary,
+                                Color(0xFFE70F20),
+                                AppColors.primaryDark,
+                              ],
+                              stops: [0, 0.55, 1],
+                            ),
+                            borderRadius: BorderRadius.vertical(
+                              bottom: Radius.circular(36),
+                            ),
+                          ),
+                        ),
+                        const _HeroDecorations(),
+                        // Header nằm trên hero, cuộn theo nội dung
+                        Positioned(
+                          top: topInset + 10,
+                          left: 18,
+                          right: 18,
+                          child: const _HeaderBar(),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Card trắng chồng lên nửa dưới hero
+                  Padding(
+                    padding: EdgeInsets.only(
+                      top: topInset + _heroBodyHeight - _cardOverlap,
+                    ),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.fromLTRB(20, 28, 20, 28),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(28),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Color(0x14000000),
+                            blurRadius: 20,
+                            offset: Offset(0, -4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            'TRA CỨU VÉ SỐ',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.publicSans(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.primary,
+                              letterSpacing: 0.6,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Nhập thông tin vé để kiểm tra kết quả nhanh chóng',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.publicSans(
+                              fontSize: 13,
+                              color: const Color(0xFF64748B),
+                            ),
+                          ),
+                          const SizedBox(height: 22),
+                          if (state.isChecking)
+                            const _CheckingState()
+                          else if (state.errorMessage != null)
+                            _ErrorState(
+                              message: state.errorMessage!,
+                              onRetry: vm.clearErrorMessage,
+                            )
+                          else if (state.hasChecked &&
+                              state.checkResult != null)
+                            _ResultState(
+                              result: state.checkResult!,
+                              onReset: vm.resetCheck,
+                            )
+                          else ...[
+                            _FormState(state: state, vm: vm),
+                            const SizedBox(height: 22),
+                            const _ImportantNotes(),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              // Chừa khoảng dưới để không sát bottom nav khi cuộn hết.
+              const SizedBox(height: 12),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HeaderBar extends StatelessWidget {
+  const _HeaderBar();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.2),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Icon(
+            Icons.qr_code_scanner_rounded,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            'Dò vé số',
+            style: GoogleFonts.publicSans(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Đồ trang trí bên phải hero (vé + kính lúp + xu + bóng số).
+class _HeroDecorations extends StatelessWidget {
+  const _HeroDecorations();
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Stack(
         children: [
-          _Header(),
-          Expanded(
-            child: RefreshIndicator(
-              color: AppColors.primary,
-              onRefresh: () => vm.loadStations(state.selectedDate),
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
-                child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(18, 20, 18, 20),
+          Positioned(
+            right: -28,
+            top: 18,
+            child: Container(
+              width: 160,
+              height: 160,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [Color(0x55FFB85C), Color(0x00FFB85C)],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            right: 28,
+            top: 46,
+            child: Transform.rotate(
+              angle: -0.18,
+              child: Container(
+                width: 72,
+                height: 88,
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
+                  color: Colors.white.withValues(alpha: 0.95),
+                  borderRadius: BorderRadius.circular(10),
                   boxShadow: const [
                     BoxShadow(
-                      color: Color(0x14000000),
-                      blurRadius: 24,
-                      offset: Offset(0, 8),
+                      color: Color(0x33000000),
+                      blurRadius: 12,
+                      offset: Offset(0, 6),
                     ),
                   ],
                 ),
+                padding: const EdgeInsets.all(8),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      'TRA CỨU VÉ SỐ',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.publicSans(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.primary,
-                        letterSpacing: 0.6,
+                    Container(
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFE4E4),
+                        borderRadius: BorderRadius.circular(4),
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Nhập thông tin vé để kiểm tra kết quả nhanh chóng',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.publicSans(
-                        fontSize: 13,
-                        color: const Color(0xFF64748B),
+                    const SizedBox(height: 8),
+                    ...List.generate(
+                      4,
+                      (_) => Padding(
+                        padding: const EdgeInsets.only(bottom: 5),
+                        child: Container(
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE2E8F0),
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 20),
-                    if (state.isChecking)
-                      const _CheckingState()
-                    else if (state.errorMessage != null)
-                      _ErrorState(
-                        message: state.errorMessage!,
-                        onRetry: vm.clearErrorMessage,
-                      )
-                    else if (state.hasChecked && state.checkResult != null)
-                      _ResultState(
-                        result: state.checkResult!,
-                        onReset: vm.resetCheck,
-                      )
-                    else
-                      _FormState(state: state, vm: vm),
                   ],
                 ),
               ),
             ),
           ),
+          Positioned(
+            right: 18,
+            top: 38,
+            child: Icon(
+              Icons.search_rounded,
+              size: 54,
+              color: Colors.white.withValues(alpha: 0.92),
+              shadows: const [
+                Shadow(
+                  color: Color(0x44000000),
+                  blurRadius: 8,
+                  offset: Offset(0, 3),
+                ),
+              ],
+            ),
+          ),
+          Positioned(
+            right: 88,
+            top: 108,
+            child: Container(
+              width: 28,
+              height: 28,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [Color(0xFFFFD54F), Color(0xFFF9A826)],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Color(0x44000000),
+                    blurRadius: 6,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Positioned(
+            right: 58,
+            top: 118,
+            child: Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.primaryDark,
+                border: Border.all(color: Colors.white, width: 2),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                '23',
+                style: GoogleFonts.publicSans(
+                  fontSize: 8,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -91,51 +321,87 @@ class CheckTicketView extends ConsumerWidget {
   }
 }
 
-class _Header extends StatelessWidget {
+class _ImportantNotes extends StatelessWidget {
+  const _ImportantNotes();
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [AppColors.primary, AppColors.primaryDark],
-        ),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF5F5),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFFFE0E0)),
       ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
-          child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 28,
+                height: 28,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(12),
+                  color: const Color(0xFFFFE4E4),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
-                  Icons.qr_code_scanner_rounded,
-                  color: Colors.white,
+                  Icons.verified_user_outlined,
+                  size: 16,
+                  color: AppColors.primary,
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Dò vé số',
-                  style: GoogleFonts.publicSans(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                  ),
+              const SizedBox(width: 8),
+              Text(
+                'Lưu ý quan trọng',
+                style: GoogleFonts.publicSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFF7F1D1D),
                 ),
               ),
             ],
           ),
-        ),
+          const SizedBox(height: 10),
+          _noteLine(
+            'Kết quả được cập nhật ngay sau khi có kết quả chính thức từ các đài.',
+          ),
+          const SizedBox(height: 6),
+          _noteLine(
+            'Thông tin vé của bạn được bảo mật và không lưu trữ sau khi tra cứu.',
+          ),
+        ],
       ),
+    );
+  }
+
+  Widget _noteLine(String text) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Container(
+            width: 5,
+            height: 5,
+            decoration: const BoxDecoration(
+              color: AppColors.primary,
+              shape: BoxShape.circle,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: GoogleFonts.publicSans(
+              fontSize: 12,
+              height: 1.45,
+              color: const Color(0xFF7F1D1D),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -581,7 +847,7 @@ class _FormStateState extends State<_FormState> {
                 ? 'Nhập đúng 5 hoặc 6 chữ số trên vé của bạn'
                 : null,
             prefixIcon: const Icon(Icons.confirmation_number_outlined,
-                color: Color(0xFF94A3B8), size: 18),
+                color: AppColors.primary, size: 18),
             filled: true,
             fillColor: Colors.white,
             border: OutlineInputBorder(
@@ -604,16 +870,17 @@ class _FormStateState extends State<_FormState> {
           ),
         ),
         const SizedBox(height: 16),
-        FilledButton(
+        FilledButton.icon(
           onPressed: vm.check,
+          icon: const Icon(Icons.search_rounded, size: 20),
           style: FilledButton.styleFrom(
             backgroundColor: AppColors.primary,
-            minimumSize: const Size.fromHeight(48),
+            minimumSize: const Size.fromHeight(50),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
             ),
           ),
-          child: Text(
+          label: Text(
             'Tra cứu kết quả',
             style: GoogleFonts.publicSans(
               fontSize: 14,
@@ -744,6 +1011,7 @@ class _QuickDateChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final color = selected ? AppColors.primary : const Color(0xFF475569);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
@@ -752,15 +1020,25 @@ class _QuickDateChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected ? const Color(0xFFFFF1F1) : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? const Color(0xFFFECACA) : const Color(0xFFE2E8F0),
+          ),
         ),
         alignment: Alignment.center,
-        child: Text(
-          label,
-          style: GoogleFonts.publicSans(
-            fontSize: 12,
-            fontWeight: FontWeight.w800,
-            color: selected ? AppColors.primary : const Color(0xFF475569),
-          ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.calendar_today_outlined, size: 14, color: color),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: GoogleFonts.publicSans(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: color,
+              ),
+            ),
+          ],
         ),
       ),
     );
