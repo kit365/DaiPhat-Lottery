@@ -195,4 +195,58 @@ public interface OrderDetailRepository extends JpaRepository<OrderDetailEntity, 
             @Param("detailIds") List<Long> detailIds,
             @Param("refundRequestId") Long refundRequestId
     );
+
+    /**
+     * Search order details by phone number (partial match on Order.phone or User.phone).
+     * Used for prize payout counter lookup.
+     */
+    @Query("""
+            select distinct od
+            from OrderDetailEntity od
+            join fetch od.order o
+            left join fetch o.user u
+            left join fetch od.lotteryTicketSerial s
+            left join fetch s.ticket t
+            left join fetch t.station
+            where od.status in (
+                    com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.HANDOVER_IN_PROGRESS,
+                    com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.PROXY_HOLDING,
+                    com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.HANDED_OVER)
+              and o.status in (
+                    com.daiphat.coreapi.domain.model.enums.order.OrderStatus.PAID,
+                    com.daiphat.coreapi.domain.model.enums.order.OrderStatus.PREPARING,
+                    com.daiphat.coreapi.domain.model.enums.order.OrderStatus.PENDING_PICKUP,
+                    com.daiphat.coreapi.domain.model.enums.order.OrderStatus.COMPLETED)
+              and (lower(o.phone) like lower(concat('%', :phone, '%'))
+                   or lower(u.phone) like lower(concat('%', :phone, '%')))
+            order by o.createdAt desc
+            """)
+    List<OrderDetailEntity> searchByPhone(@Param("phone") String phone);
+
+    /**
+     * Search order details by email (partial match on Order.email or User.email).
+     * Used for prize payout counter lookup.
+     */
+    @Query("""
+            select distinct od
+            from OrderDetailEntity od
+            join fetch od.order o
+            left join fetch o.user u
+            left join fetch od.lotteryTicketSerial s
+            left join fetch s.ticket t
+            left join fetch t.station
+            where od.status in (
+                    com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.HANDOVER_IN_PROGRESS,
+                    com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.PROXY_HOLDING,
+                    com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.HANDED_OVER)
+              and o.status in (
+                    com.daiphat.coreapi.domain.model.enums.order.OrderStatus.PAID,
+                    com.daiphat.coreapi.domain.model.enums.order.OrderStatus.PREPARING,
+                    com.daiphat.coreapi.domain.model.enums.order.OrderStatus.PENDING_PICKUP,
+                    com.daiphat.coreapi.domain.model.enums.order.OrderStatus.COMPLETED)
+              and (lower(o.email) like lower(concat('%', :email, '%'))
+                   or lower(u.email) like lower(concat('%', :email, '%')))
+            order by o.createdAt desc
+            """)
+    List<OrderDetailEntity> searchByEmail(@Param("email") String email);
 }
