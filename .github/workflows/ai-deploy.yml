@@ -3,7 +3,7 @@ name: DaiPhat AI Deploy
 on:
   push:
     branches:
-      - feature/dp-5-infs
+      - main
     paths:
       - "daiphat-ai/**"
       # ticket-vision has its own (much heavier) image and workflow --
@@ -17,11 +17,11 @@ on:
       source_ref:
         description: Git ref to build and deploy
         required: true
-        default: feature/dp-5-infs
+        default: main
         type: choice
         options:
-          - feature/dp-5-infs
           - main
+          - feature/dp-5-infs
 
 jobs:
   deploy-ai:

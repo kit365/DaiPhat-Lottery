@@ -3,7 +3,7 @@ name: DaiPhat Frontend Deploy
 on:
   push:
     branches:
-      - feature/dp-5-infs
+      - main
     paths:
       - "daiphat-fe/**"
       - ".github/workflows/frontend-deploy.yml"
@@ -13,11 +13,11 @@ on:
       source_ref:
         description: Git ref to build and deploy
         required: true
-        default: feature/dp-5-infs
+        default: main
         type: choice
         options:
-          - feature/dp-5-infs
           - main
+          - feature/dp-5-infs
 
 jobs:
   deploy-frontend:
