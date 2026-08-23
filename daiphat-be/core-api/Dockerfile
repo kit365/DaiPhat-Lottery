@@ -9,7 +9,7 @@ RUN --mount=type=cache,target=/root/.m2 \
     mvn -B clean package -Dmaven.test.skip=true -Dcheckstyle.skip
 
 RUN jlink \
-    --add-modules java.base,java.sql,java.naming,java.desktop,java.management,java.security.jgss,java.instrument,jdk.unsupported,jdk.crypto.ec \
+    --add-modules java.base,java.sql,java.naming,java.desktop,java.management,java.security.jgss,java.instrument,java.net.http,java.xml,java.compiler,jdk.unsupported,jdk.crypto.ec,jdk.crypto.cryptoki,jdk.management \
     --strip-debug \
     --no-man-pages \
     --no-header-files \
