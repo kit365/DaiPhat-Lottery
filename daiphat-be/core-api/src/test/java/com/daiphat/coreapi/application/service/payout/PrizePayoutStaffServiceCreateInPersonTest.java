@@ -318,7 +318,7 @@ class PrizePayoutStaffServiceCreateInPersonTest {
     }
 
     @Test
-    void lookup_byOrderCode_returnsItems() {
+    void preview_byOrderCode_returnsItems() {
         when(prizePayoutEligibilityService.resolveAllByOrderCode("ORD-1")).thenReturn(List.of(detail));
         when(prizePayoutEligibilityService.resolveOwnershipVerification(detail, serial))
                 .thenReturn(new PrizePayoutEligibilityService.OwnershipVerificationContext(
@@ -326,31 +326,17 @@ class PrizePayoutStaffServiceCreateInPersonTest {
                         PrizePayoutOwnershipVerificationLevel.MANUAL_ONLY,
                         true));
 
-        PrizePayoutLookupResponse response = staffService.lookup("ORD-1", null, null, null);
-        assertEquals(1, response.items().size());
-        assertEquals(20L, response.items().get(0).orderDetailId());
-    }
-
-    @Test
-    void lookup_tripleMiss_propagatesOutOfScope() {
-        when(prizePayoutEligibilityService.resolveByStationDrawSerial(1L, LocalDate.of(2026, 8, 1), "SN-1"))
-                .thenThrow(new DomainException(
-                        ErrorCode.ORDER_DETAIL_NOT_FOUND,
-                        PrizePayoutRequestModel.OUT_OF_SCOPE_TICKET_MESSAGE));
-
-        DomainException ex = assertThrows(
-                DomainException.class,
-                () -> staffService.lookup(null, 1L, LocalDate.of(2026, 8, 1), "SN-1"));
-        assertEquals(ErrorCode.ORDER_DETAIL_NOT_FOUND, ex.getErrorCode());
-        assertTrue(ex.getInternalMessage().contains("ngoài phạm vi hỗ trợ"));
+        PrizePayoutPreviewResponse response = staffService.preview(null, null, null, "ORD-1");
+        assertEquals(20L, response.orderDetailId());
     }
 
     @Test
     void preview_serialOnly_rejected() {
         DomainException ex = assertThrows(
                 DomainException.class,
-                () -> staffService.preview(null, null, "SN-ONLY", null));
+                () -> staffService.preview(null, null, "SN-1", null));
         assertEquals(ErrorCode.INVALID_INPUT, ex.getErrorCode());
+        assertTrue(ex.getInternalMessage().contains("Không tra cứu bằng serial đơn lẻ"));
     }
 
     @Test

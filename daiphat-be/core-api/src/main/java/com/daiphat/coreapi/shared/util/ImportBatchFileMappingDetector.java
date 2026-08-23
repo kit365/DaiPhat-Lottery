@@ -94,7 +94,9 @@ public class ImportBatchFileMappingDetector {
         );
     }
 
-    /** @deprecated use {@link #defaultAliasDictionary()} or {@link #resolveAliases(Map)} */
+    /**
+     * @deprecated use {@link #defaultAliasDictionary()} or {@link #resolveAliases(Map)}
+     */
     public Map<String, List<String>> aliasDictionary() {
         return defaultAliasDictionary();
     }

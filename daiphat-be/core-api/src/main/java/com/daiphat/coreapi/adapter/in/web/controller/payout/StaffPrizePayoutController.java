@@ -10,6 +10,7 @@ import com.daiphat.coreapi.application.dto.request.payout.CreateStaffPrizePayout
 import com.daiphat.coreapi.application.dto.request.payout.PreviewPrizePayoutConfirmationContractRequest;
 import com.daiphat.coreapi.application.dto.request.payout.RejectPrizePayoutRequest;
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutBatchCreateResponse;
+import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutCustomerSuggestion;
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutLookupResponse;
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutLookupStationResponse;
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutPreviewResponse;
@@ -64,13 +65,21 @@ public class StaffPrizePayoutController {
     @GetMapping("/lookup")
     @PreAuthorize("hasAuthority('prizePayout:view')")
     public ApiResponse<PrizePayoutLookupResponse> lookup(
-            @RequestParam(required = false) String orderCode,
-            @RequestParam(required = false) Long stationId,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate drawDate,
-            @RequestParam(required = false) String serialNumber) {
+            @RequestParam(required = false) String phone,
+            @RequestParam(required = false) String email) {
         return ApiResponse.success(
                 "Tra cứu vé trả thưởng thành công.",
-                prizePayoutStaffServicePort.lookup(orderCode, stationId, drawDate, serialNumber));
+                prizePayoutStaffServicePort.lookup(phone, email));
+    }
+
+    @GetMapping("/lookup/suggestions")
+    @PreAuthorize("hasAuthority('prizePayout:view')")
+    public ApiResponse<List<PrizePayoutCustomerSuggestion>> getSuggestions(
+            @RequestParam String q,
+            @RequestParam(defaultValue = "20") int limit) {
+        return ApiResponse.success(
+                "Lấy gợi ý khách hàng thành công.",
+                prizePayoutStaffServicePort.getSuggestions(q, limit));
     }
 
     @GetMapping("/lookup-stations")

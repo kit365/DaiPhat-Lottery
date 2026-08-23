@@ -6,6 +6,7 @@ import com.daiphat.coreapi.application.dto.request.payout.CreateStaffPrizePayout
 import com.daiphat.coreapi.application.dto.request.payout.RejectPrizePayoutRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutBatchCreateResponse;
+import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutCustomerSuggestion;
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutLookupItem;
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutLookupResponse;
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutLookupStationResponse;
@@ -64,6 +65,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Comparator;
 import java.util.Set;
 import java.util.UUID;
 
@@ -140,44 +142,155 @@ public class PrizePayoutStaffService implements PrizePayoutStaffServicePort {
 
     @Override
     @Transactional(readOnly = true)
-    public PrizePayoutLookupResponse lookup(
-            String orderCode,
-            Long stationId,
-            LocalDate drawDate,
-            String serialNumber) {
-        boolean hasOrder = orderCode != null && !orderCode.isBlank();
-        boolean hasTriple = stationId != null
-                || drawDate != null
-                || (serialNumber != null && !serialNumber.isBlank());
+    public PrizePayoutLookupResponse lookup(String phone, String email) {
+        boolean hasPhone = phone != null && !phone.isBlank();
+        boolean hasEmail = email != null && !email.isBlank();
 
-        if (hasOrder && hasTriple) {
+        if (!hasPhone && !hasEmail) {
             throw new DomainException(
                     ErrorCode.INVALID_INPUT,
-                    "Chọn một chế độ tra cứu: mã đơn, hoặc đài + ngày quay + serial.");
-        }
-        if (!hasOrder && !hasTriple) {
-            throw new DomainException(
-                    ErrorCode.INVALID_INPUT,
-                    "Nhập mã đơn, hoặc đủ đài (issuer) + ngày quay + số serial.");
+                    "Nhập số điện thoại hoặc email để tra cứu.");
         }
 
         List<OrderDetailEntity> details;
-        if (hasOrder) {
-            details = prizePayoutEligibilityService.resolveAllByOrderCode(orderCode);
+        if (hasPhone) {
+            details = prizePayoutEligibilityService.resolveAllByPhone(phone);
         } else {
-            if (stationId == null || drawDate == null || serialNumber == null || serialNumber.isBlank()) {
-                throw new DomainException(
-                        ErrorCode.INVALID_INPUT,
-                        "Nhập đủ đài (issuer), ngày quay và số serial.");
-            }
-            details = List.of(prizePayoutEligibilityService.resolveByStationDrawSerial(
-                    stationId, drawDate, serialNumber));
+            details = prizePayoutEligibilityService.resolveAllByEmail(email);
         }
 
         List<PrizePayoutLookupItem> items = details.stream()
                 .map(this::toLookupItem)
                 .toList();
+
+        items = sortLookupItems(items);
+
         return new PrizePayoutLookupResponse(items);
+    }
+
+    /**
+     * Sort lookup items by 3-tier logic:
+     * 1. Group by status (urgent first, then normal unpaid, hide paid/locked)
+     * 2. Within unpaid group: sort by issuer deadline ascending
+     * 3. Within same deadline: sort by prize amount descending
+     */
+    private List<PrizePayoutLookupItem> sortLookupItems(List<PrizePayoutLookupItem> items) {
+        return items.stream()
+                .filter(i -> i.payoutState() != SerialPayoutState.PAID_OUT)
+                .filter(i -> i.redemptionZone() != PrizeRedemptionZone.PAST_ISSUER_LOCKED)
+                .sorted(Comparator
+                        .comparing((PrizePayoutLookupItem i) -> {
+                            if (i.redemptionZone() == PrizeRedemptionZone.PAST_CUSTOMER_URGENT) return 0;
+                            return 1;
+                        })
+                        .thenComparing(i -> i.issuerRedemptionDeadline() != null
+                                ? i.issuerRedemptionDeadline() : LocalDate.MAX)
+                        .thenComparing(i -> i.grossAmount() != null
+                                ? i.grossAmount() : BigDecimal.ZERO, Comparator.reverseOrder()))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PrizePayoutCustomerSuggestion> getSuggestions(String query, int limit) {
+        if (query == null || query.isBlank()) {
+            return List.of();
+        }
+        String q = query.trim().toLowerCase();
+
+        List<PrizePayoutCustomerSuggestion> suggestions = new ArrayList<>();
+
+        List<OrderDetailEntity> byPhone = orderDetailRepository.searchByPhone(q);
+        Map<String, PrizePayoutCustomerSuggestion> uniqueMap = new LinkedHashMap<>();
+        for (OrderDetailEntity od : byPhone) {
+            String phone = getPhone(od);
+            if (phone != null && !uniqueMap.containsKey(phone)) {
+                String displayName = getCustomerDisplayName(od);
+                uniqueMap.put(phone, new PrizePayoutCustomerSuggestion(
+                        displayName,
+                        phone,
+                        getEmail(od),
+                        countOrdersForCustomer(od),
+                        getLastOrderDate(od)
+                ));
+            }
+        }
+
+        List<OrderDetailEntity> byEmail = orderDetailRepository.searchByEmail(q);
+        for (OrderDetailEntity od : byEmail) {
+            String email = getEmail(od);
+            if (email != null && !uniqueMap.containsKey(email)) {
+                String displayName = getCustomerDisplayName(od);
+                uniqueMap.put(email, new PrizePayoutCustomerSuggestion(
+                        displayName,
+                        getPhone(od),
+                        email,
+                        countOrdersForCustomer(od),
+                        getLastOrderDate(od)
+                ));
+            }
+        }
+
+        return uniqueMap.values().stream()
+                .limit(limit)
+                .toList();
+    }
+
+    private String getPhone(OrderDetailEntity od) {
+        if (od.getOrder() != null && od.getOrder().getPhone() != null) {
+            return od.getOrder().getPhone();
+        }
+        if (od.getOrder() != null && od.getOrder().getUser() != null) {
+            return od.getOrder().getUser().getPhone();
+        }
+        return null;
+    }
+
+    private String getEmail(OrderDetailEntity od) {
+        if (od.getOrder() != null && od.getOrder().getEmail() != null) {
+            return od.getOrder().getEmail();
+        }
+        if (od.getOrder() != null && od.getOrder().getUser() != null) {
+            return od.getOrder().getUser().getEmail();
+        }
+        return null;
+    }
+
+    private String getCustomerDisplayName(OrderDetailEntity od) {
+        if (od.getOrder() != null && od.getOrder().getUser() != null) {
+            UserEntity user = od.getOrder().getUser();
+            String name = user.getFirstName() != null ? user.getFirstName() : "";
+            if (user.getLastName() != null) {
+                name = name.isEmpty() ? user.getLastName() : name + " " + user.getLastName();
+            }
+            if (!name.isBlank()) {
+                return name.trim();
+            }
+        }
+        if (od.getOrder() != null && od.getOrder().getName() != null) {
+            return od.getOrder().getName();
+        }
+        return "Khách hàng";
+    }
+
+    private long countOrdersForCustomer(OrderDetailEntity od) {
+        if (od.getOrder() == null) return 1;
+        String phone = getPhone(od);
+        String email = getEmail(od);
+        if (phone != null) {
+            return orderDetailRepository.searchByPhone(phone).size();
+        }
+        if (email != null) {
+            return orderDetailRepository.searchByEmail(email).size();
+        }
+        return 1;
+    }
+
+    private LocalDate getLastOrderDate(OrderDetailEntity od) {
+        if (od.getOrder() != null && od.getOrder().getCreatedAt() != null) {
+            return od.getOrder().getCreatedAt().toLocalDate();
+        }
+        return LocalDate.now();
     }
 
     @Override
@@ -205,16 +318,17 @@ public class PrizePayoutStaffService implements PrizePayoutStaffServicePort {
             if (serialNumber != null && !serialNumber.isBlank() && (orderCode == null || orderCode.isBlank())) {
                 throw new DomainException(
                         ErrorCode.INVALID_INPUT,
-                        "Không tra cứu bằng serial đơn lẻ — dùng đài + ngày quay + serial hoặc mã đơn.");
+                        "Không tra cứu bằng serial đơn lẻ — dùng số điện thoại hoặc email.");
             }
             if (orderCode != null && !orderCode.isBlank()) {
-                PrizePayoutLookupResponse lookup = lookup(orderCode, null, null, null);
-                if (lookup.items().size() != 1) {
+                // Internal lookup by orderCode still supported for preview
+                List<OrderDetailEntity> details = prizePayoutEligibilityService.resolveAllByOrderCode(orderCode);
+                if (details.size() != 1) {
                     throw new DomainException(
                             ErrorCode.INVALID_INPUT,
-                            "Đơn có nhiều vé — dùng GET /lookup và chọn vé cần trả thưởng.");
+                            "Đơn có nhiều vé — dùng tra cứu bằng số điện thoại/email và chọn vé cần trả thưởng.");
                 }
-                return toPreviewFromLookup(lookup.items().get(0));
+                return toPreviewFromLookup(toLookupItem(details.get(0)));
             }
             throw new DomainException(ErrorCode.INVALID_INPUT, "Cần orderDetailId hoặc serialId.");
         }

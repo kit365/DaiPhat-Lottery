@@ -5,6 +5,7 @@ import com.daiphat.coreapi.application.dto.request.payout.CreateStaffPrizePayout
 import com.daiphat.coreapi.application.dto.request.payout.CreateStaffPrizePayoutRequest;
 import com.daiphat.coreapi.application.dto.request.payout.RejectPrizePayoutRequest;
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutBatchCreateResponse;
+import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutCustomerSuggestion;
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutLookupResponse;
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutPreviewResponse;
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutRequestResponse;
@@ -21,11 +22,12 @@ public interface PrizePayoutStaffServicePort {
 
     PrizePayoutRequestResponse getByIdForStaff(Long id, UUID viewerStaffId);
 
-    PrizePayoutLookupResponse lookup(
-            String orderCode,
-            Long stationId,
-            LocalDate drawDate,
-            String serialNumber);
+    PrizePayoutLookupResponse lookup(String phone, String email);
+
+    /**
+     * Get customer suggestions for autocomplete search.
+     */
+    java.util.List<PrizePayoutCustomerSuggestion> getSuggestions(String query, int limit);
 
     /**
      * Stations that actually have sold tickets on {@code drawDate} (for counter lookup filters).

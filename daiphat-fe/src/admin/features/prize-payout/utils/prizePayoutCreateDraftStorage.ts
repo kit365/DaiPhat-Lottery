@@ -1,13 +1,10 @@
 import type { PrizePayoutLookupItem, PrizePayoutPaymentMethod } from '@/types/prize-payout.type';
 
-export type PrizePayoutCreateLookupMode = 'ORDER' | 'TRIPLE';
+export type PrizePayoutCreateLookupMode = 'PHONE' | 'EMAIL';
 
 export type PrizePayoutCreateDraft = {
     lookupMode: PrizePayoutCreateLookupMode;
-    orderCode: string;
-    stationId?: number;
-    drawDate: string;
-    serialNumber: string;
+    searchInput: string;
     lookupItems: PrizePayoutLookupItem[];
     selectedIds: number[];
     bankBin?: string;
