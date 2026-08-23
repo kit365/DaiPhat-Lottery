@@ -6,7 +6,9 @@ class ApiConfig {
   const ApiConfig._();
 
   static String get baseUrl {
-    final url = dotenv.get('API_BASE_URL', fallback: 'http://localhost:8080');
+    final url = dotenv.env['VITE_API_BASE_URL']?.trim().isNotEmpty == true
+        ? dotenv.env['VITE_API_BASE_URL']!.trim()
+        : dotenv.get('API_BASE_URL', fallback: 'http://localhost:8080');
     if (!kIsWeb && Platform.isAndroid) {
       return url
           .replaceAll('localhost', '10.0.2.2')
