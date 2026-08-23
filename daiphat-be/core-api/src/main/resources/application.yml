@@ -1,4 +1,4 @@
-# DaiPhat Core API Configuration
+# DaiPhat Core API Configuration - Production Deploy Trigger
 server:
   port: ${SERVER_PORT:${CORE_API_PORT:8080}}
   forward-headers-strategy: framework
