@@ -38,13 +38,16 @@ export const useLottery = (initialData?: HomeServerInitialData) => {
   const [availableProvinces, setAvailableProvinces] = useState<string[]>(
     initialData?.availableProvinces ?? []
   );
-  const [isLoading, setIsLoading] = useState(!initialData);
+  // Server-rendered data can be cached while the board is still empty. Keep the
+  // empty initial response in a loading state until the client revalidates it.
+  const [isLoading, setIsLoading] = useState(
+    !initialData || initialData.boardData.length === 0
+  );
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isWaitingForResults, setIsWaitingForResults] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const initializedSelectionRef = useRef(!!initialData);
   const loadedDateRef = useRef<string | null>(initialData?.selectedDate ?? null);
-  const skipInitialFetchRef = useRef(!!initialData);
   const summaryRetryDelayMs = 5000;
   const maxSummaryRetries = 24;
 
@@ -114,11 +117,9 @@ export const useLottery = (initialData?: HomeServerInitialData) => {
     };
 
     const fetchData = async () => {
-      if (skipInitialFetchRef.current) {
-        skipInitialFetchRef.current = false;
-        return;
-      }
-
+      // Always revalidate on mount. RSC/ISR data may be an empty or stale board
+      // and skipping this request leaves the empty state stuck until the user
+      // changes the date manually.
       const isSameDate = boardData.length > 0 && boardData[0]?.date === selectedDate;
       
       if (isSameDate) {
@@ -131,6 +132,7 @@ export const useLottery = (initialData?: HomeServerInitialData) => {
       }
       
       setError(null);
+      setIsWaitingForResults(false);
 
       try {
         const fetchSummary = () => lotteryService.getBoard(selectedDate);

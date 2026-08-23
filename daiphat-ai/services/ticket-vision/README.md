@@ -1,6 +1,6 @@
 # ticket-vision (DP-269)
 
-FastAPI microservice: image preprocessing, ticket detection and OCR for the
+FastAPI microservice: image preprocessing, multi-ticket detection and OCR for Vietnamese lottery tickets.
 lottery ticket camera-scan feature. Pure inference — this service **never**
 writes to a database; Java `core-api` calls it, does business validation
 (duplicate check, draw-date rules, product/station ACTIVE check) and

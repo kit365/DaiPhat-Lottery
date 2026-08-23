@@ -1,6 +1,6 @@
 # daiphat-ai
 
-Python monorepo for DaiPhat AI services (computer vision, OCR, analytics).
+Python monorepo for DaiPhat AI services (computer vision, OCR, chatbot analytics, fortune telling).
 
 **Jira:** [DP-269](https://jira.atlassian.com) — Thêm mới vé số bằng Camera
 
