@@ -135,10 +135,14 @@ class ApiClient {
       return;
     }
 
-    final newToken = await _refreshAccessToken();
-    if (newToken == null || newToken.isEmpty) {
-      // Keep the stored access token. Hot reload can race refresh-token
-      // rotation; wiping here logs the user out right after login.
+    try {
+      final newToken = await _refreshAccessToken();
+      if (newToken == null || newToken.isEmpty) {
+        // Keep the stored access token. Hot reload can race refresh-token
+        // rotation; wiping here logs the user out right after login.
+      }
+    } catch (_) {
+      // Network unreachable or offline at startup — do not crash the app bootstrap.
     }
   }
 
