@@ -1,10 +1,19 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ApiConfig {
   const ApiConfig._();
 
-  static String get baseUrl =>
-      dotenv.get('API_BASE_URL', fallback: 'http://localhost:8080');
+  static String get baseUrl {
+    final url = dotenv.get('API_BASE_URL', fallback: 'http://localhost:8080');
+    if (!kIsWeb && Platform.isAndroid) {
+      return url
+          .replaceAll('localhost', '10.0.2.2')
+          .replaceAll('127.0.0.1', '10.0.2.2');
+    }
+    return url;
+  }
 
   static String get apiPrefix => dotenv.get('API_PREFIX', fallback: '/api');
 
