@@ -1,4 +1,4 @@
-# Production docker-compose definition for DaiPhat Lottery Platform Services
+# Production docker-compose definition for DaiPhat Lottery Platform (Production)
 name: daiphat-prod
 
 x-dozzle-infrastructure-labels: &dozzle-infrastructure-labels
