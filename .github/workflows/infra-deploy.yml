@@ -3,7 +3,7 @@ name: DaiPhat Infrastructure Deploy
 on:
   push:
     branches:
-      - feature/dp-5-infs
+      - main
     paths:
       - "docker-compose.prod.yml"
       - "daiphat-be/infra/**"
@@ -14,11 +14,11 @@ on:
       source_ref:
         description: Git ref to deploy
         required: true
-        default: feature/dp-5-infs
+        default: main
         type: choice
         options:
-          - feature/dp-5-infs
           - main
+          - feature/dp-5-infs
 
 concurrency:
   group: daiphat-production-infrastructure
