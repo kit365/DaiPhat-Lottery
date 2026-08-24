@@ -3,6 +3,8 @@ import 'package:daiphat_mobile/src/shared/network/api_client.dart';
 import 'package:daiphat_mobile/src/shared/network/api_exception.dart';
 
 class RefundService {
+  static const _baseRefundRequests = '/refund-requests';
+
   final ApiClient _apiClient;
 
   RefundService(this._apiClient);
@@ -15,7 +17,7 @@ class RefundService {
     String? orderId,
   }) async {
     final response = await _apiClient.get(
-      '/refund-requests/my',
+      '$_baseRefundRequests/my',
       queryParameters: {
         'page': page,
         'limit': limit,
@@ -37,7 +39,7 @@ class RefundService {
   }
 
   Future<RefundRequestResponse> getRefundDetail(int id) async {
-    final response = await _apiClient.get('/refund-requests/$id');
+    final response = await _apiClient.get('$_baseRefundRequests/$id');
     final data = response['data'];
     if (data is! Map<String, dynamic>) {
       throw ApiException(
@@ -54,7 +56,7 @@ class RefundService {
     required int bankAccountId,
   }) async {
     final response = await _apiClient.patch(
-      '/refund-requests/$id/bank-account',
+      '$_baseRefundRequests/$id/bank-account',
       data: {'bankAccountId': bankAccountId},
     );
     final data = response['data'];

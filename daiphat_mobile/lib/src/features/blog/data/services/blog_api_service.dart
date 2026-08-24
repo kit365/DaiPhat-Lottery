@@ -8,6 +8,7 @@ import '../models/public_blog_post_detail.dart';
 
 /// Service gọi API blog public — mirror daiphat-fe/src/client/services/blogService.ts
 class BlogApiService {
+  static const _baseBlogs = '/blogs';
   final ApiClient _apiClient;
 
   BlogApiService(this._apiClient);
@@ -15,7 +16,7 @@ class BlogApiService {
   /// GET /blogs/categories/public
   Future<List<BlogCategory>> getPublicCategories() async {
     final response = await _apiClient.get(
-      '/blogs/categories/public',
+      '$_baseBlogs/categories/public',
       includeAuth: false,
     );
     final apiResponse = ApiResponse<List<BlogCategory>>.fromJson(
@@ -60,7 +61,7 @@ class BlogApiService {
     }
 
     final response = await _apiClient.get(
-      '/blogs/public',
+      '$_baseBlogs/public',
       queryParameters: queryParameters,
       includeAuth: false,
     );
@@ -87,7 +88,7 @@ class BlogApiService {
   /// GET /blogs/public/{slug}
   Future<PublicBlogPostDetail> getPublicPostBySlug(String slug) async {
     final response = await _apiClient.get(
-      '/blogs/public/$slug',
+      '$_baseBlogs/public/$slug',
       includeAuth: false,
     );
     final apiResponse = ApiResponse<PublicBlogPostDetail>.fromJson(
@@ -112,7 +113,7 @@ class BlogApiService {
     int limit = 4,
   }) async {
     final response = await _apiClient.get(
-      '/blogs/public/$slug/related',
+      '$_baseBlogs/public/$slug/related',
       queryParameters: {'limit': limit},
       includeAuth: false,
     );
@@ -137,7 +138,7 @@ class BlogApiService {
 
   /// PATCH /blogs/{id}/view
   Future<void> incrementPostView(int id) async {
-    final response = await _apiClient.patch('/blogs/$id/view');
+    final response = await _apiClient.patch('$_baseBlogs/$id/view');
     final apiResponse = ApiResponse<dynamic>.fromJson(response, null);
 
     if (!apiResponse.isSuccess) {

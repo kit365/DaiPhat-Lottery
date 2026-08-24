@@ -32,6 +32,8 @@ class SupportTicketFormData {
 }
 
 class SupportTicketService {
+  static const _baseTickets = '/tickets';
+
   final ApiClient _apiClient;
 
   SupportTicketService(this._apiClient);
@@ -51,7 +53,7 @@ class SupportTicketService {
     String? search,
   }) async {
     final response = await _apiClient.get(
-      '/tickets/my',
+      '$_baseTickets/my',
       queryParameters: {
         'page': page,
         'limit': limit,
@@ -72,7 +74,7 @@ class SupportTicketService {
 
   Future<int> getMyActiveCount() async {
     try {
-      final response = await _apiClient.get('/tickets/my/active-count');
+      final response = await _apiClient.get('$_baseTickets/my/active-count');
       final data = response['data'];
       if (data is int) return data;
       return int.tryParse(data?.toString() ?? '') ?? 0;
@@ -82,7 +84,7 @@ class SupportTicketService {
   }
 
   Future<SupportTicketResponse> getById(int id) async {
-    final response = await _apiClient.get('/tickets/$id');
+    final response = await _apiClient.get('$_baseTickets/$id');
     final data = response['data'];
     if (data is! Map<String, dynamic>) {
       throw ApiException(
@@ -99,7 +101,7 @@ class SupportTicketService {
     String? filePath,
   }) async {
     final formData = await _buildMultipart(data.toJson(), filePath);
-    final response = await _apiClient.post('/tickets', data: formData);
+    final response = await _apiClient.post(_baseTickets, data: formData);
     final result = response['data'];
     if (result is! Map<String, dynamic>) {
       throw ApiException(
@@ -117,7 +119,7 @@ class SupportTicketService {
     String? filePath,
   }) async {
     final formData = await _buildMultipart(data.toJson(), filePath);
-    final response = await _apiClient.patch('/tickets/$id', data: formData);
+    final response = await _apiClient.patch('$_baseTickets/$id', data: formData);
     final result = response['data'];
     if (result is! Map<String, dynamic>) {
       throw ApiException(
@@ -130,7 +132,7 @@ class SupportTicketService {
   }
 
   Future<SupportTicketResponse> close(int id) async {
-    final response = await _apiClient.patch('/tickets/$id/close');
+    final response = await _apiClient.patch('$_baseTickets/$id/close');
     final data = response['data'];
     if (data is! Map<String, dynamic>) {
       throw ApiException(
@@ -147,7 +149,7 @@ class SupportTicketService {
     bool satisfied,
   ) async {
     final response = await _apiClient.put(
-      '/tickets/$id/resolution-feedback',
+      '$_baseTickets/$id/resolution-feedback',
       data: {'satisfied': satisfied},
     );
     final data = response['data'];
@@ -162,7 +164,7 @@ class SupportTicketService {
   }
 
   Future<List<SupportTicketCommentResponse>> getComments(int id) async {
-    final response = await _apiClient.get('/tickets/$id/comments');
+    final response = await _apiClient.get('$_baseTickets/$id/comments');
     final data = response['data'] as List<dynamic>? ?? const [];
     return data
         .map((e) =>
@@ -177,7 +179,7 @@ class SupportTicketService {
   }) async {
     final formData = await _buildMultipart({'content': content}, filePath);
     final response =
-        await _apiClient.post('/tickets/$id/comments', data: formData);
+        await _apiClient.post('$_baseTickets/$id/comments', data: formData);
     final data = response['data'];
     if (data is! Map<String, dynamic>) {
       throw ApiException(

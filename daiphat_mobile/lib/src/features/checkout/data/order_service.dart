@@ -5,12 +5,14 @@ import '../models/transaction_type.dart';
 import '../../profile/data/models/purchased_ticket.dart';
 
 class OrderService {
+  static const _baseOrders = '/orders';
+
   final ApiClient _apiClient;
 
   OrderService(this._apiClient);
 
   Future<List<EnumOption>> getOrderReceiveTypes() async {
-    final response = await _apiClient.get('/orders/receive-types');
+    final response = await _apiClient.get('$_baseOrders/receive-types');
     final data = response['data'];
     if (data is List) {
       return data
@@ -24,7 +26,7 @@ class OrderService {
     CreateOnlineOrderRequest request,
   ) async {
     final response = await _apiClient.post(
-      '/orders/online',
+      '$_baseOrders/online',
       data: request.toJson(),
     );
     final data = response['data'] as Map<String, dynamic>;
@@ -42,7 +44,7 @@ class OrderService {
       if (status != null && status.isNotEmpty) 'status': status,
     };
     final response = await _apiClient.get(
-      '/orders/my-orders',
+      '$_baseOrders/my-orders',
       queryParameters: params,
     );
     final data = response['data'] as Map<String, dynamic>;
@@ -50,20 +52,20 @@ class OrderService {
   }
 
   Future<OrderResponse> getMyOrderDetail(String id) async {
-    final response = await _apiClient.get('/orders/my-orders/$id');
+    final response = await _apiClient.get('$_baseOrders/my-orders/$id');
     final data = response['data'] as Map<String, dynamic>;
     return OrderResponse.fromJson(data);
   }
 
   Future<void> cancelOrder(String id) async {
-    await _apiClient.post('/orders/$id/cancel');
+    await _apiClient.post('$_baseOrders/$id/cancel');
   }
 
   Future<OrderRefundEligibilityResponse> getRefundEligibility(
     String orderId,
   ) async {
     final response = await _apiClient.get(
-      '/orders/my-orders/$orderId/refund-eligibility',
+      '$_baseOrders/my-orders/$orderId/refund-eligibility',
     );
     final data = response['data'] as Map<String, dynamic>;
     return OrderRefundEligibilityResponse.fromJson(data);
@@ -73,7 +75,7 @@ class OrderService {
     String id,
     CreateOrderRefundRequest request,
   ) async {
-    await _apiClient.post('/orders/$id/refund', data: request.toJson());
+    await _apiClient.post('$_baseOrders/$id/refund', data: request.toJson());
   }
 
   Future<PurchasedTicketsPageResponse> getMyTickets({
@@ -94,7 +96,7 @@ class OrderService {
         'ticketNumber': ticketNumber,
     };
     final response = await _apiClient.get(
-      '/orders/my-tickets',
+      '$_baseOrders/my-tickets',
       queryParameters: params,
     );
     final data = response['data'] as Map<String, dynamic>;

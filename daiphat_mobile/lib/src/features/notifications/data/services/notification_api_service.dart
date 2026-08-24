@@ -4,13 +4,15 @@ import 'package:daiphat_mobile/src/shared/network/page_response.dart';
 import '../models/notification_model.dart';
 
 class NotificationApiService {
+  static const _baseNotifications = '/notifications';
+
   final ApiClient _apiClient;
 
   NotificationApiService(this._apiClient);
 
   Future<PageResponse<NotificationModel>> getMyNotifications(int page, int limit) async {
     final response = await _apiClient.get(
-      '/notifications/me',
+      '$_baseNotifications/me',
       queryParameters: {'page': page, 'limit': limit},
     );
 
@@ -26,7 +28,7 @@ class NotificationApiService {
   }
 
   Future<void> markAsRead(int id) async {
-    final response = await _apiClient.patch('/notifications/$id/read');
+    final response = await _apiClient.patch('$_baseNotifications/$id/read');
     final apiResponse = ApiResponse<void>.fromJson(response, null);
     if (!apiResponse.isSuccess) {
       throw Exception(apiResponse.message);
@@ -34,7 +36,7 @@ class NotificationApiService {
   }
 
   Future<void> markAllAsRead() async {
-    final response = await _apiClient.patch('/notifications/read-all');
+    final response = await _apiClient.patch('$_baseNotifications/read-all');
     final apiResponse = ApiResponse<void>.fromJson(response, null);
     if (!apiResponse.isSuccess) {
       throw Exception(apiResponse.message);
@@ -42,7 +44,7 @@ class NotificationApiService {
   }
 
   Future<void> deleteReadNotification(int id) async {
-    final response = await _apiClient.delete('/notifications/$id');
+    final response = await _apiClient.delete('$_baseNotifications/$id');
     final apiResponse = ApiResponse<void>.fromJson(response, null);
     if (!apiResponse.isSuccess) {
       throw Exception(apiResponse.message);
@@ -50,7 +52,7 @@ class NotificationApiService {
   }
 
   Future<bool> isReferenceAvailable(int id) async {
-    final response = await _apiClient.get('/notifications/$id/reference');
+    final response = await _apiClient.get('$_baseNotifications/$id/reference');
     final data = response['data'];
     if (data is Map<String, dynamic>) {
       return data['available'] as bool? ?? false;
@@ -59,7 +61,7 @@ class NotificationApiService {
   }
 
   Future<void> deleteAllReadNotifications() async {
-    final response = await _apiClient.delete('/notifications/read-all');
+    final response = await _apiClient.delete('$_baseNotifications/read-all');
     final apiResponse = ApiResponse<void>.fromJson(response, null);
     if (!apiResponse.isSuccess) {
       throw Exception(apiResponse.message);
