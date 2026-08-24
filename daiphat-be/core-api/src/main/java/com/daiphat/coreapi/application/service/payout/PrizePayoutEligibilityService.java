@@ -247,6 +247,34 @@ public class PrizePayoutEligibilityService {
     }
 
     @Transactional(readOnly = true)
+    public List<OrderDetailEntity> resolveAllByPhone(String phone) {
+        if (phone == null || phone.isBlank()) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "Nhập số điện thoại.");
+        }
+        List<OrderDetailEntity> matches = orderDetailRepository.searchByPhone(phone.trim());
+        if (matches.isEmpty()) {
+            throw new DomainException(
+                    ErrorCode.ORDER_DETAIL_NOT_FOUND,
+                    "Không tìm thấy đơn hàng nào.");
+        }
+        return matches;
+    }
+
+    @Transactional(readOnly = true)
+    public List<OrderDetailEntity> resolveAllByEmail(String email) {
+        if (email == null || email.isBlank()) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "Nhập email.");
+        }
+        List<OrderDetailEntity> matches = orderDetailRepository.searchByEmail(email.trim());
+        if (matches.isEmpty()) {
+            throw new DomainException(
+                    ErrorCode.ORDER_DETAIL_NOT_FOUND,
+                    "Không tìm thấy đơn hàng nào.");
+        }
+        return matches;
+    }
+
+    @Transactional(readOnly = true)
     public PrizePayoutChannel resolveClaimChannel(
             OrderDetailEntity detail,
             LotteryTicketSerialEntity serial,

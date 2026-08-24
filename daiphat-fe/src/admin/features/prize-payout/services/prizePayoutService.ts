@@ -7,6 +7,7 @@ import type {
     CreateStaffPrizePayoutRequest,
     GetStaffPrizePayoutsParams,
     PrizePayoutBatchCreateResponse,
+    PrizePayoutCustomerSuggestion,
     PrizePayoutLookupResponse,
     PrizePayoutPreviewResponse,
     PrizePayoutRequestResponse,
@@ -80,12 +81,18 @@ export const prizePayoutAdminApi = {
     },
 
     lookup: async (params: {
-        orderCode?: string;
-        stationId?: number;
-        drawDate?: string;
-        serialNumber?: string;
+        phone?: string;
+        email?: string;
     }): Promise<ApiResponse<PrizePayoutLookupResponse>> => {
         const response = await apiApp.get(`${STAFF_BASE}/lookup`, { params });
+        return response.data;
+    },
+
+    searchCustomers: async (params: {
+        q: string;
+        limit?: number;
+    }): Promise<ApiResponse<PrizePayoutCustomerSuggestion[]>> => {
+        const response = await apiApp.get(`${STAFF_BASE}/lookup/suggestions`, { params });
         return response.data;
     },
 

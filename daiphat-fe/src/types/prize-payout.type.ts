@@ -167,6 +167,14 @@ export interface PrizePayoutLookupResponse {
     items: PrizePayoutLookupItem[];
 }
 
+export interface PrizePayoutCustomerSuggestion {
+    displayName: string;
+    phone?: string;
+    email?: string;
+    orderCount: number;
+    lastOrderDate?: string;
+}
+
 export interface PrizePayoutBatchCreateResponse {
     claims: PrizePayoutRequestResponse[];
     totalNetAmount: number;

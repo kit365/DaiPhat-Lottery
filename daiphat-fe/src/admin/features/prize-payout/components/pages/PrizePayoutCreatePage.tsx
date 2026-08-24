@@ -23,11 +23,14 @@ import {
     TableHead,
     TableRow,
     TextField,
+    ToggleButton,
+    ToggleButtonGroup,
     Typography,
 } from '@mui/material';
 import { Icon } from '@/admin/components/ui/AdminIcon';
 import dayjs from 'dayjs';
 import { useCreateStaffPrizePayoutBatch, usePrizePayoutCustomerBankAccounts, usePrizePayoutLookupStations } from '@/admin/features/prize-payout/hooks/usePrizePayoutManagement';
+import { useSearchPayoutCustomers } from '@/admin/features/prize-payout/hooks/useSearchPayoutCustomers';
 import { PageHeader } from '@/admin/components/ui/PageHeader';
 import { AdminDatePicker } from '@/admin/components/ui/AdminDatePicker';
 import { AdminStatusBadge } from '@/admin/components/ui/AdminStatusBadge';
@@ -37,6 +40,7 @@ import { prizePayoutAdminApi } from "@/admin/features/prize-payout/services/priz
 import { useAuthStore } from '@/stores/useAuthStore';
 import {
     formatPrizePayoutCurrency,
+    PrizePayoutCustomerSuggestion,
     PrizePayoutLookupItem,
     PrizePayoutPaymentMethod,
     PrizeRedemptionZone,
@@ -79,7 +83,7 @@ import {
     renderHighlightedNumber,
 } from '../PrizePayoutCreateSections';
 
-type LookupMode = 'ORDER' | 'TRIPLE';
+type LookupMode = 'PHONE' | 'EMAIL';
 
 const SIGNED_CONTRACT_ACCEPT = {
     'image/jpeg': ['.jpg', '.jpeg'],
@@ -131,6 +135,37 @@ const lookupPayoutStatusBadge = (item: PrizePayoutLookupItem) => {
     return null;
 };
 
+const getUrgencyBadge = (item: PrizePayoutLookupItem) => {
+    if (item.prizeStatus !== 'WON') {
+        return null;
+    }
+    const state = resolveLookupPayoutState(item);
+    if (state === 'PAID_OUT' || state === 'PAYOUT_PENDING') {
+        return null;
+    }
+    if (item.redemptionZone === 'PAST_CUSTOMER_URGENT') {
+        return {
+            label: item.daysRemainingToIssuer != null
+                ? `Hết hạn online - Còn ${item.daysRemainingToIssuer} ngày`
+                : 'Hết hạn online - KHẨN',
+            color: 'error' as const,
+        };
+    }
+    if (item.daysRemainingToIssuer != null && item.daysRemainingToIssuer <= 3) {
+        return {
+            label: `Còn ${item.daysRemainingToIssuer} ngày - KHẨN`,
+            color: 'error' as const,
+        };
+    }
+    if (item.daysRemainingToIssuer != null && item.daysRemainingToIssuer <= 7) {
+        return {
+            label: `Còn ${item.daysRemainingToIssuer} ngày`,
+            color: 'warning' as const,
+        };
+    }
+    return null;
+};
+
 export const PrizePayoutCreatePage = () => {
     const router = useAdminRouter();
     const createMutation = useCreateStaffPrizePayoutBatch();
@@ -140,18 +175,23 @@ export const PrizePayoutCreatePage = () => {
     const banks = banksData?.data || [];
 
     // Always open a blank create form when entering this page.
-    const [lookupMode, setLookupMode] = useState<LookupMode>('ORDER');
-    const [orderCode, setOrderCode] = useState('');
-    const [selectedStation, setSelectedStation] = useState<Station | null>(null);
-    const [drawDate, setDrawDate] = useState(dayjs().format('YYYY-MM-DD'));
-    const [serialNumber, setSerialNumber] = useState('');
+    const [lookupMode, setLookupMode] = useState<LookupMode>('PHONE');
+    const [searchInput, setSearchInput] = useState('');
+    const [searchMode, setSearchMode] = useState<'PHONE' | 'EMAIL'>('PHONE');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+    const [selectedSuggestion, setSelectedSuggestion] = useState<PrizePayoutCustomerSuggestion | null>(null);
 
-    const {
-        data: stationsForDrawDate = [],
-        isLoading: isLoadingStationsForDate,
-        isFetching: isFetchingStationsForDate,
-    } = usePrizePayoutLookupStations(drawDate, lookupMode === 'TRIPLE');
-    const stations = stationsForDrawDate;
+    // Debounce search input for autocomplete
+    useEffect(() => {
+        const timer = setTimeout(() => setDebouncedSearch(searchInput), 400);
+        return () => clearTimeout(timer);
+    }, [searchInput]);
+
+    // Customer suggestions for autocomplete
+    const { data: suggestions = [], isLoading: isLoadingSuggestions } = useSearchPayoutCustomers(
+        { q: debouncedSearch, limit: 20 },
+        { enabled: debouncedSearch.length >= 2 }
+    );
 
     const [lookupItems, setLookupItems] = useState<PrizePayoutLookupItem[]>([]);
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -370,22 +410,11 @@ export const PrizePayoutCreatePage = () => {
     }, []);
 
     useEffect(() => {
-        if (lookupMode !== 'TRIPLE' || !selectedStation) return;
-        const stillEligible = stationsForDrawDate.some((s) => s.id === selectedStation.id);
-        if (!stillEligible) {
-            setSelectedStation(null);
-        }
-    }, [lookupMode, selectedStation, stationsForDrawDate]);
-
-    useEffect(() => {
         if (!draftPersistReadyRef.current) return;
         // Keep a short-lived autosave only while staying on this page (refresh mid-flow).
         writePrizePayoutCreateDraft({
             lookupMode,
-            orderCode,
-            stationId: selectedStation?.id,
-            drawDate,
-            serialNumber,
+            searchInput,
             lookupItems,
             selectedIds,
             bankBin: selectedBank?.bin,
@@ -404,10 +433,7 @@ export const PrizePayoutCreatePage = () => {
         });
     }, [
         lookupMode,
-        orderCode,
-        selectedStation,
-        drawDate,
-        serialNumber,
+        searchInput,
         lookupItems,
         selectedIds,
         selectedBank,
@@ -442,11 +468,10 @@ export const PrizePayoutCreatePage = () => {
     };
 
     const resetEntireForm = () => {
-        setLookupMode('ORDER');
-        setOrderCode('');
-        setSelectedStation(null);
-        setDrawDate(dayjs().format('YYYY-MM-DD'));
-        setSerialNumber('');
+        setLookupMode('PHONE');
+        setSearchInput('');
+        setSelectedSuggestion(null);
+        setDebouncedSearch('');
         setLookupItems([]);
         setSelectedIds([]);
         resetFormSideEffects();
@@ -458,18 +483,35 @@ export const PrizePayoutCreatePage = () => {
         router.push(`/${prefixAdmin}/prize-payouts/list`);
     };
 
+    const applyCustomerNameFromLookup = (items: PrizePayoutLookupItem[]) => {
+        const first = items.find((i) => i.customerName || i.orderGuestName);
+        if (first?.customerName || first?.orderGuestName) {
+            const name = first.customerName || first.orderGuestName || '';
+            setRecipientFullName(name);
+            setAccountHolderName(name.toUpperCase());
+        }
+        // If no customer name found, do NOT touch recipientFullName —
+        // staff may have already typed it manually for walk-in customers.
+    };
+
     const handleLookup = async () => {
+        // Use selected suggestion if available, otherwise use searchInput
+        const lookupValue = selectedSuggestion
+            ? (searchMode === 'PHONE' ? selectedSuggestion.phone : selectedSuggestion.email)
+            : searchInput.trim();
+
+        if (!lookupValue) {
+            toast.error(searchMode === 'PHONE' ? 'Nhập số điện thoại để tra cứu' : 'Nhập email để tra cứu');
+            return;
+        }
+
         setLoadingLookup(true);
         resetFormSideEffects();
         setSelectedIds([]);
         try {
-            const res = lookupMode === 'ORDER'
-                ? await prizePayoutAdminApi.lookup({ orderCode: orderCode.trim() || undefined })
-                : await prizePayoutAdminApi.lookup({
-                    stationId: selectedStation?.id,
-                    drawDate: drawDate || undefined,
-                    serialNumber: serialNumber.trim() || undefined,
-                });
+            const res = searchMode === 'PHONE'
+                ? await prizePayoutAdminApi.lookup({ phone: lookupValue })
+                : await prizePayoutAdminApi.lookup({ email: lookupValue });
             if (res.success && res.data?.items) {
                 setLookupItems(res.data.items);
                 const autoSelect = res.data.items
@@ -478,15 +520,10 @@ export const PrizePayoutCreatePage = () => {
                         return i.prizeStatus === 'WON' && state === 'NONE';
                     })
                     .map((i) => i.orderDetailId);
-                if (lookupMode === 'TRIPLE') {
-                    setSelectedIds(autoSelect);
-                }
-                const first = res.data.items.find((i) => i.customerName || i.orderGuestName);
-                if (first?.customerName || first?.orderGuestName) {
-                    const name = first.customerName || first.orderGuestName || '';
-                    setRecipientFullName(name);
-                    setAccountHolderName(name.toUpperCase());
-                }
+                setSelectedIds(autoSelect);
+                applyCustomerNameFromLookup(res.data.items);
+                // Keep search input visible after successful lookup
+                setSelectedSuggestion(null);
             } else {
                 toast.error(res.message || 'Không tìm thấy vé');
                 setLookupItems([]);
@@ -509,6 +546,25 @@ export const PrizePayoutCreatePage = () => {
                 ? prev.filter((id) => id !== item.orderDetailId)
                 : [...prev, item.orderDetailId]
         );
+    };
+
+    const selectableItems = useMemo(
+        () => lookupItems.filter((item) => {
+            const payoutState = resolveLookupPayoutState(item);
+            const lockedByPayout = payoutState === 'PAYOUT_PENDING' || payoutState === 'PAID_OUT';
+            return item.prizeStatus === 'WON' && !lockedByPayout;
+        }),
+        [lookupItems]
+    );
+
+    const allSelected = selectableItems.length > 0 && selectableItems.every((item) => selectedIds.includes(item.orderDetailId));
+
+    const toggleSelectAll = () => {
+        if (allSelected) {
+            setSelectedIds([]);
+        } else {
+            setSelectedIds(selectableItems.map((item) => item.orderDetailId));
+        }
     };
 
     const validateCreateInputs = (): boolean => {
@@ -621,9 +677,7 @@ export const PrizePayoutCreatePage = () => {
         setCompleteConfirmOpen(true);
     };
 
-    const lookupReady = lookupMode === 'ORDER'
-        ? !!orderCode.trim()
-        : !!(selectedStation && drawDate && serialNumber.trim());
+    const lookupReady = !!selectedSuggestion || !!searchInput.trim();
 
     const anyUploading = uploadingTransferEvidence || uploadingIdFront || uploadingIdBack || uploadingContract;
 
@@ -717,95 +771,99 @@ export const PrizePayoutCreatePage = () => {
                         {/* Section 1: Search Card */}
                         <SectionCard title="1. Tra cứu vé số" icon="solar:magnifer-bold-duotone">
                             <Alert severity="info" sx={{ mb: 2, borderRadius: '10px' }}>
-                                Chỉ hỗ trợ vé đã bán qua hệ thống. Tra theo mã đơn (nhiều vé) hoặc theo ngày → đài → serial.
+                                Chỉ hỗ trợ vé đã bán qua hệ thống. Tra cứu bằng số điện thoại hoặc email của khách hàng.
                             </Alert>
 
-                            <RadioGroup
-                                row
-                                value={lookupMode}
-                                onChange={(e) => {
-                                    setLookupMode(e.target.value as LookupMode);
-                                    setLookupItems([]);
-                                    setSelectedIds([]);
+                            <ToggleButtonGroup
+                                value={searchMode}
+                                exclusive
+                                onChange={(_, value) => {
+                                    if (value) {
+                                        setSearchMode(value);
+                                        setSearchInput('');
+                                        setSelectedSuggestion(null);
+                                        setDebouncedSearch('');
+                                        setLookupItems([]);
+                                        setSelectedIds([]);
+                                    }
                                 }}
+                                size="small"
                                 sx={{ mb: 2 }}
                             >
-                                <FormControlLabel value="ORDER" control={<Radio size="small" />} label="Theo mã đơn hàng" />
-                                <FormControlLabel value="TRIPLE" control={<Radio size="small" />} label="Theo ngày / đài / serial" />
-                            </RadioGroup>
+                                <ToggleButton value="PHONE">Điện thoại</ToggleButton>
+                                <ToggleButton value="EMAIL">Email</ToggleButton>
+                            </ToggleButtonGroup>
 
-                            {lookupMode === 'ORDER' ? (
-                                <TextField
-                                    label="Mã đơn hàng *"
-                                    placeholder="Nhập mã đơn hàng..."
-                                    value={orderCode}
-                                    onChange={(e) => setOrderCode(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            void handleLookup();
+                            <Autocomplete
+                                freeSolo
+                                options={suggestions}
+                                loading={isLoadingSuggestions}
+                                value={selectedSuggestion}
+                                inputValue={searchInput}
+                                onInputChange={(_, value, reason) => {
+                                    setSearchInput(value);
+                                    if (reason === 'input') {
+                                        setSelectedSuggestion(null);
+                                    }
+                                }}
+                                onChange={(_, value) => {
+                                    if (!value || typeof value === 'string') {
+                                        setSelectedSuggestion(null);
+                                        return;
+                                    }
+                                    setSelectedSuggestion(value);
+                                    const searchValue = searchMode === 'PHONE' ? value.phone : value.email;
+                                    if (searchValue) {
+                                        setSearchInput(searchValue);
+                                        setDebouncedSearch(searchValue);
+                                    }
+                                }}
+                                getOptionLabel={(o) => {
+                                    if (typeof o === 'string') return o;
+                                    if (searchMode === 'EMAIL') {
+                                        return `${o.displayName} - ${o.email || ''}`;
+                                    }
+                                    return `${o.displayName} - ${o.phone || ''}`;
+                                }}
+                                noOptionsText={
+                                    debouncedSearch.length < 2
+                                        ? 'Nhập từ 2 ký tự để tìm...'
+                                        : 'Không tìm thấy'
+                                }
+                                renderInput={(params) => (
+                                    <TextField
+                                        {...params}
+                                        label={searchMode === 'PHONE' ? 'Số điện thoại' : 'Email'}
+                                        placeholder={
+                                            searchMode === 'PHONE'
+                                                ? 'Nhập số điện thoại khách hàng...'
+                                                : 'Nhập email khách hàng...'
                                         }
-                                    }}
-                                    fullWidth
-                                    size="small"
-                                    sx={{ mb: 2 }}
-                                />
-                            ) : (
-                                <Stack spacing={2} sx={{ mb: 2 }}>
-                                    <AdminDatePicker
-                                        label="Ngày mở thưởng *"
-                                        value={drawDate}
-                                        onChange={(value) => {
-                                            setDrawDate(value);
-                                            setSelectedStation(null);
-                                            setLookupItems([]);
-                                            setSelectedIds([]);
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                void handleLookup();
+                                            }
+                                        }}
+                                        size="small"
+                                        InputProps={{
+                                            ...params.InputProps,
+                                            endAdornment: (
+                                                <>
+                                                    {isLoadingSuggestions ? <CircularProgress size={16} /> : null}
+                                                </>
+                                            ),
                                         }}
                                     />
-                                    <Autocomplete
-                                        options={stations}
-                                        value={selectedStation}
-                                        onChange={(_, value) => setSelectedStation(value)}
-                                        getOptionLabel={(o) => o.name}
-                                        isOptionEqualToValue={(a, b) => a.id === b.id}
-                                        loading={isLoadingStationsForDate || isFetchingStationsForDate}
-                                        disabled={!drawDate || isLoadingStationsForDate}
-                                        noOptionsText={
-                                            !drawDate
-                                                ? 'Chọn ngày mở thưởng trước'
-                                                : isLoadingStationsForDate || isFetchingStationsForDate
-                                                    ? 'Đang tải đài…'
-                                                    : 'Không có đài mở thưởng ngày này'
-                                        }
-                                        renderInput={(params) => (
-                                            <TextField
-                                                {...params}
-                                                label="Đài phát hành *"
-                                                size="small"
-                                                helperText={
-                                                    drawDate && !isLoadingStationsForDate && stations.length === 0
-                                                        ? 'Không có đài nào mở thưởng trong ngày này'
-                                                        : 'Chỉ hiện đài có lịch mở thưởng đúng ngày đã chọn'
-                                                }
-                                            />
-                                        )}
-                                    />
-                                    <TextField
-                                        label="Số serial trên vé *"
-                                        value={serialNumber}
-                                        onChange={(e) => setSerialNumber(e.target.value)}
-                                        fullWidth
-                                        size="small"
-                                    />
-                                </Stack>
-                            )}
+                                )}
+                            />
 
                             <Button
                                 variant="contained"
                                 onClick={handleLookup}
                                 disabled={loadingLookup || !lookupReady}
                                 startIcon={loadingLookup ? <CircularProgress size={16} color="inherit" /> : <Icon icon="solar:magnifer-bold-duotone" />}
-                                sx={{ fontWeight: 700, textTransform: 'none', borderRadius: '8px', boxShadow: 'none' }}
+                                sx={{ fontWeight: 700, textTransform: 'none', borderRadius: '8px', boxShadow: 'none', mt: 2 }}
                             >
                                 {loadingLookup ? 'Đang tra cứu…' : 'Tra cứu vé số'}
                             </Button>
@@ -823,7 +881,15 @@ export const PrizePayoutCreatePage = () => {
                                                     '& .MuiTableCell-root': { fontWeight: 600 },
                                                 }}
                                             >
-                                                <TableCell padding="checkbox" />
+                                                <TableCell padding="checkbox">
+                                                    <Checkbox
+                                                        checked={allSelected}
+                                                        indeterminate={!allSelected && selectedIds.length > 0}
+                                                        onChange={toggleSelectAll}
+                                                        disabled={selectableItems.length === 0}
+                                                        size="small"
+                                                    />
+                                                </TableCell>
                                                 <TableCell>Serial</TableCell>
                                                 <TableCell>Số vé</TableCell>
                                                 <TableCell>KQ</TableCell>
@@ -836,7 +902,7 @@ export const PrizePayoutCreatePage = () => {
                                             </TableRow>
                                         </TableHead>
                                         <TableBody>
-                                            {lookupItems.map((item) => {
+                                            {lookupItems.filter((item) => item.prizeStatus === 'WON').map((item) => {
                                                 const payoutState = resolveLookupPayoutState(item);
                                                 const lockedByPayout = payoutState === 'PAYOUT_PENDING' || payoutState === 'PAID_OUT';
                                                 const selectable = item.prizeStatus === 'WON' && !lockedByPayout;
@@ -907,6 +973,19 @@ export const PrizePayoutCreatePage = () => {
                                                             ) : (
                                                                 <Typography variant="caption" color="text.disabled">—</Typography>
                                                             )}
+                                                            {(() => {
+                                                                const urgency = getUrgencyBadge(item);
+                                                                return urgency ? (
+                                                                    <Box sx={{ mt: 0.5 }}>
+                                                                        <Chip
+                                                                            label={urgency.label}
+                                                                            color={urgency.color}
+                                                                            size="small"
+                                                                            sx={{ fontSize: '0.7rem', height: 20 }}
+                                                                        />
+                                                                    </Box>
+                                                                ) : null;
+                                                            })()}
                                                         </TableCell>
                                                         <TableCell align="right" sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>
                                                             {formatPrizePayoutCurrency(item.grossAmount)}
