@@ -5,13 +5,15 @@ import 'package:daiphat_mobile/src/shared/network/api_response.dart';
 import 'models/fortune_cast_result.dart';
 
 class FortuneCastService {
+  static const _baseFortuneCast = '/fortune/cast';
+
   FortuneCastService(this._apiClient);
 
   final ApiClient _apiClient;
 
   Future<FortuneCastResult> cast(CastFortunePayload payload) async {
     final response = await _apiClient.post(
-      '/fortune/cast',
+      _baseFortuneCast,
       data: payload.toJson(),
     );
     final apiResponse = ApiResponse<FortuneCastResult>.fromJson(
@@ -29,7 +31,7 @@ class FortuneCastService {
   }
 
   Future<FortuneCastResult?> getToday() async {
-    final response = await _apiClient.get('/fortune/cast/today');
+    final response = await _apiClient.get('$_baseFortuneCast/today');
     final data = response['data'];
     if (data is! Map<String, dynamic>) return null;
     return FortuneCastResult.fromJson(data);

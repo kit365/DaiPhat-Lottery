@@ -5,6 +5,8 @@ import 'package:daiphat_mobile/src/shared/network/page_response.dart';
 import '../models/lottery_ticket.dart';
 
 class LotteryTicketApiService {
+  static const _baseLotteryTickets = '/lottery-tickets';
+
   LotteryTicketApiService(this._apiClient);
 
   final ApiClient _apiClient;
@@ -56,7 +58,7 @@ class LotteryTicketApiService {
     }
 
     final response = await _apiClient.get(
-      '/lottery-tickets/public',
+      '$_baseLotteryTickets/public',
       queryParameters: queryParameters,
       includeAuth: false,
     );
@@ -73,7 +75,7 @@ class LotteryTicketApiService {
       throw ApiException(
         apiResponse.message.isNotEmpty
             ? apiResponse.message
-            : 'Khong the tai danh sach ve so.',
+            : 'Không thể tải danh sách vé số.',
       );
     }
 
@@ -81,7 +83,7 @@ class LotteryTicketApiService {
   }
 
   Future<LotteryTicket> getLotteryTicketDetail(int id) async {
-    final response = await _apiClient.get('/lottery-tickets/$id');
+    final response = await _apiClient.get('$_baseLotteryTickets/$id');
 
     final apiResponse = ApiResponse<LotteryTicket>.fromJson(
       response,
@@ -92,7 +94,7 @@ class LotteryTicketApiService {
       throw ApiException(
         apiResponse.message.isNotEmpty
             ? apiResponse.message
-            : 'Khong the tai chi tiet ve so.',
+            : 'Không thể tải chi tiết vé số.',
       );
     }
 

@@ -66,6 +66,8 @@ class PrizePayoutRequestResult {
 }
 
 class PrizePayoutService {
+  static const _basePrizePayoutRequests = '/prize-payout-requests';
+
   final ApiClient _apiClient;
 
   PrizePayoutService(this._apiClient);
@@ -81,7 +83,7 @@ class PrizePayoutService {
     }
 
     final response = await _apiClient.get(
-      '/prize-payout-requests/preview',
+      '$_basePrizePayoutRequests/preview',
       queryParameters: {
         'orderDetailId': ?orderDetailId,
         'serialId': ?serialId,
@@ -114,7 +116,7 @@ class PrizePayoutService {
     }
 
     final response = await _apiClient.post(
-      '/prize-payout-requests',
+      _basePrizePayoutRequests,
       data: {
         'orderDetailId': ?orderDetailId,
         'serialId': ?serialId,
@@ -145,7 +147,7 @@ class PrizePayoutService {
     String? search,
   }) async {
     final response = await _apiClient.get(
-      '/prize-payout-requests/my',
+      '$_basePrizePayoutRequests/my',
       queryParameters: {
         'page': page,
         'limit': limit,
@@ -166,7 +168,7 @@ class PrizePayoutService {
   }
 
   Future<PrizePayoutRequestResponse> getById(int id) async {
-    final response = await _apiClient.get('/prize-payout-requests/$id');
+    final response = await _apiClient.get('$_basePrizePayoutRequests/$id');
     final data = response['data'];
     if (data is! Map<String, dynamic>) {
       throw ApiException(
@@ -179,7 +181,7 @@ class PrizePayoutService {
   }
 
   Future<PrizePayoutRequestResponse> cancel(int id) async {
-    final response = await _apiClient.patch('/prize-payout-requests/$id/cancel');
+    final response = await _apiClient.patch('$_basePrizePayoutRequests/$id/cancel');
     final data = response['data'];
     if (data is! Map<String, dynamic>) {
       throw ApiException(

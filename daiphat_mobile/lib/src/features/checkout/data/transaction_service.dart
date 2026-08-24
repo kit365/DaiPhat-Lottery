@@ -2,12 +2,14 @@ import 'package:daiphat_mobile/src/shared/network/api_client.dart';
 import '../models/transaction_type.dart';
 
 class TransactionService {
+  static const _baseTransactions = '/transactions';
+
   final ApiClient _apiClient;
 
   TransactionService(this._apiClient);
 
   Future<List<EnumOption>> getTransactionTypes() async {
-    final response = await _apiClient.get('/transactions/types');
+    final response = await _apiClient.get('$_baseTransactions/types');
     final data = response['data'];
     if (data is List) {
       return data
@@ -22,7 +24,7 @@ class TransactionService {
     required ProcessPaymentRequest request,
   }) async {
     final response = await _apiClient.post(
-      '/transactions/$orderId/payment',
+      '$_baseTransactions/$orderId/payment',
       data: request.toJson(),
     );
     final data = response['data'] as Map<String, dynamic>;
@@ -33,7 +35,7 @@ class TransactionService {
     String orderId,
   ) async {
     final response = await _apiClient.get(
-      '/transactions/$orderId/payment/countdown',
+      '$_baseTransactions/$orderId/payment/countdown',
     );
     final data = response['data'] as Map<String, dynamic>;
     return PendingPaymentCountdownResult.fromJson(data);

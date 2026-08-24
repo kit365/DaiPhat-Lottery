@@ -2,12 +2,14 @@ import 'package:daiphat_mobile/src/features/checkout/models/refund_type.dart';
 import 'package:daiphat_mobile/src/shared/network/api_client.dart';
 
 class BankAccountService {
+  static const _baseBankAccounts = '/users/me/bank-accounts';
+
   final ApiClient _apiClient;
 
   BankAccountService(this._apiClient);
 
   Future<List<UserBankAccountResponse>> getMyAccounts() async {
-    final response = await _apiClient.get('/users/me/bank-accounts');
+    final response = await _apiClient.get(_baseBankAccounts);
     final data = response['data'] as List<dynamic>? ?? const [];
     return data
         .map(
@@ -28,7 +30,7 @@ class BankAccountService {
     CreateUserBankAccountRequest request,
   ) async {
     final response = await _apiClient.post(
-      '/users/me/bank-accounts',
+      _baseBankAccounts,
       data: request.toJson(),
     );
     final data = response['data'] as Map<String, dynamic>;
@@ -40,7 +42,7 @@ class BankAccountService {
     CreateUserBankAccountRequest request,
   ) async {
     final response = await _apiClient.put(
-      '/users/me/bank-accounts/$id',
+      '$_baseBankAccounts/$id',
       data: request.toJson(),
     );
     final data = response['data'] as Map<String, dynamic>;
@@ -48,12 +50,12 @@ class BankAccountService {
   }
 
   Future<void> deleteAccount(int id) async {
-    await _apiClient.delete('/users/me/bank-accounts/$id');
+    await _apiClient.delete('$_baseBankAccounts/$id');
   }
 
   Future<UserBankAccountResponse> setDefaultAccount(int id) async {
     final response = await _apiClient.patch(
-      '/users/me/bank-accounts/$id/default',
+      '$_baseBankAccounts/$id/default',
     );
     final data = response['data'] as Map<String, dynamic>;
     return UserBankAccountResponse.fromJson(data);
