@@ -27,5 +27,7 @@ class ScanMetadata(BaseModel):
     activeStations: list[StationMetadata] = Field(default_factory=list)
     maxTickets: int | None = None
     # Detector strategy override, e.g. "contour" (MVP, default) or a future
-    # "yolov8". See domain/detection/factory.py.
+    # "yolov8". See domain/detection/factory.py. Used only when recognitionEngine=legacy.
     detectorStrategy: str | None = None
+    # Recognition engine: "gemini" (default), "grok", or "legacy" (OpenCV/YOLO + OCR).
+    recognitionEngine: str | None = None

@@ -83,10 +83,12 @@ def test_non_iso_draw_date_is_an_error():
         stationName="Cần Thơ",
         serialNumber="A012345",
         numbers="123456",
-        drawDate="05/08/2026",  # not ISO -- parser should have converted this already
+        drawDate="05/08/2026",  # not ISO -- should be cleared to avoid Java binding failures
     )
 
     result = validator.validate(extracted)
 
     assert not result.is_valid
+    assert "drawDate" in result.missing_fields
     assert any("drawDate" in error for error in result.errors)
+    assert extracted.drawDate is None

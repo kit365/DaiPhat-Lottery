@@ -203,11 +203,15 @@ def enhance_contrast(gray_image: np.ndarray) -> np.ndarray:
     return clahe.apply(gray_image)
 
 
-def encode_to_base64_jpeg(image: np.ndarray, quality: int = 85) -> str:
+def encode_to_jpeg_bytes(image: np.ndarray, quality: int = 85) -> bytes:
     ok, buffer = cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, quality])
     if not ok:
         raise InvalidImageError("Không thể mã hóa ảnh vé đã xử lý.")
-    return base64.b64encode(buffer.tobytes()).decode("ascii")
+    return buffer.tobytes()
+
+
+def encode_to_base64_jpeg(image: np.ndarray, quality: int = 85) -> str:
+    return base64.b64encode(encode_to_jpeg_bytes(image, quality)).decode("ascii")
 
 
 class ProcessedTicketCrop:
