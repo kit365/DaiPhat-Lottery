@@ -38,6 +38,7 @@ public interface LotteryScanLogServicePort {
             int size,
             ScanEventType eventType,
             Long lotteryTicketSerialId,
+            Long ocrScanResultId,
             UUID scannedBy,
             LocalDate scannedAtFrom,
             LocalDate scannedAtTo,

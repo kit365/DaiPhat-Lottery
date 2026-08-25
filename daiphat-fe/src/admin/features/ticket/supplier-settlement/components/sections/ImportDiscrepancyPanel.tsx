@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, Fragment } from 'react';
 import {
     Alert,
     Box,
@@ -73,6 +73,7 @@ interface ImportDiscrepancyPanelProps {
     submitting?: boolean;
     direction: 'POSITIVE' | 'NEGATIVE';
     difference?: number;
+    onDirtyChange?: (isDirty: boolean) => void;
     onResolve: (payload: {
         serialIds?: number[];
         ticketCondition?: 'DAMAGED' | 'LOST' | 'VOIDED' | 'UNDER_IMPORTED' | null;
@@ -81,17 +82,30 @@ interface ImportDiscrepancyPanelProps {
         note?: string;
         markResolved: boolean;
         missingPlaceholders?: Array<{
-            lotteryStationId: number;
+            lotteryStationId: number | null;
             quantity: number;
             ticketCondition?: 'DAMAGED' | 'LOST' | 'VOIDED' | 'UNDER_IMPORTED';
+            numbers?: string;
+            serialNumber?: string;
+            evidenceUrl?: string;
         }>;
         excessTickets?: Array<{ lotteryStationId: number; numbers: string; serialNumber: string }>;
         damagedEvidenceUrl?: string | null;
     }) => void;
 }
 
+type TicketSerialInput = {
+    serialNumber: string;
+    evidenceUrl: string;
+    condition: 'UNDER_IMPORTED' | 'DAMAGED';
+};
+
+type TicketGroup = { 
+    numbers: string; 
+    serials: TicketSerialInput[]; 
+};
+
 type MissingTicketCondition = 'UNDER_IMPORTED' | 'DAMAGED' | 'LOST';
-type StationSplitQty = { underImported: string; damaged: string; lost: string };
 type AllocationStation = {
     lotteryStationId: number;
     lotteryStationName?: string | null;
@@ -100,7 +114,6 @@ type AllocationStation = {
     extra?: boolean;
 };
 
-const EMPTY_SPLIT: StationSplitQty = { underImported: '', damaged: '', lost: '' };
 
 const parseSplitQty = (raw?: string): number => {
     const n = Number(String(raw || '').replace(/\D/g, ''));
@@ -134,6 +147,7 @@ export const ImportDiscrepancyPanel = ({
     direction,
     difference,
     onResolve,
+    onDirtyChange,
 }: ImportDiscrepancyPanelProps) => {
     // The difference is actual − system. A negative value means the system has
     // recorded more imported tickets than were actually received.
@@ -151,7 +165,8 @@ export const ImportDiscrepancyPanel = ({
     const [note, setNote] = useState('');
 
     // Missing placeholders: per-station qty split by condition
-    const [missingSplitByStation, setMissingSplitByStation] = useState<Record<number, StationSplitQty>>({});
+    const [globalLostQty, setGlobalLostQty] = useState<string>('');
+    const [ticketDetails, setTicketDetails] = useState<Record<number, TicketGroup[]>>({});
     const [extraStations, setExtraStations] = useState<AllocationStation[]>([]);
     const [stationToAdd, setStationToAdd] = useState<number | ''>('');
     const [missingEvidenceUrl, setMissingEvidenceUrl] = useState('');
@@ -184,21 +199,7 @@ export const ImportDiscrepancyPanel = ({
         [stationsForDrawDate, allocationStations]
     );
 
-    useEffect(() => {
-        setMissingSplitByStation((prev) => {
-            const next: Record<number, StationSplitQty> = {};
-            let changed = Object.keys(prev).length !== allocationStations.length;
-            allocationStations.forEach((s) => {
-                if (prev[s.lotteryStationId]) {
-                    next[s.lotteryStationId] = prev[s.lotteryStationId];
-                } else {
-                    next[s.lotteryStationId] = { ...EMPTY_SPLIT };
-                    changed = true;
-                }
-            });
-            return changed ? next : prev;
-        });
-    }, [allocationStations]);
+
 
     useEffect(() => {
         setExtraStations((prev) => {
@@ -358,24 +359,32 @@ export const ImportDiscrepancyPanel = ({
     };
 
     const missingPlaceholders = useMemo(() => {
-        const rows: Array<{ lotteryStationId: number; quantity: number; ticketCondition: MissingTicketCondition }> = [];
+        const rows: Array<{ lotteryStationId: number | null; quantity: number; ticketCondition: MissingTicketCondition; numbers?: string; serialNumber?: string; evidenceUrl?: string }> = [];
         allocationStations.forEach((s) => {
-            const split = missingSplitByStation[s.lotteryStationId] || EMPTY_SPLIT;
-            const underImported = parseSplitQty(split.underImported);
-            const damaged = parseSplitQty(split.damaged);
-            const lost = parseSplitQty(split.lost);
-            if (underImported > 0) {
-                rows.push({ lotteryStationId: s.lotteryStationId, quantity: underImported, ticketCondition: 'UNDER_IMPORTED' });
-            }
-            if (damaged > 0) {
-                rows.push({ lotteryStationId: s.lotteryStationId, quantity: damaged, ticketCondition: 'DAMAGED' });
-            }
-            if (lost > 0) {
-                rows.push({ lotteryStationId: s.lotteryStationId, quantity: lost, ticketCondition: 'LOST' });
+            const groups = ticketDetails[s.lotteryStationId] || [];
+            if (groups.length > 0) {
+                groups.forEach((group) => {
+                    group.serials.forEach((serial) => {
+                        rows.push({
+                            lotteryStationId: s.lotteryStationId,
+                            quantity: 1,
+                            ticketCondition: serial.condition,
+                            numbers: group.numbers,
+                            serialNumber: serial.serialNumber,
+                            evidenceUrl: serial.evidenceUrl,
+                        });
+                    });
+                });
             }
         });
+
+        const globalLost = parseSplitQty(globalLostQty);
+        if (globalLost > 0) {
+            rows.push({ lotteryStationId: null, quantity: globalLost, ticketCondition: 'LOST' });
+        }
+
         return rows;
-    }, [allocationStations, missingSplitByStation]);
+    }, [allocationStations, ticketDetails, globalLostQty]);
 
     const missingQtyByCondition = useMemo(() => {
         const totals = { underImported: 0, damaged: 0, lost: 0 };
@@ -391,13 +400,32 @@ export const ImportDiscrepancyPanel = ({
         () => missingPlaceholders.reduce((sum, row) => sum + row.quantity, 0),
         [missingPlaceholders]
     );
+
+    useEffect(() => {
+        onDirtyChange?.(missingQtyEntered > 0);
+    }, [missingQtyEntered, onDirtyChange]);
+
     const missingQtyRemaining = totalDiff - missingQtyEntered;
     const isMissingQtyExact = totalDiff > 0 && missingQtyEntered === totalDiff;
     const needsMissingEvidence = missingQtyByCondition.damaged > 0;
-    const isValidMissing =
-        isMissingQtyExact
-        && missingPlaceholders.length > 0
-        && (!needsMissingEvidence || Boolean(missingEvidenceUrl.trim()));
+    
+    const isValidMissing = useMemo(() => {
+        if (!isMissingQtyExact || missingPlaceholders.length === 0) return false;
+        if (needsMissingEvidence && !missingEvidenceUrl.trim()) return false;
+        
+        for (const stationId of Object.keys(ticketDetails)) {
+            const groups = ticketDetails[Number(stationId)];
+            if (!groups) continue;
+            for (const group of groups) {
+                if (!group.numbers.trim()) return false;
+                for (const serial of group.serials) {
+                    if (!serial.serialNumber.trim()) return false;
+                    if (!serial.evidenceUrl.trim()) return false;
+                }
+            }
+        }
+        return true;
+    }, [isMissingQtyExact, missingPlaceholders.length, needsMissingEvidence, missingEvidenceUrl, ticketDetails]);
 
     const handleMissingEvidenceUpload = async (file?: File | null) => {
         if (!file) return;
@@ -413,20 +441,7 @@ export const ImportDiscrepancyPanel = ({
         }
     };
 
-    const setMissingStationQty = (
-        stationId: number,
-        field: keyof StationSplitQty,
-        raw: string
-    ) => {
-        const digits = raw.replace(/\D/g, '');
-        setMissingSplitByStation((prev) => ({
-            ...prev,
-            [stationId]: {
-                ...(prev[stationId] || EMPTY_SPLIT),
-                [field]: digits,
-            },
-        }));
-    };
+
 
     const handleAddStation = () => {
         const id = Number(stationToAdd);
@@ -451,11 +466,6 @@ export const ImportDiscrepancyPanel = ({
 
     const handleRemoveExtraStation = (stationId: number) => {
         setExtraStations((prev) => prev.filter((s) => s.lotteryStationId !== stationId));
-        setMissingSplitByStation((prev) => {
-            const next = { ...prev };
-            delete next[stationId];
-            return next;
-        });
     };
 
     const tabSx = {
@@ -860,83 +870,236 @@ export const ImportDiscrepancyPanel = ({
                                             <TableCell>NHÀ ĐÀI</TableCell>
                                             <TableCell align="right">SL HỆ THỐNG</TableCell>
                                             <TableCell align="right">TỒN KHO</TableCell>
-                                            <TableCell align="right">NHẬP THIẾU</TableCell>
-                                            <TableCell align="right">HƯ HỎNG / RÁCH</TableCell>
-                                            <TableCell align="right">THẤT THOÁT</TableCell>
+                                            <TableCell align="right">CHI TIẾT VÉ</TableCell>
                                             <TableCell align="right">TỔNG BỔ SUNG</TableCell>
                                             <TableCell sx={{ width: 48 }} />
                                         </TableRow>
                                     </TableHead>
                                     <TableBody>
                                         {allocationStations.map((s) => {
-                                            const split = missingSplitByStation[s.lotteryStationId] || EMPTY_SPLIT;
-                                            const underImported = parseSplitQty(split.underImported);
-                                            const damaged = parseSplitQty(split.damaged);
-                                            const lost = parseSplitQty(split.lost);
-                                            const rowTotal = underImported + damaged + lost;
+                                            const groups = ticketDetails[s.lotteryStationId] || [];
+                                            const totalSerials = groups.reduce((acc, g) => acc + g.serials.length, 0);
+                                            const rowTotal = totalSerials;
                                             const hasVal = rowTotal > 0;
-                                            const qtyField = (field: keyof StationSplitQty, value: string, color: string) => (
-                                                <TextField
-                                                    size="small"
-                                                    value={value}
-                                                    onChange={(e) => setMissingStationQty(s.lotteryStationId, field, e.target.value)}
-                                                    placeholder="0"
-                                                    slotProps={{
-                                                        htmlInput: {
-                                                            inputMode: 'numeric',
-                                                            style: {
-                                                                textAlign: 'right',
-                                                                fontWeight: 800,
-                                                                color: parseSplitQty(value) > 0 ? color : '#0f172a',
-                                                            },
-                                                        },
-                                                    }}
-                                                    sx={{
-                                                        width: 92,
-                                                        '& .MuiOutlinedInput-root': {
-                                                            borderRadius: '8px',
-                                                            bgcolor: '#ffffff',
-                                                        },
-                                                    }}
-                                                />
-                                            );
+                                            const canAddMore = missingQtyEntered < totalDiff;
+                                            
                                             return (
-                                                <TableRow key={s.lotteryStationId} hover sx={{ bgcolor: hasVal ? '#fffbf5' : 'inherit' }}>
-                                                    <TableCell>
-                                                        <Typography variant="body2" fontWeight={700} color="#0f172a">
-                                                            {s.lotteryStationName || `Đài #${s.lotteryStationId}`}
-                                                        </Typography>
-                                                    </TableCell>
-                                                    <TableCell align="right">
-                                                        <Typography variant="body2" fontWeight={600} color="#334155">
-                                                            {(s.importedQuantity ?? 0).toLocaleString('vi-VN')}
-                                                        </Typography>
-                                                    </TableCell>
-                                                    <TableCell align="right">
-                                                        <Typography variant="body2" fontWeight={600} color="#64748b">
-                                                            {(s.remainingQuantity ?? 0).toLocaleString('vi-VN')}
-                                                        </Typography>
-                                                    </TableCell>
-                                                    <TableCell align="right">{qtyField('underImported', split.underImported, '#2563eb')}</TableCell>
-                                                    <TableCell align="right">{qtyField('damaged', split.damaged, '#c2410c')}</TableCell>
-                                                    <TableCell align="right">{qtyField('lost', split.lost, '#dc2626')}</TableCell>
-                                                    <TableCell align="right">
-                                                        <Typography variant="body2" fontWeight={800} color={hasVal ? '#dc2626' : '#64748b'}>
-                                                            {rowTotal.toLocaleString('vi-VN')}
-                                                        </Typography>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {s.extra ? (
-                                                            <IconButton
+                                                <React.Fragment key={s.lotteryStationId}>
+                                                    <TableRow hover sx={{ bgcolor: hasVal ? '#fffbf5' : 'inherit' }}>
+                                                        <TableCell>
+                                                            <Typography variant="body2" fontWeight={700} color="#0f172a">
+                                                                {s.lotteryStationName || `Đài #${s.lotteryStationId}`}
+                                                            </Typography>
+                                                        </TableCell>
+                                                        <TableCell align="right">
+                                                            <Typography variant="body2" fontWeight={600} color="#334155">
+                                                                {(s.importedQuantity ?? 0).toLocaleString('vi-VN')}
+                                                            </Typography>
+                                                        </TableCell>
+                                                        <TableCell align="right">
+                                                            <Typography variant="body2" fontWeight={600} color="#64748b">
+                                                                {(s.remainingQuantity ?? 0).toLocaleString('vi-VN')}
+                                                            </Typography>
+                                                        </TableCell>
+                                                        <TableCell align="right">
+                                                            <Button
+                                                                variant="outlined"
                                                                 size="small"
-                                                                aria-label="Gỡ đài"
-                                                                onClick={() => handleRemoveExtraStation(s.lotteryStationId)}
+                                                                disabled={!canAddMore}
+                                                                onClick={() => {
+                                                                    setTicketDetails(prev => {
+                                                                        const next = JSON.parse(JSON.stringify(prev));
+                                                                        if (!next[s.lotteryStationId]) next[s.lotteryStationId] = [];
+                                                                        next[s.lotteryStationId].push({ numbers: '', serials: [{ serialNumber: '', evidenceUrl: '', condition: 'UNDER_IMPORTED' }] });
+                                                                        return next;
+                                                                    });
+                                                                }}
+                                                                sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
                                                             >
-                                                                <CloseIcon fontSize="small" />
-                                                            </IconButton>
-                                                        ) : null}
-                                                    </TableCell>
-                                                </TableRow>
+                                                                + Thêm vé
+                                                            </Button>
+                                                        </TableCell>
+                                                        <TableCell align="right">
+                                                            <Typography variant="body2" fontWeight={800} color={hasVal ? '#dc2626' : '#64748b'}>
+                                                                {rowTotal.toLocaleString('vi-VN')}
+                                                            </Typography>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            {s.extra ? (
+                                                                <IconButton
+                                                                    size="small"
+                                                                    aria-label="Gỡ đài"
+                                                                    onClick={() => handleRemoveExtraStation(s.lotteryStationId)}
+                                                                >
+                                                                    <CloseIcon fontSize="small" />
+                                                                </IconButton>
+                                                            ) : null}
+                                                        </TableCell>
+                                                    </TableRow>
+                                                    
+                                                    {groups.length > 0 && (
+                                                        <TableRow>
+                                                            <TableCell colSpan={6} sx={{ py: 2, px: 3, bgcolor: '#f8fafc' }}>
+                                                                <Box sx={{ p: 2, borderRadius: '12px', border: `1px solid #e2e8f0`, bgcolor: '#ffffff' }}>
+                                                                    <Typography variant="subtitle2" sx={{ color: '#0f172a', mb: 2, fontWeight: 700 }}>
+                                                                        Chi tiết vé (Tổng {totalSerials} vé)
+                                                                    </Typography>
+                                                                    
+                                                                    {groups.map((group, groupIdx) => (
+                                                                        <Paper key={groupIdx} variant="outlined" sx={{ p: 2, mb: 2, borderRadius: '8px', borderColor: '#e2e8f0' }}>
+                                                                            <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
+                                                                                <TextField
+                                                                                    size="small"
+                                                                                    label="Dãy số"
+                                                                                    value={group.numbers}
+                                                                                    onChange={(e) => {
+                                                                                        setTicketDetails((prev) => {
+                                                                                            const next = JSON.parse(JSON.stringify(prev));
+                                                                                            next[s.lotteryStationId][groupIdx].numbers = e.target.value;
+                                                                                            return next;
+                                                                                        });
+                                                                                    }}
+                                                                                    sx={{ flex: 1, '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+                                                                                />
+                                                                                <IconButton
+                                                                                    color="error"
+                                                                                    onClick={() => {
+                                                                                        setTicketDetails((prev) => {
+                                                                                            const next = JSON.parse(JSON.stringify(prev));
+                                                                                            next[s.lotteryStationId].splice(groupIdx, 1);
+                                                                                            return next;
+                                                                                        });
+                                                                                    }}
+                                                                                >
+                                                                                    <CloseIcon />
+                                                                                </IconButton>
+                                                                            </Stack>
+                                                                            
+                                                                            {group.serials.map((serial, serialIdx) => (
+                                                                                <Stack key={serialIdx} direction="row" spacing={2} alignItems="center" sx={{ pl: { xs: 0, sm: 4 }, mb: 1.5 }}>
+                                                                                    <TextField
+                                                                                        size="small"
+                                                                                        label="Sê-ri"
+                                                                                        value={serial.serialNumber}
+                                                                                        onChange={(e) => {
+                                                                                            setTicketDetails((prev) => {
+                                                                                                const next = JSON.parse(JSON.stringify(prev));
+                                                                                                next[s.lotteryStationId][groupIdx].serials[serialIdx].serialNumber = e.target.value;
+                                                                                                return next;
+                                                                                            });
+                                                                                        }}
+                                                                                        sx={{ flex: 1, '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+                                                                                    />
+                                                                                    <FormControl size="small" sx={{ flex: 1 }}>
+                                                                                        <InputLabel>Tình trạng vé</InputLabel>
+                                                                                        <Select
+                                                                                            label="Tình trạng vé"
+                                                                                            value={serial.condition}
+                                                                                            onChange={(e) => {
+                                                                                                setTicketDetails((prev) => {
+                                                                                                    const next = JSON.parse(JSON.stringify(prev));
+                                                                                                    next[s.lotteryStationId][groupIdx].serials[serialIdx].condition = e.target.value;
+                                                                                                    return next;
+                                                                                                });
+                                                                                            }}
+                                                                                            sx={{ borderRadius: '8px', bgcolor: '#ffffff' }}
+                                                                                        >
+                                                                                            <MenuItem value="UNDER_IMPORTED">Nhập thiếu</MenuItem>
+                                                                                            <MenuItem value="DAMAGED">Hư hỏng / rách</MenuItem>
+                                                                                        </Select>
+                                                                                    </FormControl>
+                                                                                    <Button
+                                                                                        variant={serial.evidenceUrl ? 'outlined' : 'contained'}
+                                                                                        color={serial.evidenceUrl ? 'success' : 'primary'}
+                                                                                        component="label"
+                                                                                        disabled={uploadingEvidence}
+                                                                                        sx={{ flex: 1, minHeight: 40, borderRadius: '8px', textTransform: 'none', boxShadow: 'none' }}
+                                                                                    >
+                                                                                        {serial.evidenceUrl ? 'Đã tải ảnh' : 'Tải ảnh minh chứng'}
+                                                                                        <input
+                                                                                            type="file"
+                                                                                            hidden
+                                                                                            accept="image/*"
+                                                                                            capture="environment"
+                                                                                            onChange={async (e) => {
+                                                                                                const file = e.target.files?.[0];
+                                                                                                if (!file) return;
+                                                                                                try {
+                                                                                                    setUploadingEvidence(true);
+                                                                                                    const url = await uploadAdminImage(file);
+                                                                                                    setTicketDetails((prev) => {
+                                                                                                        const next = JSON.parse(JSON.stringify(prev));
+                                                                                                        next[s.lotteryStationId][groupIdx].serials[serialIdx].evidenceUrl = url;
+                                                                                                        return next;
+                                                                                                    });
+                                                                                                    AppToast.success('Đã tải ảnh minh chứng.');
+                                                                                                } catch (err: any) {
+                                                                                                    AppToast.error(err?.message || 'Tải ảnh thất bại.');
+                                                                                                } finally {
+                                                                                                    setUploadingEvidence(false);
+                                                                                                    e.target.value = '';
+                                                                                                }
+                                                                                            }}
+                                                                                        />
+                                                                                    </Button>
+                                                                                    <IconButton
+                                                                                        color="error"
+                                                                                        disabled={group.serials.length <= 1}
+                                                                                        onClick={() => {
+                                                                                            setTicketDetails((prev) => {
+                                                                                                const next = JSON.parse(JSON.stringify(prev));
+                                                                                                next[s.lotteryStationId][groupIdx].serials.splice(serialIdx, 1);
+                                                                                                return next;
+                                                                                            });
+                                                                                        }}
+                                                                                    >
+                                                                                        <CloseIcon />
+                                                                                    </IconButton>
+                                                                                </Stack>
+                                                                            ))}
+                                                                            
+                                                                            <Box sx={{ pl: { xs: 0, sm: 4 } }}>
+                                                                                <Button
+                                                                                    size="small"
+                                                                                    disabled={!canAddMore}
+                                                                                    startIcon={<AddCircleOutlineIcon />}
+                                                                                    onClick={() => {
+                                                                                        setTicketDetails((prev) => {
+                                                                                            const next = JSON.parse(JSON.stringify(prev));
+                                                                                            next[s.lotteryStationId][groupIdx].serials.push({ serialNumber: '', evidenceUrl: '', condition: 'UNDER_IMPORTED' });
+                                                                                            return next;
+                                                                                        });
+                                                                                    }}
+                                                                                    sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
+                                                                                >
+                                                                                    Thêm sê-ri
+                                                                                </Button>
+                                                                            </Box>
+                                                                        </Paper>
+                                                                    ))}
+                                                                    
+                                                                    <Button
+                                                                        size="small"
+                                                                        variant="outlined"
+                                                                        disabled={!canAddMore}
+                                                                        startIcon={<AddCircleOutlineIcon />}
+                                                                        onClick={() => {
+                                                                            setTicketDetails((prev) => {
+                                                                                const next = JSON.parse(JSON.stringify(prev));
+                                                                                if (!next[s.lotteryStationId]) next[s.lotteryStationId] = [];
+                                                                                next[s.lotteryStationId].push({ numbers: '', serials: [{ serialNumber: '', evidenceUrl: '', condition: 'UNDER_IMPORTED' }] });
+                                                                                return next;
+                                                                            });
+                                                                        }}
+                                                                        sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
+                                                                    >
+                                                                        Thêm dãy số
+                                                                    </Button>
+                                                                </Box>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    )}
+                                                </React.Fragment>
                                             );
                                         })}
                                     </TableBody>
@@ -952,13 +1115,7 @@ export const ImportDiscrepancyPanel = ({
                                                 {allocationStations.reduce((acc, s) => acc + (s.remainingQuantity ?? 0), 0).toLocaleString('vi-VN')}
                                             </TableCell>
                                             <TableCell align="right" sx={{ fontWeight: 800, fontSize: '0.82rem', color: '#2563eb' }}>
-                                                {missingQtyByCondition.underImported.toLocaleString('vi-VN')}
-                                            </TableCell>
-                                            <TableCell align="right" sx={{ fontWeight: 800, fontSize: '0.82rem', color: '#c2410c' }}>
-                                                {missingQtyByCondition.damaged.toLocaleString('vi-VN')}
-                                            </TableCell>
-                                            <TableCell align="right" sx={{ fontWeight: 800, fontSize: '0.82rem', color: '#dc2626' }}>
-                                                {missingQtyByCondition.lost.toLocaleString('vi-VN')}
+                                                {missingQtyByCondition.underImported.toLocaleString('vi-VN')} thiếu, {missingQtyByCondition.damaged.toLocaleString('vi-VN')} hỏng
                                             </TableCell>
                                             <TableCell
                                                 align="right"
@@ -976,6 +1133,48 @@ export const ImportDiscrepancyPanel = ({
                                 </Table>
                             </Paper>
                         )}
+
+                        <Paper variant="outlined" sx={{ borderRadius: '12px', p: 2, mb: 2, borderColor: '#e2e8f0', bgcolor: '#ffffff' }}>
+                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="space-between" alignItems="center">
+                                <Box>
+                                    <Typography variant="subtitle2" fontWeight={800} color="#0f172a">
+                                        Vé thất thoát (Không xác định đài)
+                                    </Typography>
+                                    <Typography variant="caption" color="#64748b">
+                                        Ghi nhận số lượng vé bị thất thoát không thuộc đài cụ thể
+                                    </Typography>
+                                </Box>
+                                <TextField
+                                    size="small"
+                                    value={globalLostQty}
+                                    onChange={(e) => {
+                                        const digits = e.target.value.replace(/\D/g, '');
+                                        const num = digits ? parseInt(digits, 10) : 0;
+                                        setGlobalLostQty(num > 0 ? String(num) : (digits === '' ? '' : '0'));
+                                    }}
+                                    placeholder="0"
+                                    error={missingQtyEntered > totalDiff}
+                                    helperText={missingQtyEntered > totalDiff ? 'Vượt quá số lượng cho phép' : ''}
+                                    slotProps={{
+                                        htmlInput: {
+                                            inputMode: 'numeric',
+                                            style: {
+                                                textAlign: 'right',
+                                                fontWeight: 800,
+                                                color: parseSplitQty(globalLostQty) > 0 ? '#dc2626' : '#0f172a',
+                                            },
+                                        },
+                                    }}
+                                    sx={{
+                                        width: 140,
+                                        '& .MuiOutlinedInput-root': {
+                                            borderRadius: '8px',
+                                            bgcolor: '#f8fafc',
+                                        },
+                                    }}
+                                />
+                            </Stack>
+                        </Paper>
 
                         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} alignItems={{ xs: 'stretch', sm: 'center' }} sx={{ mb: 2.5 }}>
                             <FormControl size="small" sx={{ minWidth: 240, flex: 1 }}>

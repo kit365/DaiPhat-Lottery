@@ -80,6 +80,7 @@ public class LotteryScanLogService implements LotteryScanLogServicePort {
             int size,
             ScanEventType eventType,
             Long lotteryTicketSerialId,
+            Long ocrScanResultId,
             UUID scannedBy,
             LocalDate scannedAtFrom,
             LocalDate scannedAtTo,
@@ -93,7 +94,7 @@ public class LotteryScanLogService implements LotteryScanLogServicePort {
         );
 
         var logPage = lotteryScanLogRepositoryPort.findAll(
-                pageable, eventType, lotteryTicketSerialId, scannedBy, scannedAtFrom, scannedAtTo
+                pageable, eventType, lotteryTicketSerialId, ocrScanResultId, scannedBy, scannedAtFrom, scannedAtTo
         ).map(lotteryScanLogApplicationMapper::toResponse);
 
         return PageResponse.from(logPage, page, size);

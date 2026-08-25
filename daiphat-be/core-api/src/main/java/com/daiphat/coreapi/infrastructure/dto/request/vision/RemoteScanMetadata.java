@@ -9,6 +9,7 @@ import java.util.List;
 public record RemoteScanMetadata(
         List<RemoteStationMetadata> activeStations,
         Integer maxTickets,
-        String detectorStrategy
+        String detectorStrategy,
+        String recognitionEngine
 ) {
 }

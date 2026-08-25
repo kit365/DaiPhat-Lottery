@@ -69,6 +69,10 @@ class FormatValidator:
             try:
                 date.fromisoformat(extracted.drawDate)
             except ValueError:
+                # Treat unparseable dates as missing (never leave a non-ISO string
+                # on the wire — Java LocalDate binding would fail the whole scan).
+                missing.append("drawDate")
                 errors.append("drawDate không phải ngày hợp lệ (ISO 8601).")
+                extracted.drawDate = None
 
         return ValidationResult(missing_fields=missing, errors=errors)

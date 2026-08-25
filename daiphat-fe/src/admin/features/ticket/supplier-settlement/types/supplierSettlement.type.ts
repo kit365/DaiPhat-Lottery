@@ -291,9 +291,12 @@ export interface ResolveImportDiscrepancyPayload {
     note?: string;
     markResolved: boolean;
     missingPlaceholders?: Array<{
-        lotteryStationId: number;
+        lotteryStationId: number | null;
         quantity: number;
         ticketCondition?: 'DAMAGED' | 'LOST' | 'VOIDED' | 'UNDER_IMPORTED';
+        numbers?: string;
+        serialNumber?: string;
+        evidenceUrl?: string;
     }>;
     excessTickets?: Array<{ lotteryStationId: number; numbers: string; serialNumber: string }>;
     /** Required when any missing placeholder (or selected serial) is DAMAGED. */

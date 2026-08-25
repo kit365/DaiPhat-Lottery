@@ -1,10 +1,29 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Monorepo layout: infra/config.py -> daiphat-ai/ -> repo root.
+_AI_ROOT = Path(__file__).resolve().parents[1]
+_REPO_ROOT = _AI_ROOT.parent
+
+
+def _discover_env_files() -> tuple[str, ...]:
+    """Load .env from daiphat-ai, repo root, or cwd — whichever exists."""
+    candidates = (
+        _AI_ROOT / ".env",
+        _REPO_ROOT / ".env",
+        _AI_ROOT / "services" / "ticket-vision" / ".env",
+        Path.cwd() / ".env",
+    )
+    discovered = tuple(str(path) for path in candidates if path.is_file())
+    return discovered if discovered else (".env",)
 
 
 class Settings(BaseSettings):
     # ignore_extra: monorepo .env có nhiều biến BE không thuộc chat-bot
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=_discover_env_files(),
+        env_file_encoding="utf-8",
         case_sensitive=True,
         extra="ignore",
     )
@@ -14,6 +33,21 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/v1"
 
     # --- Ticket Vision (DP-269) --------------------------------------------
+    # Recognition engine: "gemini" (default), "grok", or "legacy" (OpenCV/YOLO + OCR).
+    TICKET_VISION_RECOGNITION_ENGINE: str = "gemini"
+
+    # Gemini vision (Google Generative Language API). Set via env; never commit secrets.
+    GEMINI_API_BASE_URL: str = "https://generativelanguage.googleapis.com/v1beta"
+    GEMINI_API_KEY: str = ""
+    GEMINI_VISION_MODEL: str = "gemini-3.6-flash"
+    GEMINI_READ_TIMEOUT_SECONDS: float = 60.0
+
+    # Grok/xAI vision (OpenAI-compatible). Kept for rollback via recognitionEngine=grok.
+    GROK_API_BASE_URL: str = "https://api.x.ai/v1"
+    GROK_API_KEY: str = ""
+    GROK_VISION_MODEL: str = "grok-vision-beta"
+    GROK_READ_TIMEOUT_SECONDS: float = 60.0
+
     # Confidence thresholds driving the green/yellow/red status of a scanned
     # ticket. See services/ticket-vision/domain/scanning/status_resolver.py.
     TICKET_VISION_HIGH_CONFIDENCE_THRESHOLD: float = 0.85

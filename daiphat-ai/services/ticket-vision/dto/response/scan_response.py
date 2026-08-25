@@ -25,9 +25,10 @@ class ExtractedTicketFields(BaseModel):
     serialNumber: str | None = None
     numbers: str | None = None
     drawDate: str | None = None
-    # Ticket price/denomination (e.g. "10.000đ"), not a required field --
-    # optional supplementary info, never affects status/validation.
+    # Ticket price display string (e.g. "10.000 VND").
     ticketType: str | None = None
+    # Issuer production batch code printed on the ticket (not import-batch).
+    batchCode: str | None = None
 
 
 class TicketScanResult(BaseModel):
@@ -37,9 +38,13 @@ class TicketScanResult(BaseModel):
     confidence: float
     extracted: ExtractedTicketFields
     fieldConfidences: dict[str, float] = Field(default_factory=dict)
+    fieldBoxes: dict[str, BoundingBox] = Field(default_factory=dict)
     missingFields: list[str] = Field(default_factory=list)
     validationErrors: list[str] = Field(default_factory=list)
     croppedImageBase64: str | None = None
+    # Resized image dimensions that bbox coordinates are relative to.
+    imageWidth: int | None = None
+    imageHeight: int | None = None
 
 
 class ScanResponse(BaseModel):
@@ -47,3 +52,5 @@ class ScanResponse(BaseModel):
     ticketCount: int
     tickets: list[TicketScanResult]
     warnings: list[str] = Field(default_factory=list)
+    imageWidth: int | None = None
+    imageHeight: int | None = None

@@ -29,10 +29,13 @@ import {
     DialogActions,
     DialogContent,
     DialogTitle,
+    FormControl,
     FormControlLabel,
     IconButton,
     MenuItem,
     Paper,
+    Radio,
+    RadioGroup,
     Stack,
     Step,
     StepConnector,
@@ -62,6 +65,8 @@ import {
     uploadImportBatchTicketListImage,
 } from '../../services/importBatchService';
 import type {
+    ImportBatch,
+    ImportBatchFileCommitMode,
     ImportBatchFileGroup,
     ImportBatchFileInspectResult,
     ImportBatchFileMapping,
@@ -109,7 +114,10 @@ import {
 import { usePublicSystemConfigValues } from '@/client/hooks/usePublicSystemConfigValues';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useStationsByDrawDate } from '../../../../station/hooks/useStation';
-import { useImportBatchTimePolicy } from '../../hooks/useImportBatch';
+import {
+    useImportBatchTimePolicy,
+    useIncompleteImportBatches,
+} from '../../hooks/useImportBatch';
 import { evaluateImportBatchIntake } from '../../hooks/useImportBatchIntakeGate';
 import { DEFAULT_RETURN_BUFFER_MINUTES } from '../../utils/importBatchDrawDate';
 import { useImportBatchIntakeGate } from '../../hooks/useImportBatchIntakeGate';
@@ -117,6 +125,8 @@ import { AdminLuckyDisplay } from '@/shared/lucky-number';
 import type { Station } from '../../../../station/types/station.type';
 import { UploadSingleFile } from '@/admin/components/upload/UploadSingleFile';
 import type { Accept } from 'react-dropzone';
+import { ROUTES } from '@/admin/constants/routes';
+import Link from 'next/link';
 
 const IMPORT_EVIDENCE_ACCEPT: Accept = {
     'image/*': ['.jpg', '.jpeg', '.png', '.webp', '.gif'],
@@ -494,6 +504,36 @@ export const ImportBatchFileImportDialog = ({
     const [useOriginalFileAsTicketListEvidence, setUseOriginalFileAsTicketListEvidence] = useState(true);
     const [isInvoiceUploading, setIsInvoiceUploading] = useState(false);
     const [isTicketListUploading, setIsTicketListUploading] = useState(false);
+    const [commitMode, setCommitMode] = useState<ImportBatchFileCommitMode>('AUTO');
+    const [manualBatchByDrawDate, setManualBatchByDrawDate] = useState<Record<string, number>>({});
+
+    const { data: incompleteBatches = [], refetch: refetchIncompleteBatches } =
+        useIncompleteImportBatches(open && step === 2);
+
+    const batchesForDrawDate = useCallback(
+        (drawDate: string): ImportBatch[] => {
+            if (!supplierId || !drawDate) {
+                return [];
+            }
+            return incompleteBatches.filter(
+                (batch) =>
+                    batch.supplierId === supplierId &&
+                    (batch.drawDate === drawDate ||
+                        dayjs(batch.drawDate).format('YYYY-MM-DD') === drawDate)
+            );
+        },
+        [incompleteBatches, supplierId]
+    );
+
+    const manualBindingsComplete = useMemo(() => {
+        if (commitMode !== 'MANUAL') {
+            return true;
+        }
+        return selectedDates.every((drawDate) => {
+            const batchId = manualBatchByDrawDate[drawDate];
+            return typeof batchId === 'number' && batchId > 0;
+        });
+    }, [commitMode, selectedDates, manualBatchByDrawDate]);
 
     /**
      * The same station can be flagged on several draw dates; the correction is
@@ -819,6 +859,8 @@ export const ImportBatchFileImportDialog = ({
         setUseOriginalFileAsTicketListEvidence(true);
         setIsInvoiceUploading(false);
         setIsTicketListUploading(false);
+        setCommitMode('AUTO');
+        setManualBatchByDrawDate({});
     };
 
     const handleClose = () => {
@@ -934,8 +976,12 @@ export const ImportBatchFileImportDialog = ({
             );
             return;
         }
-        if (!invoiceEvidenceUrl.trim()) {
+        if (commitMode === 'AUTO' && !invoiceEvidenceUrl.trim()) {
             toast.warning('Vui lòng tải lên tệp / ảnh biên lai nhập trước khi tạo phiếu.');
+            return;
+        }
+        if (commitMode === 'MANUAL' && !manualBindingsComplete) {
+            toast.warning('Vui lòng chọn phiếu nhập cho mỗi ngày quay đã chọn.');
             return;
         }
         if (isInvoiceUploading || isTicketListUploading) {
@@ -948,15 +994,25 @@ export const ImportBatchFileImportDialog = ({
             const ticketListImageUrls = ticketListEvidenceUrl.trim()
                 ? [ticketListEvidenceUrl.trim()]
                 : [];
+            const manualBatchBindings =
+                commitMode === 'MANUAL'
+                    ? selectedDates.map((drawDate) => ({
+                          drawDate,
+                          importBatchId: manualBatchByDrawDate[drawDate],
+                      }))
+                    : undefined;
             const response = await commitImportBatchFile(file, {
                 supplierId,
                 fileHash: preview.fileHash,
                 mapping,
                 drawDates: selectedDates,
                 forceCreateDrawDates: forceCreateDates,
-                invoiceEvidenceUrl: invoiceEvidenceUrl.trim(),
+                invoiceEvidenceUrl:
+                    commitMode === 'AUTO' ? invoiceEvidenceUrl.trim() : invoiceEvidenceUrl.trim() || null,
                 ticketListImageUrls,
                 useOriginalFileAsTicketListEvidence,
+                commitMode,
+                manualBatchBindings,
             });
             const result = response.data;
             if (!result) {
@@ -986,14 +1042,22 @@ export const ImportBatchFileImportDialog = ({
                     .map((item) => `${formatDate(item.drawDate)}: ${item.message ?? item.errorCode}`)
                     .join('; ');
                 toast.warning(
-                    `Đã tạo ${result.createdCount}/${result.requestedCount} phiếu. ${failures}`
+                    commitMode === 'MANUAL'
+                        ? `Đã gắn ${result.createdCount}/${result.requestedCount} ngày quay. ${failures}`
+                        : `Đã tạo ${result.createdCount}/${result.requestedCount} phiếu. ${failures}`
                 );
             } else if (shortfall.length > 0) {
                 toast.warning(
-                    `Đã tạo ${result.createdCount} phiếu. Có ${shortfall.length} phiếu nhập chưa đủ vé, hãy hoàn tất ở màn hình nhập vé.`
+                    commitMode === 'MANUAL'
+                        ? `Đã gắn ${result.createdCount} ngày quay. Có ${shortfall.length} phiếu nhập chưa đủ vé, hãy hoàn tất ở màn hình nhập vé.`
+                        : `Đã tạo ${result.createdCount} phiếu. Có ${shortfall.length} phiếu nhập chưa đủ vé, hãy hoàn tất ở màn hình nhập vé.`
                 );
             } else {
-                toast.success(`Đã tạo ${result.createdCount} phiếu nhập lô vé từ tệp.`);
+                toast.success(
+                    commitMode === 'MANUAL'
+                        ? `Đã nhập vào ${result.createdCount} phiếu nhập lô vé từ tệp.`
+                        : `Đã tạo ${result.createdCount} phiếu nhập lô vé từ tệp.`
+                );
             }
 
             onImported?.();
@@ -1011,11 +1075,17 @@ export const ImportBatchFileImportDialog = ({
     };
 
     const toggleDate = (drawDate: string) => {
-        setSelectedDates((current) =>
-            current.includes(drawDate)
-                ? current.filter((value) => value !== drawDate)
-                : [...current, drawDate]
-        );
+        setSelectedDates((current) => {
+            if (current.includes(drawDate)) {
+                setManualBatchByDrawDate((bindings) => {
+                    const next = { ...bindings };
+                    delete next[drawDate];
+                    return next;
+                });
+                return current.filter((value) => value !== drawDate);
+            }
+            return [...current, drawDate];
+        });
     };
 
     const toggleForceCreate = (drawDate: string) => {
@@ -1723,6 +1793,101 @@ export const ImportBatchFileImportDialog = ({
                         {/* Groups Accordion Cards */}
                         <Stack spacing={2}>
                             <Typography variant="subtitle2" fontWeight={800} color="#0f172a">
+                                Chế độ nhập kho
+                            </Typography>
+                            <FormControl component="fieldset" disabled={busy}>
+                                <RadioGroup
+                                    row
+                                    value={commitMode}
+                                    onChange={(event) => {
+                                        const next = event.target.value as ImportBatchFileCommitMode;
+                                        setCommitMode(next);
+                                        if (next === 'AUTO') {
+                                            setManualBatchByDrawDate({});
+                                        } else {
+                                            void refetchIncompleteBatches();
+                                        }
+                                    }}
+                                >
+                                    <Paper
+                                        elevation={0}
+                                        sx={{
+                                            flex: 1,
+                                            minWidth: 240,
+                                            p: 1.5,
+                                            mr: 1.5,
+                                            border: '1px solid',
+                                            borderColor:
+                                                commitMode === 'AUTO' ? 'primary.main' : 'divider',
+                                            borderRadius: '12px',
+                                        }}
+                                    >
+                                        <FormControlLabel
+                                            value="AUTO"
+                                            control={<Radio size="small" />}
+                                            label={
+                                                <Box>
+                                                    <Typography variant="body2" fontWeight={700}>
+                                                        Tự động tạo phiếu nhập
+                                                    </Typography>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        Mỗi ngày quay đã chọn tạo một phiếu nhập mới
+                                                        (dòng theo nhà đài).
+                                                    </Typography>
+                                                </Box>
+                                            }
+                                            sx={{ alignItems: 'flex-start', m: 0 }}
+                                        />
+                                    </Paper>
+                                    <Paper
+                                        elevation={0}
+                                        sx={{
+                                            flex: 1,
+                                            minWidth: 240,
+                                            p: 1.5,
+                                            border: '1px solid',
+                                            borderColor:
+                                                commitMode === 'MANUAL' ? 'primary.main' : 'divider',
+                                            borderRadius: '12px',
+                                        }}
+                                    >
+                                        <FormControlLabel
+                                            value="MANUAL"
+                                            control={<Radio size="small" />}
+                                            label={
+                                                <Box>
+                                                    <Typography variant="body2" fontWeight={700}>
+                                                        Gắn vào phiếu nhập có sẵn
+                                                    </Typography>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        Chọn phiếu nhập theo từng ngày quay (không
+                                                        chọn dòng).
+                                                    </Typography>
+                                                </Box>
+                                            }
+                                            sx={{ alignItems: 'flex-start', m: 0 }}
+                                        />
+                                    </Paper>
+                                </RadioGroup>
+                            </FormControl>
+                            {commitMode === 'MANUAL' && (
+                                <Alert severity="info" sx={{ borderRadius: '12px' }}>
+                                    Chọn phiếu nhập khớp nhà cung cấp và ngày quay cho mỗi nhóm đã
+                                    chọn. Nếu chưa có phiếu,{' '}
+                                    <Link href={ROUTES.ADMIN.IMPORT_BATCH.CREATE} target="_blank">
+                                        tạo phiếu nhập
+                                    </Link>{' '}
+                                    rồi tải lại danh sách.
+                                    <Button
+                                        size="small"
+                                        onClick={() => void refetchIncompleteBatches()}
+                                        sx={{ ml: 1, textTransform: 'none' }}
+                                    >
+                                        Tải lại phiếu
+                                    </Button>
+                                </Alert>
+                            )}
+                            <Typography variant="subtitle2" fontWeight={800} color="#0f172a">
                                 Danh sách phiếu nhập theo ngày quay ({preview.groups.length})
                             </Typography>
                             {preview.groups.map((group, index) => (
@@ -1736,6 +1901,28 @@ export const ImportBatchFileImportDialog = ({
                                     mapping={mapping}
                                     windowFrom={preview.windowFrom}
                                     windowTo={preview.windowTo}
+                                    commitMode={commitMode}
+                                    batchOptions={
+                                        group.drawDate ? batchesForDrawDate(group.drawDate) : []
+                                    }
+                                    selectedBatchId={
+                                        group.drawDate
+                                            ? manualBatchByDrawDate[group.drawDate] ?? null
+                                            : null
+                                    }
+                                    onSelectBatch={(batchId) => {
+                                        if (!group.drawDate) {
+                                            return;
+                                        }
+                                        setManualBatchByDrawDate((current) => {
+                                            if (batchId == null) {
+                                                const next = { ...current };
+                                                delete next[group.drawDate!];
+                                                return next;
+                                            }
+                                            return { ...current, [group.drawDate!]: batchId };
+                                        });
+                                    }}
                                     onToggle={() => group.drawDate && toggleDate(group.drawDate)}
                                     onToggleForceCreate={() =>
                                         group.drawDate && toggleForceCreate(group.drawDate)
@@ -1760,13 +1947,14 @@ export const ImportBatchFileImportDialog = ({
                                 Chứng từ đính kèm phiếu nhập
                             </Typography>
                             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
-                                Tải biên lai và danh sách vé (ảnh hoặc tệp PDF/Excel/CSV) — dùng chung cho mọi ngày
-                                quay được chọn. Không cần chụp lại nếu đã có file từ NCC.
+                                {commitMode === 'AUTO'
+                                    ? 'Tải biên lai và danh sách vé (ảnh hoặc tệp PDF/Excel/CSV) — dùng chung cho mọi ngày quay được chọn.'
+                                    : 'Biên lai không bắt buộc khi gắn vào phiếu có sẵn. Có thể bổ sung danh sách vé nếu cần.'}
                             </Typography>
                             <Stack spacing={2.5}>
                                 <Box>
                                     <Typography variant="body2" fontWeight={700} color="#334155" sx={{ mb: 1 }}>
-                                        Biên lai nhập *
+                                        Biên lai nhập{commitMode === 'AUTO' ? ' *' : ''}
                                     </Typography>
                                     <UploadSingleFile
                                         label="Tải tệp / ảnh biên lai"
@@ -1775,7 +1963,7 @@ export const ImportBatchFileImportDialog = ({
                                             setInvoiceEvidenceUrl(typeof url === 'string' ? url : '')
                                         }
                                         autoUpload
-                                        required
+                                        required={commitMode === 'AUTO'}
                                         accept={IMPORT_EVIDENCE_ACCEPT}
                                         customUpload={uploadImportBatchInvoiceEvidence}
                                         onUploadingChange={setIsInvoiceUploading}
@@ -1939,7 +2127,8 @@ export const ImportBatchFileImportDialog = ({
                                     busy
                                     || selectedDates.length === 0
                                     || selectedDates.some(isDrawDateIntakeBlocked)
-                                    || !invoiceEvidenceUrl.trim()
+                                    || (commitMode === 'AUTO' && !invoiceEvidenceUrl.trim())
+                                    || (commitMode === 'MANUAL' && !manualBindingsComplete)
                                     || isInvoiceUploading
                                     || isTicketListUploading
                                 }
@@ -1955,7 +2144,9 @@ export const ImportBatchFileImportDialog = ({
                                     '&:hover': { bgcolor: '#e02828' },
                                 }}
                             >
-                                Tạo {selectedDates.length} phiếu nhập
+                                {commitMode === 'MANUAL'
+                                    ? `Nhập vào ${selectedDates.length} phiếu`
+                                    : `Tạo ${selectedDates.length} phiếu nhập`}
                             </Button>
                         </>
                     )}
@@ -2166,6 +2357,10 @@ type PreviewGroupProps = {
     mapping: ImportBatchFileMapping | null;
     windowFrom?: string | null;
     windowTo?: string | null;
+    commitMode: ImportBatchFileCommitMode;
+    batchOptions: ImportBatch[];
+    selectedBatchId: number | null;
+    onSelectBatch: (batchId: number | null) => void;
     onToggle: () => void;
     onToggleForceCreate: () => void;
     onChooseStation: (row: ImportBatchFileRow, lotteryStationId: number) => void;
@@ -2182,6 +2377,10 @@ const PreviewGroup = ({
     mapping,
     windowFrom,
     windowTo,
+    commitMode,
+    batchOptions,
+    selectedBatchId,
+    onSelectBatch,
     onToggle,
     onToggleForceCreate,
     onChooseStation,
@@ -2273,7 +2472,7 @@ const PreviewGroup = ({
                 onOpenSchedule={onOpenSchedule}
             />
 
-            {group.existingEditableBatchId && (
+            {commitMode === 'AUTO' && group.existingEditableBatchId && (
                 <FormControlLabel
                     sx={{ mt: 1 }}
                     control={
@@ -2290,6 +2489,39 @@ const PreviewGroup = ({
                         </Typography>
                     }
                 />
+            )}
+
+            {commitMode === 'MANUAL' && selected && selectable && group.drawDate && (
+                <Box sx={{ mt: 1.5, maxWidth: 480 }}>
+                    <TextField
+                        select
+                        fullWidth
+                        size="small"
+                        label="Phiếu nhập đích"
+                        value={selectedBatchId ?? ''}
+                        disabled={busy}
+                        onChange={(event) => {
+                            const raw = event.target.value;
+                            onSelectBatch(raw === '' ? null : Number(raw));
+                        }}
+                        helperText={
+                            batchOptions.length === 0
+                                ? 'Không có phiếu nhập khớp NCC + ngày quay. Tạo phiếu trước rồi tải lại.'
+                                : 'Gắn dữ liệu ngày này vào phiếu đã chọn (tự tạo dòng theo nhà đài nếu thiếu).'
+                        }
+                    >
+                        <MenuItem value="">
+                            <em>Chọn phiếu nhập</em>
+                        </MenuItem>
+                        {batchOptions.map((batch) => (
+                            <MenuItem key={batch.id} value={batch.id}>
+                                {batch.batchCode ?? `#${batch.id}`}
+                                {batch.supplierName ? ` · ${batch.supplierName}` : ''}
+                                {` · ${formatDate(batch.drawDate)}`}
+                            </MenuItem>
+                        ))}
+                    </TextField>
+                </Box>
             )}
 
             {/* Stations batch summary table */}

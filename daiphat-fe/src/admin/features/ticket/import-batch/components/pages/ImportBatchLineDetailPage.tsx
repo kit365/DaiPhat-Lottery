@@ -50,6 +50,7 @@ import { CanAccess } from '../../../../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../../../../constants/permission.constants';
 import { Button as LoadingButton } from '../../../../../components/ui/Button';
 import ConfirmationNumberOutlinedIcon from '@mui/icons-material/ConfirmationNumberOutlined';
+import DocumentScannerOutlinedIcon from '@mui/icons-material/DocumentScannerOutlined';
 import {
     displayImportBatchLineCodeRaw,
     formatImportBatchHeaderCode,
@@ -72,6 +73,7 @@ import {
 import { isSerialIncidentEligible } from '../../utils/serialIncidentWorkflow';
 import { isLineIncomplete, isLinePaused } from '../../utils/importBatchProgress';
 import { AdminLuckyDisplay } from '@/shared/lucky-number';
+import { OcrTicketImportDialog } from '../../../ocr-import/components/OcrTicketImportDialog';
 
 const asSerials = (serials: unknown): any[] =>
     (Array.isArray(serials) ? serials : []).filter((serial) => {
@@ -408,6 +410,7 @@ export const ImportBatchLineDetailPage = ({
     const [quantityFilter, setQuantityFilter] = React.useState('ALL');
     const [isReportDialogOpen, setIsReportDialogOpen] = React.useState(false);
     const [isImportDialogOpen, setIsImportDialogOpen] = React.useState(false);
+    const [isOcrImportOpen, setIsOcrImportOpen] = React.useState(false);
     const dialogCancelMode: 'TICKET' | 'SERIAL' = 'TICKET';
     const autoOpenedImportRef = React.useRef(false);
 
@@ -677,6 +680,27 @@ export const ImportBatchLineDetailPage = ({
                                 >
                                     <span>
                                         <LoadingButton
+                                            variant="outlined"
+                                            label="Nhập vé bằng OCR"
+                                            disabled={importTicketsBlocked}
+                                            startIcon={<DocumentScannerOutlinedIcon />}
+                                            onClick={() => setIsOcrImportOpen(true)}
+                                        />
+                                    </span>
+                                </Tooltip>
+                            </CanAccess>
+                        )}
+                        {showImportTicketsButton && (
+                            <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
+                                <Tooltip
+                                    title={
+                                        importTicketsBlocked
+                                            ? intakeGate?.tooltipTitle ?? 'Không thể nhập vé lúc này.'
+                                            : ''
+                                    }
+                                >
+                                    <span>
+                                        <LoadingButton
                                             variant="contained"
                                             className="btn-primary-admin"
                                             label="Nhập vé"
@@ -892,6 +916,23 @@ export const ImportBatchLineDetailPage = ({
                 }}
             />
             )}
+
+            <OcrTicketImportDialog
+                open={isOcrImportOpen}
+                onClose={() => setIsOcrImportOpen(false)}
+                prefillBatch={batch}
+                prefillLine={line}
+                resolveStationName={(stationId) =>
+                    stationId == null ? '—' : resolveStationName(Number(stationId))
+                }
+                onImported={() => {
+                    refetchBatch();
+                    queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKETS] });
+                    queryClient.invalidateQueries({
+                        queryKey: [IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_LINE_ENTRY_TICKETS],
+                    });
+                }}
+            />
         </Box>
     );
 };

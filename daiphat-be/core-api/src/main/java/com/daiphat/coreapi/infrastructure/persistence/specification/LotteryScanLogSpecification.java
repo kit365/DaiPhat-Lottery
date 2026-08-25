@@ -21,6 +21,7 @@ public final class LotteryScanLogSpecification {
     public static Specification<LotteryScanLogEntity> filter(
             ScanEventType eventType,
             Long lotteryTicketSerialId,
+            Long ocrScanResultId,
             UUID scannedBy,
             LocalDate scannedAtFrom,
             LocalDate scannedAtTo
@@ -34,6 +35,9 @@ public final class LotteryScanLogSpecification {
             }
             if (lotteryTicketSerialId != null) {
                 predicates.add(cb.equal(root.get(LotteryScanLogEntity_.lotteryTicketSerialId), lotteryTicketSerialId));
+            }
+            if (ocrScanResultId != null) {
+                predicates.add(cb.equal(root.get(LotteryScanLogEntity_.ocrScanResultId), ocrScanResultId));
             }
             if (scannedBy != null) {
                 predicates.add(cb.equal(root.get(LotteryScanLogEntity_.scannedBy).get("id"), scannedBy));

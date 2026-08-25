@@ -370,7 +370,7 @@ export const PrizePayoutDetailPage = () => {
                                 onClick={() => approveMutation.mutate(detail.id)}
                                 sx={headerButtonSx}
                             >
-                                Duyệt (4 mắt)
+                                Duyệt
                             </Button>
                         )}
                         {(isPending || isApproved) && (

@@ -11,11 +11,6 @@ import java.util.Map;
 /**
  * Raw wire shape of one entry in ticket-vision's ScanResponse.tickets[]
  * (services/ticket-vision/dto/response/scan_response.py:TicketScanResult).
- * Deserialized directly by Jackson -- every field here is always present
- * in Python's JSON (Pydantic serializes null fields explicitly rather than
- * omitting them), so this is safe as a direct record deserialization
- * target, unlike the enriched ScannedTicketResponse which adds Java-only
- * fields ticket-vision never sends.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record RemoteScannedTicket(
@@ -25,8 +20,11 @@ public record RemoteScannedTicket(
         double confidence,
         ExtractedTicketFieldsResponse extracted,
         Map<String, Double> fieldConfidences,
+        Map<String, TicketBoundingBoxResponse> fieldBoxes,
         List<String> missingFields,
         List<String> validationErrors,
-        String croppedImageBase64
+        String croppedImageBase64,
+        Integer imageWidth,
+        Integer imageHeight
 ) {
 }

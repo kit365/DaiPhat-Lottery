@@ -15,6 +15,7 @@ import {
     Dialog,
     DialogContent,
     DialogTitle,
+    DialogActions,
     IconButton,
     Paper,
     Stack,
@@ -129,6 +130,8 @@ export const SupplierSettlementInspectPage = () => {
     const [isEditingMatching, setIsEditingMatching] = useState(false);
     /** Local UI: return from Hoàn tất to bước xử lý chênh lệch. */
     const [reviewingDiscrepancy, setReviewingDiscrepancy] = useState(false);
+    const [isImportDirty, setIsImportDirty] = useState(false);
+    const [confirmBackDialogOpen, setConfirmBackDialogOpen] = useState(false);
 
     const confirmMatching = useConfirmSettlementMatching(id);
     const resolveImport = useResolveImportDiscrepancy(id);
@@ -324,7 +327,13 @@ export const SupplierSettlementInspectPage = () => {
                             returnBatches={returnBatches}
                             canRematch={canRematch}
                             mode={activeStep === 2 ? 'completion_min' : 'discrepancy_summary'}
-                            onEditMatching={() => setIsEditingMatching(true)}
+                            onEditMatching={() => {
+                                if (isImportDirty) {
+                                    setConfirmBackDialogOpen(true);
+                                } else {
+                                    setIsEditingMatching(true);
+                                }
+                            }}
                         />
 
                         {activeStep !== 2 && (
@@ -390,6 +399,7 @@ export const SupplierSettlementInspectPage = () => {
                                                 AppToast.error(err?.response?.data?.message || 'Xử lý nhập thất bại.'),
                                         });
                                     }}
+                                    onDirtyChange={setIsImportDirty}
                                 />
                             </Box>
                         )}
@@ -646,6 +656,31 @@ export const SupplierSettlementInspectPage = () => {
                         <Box component="img" src={zoomImage.url} alt="" sx={{ width: '100%', borderRadius: '12px' }} />
                     )}
                 </DialogContent>
+            </Dialog>
+
+            <Dialog open={confirmBackDialogOpen} onClose={() => setConfirmBackDialogOpen(false)}>
+                <DialogTitle sx={{ fontWeight: 800 }}>Xác nhận quay lại</DialogTitle>
+                <DialogContent>
+                    <Typography>
+                        Bạn đang có thông tin xử lý chênh lệch chưa được lưu. Nếu quay lại chỉnh số liệu đối chiếu, các dữ liệu vừa nhập này sẽ bị mất. Bạn có chắc chắn muốn quay lại?
+                    </Typography>
+                </DialogContent>
+                <DialogActions sx={{ px: 3, pb: 2 }}>
+                    <Button onClick={() => setConfirmBackDialogOpen(false)} sx={{ fontWeight: 700, textTransform: 'none', color: '#475569' }}>
+                        Hủy
+                    </Button>
+                    <Button 
+                        variant="contained" 
+                        color="error" 
+                        sx={{ fontWeight: 800, textTransform: 'none', borderRadius: '8px' }}
+                        onClick={() => {
+                            setConfirmBackDialogOpen(false);
+                            setIsEditingMatching(true);
+                        }}
+                    >
+                        Quay lại và xóa dữ liệu
+                    </Button>
+                </DialogActions>
             </Dialog>
         </Box>
     );

@@ -1,6 +1,9 @@
 package com.daiphat.coreapi.infrastructure.persistence.entity.lotteries;
 
+import com.daiphat.coreapi.domain.model.enums.lottery.OcrOverallValidationStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ScannedTicketStatus;
+import com.daiphat.coreapi.domain.model.lotteries.OcrBoundingBox;
+import com.daiphat.coreapi.domain.model.lotteries.OcrFieldValidation;
 import com.daiphat.coreapi.infrastructure.persistence.entity.BaseEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import jakarta.persistence.*;
@@ -12,6 +15,7 @@ import org.hibernate.type.SqlTypes;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Entity
 @Table(name = "ocr_scan_results")
@@ -38,6 +42,19 @@ public class OcrScanResultEntity extends BaseEntity {
     @Column(name = "station_id")
     private Long stationId;
 
+    @Column(name = "source_image_name", length = 255)
+    private String sourceImageName;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "bbox", columnDefinition = "jsonb")
+    private OcrBoundingBox bbox;
+
+    @Column(name = "image_width")
+    private Integer imageWidth;
+
+    @Column(name = "image_height")
+    private Integer imageHeight;
+
     @Column(name = "extracted_station_name", length = 255)
     private String extractedStationName;
 
@@ -50,8 +67,33 @@ public class OcrScanResultEntity extends BaseEntity {
     @Column(name = "extracted_draw_date")
     private LocalDate extractedDrawDate;
 
+    @Column(name = "extracted_batch_code", length = 100)
+    private String extractedBatchCode;
+
+    @Column(name = "extracted_price", length = 50)
+    private String extractedPrice;
+
     @Column(name = "confidence")
     private double confidence;
+
+    @Column(name = "adjusted_confidence")
+    private Double adjustedConfidence;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "field_confidences", columnDefinition = "jsonb")
+    private Map<String, Double> fieldConfidences;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "field_boxes", columnDefinition = "jsonb")
+    private Map<String, OcrBoundingBox> fieldBoxes;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "field_validations", columnDefinition = "jsonb")
+    private Map<String, OcrFieldValidation> fieldValidations;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "overall_validation_status", length = 20)
+    private OcrOverallValidationStatus overallValidationStatus;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 20)

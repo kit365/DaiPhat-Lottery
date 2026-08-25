@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.domain.model.lotteries;
 
+import com.daiphat.coreapi.domain.model.enums.lottery.OcrOverallValidationStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ScannedTicketStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -10,6 +11,7 @@ import lombok.Setter;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -31,11 +33,24 @@ public class OcrScanResultModel {
     private Long importBatchLineId;
     private Long stationId;
 
+    private String sourceImageName;
+    private OcrBoundingBox bbox;
+    private Integer imageWidth;
+    private Integer imageHeight;
+
     private String extractedStationName;
     private String extractedSerialNumber;
     private String extractedNumbers;
     private LocalDate extractedDrawDate;
+    private String extractedBatchCode;
+    private String extractedPrice;
+
     private double confidence;
+    private Double adjustedConfidence;
+    private Map<String, Double> fieldConfidences;
+    private Map<String, OcrBoundingBox> fieldBoxes;
+    private Map<String, OcrFieldValidation> fieldValidations;
+    private OcrOverallValidationStatus overallValidationStatus;
 
     private ScannedTicketStatus status;
     private List<String> missingFields;

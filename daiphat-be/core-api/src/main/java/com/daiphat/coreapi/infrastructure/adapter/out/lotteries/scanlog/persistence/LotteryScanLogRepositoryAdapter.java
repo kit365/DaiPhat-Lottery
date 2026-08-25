@@ -32,6 +32,7 @@ public class LotteryScanLogRepositoryAdapter implements LotteryScanLogRepository
             Pageable pageable,
             ScanEventType eventType,
             Long lotteryTicketSerialId,
+            Long ocrScanResultId,
             UUID scannedBy,
             LocalDate scannedAtFrom,
             LocalDate scannedAtTo
@@ -40,6 +41,7 @@ public class LotteryScanLogRepositoryAdapter implements LotteryScanLogRepository
                         LotteryScanLogSpecification.filter(
                                 eventType,
                                 lotteryTicketSerialId,
+                                ocrScanResultId,
                                 scannedBy,
                                 scannedAtFrom,
                                 scannedAtTo
