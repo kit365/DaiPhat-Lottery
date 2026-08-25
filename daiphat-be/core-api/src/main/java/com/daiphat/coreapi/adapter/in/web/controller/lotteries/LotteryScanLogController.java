@@ -45,6 +45,7 @@ public class LotteryScanLogController {
             @RequestParam(defaultValue = DEFAULT_LIMIT) int size,
             @RequestParam(required = false) ScanEventType eventType,
             @RequestParam(required = false) Long lotteryTicketSerialId,
+            @RequestParam(required = false) Long ocrScanResultId,
             @RequestParam(required = false) UUID scannedBy,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate scannedAtFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate scannedAtTo,
@@ -52,7 +53,8 @@ public class LotteryScanLogController {
             @RequestParam(required = false) String direction
     ) {
         PageResponse<LotteryScanLogResponse> response = lotteryScanLogServicePort.getAll(
-                page, size, eventType, lotteryTicketSerialId, scannedBy, scannedAtFrom, scannedAtTo, sortBy, direction
+                page, size, eventType, lotteryTicketSerialId, ocrScanResultId, scannedBy, scannedAtFrom, scannedAtTo,
+                sortBy, direction
         );
         return ApiResponse.success("Lấy lịch sử quét vé thành công.", response);
     }

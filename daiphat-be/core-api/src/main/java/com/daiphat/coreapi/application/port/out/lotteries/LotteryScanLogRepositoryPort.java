@@ -16,6 +16,7 @@ public interface LotteryScanLogRepositoryPort {
             Pageable pageable,
             ScanEventType eventType,
             Long lotteryTicketSerialId,
+            Long ocrScanResultId,
             UUID scannedBy,
             LocalDate scannedAtFrom,
             LocalDate scannedAtTo
