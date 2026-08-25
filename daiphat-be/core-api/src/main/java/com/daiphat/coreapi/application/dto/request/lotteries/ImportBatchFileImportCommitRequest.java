@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.application.dto.request.lotteries;
 
+import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchFileCommitMode;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -10,20 +11,10 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * Create the batches the operator selected in the preview.
+ * Create / attach import batches for the draw dates selected in the preview.
  *
- * <p>The file is uploaded again rather than the resolved rows being sent back, so
- * nothing the client holds is taken on trust: the backend re-reads the file,
- * re-resolves every station and re-derives every quantity. {@link #fileHash()}
- * must match the hash returned by the preview, which catches a file edited
- * between the two steps.
- *
- * @param drawDates            draw dates the operator ticked; one batch per date
- * @param forceCreateDrawDates dates to create even though an editable batch already exists
- * @param invoiceEvidenceUrl   shared invoice/receipt file URL (image or document)
- * @param ticketListImageUrls  extra ticket-list evidence URLs (images or documents)
- * @param useOriginalFileAsTicketListEvidence when true, also attach the imported CSV/XLSX
- *                                            as ticket-list evidence on each created batch
+ * @param commitMode          AUTO creates new batches; MANUAL maps into selected import-batches
+ * @param manualBatchBindings required when commitMode=MANUAL: one importBatchId per drawDate
  */
 @Builder
 public record ImportBatchFileImportCommitRequest(
@@ -46,7 +37,11 @@ public record ImportBatchFileImportCommitRequest(
 
         List<String> ticketListImageUrls,
 
-        Boolean useOriginalFileAsTicketListEvidence
+        Boolean useOriginalFileAsTicketListEvidence,
+
+        ImportBatchFileCommitMode commitMode,
+
+        List<ImportBatchFileManualBatchBinding> manualBatchBindings
 ) {
 
     public boolean isForced(LocalDate drawDate) {
@@ -55,5 +50,20 @@ public record ImportBatchFileImportCommitRequest(
 
     public boolean shouldUseOriginalFileAsTicketListEvidence() {
         return useOriginalFileAsTicketListEvidence == null || useOriginalFileAsTicketListEvidence;
+    }
+
+    public ImportBatchFileCommitMode resolvedCommitMode() {
+        return commitMode != null ? commitMode : ImportBatchFileCommitMode.AUTO;
+    }
+
+    public Long manualBatchIdFor(LocalDate drawDate) {
+        if (manualBatchBindings == null || drawDate == null) {
+            return null;
+        }
+        return manualBatchBindings.stream()
+                .filter(b -> drawDate.equals(b.drawDate()))
+                .map(ImportBatchFileManualBatchBinding::importBatchId)
+                .findFirst()
+                .orElse(null);
     }
 }

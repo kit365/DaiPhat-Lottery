@@ -35,6 +35,7 @@ import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchLineStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchType;
 import com.daiphat.coreapi.domain.model.enums.settings.SystemConfigEnum;
+import com.daiphat.coreapi.domain.model.lotteries.ImportBatchCancelReason;
 import com.daiphat.coreapi.domain.model.lotteries.ImportBatchLineModel;
 import com.daiphat.coreapi.domain.model.lotteries.ImportBatchModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
@@ -68,11 +69,12 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -258,6 +260,123 @@ public class ImportBatchService implements ImportBatchServicePort {
             supplierSettlementServicePort.recalculateTotalImportValue(saved.getSupplierSettlementId());
         }
         return importBatchApplicationMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public Map<Long, Long> ensureOpenLinesByStation(
+            Long importBatchId,
+            Map<Long, Integer> declareByStation,
+            UUID operatorId
+    ) {
+        if (importBatchId == null || declareByStation == null || declareByStation.isEmpty()) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "Thiếu thông tin nhà đài để gắn dòng nhập lô.");
+        }
+        ImportBatchModel batch = getImportBatchOrThrow(importBatchId);
+        importBatchDraftExpiryService.cancelIfOverdue(batch);
+        batch = getImportBatchOrThrow(importBatchId);
+
+        if (!batch.isEditable()) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_INVALID_STATUS);
+        }
+        if (batch.getImportedBy() == null || !batch.getImportedBy().equals(operatorId)) {
+            throw new DomainException(ErrorCode.LOTTERY_TICKET_IMPORT_BATCH_MISMATCH);
+        }
+
+        List<ImportBatchLineModel> existingLines = importBatchLineRepositoryPort.findByImportBatchId(batch.getId());
+        Map<Long, ImportBatchLineModel> editableByStation = new LinkedHashMap<>();
+        for (ImportBatchLineModel line : existingLines) {
+            if (line.getDeletedAt() != null) {
+                continue;
+            }
+            if (line.getStatus() == ImportBatchLineStatus.CANCELLED
+                    || line.getStatus() == ImportBatchLineStatus.IMPORTED) {
+                continue;
+            }
+            editableByStation.putIfAbsent(line.getLotteryStationId(), line);
+        }
+
+        List<UpdateImportBatchLineRequest> lineUpdates = new ArrayList<>();
+        int totalDeclare = batch.getTotalDeclareQuantity() != null ? batch.getTotalDeclareQuantity() : 0;
+
+        for (Map.Entry<Long, Integer> entry : declareByStation.entrySet()) {
+            Long stationId = entry.getKey();
+            int needed = entry.getValue() != null ? entry.getValue() : 0;
+            if (stationId == null || needed <= 0) {
+                continue;
+            }
+            ImportBatchLineModel existing = editableByStation.get(stationId);
+            if (existing != null) {
+                int currentDeclare = existing.getDeclareQuantity() != null ? existing.getDeclareQuantity() : 0;
+                int imported = existing.getTotalQuantity() != null ? existing.getTotalQuantity() : 0;
+                int remaining = Math.max(0, currentDeclare - imported);
+                if (needed > remaining) {
+                    int newDeclare = imported + needed;
+                    totalDeclare += (newDeclare - currentDeclare);
+                    lineUpdates.add(UpdateImportBatchLineRequest.builder()
+                            .id(existing.getId())
+                            .lotteryStationId(stationId)
+                            .declareQuantity(newDeclare)
+                            .removed(false)
+                            .build());
+                }
+            } else {
+                totalDeclare += needed;
+                lineUpdates.add(UpdateImportBatchLineRequest.builder()
+                        .id(null)
+                        .lotteryStationId(stationId)
+                        .declareQuantity(needed)
+                        .removed(false)
+                        .build());
+            }
+        }
+
+        if (!lineUpdates.isEmpty()) {
+            // Preserve unchanged existing lines in the update payload.
+            for (ImportBatchLineModel line : existingLines) {
+                if (line.getDeletedAt() != null) {
+                    continue;
+                }
+                boolean already = lineUpdates.stream()
+                        .anyMatch(u -> line.getId().equals(u.id()));
+                if (!already && line.getStatus() != ImportBatchLineStatus.CANCELLED) {
+                    lineUpdates.add(UpdateImportBatchLineRequest.builder()
+                            .id(line.getId())
+                            .lotteryStationId(line.getLotteryStationId())
+                            .declareQuantity(line.getDeclareQuantity())
+                            .removed(false)
+                            .build());
+                }
+            }
+            update(
+                    importBatchId,
+                    UpdateImportBatchRequest.builder()
+                            .supplierId(batch.getSupplierId())
+                            .totalDeclareQuantity(Math.max(totalDeclare, 1))
+                            .invoiceEvidenceUrl(batch.getInvoiceEvidenceUrl())
+                            .ticketListImageUrls(batch.getTicketListImageUrls())
+                            .lines(lineUpdates)
+                            .build()
+            );
+        }
+
+        List<ImportBatchLineModel> refreshed = importBatchLineRepositoryPort.findByImportBatchId(importBatchId);
+        Map<Long, Long> stationToLine = new LinkedHashMap<>();
+        for (Map.Entry<Long, Integer> entry : declareByStation.entrySet()) {
+            Long stationId = entry.getKey();
+            ImportBatchLineModel match = refreshed.stream()
+                    .filter(l -> l.getDeletedAt() == null)
+                    .filter(l -> stationId.equals(l.getLotteryStationId()))
+                    .filter(l -> l.getStatus() != ImportBatchLineStatus.CANCELLED
+                            && l.getStatus() != ImportBatchLineStatus.IMPORTED)
+                    .findFirst()
+                    .orElseThrow(() -> new DomainException(
+                            ErrorCode.IMPORT_BATCH_NOT_FOUND,
+                            "Không tạo được dòng nhập lô cho nhà đài #" + stationId
+                    ));
+            stationToLine.put(stationId, match.getId());
+        }
+        return stationToLine;
     }
 
     @Override
@@ -562,6 +681,43 @@ public class ImportBatchService implements ImportBatchServicePort {
         importBatchDraftExpiryService.cancelOverdueDrafts();
         ImportBatchModel model = getImportBatchOrThrow(id);
         return importBatchApplicationMapper.toResponse(model);
+    }
+
+    @Override
+    @Transactional
+    public ImportBatchResponse cancelDraft(Long batchId, UUID operatorId) {
+        ImportBatchModel batch = getImportBatchOrThrow(batchId);
+        importBatchDraftExpiryService.cancelIfOverdue(batch);
+        batch = getImportBatchOrThrow(batchId);
+
+        if (!batch.isEditable()) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_INVALID_STATUS);
+        }
+        if (batch.getImportedBy() == null || !batch.getImportedBy().equals(operatorId)) {
+            throw new DomainException(ErrorCode.LOTTERY_TICKET_IMPORT_BATCH_MISMATCH);
+        }
+
+        LocalDateTime now = LocalDateTime.now(clock);
+        List<ImportBatchLineModel> lines = importBatchLineRepositoryPort.findByImportBatchId(batchId);
+        for (ImportBatchLineModel line : lines) {
+            if (line.getDeletedAt() != null) {
+                continue;
+            }
+            if (line.getStatus() == ImportBatchLineStatus.OPEN
+                    || line.getStatus() == ImportBatchLineStatus.IMPORTING
+                    || line.getStatus() == ImportBatchLineStatus.PAUSED) {
+                lotteryTicketServicePort.purgeImportBatchLineTickets(line.getId());
+            }
+            if (!line.isCancelled()) {
+                line.markCancelled(now, ImportBatchCancelReason.OPERATOR_DISCARDED);
+                importBatchLineRepositoryPort.save(line);
+            }
+        }
+
+        batch.setLines(importBatchLineRepositoryPort.findByImportBatchId(batchId));
+        batch.markCancelled(now, ImportBatchCancelReason.OPERATOR_DISCARDED);
+        ImportBatchModel saved = importBatchRepositoryPort.save(batch);
+        return importBatchApplicationMapper.toResponse(saved);
     }
 
     @Override

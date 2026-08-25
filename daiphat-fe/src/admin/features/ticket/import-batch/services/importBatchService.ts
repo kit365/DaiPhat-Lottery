@@ -185,6 +185,20 @@ export const previewImportBatchClassification = async (
     return response.data;
 };
 
+export const cancelImportBatchDraft = async (
+    batchId: number | string
+): Promise<ApiResponse<ImportBatch>> => {
+    const response = await apiApp.post(
+        `${BASE_URL}/${batchId}/cancel`,
+        {},
+        {
+            ...withAuthHeaders(),
+            skipGlobalErrorToast: true,
+        }
+    );
+    return response.data;
+};
+
 export const getIncompleteImportBatches = async (): Promise<ImportBatch[]> => {
     const response = await apiApp.get(`${BASE_URL}/incomplete`, {
         skipGlobalErrorToast: true,

@@ -32,6 +32,19 @@ public interface ImportBatchServicePort {
     ImportBatchResponse update(Long id, UpdateImportBatchRequest request);
 
     /**
+     * Ensures OPEN/editable lines exist for the given stations on an editable batch.
+     * Creates missing lines or increases declare quantity when needed.
+     *
+     * @param declareByStation stationId → additional/required declare quantity for this import
+     * @return stationId → lineId
+     */
+    java.util.Map<Long, Long> ensureOpenLinesByStation(
+            Long importBatchId,
+            java.util.Map<Long, Integer> declareByStation,
+            UUID operatorId
+    );
+
+    /**
      * Attach invoice evidence URL when the batch currently has none.
      * Works for completed/imported batches (settlement reconciliation fill-in).
      */
@@ -84,6 +97,9 @@ public interface ImportBatchServicePort {
     ImportBatchResponse pauseLine(Long batchId, Long lineId);
 
     ImportBatchResponse resumeLine(Long batchId, Long lineId);
+
+    /** Operator discards an editable draft/incomplete import-batch they own. */
+    ImportBatchResponse cancelDraft(Long batchId, UUID operatorId);
 
     ImportBatchReductionTicketsResponse getReductionTickets(Long importBatchId);
 

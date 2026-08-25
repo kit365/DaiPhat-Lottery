@@ -53,6 +53,7 @@ import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketRepositor
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchFileCommitMode;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchFileGroupStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchFileIssueCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchFileIssueSeverity;
@@ -62,6 +63,7 @@ import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchImportMode;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchType;
 import com.daiphat.coreapi.domain.model.enums.lottery.InputSource;
 import com.daiphat.coreapi.domain.model.enums.settings.SystemConfigEnum;
+import com.daiphat.coreapi.domain.model.lotteries.ImportBatchModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotterySupplierModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketModel;
@@ -648,12 +650,16 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
 
         ImportBatchResponse batch;
         try {
-            batch = importBatchServicePort.create(
-                    toCreateRequest(request, group, supplier, evidence),
-                    operatorId
-            );
+            if (request.resolvedCommitMode() == ImportBatchFileCommitMode.MANUAL) {
+                batch = attachToExistingBatch(request, group, supplier, operatorId);
+            } else {
+                batch = importBatchServicePort.create(
+                        toCreateRequest(request, group, supplier, evidence),
+                        operatorId
+                );
+            }
         } catch (DomainException e) {
-            log.warn("File import could not create the batch for drawDate={}: {}", drawDate, e.getMessage());
+            log.warn("File import could not create/attach the batch for drawDate={}: {}", drawDate, e.getMessage());
             return failure(drawDate, e.getErrorCode().getCode(), e.getMessage());
         }
 
@@ -684,6 +690,51 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
                 .declaredSerialCount(group.totalDeclareQuantity())
                 .importedSerialCount(importedSerials)
                 .build();
+    }
+
+    private ImportBatchResponse attachToExistingBatch(
+            ImportBatchFileImportCommitRequest request,
+            ImportBatchFileGroupResponse group,
+            LotterySupplierModel supplier,
+            UUID operatorId
+    ) {
+        Long batchId = request.manualBatchIdFor(group.drawDate());
+        if (batchId == null) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Chưa chọn phiếu nhập cho ngày quay " + group.drawDate().format(DATE_DISPLAY) + "."
+            );
+        }
+        ImportBatchModel existing = importBatchRepositoryPort.findById(batchId)
+                .orElseThrow(() -> new DomainException(ErrorCode.IMPORT_BATCH_NOT_FOUND));
+        if (!group.drawDate().equals(existing.getDrawDate())) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Phiếu nhập đã chọn không khớp ngày quay " + group.drawDate().format(DATE_DISPLAY) + "."
+            );
+        }
+        if (existing.getSupplierId() != null && !existing.getSupplierId().equals(supplier.getId())) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Phiếu nhập đã chọn không thuộc nhà cung cấp đã chọn."
+            );
+        }
+        if (!existing.isEditable()) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_INVALID_STATUS);
+        }
+        if (existing.getImportedBy() == null || !existing.getImportedBy().equals(operatorId)) {
+            throw new DomainException(ErrorCode.LOTTERY_TICKET_IMPORT_BATCH_MISMATCH);
+        }
+
+        Map<Long, Integer> declareByStation = group.stations().stream()
+                .collect(Collectors.toMap(
+                        ImportBatchFileStationSummaryResponse::lotteryStationId,
+                        ImportBatchFileStationSummaryResponse::declaredQuantity,
+                        Integer::sum,
+                        LinkedHashMap::new
+                ));
+        importBatchServicePort.ensureOpenLinesByStation(batchId, declareByStation, operatorId);
+        return importBatchServicePort.getById(batchId);
     }
 
     private CreateImportBatchRequest toCreateRequest(

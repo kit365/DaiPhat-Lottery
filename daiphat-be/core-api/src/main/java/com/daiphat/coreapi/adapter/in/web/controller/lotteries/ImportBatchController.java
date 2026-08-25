@@ -134,6 +134,21 @@ public class ImportBatchController {
         return ApiResponse.success(null, importBatchServicePort.getIncompleteBatches());
     }
 
+    @PostMapping("/{batchId:\\d+}/cancel")
+    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    public ApiResponse<ImportBatchResponse> cancelDraft(
+            @PathVariable Long batchId,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
+    ) {
+        if (principal == null) {
+            throw new DomainException(ErrorCode.UNAUTHORIZED);
+        }
+        return ApiResponse.success(
+                "Đã hủy phiếu nhập nháp.",
+                importBatchServicePort.cancelDraft(batchId, principal.getId())
+        );
+    }
+
     @GetMapping("/without-lines")
     @PreAuthorize("hasAnyAuthority('importBatch:view', 'ticket:create')")
     public ApiResponse<List<ImportBatchResponse>> getBatchesWithoutLines() {

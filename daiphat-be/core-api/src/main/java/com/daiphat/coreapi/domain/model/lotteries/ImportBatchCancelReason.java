@@ -11,6 +11,9 @@ public final class ImportBatchCancelReason {
     public static final String ALL_LINES_CANCELLED =
             "The Import Batch has been cancelled because all Lottery Station import batches are no longer valid.";
 
+    public static final String OPERATOR_DISCARDED =
+            "Operator discarded this draft import batch.";
+
     private ImportBatchCancelReason() {
     }
 }

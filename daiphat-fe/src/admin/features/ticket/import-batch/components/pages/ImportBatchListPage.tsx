@@ -1,6 +1,7 @@
 "use client";
 
 import AddIcon from '@mui/icons-material/Add';
+import DocumentScannerOutlinedIcon from '@mui/icons-material/DocumentScannerOutlined';
 import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
 import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
@@ -9,7 +10,8 @@ import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
 import ConfirmationNumberOutlinedIcon from '@mui/icons-material/ConfirmationNumberOutlined';
 import { Box, Stack, Tab, Tabs, Tooltip } from '@mui/material';
 import dayjs from 'dayjs';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { AdminKpiCard, AdminKpiCardsGrid } from '@/admin/components/ui/AdminKpiCard';
 import { useTodayImportIntakeSummary } from '../../hooks/useImportBatchIntakeGate';
 import { useAdminRouter } from '@/admin/hooks/useAdminRouter';
@@ -28,14 +30,38 @@ import { ImportBatchList } from '../sections/ImportBatchList';
 import { IncompleteImportBatchNotification } from '../sections/IncompleteImportBatchNotification';
 import { MissingStationImportBatchNotification } from '../sections/MissingStationImportBatchNotification';
 import { ImportBatchIntakeStatusBanner } from '../sections/ImportBatchIntakeStatusBanner';
+import { OcrTicketImportDialog } from '../../../ocr-import/components/OcrTicketImportDialog';
+import { OCR_IMPORT_DRAFT_KEY } from '../../../ocr-import/types/ticketOcr.type';
 
 export const ImportBatchListPage = () => {
     const router = useAdminRouter();
+    const searchParams = useSearchParams();
     const listHook = useImportBatchList();
     const { batches, pagination } = listHook;
     const [fileImportOpen, setFileImportOpen] = useState(false);
+    const [ocrImportOpen, setOcrImportOpen] = useState(false);
+    const [ocrRestoreFromDraft, setOcrRestoreFromDraft] = useState(false);
+    const [ocrRestoreBatchId, setOcrRestoreBatchId] = useState<number | null>(null);
     const [tab, setTab] = useState<'BATCHES' | 'FILE_JOBS'>('BATCHES');
     const todayIntake = useTodayImportIntakeSummary();
+
+    useEffect(() => {
+        const returnTo = searchParams?.get('returnTo');
+        const draftKey = searchParams?.get('draftKey');
+        if (returnTo !== 'ocr-import') {
+            return;
+        }
+        if (draftKey && draftKey !== OCR_IMPORT_DRAFT_KEY) {
+            return;
+        }
+        const batchIdRaw = searchParams?.get('selectedImportBatchId');
+        const batchId = batchIdRaw ? Number(batchIdRaw) : null;
+        setOcrRestoreFromDraft(true);
+        setOcrRestoreBatchId(batchId != null && Number.isFinite(batchId) ? batchId : null);
+        setOcrImportOpen(true);
+        router.replace(ROUTES.ADMIN.IMPORT_BATCH.LIST);
+    }, [searchParams, router]);
+
     const todayBlocked = todayIntake.anyBlockedForToday;
     const todayIntakeBlockedTooltip = useMemo(() => {
         if (!todayBlocked) {
@@ -91,6 +117,22 @@ export const ImportBatchListPage = () => {
                         ]}
                     />
                 </div>
+                <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
+                    <Tooltip title={todayIntakeBlockedTooltip}>
+                        <span>
+                            <LoadingButton
+                                onClick={() => setOcrImportOpen(true)}
+                                label="Nhập vé bằng OCR"
+                                startIcon={<DocumentScannerOutlinedIcon />}
+                                variant="outlined"
+                                sx={{
+                                    minHeight: '2.25rem',
+                                    padding: 'var(--shape-borderRadius-sm) calc(2 * var(--spacing))',
+                                }}
+                            />
+                        </span>
+                    </Tooltip>
+                </CanAccess>
                 <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
                     <Tooltip title={todayIntakeBlockedTooltip}>
                         <span>
@@ -191,6 +233,21 @@ export const ImportBatchListPage = () => {
                 open={fileImportOpen}
                 onClose={() => setFileImportOpen(false)}
                 onImported={() => listHook.refetch()}
+            />
+
+            <OcrTicketImportDialog
+                open={ocrImportOpen}
+                onClose={() => {
+                    setOcrImportOpen(false);
+                    setOcrRestoreFromDraft(false);
+                    setOcrRestoreBatchId(null);
+                }}
+                onImported={() => listHook.refetch()}
+                restoreFromDraft={ocrRestoreFromDraft}
+                restoreSelectedImportBatchId={ocrRestoreBatchId}
+                onDraftRestored={() => {
+                    setOcrRestoreFromDraft(false);
+                }}
             />
         </Box>
     );

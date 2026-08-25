@@ -83,8 +83,13 @@ public class ImportBatchDraftExpiryService {
         this.clock = clock;
     }
 
+    /**
+     * Synchronized: Admin OCR open fires incomplete + active-draft in parallel, and both call this.
+     * Concurrent purge of the same overdue draft lines has been observed to destabilize the JVM
+     * on Windows (ACCESS_VIOLATION / exit 0xC0000005).
+     */
     @Transactional
-    public int cancelOverdueDrafts() {
+    public synchronized int cancelOverdueDrafts() {
         LocalDateTime now = LocalDateTime.now(clock);
         LocalDate today = now.toLocalDate();
         int cancelledBatchCount = 0;

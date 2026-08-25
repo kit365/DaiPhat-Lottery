@@ -77,10 +77,12 @@ import {
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useFieldArray, useForm, useWatch, type Resolver } from 'react-hook-form';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useAdminRouter } from '@/admin/hooks/useAdminRouter';
 import { toast } from 'react-toastify';
 import { confirmDelete } from '../../../../../utils/swal';
 import dayjs from 'dayjs';
+import { OCR_IMPORT_DRAFT_KEY } from '../../../ocr-import/types/ticketOcr.type';
 
 const IMPORT_EVIDENCE_ACCEPT: Accept = {
     'image/*': ['.jpg', '.jpeg', '.png', '.webp', '.gif'],
@@ -110,6 +112,29 @@ const buildDefaultFormValues = (initialDrawDate?: string): CreateImportBatchForm
 
 export const ImportBatchCreatePage = () => {
     const router = useAdminRouter();
+    const searchParams = useSearchParams();
+    const returnToOcrImport =
+        searchParams?.get('returnTo') === 'ocr-import' &&
+        (searchParams?.get('draftKey') === OCR_IMPORT_DRAFT_KEY || !searchParams?.get('draftKey'));
+
+    const redirectAfterCreate = useCallback(
+        (createdBatchId?: number | null) => {
+            if (returnToOcrImport) {
+                const params = new URLSearchParams({
+                    returnTo: 'ocr-import',
+                    draftKey: OCR_IMPORT_DRAFT_KEY,
+                });
+                if (createdBatchId != null) {
+                    params.set('selectedImportBatchId', String(createdBatchId));
+                }
+                router.push(`${ROUTES.ADMIN.IMPORT_BATCH.LIST}?${params.toString()}`);
+                return;
+            }
+            router.push(ROUTES.ADMIN.IMPORT_BATCH.LIST);
+        },
+        [returnToOcrImport, router]
+    );
+
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [pendingFormData, setPendingFormData] = useState<CreateImportBatchFormValues | null>(null);
     const [duplicateOpen, setDuplicateOpen] = useState(false);
@@ -546,6 +571,10 @@ export const ImportBatchCreatePage = () => {
         setConfirmOpen(false);
         setPendingFormData(null);
         clearDraft();
+        if (returnToOcrImport) {
+            redirectAfterCreate(duplicateExistingBatch.id);
+            return;
+        }
         router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(duplicateExistingBatch.id));
     };
 
@@ -562,7 +591,7 @@ export const ImportBatchCreatePage = () => {
                 setConfirmOpen(false);
                 setPendingFormData(null);
                 handleCloseDuplicate();
-                router.push(ROUTES.ADMIN.IMPORT_BATCH.LIST);
+                redirectAfterCreate(res.data?.id ?? null);
             } else {
                 toast.error(res.message || 'Tạo phiếu nhập lô thất bại.');
             }
@@ -587,7 +616,7 @@ export const ImportBatchCreatePage = () => {
                 toast.success(res.message || 'Tạo phiếu nhập lô thành công.');
                 setConfirmOpen(false);
                 setPendingFormData(null);
-                router.push(ROUTES.ADMIN.IMPORT_BATCH.LIST);
+                redirectAfterCreate(res.data?.id ?? null);
             } else {
                 toast.error(res.message || 'Tạo phiếu nhập lô thất bại.');
             }
@@ -612,6 +641,10 @@ export const ImportBatchCreatePage = () => {
 
     const handleCancel = () => {
         clearDraft();
+        if (returnToOcrImport) {
+            redirectAfterCreate(null);
+            return;
+        }
         router.push(ROUTES.ADMIN.IMPORT_BATCH.LIST);
     };
 

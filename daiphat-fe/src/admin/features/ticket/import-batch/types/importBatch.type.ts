@@ -489,6 +489,14 @@ export interface ImportBatchFileImportResult {
  * The file is uploaded again instead of the resolved rows being sent back, so the
  * backend re-reads and re-validates everything rather than trusting this copy.
  */
+export type ImportBatchFileCommitMode = 'AUTO' | 'MANUAL';
+
+/** Maps one preview draw-date group onto an existing editable import-batch (Manual). */
+export interface ImportBatchFileManualBatchBinding {
+    drawDate: string;
+    importBatchId: number;
+}
+
 export interface ImportBatchFileCommitPayload {
     supplierId: number;
     fileHash: string;
@@ -504,6 +512,10 @@ export interface ImportBatchFileCommitPayload {
      * on each created batch.
      */
     useOriginalFileAsTicketListEvidence?: boolean;
+    /** AUTO creates new batches (default); MANUAL attaches to selected import-batches. */
+    commitMode?: ImportBatchFileCommitMode;
+    /** Required when commitMode=MANUAL: one importBatchId per selected drawDate. */
+    manualBatchBindings?: ImportBatchFileManualBatchBinding[];
 }
 
 /** A column mapping remembered for one supplier and one file layout. */
