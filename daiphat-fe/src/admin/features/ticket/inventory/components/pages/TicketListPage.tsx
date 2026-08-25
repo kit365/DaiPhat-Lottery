@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from 'react';
 import CloseIcon from '@mui/icons-material/Close';
+import DocumentScannerOutlinedIcon from '@mui/icons-material/DocumentScannerOutlined';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
-import { Box, Button, Stack, Tooltip, Typography } from '@mui/material';
+import { Alert, Box, Button, Stack, Tooltip, Typography } from '@mui/material';
 import { useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '../../../../../components/ui/PageHeader';
 import { CanAccess } from '../../../../../components/auth/CanAccess';
@@ -18,10 +19,12 @@ import { IncompleteImportBatchNotification } from '../../../import-batch/compone
 import { ImportBatchFileImportDialog } from '../../../import-batch/components/sections/ImportBatchFileImportDialog';
 import { useCancelTicketSelection } from '../../../import-batch/hooks/useCancelTicketSelection';
 import { useTodayImportIntakeSummary } from '../../../import-batch/hooks/useImportBatchIntakeGate';
+import { OcrTicketImportDialog } from '../../../ocr-import/components/OcrTicketImportDialog';
 
 export const TicketListPage = () => {
     const queryClient = useQueryClient();
     const [fileImportOpen, setFileImportOpen] = useState(false);
+    const [ocrImportOpen, setOcrImportOpen] = useState(false);
     const todayIso = dayjs().format('YYYY-MM-DD');
 
     const ticketHook = useTicketInventory({
@@ -69,8 +72,8 @@ export const TicketListPage = () => {
             return null;
         }
         return includesToday
-            ? 'Đã tới giờ kiểm vé để chuẩn bị trả nhà cung cấp — không hủy được vé của ngày quay hôm nay nữa.'
-            : 'Kỳ quay đã kết thúc và vé đã chốt trả nhà cung cấp — không hủy được vé của ngày quay đã qua.';
+            ? 'Đã tới giờ chốt vé trả nhà cung cấp — không thể hủy vé hôm nay.'
+            : 'Vé đã chốt trả nhà cung cấp — không thể hủy vé kỳ quay cũ.';
     }, [ticketHook.tickets, allBlockedForToday, todayIso]);
 
     const handleFileImportSuccess = () => {
@@ -100,6 +103,32 @@ export const TicketListPage = () => {
                 ]}
                 action={
                     <Stack direction="row" spacing={1.5} alignItems="center">
+                        <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
+                            <Button
+                                variant="outlined"
+                                size="small"
+                                startIcon={<DocumentScannerOutlinedIcon />}
+                                onClick={() => setOcrImportOpen(true)}
+                                sx={{
+                                    minHeight: '2.4rem',
+                                    textTransform: 'none',
+                                    fontWeight: 700,
+                                    borderRadius: '10px',
+                                    borderColor: '#cbd5e1',
+                                    color: '#334155',
+                                    bgcolor: '#ffffff',
+                                    py: 0.8,
+                                    px: 2,
+                                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                                    '&:hover': {
+                                        borderColor: '#94a3b8',
+                                        bgcolor: '#f8fafc',
+                                    },
+                                }}
+                            >
+                                Nhập vé bằng OCR
+                            </Button>
+                        </CanAccess>
                         <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
                             <Button
                                 variant="outlined"
@@ -154,48 +183,33 @@ export const TicketListPage = () => {
                             </Button>
                         )}
 
-                        <Stack spacing={0.4} alignItems="flex-end">
-                            <Tooltip title={cancelLockReason ?? ''}>
-                                <span>
-                                    <Button
-                                        variant="contained"
-                                        color="error"
-                                        size="small"
-                                        disabled={Boolean(cancelLockReason)}
-                                        startIcon={<ReportProblemIcon />}
-                                        onClick={handleCancelPrimaryClick}
-                                        sx={{
-                                            minHeight: '2.4rem',
-                                            textTransform: 'none',
-                                            fontWeight: 800,
-                                            borderRadius: '10px',
-                                            boxShadow: hasSelectedSerials
-                                                ? '0 4px 12px rgba(239, 68, 68, 0.25)'
-                                                : 'none',
-                                            py: 0.8,
-                                            px: 2.2,
-                                        }}
-                                    >
-                                        {hasSelectedSerials
-                                            ? `Tiến hành hủy vé (${cancelSelection.selectedSerials.length})`
-                                            : 'Hủy vé'}
-                                    </Button>
-                                </span>
-                            </Tooltip>
-                            {cancelLockReason && (
-                                <Typography
-                                    variant="caption"
+                        <Tooltip title={cancelLockReason ?? ''}>
+                            <span>
+                                <Button
+                                    variant="contained"
+                                    color="error"
+                                    size="small"
+                                    disabled={Boolean(cancelLockReason)}
+                                    startIcon={<ReportProblemIcon />}
+                                    onClick={handleCancelPrimaryClick}
                                     sx={{
-                                        color: '#b45309',
-                                        maxWidth: 320,
-                                        textAlign: 'right',
-                                        lineHeight: 1.35,
+                                        minHeight: '2.4rem',
+                                        textTransform: 'none',
+                                        fontWeight: 800,
+                                        borderRadius: '10px',
+                                        boxShadow: hasSelectedSerials
+                                            ? '0 4px 12px rgba(239, 68, 68, 0.25)'
+                                            : 'none',
+                                        py: 0.8,
+                                        px: 2.2,
                                     }}
                                 >
-                                    {cancelLockReason}
-                                </Typography>
-                            )}
-                        </Stack>
+                                    {hasSelectedSerials
+                                        ? `Tiến hành hủy vé (${cancelSelection.selectedSerials.length})`
+                                        : 'Hủy vé'}
+                                </Button>
+                            </span>
+                        </Tooltip>
                     </Stack>
                 }
             />
@@ -204,11 +218,27 @@ export const TicketListPage = () => {
                 <IncompleteImportBatchNotification />
             </CanAccess>
 
+            {cancelLockReason && (
+                <Alert
+                    severity="warning"
+                    icon={<ReportProblemIcon fontSize="inherit" />}
+                    sx={{ mb: 3, borderRadius: '12px', alignItems: 'center', fontWeight: 600 }}
+                >
+                    {cancelLockReason}
+                </Alert>
+            )}
+
             <TicketList ticketHook={ticketHook} cancelSelection={cancelSelection} />
 
             <ImportBatchFileImportDialog
                 open={fileImportOpen}
                 onClose={() => setFileImportOpen(false)}
+                onImported={handleFileImportSuccess}
+            />
+
+            <OcrTicketImportDialog
+                open={ocrImportOpen}
+                onClose={() => setOcrImportOpen(false)}
                 onImported={handleFileImportSuccess}
             />
         </Box>

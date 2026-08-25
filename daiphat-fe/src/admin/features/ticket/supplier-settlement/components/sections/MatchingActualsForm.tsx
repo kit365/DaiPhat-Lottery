@@ -3281,21 +3281,7 @@ export const MatchingActualsForm = ({
                                                     </Stack>
                                                 )}
                                             </Box>
-                                            {item ? (
-                                                <AdminStatusBadge
-                                                    label={getDiscrepancyItemLabel(item)}
-                                                    modifier={
-                                                        isExcessReturn
-                                                            ? 'admin-status-badge--active'
-                                                            : getDiscrepancyItemBadgeModifier(false, item.direction)
-                                                    }
-                                                />
-                                            ) : (
-                                                <AdminStatusBadge
-                                                    label="Lệch giá nhập / hoa hồng theo đài"
-                                                    modifier="admin-status-badge--pending"
-                                                />
-                                            )}
+
                                         </Stack>
                                     );
                                 })}

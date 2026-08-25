@@ -10,7 +10,7 @@ import jakarta.validation.constraints.NotNull;
  * when null the parent resolve request condition is used.
  */
 public record SettlementImportPlaceholderRequest(
-        @NotNull Long lotteryStationId,
+        Long lotteryStationId,
         @NotNull @Min(1) Integer quantity,
         TicketCondition ticketCondition
 ) {

@@ -200,7 +200,8 @@ public class GlobalExceptionAdvice {
                 || errorCode == ErrorCode.REFUND_DAILY_LIMIT_EXCEEDED
                 || errorCode == ErrorCode.ORDER_INVALID_STATUS
                 || errorCode == ErrorCode.ORDER_NOT_FOUND
-                || errorCode == ErrorCode.LOTTERY_TICKET_SERIALS_INCIDENT_INCOMPLETE) {
+                || errorCode == ErrorCode.LOTTERY_TICKET_SERIALS_INCIDENT_INCOMPLETE
+                || errorCode == ErrorCode.TICKET_SCAN_SERVICE_UNAVAILABLE) {
             return exception.getInternalMessage();
         }
 

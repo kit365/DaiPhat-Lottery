@@ -14,4 +14,4 @@ export const getInspectableTicketConditionLabel = (
 ): string =>
     serial?.ticketConditionDisplayName
     || serial?.ticketConditionLabel
-    || (serial?.ticketCondition === 'GOOD' || !serial?.ticketCondition ? 'Tốt' : serial.ticketCondition);
+    || (serial?.ticketCondition === 'GOOD' || !serial?.ticketCondition ? 'Tồn kho' : serial.ticketCondition);

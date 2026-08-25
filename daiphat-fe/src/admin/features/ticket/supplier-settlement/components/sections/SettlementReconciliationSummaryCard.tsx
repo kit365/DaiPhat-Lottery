@@ -1133,7 +1133,7 @@ export const SettlementReconciliationSummaryCard = ({
                     </Box>
                     <Box>
                         <Typography variant="subtitle1" fontWeight={800} color="#0f172a" sx={{ fontSize: '1.05rem', lineHeight: 1.3 }}>
-                            Tóm tắt kết quả đối chiếu số liệu hệ thống & thực tế
+                            Chênh lệch (NCC so với HT)
                         </Typography>
                         <Typography variant="caption" color="#64748b">
                             {settlement.supplierName || 'NCC'} · {settlement.supplierSettlementCode || `#${settlement.id}`}

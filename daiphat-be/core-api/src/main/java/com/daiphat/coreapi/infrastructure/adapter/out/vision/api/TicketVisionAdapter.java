@@ -21,16 +21,21 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 
 /**
- * Calls the ticket-vision Python microservice's POST /v1/scan. Mirrors
- * PythonAiAdapter's RestTemplate/timeout wiring, but unlike the best-effort
- * chat/fortune AI calls (which swallow failures to null), a scan request
- * has no useful fallback, so failures are surfaced as a DomainException.
+ * Calls the ticket-vision Python microservice's POST /v1/scan.
+ *
+ * <p>Connectivity / true outages → {@link ErrorCode#TICKET_SCAN_SERVICE_UNAVAILABLE} (503).
+ * OCR soft-failures (success:false, empty body, parse issues) degrade to an empty
+ * scan result with warnings so partial/unreadable tickets never become HTTP 500/503.
  */
 @Slf4j
 @Component
@@ -76,17 +81,54 @@ public class TicketVisionAdapter implements TicketVisionPort {
 
             AiRemoteApiResponse<RemoteTicketScanResult> body = response.getBody();
             if (body == null || !body.isSuccess() || body.getData() == null) {
-                log.error("ticket-vision returned unsuccessful response from {}: {}", url, body);
-                throw new DomainException(
-                        ErrorCode.TICKET_SCAN_SERVICE_UNAVAILABLE,
-                        body != null ? body.getMessage() : "empty response body"
-                );
+                String visionMessage = body != null ? body.getMessage() : "empty response body";
+                log.warn("ticket-vision soft-failed at {}: {}", url, visionMessage);
+                return emptyResult(List.of(
+                        visionMessage != null && !visionMessage.isBlank()
+                                ? visionMessage
+                                : "OCR không trả về kết quả cho ảnh này."
+                ));
             }
-            return body.getData();
-        } catch (RestClientException e) {
-            log.error("Failed to call ticket-vision scan service at {}", url, e);
+            return normalize(body.getData());
+        } catch (ResourceAccessException e) {
+            log.error("ticket-vision unreachable at {}", url, e);
             throw new DomainException(ErrorCode.TICKET_SCAN_SERVICE_UNAVAILABLE, e);
+        } catch (RestClientException e) {
+            // Includes many conversion failures — soft-degrade so one bad OCR payload
+            // never becomes HTTP 500 for the Admin upload flow.
+            log.error("ticket-vision call failed at {} — returning empty soft result", url, e);
+            return emptyResult(List.of(
+                    "Không thể phân tích kết quả OCR từ dịch vụ quét vé. Vui lòng thử ảnh khác hoặc chỉnh góc chụp."
+            ));
+        } catch (Exception e) {
+            log.error("Unexpected ticket-vision error at {} — returning empty soft result", url, e);
+            return emptyResult(List.of(
+                    "Đã xảy ra lỗi khi xử lý OCR. Ảnh vẫn có thể tải lại để quét lại."
+            ));
         }
+    }
+
+    private static RemoteTicketScanResult normalize(RemoteTicketScanResult data) {
+        List<String> warnings = data.warnings() != null ? new ArrayList<>(data.warnings()) : new ArrayList<>();
+        return new RemoteTicketScanResult(
+                data.scanId() != null && !data.scanId().isBlank() ? data.scanId() : UUID.randomUUID().toString(),
+                data.tickets() != null ? data.tickets().size() : 0,
+                data.tickets() != null ? data.tickets() : List.of(),
+                warnings,
+                data.imageWidth(),
+                data.imageHeight()
+        );
+    }
+
+    private static RemoteTicketScanResult emptyResult(List<String> warnings) {
+        return new RemoteTicketScanResult(
+                UUID.randomUUID().toString(),
+                0,
+                List.of(),
+                warnings,
+                null,
+                null
+        );
     }
 
     private HttpEntity<MultiValueMap<String, Object>> buildRequest(
@@ -113,8 +155,6 @@ public class TicketVisionAdapter implements TicketVisionPort {
         try {
             return objectMapper.writeValueAsString(metadata);
         } catch (Exception e) {
-            // Missing metadata just means ticket-vision falls back to its own
-            // small bootstrap station list -- degrade gracefully, don't fail the scan.
             log.warn("Failed to serialize ticket-vision scan metadata, sending image without it", e);
             return null;
         }

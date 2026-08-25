@@ -7,26 +7,30 @@ import com.daiphat.coreapi.application.dto.request.lotteries.scan.ConfirmedScann
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketSerialResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.scan.ExtractedTicketFieldsResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.scan.FieldValidationResult;
+import com.daiphat.coreapi.application.dto.response.lotteries.scan.OcrFieldDetailResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.scan.ScanBatchImportItemResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.scan.ScanBatchImportResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.scan.ScannedTicketResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.scan.TicketBoundingBoxResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.scan.TicketScanResponse;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
+import com.daiphat.coreapi.application.mapper.lotteries.OcrScanResultApplicationMapper;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryScanLogServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.TicketScanImportServicePort;
 import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchLineRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchRepositoryPort;
-import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketRepositoryPort;
-import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRepositoryPort;
+import com.daiphat.coreapi.application.port.out.lotteries.LotteryStationRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.OcrScanResultRepositoryPort;
 import com.daiphat.coreapi.application.port.out.vision.TicketVisionPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchLineStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.OcrOverallValidationStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ScanEventType;
 import com.daiphat.coreapi.domain.model.enums.lottery.ScanImportOutcome;
 import com.daiphat.coreapi.domain.model.enums.lottery.ScanMethod;
@@ -34,9 +38,8 @@ import com.daiphat.coreapi.domain.model.enums.lottery.ScannedTicketStatus;
 import com.daiphat.coreapi.domain.model.lotteries.ImportBatchLineModel;
 import com.daiphat.coreapi.domain.model.lotteries.ImportBatchModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
-import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketModel;
+import com.daiphat.coreapi.domain.model.lotteries.OcrFieldValidation;
 import com.daiphat.coreapi.domain.model.lotteries.OcrScanResultModel;
-import com.daiphat.coreapi.domain.valueobject.LotteryTicketNumber;
 import com.daiphat.coreapi.infrastructure.dto.request.vision.RemoteScanMetadata;
 import com.daiphat.coreapi.infrastructure.dto.request.vision.RemoteStationMetadata;
 import com.daiphat.coreapi.infrastructure.dto.response.vision.RemoteScannedTicket;
@@ -45,6 +48,7 @@ import com.daiphat.coreapi.shared.util.ImportBatchDraftExpiryService;
 import com.daiphat.coreapi.shared.util.StorageFolderConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -53,8 +57,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -78,11 +83,15 @@ public class TicketScanImportService implements TicketScanImportServicePort {
     private final ImportBatchRepositoryPort importBatchRepositoryPort;
     private final ImportBatchDraftExpiryService importBatchDraftExpiryService;
     private final LotteryStationServicePort lotteryStationServicePort;
-    private final LotteryTicketRepositoryPort lotteryTicketRepositoryPort;
-    private final LotteryTicketSerialRepositoryPort lotteryTicketSerialRepositoryPort;
+    private final LotteryStationRepositoryPort lotteryStationRepositoryPort;
     private final LotteryTicketServicePort lotteryTicketServicePort;
     private final OcrScanResultRepositoryPort ocrScanResultRepositoryPort;
     private final LotteryScanLogServicePort lotteryScanLogServicePort;
+    private final OcrScanValidationService ocrScanValidationService;
+    private final OcrScanResultApplicationMapper ocrScanResultApplicationMapper;
+
+    @Value("${daiphat.ticket-vision.recognition-engine:gemini}")
+    private String ticketVisionRecognitionEngine;
 
     @Override
     public TicketScanResponse scan(Long importBatchLineId, MultipartFile file, UUID operatorId) {
@@ -90,10 +99,16 @@ public class TicketScanImportService implements TicketScanImportServicePort {
             throw new DomainException(ErrorCode.TICKET_SCAN_IMAGE_REQUIRED);
         }
 
-        ImportBatchLineModel importBatchLine = getDraftImportBatchLineForOperatorOrThrow(importBatchLineId, operatorId);
-        ImportBatchModel importBatch = getImportBatchOrThrow(importBatchLine.getImportBatchId());
-        LotteryStationModel station = lotteryStationServicePort.getModelById(importBatchLine.getLotteryStationId());
-        LocalDate targetDrawDate = importBatch.getDrawDate();
+        ImportBatchLineModel importBatchLine = null;
+        ImportBatchModel importBatch = null;
+        LotteryStationModel lineStation = null;
+        LocalDate targetDrawDate = null;
+        if (importBatchLineId != null) {
+            importBatchLine = getDraftImportBatchLineForOperatorOrThrow(importBatchLineId, operatorId);
+            importBatch = getImportBatchOrThrow(importBatchLine.getImportBatchId());
+            lineStation = lotteryStationServicePort.getModelById(importBatchLine.getLotteryStationId());
+            targetDrawDate = importBatch.getDrawDate();
+        }
 
         byte[] imageBytes;
         try {
@@ -104,25 +119,76 @@ public class TicketScanImportService implements TicketScanImportServicePort {
 
         lotteryScanLogServicePort.recordEvent(
                 ScanEventType.SCAN_STARTED, null, null, operatorId, ScanMethod.OCR_SCAN, null,
-                "Import batch line " + importBatchLineId
+                importBatchLineId != null
+                        ? "Import batch line " + importBatchLineId + " (engine=" + ticketVisionRecognitionEngine + ")"
+                        : "OCR scan without import batch (engine=" + ticketVisionRecognitionEngine + ")"
         );
+
+        RemoteScanMetadata metadata = lineStation != null
+                ? buildScanMetadata(List.of(lineStation))
+                : buildScanMetadata(loadActiveStationsForVision());
 
         RemoteTicketScanResult remoteResult = ticketVisionPort.scan(
                 imageBytes,
                 file.getOriginalFilename(),
-                buildScanMetadata(station)
+                metadata
         );
 
-        List<ScannedTicketResponse> enrichedTickets = remoteResult.tickets().stream()
-                .map(remoteTicket -> enrichTicket(
-                        remoteTicket, station, targetDrawDate,
-                        remoteResult.scanId(), importBatchLineId, operatorId
-                ))
-                .toList();
+        List<RemoteScannedTicket> remoteTickets =
+                remoteResult.tickets() != null ? remoteResult.tickets() : List.of();
+        List<String> warnings = remoteResult.warnings() != null
+                ? new ArrayList<>(remoteResult.warnings())
+                : new ArrayList<>();
+
+        List<ScannedTicketResponse> enrichedTickets = new ArrayList<>();
+        for (RemoteScannedTicket remoteTicket : remoteTickets) {
+            try {
+                enrichedTickets.add(enrichTicket(
+                        remoteTicket,
+                        lineStation,
+                        targetDrawDate,
+                        remoteResult.scanId(),
+                        importBatchLineId,
+                        operatorId,
+                        file.getOriginalFilename(),
+                        remoteResult.imageWidth(),
+                        remoteResult.imageHeight()
+                ));
+            } catch (Exception e) {
+                log.error(
+                        "Failed to enrich OCR ticketIndex {} — keeping soft partial row",
+                        remoteTicket != null ? remoteTicket.ticketIndex() : null,
+                        e
+                );
+                warnings.add("Vé #" + (remoteTicket != null ? remoteTicket.ticketIndex() + 1 : "?")
+                        + ": không xử lý được đầy đủ, vui lòng kiểm tra thủ công.");
+                enrichedTickets.add(softFailedTicket(
+                        remoteTicket,
+                        remoteResult.scanId(),
+                        file.getOriginalFilename(),
+                        remoteResult.imageWidth(),
+                        remoteResult.imageHeight()
+                ));
+            }
+        }
+
+        if (enrichedTickets.isEmpty()) {
+            ScannedTicketResponse placeholder = unreadableImageTicket(
+                    remoteResult.scanId(),
+                    importBatchLineId,
+                    operatorId,
+                    file.getOriginalFilename(),
+                    remoteResult.imageWidth(),
+                    remoteResult.imageHeight(),
+                    warnings
+            );
+            enrichedTickets.add(placeholder);
+            warnings.add("Không thể đọc rõ thông tin vé từ ảnh này.");
+        }
 
         log.info(
-                "Scanned {} ticket(s) for import batch line {} (station {})",
-                enrichedTickets.size(), importBatchLineId, station.getId()
+                "Scanned {} ticket(s) (importBatchLineId={})",
+                enrichedTickets.size(), importBatchLineId
         );
 
         lotteryScanLogServicePort.recordEvent(
@@ -134,7 +200,9 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                 .scanId(remoteResult.scanId())
                 .ticketCount(enrichedTickets.size())
                 .tickets(enrichedTickets)
-                .warnings(remoteResult.warnings())
+                .warnings(warnings)
+                .imageWidth(remoteResult.imageWidth())
+                .imageHeight(remoteResult.imageHeight())
                 .build();
     }
 
@@ -313,113 +381,368 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                 : base64Image;
     }
 
-    private RemoteScanMetadata buildScanMetadata(LotteryStationModel station) {
-        // Region min/max define an accepted length *range*; ticket-vision's
-        // metadata only takes a single exact length, so only send one when
-        // the range collapses to a fixed length (true for nearly every
-        // Vietnamese lottery product) -- otherwise leave it null and let
-        // the parser fall back to its generic plausible-length heuristic.
-        Integer expectedNumberLength = null;
-        if (station.getRegion() != null) {
-            int min = station.getRegion().minLength();
-            int max = station.getRegion().maxLength();
-            expectedNumberLength = (min == max) ? max : null;
-        }
+    private List<LotteryStationModel> loadActiveStationsForVision() {
+        return lotteryStationRepositoryPort.findAll().stream()
+                .filter(s -> s.getDeletedAt() == null)
+                .filter(s -> s.isActive())
+                .toList();
+    }
 
-        List<String> aliases = (station.getProvince() != null && !station.getProvince().isBlank())
-                ? List.of(station.getProvince())
-                : List.of();
-
-        RemoteStationMetadata stationMetadata = new RemoteStationMetadata(
-                station.getId(), station.getName(), null, aliases, expectedNumberLength
+    private RemoteScanMetadata buildScanMetadata(List<LotteryStationModel> stations) {
+        List<RemoteStationMetadata> stationMetadata = stations.stream()
+                .map(station -> {
+                    Integer expectedNumberLength = null;
+                    if (station.getRegion() != null) {
+                        int min = station.getRegion().minLength();
+                        int max = station.getRegion().maxLength();
+                        expectedNumberLength = (min == max) ? max : null;
+                    }
+                    List<String> aliases = (station.getProvince() != null && !station.getProvince().isBlank())
+                            ? List.of(station.getProvince())
+                            : List.of();
+                    return new RemoteStationMetadata(
+                            station.getId(),
+                            station.getName(),
+                            station.getCode(),
+                            aliases,
+                            expectedNumberLength
+                    );
+                })
+                .toList();
+        return new RemoteScanMetadata(
+                stationMetadata,
+                null,
+                null,
+                ticketVisionRecognitionEngine
         );
-        return new RemoteScanMetadata(List.of(stationMetadata), null, null);
     }
 
     private ScannedTicketResponse enrichTicket(
             RemoteScannedTicket remote,
-            LotteryStationModel station,
+            LotteryStationModel lineStation,
             LocalDate targetDrawDate,
             String scanId,
             Long importBatchLineId,
-            UUID operatorId
+            UUID operatorId,
+            String sourceImageName,
+            Integer scanImageWidth,
+            Integer scanImageHeight
     ) {
         ExtractedTicketFieldsResponse extracted = remote.extracted();
-        String numbers = extracted != null ? trimToNull(extracted.numbers()) : null;
-        String serialNumber = extracted != null ? trimToNull(extracted.serialNumber()) : null;
-        LocalDate extractedDrawDate = extracted != null ? extracted.drawDate() : null;
+        Integer imageWidth = remote.imageWidth() != null ? remote.imageWidth() : scanImageWidth;
+        Integer imageHeight = remote.imageHeight() != null ? remote.imageHeight() : scanImageHeight;
 
-        List<String> businessErrors = new ArrayList<>();
-        boolean duplicate = false;
+        OcrScanValidationService.ValidationOutcome outcome = ocrScanValidationService.validate(
+                extracted,
+                remote.fieldConfidences(),
+                remote.status(),
+                lineStation,
+                targetDrawDate
+        );
 
-        if (numbers != null) {
-            try {
-                validateNumberFormat(numbers, station);
-            } catch (DomainException e) {
-                businessErrors.add(e.getMessage());
-            }
-        }
+        Map<String, OcrFieldDetailResponse> fields = buildFieldDetails(
+                extracted,
+                remote.fieldConfidences(),
+                remote.fieldBoxes(),
+                outcome.fieldValidations()
+        );
 
-        if (extractedDrawDate != null && !extractedDrawDate.equals(targetDrawDate)) {
-            businessErrors.add(
-                    "Ngày quay trên vé (" + extractedDrawDate + ") không khớp với ngày quay của phiếu nhập lô ("
-                            + targetDrawDate + ")."
-            );
-        }
-
-        if (numbers != null) {
-            Optional<Long> existingTicketId = lotteryTicketRepositoryPort
-                    .findByUniqueFields(station.getId(), numbers, targetDrawDate)
-                    .map(LotteryTicketModel::getId);
-            if (existingTicketId.isPresent() && serialNumber != null
-                    && lotteryTicketSerialRepositoryPort.existsByTicketIdAndSerialNumber(existingTicketId.get(), serialNumber)) {
-                duplicate = true;
-                businessErrors.add("Sê-ri " + serialNumber + " đã tồn tại trong hệ thống.");
-            }
-        }
-
-        ScannedTicketStatus finalStatus = businessErrors.isEmpty() ? remote.status() : ScannedTicketStatus.INCOMPLETE;
+        Long resolvedStationId = outcome.resolvedStationId() != null
+                ? outcome.resolvedStationId()
+                : (lineStation != null ? lineStation.getId() : null);
+        LocalDate resolvedDrawDate = outcome.resolvedDrawDate() != null
+                ? outcome.resolvedDrawDate()
+                : targetDrawDate;
 
         Long ocrScanResultId = persistOcrScanResult(
-                remote, station, targetDrawDate, scanId, importBatchLineId, operatorId,
-                extracted, finalStatus, businessErrors
+                remote,
+                resolvedStationId,
+                scanId,
+                importBatchLineId,
+                operatorId,
+                extracted,
+                outcome,
+                sourceImageName,
+                imageWidth,
+                imageHeight
         );
         lotteryScanLogServicePort.recordEvent(
-                businessErrors.isEmpty() ? ScanEventType.OCR_COMPLETED : ScanEventType.INVALID_TICKET,
-                ocrScanResultId, null, operatorId, ScanMethod.OCR_SCAN,
-                businessErrors.isEmpty(),
-                businessErrors.isEmpty() ? null : String.join("; ", businessErrors)
+                outcome.businessValidationErrors().isEmpty()
+                        ? ScanEventType.OCR_COMPLETED
+                        : ScanEventType.INVALID_TICKET,
+                ocrScanResultId,
+                null,
+                operatorId,
+                ScanMethod.OCR_SCAN,
+                outcome.businessValidationErrors().isEmpty(),
+                outcome.businessValidationErrors().isEmpty()
+                        ? null
+                        : String.join("; ", outcome.businessValidationErrors())
         );
 
         return ScannedTicketResponse.builder()
                 .ticketIndex(remote.ticketIndex())
                 .bbox(remote.bbox())
-                .status(finalStatus)
+                .status(outcome.status())
                 .confidence(remote.confidence())
+                .adjustedConfidence(outcome.adjustedConfidence())
                 .extracted(extracted)
                 .fieldConfidences(remote.fieldConfidences())
+                .fieldBoxes(remote.fieldBoxes())
+                .fieldValidations(outcome.fieldValidations())
+                .fields(fields)
+                .overallValidationStatus(outcome.overallValidationStatus())
                 .missingFields(remote.missingFields())
                 .validationErrors(remote.validationErrors())
-                .businessValidationErrors(businessErrors)
-                .duplicate(duplicate)
-                .resolvedStationId(station.getId())
-                .resolvedDrawDate(targetDrawDate)
+                .businessValidationErrors(outcome.businessValidationErrors())
+                .duplicate(outcome.duplicate())
+                .resolvedStationId(resolvedStationId)
+                .resolvedDrawDate(resolvedDrawDate)
                 .croppedImageBase64(remote.croppedImageBase64())
                 .ocrScanResultId(ocrScanResultId)
+                .sourceImageName(sourceImageName)
+                .imageWidth(imageWidth)
+                .imageHeight(imageHeight)
                 .build();
+    }
+    private ScannedTicketResponse softFailedTicket(
+            RemoteScannedTicket remote,
+            String scanId,
+            String sourceImageName,
+            Integer scanImageWidth,
+            Integer scanImageHeight
+    ) {
+        if (remote == null) {
+            return ScannedTicketResponse.builder()
+                    .ticketIndex(0)
+                    .status(ScannedTicketStatus.FAILED)
+                    .confidence(0)
+                    .overallValidationStatus(OcrOverallValidationStatus.NEEDS_REVIEW)
+                    .businessValidationErrors(List.of(
+                            "Không thể đọc rõ thông tin vé từ ảnh này.",
+                            "Vui lòng kiểm tra lại ảnh hoặc nhập thông tin thủ công."
+                    ))
+                    .sourceImageName(sourceImageName)
+                    .imageWidth(scanImageWidth)
+                    .imageHeight(scanImageHeight)
+                    .build();
+        }
+        Integer imageWidth = remote.imageWidth() != null ? remote.imageWidth() : scanImageWidth;
+        Integer imageHeight = remote.imageHeight() != null ? remote.imageHeight() : scanImageHeight;
+        boolean hasAnyField = hasAnyExtractedValue(remote.extracted());
+        ScannedTicketStatus status = hasAnyField ? ScannedTicketStatus.PARTIAL : ScannedTicketStatus.FAILED;
+        return ScannedTicketResponse.builder()
+                .ticketIndex(remote.ticketIndex())
+                .bbox(remote.bbox())
+                .status(status)
+                .confidence(remote.confidence())
+                .extracted(remote.extracted())
+                .fieldConfidences(remote.fieldConfidences())
+                .fieldBoxes(remote.fieldBoxes())
+                .overallValidationStatus(OcrOverallValidationStatus.NEEDS_REVIEW)
+                .missingFields(remote.missingFields())
+                .validationErrors(remote.validationErrors())
+                .businessValidationErrors(List.of(
+                        hasAnyField
+                                ? "Một số thông tin trên vé bị che hoặc không đủ rõ để nhận diện."
+                                : "Không thể đọc rõ thông tin vé từ ảnh này.",
+                        "Vui lòng kiểm tra lại ảnh hoặc nhập thông tin thủ công."
+                ))
+                .croppedImageBase64(remote.croppedImageBase64())
+                .sourceImageName(sourceImageName)
+                .imageWidth(imageWidth)
+                .imageHeight(imageHeight)
+                .build();
+    }
+
+    /**
+     * When ticket-vision returns zero tickets (blurry/covered/unreadable image),
+     * still return one FAILED placeholder so Admin review keeps the image.
+     */
+    private ScannedTicketResponse unreadableImageTicket(
+            String scanId,
+            Long importBatchLineId,
+            UUID operatorId,
+            String sourceImageName,
+            Integer imageWidth,
+            Integer imageHeight,
+            List<String> visionWarnings
+    ) {
+        List<String> errors = new ArrayList<>();
+        errors.add("Không thể đọc rõ thông tin vé từ ảnh này.");
+        errors.add("Một số thông tin trên vé bị che hoặc không đủ rõ để nhận diện.");
+        errors.add("Vui lòng kiểm tra lại ảnh hoặc nhập thông tin thủ công.");
+        if (visionWarnings != null) {
+            for (String warning : visionWarnings) {
+                if (warning != null && !warning.isBlank() && !errors.contains(warning)) {
+                    errors.add(warning.trim());
+                }
+            }
+        }
+
+        String unreadableMsg = "OCR không đọc được trường này. Ảnh có thể bị che / mờ / cắt / chồng.";
+        Map<String, FieldValidationResult> fieldValidations = new LinkedHashMap<>();
+        Map<String, OcrFieldValidation> persistedValidations = new LinkedHashMap<>();
+        for (String fieldName : List.of(
+                "stationName", "serialNumber", "numbers", "drawDate", "ticketType", "batchCode"
+        )) {
+            FieldValidationResult result = FieldValidationResult.unreadable(unreadableMsg);
+            fieldValidations.put(fieldName, result);
+            persistedValidations.put(fieldName, OcrFieldValidation.builder()
+                    .status(result.status())
+                    .message(result.message())
+                    .expectedValue(result.expectedValue())
+                    .build());
+        }
+
+        TicketBoundingBoxResponse fullImageBox = null;
+        if (imageWidth != null && imageWidth > 0 && imageHeight != null && imageHeight > 0) {
+            fullImageBox = new TicketBoundingBoxResponse(
+                    0, 0, imageWidth, imageHeight, List.of()
+            );
+        }
+
+        Map<String, OcrFieldDetailResponse> fields = new LinkedHashMap<>();
+        for (Map.Entry<String, FieldValidationResult> entry : fieldValidations.entrySet()) {
+            fields.put(
+                    entry.getKey(),
+                    OcrFieldDetailResponse.builder()
+                            .fieldName(entry.getKey())
+                            .value(null)
+                            .confidence(0.0)
+                            .boundingBox(null)
+                            .validationStatus(entry.getValue().status())
+                            .validationMessage(entry.getValue().message())
+                            .expectedValue(null)
+                            .build()
+            );
+        }
+
+        Long ocrScanResultId = null;
+        try {
+            OcrScanResultModel model = OcrScanResultModel.builder()
+                    .scanId(scanId)
+                    .ticketIndex(0)
+                    .importBatchLineId(importBatchLineId)
+                    .status(ScannedTicketStatus.FAILED)
+                    .confidence(0.0)
+                    .adjustedConfidence(0.0)
+                    .overallValidationStatus(OcrOverallValidationStatus.NEEDS_REVIEW)
+                    .businessValidationErrors(errors)
+                    .fieldValidations(persistedValidations)
+                    .missingFields(List.of("stationName", "serialNumber", "numbers", "drawDate"))
+                    .sourceImageName(sourceImageName)
+                    .imageWidth(imageWidth)
+                    .imageHeight(imageHeight)
+                    .scannedBy(operatorId)
+                    .scannedAt(LocalDateTime.now())
+                    .build();
+            ocrScanResultId = ocrScanResultRepositoryPort.save(model).getId();
+        } catch (Exception e) {
+            log.warn("Could not persist FAILED OCR placeholder for scanId={}", scanId, e);
+        }
+
+        return ScannedTicketResponse.builder()
+                .ticketIndex(0)
+                .bbox(fullImageBox)
+                .status(ScannedTicketStatus.FAILED)
+                .confidence(0)
+                .adjustedConfidence(0.0)
+                .extracted(new ExtractedTicketFieldsResponse(
+                        null, null, null, null, null, null, null
+                ))
+                .fieldConfidences(Map.of())
+                .fieldBoxes(Map.of())
+                .fieldValidations(fieldValidations)
+                .fields(fields)
+                .overallValidationStatus(OcrOverallValidationStatus.NEEDS_REVIEW)
+                .missingFields(List.of("stationName", "serialNumber", "numbers", "drawDate"))
+                .validationErrors(List.of())
+                .businessValidationErrors(errors)
+                .duplicate(false)
+                .ocrScanResultId(ocrScanResultId)
+                .sourceImageName(sourceImageName)
+                .imageWidth(imageWidth)
+                .imageHeight(imageHeight)
+                .build();
+    }
+
+    private static boolean hasAnyExtractedValue(ExtractedTicketFieldsResponse extracted) {
+        if (extracted == null) {
+            return false;
+        }
+        return notBlank(extracted.stationName())
+                || notBlank(extracted.stationCode())
+                || notBlank(extracted.serialNumber())
+                || notBlank(extracted.numbers())
+                || extracted.drawDate() != null
+                || notBlank(extracted.ticketType())
+                || notBlank(extracted.batchCode());
+    }
+
+    private static boolean notBlank(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private Map<String, OcrFieldDetailResponse> buildFieldDetails(
+            ExtractedTicketFieldsResponse extracted,
+            Map<String, Double> fieldConfidences,
+            Map<String, TicketBoundingBoxResponse> fieldBoxes,
+            Map<String, FieldValidationResult> fieldValidations
+    ) {
+        Map<String, Double> confidences = fieldConfidences != null ? fieldConfidences : Map.of();
+        Map<String, TicketBoundingBoxResponse> boxes = fieldBoxes != null ? fieldBoxes : Map.of();
+        Map<String, FieldValidationResult> validations =
+                fieldValidations != null ? fieldValidations : Map.of();
+
+        LinkedHashMap<String, OcrFieldDetailResponse> details = new LinkedHashMap<>();
+        for (String fieldName : List.of(
+                "stationName", "batchCode", "numbers", "serialNumber", "drawDate", "ticketType"
+        )) {
+            FieldValidationResult validation = validations.get(fieldName);
+            details.put(
+                    fieldName,
+                    OcrFieldDetailResponse.builder()
+                            .fieldName(fieldName)
+                            .value(extractFieldValue(extracted, fieldName))
+                            .confidence(confidences.get(fieldName))
+                            .boundingBox(boxes.get(fieldName))
+                            .validationStatus(validation != null ? validation.status() : null)
+                            .validationMessage(validation != null ? validation.message() : null)
+                            .expectedValue(validation != null ? validation.expectedValue() : null)
+                            .build()
+            );
+        }
+        return details;
+    }
+
+    private static String extractFieldValue(ExtractedTicketFieldsResponse extracted, String fieldName) {
+        if (extracted == null) {
+            return null;
+        }
+        return switch (fieldName) {
+            case "stationName" -> extracted.stationName();
+            case "batchCode" -> extracted.batchCode();
+            case "numbers" -> extracted.numbers();
+            case "serialNumber" -> extracted.serialNumber();
+            case "drawDate" -> extracted.drawDate() != null ? extracted.drawDate().toString() : null;
+            case "ticketType" -> extracted.ticketType();
+            default -> null;
+        };
     }
 
     /** Best-effort: an OCR_Scan_Result write failure degrades to a null id (no scan-log linkage), never fails the scan. */
     private Long persistOcrScanResult(
             RemoteScannedTicket remote,
-            LotteryStationModel station,
-            LocalDate targetDrawDate,
+            Long stationId,
             String scanId,
             Long importBatchLineId,
             UUID operatorId,
             ExtractedTicketFieldsResponse extracted,
-            ScannedTicketStatus finalStatus,
-            List<String> businessErrors
+            OcrScanValidationService.ValidationOutcome outcome,
+            String sourceImageName,
+            Integer imageWidth,
+            Integer imageHeight
     ) {
         try {
             OcrScanResultModel saved = ocrScanResultRepositoryPort.save(
@@ -427,16 +750,29 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                             .scanId(scanId)
                             .ticketIndex(remote.ticketIndex())
                             .importBatchLineId(importBatchLineId)
-                            .stationId(station.getId())
+                            .stationId(stationId)
+                            .sourceImageName(sourceImageName)
+                            .bbox(ocrScanResultApplicationMapper.toDomainBox(remote.bbox()))
+                            .imageWidth(imageWidth)
+                            .imageHeight(imageHeight)
                             .extractedStationName(extracted != null ? extracted.stationName() : null)
                             .extractedSerialNumber(extracted != null ? extracted.serialNumber() : null)
                             .extractedNumbers(extracted != null ? extracted.numbers() : null)
                             .extractedDrawDate(extracted != null ? extracted.drawDate() : null)
+                            .extractedBatchCode(extracted != null ? extracted.batchCode() : null)
+                            .extractedPrice(extracted != null ? extracted.ticketType() : null)
                             .confidence(remote.confidence())
-                            .status(finalStatus)
+                            .adjustedConfidence(outcome.adjustedConfidence())
+                            .fieldConfidences(remote.fieldConfidences())
+                            .fieldBoxes(ocrScanResultApplicationMapper.toDomainBoxMap(remote.fieldBoxes()))
+                            .fieldValidations(
+                                    ocrScanResultApplicationMapper.toDomainValidationMap(outcome.fieldValidations())
+                            )
+                            .overallValidationStatus(outcome.overallValidationStatus())
+                            .status(outcome.status())
                             .missingFields(remote.missingFields())
                             .validationErrors(remote.validationErrors())
-                            .businessValidationErrors(businessErrors)
+                            .businessValidationErrors(outcome.businessValidationErrors())
                             .croppedImageUrl(null)
                             .scannedBy(operatorId)
                             .scannedAt(LocalDateTime.now())
@@ -449,29 +785,6 @@ public class TicketScanImportService implements TicketScanImportServicePort {
         }
     }
 
-    private void validateNumberFormat(String numbers, LotteryStationModel station) {
-        if (station.getRegion() == null) {
-            throw new DomainException(ErrorCode.LOTTERY_STATION_SYNC_REGION_REQUIRED);
-        }
-        // Reuses the same value object create()/createBulk() validate against,
-        // so a ticket that passes here is guaranteed to pass at persist time too.
-        LotteryTicketNumber.from(numbers, station.getRegion().minLength(), station.getRegion().maxLength());
-    }
-
-    private static String trimToNull(String value) {
-        if (value == null) {
-            return null;
-        }
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
-    }
-
-    /**
-     * Mirrors LotteryTicketService#getDraftImportBatchLineForOperatorOrThrow
-     * (private there, so duplicated here rather than refactoring that
-     * existing, already-tested method). Keep the two in sync if the
-     * import-batch-line eligibility rules change.
-     */
     private ImportBatchLineModel getDraftImportBatchLineForOperatorOrThrow(Long importBatchLineId, UUID operatorId) {
         if (importBatchLineId == null) {
             throw new DomainException(ErrorCode.LOTTERY_TICKET_IMPORT_BATCH_REQUIRED);

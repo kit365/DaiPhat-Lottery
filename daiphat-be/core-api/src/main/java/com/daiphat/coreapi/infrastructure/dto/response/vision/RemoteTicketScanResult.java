@@ -13,6 +13,8 @@ public record RemoteTicketScanResult(
         String scanId,
         int ticketCount,
         List<RemoteScannedTicket> tickets,
-        List<String> warnings
+        List<String> warnings,
+        Integer imageWidth,
+        Integer imageHeight
 ) {
 }

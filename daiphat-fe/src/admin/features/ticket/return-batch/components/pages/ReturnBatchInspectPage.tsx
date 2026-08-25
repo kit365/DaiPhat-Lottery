@@ -7,6 +7,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import ConfirmationNumberIcon from '@mui/icons-material/ConfirmationNumber';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import SearchIcon from '@mui/icons-material/Search';
 import { Alert, Box, Card, Checkbox, Chip, CircularProgress, Collapse, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, Paper, Radio, RadioGroup, Stack, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, TextField, Typography } from '@mui/material';
@@ -571,9 +572,42 @@ export const ReturnBatchInspectPage = () => {
             >
                 <Box sx={{ p: 3 }}>
                     {mutationsBlocked && activeStep === 'INSPECT' && (
-                        <Alert severity="warning" sx={{ mb: 2.5, borderRadius: '10px' }}>
-                            {RETURN_BATCH_INSPECTION_EXPIRED_MESSAGE}
-                        </Alert>
+                        <Box
+                            sx={{
+                                mb: 2.5,
+                                p: { xs: 2, sm: 2.5 },
+                                borderRadius: '12px',
+                                border: '1px solid #fef08a',
+                                bgcolor: '#fefce8',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 2,
+                            }}
+                        >
+                            <Box
+                                sx={{
+                                    width: 42,
+                                    height: 42,
+                                    borderRadius: '10px',
+                                    bgcolor: '#fef08a',
+                                    color: '#a16207',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    flexShrink: 0,
+                                }}
+                            >
+                                <LockOutlinedIcon sx={{ fontSize: '1.25rem' }} />
+                            </Box>
+                            <Box>
+                                <Typography variant="subtitle2" fontWeight={700} color="#854d0e" sx={{ fontSize: '0.95rem', mb: 0.25 }}>
+                                    Phiếu kiểm đếm đang bị khóa
+                                </Typography>
+                                <Typography variant="body2" color="#a16207" sx={{ fontSize: '0.85rem' }}>
+                                    {RETURN_BATCH_INSPECTION_EXPIRED_MESSAGE}
+                                </Typography>
+                            </Box>
+                        </Box>
                     )}
 
                     {activeStep === 'REPORT' && (

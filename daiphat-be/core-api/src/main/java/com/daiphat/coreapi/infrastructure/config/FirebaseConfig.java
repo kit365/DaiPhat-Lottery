@@ -30,10 +30,14 @@ public class FirebaseConfig {
 
     @PostConstruct
     public void initialize() {
-        try {
-            if (FirebaseApp.getApps().isEmpty()) {
+        if (FirebaseApp.getApps().isEmpty()) {
+            if (isBlank(projectId) || isBlank(privateKey) || isBlank(clientEmail)) {
+                System.out.println("[firebase] Skip initialization — FIREBASE_* credentials are not configured.");
+                return;
+            }
+            try {
                 String formattedPrivateKey = privateKey.replace("\\n", "\n");
-                
+
                 String jsonConfig = String.format(
                         "{\"type\": \"service_account\", \"project_id\": \"%s\", \"private_key_id\": \"%s\", \"private_key\": \"%s\", \"client_email\": \"%s\", \"client_id\": \"%s\"}",
                         projectId, privateKeyId, formattedPrivateKey.replace("\n", "\\n"), clientEmail, clientId
@@ -47,10 +51,13 @@ public class FirebaseConfig {
 
                 FirebaseApp.initializeApp(options);
                 System.out.println("FirebaseApp initialized successfully.");
+            } catch (Exception e) {
+                System.err.println("Failed to initialize FirebaseApp: " + e.getMessage());
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-            System.err.println("Failed to initialize FirebaseApp: " + e.getMessage());
         }
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 }
