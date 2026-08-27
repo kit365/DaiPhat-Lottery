@@ -34,6 +34,7 @@ public record LotteryStationResponse(
         String image,
         String thumbnailUrl,
         String description,
+        Long defaultOcrTemplateId,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {}

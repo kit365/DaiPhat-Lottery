@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouteParams } from "@/hooks/useRouteParams";
-import { Box, IconButton, InputAdornment, Stack, TextField, Tooltip, ThemeProvider, useTheme, CircularProgress, createTheme, MenuItem, Typography } from "@mui/material";
+import { Box, IconButton, InputAdornment, Stack, TextField, Tooltip, ThemeProvider, useTheme, CircularProgress, createTheme, MenuItem, Typography, Alert } from "@mui/material";
 import { REGION_DATA } from "../../../../constants/region.constants";
 import { DAYS_OF_WEEK } from "../../../../constants/schedule.constants";
 import { PageHeader } from "../../../../components/ui/PageHeader";
@@ -23,10 +23,12 @@ import { toast } from "react-toastify";
 import { suggestStationCode } from "../../services/stationService";
 import { Button } from "../../../../components/ui/Button";
 import { FormUploadSingleFile } from "../../../../components/upload/FormUploadSingleFile";
+import { StationOcrTemplateSection } from "../sections/StationOcrTemplateSection";
 
 export const StationEditPage = () => {
     const { id } = useRouteParams();
     const [expandedDetail, setExpandedDetail] = useState(true);
+    const [expandedOcr, setExpandedOcr] = useState(true);
 
     const toggle = (setter: Dispatch<SetStateAction<boolean>>) =>
         () => setter(prev => !prev);
@@ -559,6 +561,27 @@ export const StationEditPage = () => {
                                         )}
                                     />
                                 </Box>
+                            </Stack>
+                        </CollapsibleCard>
+
+                        <CollapsibleCard
+                            title="Mẫu vé OCR"
+                            subheader="Ảnh mẫu vé, template mặc định và gắn vùng trường trên ảnh"
+                            expanded={expandedOcr}
+                            onToggle={toggle(setExpandedOcr)}
+                        >
+                            <Stack p="calc(3 * var(--spacing))" gap="calc(3 * var(--spacing))">
+                                {id ? (
+                                    <StationOcrTemplateSection
+                                        stationId={Number(id)}
+                                        defaultOcrTemplateId={
+                                            (detailRes as { defaultOcrTemplateId?: number | null } | null)
+                                                ?.defaultOcrTemplateId ?? null
+                                        }
+                                    />
+                                ) : (
+                                    <Alert severity="warning">Không xác định được nhà đài.</Alert>
+                                )}
                             </Stack>
                         </CollapsibleCard>
 

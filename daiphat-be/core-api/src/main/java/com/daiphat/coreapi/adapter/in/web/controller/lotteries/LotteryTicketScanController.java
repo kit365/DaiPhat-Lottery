@@ -4,14 +4,17 @@ import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.application.dto.request.lotteries.scan.BatchImportScannedTicketsRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.scan.CorrectOcrScanResultFieldsRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.scan.OcrConfirmImportRequest;
 import com.daiphat.coreapi.application.dto.response.lotteries.scan.OcrConfirmImportResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.scan.OcrScanResultFieldResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.scan.OcrScanResultResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.scan.ScanBatchImportResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.scan.TicketScanResponse;
 import com.daiphat.coreapi.application.port.in.lotteries.OcrScanResultServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.TicketScanImportServicePort;
 import com.daiphat.coreapi.application.service.lotteries.OcrConfirmImportService;
+import com.daiphat.coreapi.application.service.lotteries.OcrScanResultFieldService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +23,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -46,6 +51,7 @@ public class LotteryTicketScanController {
     private final TicketScanImportServicePort ticketScanImportServicePort;
     private final OcrScanResultServicePort ocrScanResultServicePort;
     private final OcrConfirmImportService ocrConfirmImportService;
+    private final OcrScanResultFieldService ocrScanResultFieldService;
 
     @PostMapping(value = "/scan", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAnyAuthority('ticket:create')")
@@ -101,6 +107,28 @@ public class LotteryTicketScanController {
         return ApiResponse.success(
                 "Lấy kết quả OCR thành công.",
                 ocrScanResultServicePort.list(scanId, importBatchLineId)
+        );
+    }
+
+    @GetMapping("/ocr-scan-results/{id}/fields")
+    @PreAuthorize("hasAnyAuthority('ticket:view', 'ticket:create')")
+    public ApiResponse<List<OcrScanResultFieldResponse>> listOcrScanResultFields(@PathVariable Long id) {
+        return ApiResponse.success(
+                "Lấy chi tiết trường OCR thành công.",
+                ocrScanResultFieldService.listByScanResultId(id)
+        );
+    }
+
+    @PatchMapping("/ocr-scan-results/{id}/fields")
+    @PreAuthorize("hasAnyAuthority('ticket:create')")
+    public ApiResponse<List<OcrScanResultFieldResponse>> correctOcrScanResultFields(
+            @PathVariable Long id,
+            @Valid @RequestBody CorrectOcrScanResultFieldsRequest request,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
+    ) {
+        return ApiResponse.success(
+                "Cập nhật chỉnh sửa trường OCR thành công.",
+                ocrScanResultFieldService.correctFields(id, request, principal.getId())
         );
     }
 }

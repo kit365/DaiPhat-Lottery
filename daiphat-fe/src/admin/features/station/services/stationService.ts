@@ -153,6 +153,9 @@ export const updateStation = async (
         image: data.image || '',
         description: data.description || '',
         status: data.status ? data.status.toUpperCase() : 'ACTIVE',
+        ...(data.defaultOcrTemplateId != null
+            ? { defaultOcrTemplateId: data.defaultOcrTemplateId }
+            : {}),
     };
     const response = await apiApp.put(`${BASE_URL}/${id}`, payload);
     return response.data;

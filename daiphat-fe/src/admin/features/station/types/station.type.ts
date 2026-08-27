@@ -27,6 +27,7 @@ export interface Station {
     displayOrder?: number;
     priority?: number;
     scanEnabled?: boolean;
+    defaultOcrTemplateId?: number | null;
     createdAt?: string;
     updatedAt?: string;
 }
@@ -45,6 +46,7 @@ export interface CreateStationRequest {
     province?: string;
     region?: string;
     price?: number;
+    commissionRate?: number;
     drawDays: string[];
     drawTime: string;
     prizeRedemptionOfficialDeadlineDays?: number | null;
@@ -56,6 +58,7 @@ export interface CreateStationRequest {
     minNumber?: number;
     maxNumber?: number;
     displayOrder?: number;
+    defaultOcrTemplateId?: number | null;
 }
 
 export type UpdateStationRequest = CreateStationRequest;
