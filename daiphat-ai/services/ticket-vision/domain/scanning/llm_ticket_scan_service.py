@@ -1,4 +1,4 @@
-"""Provider-agnostic LLM vision ticket scan (Gemini / Grok / future models)."""
+"""Provider-agnostic LLM vision ticket scan (Groq / Gemini / Grok / future models)."""
 
 from __future__ import annotations
 
@@ -33,21 +33,180 @@ from infra.vision_extraction import (
 )
 
 _UNCERTAIN_FIELD_CONFIDENCE = 0.5
-_SUPPORTED_ENGINES = frozenset({"gemini", "grok", "legacy"})
+_SUPPORTED_ENGINES = frozenset({"groq", "gemini", "grok", "legacy"})
 # Optional OCR fields reported in fieldConfidences but not required for COMPLETE.
 _OPTIONAL_CONFIDENCE_FIELDS: tuple[str, ...] = ("ticketType", "batchCode")
 
 
 class VisionClientProtocol(Protocol):
-    def analyze_ticket_image(self, image_bytes: bytes, prompt: str): ...
+    def analyze_ticket_image(
+        self,
+        image_bytes: bytes,
+        prompt: str,
+        *,
+        extra_images: list[tuple[str, bytes]] | None = None,
+    ): ...
+
+
+def _normalized_to_pixel_bbox(
+    *,
+    x: float,
+    y: float,
+    width: float,
+    height: float,
+    image_width: int,
+    image_height: int,
+) -> BoundingBox | None:
+    if width <= 0 or height <= 0 or image_width <= 0 or image_height <= 0:
+        return None
+    px = int(round(max(0.0, min(1.0, x)) * image_width))
+    py = int(round(max(0.0, min(1.0, y)) * image_height))
+    pw = int(round(max(0.0, min(1.0, width)) * image_width))
+    ph = int(round(max(0.0, min(1.0, height)) * image_height))
+    return _clamp_bbox(
+        TicketBBox(x=px, y=py, width=max(1, pw), height=max(1, ph)),
+        image_width,
+        image_height,
+    )
+
+
+def _build_layout_guidance(
+    metadata: ScanMetadata,
+    image: np.ndarray,
+    image_width: int,
+    image_height: int,
+) -> tuple[str | None, list[tuple[str, bytes]], list]:
+    """Convert normalized layouts → pixel ROI hint + JPEG crops for vision.
+
+    Returns (hint_text, crops, ordered_layouts) where ordered_layouts are sorted
+    by (fieldName, priority) for priority fallback.
+    """
+    layouts = list(metadata.fieldLayouts or [])
+    if not layouts:
+        return None, [], []
+
+    layouts_sorted = sorted(
+        layouts,
+        key=lambda layout: (layout.fieldName or "", int(layout.priority or 1), layout.id or 0),
+    )
+
+    hint_lines: list[str] = []
+    crops: list[tuple[str, bytes]] = []
+    for layout in layouts_sorted:
+        box = _normalized_to_pixel_bbox(
+            x=layout.x,
+            y=layout.y,
+            width=layout.width,
+            height=layout.height,
+            image_width=image_width,
+            image_height=image_height,
+        )
+        if box is None:
+            continue
+        required = "required" if layout.required else "optional"
+        priority = int(layout.priority or 1)
+        layout_id = layout.id
+        id_part = f"id={layout_id}" if layout_id is not None else "id=unknown"
+        hint_lines.append(
+            f"- {layout.fieldName} priority={priority} ({id_part}, {required}): "
+            f"x={box.x}, y={box.y}, w={box.width}, h={box.height}"
+        )
+        try:
+            crop = _crop_image(image, box)
+            if crop.size == 0:
+                continue
+            crop_bytes = image_pipeline.encode_to_jpeg_bytes(crop)
+            label = f"field-crop:{layout.fieldName}:p{priority}"
+            if layout_id is not None:
+                label = f"{label}:id{layout_id}"
+            crops.append((label, crop_bytes))
+        except Exception:  # noqa: BLE001
+            logger.exception("Failed to crop template field %s", layout.fieldName)
+
+    if not hint_lines:
+        return None, [], layouts_sorted
+    return "\n".join(hint_lines), crops, layouts_sorted
+
+
+def _group_layouts_by_field(layouts: list) -> dict[str, list]:
+    grouped: dict[str, list] = {}
+    for layout in layouts:
+        name = (layout.fieldName or "").strip()
+        if not name:
+            continue
+        grouped.setdefault(name, []).append(layout)
+    for name in grouped:
+        grouped[name] = sorted(
+            grouped[name],
+            key=lambda item: (int(item.priority or 1), item.id or 0),
+        )
+    return grouped
+
+
+def _iou(a: BoundingBox, b: BoundingBox) -> float:
+    ax2, ay2 = a.x + a.width, a.y + a.height
+    bx2, by2 = b.x + b.width, b.y + b.height
+    ix1, iy1 = max(a.x, b.x), max(a.y, b.y)
+    ix2, iy2 = min(ax2, bx2), min(ay2, by2)
+    iw, ih = max(0, ix2 - ix1), max(0, iy2 - iy1)
+    inter = iw * ih
+    if inter <= 0:
+        return 0.0
+    union = a.width * a.height + b.width * b.height - inter
+    return float(inter) / float(union) if union > 0 else 0.0
+
+
+def _infer_used_layout_id(
+    field_name: str,
+    field_box: BoundingBox | None,
+    layouts_for_field: list,
+    image_width: int,
+    image_height: int,
+    preferred_id: int | None = None,
+) -> int | None:
+    if preferred_id is not None:
+        for layout in layouts_for_field:
+            if layout.id == preferred_id:
+                return preferred_id
+    if not layouts_for_field:
+        return None
+    if field_box is None:
+        primary = layouts_for_field[0]
+        return primary.id if primary.id is not None else None
+
+    best_id = None
+    best_iou = 0.0
+    for layout in layouts_for_field:
+        pixel = _normalized_to_pixel_bbox(
+            x=layout.x,
+            y=layout.y,
+            width=layout.width,
+            height=layout.height,
+            image_width=image_width,
+            image_height=image_height,
+        )
+        if pixel is None:
+            continue
+        score = _iou(field_box, pixel)
+        if score > best_iou:
+            best_iou = score
+            best_id = layout.id
+    if best_id is not None and best_iou >= 0.05:
+        return best_id
+    primary = layouts_for_field[0]
+    return primary.id if primary.id is not None else None
+
+
+def _extracted_value_for_field(extracted: ExtractedTicketFields, field_name: str) -> str | None:
+    return getattr(extracted, field_name, None) if hasattr(extracted, field_name) else None
 
 
 def resolve_recognition_engine(metadata: ScanMetadata, default_engine: str) -> str:
-    raw = (metadata.recognitionEngine or default_engine or "gemini").strip().lower()
+    raw = (metadata.recognitionEngine or default_engine or "groq").strip().lower()
     if raw in _SUPPORTED_ENGINES:
         return raw
-    fallback = (default_engine or "gemini").strip().lower()
-    return fallback if fallback in _SUPPORTED_ENGINES else "gemini"
+    fallback = (default_engine or "groq").strip().lower()
+    return fallback if fallback in _SUPPORTED_ENGINES else "groq"
 
 
 def _normalize_numbers(raw: str | None) -> str | None:
@@ -236,13 +395,40 @@ class LlmTicketScanService:
             }
             for s in metadata.activeStations
         ]
+        layout_hint, layout_crops, ordered_layouts = _build_layout_guidance(
+            metadata, image, image_width, image_height
+        )
+        if layout_crops:
+            logger.info(
+                "Template-guided OCR: templateId=%s layout_fields=%s crops=%s",
+                metadata.templateId,
+                len(metadata.fieldLayouts or []),
+                len(layout_crops),
+            )
         prompt = build_ticket_extraction_prompt(
             json.dumps(stations_payload, ensure_ascii=False),
             max_tickets,
             image_width,
             image_height,
+            field_layouts_hint=layout_hint,
         )
-        extraction = self._vision_client.analyze_ticket_image(vision_image_bytes, prompt)
+        extraction = self._vision_client.analyze_ticket_image(
+            vision_image_bytes,
+            prompt,
+            extra_images=layout_crops or None,
+        )
+
+        # One bundled retry for weak fields using alternate priority crops.
+        extraction = self._retry_weak_fields_with_alternate_layouts(
+            extraction=extraction,
+            metadata=metadata,
+            ordered_layouts=ordered_layouts,
+            image=image,
+            image_width=image_width,
+            image_height=image_height,
+            stations_payload=stations_payload,
+            max_tickets=max_tickets,
+        )
 
         warnings = list(extraction.warnings)
         if len(extraction.tickets) > max_tickets:
@@ -266,6 +452,7 @@ class LlmTicketScanService:
                         len(llm_tickets),
                         station_matcher,
                         expected_lengths_by_code,
+                        ordered_layouts,
                     )
                 )
             except Exception:  # noqa: BLE001
@@ -288,6 +475,140 @@ class LlmTicketScanService:
             imageHeight=image_height,
         )
 
+    def _retry_weak_fields_with_alternate_layouts(
+        self,
+        *,
+        extraction,
+        metadata: ScanMetadata,
+        ordered_layouts: list,
+        image: np.ndarray,
+        image_width: int,
+        image_height: int,
+        stations_payload: list,
+        max_tickets: int,
+    ):
+        """If primary region confidence is low, try the next priority crop(s) once."""
+        if not ordered_layouts or not extraction.tickets:
+            return extraction
+
+        by_field = _group_layouts_by_field(ordered_layouts)
+        retry_crops: list[tuple[str, bytes]] = []
+        weak_fields: set[str] = set()
+
+        for ticket in extraction.tickets:
+            confidences = ticket.fieldConfidences or {}
+            used = dict(ticket.usedFieldLayouts or {})
+            for field_name, layouts in by_field.items():
+                if len(layouts) < 2:
+                    continue
+                value = getattr(ticket, field_name, None)
+                conf = _clamp_confidence(confidences.get(field_name))
+                if value and conf >= self._low_confidence_threshold:
+                    continue
+                used_id = used.get(field_name)
+                next_layout = None
+                passed_used = used_id is None
+                for layout in layouts:
+                    if used_id is not None:
+                        if layout.id == used_id:
+                            passed_used = True
+                            continue
+                        if not passed_used:
+                            continue
+                        next_layout = layout
+                        break
+                    # First pass already covered primary (priority 1); try next.
+                    if int(layout.priority or 1) <= 1:
+                        continue
+                    next_layout = layout
+                    break
+                if next_layout is None:
+                    continue
+                layout = next_layout
+                box = _normalized_to_pixel_bbox(
+                    x=layout.x,
+                    y=layout.y,
+                    width=layout.width,
+                    height=layout.height,
+                    image_width=image_width,
+                    image_height=image_height,
+                )
+                if box is None:
+                    continue
+                try:
+                    crop = _crop_image(image, box)
+                    if crop.size == 0:
+                        continue
+                    crop_bytes = image_pipeline.encode_to_jpeg_bytes(crop)
+                    label = (
+                        f"retry-field-crop:{field_name}:p{int(layout.priority or 1)}"
+                        f":id{layout.id}"
+                    )
+                    retry_crops.append((label, crop_bytes))
+                    weak_fields.add(field_name)
+                except Exception:  # noqa: BLE001
+                    logger.exception("Retry crop failed for %s", field_name)
+
+        if not retry_crops or not weak_fields:
+            return extraction
+
+        retry_prompt = (
+            build_ticket_extraction_prompt(
+                json.dumps(stations_payload, ensure_ascii=False),
+                max_tickets,
+                image_width,
+                image_height,
+                field_layouts_hint=(
+                    "Retry pass: re-read ONLY these weak fields from the provided "
+                    f"alternate-priority crops: {sorted(weak_fields)}. "
+                    "Keep other fields unchanged if already reliable. "
+                    "Update usedFieldLayouts to the layout id of the crop that worked."
+                ),
+            )
+        )
+        try:
+            # Reuse full image + only alternate crops so model can compare.
+            vision_image_bytes = image_pipeline.encode_to_jpeg_bytes(image)
+            retry = self._vision_client.analyze_ticket_image(
+                vision_image_bytes,
+                retry_prompt,
+                extra_images=retry_crops,
+            )
+        except Exception:  # noqa: BLE001
+            logger.exception("Alternate-layout OCR retry failed; keeping first pass")
+            return extraction
+
+        if not retry.tickets:
+            return extraction
+
+        # Merge better field values ticket-by-ticket.
+        for index, original in enumerate(extraction.tickets):
+            if index >= len(retry.tickets):
+                break
+            alt = retry.tickets[index]
+            alt_conf = alt.fieldConfidences or {}
+            orig_conf = dict(original.fieldConfidences or {})
+            used = dict(original.usedFieldLayouts or {})
+            alt_used = alt.usedFieldLayouts or {}
+            for field_name in weak_fields:
+                alt_value = getattr(alt, field_name, None)
+                alt_c = _clamp_confidence(alt_conf.get(field_name))
+                orig_c = _clamp_confidence(orig_conf.get(field_name))
+                orig_value = getattr(original, field_name, None)
+                if not alt_value:
+                    continue
+                if (not orig_value) or alt_c > orig_c:
+                    setattr(original, field_name, alt_value)
+                    orig_conf[field_name] = alt_c
+                    if field_name in (alt.fieldBoxes or {}):
+                        original.fieldBoxes[field_name] = alt.fieldBoxes[field_name]
+                    if field_name in alt_used:
+                        used[field_name] = alt_used[field_name]
+            original.fieldConfidences = orig_conf
+            original.usedFieldLayouts = used
+
+        return extraction
+
     def _map_ticket(
         self,
         llm_ticket: TicketExtraction,
@@ -298,6 +619,7 @@ class LlmTicketScanService:
         total_tickets: int,
         station_matcher: StationMatcher,
         expected_lengths_by_code: dict[str, int | None],
+        ordered_layouts: list | None = None,
     ) -> TicketScanResult:
         station_name = llm_ticket.stationName.strip() if llm_ticket.stationName else None
         station_code = llm_ticket.stationCode.strip() if llm_ticket.stationCode else None
@@ -349,6 +671,27 @@ class LlmTicketScanService:
 
         bbox = _resolve_bbox(llm_ticket.bbox, image_width, image_height, index, total_tickets)
         field_boxes = _resolve_field_boxes(llm_ticket.fieldBoxes, image_width, image_height)
+
+        used_field_layouts: dict[str, int] = {}
+        raw_used = dict(llm_ticket.usedFieldLayouts or {})
+        by_field = _group_layouts_by_field(ordered_layouts or [])
+        for field_name in list(REQUIRED_FIELDS) + list(_OPTIONAL_CONFIDENCE_FIELDS):
+            value = _extracted_value_for_field(extracted, field_name)
+            if not value:
+                continue
+            preferred = raw_used.get(field_name)
+            preferred_int = int(preferred) if preferred is not None else None
+            inferred = _infer_used_layout_id(
+                field_name,
+                field_boxes.get(field_name),
+                by_field.get(field_name, []),
+                image_width,
+                image_height,
+                preferred_id=preferred_int,
+            )
+            if inferred is not None:
+                used_field_layouts[field_name] = inferred
+
         cropped_image_base64 = None
         if self._include_cropped_image:
             crop = _crop_image(image, bbox)
@@ -363,6 +706,7 @@ class LlmTicketScanService:
             extracted=extracted,
             fieldConfidences=field_confidences,
             fieldBoxes=field_boxes,
+            usedFieldLayouts=used_field_layouts,
             missingFields=validation.missing_fields,
             validationErrors=validation.errors,
             croppedImageBase64=cropped_image_base64,

@@ -13,6 +13,22 @@ class StationMetadata(BaseModel):
     expectedNumberLength: int | None = None
 
 
+class FieldLayoutMetadata(BaseModel):
+    """Normalized ROI (0–1) relative to the full ticket image / ROI.
+
+    Multiple layouts may share the same fieldName; lower ``priority`` is tried first.
+    """
+
+    id: int | None = None
+    fieldName: str
+    priority: int = 1
+    x: float
+    y: float
+    width: float
+    height: float
+    required: bool = True
+
+
 class ScanMetadata(BaseModel):
     """Optional multipart field alongside the image (doc section 4, Flow 4:
     "Multipart image + optional metadata").
@@ -29,5 +45,8 @@ class ScanMetadata(BaseModel):
     # Detector strategy override, e.g. "contour" (MVP, default) or a future
     # "yolov8". See domain/detection/factory.py. Used only when recognitionEngine=legacy.
     detectorStrategy: str | None = None
-    # Recognition engine: "gemini" (default), "grok", or "legacy" (OpenCV/YOLO + OCR).
+    # Recognition engine: "groq" (default), "gemini", "grok" (xAI), or "legacy".
     recognitionEngine: str | None = None
+    # Optional Phase 3 template guidance from core-api.
+    templateId: int | None = None
+    fieldLayouts: list[FieldLayoutMetadata] = Field(default_factory=list)

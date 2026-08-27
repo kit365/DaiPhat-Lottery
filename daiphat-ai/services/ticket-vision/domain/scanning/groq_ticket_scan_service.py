@@ -1,18 +1,18 @@
-"""Gemini vision ticket scan — retained for rollback via recognitionEngine=gemini."""
+"""Groq.com vision ticket scan — default recognition provider for OCR Scan Vé."""
 
 from __future__ import annotations
 
 from domain.scanning.llm_ticket_scan_service import LlmTicketScanService
 from domain.validation.format_validator import FormatValidator
-from infra.gemini_client import GeminiVisionClient
+from infra.groq_client import GroqVisionClient
 
 
-class GeminiTicketScanService(LlmTicketScanService):
-    """Scan tickets via Gemini vision; maps to the same ScanResponse as Groq/Grok/legacy."""
+class GroqTicketScanService(LlmTicketScanService):
+    """Scan tickets via Groq vision; maps to the same ScanResponse as Gemini/Grok/legacy."""
 
     def __init__(
         self,
-        gemini_client=None,
+        groq_client=None,
         validator: FormatValidator | None = None,
         max_file_size_mb: int = 5,
         max_image_dimension: int = 1920,
@@ -23,8 +23,8 @@ class GeminiTicketScanService(LlmTicketScanService):
         include_cropped_image: bool = True,
     ) -> None:
         super().__init__(
-            vision_client=gemini_client or GeminiVisionClient(),
-            provider_label="Gemini",
+            vision_client=groq_client or GroqVisionClient(),
+            provider_label="Groq",
             validator=validator,
             max_file_size_mb=max_file_size_mb,
             max_image_dimension=max_image_dimension,

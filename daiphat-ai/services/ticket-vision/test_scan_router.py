@@ -13,6 +13,7 @@ from dto.response.scan_response import (
 from routers.scan import (
     get_gemini_ticket_scan_service,
     get_grok_ticket_scan_service,
+    get_groq_ticket_scan_service,
     get_legacy_ticket_scan_service,
 )
 
@@ -75,13 +76,20 @@ def _sample_response() -> ScanResponse:
     )
 
 
-def test_scan_default_routes_to_gemini_service():
-    fake_gemini = FakeLlmScanService()
-    fake_grok = FakeLlmScanService()
-    fake_legacy = FakeLegacyScanService()
+def _override_all(fake_groq, fake_gemini, fake_grok, fake_legacy):
+    app.dependency_overrides[get_groq_ticket_scan_service] = lambda: fake_groq
     app.dependency_overrides[get_gemini_ticket_scan_service] = lambda: fake_gemini
     app.dependency_overrides[get_grok_ticket_scan_service] = lambda: fake_grok
     app.dependency_overrides[get_legacy_ticket_scan_service] = lambda: fake_legacy
+
+
+def test_scan_default_routes_to_groq_service(monkeypatch):
+    monkeypatch.setattr("routers.scan.settings.TICKET_VISION_RECOGNITION_ENGINE", "groq")
+    fake_groq = FakeLlmScanService()
+    fake_gemini = FakeLlmScanService()
+    fake_grok = FakeLlmScanService()
+    fake_legacy = FakeLegacyScanService()
+    _override_all(fake_groq, fake_gemini, fake_grok, fake_legacy)
     client = TestClient(app)
 
     try:
@@ -94,18 +102,19 @@ def test_scan_default_routes_to_gemini_service():
 
     assert response.status_code == 200
     assert response.json()["success"] is True
-    assert fake_gemini.called is True
+    assert fake_groq.called is True
+    assert fake_gemini.called is False
     assert fake_grok.called is False
     assert fake_legacy.called is False
 
 
-def test_scan_legacy_engine_routes_to_legacy_service():
+def test_scan_legacy_engine_routes_to_legacy_service(monkeypatch):
+    monkeypatch.setattr("routers.scan.settings.TICKET_VISION_RECOGNITION_ENGINE", "groq")
+    fake_groq = FakeLlmScanService()
     fake_gemini = FakeLlmScanService()
     fake_grok = FakeLlmScanService()
     fake_legacy = FakeLegacyScanService()
-    app.dependency_overrides[get_gemini_ticket_scan_service] = lambda: fake_gemini
-    app.dependency_overrides[get_grok_ticket_scan_service] = lambda: fake_grok
-    app.dependency_overrides[get_legacy_ticket_scan_service] = lambda: fake_legacy
+    _override_all(fake_groq, fake_gemini, fake_grok, fake_legacy)
     client = TestClient(app)
 
     metadata = {"recognitionEngine": "legacy", "maxTickets": 3}
@@ -121,17 +130,18 @@ def test_scan_legacy_engine_routes_to_legacy_service():
 
     assert response.status_code == 200
     assert fake_legacy.called is True
+    assert fake_groq.called is False
     assert fake_gemini.called is False
     assert fake_grok.called is False
 
 
-def test_scan_grok_engine_routes_to_grok_service():
+def test_scan_grok_engine_routes_to_grok_service(monkeypatch):
+    monkeypatch.setattr("routers.scan.settings.TICKET_VISION_RECOGNITION_ENGINE", "groq")
+    fake_groq = FakeLlmScanService()
     fake_gemini = FakeLlmScanService()
     fake_grok = FakeLlmScanService()
     fake_legacy = FakeLegacyScanService()
-    app.dependency_overrides[get_gemini_ticket_scan_service] = lambda: fake_gemini
-    app.dependency_overrides[get_grok_ticket_scan_service] = lambda: fake_grok
-    app.dependency_overrides[get_legacy_ticket_scan_service] = lambda: fake_legacy
+    _override_all(fake_groq, fake_gemini, fake_grok, fake_legacy)
     client = TestClient(app)
 
     metadata = {"recognitionEngine": "grok"}
@@ -147,16 +157,17 @@ def test_scan_grok_engine_routes_to_grok_service():
 
     assert response.status_code == 200
     assert fake_grok.called is True
+    assert fake_groq.called is False
     assert fake_gemini.called is False
 
 
-def test_scan_gemini_engine_forwards_metadata():
+def test_scan_gemini_engine_forwards_metadata(monkeypatch):
+    monkeypatch.setattr("routers.scan.settings.TICKET_VISION_RECOGNITION_ENGINE", "groq")
+    fake_groq = FakeLlmScanService()
     fake_gemini = FakeLlmScanService()
     fake_grok = FakeLlmScanService()
     fake_legacy = FakeLegacyScanService()
-    app.dependency_overrides[get_gemini_ticket_scan_service] = lambda: fake_gemini
-    app.dependency_overrides[get_grok_ticket_scan_service] = lambda: fake_grok
-    app.dependency_overrides[get_legacy_ticket_scan_service] = lambda: fake_legacy
+    _override_all(fake_groq, fake_gemini, fake_grok, fake_legacy)
     client = TestClient(app)
 
     metadata = {
@@ -179,13 +190,13 @@ def test_scan_gemini_engine_forwards_metadata():
     assert fake_gemini.received_metadata.activeStations[0].code == "CTH"
 
 
-def test_scan_endpoint_rejects_invalid_metadata_json():
+def test_scan_endpoint_rejects_invalid_metadata_json(monkeypatch):
+    monkeypatch.setattr("routers.scan.settings.TICKET_VISION_RECOGNITION_ENGINE", "groq")
+    fake_groq = FakeLlmScanService()
     fake_gemini = FakeLlmScanService()
     fake_grok = FakeLlmScanService()
     fake_legacy = FakeLegacyScanService()
-    app.dependency_overrides[get_gemini_ticket_scan_service] = lambda: fake_gemini
-    app.dependency_overrides[get_grok_ticket_scan_service] = lambda: fake_grok
-    app.dependency_overrides[get_legacy_ticket_scan_service] = lambda: fake_legacy
+    _override_all(fake_groq, fake_gemini, fake_grok, fake_legacy)
     client = TestClient(app)
 
     try:
@@ -201,16 +212,21 @@ def test_scan_endpoint_rejects_invalid_metadata_json():
     assert response.json()["success"] is False
 
 
-def test_scan_vision_client_error_returns_soft_ok_empty_tickets():
+def test_scan_vision_client_error_returns_soft_ok_empty_tickets(monkeypatch):
     from infra.vision_extraction import VisionClientError
 
-    class FailingGemini:
+    monkeypatch.setattr("routers.scan.settings.TICKET_VISION_RECOGNITION_ENGINE", "groq")
+
+    class FailingGroq:
         def scan_image(self, image_bytes, metadata):
             raise VisionClientError("empty model content")
 
-    app.dependency_overrides[get_gemini_ticket_scan_service] = lambda: FailingGemini()
-    app.dependency_overrides[get_grok_ticket_scan_service] = lambda: FakeLlmScanService()
-    app.dependency_overrides[get_legacy_ticket_scan_service] = lambda: FakeLegacyScanService()
+    _override_all(
+        FailingGroq(),
+        FakeLlmScanService(),
+        FakeLlmScanService(),
+        FakeLegacyScanService(),
+    )
     client = TestClient(app)
 
     try:
@@ -229,8 +245,12 @@ def test_scan_vision_client_error_returns_soft_ok_empty_tickets():
     assert any("Không thể đọc rõ" in w for w in body["data"]["warnings"])
 
 
-def test_health_check():
+def test_health_check(monkeypatch):
+    monkeypatch.setattr("main.settings.TICKET_VISION_RECOGNITION_ENGINE", "groq")
+    monkeypatch.setattr("main.settings.GROQ_API_KEY", "test-key")
     client = TestClient(app)
     response = client.get("/health")
     assert response.status_code == 200
     assert response.json()["data"]["status"] == "up"
+    assert response.json()["data"]["recognitionEngine"] == "groq"
+    assert response.json()["data"]["visionReady"] is True

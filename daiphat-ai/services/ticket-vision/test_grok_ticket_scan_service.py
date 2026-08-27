@@ -6,6 +6,7 @@ cv2 = pytest.importorskip("cv2")
 from domain.enums.ticket_status import TicketStatus
 from domain.scanning.gemini_ticket_scan_service import GeminiTicketScanService
 from domain.scanning.grok_ticket_scan_service import GrokTicketScanService
+from domain.scanning.groq_ticket_scan_service import GroqTicketScanService
 from domain.scanning.llm_ticket_scan_service import resolve_recognition_engine
 from dto.request.scan_metadata import ScanMetadata, StationMetadata
 from infra.vision_extraction import ScanExtractionResult, TicketExtraction
@@ -134,8 +135,43 @@ def test_grok_scan_still_works_via_wrapper():
     assert result.tickets[0].status == TicketStatus.COMPLETE
 
 
+def test_groq_scan_maps_complete_ticket():
+    fake = FakeVisionClient(
+        ScanExtractionResult(
+            tickets=[
+                TicketExtraction(
+                    stationName="TP. Hồ Chí Minh",
+                    stationCode="HCM",
+                    serialNumber="A012345",
+                    numbers="123456",
+                    drawDate="2026-08-05",
+                    fieldConfidences={
+                        "stationName": 0.92,
+                        "serialNumber": 0.9,
+                        "numbers": 0.91,
+                        "drawDate": 0.89,
+                    },
+                )
+            ]
+        )
+    )
+    service = GroqTicketScanService(groq_client=fake, include_cropped_image=False)
+    result = service.scan_image(
+        _minimal_jpeg_bytes(),
+        ScanMetadata(
+            activeStations=[
+                StationMetadata(name="TP. Hồ Chí Minh", code="HCM", expectedNumberLength=6)
+            ]
+        ),
+    )
+    assert result.ticketCount == 1
+    assert result.tickets[0].status == TicketStatus.COMPLETE
+
+
 def test_resolve_recognition_engine_prefers_metadata():
-    assert resolve_recognition_engine(ScanMetadata(recognitionEngine="legacy"), "gemini") == "legacy"
-    assert resolve_recognition_engine(ScanMetadata(recognitionEngine="grok"), "gemini") == "grok"
-    assert resolve_recognition_engine(ScanMetadata(recognitionEngine="gemini"), "legacy") == "gemini"
-    assert resolve_recognition_engine(ScanMetadata(), "gemini") == "gemini"
+    assert resolve_recognition_engine(ScanMetadata(recognitionEngine="legacy"), "groq") == "legacy"
+    assert resolve_recognition_engine(ScanMetadata(recognitionEngine="grok"), "groq") == "grok"
+    assert resolve_recognition_engine(ScanMetadata(recognitionEngine="gemini"), "groq") == "gemini"
+    assert resolve_recognition_engine(ScanMetadata(recognitionEngine="groq"), "gemini") == "groq"
+    assert resolve_recognition_engine(ScanMetadata(), "groq") == "groq"
+    assert resolve_recognition_engine(ScanMetadata(), "unknown") == "groq"

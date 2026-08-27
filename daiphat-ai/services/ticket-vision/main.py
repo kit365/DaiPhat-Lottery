@@ -16,7 +16,12 @@ app.include_router(scan_router, prefix=settings.API_V1_STR)
 
 @app.on_event("startup")
 def warn_missing_vision_credentials() -> None:
-    engine = (settings.TICKET_VISION_RECOGNITION_ENGINE or "gemini").strip().lower()
+    engine = (settings.TICKET_VISION_RECOGNITION_ENGINE or "groq").strip().lower()
+    if engine == "groq" and not (settings.GROQ_API_KEY or "").strip():
+        logger.warning(
+            "GROQ_API_KEY is not set — POST /v1/scan with recognitionEngine=groq will fail. "
+            "Add GROQ_API_KEY to daiphat-ai/.env (or export it in the shell) and restart ticket-vision."
+        )
     if engine == "gemini" and not (settings.GEMINI_API_KEY or "").strip():
         logger.warning(
             "GEMINI_API_KEY is not set — POST /v1/scan with recognitionEngine=gemini will fail. "
@@ -30,9 +35,11 @@ def warn_missing_vision_credentials() -> None:
 
 @app.get("/health", tags=["System"])
 def health_check():
-    engine = (settings.TICKET_VISION_RECOGNITION_ENGINE or "gemini").strip().lower()
+    engine = (settings.TICKET_VISION_RECOGNITION_ENGINE or "groq").strip().lower()
     vision_ready = True
-    if engine == "gemini":
+    if engine == "groq":
+        vision_ready = bool((settings.GROQ_API_KEY or "").strip())
+    elif engine == "gemini":
         vision_ready = bool((settings.GEMINI_API_KEY or "").strip())
     elif engine == "grok":
         vision_ready = bool((settings.GROK_API_KEY or "").strip())
