@@ -9,6 +9,9 @@ import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchLineReposit
 import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryStationRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.OcrScanResultRepositoryPort;
+import com.daiphat.coreapi.application.port.out.lotteries.OcrTicketTemplateRepositoryPort;
+import com.daiphat.coreapi.application.port.out.lotteries.OcrFieldLayoutRepositoryPort;
+import com.daiphat.coreapi.application.port.out.lotteries.AiModelRegistryRepositoryPort;
 import com.daiphat.coreapi.application.port.out.vision.TicketVisionPort;
 import com.daiphat.coreapi.domain.model.enums.lottery.ScannedTicketStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
@@ -56,6 +59,14 @@ class TicketScanImportServiceSoftFailTest {
     private OcrScanValidationService ocrScanValidationService;
     @Mock
     private OcrScanResultApplicationMapper ocrScanResultApplicationMapper;
+    @Mock
+    private OcrTicketTemplateRepositoryPort ocrTicketTemplateRepositoryPort;
+    @Mock
+    private OcrFieldLayoutRepositoryPort ocrFieldLayoutRepositoryPort;
+    @Mock
+    private AiModelRegistryRepositoryPort aiModelRegistryRepositoryPort;
+    @Mock
+    private OcrScanResultFieldService ocrScanResultFieldService;
 
     @InjectMocks
     private TicketScanImportService service;
@@ -65,7 +76,8 @@ class TicketScanImportServiceSoftFailTest {
     @BeforeEach
     void setUp() {
         operatorId = UUID.fromString("22222222-2222-2222-2222-222222222222");
-        ReflectionTestUtils.setField(service, "ticketVisionRecognitionEngine", "gemini");
+        ReflectionTestUtils.setField(service, "ticketVisionRecognitionEngine", "groq");
+        when(ocrTicketTemplateRepositoryPort.existsActiveDefault()).thenReturn(true);
         when(lotteryStationRepositoryPort.findAll()).thenReturn(List.of(
                 LotteryStationModel.builder().id(1L).name("HCM").code("HCM").build()
         ));

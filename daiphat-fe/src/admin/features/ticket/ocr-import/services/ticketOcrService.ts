@@ -56,6 +56,30 @@ export const listOcrScanResults = async (params: {
     return response.data?.data ?? [];
 };
 
+export type OcrFieldCorrectionPayload = {
+    fieldName:
+        | 'stationName'
+        | 'numbers'
+        | 'serialNumber'
+        | 'drawDate'
+        | 'ticketType'
+        | 'batchCode'
+        | 'price';
+    correctedValue: string | null;
+};
+
+export const correctOcrScanResultFields = async (
+    ocrScanResultId: number,
+    fields: OcrFieldCorrectionPayload[]
+): Promise<ApiResponse<unknown>> => {
+    const response = await apiApp.patch(
+        `${BASE_URL}/ocr-scan-results/${ocrScanResultId}/fields`,
+        { fields },
+        { skipGlobalErrorToast: true }
+    );
+    return response.data;
+};
+
 export const getLotteryScanLogs = async (params?: {
     page?: number;
     size?: number;
