@@ -15,4 +15,6 @@ public interface OcrScanResultRepositoryPort {
      * Filters soft-deleted rows out. When both filters are set, both must match.
      */
     List<OcrScanResultModel> findAll(String scanId, Long importBatchLineId);
+
+    List<OcrScanResultModel> findByAiModelId(Long aiModelId);
 }

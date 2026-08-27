@@ -43,4 +43,14 @@ public class OcrScanResultRepositoryAdapter implements OcrScanResultRepositoryPo
                 .map(ocrScanResultPersistenceMapper::toDomain)
                 .toList();
     }
+
+    @Override
+    public List<OcrScanResultModel> findByAiModelId(Long aiModelId) {
+        if (aiModelId == null) {
+            return List.of();
+        }
+        return ocrScanResultRepository.findByAiModelIdAndDeletedAtIsNullOrderByIdAsc(aiModelId).stream()
+                .map(ocrScanResultPersistenceMapper::toDomain)
+                .toList();
+    }
 }

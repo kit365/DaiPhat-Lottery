@@ -33,6 +33,10 @@ public class OcrScanResultModel {
     private Long importBatchLineId;
     private Long stationId;
 
+    private Long templateId;
+
+    private Long aiModelId;
+
     private String sourceImageName;
     private OcrBoundingBox bbox;
     private Integer imageWidth;
@@ -49,6 +53,8 @@ public class OcrScanResultModel {
     private Double adjustedConfidence;
     private Map<String, Double> fieldConfidences;
     private Map<String, OcrBoundingBox> fieldBoxes;
+    /** fieldName -> ocr_field_layouts.id that produced the recognized value. */
+    private Map<String, Long> usedFieldLayouts;
     private Map<String, OcrFieldValidation> fieldValidations;
     private OcrOverallValidationStatus overallValidationStatus;
 
