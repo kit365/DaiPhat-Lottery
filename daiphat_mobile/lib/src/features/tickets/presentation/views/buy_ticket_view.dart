@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -195,8 +194,8 @@ class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
                 state: data,
                 viewModel: viewModel,
                 onOpenDetail: (ticket) => _openTicketDetail(context, ticket),
-                onBuyNow: (ticket) =>
-                    _addToCart(context, ticket, openCheckout: true),
+                onAddToCart: (ticket) =>
+                    _addToCart(context, ticket, openCheckout: false),
               ),
               loading: () => const _BuyTicketSkeleton(),
               error: (error, _) => _ErrorState(
@@ -225,13 +224,13 @@ class _LoadedView extends StatefulWidget {
     required this.state,
     required this.viewModel,
     required this.onOpenDetail,
-    required this.onBuyNow,
+    required this.onAddToCart,
   });
 
   final BuyTicketState state;
   final BuyTicketViewModel viewModel;
   final ValueChanged<LotteryTicketListItem> onOpenDetail;
-  final ValueChanged<LotteryTicketListItem> onBuyNow;
+  final ValueChanged<LotteryTicketListItem> onAddToCart;
 
   @override
   State<_LoadedView> createState() => _LoadedViewState();
@@ -351,7 +350,7 @@ class _LoadedViewState extends State<_LoadedView> {
                             child: _TicketCard(
                               ticket: ticket,
                               onTap: () => widget.onOpenDetail(ticket),
-                              onBuyNow: () => widget.onBuyNow(ticket),
+                              onAddToCart: () => widget.onAddToCart(ticket),
                             ),
                           ),
                         ),
@@ -1141,12 +1140,12 @@ class _TicketCard extends StatelessWidget {
   const _TicketCard({
     required this.ticket,
     required this.onTap,
-    required this.onBuyNow,
+    required this.onAddToCart,
   });
 
   final LotteryTicketListItem ticket;
   final VoidCallback onTap;
-  final VoidCallback onBuyNow;
+  final VoidCallback onAddToCart;
 
   @override
   Widget build(BuildContext context) {
@@ -1230,7 +1229,7 @@ class _TicketCard extends StatelessWidget {
               SizedBox(
                 width: 96,
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 13, 10, 10),
+                  padding: const EdgeInsets.fromLTRB(8, 12, 10, 10),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
@@ -1243,24 +1242,19 @@ class _TicketCard extends StatelessWidget {
                         ),
                       ),
                       const Spacer(),
-                      SizedBox(
-                        height: 35,
-                        child: ElevatedButton(
-                          onPressed: onBuyNow,
-                          style: ElevatedButton.styleFrom(
-                            elevation: 0,
-                            backgroundColor: const Color(0xFFE51B29),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                          ),
-                          child: const Text(
-                            'Mua ngay',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
+                      Material(
+                        color: const Color(0xFFE51B29),
+                        shape: const CircleBorder(),
+                        clipBehavior: Clip.antiAlias,
+                        child: InkWell(
+                          onTap: onAddToCart,
+                          child: const SizedBox(
+                            width: 48,
+                            height: 48,
+                            child: Icon(
+                              Icons.add_rounded,
+                              color: Colors.white,
+                              size: 26,
                             ),
                           ),
                         ),
@@ -1400,11 +1394,6 @@ class _TicketDetailViewState extends ConsumerState<TicketDetailView> {
     context.go(AppRoute.buyTicket.path);
   }
 
-  Future<void> _copyToClipboard(String value, String message) async {
-    await Clipboard.setData(ClipboardData(text: value));
-    if (!mounted) return;
-    AppToast.info(message);
-  }
 
   void _openStationTickets(LotteryTicketListItem ticket) {
     final station = ticket.stationDisplayText;
@@ -1568,24 +1557,12 @@ class _TicketDetailViewState extends ConsumerState<TicketDetailView> {
                             icon: Icons.location_on_outlined,
                             label: 'Đài quay',
                             value: resolvedTicket.stationDisplayText,
-                            showChevron: true,
                             onTap: () => _openStationTickets(resolvedTicket),
                           ),
                           _DetailInfoRow(
                             icon: Icons.calendar_month_outlined,
                             label: 'Ngày quay thưởng',
                             value: _detailDate(resolvedTicket),
-                          ),
-                          _DetailInfoRow(
-                            icon: Icons.qr_code_2_rounded,
-                            label: 'Serial',
-                            value: resolvedTicket.serialNumber ?? '-',
-                            onTap: resolvedTicket.serialNumber == null
-                                ? null
-                                : () => _copyToClipboard(
-                                    resolvedTicket.serialNumber!,
-                                    'Đã sao chép serial vé.',
-                                  ),
                           ),
                           _DetailInfoRow(
                             icon: Icons.sell_outlined,
@@ -1700,7 +1677,7 @@ class _DetailHeroCard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        const _VerifiedChip(),
+                        _StatusPill(label: ticket.statusDisplayName),
                       ],
                     ),
                   ),
@@ -1748,8 +1725,6 @@ class _DetailHeroCard extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 14),
-              Center(child: _StatusPill(label: ticket.statusDisplayName)),
             ],
           ),
         ],
@@ -1758,35 +1733,6 @@ class _DetailHeroCard extends StatelessWidget {
   }
 }
 
-class _VerifiedChip extends StatelessWidget {
-  const _VerifiedChip();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF6E3),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: const [
-          Icon(Icons.verified_rounded, size: 14, color: Color(0xFFE0A21B)),
-          SizedBox(width: 5),
-          Text(
-            'Vé chính hãng',
-            style: TextStyle(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFFB8791A),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _HeroMetaLine extends StatelessWidget {
   const _HeroMetaLine({required this.icon, required this.text});
@@ -1822,7 +1768,7 @@ class _StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5.5),
       decoration: BoxDecoration(
         color: const Color(0xFFE6F8EC),
         borderRadius: BorderRadius.circular(999),
@@ -1832,16 +1778,16 @@ class _StatusPill extends StatelessWidget {
         children: [
           const Icon(
             Icons.check_circle_rounded,
-            size: 17,
+            size: 12,
             color: Color(0xFF12985E),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 4),
           Text(
             label,
             style: const TextStyle(
               color: Color(0xFF12985E),
               fontWeight: FontWeight.w700,
-              fontSize: 13.5,
+              fontSize: 9.5,
             ),
           ),
         ],
