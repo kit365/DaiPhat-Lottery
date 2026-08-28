@@ -6,9 +6,11 @@ import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/login_v
 import 'package:daiphat_mobile/src/features/blog/presentation/views/blog_screen.dart';
 import 'package:daiphat_mobile/src/features/notifications/presentation/viewmodels/notification_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/notifications/presentation/views/notification_view.dart';
+import 'package:daiphat_mobile/src/features/utilities/presentation/views/utilities_view.dart';
+import 'package:daiphat_mobile/src/features/utilities/presentation/views/utilities_two_view.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 
-enum _ShellSidePage { main, blog, notifications }
+enum _ShellSidePage { main, utilities, utilitiesTwo, notifications }
 
 class MainLayout extends StatefulWidget {
   final LoginViewModel loginViewModel;
@@ -33,13 +35,14 @@ class _MainLayoutState extends State<MainLayout> {
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(initialPage: 1);
+    _pageController = PageController(initialPage: 2);
   }
 
   void _syncSidePage(int index) {
     final nextPage = switch (index) {
-      0 => _ShellSidePage.blog,
-      2 => _ShellSidePage.notifications,
+      0 => _ShellSidePage.utilities,
+      1 => _ShellSidePage.utilitiesTwo,
+      3 => _ShellSidePage.notifications,
       _ => _ShellSidePage.main,
     };
     if (nextPage != _sidePage) {
@@ -58,18 +61,29 @@ class _MainLayoutState extends State<MainLayout> {
       setState(() => _sidePage = _ShellSidePage.main);
     }
     _pageController.animateToPage(
-      1,
+      2,
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
     );
   }
 
-  void _goToBlog() {
-    if (_sidePage != _ShellSidePage.blog) {
-      setState(() => _sidePage = _ShellSidePage.blog);
+  void _goToUtilities() {
+    if (_sidePage != _ShellSidePage.utilities) {
+      setState(() => _sidePage = _ShellSidePage.utilities);
     }
     _pageController.animateToPage(
       0,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  void _goToUtilitiesTwo() {
+    if (_sidePage != _ShellSidePage.utilitiesTwo) {
+      setState(() => _sidePage = _ShellSidePage.utilitiesTwo);
+    }
+    _pageController.animateToPage(
+      1,
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
     );
@@ -83,7 +97,7 @@ class _MainLayoutState extends State<MainLayout> {
       setState(() => _sidePage = _ShellSidePage.notifications);
     }
     _pageController.animateToPage(
-      2,
+      3,
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
     );
@@ -91,41 +105,39 @@ class _MainLayoutState extends State<MainLayout> {
 
   int _getNavIndex(BuildContext context) {
     switch (_sidePage) {
-      case _ShellSidePage.blog:
-        return 0;
+      case _ShellSidePage.utilities:
+        return 2;
+      case _ShellSidePage.utilitiesTwo:
+        return 3;
       case _ShellSidePage.notifications:
         return 4;
       case _ShellSidePage.main:
         final location = GoRouterState.of(context).uri.path;
         if (location.startsWith(AppRoute.buyTicket.path)) {
-          return 2;
-        }
-        if (location.startsWith(AppRoute.checkTicket.path)) {
-          return 3;
+          return 1;
         }
         if (location.startsWith(AppRoute.profile.path)) {
           return 5;
         }
-        return 1;
+        return 0;
     }
   }
 
   void _onNavTap(int index, BuildContext context) {
     switch (index) {
       case 0:
-        _goToBlog();
-        break;
-      case 1:
         _goToMain();
         context.go(AppRoute.home.path);
         break;
-      case 2:
+      case 1:
         _goToMain();
         context.go(AppRoute.buyTicket.path);
         break;
+      case 2:
+        _goToUtilities();
+        break;
       case 3:
-        _goToMain();
-        context.go(AppRoute.checkTicket.path);
+        _goToUtilitiesTwo();
         break;
       case 4:
         _goToNotifications(context);
@@ -150,21 +162,46 @@ class _MainLayoutState extends State<MainLayout> {
         controller: _pageController,
         physics: const BouncingScrollPhysics(),
         onPageChanged: (index) {
-          if (index == 2 && !widget.loginViewModel.isAuthenticated) {
+          if (index == 3 && !widget.loginViewModel.isAuthenticated) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (!mounted) return;
-              _pageController.jumpToPage(1);
+              _pageController.jumpToPage(2);
             });
             return;
           }
           _syncSidePage(index);
         },
         children: [
-          BlogScreen(
-            key: const ValueKey('shell-blog'),
+          UtilitiesView(
+            key: const ValueKey('shell-utilities'),
+            isAuthenticated: widget.loginViewModel.isAuthenticated,
+            onOpenNotifications: () => _goToNotifications(context),
+            onOpenBlog: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => BlogScreen(
+                    onBack: () => Navigator.of(context).pop(),
+                  ),
+                ),
+              );
+            },
+          ),
+          UtilitiesTwoView(
+            key: const ValueKey('shell-utilities-two'),
+            isAuthenticated: widget.loginViewModel.isAuthenticated,
             onBack: () {
               _goToMain();
               context.go(AppRoute.home.path);
+            },
+            onOpenNotifications: () => _goToNotifications(context),
+            onOpenBlog: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => BlogScreen(
+                    onBack: () => Navigator.of(context).pop(),
+                  ),
+                ),
+              );
             },
           ),
           KeyedSubtree(
@@ -212,11 +249,6 @@ class _AnimatedBottomNavigation extends StatelessWidget {
 
   static const _items = <({String label, IconData icon, IconData activeIcon})>[
     (
-      label: 'Tin tức',
-      icon: Icons.article_outlined,
-      activeIcon: Icons.article_rounded,
-    ),
-    (
       label: 'Trang chủ',
       icon: Icons.home_outlined,
       activeIcon: Icons.home_rounded,
@@ -227,9 +259,14 @@ class _AnimatedBottomNavigation extends StatelessWidget {
       activeIcon: Icons.confirmation_number_rounded,
     ),
     (
-      label: 'Dò vé',
-      icon: Icons.qr_code_scanner_rounded,
-      activeIcon: Icons.qr_code_scanner_rounded,
+      label: 'Tiện ích',
+      icon: Icons.grid_view_rounded,
+      activeIcon: Icons.grid_view_rounded,
+    ),
+    (
+      label: 'Tiện ích 2',
+      icon: Icons.dashboard_customize_outlined,
+      activeIcon: Icons.dashboard_customize_rounded,
     ),
     (
       label: 'Thông báo',
