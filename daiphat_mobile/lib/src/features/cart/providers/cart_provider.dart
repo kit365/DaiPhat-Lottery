@@ -7,7 +7,8 @@ class CartNotifier extends Notifier<List<CartItemData>> {
 
   @override
   List<CartItemData> build() {
-    return _loadFromHive();
+    final items = _loadFromHive();
+    return _ensureLocalExpiredSeedTicket(items);
   }
 
   List<CartItemData> _loadFromHive() {
@@ -23,6 +24,38 @@ class CartNotifier extends Notifier<List<CartItemData>> {
 
   void _saveToHive(List<CartItemData> items) {
     _cartBox.put('items', items.map((e) => e.toMap()).toList());
+  }
+
+  List<CartItemData> _ensureLocalExpiredSeedTicket(List<CartItemData> items) {
+    const seedTicketId = 202608200001;
+    const seedFlag = 'seededExpiredTicket20260820';
+    if (_cartBox.get(seedFlag, defaultValue: false) == true) {
+      return items;
+    }
+    if (items.any((item) => item.lotteryTicketId == seedTicketId)) {
+      _cartBox.put(seedFlag, true);
+      return items;
+    }
+
+    final seeded = [
+      ...items,
+      const CartItemData(
+        lotteryTicketId: seedTicketId,
+        province: 'Hồ Chí Minh',
+        dateLabel: '20/08/2026',
+        drawTime: '16:15',
+        kyHieu: 'HCM',
+        number: '208620',
+        quantity: 1,
+        unitPrice: 10000,
+        logoText: 'HCM',
+        drawDateIso: '2026-08-20',
+        maxStock: 1,
+      ),
+    ];
+    _cartBox.put(seedFlag, true);
+    _saveToHive(seeded);
+    return seeded;
   }
 
   void addItem(CartItemData item) {
