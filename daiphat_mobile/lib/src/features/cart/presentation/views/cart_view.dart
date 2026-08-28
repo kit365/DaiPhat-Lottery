@@ -44,8 +44,8 @@ class _CartViewState extends ConsumerState<CartView> {
           ? TicketDayFilter.today
           : TicketDayFilter.tomorrow,
       drawDate: DateTime.now(),
-      status: 'reserved',
-      statusDisplayName: 'Đang giữ vé',
+      status: '',
+      statusDisplayName: '',
       stationName: item.kyHieu,
     );
     Navigator.of(context).push(
@@ -441,13 +441,7 @@ class _CartTicketCard extends StatelessWidget {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      const _InfoPill(
-                        icon: Icons.check_circle_rounded,
-                        label: 'Đang giữ vé',
-                        color: Color(0xFF12985E),
-                        backgroundColor: Color(0xFFE6F8EC),
-                      ),
+
                     ],
                   ),
                 ),
@@ -719,45 +713,6 @@ class _CartMeta extends StatelessWidget {
   }
 }
 
-class _InfoPill extends StatelessWidget {
-  const _InfoPill({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.backgroundColor,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color color;
-  final Color backgroundColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _CartBottomBar extends StatelessWidget {
   const _CartBottomBar({
