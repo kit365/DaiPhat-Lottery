@@ -8,6 +8,7 @@ import com.daiphat.coreapi.application.dto.request.order.ConfirmOrderHandoverReq
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
+import com.daiphat.coreapi.application.dto.response.order.PendingPaymentReminderResponse;
 import com.daiphat.coreapi.application.dto.response.order.OrderResponse;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 
@@ -64,6 +65,8 @@ public interface OrderServicePort {
             String direction,
             UUID customerId
     );
+
+    PendingPaymentReminderResponse getMyPendingPaymentReminder(UUID customerId);
 
     List<EnumOptionResponse> getOrderTypes();
 

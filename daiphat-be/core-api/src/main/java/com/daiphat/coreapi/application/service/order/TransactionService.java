@@ -342,6 +342,14 @@ public class TransactionService implements TransactionServicePort {
         order.cancelPendingPayment(timeoutReason, OrderCancelType.SYSTEM_PAYMENT_TIMEOUT);
         orderRepositoryPort.save(order);
         paymentCountdownCachePort.clear(order.getId());
+        if (order.getUserId() != null) {
+            eventPublisher.publishEvent(OrderStatusChangedEvent.builder()
+                    .orderId(order.getId())
+                    .customerId(order.getUserId())
+                    .orderCode(order.getOrderCode())
+                    .status(OrderStatus.CANCELLED)
+                    .build());
+        }
         return true;
     }
 

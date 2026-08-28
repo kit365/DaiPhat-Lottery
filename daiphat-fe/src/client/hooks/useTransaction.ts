@@ -13,6 +13,8 @@ const invalidateClientOrderPayment = (
     queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_MY_ORDER_DETAIL, orderId] });
     queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_MY_ORDERS] });
     queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_PENDING_PAYMENT_COUNTDOWN, orderId] });
+    queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_PENDING_PAYMENT_REMINDER] });
+    queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_NOTIFICATIONS] });
 };
 
 export const useProcessPayment = () => {

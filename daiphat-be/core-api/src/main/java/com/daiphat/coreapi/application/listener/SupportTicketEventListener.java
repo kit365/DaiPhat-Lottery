@@ -11,6 +11,7 @@ import com.daiphat.coreapi.application.port.in.notification.NotificationServiceP
 import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
 import com.daiphat.coreapi.domain.model.UserModel;
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
+import com.daiphat.coreapi.domain.model.enums.notification.NotificationAudience;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationChannel;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationReferenceType;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationType;
@@ -46,7 +47,7 @@ public class SupportTicketEventListener {
         log.info("Handling SupportTicketCreatedEvent for ticketId: {}", event.ticketId());
 
         if (event.customerId() != null) {
-            notifyUser(
+            notifyCustomer(
                     event.customerId(),
                     "Ghi nhận yêu cầu hỗ trợ",
                     String.format("Yêu cầu hỗ trợ về %s: \"%s\" của bạn đã được hệ thống ghi nhận thành công. Nhân viên của chúng tôi sẽ sớm tiếp nhận và phản hồi.",
@@ -79,7 +80,7 @@ public class SupportTicketEventListener {
         }
 
         if (event.senderRole() == TicketCommentSenderRole.OPERATOR && event.customerId() != null) {
-            notifyUser(
+            notifyCustomer(
                     event.customerId(),
                     "Nhân viên đã phản hồi yêu cầu hỗ trợ",
                     String.format("Yêu cầu hỗ trợ về %s: \"%s\" có tin nhắn mới từ nhân viên hỗ trợ.",
@@ -97,7 +98,7 @@ public class SupportTicketEventListener {
             return;
         }
 
-        notifyUser(
+        notifyCustomer(
                 event.customerId(),
                 "Yêu cầu hỗ trợ đang được xử lý",
                 String.format("%s đã tiếp nhận yêu cầu hỗ trợ về %s: \"%s\".",
@@ -114,7 +115,7 @@ public class SupportTicketEventListener {
             return;
         }
 
-        notifyUser(
+        notifyCustomer(
                 event.customerId(),
                 "Yêu cầu hỗ trợ đã được giải quyết",
                 String.format("Yêu cầu hỗ trợ về %s: \"%s\" đã được nhân viên giải quyết. Vui lòng xác nhận bạn có hài lòng với phương án này.",
@@ -131,7 +132,7 @@ public class SupportTicketEventListener {
             return;
         }
 
-        notifyUser(
+        notifyCustomer(
                 event.customerId(),
                 "Yêu cầu hỗ trợ đã bị từ chối",
                 String.format("Yêu cầu hỗ trợ về %s: \"%s\" đã bị từ chối vì không hợp lệ hoặc không đủ điều kiện. Vui lòng xem lý do trong lịch sử trao đổi.",
@@ -162,7 +163,7 @@ public class SupportTicketEventListener {
         }
 
         if (event.autoClosed()) {
-            notifyUser(
+            notifyCustomer(
                     event.customerId(),
                     "Yêu cầu hỗ trợ đã tự động đóng",
                     String.format("Yêu cầu hỗ trợ về %s: \"%s\" đã được đóng tự động vì không có phản hồi sau khi giải quyết.",
@@ -171,7 +172,7 @@ public class SupportTicketEventListener {
             return;
         }
 
-        notifyUser(
+        notifyCustomer(
                 event.customerId(),
                 "Yêu cầu hỗ trợ đã đóng",
                 String.format(
@@ -182,7 +183,7 @@ public class SupportTicketEventListener {
 
     private void notifyOperators(String title, String content, Long ticketId, UUID assignedTo) {
         if (assignedTo != null) {
-            notifyUser(assignedTo, title, content, ticketId);
+            notifyStaff(assignedTo, title, content, ticketId);
             return;
         }
 
@@ -190,16 +191,31 @@ public class SupportTicketEventListener {
                 .filter(user -> user.getStatus() == UserStatus.ACTIVE)
                 .map(UserModel::getId)
                 .distinct()
-                .forEach(userId -> notifyUser(userId, title, content, ticketId));
+                .forEach(userId -> notifyStaff(userId, title, content, ticketId));
     }
 
-    private void notifyUser(UUID userId, String title, String content, Long ticketId) {
+    private void notifyCustomer(UUID userId, String title, String content, Long ticketId) {
+        notifyUser(userId, title, content, ticketId, NotificationAudience.CUSTOMER);
+    }
+
+    private void notifyStaff(UUID userId, String title, String content, Long ticketId) {
+        notifyUser(userId, title, content, ticketId, NotificationAudience.STAFF);
+    }
+
+    private void notifyUser(
+            UUID userId,
+            String title,
+            String content,
+            Long ticketId,
+            NotificationAudience audience
+    ) {
         NotificationModel notification = NotificationModel.builder()
                 .userId(userId)
                 .title(title)
                 .content(content)
                 .type(NotificationType.SYSTEM)
                 .channel(NotificationChannel.IN_APP)
+                .audience(audience)
                 .referenceId(String.valueOf(ticketId))
                 .referenceType(NotificationReferenceType.SUPPORT_TICKET)
                 .build();

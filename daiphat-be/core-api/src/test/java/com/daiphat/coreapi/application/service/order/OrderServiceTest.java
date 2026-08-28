@@ -55,6 +55,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
@@ -858,6 +859,33 @@ private static final String DEFAULT_CUSTOMER_NAME = "Kiet";
                 1, 10, null, LocalDate.now(), LocalDate.now().minusDays(1), null, null, null, null, customerId
         )).isInstanceOf(DomainException.class)
           .extracting("errorCode").isEqualTo(ErrorCode.INVALID_INPUT);
+    }
+
+    @Test
+    @DisplayName("[DP-486] getMyOrders: ignores unsupported sort fields and defaults to createdAt desc")
+    void getMyOrders_ignoresUnsupportedSortField() {
+        UUID customerId = UUID.randomUUID();
+        when(userLookupServicePort.findByIdOrThrow(customerId)).thenReturn(new UserModel());
+
+        Page<OrderModel> mockPage = new PageImpl<>(List.of(new OrderModel()));
+        when(orderRepositoryPort.findMyOrders(
+                any(), eq(customerId), any(), any(), any(), any(), any()
+        )).thenReturn(mockPage);
+
+        orderService.getMyOrders(
+                1, 10, null, null, null, null, null, "expectedPickupAt", "ASC", customerId
+        );
+
+        verify(orderRepositoryPort).findMyOrders(
+                argThat(pageable -> pageable.getSort().getOrderFor("createdAt") != null
+                        && pageable.getSort().getOrderFor("expectedPickupAt") == null),
+                eq(customerId),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
+        );
     }
 
     @Test

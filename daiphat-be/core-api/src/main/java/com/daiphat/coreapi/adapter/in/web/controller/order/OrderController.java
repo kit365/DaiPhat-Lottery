@@ -14,6 +14,7 @@ import com.daiphat.coreapi.shared.util.StorageUtils;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
 import com.daiphat.coreapi.application.dto.response.order.OrderResponse;
+import com.daiphat.coreapi.application.dto.response.order.PendingPaymentReminderResponse;
 import com.daiphat.coreapi.application.dto.response.order.OrderDetailResponse;
 import com.daiphat.coreapi.application.dto.response.refund.OrderRefundEligibilityResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundRequestResponse;
@@ -240,6 +241,16 @@ public class OrderController {
                         direction,
                         principal.getId()
                 )
+        );
+    }
+
+    @GetMapping("/my-orders/pending-payment-reminder")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<PendingPaymentReminderResponse> getMyPendingPaymentReminder(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        return ApiResponse.success(
+                "Lấy nhắc nhở thanh toán thành công.",
+                orderServicePort.getMyPendingPaymentReminder(principal.getId())
         );
     }
 

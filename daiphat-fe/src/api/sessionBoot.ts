@@ -1,4 +1,3 @@
-import { apiApp } from "./index";
 import {
     hydrateAccessTokenFromCookie,
     persistAccessToken,
@@ -28,23 +27,37 @@ const isJwtExpiredOrStale = (token: string, skewMs = 30_000) => {
     }
 };
 
-let bootRefreshInFlight: Promise<void> | null = null;
-
 const REFRESH_SKEW_MS = 60_000;
+/** Prevent setTimeout(0) tight loops when JWT exp is missing or imminently stale. */
+const MIN_PROACTIVE_REFRESH_MS = 30_000;
 
+let refreshInFlight: Promise<string | null> | null = null;
+
+/** Shared refresh used by proactive boot and axios 401 interceptor. */
 export const refreshAccessSession = async (): Promise<string | null> => {
-    const { data } = await apiApp.post<RefreshBody>("/auth/refresh-token", null, {
-        skipGlobalErrorToast: true,
-    });
-    const newAccess = data?.data?.accessToken || data?.data?.access_token;
-    const expiresIn = data?.data?.expiresIn ?? data?.data?.expires_in;
-    if (!newAccess) {
-        endAuthSession();
-        return null;
+    if (refreshInFlight) {
+        return refreshInFlight;
     }
-    persistAccessToken(newAccess, expiresIn);
-    persistRefreshTokenFallback(data?.data?.refreshToken || data?.data?.refresh_token);
-    return newAccess;
+
+    refreshInFlight = (async () => {
+        const { apiApp } = await import("./index");
+        const { data } = await apiApp.post<RefreshBody>("/auth/refresh-token", null, {
+            skipGlobalErrorToast: true,
+        });
+        const newAccess = data?.data?.accessToken || data?.data?.access_token;
+        const expiresIn = data?.data?.expiresIn ?? data?.data?.expires_in;
+        if (!newAccess) {
+            endAuthSession();
+            return null;
+        }
+        persistAccessToken(newAccess, expiresIn);
+        persistRefreshTokenFallback(data?.data?.refreshToken || data?.data?.refresh_token);
+        return newAccess;
+    })().finally(() => {
+        refreshInFlight = null;
+    });
+
+    return refreshInFlight;
 };
 
 /**
@@ -53,23 +66,15 @@ export const refreshAccessSession = async (): Promise<string | null> => {
  * Không có access token vẫn thử refresh (cookie HttpOnly).
  */
 export const restoreAccessSessionIfNeeded = () => {
-    if (bootRefreshInFlight) return bootRefreshInFlight;
+    hydrateAccessTokenFromCookie();
+    const token = resolveAccessToken();
+    if (token && !isJwtExpiredOrStale(token, REFRESH_SKEW_MS)) {
+        return Promise.resolve();
+    }
 
-    bootRefreshInFlight = (async () => {
-        hydrateAccessTokenFromCookie();
-        const token = resolveAccessToken();
-        if (token && !isJwtExpiredOrStale(token, REFRESH_SKEW_MS)) return;
-
-        try {
-            await refreshAccessSession();
-        } catch {
-            // Interceptor refresh-fail đã xóa session.
-        }
-    })().finally(() => {
-        bootRefreshInFlight = null;
+    return refreshAccessSession().catch(() => {
+        // Interceptor refresh-fail đã xóa session khi refresh-token trả 401.
     });
-
-    return bootRefreshInFlight;
 };
 
 /** Gọi lại refresh ~1 phút trước khi JWT hết hạn — không đợi 401. */
@@ -78,9 +83,12 @@ export const msUntilAccessRefresh = (skewMs = REFRESH_SKEW_MS) => {
     if (!token) return null;
     try {
         const payload = JSON.parse(atob(token.split(".")[1] ?? "")) as { exp?: number };
-        if (typeof payload.exp !== "number") return 0;
-        return Math.max(0, payload.exp * 1000 - Date.now() - skewMs);
+        if (typeof payload.exp !== "number") {
+            return MIN_PROACTIVE_REFRESH_MS;
+        }
+        const computed = payload.exp * 1000 - Date.now() - skewMs;
+        return Math.max(MIN_PROACTIVE_REFRESH_MS, computed);
     } catch {
-        return 0;
+        return MIN_PROACTIVE_REFRESH_MS;
     }
 };

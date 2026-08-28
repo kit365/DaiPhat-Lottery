@@ -10,6 +10,7 @@ import com.daiphat.coreapi.application.port.out.notification.FcmPushPort;
 import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
 import com.daiphat.coreapi.domain.model.UserModel;
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
+import com.daiphat.coreapi.domain.model.enums.notification.NotificationAudience;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationChannel;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationReferenceType;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationType;
@@ -57,6 +58,7 @@ public class OrderEventListener {
                             .content(content)
                             .type(NotificationType.ORDER)
                             .channel(NotificationChannel.IN_APP)
+                            .audience(NotificationAudience.STAFF)
                             .referenceId(String.valueOf(event.orderId()))
                             .referenceType(NotificationReferenceType.ORDER)
                             .build();
@@ -83,6 +85,7 @@ public class OrderEventListener {
                             .content(content)
                             .type(NotificationType.ORDER)
                             .channel(NotificationChannel.IN_APP)
+                            .audience(NotificationAudience.STAFF)
                             .referenceId(String.valueOf(event.orderId()))
                             .referenceType(NotificationReferenceType.ORDER)
                             .build();
