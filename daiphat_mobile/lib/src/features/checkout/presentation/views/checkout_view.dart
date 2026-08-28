@@ -180,8 +180,10 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
                 children: [
+                const _CheckoutSecureHint(),
+                const SizedBox(height: 18),
                 // ─── 1. DANH SÁCH VÉ ──────────────────────────
-                _buildSectionTitle('1. Danh sách vé', number: 1),
+                _buildSectionTitle('Danh sách vé', number: 1),
                 const SizedBox(height: 10),
                 ...cartItems.map(
                   (item) => Padding(
@@ -192,7 +194,7 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                 const SizedBox(height: 24),
 
                 // ─── 2. THÔNG TIN NHẬN VÉ ─────────────────────
-                _buildSectionTitle('2. Thông tin nhận vé', number: 2),
+                _buildSectionTitle('Thông tin nhận vé', number: 2),
                 const SizedBox(height: 12),
                 _buildUserInfoForm(checkoutState),
                 const SizedBox(height: 16),
@@ -247,7 +249,7 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                 const SizedBox(height: 24),
 
                 // ─── 3. PHƯƠNG THỨC THANH TOÁN ───────────────
-                _buildSectionTitle('3. Phương thức thanh toán', number: 3),
+                _buildSectionTitle('Phương thức thanh toán', number: 3),
                 const SizedBox(height: 12),
                 transactionTypesAsync.when(
                   data: (types) {
@@ -703,30 +705,31 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       decoration: const BoxDecoration(
         color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
         border: Border(top: BorderSide(color: Color(0xFFF1F3F5))),
       ),
       child: SafeArea(
         top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        child: Row(
           children: [
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   const Text(
                     'Tổng thanh toán',
                     style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF15213B),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF374151),
                     ),
                   ),
+                  const SizedBox(height: 5),
                   Text(
                     _money(total),
                     style: const TextStyle(
-                      fontSize: 22,
+                      fontSize: 24,
                       fontWeight: FontWeight.w900,
                       color: AppColors.primary,
                     ),
@@ -734,8 +737,9 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                 ],
               ),
             ),
+            const SizedBox(width: 16),
             SizedBox(
-              width: double.infinity,
+              width: 220,
               child: ElevatedButton(
                 onPressed: canCheckout ? onCheckout : null,
                 style: ElevatedButton.styleFrom(
@@ -757,12 +761,19 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                           color: Colors.white,
                         ),
                       )
-                    : const Text(
-                        'Chốt đơn ngay',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                        ),
+                    : const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Chốt đơn ngay',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Icon(Icons.chevron_right_rounded, size: 22),
+                        ],
                       ),
               ),
             ),
@@ -839,6 +850,33 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
   }
 }
 
+class _CheckoutSecureHint extends StatelessWidget {
+  const _CheckoutSecureHint();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.lock_rounded, size: 16, color: Color(0xFFB6BBC5)),
+        SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            'Giao dịch được bảo mật và mã hóa an toàn',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: Color(0xFF9CA3AF),
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 // ─── Cart Item Card ─────────────────────────────────────────────────────────
 class _CartItemCard extends StatelessWidget {
   final CartItemData item;
@@ -847,11 +885,11 @@ class _CartItemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFF1F3F5)),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFEDEFF3)),
       ),
       child: Row(
         children: [
@@ -883,24 +921,15 @@ class _CartItemCard extends StatelessWidget {
                   'Vé số ${item.province}',
                   style: const TextStyle(
                     fontWeight: FontWeight.w800,
-                    fontSize: 15,
+                    fontSize: 16,
                     color: Color(0xFF15213B),
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  '${item.drawTime} • ${item.kyHieu}',
-                  style: const TextStyle(
-                    color: Color(0xFF6B7280),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 10),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
+                    horizontal: 14,
+                    vertical: 8,
                   ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFFFF1EF),
@@ -912,7 +941,7 @@ class _CartItemCard extends StatelessWidget {
                     style: const TextStyle(
                       color: AppColors.primary,
                       fontWeight: FontWeight.w800,
-                      fontSize: 16,
+                      fontSize: 17,
                       letterSpacing: 1.2,
                     ),
                   ),
