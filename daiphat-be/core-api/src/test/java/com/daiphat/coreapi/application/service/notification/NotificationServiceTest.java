@@ -11,6 +11,7 @@ import com.daiphat.coreapi.application.port.out.refund.RefundRequestRepositoryPo
 import com.daiphat.coreapi.application.port.out.support.SupportTicketRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.notification.NotificationAudience;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationChannel;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationReferenceType;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationStatus;
@@ -437,13 +438,13 @@ class NotificationServiceTest {
                 .createdAt(older.getCreatedAt())
                 .build();
 
-        when(notificationRepositoryPort.findByUserId(eq(USER_ID), any(Pageable.class))).thenReturn(notificationPage);
-        when(notificationRepositoryPort.countAllByUserId(USER_ID)).thenReturn(6L);
-        when(notificationRepositoryPort.countUnreadByUserId(USER_ID)).thenReturn(2L);
-        when(notificationRepositoryPort.countByUserIdAndType(USER_ID, NotificationType.AUTH)).thenReturn(3L);
-        when(notificationRepositoryPort.countByUserIdAndType(USER_ID, NotificationType.BLOG)).thenReturn(2L);
-        when(notificationRepositoryPort.countByUserIdAndType(USER_ID, NotificationType.ORDER)).thenReturn(4L);
-        when(notificationRepositoryPort.countByUserIdAndType(USER_ID, NotificationType.SYSTEM)).thenReturn(1L);
+        when(notificationRepositoryPort.findByUserIdAndAudience(eq(USER_ID), eq(NotificationAudience.CUSTOMER), any(Pageable.class))).thenReturn(notificationPage);
+        when(notificationRepositoryPort.countAllByUserIdAndAudience(USER_ID, NotificationAudience.CUSTOMER)).thenReturn(6L);
+        when(notificationRepositoryPort.countUnreadByUserIdAndAudience(USER_ID, NotificationAudience.CUSTOMER)).thenReturn(2L);
+        when(notificationRepositoryPort.countByUserIdAndAudienceAndType(USER_ID, NotificationAudience.CUSTOMER, NotificationType.AUTH)).thenReturn(3L);
+        when(notificationRepositoryPort.countByUserIdAndAudienceAndType(USER_ID, NotificationAudience.CUSTOMER, NotificationType.BLOG)).thenReturn(2L);
+        when(notificationRepositoryPort.countByUserIdAndAudienceAndType(USER_ID, NotificationAudience.CUSTOMER, NotificationType.ORDER)).thenReturn(4L);
+        when(notificationRepositoryPort.countByUserIdAndAudienceAndType(USER_ID, NotificationAudience.CUSTOMER, NotificationType.SYSTEM)).thenReturn(1L);
         when(notificationApplicationMapper.toResponse(newest)).thenReturn(newestResponse);
         when(notificationApplicationMapper.toResponse(older)).thenReturn(olderResponse);
 
@@ -465,13 +466,13 @@ class NotificationServiceTest {
     void getMyNotifications_withInvalidPageAndLimit_normalizesToOne() {
         Page<NotificationModel> notificationPage = new PageImpl<>(List.of());
 
-        when(notificationRepositoryPort.findByUserId(eq(USER_ID), any(Pageable.class))).thenReturn(notificationPage);
-        when(notificationRepositoryPort.countAllByUserId(USER_ID)).thenReturn(0L);
-        when(notificationRepositoryPort.countUnreadByUserId(USER_ID)).thenReturn(0L);
-        when(notificationRepositoryPort.countByUserIdAndType(USER_ID, NotificationType.AUTH)).thenReturn(0L);
-        when(notificationRepositoryPort.countByUserIdAndType(USER_ID, NotificationType.BLOG)).thenReturn(0L);
-        when(notificationRepositoryPort.countByUserIdAndType(USER_ID, NotificationType.ORDER)).thenReturn(0L);
-        when(notificationRepositoryPort.countByUserIdAndType(USER_ID, NotificationType.SYSTEM)).thenReturn(0L);
+        when(notificationRepositoryPort.findByUserIdAndAudience(eq(USER_ID), eq(NotificationAudience.CUSTOMER), any(Pageable.class))).thenReturn(notificationPage);
+        when(notificationRepositoryPort.countAllByUserIdAndAudience(USER_ID, NotificationAudience.CUSTOMER)).thenReturn(0L);
+        when(notificationRepositoryPort.countUnreadByUserIdAndAudience(USER_ID, NotificationAudience.CUSTOMER)).thenReturn(0L);
+        when(notificationRepositoryPort.countByUserIdAndAudienceAndType(USER_ID, NotificationAudience.CUSTOMER, NotificationType.AUTH)).thenReturn(0L);
+        when(notificationRepositoryPort.countByUserIdAndAudienceAndType(USER_ID, NotificationAudience.CUSTOMER, NotificationType.BLOG)).thenReturn(0L);
+        when(notificationRepositoryPort.countByUserIdAndAudienceAndType(USER_ID, NotificationAudience.CUSTOMER, NotificationType.ORDER)).thenReturn(0L);
+        when(notificationRepositoryPort.countByUserIdAndAudienceAndType(USER_ID, NotificationAudience.CUSTOMER, NotificationType.SYSTEM)).thenReturn(0L);
 
         var result = notificationService.getMyNotifications(USER_ID, 0, 0);
 
@@ -508,13 +509,13 @@ class NotificationServiceTest {
                 .createdAt(newest.getCreatedAt())
                 .build();
 
-        when(notificationRepositoryPort.findByUserId(eq(USER_ID), any(Pageable.class))).thenReturn(notificationPage);
-        when(notificationRepositoryPort.countAllByUserId(USER_ID)).thenReturn(9L);
-        when(notificationRepositoryPort.countUnreadByUserId(USER_ID)).thenReturn(4L);
-        when(notificationRepositoryPort.countByUserIdAndType(USER_ID, NotificationType.AUTH)).thenReturn(2L);
-        when(notificationRepositoryPort.countByUserIdAndType(USER_ID, NotificationType.BLOG)).thenReturn(5L);
-        when(notificationRepositoryPort.countByUserIdAndType(USER_ID, NotificationType.ORDER)).thenReturn(0L);
-        when(notificationRepositoryPort.countByUserIdAndType(USER_ID, NotificationType.SYSTEM)).thenReturn(2L);
+        when(notificationRepositoryPort.findByUserIdAndAudience(eq(USER_ID), eq(NotificationAudience.STAFF), any(Pageable.class))).thenReturn(notificationPage);
+        when(notificationRepositoryPort.countAllByUserIdAndAudience(USER_ID, NotificationAudience.STAFF)).thenReturn(9L);
+        when(notificationRepositoryPort.countUnreadByUserIdAndAudience(USER_ID, NotificationAudience.STAFF)).thenReturn(4L);
+        when(notificationRepositoryPort.countByUserIdAndAudienceAndType(USER_ID, NotificationAudience.STAFF, NotificationType.AUTH)).thenReturn(2L);
+        when(notificationRepositoryPort.countByUserIdAndAudienceAndType(USER_ID, NotificationAudience.STAFF, NotificationType.BLOG)).thenReturn(5L);
+        when(notificationRepositoryPort.countByUserIdAndAudienceAndType(USER_ID, NotificationAudience.STAFF, NotificationType.ORDER)).thenReturn(0L);
+        when(notificationRepositoryPort.countByUserIdAndAudienceAndType(USER_ID, NotificationAudience.STAFF, NotificationType.SYSTEM)).thenReturn(2L);
         when(notificationApplicationMapper.toResponse(newest)).thenReturn(newestResponse);
 
         var result = notificationService.getMyAdminNotifications(USER_ID, 1, 5);

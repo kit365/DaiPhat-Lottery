@@ -4,6 +4,7 @@ import { Footer } from '@/client/components/layout/Footer';
 import { LoadingSpinner } from '@/client/components/ui/LoadingSpinner';
 import { ClientHeaderGuard } from '@/client/components/layout/ClientHeaderGuard';
 import { ClientGlobalWidgets } from '@/client/components/layout/ClientGlobalWidgets';
+import { PendingPaymentReminderBanner } from '@/client/components/payment/PendingPaymentReminderBanner';
 import { SiteBrandingHead } from '@/client/components/layout/SiteBrandingHead';
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
@@ -14,6 +15,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         <ClientHeaderGuard>
           <Header />
         </ClientHeaderGuard>
+        <PendingPaymentReminderBanner />
         <div className="flex-1 flex flex-col">
           {children}
         </div>

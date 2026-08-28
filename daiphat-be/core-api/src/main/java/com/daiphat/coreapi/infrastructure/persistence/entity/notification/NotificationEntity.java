@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.infrastructure.persistence.entity.notification;
 
+import com.daiphat.coreapi.domain.model.enums.notification.NotificationAudience;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationChannel;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationReferenceType;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationStatus;
@@ -73,6 +74,11 @@ public class NotificationEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "reference_type", length = 50)
     private NotificationReferenceType referenceType;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private NotificationAudience audience = NotificationAudience.CUSTOMER;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
