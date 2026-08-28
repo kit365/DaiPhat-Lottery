@@ -8,6 +8,8 @@ class CartItemData {
   final int quantity;
   final int unitPrice;
   final String logoText;
+  final String? ticketImageUrl;
+  final String? drawDateIso;
   /// Số serial còn IN_STOCK (giống maxStock trên website).
   final int maxStock;
 
@@ -21,6 +23,8 @@ class CartItemData {
     required this.quantity,
     required this.unitPrice,
     required this.logoText,
+    this.ticketImageUrl,
+    this.drawDateIso,
     this.maxStock = 1,
   });
 
@@ -37,6 +41,8 @@ class CartItemData {
       'quantity': quantity,
       'unitPrice': unitPrice,
       'logoText': logoText,
+      'ticketImageUrl': ticketImageUrl,
+      'drawDateIso': drawDateIso,
       'maxStock': maxStock,
     };
   }
@@ -52,11 +58,18 @@ class CartItemData {
       quantity: map['quantity'] as int? ?? 1,
       unitPrice: map['unitPrice'] as int? ?? 0,
       logoText: map['logoText'] as String? ?? '',
+      ticketImageUrl: map['ticketImageUrl'] as String?,
+      drawDateIso: map['drawDateIso'] as String?,
       maxStock: map['maxStock'] as int? ?? 1,
     );
   }
 
-  CartItemData copyWith({int? quantity, int? maxStock}) {
+  CartItemData copyWith({
+    int? quantity,
+    int? maxStock,
+    String? ticketImageUrl,
+    String? drawDateIso,
+  }) {
     return CartItemData(
       lotteryTicketId: lotteryTicketId,
       province: province,
@@ -67,6 +80,8 @@ class CartItemData {
       quantity: quantity ?? this.quantity,
       unitPrice: unitPrice,
       logoText: logoText,
+      ticketImageUrl: ticketImageUrl ?? this.ticketImageUrl,
+      drawDateIso: drawDateIso ?? this.drawDateIso,
       maxStock: maxStock ?? this.maxStock,
     );
   }
@@ -83,6 +98,8 @@ class CartItemData {
           quantity == other.quantity &&
           unitPrice == other.unitPrice &&
           logoText == other.logoText &&
+          ticketImageUrl == other.ticketImageUrl &&
+          drawDateIso == other.drawDateIso &&
           maxStock == other.maxStock;
 
   @override
@@ -94,5 +111,7 @@ class CartItemData {
       quantity.hashCode ^
       unitPrice.hashCode ^
       logoText.hashCode ^
+      ticketImageUrl.hashCode ^
+      drawDateIso.hashCode ^
       maxStock.hashCode;
 }

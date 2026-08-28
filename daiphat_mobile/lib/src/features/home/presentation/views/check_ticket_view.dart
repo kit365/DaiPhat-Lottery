@@ -27,7 +27,12 @@ class CheckTicketView extends ConsumerWidget {
       backgroundColor: Colors.white,
       body: RefreshIndicator(
         color: AppColors.primary,
-        onRefresh: () => vm.loadStations(state.selectedDate),
+        onRefresh: () async {
+          final date = state.selectedDate;
+          if (date != null) {
+            await vm.loadStations(date);
+          }
+        },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
@@ -724,60 +729,16 @@ class _FormStateState extends State<_FormState> {
 
   @override
   Widget build(BuildContext context) {
-    final dateLabel = DateFormat('dd/MM/yyyy').format(state.selectedDate);
+    final selectedDate = state.selectedDate;
+    final dateLabel = selectedDate == null
+        ? 'Chọn ngày quay'
+        : DateFormat('dd/MM/yyyy').format(selectedDate);
+    final canPickStation =
+        selectedDate != null && !state.isLoadingStations && state.stations.isNotEmpty;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'Chọn đài',
-          style: GoogleFonts.publicSans(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF334155),
-          ),
-        ),
-        const SizedBox(height: 8),
-        InkWell(
-          onTap: state.isLoadingStations ? null : () => _pickStation(context),
-          borderRadius: BorderRadius.circular(14),
-          child: InputDecorator(
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: Colors.white,
-              errorText: state.stationError,
-              prefixIcon: const Icon(Icons.place_outlined,
-                  color: AppColors.primary, size: 18),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(
-                  color: state.stationError != null
-                      ? const Color(0xFFF87171)
-                      : const Color(0xFFE2E8F0),
-                ),
-              ),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            ),
-            child: Text(
-              state.isLoadingStations
-                  ? 'Đang tải đài...'
-                  : (state.selectedStation?.province ?? 'Chọn đài'),
-              style: GoogleFonts.publicSans(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: state.selectedStation == null
-                    ? const Color(0xFF94A3B8)
-                    : const Color(0xFF0F172A),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 14),
         Text(
           'Chọn ngày',
           style: GoogleFonts.publicSans(
@@ -803,7 +764,11 @@ class _FormStateState extends State<_FormState> {
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                borderSide: BorderSide(
+                  color: state.dateError != null
+                      ? const Color(0xFFF87171)
+                      : const Color(0xFFE2E8F0),
+                ),
               ),
               contentPadding:
                   const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
@@ -813,7 +778,65 @@ class _FormStateState extends State<_FormState> {
               style: GoogleFonts.publicSans(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFF0F172A),
+                color: selectedDate == null
+                    ? const Color(0xFF94A3B8)
+                    : const Color(0xFF0F172A),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          'Chọn đài',
+          style: GoogleFonts.publicSans(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF334155),
+          ),
+        ),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: canPickStation ? () => _pickStation(context) : null,
+          borderRadius: BorderRadius.circular(14),
+          child: InputDecorator(
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: canPickStation ? Colors.white : const Color(0xFFF8FAFC),
+              errorText: state.stationError,
+              prefixIcon: Icon(
+                Icons.place_outlined,
+                color: canPickStation
+                    ? AppColors.primary
+                    : const Color(0xFFCBD5E1),
+                size: 18,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(
+                  color: state.stationError != null
+                      ? const Color(0xFFF87171)
+                      : const Color(0xFFE2E8F0),
+                ),
+              ),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            ),
+            child: Text(
+              selectedDate == null
+                  ? 'Chọn ngày trước'
+                  : state.isLoadingStations
+                      ? 'Đang tải đài...'
+                      : (state.selectedStation?.province ?? 'Chọn đài'),
+              style: GoogleFonts.publicSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: !canPickStation && state.selectedStation == null
+                    ? const Color(0xFF94A3B8)
+                    : const Color(0xFF0F172A),
               ),
             ),
           ),
@@ -905,7 +928,8 @@ class _FormStateState extends State<_FormState> {
             Expanded(
               child: _QuickDateChip(
                 label: 'Hôm nay',
-                selected: _isSameDay(state.selectedDate, DateTime.now()),
+                selected: state.selectedDate != null &&
+                    _isSameDay(state.selectedDate!, DateTime.now()),
                 onTap: () {
                   final now = DateTime.now();
                   vm.loadStations(DateTime(now.year, now.month, now.day));
@@ -916,10 +940,11 @@ class _FormStateState extends State<_FormState> {
             Expanded(
               child: _QuickDateChip(
                 label: 'Hôm qua',
-                selected: _isSameDay(
-                  state.selectedDate,
-                  DateTime.now().subtract(const Duration(days: 1)),
-                ),
+                selected: state.selectedDate != null &&
+                    _isSameDay(
+                      state.selectedDate!,
+                      DateTime.now().subtract(const Duration(days: 1)),
+                    ),
                 onTap: () {
                   final d = DateTime.now().subtract(const Duration(days: 1));
                   vm.loadStations(DateTime(d.year, d.month, d.day));
@@ -935,7 +960,7 @@ class _FormStateState extends State<_FormState> {
   Future<void> _pickDate(BuildContext context) async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: state.selectedDate,
+      initialDate: state.selectedDate ?? DateTime.now(),
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
       builder: (context, child) {
