@@ -50,19 +50,34 @@ class GeminiVisionClient:
                 "GEMINI_API_KEY is not configured for ticket vision Gemini engine."
             )
 
-    def analyze_ticket_image(self, image_bytes: bytes, prompt: str) -> ScanExtractionResult:
+    def analyze_ticket_image(
+        self,
+        image_bytes: bytes,
+        prompt: str,
+        *,
+        extra_images: list[tuple[str, bytes]] | None = None,
+    ) -> ScanExtractionResult:
         self._ensure_configured()
         mime = guess_image_mime_type(image_bytes)
         encoded = base64.b64encode(image_bytes).decode("ascii")
+
+        parts: list[dict[str, Any]] = [
+            {"text": prompt},
+            {"inline_data": {"mime_type": mime, "data": encoded}},
+        ]
+        for label, crop_bytes in extra_images or []:
+            if not crop_bytes:
+                continue
+            crop_mime = guess_image_mime_type(crop_bytes)
+            crop_b64 = base64.b64encode(crop_bytes).decode("ascii")
+            parts.append({"text": f"Crop for {label}:"})
+            parts.append({"inline_data": {"mime_type": crop_mime, "data": crop_b64}})
 
         payload: dict[str, Any] = {
             "contents": [
                 {
                     "role": "user",
-                    "parts": [
-                        {"text": prompt},
-                        {"inline_data": {"mime_type": mime, "data": encoded}},
-                    ],
+                    "parts": parts,
                 }
             ],
             "generationConfig": {

@@ -25,9 +25,7 @@ const ORDER_TYPE_MAP: Record<OrderType, { label: string, icon: string }> = {
 };
 
 const ORDER_SORT_OPTIONS = [
-    { value: 'default', label: 'Sắp xếp: Mặc định' },
     { value: 'newest', label: 'Mới nhất' },
-    { value: 'pickup_asc', label: 'Giờ lấy vé gần nhất' },
     { value: 'price_desc', label: 'Thành tiền: Cao → Thấp' },
     { value: 'price_asc', label: 'Thành tiền: Thấp → Cao' },
 ];
@@ -42,11 +40,12 @@ export const OrdersTab = () => {
     const router = useRouter();
     const [activeTab, setActiveTab] = useState<OrderStatus | 'ALL'>('ALL');
     const [showFilter, setShowFilter] = useState(false);
-    const [sortByUI, setSortByUI] = useState('default');
+    const [sortByUI, setSortByUI] = useState('newest');
     
     // Filter & Pagination States
     const [page, setPage] = useState(1);
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [orderType, setOrderType] = useState('');
     const [fromDate, setFromDate] = useState('');
     const [toDate, setToDate] = useState('');
@@ -55,33 +54,47 @@ export const OrdersTab = () => {
 
     const todayIso = todayIsoVn();
 
-    const queryParams: GetMyOrdersParams = {
-        page,
-        size: 10,
-        status: activeTab === 'ALL' ? undefined : activeTab,
-        search: searchTerm || undefined,
-        orderType: orderType || undefined,
-        fromDate: fromDate || undefined,
-        toDate: toDate || undefined,
-    };
+    useEffect(() => {
+        const timer = window.setTimeout(() => {
+            setDebouncedSearch(searchTerm.trim());
+        }, 400);
+        return () => window.clearTimeout(timer);
+    }, [searchTerm]);
 
-    // Apply Sorting
-    if (sortByUI === 'default') {
-        queryParams.sortBy = 'createdAt';
-        queryParams.direction = 'DESC';
-    } else if (sortByUI === 'newest') {
-        queryParams.sortBy = 'createdAt';
-        queryParams.direction = 'DESC';
-    } else if (sortByUI === 'pickup_asc') {
-        queryParams.sortBy = 'expectedPickupAt';
-        queryParams.direction = 'ASC';
-    } else if (sortByUI === 'price_desc') {
-        queryParams.sortBy = 'totalAmount';
-        queryParams.direction = 'DESC';
-    } else if (sortByUI === 'price_asc') {
-        queryParams.sortBy = 'totalAmount';
-        queryParams.direction = 'ASC';
-    }
+    const queryParams = useMemo<GetMyOrdersParams>(() => {
+        const params: GetMyOrdersParams = {
+            page,
+            size: 10,
+            sortBy: 'createdAt',
+            direction: 'DESC',
+        };
+
+        if (activeTab !== 'ALL') {
+            params.status = activeTab;
+        }
+        if (debouncedSearch) {
+            params.search = debouncedSearch;
+        }
+        if (orderType) {
+            params.orderType = orderType;
+        }
+        if (fromDate) {
+            params.fromDate = fromDate;
+        }
+        if (toDate) {
+            params.toDate = toDate;
+        }
+
+        if (sortByUI === 'price_desc') {
+            params.sortBy = 'totalAmount';
+            params.direction = 'DESC';
+        } else if (sortByUI === 'price_asc') {
+            params.sortBy = 'totalAmount';
+            params.direction = 'ASC';
+        }
+
+        return params;
+    }, [page, activeTab, debouncedSearch, orderType, fromDate, toDate, sortByUI]);
 
     const { data: orderData, isLoading } = useGetMyOrders(queryParams);
     const processPaymentMutation = useProcessPayment();
@@ -196,7 +209,7 @@ export const OrdersTab = () => {
     // Reset page when filters change
     useEffect(() => {
         setPage(1);
-    }, [activeTab, sortByUI, searchTerm, orderType, fromDate, toDate]);
+    }, [activeTab, sortByUI, debouncedSearch, orderType, fromDate, toDate]);
 
     const orderTabs: { value: OrderStatus | 'ALL', label: string }[] = [
         { value: 'ALL', label: 'Tất cả' },

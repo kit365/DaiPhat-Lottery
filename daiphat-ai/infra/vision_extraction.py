@@ -1,4 +1,4 @@
-"""Shared structured extraction models for LLM vision ticket scan (Grok/Gemini)."""
+"""Shared structured extraction models for LLM vision ticket scan (Groq/Gemini/Grok)."""
 
 from __future__ import annotations
 
@@ -45,6 +45,8 @@ class TicketExtraction(BaseModel):
     bbox: TicketBBox | None = None
     # Per-field boxes in the same image space as ticket bbox.
     fieldBoxes: dict[str, TicketBBox] = Field(default_factory=dict)
+    # fieldName -> ocr_field_layouts.id that produced the recognized value.
+    usedFieldLayouts: dict[str, int] = Field(default_factory=dict)
 
 
 class ScanExtractionResult(BaseModel):
@@ -111,7 +113,19 @@ def build_ticket_extraction_prompt(
     max_tickets: int,
     image_width: int,
     image_height: int,
+    field_layouts_hint: str | None = None,
 ) -> str:
+    layout_section = ""
+    if field_layouts_hint:
+        layout_section = f"""
+- Template field layout guidance (pixel ROIs on this image). Prefer reading these fields from the indicated regions; still verify against the full ticket image.
+  When the same fieldName appears more than once, try the lowest priority number first (priority 1 = primary).
+  Only use a higher priority region if the primary read is null, unreadable, or low-confidence.
+  In usedFieldLayouts, record the layout id that ultimately produced each field value.
+{field_layouts_hint}
+- Extra crop images (when provided) are zooms of those regions — use them to improve accuracy for the named fields. Do NOT invent values that are not visible.
+"""
+
     return f"""You are a lottery ticket OCR assistant for Vietnamese lottery tickets (vé số kiến thiết).
 
 Analyze the uploaded image and extract ticket information. Rules:
@@ -130,9 +144,10 @@ Analyze the uploaded image and extract ticket information. Rules:
 - ticketType: printed ticket PRICE as digits when possible (e.g. "10000"), not a product category.
 - batchCode: production batch code printed by the lottery issuer/manufacturer on the ticket (NOT a warehouse import-batch code). Null if not visible.
 - fieldConfidences must include stationName, serialNumber, numbers, drawDate, ticketType, and batchCode (0.0-1.0).
-- fieldBoxes: for each non-null field above, provide a tight bounding box around that printed value inside the ticket. Omit boxes for null/unreadable fields.
+- fieldBoxes: for each non-null field above, provide a tight bounding box around that printed value inside the ticket. Omit boxes for null/unreadable fields. Do not copy template layout boxes unless they match the actual printed text.
+- usedFieldLayouts: for each non-null extracted field that used a template layout, map fieldName to that layout's id (integer). Omit entries when no layout was used.
 - Also provide ticket-level bbox around the whole ticket region (even when some fields are missing).
-
+{layout_section}
 Respond with ONLY valid JSON (no markdown prose) matching this schema:
 {{
   "tickets": [
@@ -160,9 +175,18 @@ Respond with ONLY valid JSON (no markdown prose) matching this schema:
         "drawDate": {{ "x": int, "y": int, "width": int, "height": int }},
         "ticketType": {{ "x": int, "y": int, "width": int, "height": int }},
         "batchCode": {{ "x": int, "y": int, "width": int, "height": int }}
+      }},
+      "usedFieldLayouts": {{
+        "stationName": number,
+        "serialNumber": number,
+        "numbers": number,
+        "drawDate": number,
+        "ticketType": number,
+        "batchCode": number
       }}
     }}
   ],
   "warnings": [string]
 }}
 """
+

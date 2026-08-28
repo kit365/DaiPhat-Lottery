@@ -21,6 +21,7 @@ public record RemoteScannedTicket(
         ExtractedTicketFieldsResponse extracted,
         Map<String, Double> fieldConfidences,
         Map<String, TicketBoundingBoxResponse> fieldBoxes,
+        Map<String, Long> usedFieldLayouts,
         List<String> missingFields,
         List<String> validationErrors,
         String croppedImageBase64,

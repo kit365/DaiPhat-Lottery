@@ -25,23 +25,20 @@ export const ImportBatchIntakeStatusBanner = () => {
             <Alert
                 severity="error"
                 icon={<BlockOutlinedIcon />}
-                sx={{ borderRadius: '12px', mb: 2.5 }}
+                sx={{
+                    borderRadius: '12px',
+                    mb: 2.5,
+                    border: '1px solid #fecaca',
+                    '& .MuiAlert-icon': { alignItems: 'center' },
+                }}
             >
-                <Stack spacing={0.75}>
-                    <Typography variant="body2" fontWeight={800}>
-                        Đã quá giờ nhập lô cho kỳ quay hôm nay ({todayLabel})
+                <Stack spacing={0.5}>
+                    <Typography variant="body2" fontWeight={800} color="#991b1b">
+                        Đã đóng nhận vé cho kỳ quay hôm nay ({todayLabel})
                     </Typography>
-                    <Typography variant="body2">
-                        <strong>Từ {earliestBlockTime}</strong> không được tạo phiếu mới, nhập từ tệp hoặc nhập thêm vé
-                        cho kỳ quay hôm nay. Chỉ có thể thao tác với phiếu ngày mai.
+                    <Typography variant="body2" color="#b91c1c">
+                        Hệ thống đã ngừng nhận vé từ <strong>{earliestBlockTime}</strong>. Bạn chỉ có thể tạo phiếu hoặc nhập thêm vé cho kỳ quay ngày mai.
                     </Typography>
-                    {summary.blockedSuppliers.map((supplier) => (
-                        <Typography key={supplier.id} variant="body2" sx={{ opacity: 0.95 }}>
-                            • <strong>{supplier.name}</strong>: từ{' '}
-                            <strong>{supplier.inspectionStartLabel ?? '—'}</strong> không nhập được — giờ chốt trả vé{' '}
-                            <strong>{supplier.returnCutOffLabel ?? '—'}</strong>
-                        </Typography>
-                    ))}
                 </Stack>
             </Alert>
         );
@@ -57,22 +54,20 @@ export const ImportBatchIntakeStatusBanner = () => {
         <Alert
             severity="warning"
             icon={<WarningAmberOutlinedIcon />}
-            sx={{ borderRadius: '12px', mb: 2.5 }}
+            sx={{
+                borderRadius: '12px',
+                mb: 2.5,
+                border: '1px solid #fef08a',
+                '& .MuiAlert-icon': { alignItems: 'center' },
+            }}
         >
-            <Stack spacing={0.75}>
-                <Typography variant="body2" fontWeight={800}>
-                    Sắp đến giờ đóng nhập lô cho kỳ quay hôm nay ({todayLabel})
+            <Stack spacing={0.5}>
+                <Typography variant="body2" fontWeight={800} color="#92400e">
+                    Sắp đóng nhận vé cho kỳ quay hôm nay ({todayLabel})
                 </Typography>
-                <Typography variant="body2">
-                    Từ <strong>{earliestWarningTime}</strong> sẽ không nhập được thêm vé cho kỳ quay hôm nay.
+                <Typography variant="body2" color="#b45309">
+                    Hệ thống sẽ ngừng nhận vé từ <strong>{earliestWarningTime}</strong>. Vui lòng hoàn tất việc nhập lô và khai báo trước thời gian này.
                 </Typography>
-                {summary.warningSuppliers.map((supplier) => (
-                    <Typography key={supplier.id} variant="body2">
-                        • <strong>{supplier.name}</strong>: đóng nhập từ{' '}
-                        <strong>{supplier.inspectionStartLabel ?? '—'}</strong> — giờ chốt trả vé{' '}
-                        <strong>{supplier.returnCutOffLabel ?? '—'}</strong>
-                    </Typography>
-                ))}
             </Stack>
         </Alert>
     );

@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, IconButton, InputAdornment, Stack, TextField, Tooltip, ThemeProvider, useTheme, createTheme, MenuItem, Typography } from "@mui/material"
+import { Box, IconButton, InputAdornment, Stack, TextField, Tooltip, ThemeProvider, useTheme, createTheme, MenuItem, Typography, Alert } from "@mui/material"
 import { REGION_DATA } from "../../../../constants/region.constants";
 import { DAYS_OF_WEEK } from "../../../../constants/schedule.constants";
 import { PageHeader } from "../../../../components/ui/PageHeader"
@@ -17,13 +17,15 @@ import AutoFixHighOutlinedIcon from "@mui/icons-material/AutoFixHighOutlined";
 import { useForm, Controller } from "react-hook-form";
 import { CreateStationFormValues, createStationSchema } from "../../schemas/station.schema";
 
-import { prefixAdmin } from "../../../../constants/routes";
+import { prefixAdmin, ROUTES } from "../../../../constants/routes";
 import { toast } from "react-toastify";
 import { suggestStationCode } from "../../services/stationService";
 import { Button } from "../../../../components/ui/Button";
 import { FormUploadSingleFile } from "../../../../components/upload/FormUploadSingleFile";
+import { useRouter } from "next/navigation";
 
 export const StationCreatePage = () => {
+    const router = useRouter();
     const [expandedDetail, setExpandedDetail] = useState(true);
     const toggle = (setter: Dispatch<SetStateAction<boolean>>) =>
         () => setter(prev => !prev);
@@ -149,19 +151,27 @@ export const StationCreatePage = () => {
                     if (createdStationId && fileToUpload) {
                         uploadImage({ id: createdStationId, file: fileToUpload }, {
                             onSuccess: () => {
-                                finalizeSuccess(response.message || "");
+                                finalizeSuccess(response.message || "", createdStationId);
                             },
                             onError: (uploadErr: any) => {
                                 toast.error(uploadErr?.response?.data?.message || uploadErr?.message || "Tạo nhà đài thành công nhưng lỗi tải ảnh lên");
-                                finalizeSuccess(response.message || "");
+                                finalizeSuccess(response.message || "", createdStationId);
                             }
                         });
                     } else {
-                        finalizeSuccess(response.message || "");
+                        finalizeSuccess(response.message || "", createdStationId);
                     }
 
-                    function finalizeSuccess(msg: string) {
-                        toast.success(msg || "Tạo nhà đài thành công");
+                    function finalizeSuccess(msg: string, stationId?: string | number) {
+                        toast.success(
+                            stationId
+                                ? `${msg || "Tạo nhà đài thành công"}. Tiếp tục cấu hình mẫu vé OCR.`
+                                : (msg || "Tạo nhà đài thành công")
+                        );
+                        if (stationId) {
+                            router.push(ROUTES.ADMIN.TICKETS.PROVIDER_EDIT(stationId));
+                            return;
+                        }
                         reset({
                             name: "",
                             description: "",
@@ -208,6 +218,10 @@ export const StationCreatePage = () => {
                         margin: "0px calc(15 * var(--spacing))",
                         gap: "calc(5 * var(--spacing))"
                     }}>
+                        <Alert severity="info">
+                            Sau khi tạo nhà đài, bạn sẽ được chuyển sang màn Chỉnh sửa để tải ảnh
+                            mẫu vé, tạo mẫu OCR mặc định và gắn vị trí các trường nhận dạng trên ảnh.
+                        </Alert>
                         <CollapsibleCard
                             title="Chi tiết"
                             subheader="Tiêu đề, mô tả, hình ảnh..."

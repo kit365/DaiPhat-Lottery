@@ -10,6 +10,7 @@ import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchLineStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus;
+import com.daiphat.coreapi.domain.model.enums.notification.NotificationAudience;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationChannel;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationReferenceType;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationType;
@@ -244,6 +245,7 @@ public class ImportBatchDraftExpiryService {
                     .content(content)
                     .type(NotificationType.SYSTEM)
                     .channel(NotificationChannel.IN_APP)
+                    .audience(NotificationAudience.STAFF)
                     .referenceId(String.valueOf(batch.getId()))
                     .referenceType(NotificationReferenceType.SYSTEM)
                     .build();

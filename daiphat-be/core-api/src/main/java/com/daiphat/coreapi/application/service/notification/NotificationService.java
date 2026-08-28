@@ -13,6 +13,7 @@ import com.daiphat.coreapi.application.port.out.refund.RefundRequestRepositoryPo
 import com.daiphat.coreapi.application.port.out.support.SupportTicketRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.notification.NotificationAudience;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationChannel;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationReferenceType;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationType;
@@ -140,13 +141,13 @@ public class NotificationService implements NotificationServicePort {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<NotificationResponse> getMyNotifications(UUID userId, int page, int limit) {
-        return getNotificationsForUser(userId, page, limit);
+        return getNotificationsForUser(userId, page, limit, NotificationAudience.CUSTOMER);
     }
 
     @Override
     @Transactional(readOnly = true)
     public PageResponse<NotificationResponse> getMyAdminNotifications(UUID userId, int page, int limit) {
-        return getNotificationsForUser(userId, page, limit);
+        return getNotificationsForUser(userId, page, limit, NotificationAudience.STAFF);
     }
 
     @Override
@@ -240,11 +241,17 @@ public class NotificationService implements NotificationServicePort {
         }
     }
 
-    private PageResponse<NotificationResponse> getNotificationsForUser(UUID userId, int page, int limit) {
+    private PageResponse<NotificationResponse> getNotificationsForUser(
+            UUID userId,
+            int page,
+            int limit,
+            NotificationAudience audience
+    ) {
         int resolvedPage = Math.max(page, 1);
         int resolvedLimit = Math.max(limit, 1);
-        Page<NotificationModel> notificationPage = notificationRepositoryPort.findByUserId(
+        Page<NotificationModel> notificationPage = notificationRepositoryPort.findByUserIdAndAudience(
                 userId,
+                audience,
                 PageableUtils.of(resolvedPage, resolvedLimit, SortUtils.byCreatedAtDesc())
         );
 
@@ -252,7 +259,7 @@ public class NotificationService implements NotificationServicePort {
                 notificationPage.map(notificationApplicationMapper::toResponse),
                 resolvedPage,
                 resolvedLimit,
-                buildCounts(userId)
+                buildCounts(userId, audience)
         );
     }
 
@@ -261,14 +268,14 @@ public class NotificationService implements NotificationServicePort {
                 .orElseThrow(() -> new DomainException(ErrorCode.NOTIFICATION_NOT_FOUND));
     }
 
-    private Map<String, Long> buildCounts(UUID userId) {
+    private Map<String, Long> buildCounts(UUID userId, NotificationAudience audience) {
         Map<String, Long> counts = new LinkedHashMap<>();
-        counts.put(StatusCountKeys.ALL, notificationRepositoryPort.countAllByUserId(userId));
-        counts.put(StatusCountKeys.UNREAD, notificationRepositoryPort.countUnreadByUserId(userId));
-        counts.put(AUTH, notificationRepositoryPort.countByUserIdAndType(userId, NotificationType.AUTH));
-        counts.put(BLOG, notificationRepositoryPort.countByUserIdAndType(userId, NotificationType.BLOG));
-        counts.put(ORDER, notificationRepositoryPort.countByUserIdAndType(userId, NotificationType.ORDER));
-        counts.put(SYSTEM, notificationRepositoryPort.countByUserIdAndType(userId, NotificationType.SYSTEM));
+        counts.put(StatusCountKeys.ALL, notificationRepositoryPort.countAllByUserIdAndAudience(userId, audience));
+        counts.put(StatusCountKeys.UNREAD, notificationRepositoryPort.countUnreadByUserIdAndAudience(userId, audience));
+        counts.put(AUTH, notificationRepositoryPort.countByUserIdAndAudienceAndType(userId, audience, NotificationType.AUTH));
+        counts.put(BLOG, notificationRepositoryPort.countByUserIdAndAudienceAndType(userId, audience, NotificationType.BLOG));
+        counts.put(ORDER, notificationRepositoryPort.countByUserIdAndAudienceAndType(userId, audience, NotificationType.ORDER));
+        counts.put(SYSTEM, notificationRepositoryPort.countByUserIdAndAudienceAndType(userId, audience, NotificationType.SYSTEM));
         return counts;
     }
 }

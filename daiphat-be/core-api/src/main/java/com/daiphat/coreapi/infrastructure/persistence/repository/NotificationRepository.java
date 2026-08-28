@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.infrastructure.persistence.repository;
 
+import com.daiphat.coreapi.domain.model.enums.notification.NotificationAudience;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationChannel;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationReferenceType;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationType;
@@ -30,13 +31,39 @@ public interface NotificationRepository extends JpaRepository<NotificationEntity
             Pageable pageable
     );
 
+    Page<NotificationEntity> findByUser_IdAndChannelAndAudienceAndDeletedAtIsNullOrderByCreatedAtDesc(
+            UUID userId,
+            NotificationChannel channel,
+            NotificationAudience audience,
+            Pageable pageable
+    );
+
     long countByUser_IdAndChannelAndDeletedAtIsNull(UUID userId, NotificationChannel channel);
 
+    long countByUser_IdAndChannelAndAudienceAndDeletedAtIsNull(
+            UUID userId,
+            NotificationChannel channel,
+            NotificationAudience audience
+    );
+
     long countByUser_IdAndChannelAndReadFalseAndDeletedAtIsNull(UUID userId, NotificationChannel channel);
+
+    long countByUser_IdAndChannelAndAudienceAndReadFalseAndDeletedAtIsNull(
+            UUID userId,
+            NotificationChannel channel,
+            NotificationAudience audience
+    );
 
     long countByUser_IdAndChannelAndTypeAndDeletedAtIsNull(
             UUID userId,
             NotificationChannel channel,
+            NotificationType type
+    );
+
+    long countByUser_IdAndChannelAndAudienceAndTypeAndDeletedAtIsNull(
+            UUID userId,
+            NotificationChannel channel,
+            NotificationAudience audience,
             NotificationType type
     );
 

@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.application.port.out.notification;
 
 import com.daiphat.coreapi.domain.model.notifications.NotificationModel;
+import com.daiphat.coreapi.domain.model.enums.notification.NotificationAudience;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationChannel;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationReferenceType;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationType;
@@ -25,11 +26,19 @@ public interface NotificationRepositoryPort {
 
     Page<NotificationModel> findByUserId(UUID userId, Pageable pageable);
 
+    Page<NotificationModel> findByUserIdAndAudience(UUID userId, NotificationAudience audience, Pageable pageable);
+
     long countAllByUserId(UUID userId);
+
+    long countAllByUserIdAndAudience(UUID userId, NotificationAudience audience);
 
     long countUnreadByUserId(UUID userId);
 
+    long countUnreadByUserIdAndAudience(UUID userId, NotificationAudience audience);
+
     long countByUserIdAndType(UUID userId, NotificationType type);
+
+    long countByUserIdAndAudienceAndType(UUID userId, NotificationAudience audience, NotificationType type);
 
     int markAllAsReadByUserId(UUID userId);
 

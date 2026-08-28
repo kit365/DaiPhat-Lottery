@@ -787,7 +787,19 @@ public enum ErrorCode {
     TICKET_SCAN_NO_TICKETS_TO_IMPORT(
             "LT_124",
             "Không có vé nào được xác nhận để nhập kho.",
-            HttpStatus.BAD_REQUEST);
+            HttpStatus.BAD_REQUEST),
+    OCR_DEFAULT_TEMPLATE_REQUIRED(
+            "LT_125",
+            "Chưa cấu hình mẫu vé OCR mặc định. Vui lòng tạo/gán template mặc định cho ít nhất một nhà đài trước khi quét.",
+            HttpStatus.BAD_REQUEST),
+    OCR_TICKET_TEMPLATE_NOT_FOUND(
+            "LT_126",
+            "Mẫu vé OCR không tồn tại.",
+            HttpStatus.NOT_FOUND),
+    OCR_FIELD_LAYOUT_NOT_FOUND(
+            "LT_127",
+            "Bố cục trường OCR không tồn tại.",
+            HttpStatus.NOT_FOUND);
 
     private final String code;
     private final String message;

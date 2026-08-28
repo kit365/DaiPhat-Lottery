@@ -71,6 +71,8 @@ class OcrConfirmImportServiceTest {
     @Mock
     private OcrScanResultRepositoryPort ocrScanResultRepositoryPort;
     @Mock
+    private OcrScanResultFieldService ocrScanResultFieldService;
+    @Mock
     private LotteryScanLogServicePort lotteryScanLogServicePort;
     @Mock
     private PlatformTransactionManager transactionManager;
@@ -91,6 +93,7 @@ class OcrConfirmImportServiceTest {
                 lotteryTicketServicePort,
                 lotteryStationServicePort,
                 ocrScanResultRepositoryPort,
+                ocrScanResultFieldService,
                 lotteryScanLogServicePort,
                 clock,
                 transactionManager

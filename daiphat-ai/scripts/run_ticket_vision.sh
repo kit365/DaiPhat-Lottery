@@ -8,6 +8,16 @@ PORT="${PORT:-8090}"
 
 cd "${ROOT_DIR}"
 
+for env_file in "${ROOT_DIR}/.env" "${ROOT_DIR}/../.env"; do
+  if [[ -f "${env_file}" ]]; then
+    set -a
+    # shellcheck disable=SC1090
+    source "${env_file}"
+    set +a
+    break
+  fi
+done
+
 if [[ ! -x "${VENV_PYTHON}" ]]; then
   python3 -m venv "${ROOT_DIR}/.venv"
   VENV_PYTHON="${ROOT_DIR}/.venv/bin/python"

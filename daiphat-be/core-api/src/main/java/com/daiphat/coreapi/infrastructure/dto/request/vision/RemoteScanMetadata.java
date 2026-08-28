@@ -10,6 +10,8 @@ public record RemoteScanMetadata(
         List<RemoteStationMetadata> activeStations,
         Integer maxTickets,
         String detectorStrategy,
-        String recognitionEngine
+        String recognitionEngine,
+        Long templateId,
+        List<RemoteFieldLayoutMetadata> fieldLayouts
 ) {
 }

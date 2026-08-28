@@ -11,6 +11,7 @@ public final class StorageFolderConstants {
     public static final String BLOG_CATEGORY_SUBFOLDER = "category";
 
     public static final String STATION_IMAGE_FOLDER = "lottery-stations";
+    public static final String OCR_TEMPLATE_SAMPLE_FOLDER = "ocr-ticket-templates";
     public static final String TICKET_IMAGE_FOLDER = "lottery-tickets";
     public static final String IMPORT_BATCH_TICKET_LIST_FOLDER = "import-batch-ticket-list";
     public static final String IMPORT_BATCH_INVOICE_FOLDER = "import-batch-invoices";

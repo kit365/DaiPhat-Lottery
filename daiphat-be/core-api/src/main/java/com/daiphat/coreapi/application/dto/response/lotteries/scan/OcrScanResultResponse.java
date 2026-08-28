@@ -20,6 +20,8 @@ public record OcrScanResultResponse(
         int ticketIndex,
         Long importBatchLineId,
         Long stationId,
+        Long templateId,
+        Long aiModelId,
         String sourceImageName,
         TicketBoundingBoxResponse bbox,
         Integer imageWidth,

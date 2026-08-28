@@ -24,7 +24,10 @@ import com.daiphat.coreapi.application.port.in.lotteries.TicketScanImportService
 import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchLineRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryStationRepositoryPort;
+import com.daiphat.coreapi.application.port.out.lotteries.OcrFieldLayoutRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.OcrScanResultRepositoryPort;
+import com.daiphat.coreapi.application.port.out.lotteries.OcrTicketTemplateRepositoryPort;
+import com.daiphat.coreapi.application.port.out.lotteries.AiModelRegistryRepositoryPort;
 import com.daiphat.coreapi.application.port.out.vision.TicketVisionPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
@@ -39,7 +42,11 @@ import com.daiphat.coreapi.domain.model.lotteries.ImportBatchLineModel;
 import com.daiphat.coreapi.domain.model.lotteries.ImportBatchModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import com.daiphat.coreapi.domain.model.lotteries.OcrFieldValidation;
+import com.daiphat.coreapi.domain.model.lotteries.OcrFieldLayoutModel;
+import com.daiphat.coreapi.domain.model.lotteries.OcrNormalizedBoundingBox;
 import com.daiphat.coreapi.domain.model.lotteries.OcrScanResultModel;
+import com.daiphat.coreapi.domain.model.lotteries.OcrTicketTemplateModel;
+import com.daiphat.coreapi.infrastructure.dto.request.vision.RemoteFieldLayoutMetadata;
 import com.daiphat.coreapi.infrastructure.dto.request.vision.RemoteScanMetadata;
 import com.daiphat.coreapi.infrastructure.dto.request.vision.RemoteStationMetadata;
 import com.daiphat.coreapi.infrastructure.dto.response.vision.RemoteScannedTicket;
@@ -89,14 +96,21 @@ public class TicketScanImportService implements TicketScanImportServicePort {
     private final LotteryScanLogServicePort lotteryScanLogServicePort;
     private final OcrScanValidationService ocrScanValidationService;
     private final OcrScanResultApplicationMapper ocrScanResultApplicationMapper;
+    private final OcrTicketTemplateRepositoryPort ocrTicketTemplateRepositoryPort;
+    private final OcrFieldLayoutRepositoryPort ocrFieldLayoutRepositoryPort;
+    private final AiModelRegistryRepositoryPort aiModelRegistryRepositoryPort;
+    private final OcrScanResultFieldService ocrScanResultFieldService;
 
-    @Value("${daiphat.ticket-vision.recognition-engine:gemini}")
+    @Value("${daiphat.ticket-vision.recognition-engine:groq}")
     private String ticketVisionRecognitionEngine;
 
     @Override
     public TicketScanResponse scan(Long importBatchLineId, MultipartFile file, UUID operatorId) {
         if (file == null || file.isEmpty()) {
             throw new DomainException(ErrorCode.TICKET_SCAN_IMAGE_REQUIRED);
+        }
+        if (!ocrTicketTemplateRepositoryPort.existsActiveDefault()) {
+            throw new DomainException(ErrorCode.OCR_DEFAULT_TEMPLATE_REQUIRED);
         }
 
         ImportBatchLineModel importBatchLine = null;
@@ -125,8 +139,8 @@ public class TicketScanImportService implements TicketScanImportServicePort {
         );
 
         RemoteScanMetadata metadata = lineStation != null
-                ? buildScanMetadata(List.of(lineStation))
-                : buildScanMetadata(loadActiveStationsForVision());
+                ? buildScanMetadata(List.of(lineStation), lineStation.getId(), targetDrawDate)
+                : buildScanMetadata(loadActiveStationsForVision(), null, null);
 
         RemoteTicketScanResult remoteResult = ticketVisionPort.scan(
                 imageBytes,
@@ -388,7 +402,11 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                 .toList();
     }
 
-    private RemoteScanMetadata buildScanMetadata(List<LotteryStationModel> stations) {
+    private RemoteScanMetadata buildScanMetadata(
+            List<LotteryStationModel> stations,
+            Long preferredStationId,
+            LocalDate drawDate
+    ) {
         List<RemoteStationMetadata> stationMetadata = stations.stream()
                 .map(station -> {
                     Integer expectedNumberLength = null;
@@ -409,11 +427,49 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                     );
                 })
                 .toList();
+
+        Long templateId = null;
+        List<RemoteFieldLayoutMetadata> fieldLayouts = List.of();
+        if (preferredStationId != null) {
+            OcrTicketTemplateModel template = ocrTicketTemplateRepositoryPort
+                    .resolveForStation(preferredStationId, drawDate)
+                    .orElse(null);
+            if (template != null) {
+                templateId = template.getId();
+                fieldLayouts = ocrFieldLayoutRepositoryPort.findByTemplateId(template.getId()).stream()
+                        .map(this::toRemoteLayout)
+                        .filter(java.util.Objects::nonNull)
+                        .toList();
+            }
+        }
+
         return new RemoteScanMetadata(
                 stationMetadata,
                 null,
                 null,
-                ticketVisionRecognitionEngine
+                ticketVisionRecognitionEngine,
+                templateId,
+                fieldLayouts
+        );
+    }
+
+    private RemoteFieldLayoutMetadata toRemoteLayout(OcrFieldLayoutModel layout) {
+        if (layout == null || layout.getFieldName() == null) {
+            return null;
+        }
+        OcrNormalizedBoundingBox box = layout.getBoundingBox();
+        if (box == null) {
+            return null;
+        }
+        return new RemoteFieldLayoutMetadata(
+                layout.getId(),
+                layout.getFieldName().name(),
+                layout.getPriority() > 0 ? layout.getPriority() : 1,
+                box.getX(),
+                box.getY(),
+                box.getWidth(),
+                box.getHeight(),
+                layout.isRequired()
         );
     }
 
@@ -453,10 +509,15 @@ public class TicketScanImportService implements TicketScanImportServicePort {
         LocalDate resolvedDrawDate = outcome.resolvedDrawDate() != null
                 ? outcome.resolvedDrawDate()
                 : targetDrawDate;
+        Long templateId = ocrTicketTemplateRepositoryPort
+                .resolveForStation(resolvedStationId, resolvedDrawDate)
+                .map(t -> t.getId())
+                .orElse(null);
 
         Long ocrScanResultId = persistOcrScanResult(
                 remote,
                 resolvedStationId,
+                templateId,
                 scanId,
                 importBatchLineId,
                 operatorId,
@@ -735,6 +796,7 @@ public class TicketScanImportService implements TicketScanImportServicePort {
     private Long persistOcrScanResult(
             RemoteScannedTicket remote,
             Long stationId,
+            Long templateId,
             String scanId,
             Long importBatchLineId,
             UUID operatorId,
@@ -751,6 +813,8 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                             .ticketIndex(remote.ticketIndex())
                             .importBatchLineId(importBatchLineId)
                             .stationId(stationId)
+                            .templateId(templateId)
+                            .aiModelId(resolveAiModelId())
                             .sourceImageName(sourceImageName)
                             .bbox(ocrScanResultApplicationMapper.toDomainBox(remote.bbox()))
                             .imageWidth(imageWidth)
@@ -765,6 +829,7 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                             .adjustedConfidence(outcome.adjustedConfidence())
                             .fieldConfidences(remote.fieldConfidences())
                             .fieldBoxes(ocrScanResultApplicationMapper.toDomainBoxMap(remote.fieldBoxes()))
+                            .usedFieldLayouts(remote.usedFieldLayouts())
                             .fieldValidations(
                                     ocrScanResultApplicationMapper.toDomainValidationMap(outcome.fieldValidations())
                             )
@@ -778,9 +843,26 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                             .scannedAt(LocalDateTime.now())
                             .build()
             );
+            ocrScanResultFieldService.dualWriteFromParent(saved);
             return saved.getId();
         } catch (Exception e) {
             log.error("Failed to persist OCR scan result for ticketIndex {} (scanId {})", remote.ticketIndex(), scanId, e);
+            return null;
+        }
+    }
+
+    private Long resolveAiModelId() {
+        try {
+            String provider = ticketVisionRecognitionEngine != null
+                    ? ticketVisionRecognitionEngine.trim().toLowerCase()
+                    : "groq";
+            return aiModelRegistryRepositoryPort.findDefaultActiveByProvider(provider)
+                    .map(m -> m.getId())
+                    .orElseGet(() -> aiModelRegistryRepositoryPort.findAnyActiveDefault()
+                            .map(m -> m.getId())
+                            .orElse(null));
+        } catch (Exception e) {
+            log.warn("Could not resolve AI model registry id for engine={}", ticketVisionRecognitionEngine, e);
             return null;
         }
     }

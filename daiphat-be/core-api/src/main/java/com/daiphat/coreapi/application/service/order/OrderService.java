@@ -15,6 +15,7 @@ import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketRespo
 import com.daiphat.coreapi.application.dto.response.order.OrderDetailAllocatedSerialResponse;
 import com.daiphat.coreapi.application.dto.response.order.OrderDetailResponse;
 import com.daiphat.coreapi.application.dto.response.order.OrderResponse;
+import com.daiphat.coreapi.application.dto.response.order.PendingPaymentReminderResponse;
 import com.daiphat.coreapi.application.event.OrderStatusChangedEvent;
 import com.daiphat.coreapi.application.mapper.order.OrderApplicationMapper;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketSerialServicePort;
@@ -36,8 +37,9 @@ import com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailHandoverDe
 import com.daiphat.coreapi.domain.model.enums.order.OrderReceiveType;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
-import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
+import com.daiphat.coreapi.domain.model.enums.payment.PaymentGateway;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionBusinessType;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
 import com.daiphat.coreapi.domain.model.orders.OrderDetailModel;
@@ -53,6 +55,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -66,12 +69,15 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class OrderService implements OrderServicePort {
+
+    private static final Set<String> MY_ORDERS_SORT_FIELDS = Set.of("createdAt", "totalAmount");
 
     private static final BigDecimal ONLINE_PAYMENT_MIN_AMOUNT = BigDecimal.valueOf(10_000);
     private static final long MAX_PICKUP_LEAD_DAYS = 3;
@@ -437,7 +443,7 @@ public class OrderService implements OrderServicePort {
         PageRequest pageable = PageRequest.of(
                 Math.max(0, page - 1),
                 size,
-                SortUtils.createSort(sortBy, direction)
+                resolveMyOrdersSort(sortBy, direction)
         );
 
         List<OrderStatus> statusEnums = parseOrderStatuses(statuses);
@@ -454,6 +460,41 @@ public class OrderService implements OrderServicePort {
                 .map(this::toCustomerOrderResponse);
 
         return PageResponse.from(resultPage, page, size, null);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PendingPaymentReminderResponse getMyPendingPaymentReminder(UUID customerId) {
+        ensureUserExists(customerId);
+
+        Page<OrderModel> pendingOrders = orderRepositoryPort.findMyOrders(
+                PageRequest.of(0, 10, Sort.by("createdAt").ascending()),
+                customerId,
+                List.of(OrderStatus.PENDING_PAYMENT),
+                List.of(),
+                null,
+                null,
+                null
+        );
+
+        PendingPaymentReminderResponse best = null;
+        long bestRemaining = Long.MAX_VALUE;
+
+        for (OrderModel order : pendingOrders.getContent()) {
+            if (order.getId() == null) {
+                continue;
+            }
+            long remaining = paymentCountdownCachePort.getRemainingSeconds(order.getId()).orElse(0L);
+            if (remaining <= 0) {
+                continue;
+            }
+            if (remaining < bestRemaining) {
+                bestRemaining = remaining;
+                best = toPendingPaymentReminder(order, remaining);
+            }
+        }
+
+        return best;
     }
 
     @Override
@@ -474,6 +515,31 @@ public class OrderService implements OrderServicePort {
     @Override
     public List<EnumOptionResponse> getOrderDetailStatuses() {
         return EnumOptionUtils.toEnumOptions(OrderDetailStatus.values());
+    }
+
+    private PendingPaymentReminderResponse toPendingPaymentReminder(OrderModel order, long remainingSeconds) {
+        TransactionModel pendingTransaction = order.getTransactions() == null
+                ? null
+                : order.getTransactions().stream()
+                        .filter(transaction -> transaction.getType() == TransactionType.ONLINE
+                                && transaction.getStatus() == TransactionStatus.PENDING)
+                        .findFirst()
+                        .orElse(null);
+
+        PaymentGateway gateway = pendingTransaction != null && pendingTransaction.getGateway() != null
+                ? pendingTransaction.getGateway()
+                : PaymentGateway.PAYOS;
+
+        return new PendingPaymentReminderResponse(
+                order.getId(),
+                order.getOrderCode(),
+                order.getTotalAmount(),
+                remainingSeconds,
+                remainingSeconds > 0 ? LocalDateTime.now().plusSeconds(remainingSeconds) : null,
+                false,
+                pendingTransaction != null ? pendingTransaction.getId() : null,
+                gateway
+        );
     }
 
     private OrderDetailModel buildOrderDetail(OrderTicketSnapshot ticketSnapshot) {
@@ -1040,6 +1106,13 @@ public class OrderService implements OrderServicePort {
         return normalizeMultiValues(receiveTypes).stream()
                 .map(this::parseReceiveType)
                 .toList();
+    }
+
+    private Sort resolveMyOrdersSort(String sortBy, String direction) {
+        String field = sortBy != null && MY_ORDERS_SORT_FIELDS.contains(sortBy)
+                ? sortBy
+                : "createdAt";
+        return SortUtils.createSort(field, direction);
     }
 
     private List<String> normalizeMultiValues(List<String> rawValues) {

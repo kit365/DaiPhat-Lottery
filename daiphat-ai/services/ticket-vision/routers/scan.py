@@ -7,6 +7,7 @@ from domain.ocr.factory import OcrStrategyFactory
 from domain.preprocessing.pipeline import ImageTooLargeError, InvalidImageError
 from domain.scanning.gemini_ticket_scan_service import GeminiTicketScanService
 from domain.scanning.grok_ticket_scan_service import GrokTicketScanService
+from domain.scanning.groq_ticket_scan_service import GroqTicketScanService
 from domain.scanning.llm_ticket_scan_service import resolve_recognition_engine
 from domain.scanning.ticket_scan_service import TicketScanService
 from domain.validation.format_validator import FormatValidator
@@ -46,6 +47,10 @@ def get_legacy_ticket_scan_service() -> TicketScanService:
     )
 
 
+def get_groq_ticket_scan_service() -> GroqTicketScanService:
+    return GroqTicketScanService(**_llm_kwargs())
+
+
 def get_gemini_ticket_scan_service() -> GeminiTicketScanService:
     return GeminiTicketScanService(**_llm_kwargs())
 
@@ -78,10 +83,11 @@ async def scan_tickets(
         None,
         description=(
             "JSON ScanMetadata: activeStations, maxTickets, detectorStrategy, "
-            "recognitionEngine (gemini|grok|legacy)"
+            "recognitionEngine (groq|gemini|grok|legacy)"
         ),
     ),
     legacy_service: TicketScanService = Depends(get_legacy_ticket_scan_service),
+    groq_service: GroqTicketScanService = Depends(get_groq_ticket_scan_service),
     gemini_service: GeminiTicketScanService = Depends(get_gemini_ticket_scan_service),
     grok_service: GrokTicketScanService = Depends(get_grok_ticket_scan_service),
 ) -> APIResponse:
@@ -92,12 +98,14 @@ async def scan_tickets(
 
     engine = resolve_recognition_engine(
         scan_metadata,
-        settings.TICKET_VISION_RECOGNITION_ENGINE,
+        settings.TICKET_VISION_RECOGNITION_ENGINE or "groq",
     )
 
     try:
         image_bytes = await file.read()
-        if engine == "gemini":
+        if engine == "groq":
+            result = groq_service.scan_image(image_bytes, scan_metadata)
+        elif engine == "gemini":
             result = gemini_service.scan_image(image_bytes, scan_metadata)
         elif engine == "grok":
             result = grok_service.scan_image(image_bytes, scan_metadata)

@@ -24,6 +24,7 @@ import com.daiphat.coreapi.application.mapper.lotteries.LotteryStationApplicatio
 import com.daiphat.coreapi.shared.util.ImportCostCalculator;
 import com.daiphat.coreapi.shared.util.LotteryStationCodeGenerator;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
+import com.daiphat.coreapi.application.port.in.lotteries.OcrTicketTemplateServicePort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryRegionRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryStationRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryStationSourceSyncPort;
@@ -74,6 +75,7 @@ public class LotteryStationService implements LotteryStationServicePort {
     private final LotteryStationCodeGenerator lotteryStationCodeGenerator;
     private final StoragePort storagePort;
     private final ApplicationEventPublisher eventPublisher;
+    private final OcrTicketTemplateServicePort ocrTicketTemplateServicePort;
 
     private static final List<LotteryTicketStatus> INVENTORY_STATUSES =
             List.of(LotteryTicketStatus.IN_STOCK);
@@ -102,16 +104,19 @@ public class LotteryStationService implements LotteryStationServicePort {
 
         LotteryStationModel saved = lotteryStationRepositoryPort.save(model);
         increaseRegionStationCount(stationRegion);
+        if (request.defaultOcrTemplateId() != null) {
+            ocrTicketTemplateServicePort.applyStationDefault(saved.getId(), request.defaultOcrTemplateId());
+        }
         log.info("Lottery product created with id: {}", saved.getId());
 
-        return lotteryStationApplicationMapper.toResponse(saved);
+        return toStationResponse(saved);
     }
 
     @Override
     public LotteryStationResponse getById(Long id) {
         LotteryStationModel model = getProductOrThrow(id);
         recalculateInventory(model);
-        return lotteryStationApplicationMapper.toResponse(model);
+        return toStationResponse(model);
     }
 
     @Override
@@ -156,7 +161,7 @@ public class LotteryStationService implements LotteryStationServicePort {
 
             Page<LotteryStationResponse> responsePage = resultPage.map(model -> {
                 recalculateInventory(model);
-                return lotteryStationApplicationMapper.toResponse(model);
+                return toStationResponse(model);
             });
 
             return PageResponse.from(responsePage, page, size);
@@ -184,7 +189,7 @@ public class LotteryStationService implements LotteryStationServicePort {
 
         List<LotteryStationResponse> responseList = pagedModels.stream().map(model -> {
             recalculateInventory(model);
-            return lotteryStationApplicationMapper.toResponse(model);
+            return toStationResponse(model);
         }).toList();
 
         return PageResponse.from(responseList, total, page, size);
@@ -309,10 +314,14 @@ public class LotteryStationService implements LotteryStationServicePort {
         }
         realignActiveTicketsToCurrentDraw(saved, previousNextDrawDate);
 
+        if (request.defaultOcrTemplateId() != null) {
+            ocrTicketTemplateServicePort.applyStationDefault(saved.getId(), request.defaultOcrTemplateId());
+        }
+
         recalculateInventory(saved);
         log.info("Lottery product updated with id: {}", saved.getId());
 
-        return lotteryStationApplicationMapper.toResponse(saved);
+        return toStationResponse(saved);
     }
 
     @Override
@@ -834,6 +843,36 @@ public class LotteryStationService implements LotteryStationServicePort {
 
     private LocalDate resolveNextDrawDate(LotteryStationModel station) {
         return DrawScheduleUtils.resolveNextDrawDate(station.getDrawDays(), station.getDrawTime());
+    }
+
+    private LotteryStationResponse toStationResponse(LotteryStationModel model) {
+        LotteryStationResponse base = lotteryStationApplicationMapper.toResponse(model);
+        Long defaultOcrTemplateId = ocrTicketTemplateServicePort.findDefaultTemplateId(model.getId());
+        return LotteryStationResponse.builder()
+                .id(base.id())
+                .name(base.name())
+                .code(base.code())
+                .province(base.province())
+                .region(base.region())
+                .type(base.type())
+                .price(base.price())
+                .commissionRate(base.commissionRate())
+                .isActive(base.isActive())
+                .missingActivationFields(base.missingActivationFields())
+                .inventoryCount(base.inventoryCount())
+                .drawDays(base.drawDays())
+                .drawTime(base.drawTime())
+                .nextDrawDate(base.nextDrawDate())
+                .prizeRedemptionOfficialDeadlineDays(base.prizeRedemptionOfficialDeadlineDays())
+                .approvedById(base.approvedById())
+                .approvedAt(base.approvedAt())
+                .image(base.image())
+                .thumbnailUrl(base.thumbnailUrl())
+                .description(base.description())
+                .defaultOcrTemplateId(defaultOcrTemplateId)
+                .createdAt(base.createdAt())
+                .updatedAt(base.updatedAt())
+                .build();
     }
 
     private LotteryStationModel getProductOrThrow(Long id) {

@@ -45,5 +45,8 @@ public record CreateLotteryStationRequest(
 
         // Hiển thị
         String image,
-        String description
+        String description,
+
+        /** Optional; usually set after templates exist for the new station. */
+        Long defaultOcrTemplateId
 ) {}

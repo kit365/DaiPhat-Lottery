@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.domain.model.notifications;
 
+import com.daiphat.coreapi.domain.model.enums.notification.NotificationAudience;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationChannel;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationReferenceType;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationStatus;
@@ -30,11 +31,16 @@ public class NotificationModel {
     private String referenceId;
     private NotificationReferenceType referenceType;
     @Builder.Default
+    private NotificationAudience audience = NotificationAudience.CUSTOMER;
+    @Builder.Default
     private NotificationStatus status = NotificationStatus.PENDING;
     private LocalDateTime createdAt;
     private LocalDateTime deletedAt;
 
     public void initializeForCreate() {
+        if (this.audience == null) {
+            this.audience = NotificationAudience.CUSTOMER;
+        }
         if (this.status == null) {
             this.status = NotificationStatus.PENDING;
         }

@@ -42,6 +42,12 @@ public class OcrScanResultEntity extends BaseEntity {
     @Column(name = "station_id")
     private Long stationId;
 
+    @Column(name = "template_id")
+    private Long templateId;
+
+    @Column(name = "ai_model_id")
+    private Long aiModelId;
+
     @Column(name = "source_image_name", length = 255)
     private String sourceImageName;
 
@@ -86,6 +92,10 @@ public class OcrScanResultEntity extends BaseEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "field_boxes", columnDefinition = "jsonb")
     private Map<String, OcrBoundingBox> fieldBoxes;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "used_field_layouts", columnDefinition = "jsonb")
+    private Map<String, Long> usedFieldLayouts;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "field_validations", columnDefinition = "jsonb")

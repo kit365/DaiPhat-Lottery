@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.infrastructure.adapter.out.notification.persistence;
 
 import com.daiphat.coreapi.application.port.out.notification.NotificationRepositoryPort;
+import com.daiphat.coreapi.domain.model.enums.notification.NotificationAudience;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationChannel;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationReferenceType;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationType;
@@ -64,26 +65,52 @@ public class NotificationRepositoryAdapter implements NotificationRepositoryPort
 
     @Override
     public Page<NotificationModel> findByUserId(UUID userId, Pageable pageable) {
+        return findByUserIdAndAudience(userId, NotificationAudience.CUSTOMER, pageable);
+    }
+
+    @Override
+    public Page<NotificationModel> findByUserIdAndAudience(UUID userId, NotificationAudience audience, Pageable pageable) {
         return notificationRepository
-                .findByUser_IdAndChannelAndDeletedAtIsNullOrderByCreatedAtDesc(userId, INBOX_CHANNEL, pageable)
+                .findByUser_IdAndChannelAndAudienceAndDeletedAtIsNullOrderByCreatedAtDesc(
+                        userId, INBOX_CHANNEL, audience, pageable)
                 .map(notificationPersistenceMapper::toDomain);
     }
 
     @Override
     public long countAllByUserId(UUID userId) {
-        return notificationRepository.countByUser_IdAndChannelAndDeletedAtIsNull(userId, INBOX_CHANNEL);
+        return countAllByUserIdAndAudience(userId, NotificationAudience.CUSTOMER);
+    }
+
+    @Override
+    public long countAllByUserIdAndAudience(UUID userId, NotificationAudience audience) {
+        return notificationRepository.countByUser_IdAndChannelAndAudienceAndDeletedAtIsNull(
+                userId, INBOX_CHANNEL, audience);
     }
 
     @Override
     public long countUnreadByUserId(UUID userId) {
-        return notificationRepository.countByUser_IdAndChannelAndReadFalseAndDeletedAtIsNull(
-                userId, INBOX_CHANNEL);
+        return countUnreadByUserIdAndAudience(userId, NotificationAudience.CUSTOMER);
+    }
+
+    @Override
+    public long countUnreadByUserIdAndAudience(UUID userId, NotificationAudience audience) {
+        return notificationRepository.countByUser_IdAndChannelAndAudienceAndReadFalseAndDeletedAtIsNull(
+                userId, INBOX_CHANNEL, audience);
     }
 
     @Override
     public long countByUserIdAndType(UUID userId, NotificationType type) {
-        return notificationRepository.countByUser_IdAndChannelAndTypeAndDeletedAtIsNull(
-                userId, INBOX_CHANNEL, type);
+        return countByUserIdAndAudienceAndType(userId, NotificationAudience.CUSTOMER, type);
+    }
+
+    @Override
+    public long countByUserIdAndAudienceAndType(
+            UUID userId,
+            NotificationAudience audience,
+            NotificationType type
+    ) {
+        return notificationRepository.countByUser_IdAndChannelAndAudienceAndTypeAndDeletedAtIsNull(
+                userId, INBOX_CHANNEL, audience, type);
     }
 
     @Override

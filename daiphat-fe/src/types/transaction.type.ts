@@ -69,3 +69,14 @@ export interface PendingPaymentCountdownResult {
     expiresAt: string | null;
     expired: boolean;
 }
+
+export interface PendingPaymentReminderResponse {
+    orderId: string;
+    orderCode: string;
+    totalAmount: number;
+    remainingSeconds: number;
+    expiresAt: string | null;
+    expired: boolean;
+    transactionId: number | null;
+    gateway: PaymentGateway;
+}

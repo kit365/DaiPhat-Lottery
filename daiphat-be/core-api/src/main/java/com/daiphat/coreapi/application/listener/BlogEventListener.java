@@ -6,6 +6,7 @@ import com.daiphat.coreapi.application.port.in.notification.NotificationServiceP
 import com.daiphat.coreapi.application.port.out.notification.FcmPushPort;
 import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
+import com.daiphat.coreapi.domain.model.enums.notification.NotificationAudience;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationChannel;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationReferenceType;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationType;
@@ -51,6 +52,7 @@ public class BlogEventListener {
                             .content(inAppContent)
                             .type(NotificationType.BLOG)
                             .channel(NotificationChannel.IN_APP)
+                            .audience(NotificationAudience.STAFF)
                             .referenceId(String.valueOf(event.postId()))
                             .referenceType(NotificationReferenceType.BLOG_POST)
                             .build();

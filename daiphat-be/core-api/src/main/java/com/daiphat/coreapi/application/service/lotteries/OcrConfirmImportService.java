@@ -69,6 +69,7 @@ public class OcrConfirmImportService {
     private final LotteryTicketServicePort lotteryTicketServicePort;
     private final LotteryStationServicePort lotteryStationServicePort;
     private final OcrScanResultRepositoryPort ocrScanResultRepositoryPort;
+    private final OcrScanResultFieldService ocrScanResultFieldService;
     private final LotteryScanLogServicePort lotteryScanLogServicePort;
     private final Clock clock;
     private final PlatformTransactionManager transactionManager;
@@ -193,7 +194,7 @@ public class OcrConfirmImportService {
                             + " (" + tally.failed + " vé lỗi). Đã hủy tạo phiếu nhập tự động cho ngày này."
             );
         }
-        linkOcrResults(tickets, stationToLine);
+        linkOcrResults(tickets, stationToLine, operatorId);
 
         return OcrConfirmImportBatchResult.builder()
                 .importBatchId(created.id())
@@ -246,7 +247,7 @@ public class OcrConfirmImportService {
         );
 
         TicketImportTally tally = importTickets(request.tickets(), stationToLine, batchDrawDate, operatorId);
-        linkOcrResults(request.tickets(), stationToLine);
+        linkOcrResults(request.tickets(), stationToLine, operatorId);
 
         OcrConfirmImportBatchResult batchResult = OcrConfirmImportBatchResult.builder()
                 .importBatchId(batch.getId())
@@ -369,7 +370,8 @@ public class OcrConfirmImportService {
 
     private void linkOcrResults(
             List<OcrConfirmImportTicketRequest> tickets,
-            Map<Long, Long> stationToLine
+            Map<Long, Long> stationToLine,
+            UUID operatorId
     ) {
         for (OcrConfirmImportTicketRequest ticket : tickets) {
             if (ticket.ocrScanResultId() == null) {
@@ -381,6 +383,22 @@ public class OcrConfirmImportService {
                 model.setStationId(ticket.stationId());
                 ocrScanResultRepositoryPort.save(model);
             });
+
+            String stationName = null;
+            try {
+                stationName = lotteryStationServicePort.getModelById(ticket.stationId()).getName();
+            } catch (Exception ignored) {
+                // best-effort only for field correction snapshot
+            }
+            ocrScanResultFieldService.applyConfirmSnapshot(
+                    ticket.ocrScanResultId(),
+                    ticket.numbers(),
+                    ticket.serialNumber(),
+                    ticket.drawDate(),
+                    ticket.stationId(),
+                    stationName,
+                    operatorId
+            );
         }
     }
 

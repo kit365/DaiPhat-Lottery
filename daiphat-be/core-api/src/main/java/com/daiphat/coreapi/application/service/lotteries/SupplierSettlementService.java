@@ -55,6 +55,7 @@ import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementDiscrepa
 import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementReconciliationPhase;
 import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition;
+import com.daiphat.coreapi.domain.model.enums.notification.NotificationAudience;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationChannel;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationReferenceType;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationType;
@@ -447,6 +448,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
                             .content(content)
                             .type(NotificationType.SYSTEM)
                             .channel(NotificationChannel.IN_APP)
+                            .audience(NotificationAudience.STAFF)
                             .referenceId(String.valueOf(settlement.getId()))
                             .referenceType(NotificationReferenceType.SYSTEM)
                             .build();
@@ -466,7 +468,10 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         String content = "Kỳ đối soát của nhà cung cấp " + supplierName + " (" + periodStr
                 + ") đã vượt quá mốc thời gian hạn trả vé quy định do chưa bàn giao hoặc bàn giao trễ.";
 
-        userRepositoryPort.findAll().stream()
+        userRepositoryPort.findAllByRoleCodes(List.of(
+                RoleConstants.ADMIN,
+                RoleConstants.ROLE_STAFF_OPERATOR
+        )).stream()
                 .filter(u -> u.getStatus() == UserStatus.ACTIVE)
                 .forEach(user -> {
                     NotificationModel notification = NotificationModel.builder()
@@ -475,6 +480,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
                             .content(content)
                             .type(NotificationType.SYSTEM)
                             .channel(NotificationChannel.IN_APP)
+                            .audience(NotificationAudience.STAFF)
                             .referenceId(String.valueOf(settlement.getId()))
                             .referenceType(NotificationReferenceType.SYSTEM)
                             .build();

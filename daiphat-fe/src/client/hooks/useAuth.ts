@@ -18,6 +18,9 @@ import { loginSchema, LoginFormValues, registerSchema, RegisterFormValues } from
 import { QUERY_KEYS } from "../../constants/queryKeys";
 import { USER_ROLES } from "../../constants/role.constants";
 
+const CLIENT_ME_QUERY_KEY = [QUERY_KEYS.CLIENT_ME] as const;
+const CLIENT_ME_STALE_MS = 5 * 60 * 1000;
+
 export const useAuth = () => {
     const queryClient = useQueryClient();
     const router = useRouter();
@@ -31,12 +34,13 @@ export const useAuth = () => {
     // React Query is the SINGLE SOURCE OF TRUTH for user data
     // No useEffect syncing to Zustand needed — components read directly from here
     const getMeQuery = useQuery({
-        queryKey: [QUERY_KEYS.CLIENT_ME, token],
+        queryKey: CLIENT_ME_QUERY_KEY,
         // Wrap so React Query's QueryFunctionContext is not passed as accessToken.
         queryFn: () => userService.getMe(),
         enabled: !!token,
-        staleTime: 0,         // always refetch when invalidated
+        staleTime: CLIENT_ME_STALE_MS,
         gcTime: 1000 * 60 * 5,
+        refetchOnWindowFocus: false,
         retry: false,
     });
 
@@ -78,7 +82,7 @@ export const useAuth = () => {
 
                 persistAccessToken(accessToken, expiresIn);
                 loginStore(userInfo as User, accessToken, expiresIn);
-                queryClient.setQueryData([QUERY_KEYS.CLIENT_ME, accessToken], {
+                queryClient.setQueryData(CLIENT_ME_QUERY_KEY, {
                     isSuccess: true,
                     success: true,
                     data: userInfo
@@ -167,14 +171,14 @@ export const useAuth = () => {
         onSuccess: (response) => {
             const isSuccess = response.isSuccess ?? response.success;
             if (isSuccess && response.data) {
-                queryClient.setQueryData([QUERY_KEYS.CLIENT_ME, token], {
+                queryClient.setQueryData(CLIENT_ME_QUERY_KEY, {
                     isSuccess: true,
                     success: true,
                     message: response.message,
                     data: response.data,
                 });
                 useAuthStore.getState().set({ user: response.data as User });
-                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_ME, token] });
+                queryClient.invalidateQueries({ queryKey: CLIENT_ME_QUERY_KEY });
                 AppToast.success(response.message || "Cập nhật ảnh đại diện thành công.");
             } else {
                 AppToast.error(response.message || "Cập nhật ảnh đại diện thất bại.");
@@ -190,14 +194,14 @@ export const useAuth = () => {
         onSuccess: (response) => {
             const isSuccess = response.isSuccess ?? response.success;
             if (isSuccess && response.data) {
-                queryClient.setQueryData([QUERY_KEYS.CLIENT_ME, token], {
+                queryClient.setQueryData(CLIENT_ME_QUERY_KEY, {
                     isSuccess: true,
                     success: true,
                     message: response.message,
                     data: response.data,
                 });
                 useAuthStore.getState().set({ user: response.data as User });
-                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_ME, token] });
+                queryClient.invalidateQueries({ queryKey: CLIENT_ME_QUERY_KEY });
                 AppToast.success(response.message || "Đã xóa ảnh đại diện.");
             } else {
                 AppToast.error(response.message || "Xóa ảnh đại diện thất bại.");

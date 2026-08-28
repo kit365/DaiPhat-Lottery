@@ -4,6 +4,8 @@ import com.daiphat.coreapi.application.port.in.notification.NotificationServiceP
 import com.daiphat.coreapi.application.port.out.lotteries.ReturnBatchRepositoryPort;
 import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus;
+import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
+import com.daiphat.coreapi.domain.model.enums.notification.NotificationAudience;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationChannel;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationReferenceType;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationType;
@@ -74,7 +76,10 @@ public class ReturnBatchReminderService {
                     + ") sắp đến hạn trả vé lúc " + batch.getReturnCutOffTime()
                     + ". Vui lòng hoàn tất kiểm vé và bàn giao.";
 
-            userRepositoryPort.findAll().stream()
+            userRepositoryPort.findAllByRoleCodes(List.of(
+                    RoleConstants.ADMIN,
+                    RoleConstants.ROLE_STAFF_OPERATOR
+            )).stream()
                     .filter(u -> u.getStatus() == UserStatus.ACTIVE)
                     .forEach(user -> {
                         NotificationModel notification = NotificationModel.builder()
@@ -83,6 +88,7 @@ public class ReturnBatchReminderService {
                                 .content(content)
                                 .type(NotificationType.SYSTEM)
                                 .channel(NotificationChannel.IN_APP)
+                                .audience(NotificationAudience.STAFF)
                                 .referenceId(String.valueOf(batch.getId()))
                                 .referenceType(NotificationReferenceType.SYSTEM)
                                 .build();

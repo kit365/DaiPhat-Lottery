@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Monorepo layout: infra/config.py -> daiphat-ai/ -> repo root.
@@ -19,6 +20,14 @@ def _discover_env_files() -> tuple[str, ...]:
     return discovered if discovered else (".env",)
 
 
+_OCR_PROVIDER_TO_ENGINE = {
+    "GROQ": "groq",
+    "GEMINI": "gemini",
+    "GROK": "grok",
+    "LEGACY": "legacy",
+}
+
+
 class Settings(BaseSettings):
     # ignore_extra: monorepo .env có nhiều biến BE không thuộc chat-bot
     model_config = SettingsConfigDict(
@@ -33,10 +42,19 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/v1"
 
     # --- Ticket Vision (DP-269) --------------------------------------------
-    # Recognition engine: "gemini" (default), "grok", or "legacy" (OpenCV/YOLO + OCR).
-    TICKET_VISION_RECOGNITION_ENGINE: str = "gemini"
+    # Recognition engine: "groq" (default), "gemini", "grok" (xAI), or "legacy".
+    # Leave unset to resolve from OCR_AI_PROVIDER, else default to groq.
+    TICKET_VISION_RECOGNITION_ENGINE: str | None = None
+    # Optional alias when TICKET_VISION_RECOGNITION_ENGINE is unset: GROQ|GEMINI|GROK|LEGACY.
+    OCR_AI_PROVIDER: str = ""
 
-    # Gemini vision (Google Generative Language API). Set via env; never commit secrets.
+    # Groq.com vision (OpenAI-compatible). Active default for OCR Scan Vé.
+    GROQ_API_BASE_URL: str = "https://api.groq.com/openai/v1"
+    GROQ_API_KEY: str = ""
+    GROQ_VISION_MODEL: str = "qwen/qwen3.6-27b"
+    GROQ_READ_TIMEOUT_SECONDS: float = 60.0
+
+    # Gemini vision (Google Generative Language API). Kept for rollback.
     GEMINI_API_BASE_URL: str = "https://generativelanguage.googleapis.com/v1beta"
     GEMINI_API_KEY: str = ""
     GEMINI_VISION_MODEL: str = "gemini-3.6-flash"
@@ -118,6 +136,18 @@ class Settings(BaseSettings):
     # Placeholder for future config
     # CHROMA_DB_PATH: str = "./data/chroma"
     # FASTTEXT_MODEL_PATH: str = "./data/models/intent_model.bin"
+
+    @model_validator(mode="after")
+    def resolve_recognition_engine(self) -> "Settings":
+        """Canonical: TICKET_VISION_RECOGNITION_ENGINE; else OCR_AI_PROVIDER; else groq."""
+        engine = (self.TICKET_VISION_RECOGNITION_ENGINE or "").strip().lower()
+        if engine:
+            object.__setattr__(self, "TICKET_VISION_RECOGNITION_ENGINE", engine)
+            return self
+        provider = (self.OCR_AI_PROVIDER or "").strip().upper()
+        mapped = _OCR_PROVIDER_TO_ENGINE.get(provider, "groq")
+        object.__setattr__(self, "TICKET_VISION_RECOGNITION_ENGINE", mapped)
+        return self
 
 
 settings = Settings()

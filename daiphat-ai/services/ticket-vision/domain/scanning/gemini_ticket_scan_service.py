@@ -1,4 +1,4 @@
-"""Gemini vision ticket scan — default recognition provider for OCR Scan Vé."""
+"""Gemini vision ticket scan — retained for rollback via recognitionEngine=gemini."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from infra.gemini_client import GeminiVisionClient
 
 
 class GeminiTicketScanService(LlmTicketScanService):
-    """Scan tickets via Gemini vision; maps to the same ScanResponse as Grok/legacy."""
+    """Scan tickets via Gemini vision; maps to the same ScanResponse as Groq/Grok/legacy."""
 
     def __init__(
         self,

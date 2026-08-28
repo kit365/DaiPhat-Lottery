@@ -14,15 +14,17 @@ import { normalizePagination } from "../utils/pagination.util";
 const NOTIFICATION_PAGE_SIZE = 10;
 const CLIENT_NOTIFICATION_REFETCH_INTERVAL_MS = 30_000;
 
-export const clientNotificationsQueryKey = (token: string | null | undefined) =>
-    [QUERY_KEYS.CLIENT_NOTIFICATIONS, token] as const;
+export const CLIENT_NOTIFICATIONS_QUERY_KEY = [QUERY_KEYS.CLIENT_NOTIFICATIONS] as const;
+
+/** @deprecated Use CLIENT_NOTIFICATIONS_QUERY_KEY — token must not be part of query identity. */
+export const clientNotificationsQueryKey = () => CLIENT_NOTIFICATIONS_QUERY_KEY;
 
 const useClientNotificationsQuery = (options?: { enablePolling?: boolean }) => {
     const token = useAuthStore((state) => state.token);
     const enablePolling = options?.enablePolling ?? true;
 
     return useInfiniteQuery({
-        queryKey: clientNotificationsQueryKey(token),
+        queryKey: CLIENT_NOTIFICATIONS_QUERY_KEY,
         queryFn: ({ pageParam = 1 }) =>
             getMyNotifications({ page: pageParam, limit: NOTIFICATION_PAGE_SIZE }),
         initialPageParam: 1,
@@ -84,36 +86,33 @@ export const useNotificationUnreadCount = (options?: { enablePolling?: boolean }
 
 export const useMarkMyNotificationAsRead = () => {
     const queryClient = useQueryClient();
-    const token = useAuthStore((state) => state.token);
 
     return useMutation({
         mutationFn: (notificationId: number) => markMyNotificationAsRead(notificationId),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: clientNotificationsQueryKey(token) });
+            queryClient.invalidateQueries({ queryKey: CLIENT_NOTIFICATIONS_QUERY_KEY });
         },
     });
 };
 
 export const useMarkAllMyNotificationsAsRead = () => {
     const queryClient = useQueryClient();
-    const token = useAuthStore((state) => state.token);
 
     return useMutation({
         mutationFn: () => markAllMyNotificationsAsRead(),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: clientNotificationsQueryKey(token) });
+            queryClient.invalidateQueries({ queryKey: CLIENT_NOTIFICATIONS_QUERY_KEY });
         },
     });
 };
 
 export const useDeleteAllMyReadNotifications = () => {
     const queryClient = useQueryClient();
-    const token = useAuthStore((state) => state.token);
 
     return useMutation({
         mutationFn: () => deleteAllMyReadNotifications(),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: clientNotificationsQueryKey(token) });
+            queryClient.invalidateQueries({ queryKey: CLIENT_NOTIFICATIONS_QUERY_KEY });
         },
     });
 };

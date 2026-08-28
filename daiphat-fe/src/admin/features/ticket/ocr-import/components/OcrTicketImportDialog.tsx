@@ -59,6 +59,7 @@ import {
 } from '../utils/ocrImportHelpers';
 import OcrReviewImagePane, { type OcrFieldSelection } from './OcrReviewImagePane';
 import OcrReviewResultCards from './OcrReviewResultCards';
+import { getOcrTemplateDefaultReady } from '../../../station/services/ocrTemplateService';
 
 const IMPORT_EVIDENCE_ACCEPT: Accept = {
     'image/*': ['.jpg', '.jpeg', '.png', '.webp', '.gif'],
@@ -113,6 +114,8 @@ export const OcrTicketImportDialog = ({
     const [fieldSelection, setFieldSelection] = useState<OcrFieldSelection | null>(null);
     const [invoiceUploading, setInvoiceUploading] = useState(false);
     const [ticketListUploading, setTicketListUploading] = useState(false);
+    const [ocrReady, setOcrReady] = useState<boolean | null>(null);
+    const [ocrReadyLoading, setOcrReadyLoading] = useState(false);
     const { data: activeSuppliers = [] } = useActiveSuppliers(open);
     const { data: stationsRes } = useStations({ limit: 1000 });
     const stations = useMemo(() => {
@@ -123,6 +126,34 @@ export const OcrTicketImportDialog = ({
             code: station.code,
         }));
     }, [stationsRes]);
+
+    useEffect(() => {
+        if (!open) {
+            setOcrReady(null);
+            return;
+        }
+        let cancelled = false;
+        setOcrReadyLoading(true);
+        getOcrTemplateDefaultReady()
+            .then((ready) => {
+                if (!cancelled) {
+                    setOcrReady(Boolean(ready?.ready));
+                }
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setOcrReady(false);
+                }
+            })
+            .finally(() => {
+                if (!cancelled) {
+                    setOcrReadyLoading(false);
+                }
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [open]);
 
     const stationLabel = (stationId?: number) => {
         if (resolveStationName) {
@@ -205,6 +236,15 @@ export const OcrTicketImportDialog = ({
             <DialogContent dividers sx={{ minHeight: 420 }}>
                 {wizard.step === 'upload' && (
                     <Stack spacing={2}>
+                        {ocrReady === false && (
+                            <Alert severity="error">
+                                Chưa cấu hình mẫu vé OCR mặc định. Vui lòng tạo/gán template mặc định
+                                cho ít nhất một nhà đài trước khi quét.
+                            </Alert>
+                        )}
+                        {ocrReadyLoading && (
+                            <Alert severity="info">Đang kiểm tra cấu hình mẫu vé OCR…</Alert>
+                        )}
                         {wizard.prefillLineOption && (
                             <Alert severity="info">
                                 Gợi ý ngữ cảnh từ dòng lô{' '}
@@ -241,7 +281,7 @@ export const OcrTicketImportDialog = ({
                                 variant="outlined"
                                 startIcon={<CloudUploadOutlinedIcon />}
                                 onClick={() => fileInputRef.current?.click()}
-                                disabled={wizard.scanning}
+                                disabled={wizard.scanning || ocrReady === false || ocrReadyLoading}
                                 sx={{ textTransform: 'none', fontWeight: 700 }}
                             >
                                 Chọn ảnh vé
@@ -1016,7 +1056,12 @@ export const OcrTicketImportDialog = ({
                                     <DocumentScannerOutlinedIcon />
                                 )
                             }
-                            disabled={wizard.scanning || wizard.images.length === 0}
+                            disabled={
+                                wizard.scanning
+                                || wizard.images.length === 0
+                                || ocrReady === false
+                                || ocrReadyLoading
+                            }
                             onClick={() => void wizard.runScan()}
                             sx={{ textTransform: 'none', fontWeight: 700 }}
                         >

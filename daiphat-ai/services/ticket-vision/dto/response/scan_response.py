@@ -39,6 +39,8 @@ class TicketScanResult(BaseModel):
     extracted: ExtractedTicketFields
     fieldConfidences: dict[str, float] = Field(default_factory=dict)
     fieldBoxes: dict[str, BoundingBox] = Field(default_factory=dict)
+    # fieldName -> ocr_field_layouts.id used for the recognized value.
+    usedFieldLayouts: dict[str, int] = Field(default_factory=dict)
     missingFields: list[str] = Field(default_factory=list)
     validationErrors: list[str] = Field(default_factory=list)
     croppedImageBase64: str | None = None

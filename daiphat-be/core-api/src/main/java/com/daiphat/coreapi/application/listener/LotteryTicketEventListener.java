@@ -7,6 +7,7 @@ import com.daiphat.coreapi.application.port.out.notification.FcmPushPort;
 import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
 import com.daiphat.coreapi.domain.model.UserModel;
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
+import com.daiphat.coreapi.domain.model.enums.notification.NotificationAudience;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationChannel;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationReferenceType;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationType;
@@ -49,6 +50,7 @@ public class LotteryTicketEventListener {
                             .content(content)
                             .type(NotificationType.SYSTEM)
                             .channel(NotificationChannel.IN_APP)
+                            .audience(NotificationAudience.STAFF)
                             .referenceId(String.valueOf(event.ticketId()))
                             .referenceType(NotificationReferenceType.SYSTEM)
                             .build();

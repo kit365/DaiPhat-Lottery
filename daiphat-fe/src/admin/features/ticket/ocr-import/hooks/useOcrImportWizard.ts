@@ -12,8 +12,10 @@ import type { ImportBatch, ImportBatchLine } from '../../import-batch/types/impo
 import { getStationsByDrawDate } from '../../../station/services/stationService';
 import {
     confirmOcrImport,
+    correctOcrScanResultFields,
     getLotteryScanLogs,
     scanTicketImage,
+    type OcrFieldCorrectionPayload,
 } from '../services/ticketOcrService';
 import type {
     LotteryScanLog,
@@ -119,6 +121,14 @@ export const useOcrImportWizard = ({
 
     const restoredRef = useRef(false);
     const onDraftRestoredRef = useRef(onDraftRestored);
+    const fieldCorrectionTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+    useEffect(() => {
+        return () => {
+            fieldCorrectionTimersRef.current.forEach((timer) => clearTimeout(timer));
+            fieldCorrectionTimersRef.current.clear();
+        };
+    }, []);
     onDraftRestoredRef.current = onDraftRestored;
 
     const selectedBatch = useMemo(
@@ -440,8 +450,8 @@ export const useOcrImportWizard = ({
     }, [images, prefillLineOption]);
 
     const updateRow = useCallback((key: string, patch: Partial<OcrReviewRow>) => {
-        setRows((prev) =>
-            prev.map((row) => {
+        setRows((prev) => {
+            const nextRows = prev.map((row) => {
                 if (row.key !== key) {
                     return row;
                 }
@@ -458,8 +468,65 @@ export const useOcrImportWizard = ({
                     next.edited = true;
                 }
                 return next;
-            })
-        );
+            });
+
+            const updated = nextRows.find((row) => row.key === key);
+            if (updated?.ocrScanResultId) {
+                const fields: OcrFieldCorrectionPayload[] = [];
+                if (patch.numbers !== undefined) {
+                    fields.push({ fieldName: 'numbers', correctedValue: patch.numbers ?? null });
+                }
+                if (patch.serialNumber !== undefined) {
+                    fields.push({
+                        fieldName: 'serialNumber',
+                        correctedValue: patch.serialNumber ?? null,
+                    });
+                }
+                if (patch.drawDate !== undefined) {
+                    fields.push({
+                        fieldName: 'drawDate',
+                        correctedValue: patch.drawDate ?? null,
+                    });
+                }
+                if (patch.batchCode !== undefined) {
+                    fields.push({
+                        fieldName: 'batchCode',
+                        correctedValue: patch.batchCode ?? null,
+                    });
+                }
+                if (patch.ticketType !== undefined) {
+                    fields.push({
+                        fieldName: 'ticketType',
+                        correctedValue: patch.ticketType ?? null,
+                    });
+                }
+                if (patch.stationName !== undefined) {
+                    fields.push({
+                        fieldName: 'stationName',
+                        correctedValue: patch.stationName ?? null,
+                    });
+                }
+                if (fields.length > 0) {
+                    const resultId = Number(updated.ocrScanResultId);
+                    const timerKey = `${resultId}:${fields.map((f) => f.fieldName).join(',')}`;
+                    const existing = fieldCorrectionTimersRef.current.get(timerKey);
+                    if (existing) {
+                        clearTimeout(existing);
+                    }
+                    fieldCorrectionTimersRef.current.set(
+                        timerKey,
+                        setTimeout(() => {
+                            void correctOcrScanResultFields(resultId, fields).catch(() => {
+                                // Best-effort: confirm-import still syncs corrected values.
+                            });
+                            fieldCorrectionTimersRef.current.delete(timerKey);
+                        }, 450)
+                    );
+                }
+            }
+
+            return nextRows;
+        });
     }, []);
 
     const getRowValidationContext = useCallback(

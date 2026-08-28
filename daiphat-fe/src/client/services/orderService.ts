@@ -1,19 +1,55 @@
 import { apiApp } from '../../api';
 import { CreateOnlineOrderRequest, OrderFilterParams, OrderResponse } from '../../types/order.type';
+import { PendingPaymentReminderResponse } from '../../types/transaction.type';
 import { ApiResponse, PageResponse } from '../../types/api.type';
 
 const BASE_URL = '/orders';
 
 const normalizeOrderFilterParams = (params?: OrderFilterParams) => {
     if (!params) return undefined;
-    const normalized = { ...params } as Record<string, any>;
+
+    const normalized: Record<string, string | number> = {};
+
+    const page = params.page;
+    if (page != null && page > 0) {
+        normalized.page = page;
+    }
+
+    const size = params.size ?? params.limit;
+    if (size != null && size > 0) {
+        normalized.size = size;
+    }
 
     (['status', 'orderType', 'receiveType'] as const).forEach((key) => {
-        const value = normalized[key];
+        const value = params[key];
+        if (value == null || value === '') return;
         if (Array.isArray(value)) {
-            normalized[key] = value.length > 0 ? value.join(',') : undefined;
+            if (value.length > 0) {
+                normalized[key] = value.join(',');
+            }
+            return;
         }
+        normalized[key] = value;
     });
+
+    if (params.fromDate) {
+        normalized.fromDate = params.fromDate;
+    }
+    if (params.toDate) {
+        normalized.toDate = params.toDate;
+    }
+
+    const search = params.search?.trim();
+    if (search) {
+        normalized.search = search;
+    }
+
+    if (params.sortBy) {
+        normalized.sortBy = params.sortBy;
+    }
+    if (params.direction) {
+        normalized.direction = params.direction;
+    }
 
     return normalized;
 };
@@ -36,6 +72,13 @@ export const orderService = {
         const response = await apiApp.get(`${BASE_URL}/my-orders`, {
             params: normalizeOrderFilterParams(params)
         });
+        return response.data;
+    },
+
+    getPendingPaymentReminder: async (): Promise<ApiResponse<PendingPaymentReminderResponse | null>> => {
+        const response = await apiApp.get(`${BASE_URL}/my-orders/pending-payment-reminder`, {
+            skipGlobalErrorToast: true,
+        } as any);
         return response.data;
     },
     

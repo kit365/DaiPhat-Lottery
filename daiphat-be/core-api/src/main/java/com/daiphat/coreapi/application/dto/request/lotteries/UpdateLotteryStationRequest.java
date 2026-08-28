@@ -39,5 +39,8 @@ public record UpdateLotteryStationRequest(
         // Hiển thị
         String image,
         String description,
-        Boolean isActive
+        Boolean isActive,
+
+        /** When set, marks that template as the station default and clears others. */
+        Long defaultOcrTemplateId
 ) {}

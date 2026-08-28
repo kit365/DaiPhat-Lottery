@@ -43,6 +43,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
+import com.daiphat.coreapi.application.port.in.lotteries.OcrTicketTemplateServicePort;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -94,6 +95,8 @@ class LotteryStationServiceTest {
     private StoragePort storagePort;
     @Mock
     private ApplicationEventPublisher eventPublisher;
+    @Mock
+    private OcrTicketTemplateServicePort ocrTicketTemplateServicePort;
 
     private LotteryStationServicePort lotteryStationService;
 
@@ -113,10 +116,13 @@ class LotteryStationServiceTest {
                 // derivation, so stubbing them would only hide the actual rules.
                 new LotteryStationCodeGenerator(),
                 storagePort,
-                eventPublisher
+                eventPublisher,
+                ocrTicketTemplateServicePort
         );
 
         ReflectionTestUtils.setField(lotteryStationService, "drawReminderMinutes", 30L);
+
+        lenient().when(ocrTicketTemplateServicePort.findDefaultTemplateId(any())).thenReturn(null);
 
         regionModel = LotteryRegionModel.builder()
                 .id(1L)
@@ -904,6 +910,8 @@ class LotteryStationServiceTest {
     void update_noRegionChangeAndInactive() {
         when(lotteryStationRepositoryPort.findById(1L)).thenReturn(Optional.of(stationModel));
         when(lotteryStationRepositoryPort.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(lotteryStationApplicationMapper.toResponse(any()))
+                .thenReturn(LotteryStationResponse.builder().id(1L).isActive(false).build());
 
         UpdateLotteryStationRequest req = UpdateLotteryStationRequest.builder()
                 .name("New Name")
