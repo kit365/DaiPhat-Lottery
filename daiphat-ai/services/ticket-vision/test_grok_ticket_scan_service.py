@@ -23,9 +23,17 @@ class FakeVisionClient:
     def __init__(self, result: ScanExtractionResult) -> None:
         self._result = result
         self.last_prompt: str | None = None
+        self.last_extra_images: list[tuple[str, bytes]] | None = None
 
-    def analyze_ticket_image(self, image_bytes: bytes, prompt: str) -> ScanExtractionResult:
+    def analyze_ticket_image(
+        self,
+        image_bytes: bytes,
+        prompt: str,
+        *,
+        extra_images: list[tuple[str, bytes]] | None = None,
+    ) -> ScanExtractionResult:
         self.last_prompt = prompt
+        self.last_extra_images = extra_images
         return self._result
 
 
