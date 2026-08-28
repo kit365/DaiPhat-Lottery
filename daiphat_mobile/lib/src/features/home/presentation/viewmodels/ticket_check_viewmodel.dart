@@ -12,7 +12,7 @@ final ticketCheckApiServiceProvider = Provider<TicketCheckApiService>((ref) {
 
 class TicketCheckState {
   const TicketCheckState({
-    required this.selectedDate,
+    this.selectedDate,
     this.stations = const [],
     this.selectedStationId,
     this.ticketNumber = '',
@@ -26,7 +26,7 @@ class TicketCheckState {
     this.numberError,
   });
 
-  final DateTime selectedDate;
+  final DateTime? selectedDate;
   final List<LotteryStationDraw> stations;
   final int? selectedStationId;
   final String ticketNumber;
@@ -88,25 +88,12 @@ class TicketCheckState {
   }
 }
 
-DateTime _defaultCheckDate() {
-  final now = DateTime.now();
-  final isBeforeResults =
-      now.hour < 16 || (now.hour == 16 && now.minute < 40);
-  if (isBeforeResults) {
-    return DateTime(now.year, now.month, now.day)
-        .subtract(const Duration(days: 1));
-  }
-  return DateTime(now.year, now.month, now.day);
-}
-
 class TicketCheckViewModel extends Notifier<TicketCheckState> {
   TicketCheckApiService get _api => ref.read(ticketCheckApiServiceProvider);
 
   @override
   TicketCheckState build() {
-    final date = _defaultCheckDate();
-    Future.microtask(() => loadStations(date));
-    return TicketCheckState(selectedDate: date);
+    return const TicketCheckState();
   }
 
   Future<void> loadStations(DateTime date) async {
@@ -176,6 +163,11 @@ class TicketCheckViewModel extends Notifier<TicketCheckState> {
       clearErrorMessage: true,
     );
 
+    if (state.selectedDate == null) {
+      state = state.copyWith(dateError: 'Vui lòng chọn ngày quay.');
+      return;
+    }
+
     if (state.selectedStationId == null) {
       state = state.copyWith(stationError: 'Vui lòng chọn đài quay.');
       return;
@@ -202,7 +194,7 @@ class TicketCheckViewModel extends Notifier<TicketCheckState> {
     try {
       final result = await _api.checkWinning(
         stationId: state.selectedStationId!,
-        drawDate: state.selectedDate,
+        drawDate: state.selectedDate!,
         ticketNumber: number,
       );
       state = state.copyWith(

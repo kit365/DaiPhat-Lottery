@@ -146,6 +146,8 @@ class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
       quantity: 1,
       unitPrice: ticket.price ?? 0,
       logoText: ticket.shortName,
+      ticketImageUrl: ticket.imageUrl,
+      drawDateIso: SellableDrawDate.toIsoDate(ticket.drawDate),
       maxStock: maxStock,
     );
 
@@ -1413,6 +1415,8 @@ class _TicketDetailViewState extends ConsumerState<TicketDetailView> {
       quantity: 1,
       unitPrice: ticket.price ?? 0,
       logoText: ticket.shortName,
+      ticketImageUrl: ticket.imageUrl,
+      drawDateIso: SellableDrawDate.toIsoDate(ticket.drawDate),
       maxStock: maxStock,
     );
   }
