@@ -12,6 +12,7 @@ import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import 'package:daiphat_mobile/src/shared/utils/auth_navigation.dart';
+import 'package:daiphat_mobile/src/shared/widgets/app_header_action_button.dart';
 import 'package:daiphat_mobile/src/shared/widgets/brand_scrollbar.dart';
 import 'package:daiphat_mobile/src/features/cart/models/cart_item_model.dart';
 import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
@@ -906,8 +907,6 @@ class _ProvinceFilterStrip extends StatelessWidget {
   }
 }
 
-
-
 class _AllTicketsPage extends ConsumerStatefulWidget {
   const _AllTicketsPage({
     required this.onOpenDetail,
@@ -1086,24 +1085,10 @@ class _AllTicketsHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
       child: Row(
         children: [
-          Material(
-            color: Colors.white,
-            shape: const CircleBorder(),
-            elevation: 4,
-            shadowColor: Colors.black.withValues(alpha: 0.16),
-            child: InkWell(
-              onTap: onBack,
-              customBorder: const CircleBorder(),
-              child: const SizedBox(
-                width: 52,
-                height: 52,
-                child: Icon(
-                  Icons.arrow_back_ios_new_rounded,
-                  color: AppColors.primary,
-                  size: 22,
-                ),
-              ),
-            ),
+          AppHeaderActionButton(
+            icon: Icons.arrow_back_ios_new_rounded,
+            tooltip: 'Quay lại',
+            onTap: onBack,
           ),
           Expanded(
             child: Text(
@@ -1123,14 +1108,16 @@ class _AllTicketsHeader extends StatelessWidget {
               final count = ref.watch(cartTicketCountProvider);
               return Row(
                 children: [
-                  _HeaderSquareButton(
+                  AppHeaderActionButton(
                     icon: Icons.shopping_cart_outlined,
-                    onTap: () => context.push(AppRoute.cart.path),
+                    tooltip: 'Giỏ hàng',
                     badgeCount: count,
+                    onTap: () => context.push(AppRoute.cart.path),
                   ),
-                  const SizedBox(width: 10),
-                  _HeaderSquareButton(
+                  const SizedBox(width: 8),
+                  AppHeaderActionButton(
                     icon: Icons.chat_bubble_outline_rounded,
+                    tooltip: 'Trò chuyện / Hỗ trợ',
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute<void>(
@@ -2353,8 +2340,9 @@ class _BuyTicketHeader extends StatelessWidget {
               // Row 1: Back | Title | Cart | Chat
               Row(
                 children: [
-                  _HeaderSquareButton(
+                  AppHeaderActionButton(
                     icon: Icons.arrow_back_ios_new_rounded,
+                    tooltip: 'Quay lại',
                     onTap: onBack,
                   ),
                   Expanded(
@@ -2382,27 +2370,27 @@ class _BuyTicketHeader extends StatelessWidget {
                       final count = ref.watch(cartTicketCountProvider);
                       return Row(
                         children: [
-                          _HeaderSquareButton(
-                            icon: Icons.shopping_bag_outlined,
-                            onTap: onOpenCart,
+                          AppHeaderActionButton(
+                            icon: Icons.shopping_cart_outlined,
+                            tooltip: 'Giỏ hàng',
                             badgeCount: count,
+                            onTap: onOpenCart,
                           ),
-                          Padding(
-                            padding: const EdgeInsets.only(left: 8),
-                            child: _HeaderSquareButton(
-                              icon: Icons.chat_outlined,
-                              onTap: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute<void>(
-                                    builder: (_) => ChatScreen(
-                                      isAuthenticated: true,
-                                      isActive: true,
-                                      onBack: () => Navigator.of(context).pop(),
-                                    ),
+                          const SizedBox(width: 8),
+                          AppHeaderActionButton(
+                            icon: Icons.chat_bubble_outline_rounded,
+                            tooltip: 'Trò chuyện / Hỗ trợ',
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => ChatScreen(
+                                    isAuthenticated: true,
+                                    isActive: true,
+                                    onBack: () => Navigator.of(context).pop(),
                                   ),
-                                );
-                              },
-                            ),
+                                ),
+                              );
+                            },
                           ),
                         ],
                       );
@@ -2422,143 +2410,17 @@ class _BuyTicketHeader extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  _FilterSquareButton(
+                  AppHeaderActionButton(
+                    icon: Icons.tune_rounded,
+                    tooltip: 'Bộ lọc',
+                    badgeCount: filterCount,
                     onTap: onOpenFilter,
-                    filterCount: filterCount,
                   ),
                 ],
               ),
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _FilterSquareButton extends StatelessWidget {
-  const _FilterSquareButton({required this.onTap, this.filterCount = 0});
-
-  final VoidCallback onTap;
-  final int filterCount;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x10000000),
-                  blurRadius: 8,
-                  offset: Offset(0, 2),
-                ),
-              ],
-            ),
-            child: const Icon(
-              Icons.tune_rounded,
-              color: AppColors.primary,
-              size: 20,
-            ),
-          ),
-          if (filterCount > 0)
-            Positioned(
-              right: -3,
-              top: -3,
-              child: Container(
-                constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.goldDark,
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: Colors.white, width: 1.5),
-                ),
-                child: Center(
-                  child: Text(
-                    '$filterCount',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeaderSquareButton extends StatelessWidget {
-  const _HeaderSquareButton({
-    required this.icon,
-    required this.onTap,
-    this.badgeCount = 0,
-  });
-
-  final IconData icon;
-  final VoidCallback onTap;
-  final int badgeCount;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(999),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Icon(icon, color: AppColors.primary, size: 20),
-          ),
-          if (badgeCount > 0)
-            Positioned(
-              right: -4,
-              top: -4,
-              child: Container(
-                constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.goldDark,
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: Colors.white, width: 1.5),
-                ),
-                child: Center(
-                  child: Text(
-                    '$badgeCount',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
       ),
     );
   }

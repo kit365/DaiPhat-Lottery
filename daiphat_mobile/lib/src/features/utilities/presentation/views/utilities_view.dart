@@ -6,6 +6,7 @@ import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
 import 'package:daiphat_mobile/src/features/chat/presentation/views/chat_screen.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/widgets/app_header_action_button.dart';
 
 class UtilitiesView extends ConsumerWidget {
   const UtilitiesView({
@@ -100,7 +101,8 @@ class UtilitiesView extends ConsumerWidget {
                   _UtilityCard(
                     icon: Icons.article_outlined,
                     title: 'Tin tức',
-                    subtitle: 'Cập nhật tin tức, sự kiện và khuyến mãi mới nhất',
+                    subtitle:
+                        'Cập nhật tin tức, sự kiện và khuyến mãi mới nhất',
                     actionLabel: 'Đọc ngay',
                     onTap: onOpenBlog,
                   ),
@@ -135,91 +137,31 @@ class _UtilitiesHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const Spacer(),
-        const Text(
-          'Tiện ích',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 24,
-            fontWeight: FontWeight.w900,
+        const SizedBox(width: 88),
+        const Expanded(
+          child: Text(
+            'Tiện ích',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+            ),
           ),
         ),
-        const Spacer(),
-        _RoundActionButton(
+        AppHeaderActionButton(
           icon: Icons.shopping_cart_outlined,
-          badge: cartCount,
+          tooltip: 'Giỏ hàng',
+          badgeCount: cartCount,
           onTap: onCartTap,
         ),
-        const SizedBox(width: 10),
-        _RoundActionButton(
+        const SizedBox(width: 8),
+        AppHeaderActionButton(
           icon: Icons.chat_bubble_outline_rounded,
+          tooltip: 'Trò chuyện / Hỗ trợ',
           onTap: onChatTap,
         ),
       ],
-    );
-  }
-}
-
-class _RoundActionButton extends StatelessWidget {
-  const _RoundActionButton({
-    required this.icon,
-    required this.onTap,
-    this.badge = 0,
-  });
-
-  final IconData icon;
-  final VoidCallback onTap;
-  final int badge;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.12),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: Icon(icon, color: AppColors.primary, size: 26),
-          ),
-          if (badge > 0)
-            Positioned(
-              right: -2,
-              top: -4,
-              child: Container(
-                constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
-                padding: const EdgeInsets.symmetric(horizontal: 5),
-                decoration: BoxDecoration(
-                  color: AppColors.goldDark,
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: Colors.white, width: 1.5),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  badge > 99 ? '99+' : '$badge',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    height: 1,
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
     );
   }
 }
@@ -558,7 +500,10 @@ class _SupportBanner extends StatelessWidget {
                 color: Color(0xFFFFD33F),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.chevron_right_rounded, color: Colors.white),
+              child: const Icon(
+                Icons.chevron_right_rounded,
+                color: Colors.white,
+              ),
             ),
           ],
         ),
