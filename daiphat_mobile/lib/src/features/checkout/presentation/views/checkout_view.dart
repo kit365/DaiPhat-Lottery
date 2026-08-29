@@ -318,8 +318,6 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                 const SizedBox(height: 24),
 
                 // ─── TÓM TẮT ĐƠN HÀNG ─────────────────────────
-                _buildSectionTitle('Tóm tắt đơn hàng'),
-                const SizedBox(height: 12),
                 _buildOrderSummary(cartTicketCount, cartSubtotal, cartTotal),
                 const SizedBox(height: 16),
 
@@ -357,25 +355,6 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                     ),
                   ),
 
-                const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.verified_user_rounded,
-                      color: Color(0xFF22C55E),
-                      size: 18,
-                    ),
-                    SizedBox(width: 8),
-                    Text(
-                      'Giao dịch được bảo mật và mã hóa an toàn',
-                      style: TextStyle(
-                        color: Color(0xFF6B7280),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
                 const SizedBox(height: 8),
               ],
             ),
@@ -440,98 +419,57 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
         : null;
 
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: _cardDecoration(),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TextField(
+          _CheckoutTextFieldRow(
+            icon: Icons.person_outline_rounded,
+            label: 'Họ và tên *',
+            hintText: 'Nhập họ và tên',
             controller: _nameController,
+            errorText: nameError,
+            textInputAction: TextInputAction.next,
             onChanged: (v) {
               setState(() => _nameTouched = true);
               ref.read(checkoutProvider.notifier).setName(v);
             },
-            decoration: InputDecoration(
-              labelText: 'Họ và tên *',
-              hintText: 'Nhập họ và tên',
-              prefixIcon: const Icon(Icons.person_outline),
-              errorText: nameError,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: nameError != null ? Colors.red : const Color(0xFFE5E7EB),
-                ),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: nameError != null ? Colors.red : AppColors.primary,
-                  width: 1.5,
-                ),
-              ),
-            ),
-            textInputAction: TextInputAction.next,
           ),
-          const SizedBox(height: 12),
-          TextField(
+          const Divider(height: 1, color: Color(0xFFEDEFF3)),
+          _CheckoutTextFieldRow(
+            icon: Icons.phone_outlined,
+            label: 'Số điện thoại *',
+            hintText: 'Nhập số điện thoại',
             controller: _phoneController,
+            errorText: phoneError,
+            keyboardType: TextInputType.phone,
+            textInputAction: TextInputAction.next,
             onChanged: (v) {
               setState(() => _phoneTouched = true);
               ref.read(checkoutProvider.notifier).setPhone(v);
             },
-            decoration: InputDecoration(
-              labelText: 'Số điện thoại *',
-              hintText: 'Nhập số điện thoại',
-              prefixIcon: const Icon(Icons.phone_outlined),
-              errorText: phoneError,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: phoneError != null ? Colors.red : const Color(0xFFE5E7EB),
-                ),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: phoneError != null ? Colors.red : AppColors.primary,
-                  width: 1.5,
-                ),
-              ),
+          ),
+          const Divider(height: 1, color: Color(0xFFEDEFF3)),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: CheckoutDateTimePicker(
+              value: state.expectedPickupAt,
+              errorText: timeError,
+              embedded: true,
+              onChanged: (iso) {
+                ref.read(checkoutProvider.notifier).setExpectedPickupAt(iso);
+              },
             ),
-            keyboardType: TextInputType.phone,
-            textInputAction: TextInputAction.next,
           ),
-          const SizedBox(height: 16),
-          CheckoutDateTimePicker(
-            value: state.expectedPickupAt,
-            errorText: timeError,
-            onChanged: (iso) {
-              ref.read(checkoutProvider.notifier).setExpectedPickupAt(iso);
-            },
-          ),
-          const SizedBox(height: 12),
-          TextField(
+          const Divider(height: 1, color: Color(0xFFEDEFF3)),
+          _CheckoutTextFieldRow(
+            icon: Icons.note_alt_outlined,
+            label: 'Ghi chú (nếu có)',
+            hintText: 'Thêm ghi chú',
             controller: _noteController,
-            onChanged: (v) => ref.read(checkoutProvider.notifier).setNote(v),
-            decoration: InputDecoration(
-              labelText: 'Ghi chú',
-              hintText: 'VD: Tới lấy vào giờ nghỉ trưa...',
-              prefixIcon: const Icon(Icons.note_alt_outlined),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
-              ),
-            ),
             textInputAction: TextInputAction.done,
             minLines: 1,
             maxLines: 3,
+            onChanged: (v) => ref.read(checkoutProvider.notifier).setNote(v),
           ),
         ],
       ),
@@ -833,9 +771,10 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
       border: Border.all(color: const Color(0xFFF1F3F5)),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.03),
-          blurRadius: 10,
-          offset: const Offset(0, 4),
+          color: const Color(0xFF12213D).withValues(alpha: 0.08),
+          blurRadius: 22,
+          spreadRadius: -10,
+          offset: const Offset(0, 10),
         ),
       ],
     );
@@ -877,6 +816,86 @@ class _CheckoutSecureHint extends StatelessWidget {
   }
 }
 
+class _CheckoutTextFieldRow extends StatelessWidget {
+  const _CheckoutTextFieldRow({
+    required this.icon,
+    required this.label,
+    required this.hintText,
+    required this.controller,
+    required this.onChanged,
+    this.errorText,
+    this.keyboardType,
+    this.textInputAction,
+    this.minLines = 1,
+    this.maxLines = 1,
+  });
+
+  final IconData icon;
+  final String label;
+  final String hintText;
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+  final String? errorText;
+  final TextInputType? keyboardType;
+  final TextInputAction? textInputAction;
+  final int minLines;
+  final int maxLines;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 48,
+            height: 48,
+            child: Icon(icon, color: const Color(0xFF15213B), size: 27),
+          ),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              onChanged: onChanged,
+              keyboardType: keyboardType,
+              textInputAction: textInputAction,
+              minLines: minLines,
+              maxLines: maxLines,
+              style: const TextStyle(
+                color: Color(0xFF15213B),
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+              ),
+              decoration: InputDecoration(
+                labelText: label,
+                hintText: hintText,
+                errorText: errorText,
+                isDense: true,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                errorBorder: InputBorder.none,
+                focusedErrorBorder: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+                labelStyle: const TextStyle(
+                  color: Color(0xFF8B94A3),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+                hintStyle: const TextStyle(
+                  color: AppColors.loginPlaceholder,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ─── Cart Item Card ─────────────────────────────────────────────────────────
 class _CartItemCard extends StatelessWidget {
   final CartItemData item;
@@ -890,6 +909,14 @@ class _CartItemCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFFEDEFF3)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF12213D).withValues(alpha: 0.07),
+            blurRadius: 20,
+            spreadRadius: -10,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: Row(
         children: [
