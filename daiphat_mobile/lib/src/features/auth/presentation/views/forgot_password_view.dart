@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import '../viewmodels/forgot_password_viewmodel.dart';
 
@@ -161,7 +161,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
         children: [
           _buildHeader('Quên mật khẩu'),
           const SizedBox(height: 12),
-          Text('Vui lòng nhập email đã đăng ký để nhận mã OTP.', textAlign: TextAlign.center, style: GoogleFonts.publicSans(fontSize: 14, color: AppColors.textMuted)),
+          Text('Vui lòng nhập email đã đăng ký để nhận mã OTP.', textAlign: TextAlign.center, style: AppTypography.main(const TextStyle(fontSize: 14, color: AppColors.textMuted))),
           const SizedBox(height: 24),
           _buildLabel('Email *'),
           const SizedBox(height: 8),
@@ -185,7 +185,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
         children: [
           _buildHeader('Xác thực OTP'),
           const SizedBox(height: 12),
-          Text('Nhập mã OTP gồm 6 chữ số được gửi đến email ${widget.viewModel.email}', textAlign: TextAlign.center, style: GoogleFonts.publicSans(fontSize: 14, color: AppColors.textMuted)),
+          Text('Nhập mã OTP gồm 6 chữ số được gửi đến email ${widget.viewModel.email}', textAlign: TextAlign.center, style: AppTypography.main(const TextStyle(fontSize: 14, color: AppColors.textMuted))),
           const SizedBox(height: 24),
           _buildLabel('Mã OTP *'),
           const SizedBox(height: 8),
@@ -253,17 +253,17 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Text('~', style: TextStyle(color: AppColors.loginGold, fontSize: 24, fontWeight: FontWeight.bold)),
+        Text('~', style: AppTypography.display(const TextStyle(color: AppColors.loginGold, fontSize: 24, fontWeight: FontWeight.bold))),
         const SizedBox(width: 8),
-        Text(title, style: GoogleFonts.publicSans(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.loginTitle)),
+        Text(title, style: AppTypography.display(const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.loginTitle))),
         const SizedBox(width: 8),
-        const Text('~', style: TextStyle(color: AppColors.loginGold, fontSize: 24, fontWeight: FontWeight.bold)),
+        Text('~', style: AppTypography.display(const TextStyle(color: AppColors.loginGold, fontSize: 24, fontWeight: FontWeight.bold))),
       ],
     );
   }
 
   Widget _buildLabel(String text) {
-    return Text(text, style: GoogleFonts.publicSans(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.loginLabel));
+    return Text(text, style: AppTypography.main(const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.loginLabel)));
   }
 
   Widget _buildSubmitButton(String text, VoidCallback onPressed) {
@@ -278,7 +278,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
       ),
       child: widget.viewModel.isLoading
           ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-          : Text(text, style: GoogleFonts.publicSans(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+          : Text(text, style: AppTypography.main(const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.5))),
     );
   }
 
@@ -296,10 +296,10 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
       obscureText: obscureText,
       keyboardType: keyboardType,
       validator: validator,
-      style: GoogleFonts.publicSans(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.loginTitle),
+      style: AppTypography.main(const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.loginTitle)),
       decoration: InputDecoration(
         hintText: hintText,
-        hintStyle: GoogleFonts.publicSans(fontSize: 15, color: AppColors.loginPlaceholder),
+        hintStyle: AppTypography.main(const TextStyle(fontSize: 15, color: AppColors.loginPlaceholder)),
         prefixIcon: Icon(prefixIcon, color: AppColors.loginPlaceholder, size: 20),
         suffixIcon: suffixIcon,
         filled: true,
@@ -313,4 +313,3 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
     );
   }
 }
-

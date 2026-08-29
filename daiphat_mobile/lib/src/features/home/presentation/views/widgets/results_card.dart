@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'package:daiphat_mobile/src/features/home/data/models/lottery_result.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 
 class ResultsCard extends StatefulWidget {
   final List<LotteryResult> results;
@@ -25,7 +25,7 @@ class ResultsCard extends StatefulWidget {
 }
 
 class _ResultsCardState extends State<ResultsCard> {
-  String _displayType = 'DAY DU';
+  String _displayType = 'ĐẦY ĐỦ';
   final Set<String> _digits = <String>{};
 
   @override
@@ -79,11 +79,13 @@ class _ResultsCardState extends State<ResultsCard> {
               border: Border(right: BorderSide(color: AppColors.cardBorder)),
             ),
             child: Text(
-              'Giai',
-              style: GoogleFonts.publicSans(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textMuted,
+              'Giải',
+              style: AppTypography.main(
+                const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textMuted,
+                ),
               ),
             ),
           ),
@@ -102,10 +104,12 @@ class _ResultsCardState extends State<ResultsCard> {
                   textAlign: TextAlign.center,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.publicSans(
-                    fontSize: provinces.length > 3 ? 9 : 11,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.primary,
+                  style: AppTypography.main(
+                    TextStyle(
+                      fontSize: provinces.length > 3 ? 9 : 11,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primary,
+                    ),
                   ),
                 ),
               ),
@@ -154,13 +158,15 @@ class _ResultsCardState extends State<ResultsCard> {
                     const Icon(Icons.star_rounded, color: Color(0xFFFFD54F), size: 22),
                     const SizedBox(height: 4),
                     Text(
-                      'Giai\nDAC BIET',
+                      'Giải\nĐẶC BIỆT',
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.barlow(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        height: 1.3,
+                      style: AppTypography.display(
+                        const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          height: 1.3,
+                        ),
                       ),
                     ),
                   ],
@@ -175,12 +181,14 @@ class _ResultsCardState extends State<ResultsCard> {
                 ),
                 alignment: Alignment.center,
                 child: Text(
-                  'Dac biet',
+                  'Đặc biệt',
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.publicSans(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
+                  style: AppTypography.main(
+                    const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
                   ),
                 ),
               ),
@@ -190,11 +198,13 @@ class _ResultsCardState extends State<ResultsCard> {
                       padding: const EdgeInsets.symmetric(vertical: 22),
                       child: _renderNumber(
                         _specialValue(singleResult),
-                        GoogleFonts.barlow(
-                          fontSize: 36,
-                          fontWeight: FontWeight.w900,
-                          color: AppColors.primary,
-                          letterSpacing: -1,
+                        AppTypography.number(
+                          const TextStyle(
+                            fontSize: 36,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.primary,
+                            letterSpacing: -1,
+                          ),
                         ),
                       ),
                     )
@@ -214,10 +224,12 @@ class _ResultsCardState extends State<ResultsCard> {
                             alignment: Alignment.center,
                             child: _renderNumber(
                               _specialValue(result),
-                              GoogleFonts.barlow(
-                                fontSize: provinces.length > 3 ? 18 : 22,
-                                fontWeight: FontWeight.w900,
-                                color: AppColors.primary,
+                              AppTypography.number(
+                                TextStyle(
+                                  fontSize: provinces.length > 3 ? 18 : 22,
+                                  fontWeight: FontWeight.w900,
+                                  color: AppColors.primary,
+                                ),
                               ),
                             ),
                           ),
@@ -274,10 +286,12 @@ class _ResultsCardState extends State<ResultsCard> {
                   child: Text(
                     row.label,
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.publicSans(
-                      fontSize: isSingle ? 11 : 10,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
+                    style: AppTypography.main(
+                      TextStyle(
+                        fontSize: isSingle ? 11 : 10,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                      ),
                     ),
                   ),
                 ),
@@ -290,11 +304,13 @@ class _ResultsCardState extends State<ResultsCard> {
                       LotteryPrizeRow(label: row.label, values: const []);
                   final values = provinceRow.values.isEmpty ? ['--'] : provinceRow.values;
 
-                  final baseStyle = GoogleFonts.barlow(
-                    fontSize: row.highlight ? (isSingle ? 18 : 14) : (isSingle ? 15 : 12),
-                    fontWeight: row.highlight ? FontWeight.w800 : FontWeight.w600,
-                    color: row.highlight ? AppColors.primary : AppColors.textMain,
-                    height: 1.6,
+                  final baseStyle = AppTypography.number(
+                    TextStyle(
+                      fontSize: row.highlight ? (isSingle ? 18 : 14) : (isSingle ? 15 : 12),
+                      fontWeight: row.highlight ? FontWeight.w800 : FontWeight.w600,
+                      color: row.highlight ? AppColors.primary : AppColors.textMain,
+                      height: 1.6,
+                    ),
                   );
 
                   return Expanded(
@@ -332,40 +348,60 @@ class _ResultsCardState extends State<ResultsCard> {
       ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        // Keep the filter bar's original 48dp height while each control gets
+        // a 44dp interaction envelope around its existing visual.
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
         child: Row(
           children: [
-            _typeButton('DAY DU'),
+            _typeButton('ĐẦY ĐỦ'),
             _divider(),
-            _typeButton('2 SO'),
+            _typeButton('2 SỐ'),
             _divider(),
-            _typeButton('3 SO'),
+            _typeButton('3 SỐ'),
             _divider(),
             ...List.generate(10, (index) {
               final value = '$index';
               final enabled = _digits.contains(value);
-              return GestureDetector(
+              return Semantics(
+                button: true,
+                selected: enabled,
+                label: 'Lọc kết quả theo số $value',
                 onTap: () => setState(() {
                   enabled ? _digits.remove(value) : _digits.add(value);
                 }),
-                child: Container(
-                  margin: const EdgeInsets.only(right: 6),
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    color: enabled ? const Color(0xFFFDE047) : Colors.white,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: enabled ? const Color(0xFFFDE047) : AppColors.cardBorder,
-                    ),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    value,
-                    style: GoogleFonts.publicSans(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textMain,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => setState(() {
+                    enabled ? _digits.remove(value) : _digits.add(value);
+                  }),
+                  child: SizedBox(
+                    width: 44,
+                    height: 44,
+                    child: Center(
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: enabled ? const Color(0xFFFDE047) : Colors.white,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: enabled
+                                ? const Color(0xFFFDE047)
+                                : AppColors.cardBorder,
+                          ),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          value,
+                          style: AppTypography.main(
+                            const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textMain,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -379,14 +415,28 @@ class _ResultsCardState extends State<ResultsCard> {
 
   Widget _typeButton(String value) {
     final selected = _displayType == value;
-    return GestureDetector(
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: 'Lọc kết quả: $value',
       onTap: () => setState(() => _displayType = value),
-      child: Text(
-        value,
-        style: GoogleFonts.barlow(
-          fontSize: 13,
-          fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
-          color: selected ? AppColors.primary : AppColors.textMuted,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => setState(() => _displayType = value),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+          child: Center(
+            child: Text(
+              value,
+              style: AppTypography.main(
+                TextStyle(
+                  fontSize: 13,
+                  fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
+                  color: selected ? AppColors.primary : AppColors.textMuted,
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -404,18 +454,18 @@ class _ResultsCardState extends State<ResultsCard> {
     if (value.isNotEmpty) {
       return value;
     }
-    return widget.isWaitingForResults ? 'Dang cho' : '--';
+    return widget.isWaitingForResults ? 'Đang chờ' : '--';
   }
 
   Widget _renderNumber(String fullNumber, TextStyle baseStyle) {
-    if (fullNumber == '--' || fullNumber == 'Dang cho') {
+    if (fullNumber == '--' || fullNumber == 'Đang chờ') {
       return Text(fullNumber, textAlign: TextAlign.center, style: baseStyle);
     }
 
     var displayNum = fullNumber;
-    if (_displayType == '2 SO' && fullNumber.length >= 2) {
+    if (_displayType == '2 SỐ' && fullNumber.length >= 2) {
       displayNum = fullNumber.substring(fullNumber.length - 2);
-    } else if (_displayType == '3 SO' && fullNumber.length >= 3) {
+    } else if (_displayType == '3 SỐ' && fullNumber.length >= 3) {
       displayNum = fullNumber.substring(fullNumber.length - 3);
     }
 
@@ -450,13 +500,15 @@ class _ResultsCardState extends State<ResultsCard> {
             ),
           TextSpan(
             text: lotoPart,
-            style: GoogleFonts.barlow(
-              fontSize: baseStyle.fontSize,
-              backgroundColor: const Color(0xFFFDE047),
-              color: const Color(0xFFEE1314),
-              fontWeight: FontWeight.w900,
-              height: baseStyle.height,
-              letterSpacing: baseStyle.letterSpacing,
+            style: AppTypography.number(
+              TextStyle(
+                fontSize: baseStyle.fontSize,
+                backgroundColor: const Color(0xFFFDE047),
+                color: const Color(0xFFEE1314),
+                fontWeight: FontWeight.w900,
+                height: baseStyle.height,
+                letterSpacing: baseStyle.letterSpacing,
+              ),
             ),
           ),
         ],

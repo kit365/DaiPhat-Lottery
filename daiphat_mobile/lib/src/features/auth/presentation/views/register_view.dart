@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import '../viewmodels/register_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/auth/data/dto/register_request.dart';
@@ -129,10 +129,10 @@ class _RegisterViewState extends State<RegisterView> {
                                     Row(
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
-                                        Text('Đã có tài khoản? ', style: GoogleFonts.publicSans(fontSize: 14, color: const Color(0xFF666666), fontWeight: FontWeight.w500)),
+                                        Text('Đã có tài khoản? ', style: AppTypography.main(const TextStyle(fontSize: 14, color: Color(0xFF666666), fontWeight: FontWeight.w500))),
                                         GestureDetector(
                                           onTap: () => context.go(AppRoute.login.path),
-                                          child: Text('Đăng nhập', style: GoogleFonts.publicSans(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.loginPrimary)),
+                                          child: Text('Đăng nhập', style: AppTypography.main(const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.loginPrimary))),
                                         ),
                                       ],
                                     ),
@@ -204,11 +204,11 @@ class _RegisterViewState extends State<RegisterView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Bước 1/2', textAlign: TextAlign.center, style: GoogleFonts.publicSans(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.loginPlaceholder)),
+          Text('Bước 1/2', textAlign: TextAlign.center, style: AppTypography.main(const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.loginPlaceholder))),
           const SizedBox(height: 8),
-          Text('Tạo tài khoản', textAlign: TextAlign.center, style: GoogleFonts.publicSans(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.loginPrimary)),
+          Text('Tạo tài khoản', textAlign: TextAlign.center, style: AppTypography.display(const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.loginPrimary))),
           const SizedBox(height: 4),
-          Text('Nhập thông tin cơ bản để bắt đầu', textAlign: TextAlign.center, style: GoogleFonts.publicSans(fontSize: 14, color: AppColors.loginLabel)),
+          Text('Nhập thông tin cơ bản để bắt đầu', textAlign: TextAlign.center, style: AppTypography.main(const TextStyle(fontSize: 14, color: AppColors.loginLabel))),
           const SizedBox(height: 24),
           _buildLabel('Tên đăng nhập *'),
           const SizedBox(height: 8),
@@ -274,7 +274,7 @@ class _RegisterViewState extends State<RegisterView> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               padding: const EdgeInsets.symmetric(vertical: 16),
             ),
-            child: Text('Tiếp tục', style: GoogleFonts.publicSans(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+            child: Text('Tiếp tục', style: AppTypography.main(const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.5))),
           ),
         ],
       ),
@@ -287,11 +287,11 @@ class _RegisterViewState extends State<RegisterView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Bước 2/2', textAlign: TextAlign.center, style: GoogleFonts.publicSans(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.loginPlaceholder)),
+          Text('Bước 2/2', textAlign: TextAlign.center, style: AppTypography.main(const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.loginPlaceholder))),
           const SizedBox(height: 8),
-          Text('Bảo mật tài khoản', textAlign: TextAlign.center, style: GoogleFonts.publicSans(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.loginPrimary)),
+          Text('Bảo mật tài khoản', textAlign: TextAlign.center, style: AppTypography.display(const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.loginPrimary))),
           const SizedBox(height: 4),
-          Text('Tạo mật khẩu để bảo vệ tài khoản', textAlign: TextAlign.center, style: GoogleFonts.publicSans(fontSize: 14, color: AppColors.loginLabel)),
+          Text('Tạo mật khẩu để bảo vệ tài khoản', textAlign: TextAlign.center, style: AppTypography.main(const TextStyle(fontSize: 14, color: AppColors.loginLabel))),
           const SizedBox(height: 24),
           _buildLabel('Mật khẩu *'),
           const SizedBox(height: 8),
@@ -315,7 +315,7 @@ class _RegisterViewState extends State<RegisterView> {
           ),
           Padding(
             padding: const EdgeInsets.only(top: 8, left: 4),
-            child: Text('Tối thiểu 6 ký tự, bắt đầu bằng chữ hoa, không khoảng trắng', style: GoogleFonts.publicSans(fontSize: 12, color: AppColors.loginPlaceholder)),
+            child: Text('Tối thiểu 6 ký tự, bắt đầu bằng chữ hoa, không khoảng trắng', style: AppTypography.main(const TextStyle(fontSize: 12, color: AppColors.loginPlaceholder))),
           ),
           const SizedBox(height: 16),
           _buildLabel('Nhập lại mật khẩu *'),
@@ -343,7 +343,7 @@ class _RegisterViewState extends State<RegisterView> {
                 activeColor: AppColors.loginPrimary,
               ),
               Expanded(
-                child: Text('Tôi đồng ý với Điều khoản sử dụng', style: GoogleFonts.publicSans(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.loginPrimary)),
+                child: Text('Tôi đồng ý với Điều khoản sử dụng', style: AppTypography.main(const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.loginPrimary))),
               ),
             ],
           ),
@@ -358,7 +358,7 @@ class _RegisterViewState extends State<RegisterView> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     side: const BorderSide(color: AppColors.loginPrimary),
                   ),
-                  child: Text('Quay lại', style: GoogleFonts.publicSans(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.loginPrimary)),
+                  child: Text('Quay lại', style: AppTypography.main(const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.loginPrimary))),
                 ),
               ),
               const SizedBox(width: 16),
@@ -374,7 +374,7 @@ class _RegisterViewState extends State<RegisterView> {
                   ),
                   child: widget.viewModel.isLoading
                       ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                      : Text('Đăng ký', style: GoogleFonts.publicSans(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+                      : Text('Đăng ký', style: AppTypography.main(const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.5))),
                 ),
               ),
             ],
@@ -385,7 +385,7 @@ class _RegisterViewState extends State<RegisterView> {
   }
 
   Widget _buildLabel(String text) {
-    return Text(text, style: GoogleFonts.publicSans(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.loginLabel));
+    return Text(text, style: AppTypography.main(const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.loginLabel)));
   }
 
   Widget _buildInput({
@@ -402,10 +402,10 @@ class _RegisterViewState extends State<RegisterView> {
       obscureText: obscureText,
       keyboardType: keyboardType,
       validator: validator,
-      style: GoogleFonts.publicSans(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.loginTitle),
+      style: AppTypography.main(const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.loginTitle)),
       decoration: InputDecoration(
         hintText: hintText,
-        hintStyle: GoogleFonts.publicSans(fontSize: 15, color: AppColors.loginPlaceholder),
+        hintStyle: AppTypography.main(const TextStyle(fontSize: 15, color: AppColors.loginPlaceholder)),
         prefixIcon: Icon(prefixIcon, color: AppColors.loginPlaceholder, size: 20),
         suffixIcon: suffixIcon,
         filled: true,
@@ -419,4 +419,3 @@ class _RegisterViewState extends State<RegisterView> {
     );
   }
 }
-

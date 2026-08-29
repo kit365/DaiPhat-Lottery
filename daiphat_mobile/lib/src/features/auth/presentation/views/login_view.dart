@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/login_viewmodel.dart';
 
@@ -116,30 +116,36 @@ class _LoginViewState extends State<LoginView> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Text(
+                                Text(
                                   '~',
-                                  style: TextStyle(
-                                    color: AppColors.loginGold,
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
+                                  style: AppTypography.display(
+                                    const TextStyle(
+                                      color: AppColors.loginGold,
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
                                   'Đăng nhập',
-                                  style: GoogleFonts.publicSans(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.loginTitle,
+                                  style: AppTypography.display(
+                                    const TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.loginTitle,
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                const Text(
+                                Text(
                                   '~',
-                                  style: TextStyle(
-                                    color: AppColors.loginGold,
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
+                                  style: AppTypography.display(
+                                    const TextStyle(
+                                      color: AppColors.loginGold,
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -147,10 +153,12 @@ class _LoginViewState extends State<LoginView> {
                             const SizedBox(height: 8),
                             Text(
                               'Chào mừng bạn quay trở lại!',
-                              style: GoogleFonts.publicSans(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                color: const Color(0xFF666666),
+                              style: AppTypography.main(
+                                const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: Color(0xFF666666),
+                                ),
                               ),
                               textAlign: TextAlign.center,
                             ),
@@ -172,10 +180,12 @@ class _LoginViewState extends State<LoginView> {
                                 ),
                                 child: Text(
                                   widget.viewModel.error!,
-                                  style: GoogleFonts.publicSans(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: const Color(0xFF7A1D1D),
+                                  style: AppTypography.main(
+                                    const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF7A1D1D),
+                                    ),
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
@@ -231,9 +241,11 @@ class _LoginViewState extends State<LoginView> {
                                 ),
                                 child: Text(
                                   'Quên mật khẩu?',
-                                  style: GoogleFonts.publicSans(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
+                                  style: AppTypography.main(
+                                    const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -280,9 +292,11 @@ class _LoginViewState extends State<LoginView> {
                                           const SizedBox(width: 8),
                                           Text(
                                             'Đăng nhập',
-                                            style: GoogleFonts.publicSans(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w700,
+                                            style: AppTypography.main(
+                                              const TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w700,
+                                              ),
                                             ),
                                           ),
                                         ],
@@ -303,9 +317,11 @@ class _LoginViewState extends State<LoginView> {
                                   ),
                                   child: Text(
                                     'hoặc',
-                                    style: GoogleFonts.publicSans(
-                                      fontSize: 13,
-                                      color: AppColors.loginPlaceholder,
+                                    style: AppTypography.main(
+                                      const TextStyle(
+                                        fontSize: 13,
+                                        color: AppColors.loginPlaceholder,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -323,8 +339,8 @@ class _LoginViewState extends State<LoginView> {
                                 width: 20,
                                 height: 20,
                               ),
-                              text: 'Đăng nhập với Google',
-                              onPressed: () {},
+                              text: 'Đăng nhập với Google · Sắp ra mắt',
+                              onPressed: null,
                             ),
                             const SizedBox(height: 24),
 
@@ -334,20 +350,24 @@ class _LoginViewState extends State<LoginView> {
                               children: [
                                 Text(
                                   'Chưa có tài khoản? ',
-                                  style: GoogleFonts.publicSans(
-                                    fontSize: 14,
-                                    color: const Color(0xFF666666),
-                                    fontWeight: FontWeight.w500,
+                                  style: AppTypography.main(
+                                    const TextStyle(
+                                      fontSize: 14,
+                                      color: Color(0xFF666666),
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
                                 ),
                                 GestureDetector(
                                   onTap: () => context.go(AppRoute.register.path),
                                   child: Text(
                                     'Đăng ký ngay',
-                                    style: GoogleFonts.publicSans(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.loginPrimary,
+                                    style: AppTypography.main(
+                                      const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.loginPrimary,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -371,25 +391,43 @@ class _LoginViewState extends State<LoginView> {
 
           // Nút Back (phải để dưới cùng của Stack để nổi lên trên cùng và nhận tap)
           Positioned(
-            top: MediaQuery.of(context).padding.top + 8,
-            left: 16,
-            child: GestureDetector(
+            top: MediaQuery.of(context).padding.top + 6,
+            left: 14,
+            child: Semantics(
+              button: true,
+              label: 'Quay lại trang trước',
               onTap: () => context.go(AppRoute.home.path),
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
+              child: ExcludeSemantics(
+                child: SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => context.go(AppRoute.home.path),
+                    child: Center(
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.arrow_back_rounded,
+                          color: AppColors.loginPrimary,
+                          size: 22,
+                        ),
+                      ),
                     ),
-                  ],
+                  ),
                 ),
-                child: const Icon(Icons.arrow_back_rounded, color: AppColors.loginPrimary, size: 22),
               ),
             ),
           ),
@@ -401,10 +439,12 @@ class _LoginViewState extends State<LoginView> {
   Widget _buildLabel(String text) {
     return Text(
       text,
-      style: GoogleFonts.publicSans(
-        fontSize: 14,
-        fontWeight: FontWeight.w700,
-        color: AppColors.loginLabel,
+      style: AppTypography.main(
+        const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w700,
+          color: AppColors.loginLabel,
+        ),
       ),
     );
   }
@@ -419,16 +459,20 @@ class _LoginViewState extends State<LoginView> {
     return TextField(
       controller: controller,
       obscureText: obscureText,
-      style: GoogleFonts.publicSans(
-        fontSize: 15,
-        fontWeight: FontWeight.w500,
-        color: AppColors.loginTitle,
+      style: AppTypography.main(
+        const TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+          color: AppColors.loginTitle,
+        ),
       ),
       decoration: InputDecoration(
         hintText: hintText,
-        hintStyle: GoogleFonts.publicSans(
-          fontSize: 15,
-          color: AppColors.loginPlaceholder,
+        hintStyle: AppTypography.main(
+          const TextStyle(
+            fontSize: 15,
+            color: AppColors.loginPlaceholder,
+          ),
         ),
         prefixIcon: Icon(prefixIcon, color: AppColors.loginPlaceholder, size: 20),
         suffixIcon: suffixIcon,
@@ -453,7 +497,7 @@ class _LoginViewState extends State<LoginView> {
   Widget _buildSocialButton({
     required Widget icon,
     required String text,
-    required VoidCallback onPressed,
+    required VoidCallback? onPressed,
   }) {
     return SizedBox(
       height: 52,
@@ -475,10 +519,12 @@ class _LoginViewState extends State<LoginView> {
               const SizedBox(width: 12),
               Text(
                 text,
-                style: GoogleFonts.publicSans(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.loginLabel,
+                style: AppTypography.main(
+                  const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.loginLabel,
+                  ),
                 ),
               ),
             ],
@@ -488,4 +534,3 @@ class _LoginViewState extends State<LoginView> {
     );
   }
 }
-

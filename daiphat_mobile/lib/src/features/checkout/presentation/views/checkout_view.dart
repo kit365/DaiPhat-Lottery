@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
@@ -7,6 +8,7 @@ import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
 import 'package:daiphat_mobile/src/features/cart/models/cart_item_model.dart';
 import '../../models/transaction_type.dart';
+import '../../data/system_config_service.dart';
 import '../providers/checkout_provider.dart';
 import '../widgets/checkout_datetime_picker.dart';
 
@@ -174,14 +176,13 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
               onRefresh: () async {
                 ref.invalidate(receiveTypesProvider);
                 ref.invalidate(transactionTypesProvider);
+                ref.invalidate(operatingHoursProvider);
                 await ref.read(checkoutProvider.notifier).loadUserProfile();
               },
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
                 children: [
-                const _CheckoutSecureHint(),
-                const SizedBox(height: 18),
                 // ─── 1. DANH SÁCH VÉ ──────────────────────────
                 _buildSectionTitle('Danh sách vé', number: 1),
                 const SizedBox(height: 10),
@@ -356,26 +357,6 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                       ),
                     ),
                   ),
-
-                const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.verified_user_rounded,
-                      color: Color(0xFF22C55E),
-                      size: 18,
-                    ),
-                    SizedBox(width: 8),
-                    Text(
-                      'Giao dịch được bảo mật và mã hóa an toàn',
-                      style: TextStyle(
-                        color: Color(0xFF6B7280),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
                 const SizedBox(height: 8),
               ],
             ),
@@ -438,6 +419,9 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
             (state.expectedPickupAt == null || state.expectedPickupAt!.isEmpty)
         ? 'Vui lòng chọn thời gian nhận vé'
         : null;
+
+    final opHours = ref.watch(operatingHoursProvider).asData?.value ??
+        const SiteOperatingHours();
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -507,6 +491,10 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
           CheckoutDateTimePicker(
             value: state.expectedPickupAt,
             errorText: timeError,
+            openHour: opHours.openHour,
+            closeHour: opHours.closeHour,
+            openTimeStr: opHours.openTime,
+            closeTimeStr: opHours.closeTime,
             onChanged: (iso) {
               ref.read(checkoutProvider.notifier).setExpectedPickupAt(iso);
             },
@@ -552,52 +540,63 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
             children: [
               if (types.indexOf(type) > 0)
                 const Divider(height: 1, color: Color(0xFFF1F3F5)),
-              InkWell(
-                borderRadius: BorderRadius.circular(16),
+              Semantics(
+                container: true,
+                button: true,
+                inMutuallyExclusiveGroup: true,
+                checked: isSelected,
+                label: type.label,
+                hint: isSelected ? 'Đã chọn' : 'Chọn phương thức nhận vé',
                 onTap: () => onSelect(type.value),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Icon(
-                        type.value == 'COUNTER_PICKUP'
-                            ? Icons.store_rounded
-                            : Icons.local_shipping_outlined,
-                        color: isSelected
-                            ? AppColors.primary
-                            : const Color(0xFFD1D5DB),
-                        size: 26,
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              type.label,
-                              style: TextStyle(
-                                color: isSelected
-                                    ? AppColors.primary
-                                    : const Color(0xFF15213B),
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            if (type.value == 'COUNTER_PICKUP')
-                              const Text(
-                                'Đến trực tiếp quầy giao dịch Đại Phát để nhận vé giấy',
-                                style: TextStyle(
-                                  color: Color(0xFF6B7280),
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
+                child: ExcludeSemantics(
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () => onSelect(type.value),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          Icon(
+                            type.value == 'COUNTER_PICKUP'
+                                ? Icons.store_rounded
+                                : Icons.local_shipping_outlined,
+                            color: isSelected
+                                ? AppColors.primary
+                                : const Color(0xFFD1D5DB),
+                            size: 26,
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  type.label,
+                                  style: TextStyle(
+                                    color: isSelected
+                                        ? AppColors.primary
+                                        : const Color(0xFF15213B),
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                  ),
                                 ),
-                              ),
-                          ],
-                        ),
+                                const SizedBox(height: 4),
+                                if (type.value == 'COUNTER_PICKUP')
+                                  const Text(
+                                    'Đến trực tiếp quầy giao dịch Đại Phát để nhận vé giấy',
+                                    style: TextStyle(
+                                      color: Color(0xFF6B7280),
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          _radio(isSelected),
+                        ],
                       ),
-                      _radio(isSelected),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -622,53 +621,64 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
             children: [
               if (types.indexOf(type) > 0)
                 const Divider(height: 1, color: Color(0xFFF1F3F5)),
-              InkWell(
-                borderRadius: BorderRadius.circular(16),
+              Semantics(
+                container: true,
+                button: true,
+                inMutuallyExclusiveGroup: true,
+                checked: isSelected,
+                label: type.label,
+                hint: isSelected ? 'Đã chọn' : 'Chọn phương thức thanh toán',
                 onTap: () => onSelect(type.value),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Icon(
-                        type.value == 'ONLINE'
-                            ? Icons.qr_code_scanner_rounded
-                            : Icons.money_rounded,
-                        color: isSelected
-                            ? AppColors.primary
-                            : const Color(0xFFD1D5DB),
-                        size: 26,
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              type.label,
-                              style: TextStyle(
-                                color: isSelected
-                                    ? AppColors.primary
-                                    : const Color(0xFF15213B),
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                              ),
+                child: ExcludeSemantics(
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () => onSelect(type.value),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          Icon(
+                            type.value == 'ONLINE'
+                                ? Icons.qr_code_scanner_rounded
+                                : Icons.money_rounded,
+                            color: isSelected
+                                ? AppColors.primary
+                                : const Color(0xFFD1D5DB),
+                            size: 26,
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  type.label,
+                                  style: TextStyle(
+                                    color: isSelected
+                                        ? AppColors.primary
+                                        : const Color(0xFF15213B),
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  type.value == 'ONLINE'
+                                      ? 'Quét mã QR bằng ứng dụng ngân hàng (24/7)'
+                                      : 'Thanh toán bằng tiền mặt khi nhận vé tại quầy',
+                                  style: const TextStyle(
+                                    color: Color(0xFF6B7280),
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              type.value == 'ONLINE'
-                                  ? 'Quét mã QR bằng ứng dụng ngân hàng (24/7)'
-                                  : 'Thanh toán bằng tiền mặt khi nhận vé tại quầy',
-                              style: const TextStyle(
-                                color: Color(0xFF6B7280),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                          _radio(isSelected),
+                        ],
                       ),
-                      _radio(isSelected),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -705,41 +715,41 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
         border: Border(top: BorderSide(color: Color(0xFFF1F3F5))),
       ),
       child: SafeArea(
         top: false,
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
                     'Tổng thanh toán',
                     style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF374151),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF15213B),
                     ),
                   ),
-                  const SizedBox(height: 5),
                   Text(
                     _money(total),
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.primary,
+                    style: AppTypography.number(
+                      const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.primary,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 16),
             SizedBox(
-              width: 220,
+              width: double.infinity,
               child: ElevatedButton(
                 onPressed: canCheckout ? onCheckout : null,
                 style: ElevatedButton.styleFrom(
@@ -761,19 +771,12 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                           color: Colors.white,
                         ),
                       )
-                    : const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Chốt đơn ngay',
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          SizedBox(width: 8),
-                          Icon(Icons.chevron_right_rounded, size: 22),
-                        ],
+                    : const Text(
+                        'Chốt đơn ngay',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
               ),
             ),
@@ -797,11 +800,19 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
         const Spacer(),
         Text(
           value,
-          style: TextStyle(
-            color: highlight ? AppColors.primary : const Color(0xFF111827),
-            fontSize: highlight ? 18 : 16,
-            fontWeight: highlight ? FontWeight.w900 : FontWeight.w600,
-          ),
+          style: highlight
+              ? AppTypography.number(
+                  const TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                )
+              : const TextStyle(
+                  color: Color(0xFF111827),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
         ),
       ],
     );
@@ -850,33 +861,6 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
   }
 }
 
-class _CheckoutSecureHint extends StatelessWidget {
-  const _CheckoutSecureHint();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.lock_rounded, size: 16, color: Color(0xFFB6BBC5)),
-        SizedBox(width: 8),
-        Flexible(
-          child: Text(
-            'Giao dịch được bảo mật và mã hóa an toàn',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: Color(0xFF9CA3AF),
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 // ─── Cart Item Card ─────────────────────────────────────────────────────────
 class _CartItemCard extends StatelessWidget {
   final CartItemData item;
@@ -885,80 +869,106 @@ class _CartItemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFEDEFF3)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFF1E3E0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 8,
+            offset: Offset(0, 3),
+          ),
+        ],
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: const Color(0xFFFFF1EF),
-              border: Border.all(color: const Color(0xFFFFE1D9)),
-            ),
-            child: Center(
-              child: Text(
-                item.logoText,
-                style: const TextStyle(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 14,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  'Vé số ${item.province}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 16,
-                    color: Color(0xFF15213B),
-                  ),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 2.5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFDE8E5),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          item.province,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.main(
+                            const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.calendar_month_outlined,
+                          size: 12,
+                          color: Color(0xFF8A6D68),
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          item.dateLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF755E59),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF1EF),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFFFE1D9)),
-                  ),
-                  child: Text(
-                    item.number,
-                    style: const TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 17,
-                      letterSpacing: 1.2,
+                const SizedBox(height: 8),
+                Text(
+                  item.number,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.number(
+                    const TextStyle(
+                      color: Color(0xFFC90F1D),
+                      fontSize: 26,
+                      height: 1,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 2.0,
                     ),
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 12),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
                 'x${item.quantity}',
                 style: const TextStyle(
                   fontWeight: FontWeight.w800,
-                  fontSize: 15,
-                  color: Color(0xFF15213B),
+                  fontSize: 14,
+                  color: Color(0xFF64748B),
                 ),
               ),
               const SizedBox(height: 4),
@@ -966,7 +976,7 @@ class _CartItemCard extends StatelessWidget {
                 _money2(item.subtotal),
                 style: const TextStyle(
                   fontWeight: FontWeight.w900,
-                  fontSize: 15,
+                  fontSize: 16,
                   color: AppColors.primary,
                 ),
               ),

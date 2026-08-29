@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import 'package:daiphat_mobile/src/features/home/data/models/ticket_check_models.dart';
 import 'package:daiphat_mobile/src/features/home/presentation/viewmodels/ticket_check_viewmodel.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 
 class CheckTicketView extends ConsumerWidget {
   const CheckTicketView({super.key});
@@ -104,20 +104,24 @@ class CheckTicketView extends ConsumerWidget {
                           Text(
                             'TRA CỨU VÉ SỐ',
                             textAlign: TextAlign.center,
-                            style: GoogleFonts.publicSans(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w900,
-                              color: AppColors.primary,
-                              letterSpacing: 0.6,
+                            style: AppTypography.display(
+                              const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.primary,
+                                letterSpacing: 0.6,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 6),
                           Text(
                             'Nhập thông tin vé để kiểm tra kết quả nhanh chóng',
                             textAlign: TextAlign.center,
-                            style: GoogleFonts.publicSans(
-                              fontSize: 13,
-                              color: const Color(0xFF64748B),
+                            style: AppTypography.main(
+                              const TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF64748B),
+                              ),
                             ),
                           ),
                           const SizedBox(height: 22),
@@ -178,10 +182,12 @@ class _HeaderBar extends StatelessWidget {
         Expanded(
           child: Text(
             'Dò vé số',
-            style: GoogleFonts.publicSans(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
+            style: AppTypography.display(
+              const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+              ),
             ),
           ),
         ),
@@ -312,10 +318,12 @@ class _HeroDecorations extends StatelessWidget {
               alignment: Alignment.center,
               child: Text(
                 '23',
-                style: GoogleFonts.publicSans(
-                  fontSize: 8,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
+                style: AppTypography.main(
+                  const TextStyle(
+                    fontSize: 8,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),
@@ -359,10 +367,12 @@ class _ImportantNotes extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 'Lưu ý quan trọng',
-                style: GoogleFonts.publicSans(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  color: const Color(0xFF7F1D1D),
+                style: AppTypography.main(
+                  const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF7F1D1D),
+                  ),
                 ),
               ),
             ],
@@ -399,10 +409,12 @@ class _ImportantNotes extends StatelessWidget {
         Expanded(
           child: Text(
             text,
-            style: GoogleFonts.publicSans(
-              fontSize: 12,
-              height: 1.45,
-              color: const Color(0xFF7F1D1D),
+            style: AppTypography.main(
+              const TextStyle(
+                fontSize: 12,
+                height: 1.45,
+                color: Color(0xFF7F1D1D),
+              ),
             ),
           ),
         ),
@@ -459,10 +471,12 @@ class _ErrorState extends StatelessWidget {
         Text(
           message,
           textAlign: TextAlign.center,
-          style: GoogleFonts.publicSans(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFFB91C1C),
+          style: AppTypography.main(
+            const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFFB91C1C),
+            ),
           ),
         ),
         const SizedBox(height: 14),
@@ -503,18 +517,22 @@ class _ResultState extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   'Chúc mừng bạn đã trúng!',
-                  style: GoogleFonts.publicSans(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFF065F46),
+                  style: AppTypography.display(
+                    const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF065F46),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Vé số của bạn trùng khớp với kết quả:',
-                  style: GoogleFonts.publicSans(
-                    fontSize: 11,
-                    color: const Color(0xFF059669),
+                  style: AppTypography.main(
+                    const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF059669),
+                    ),
                   ),
                 ),
               ],
@@ -538,18 +556,22 @@ class _ResultState extends StatelessWidget {
                       children: [
                         Text(
                           prize.prizeDisplayName,
-                          style: GoogleFonts.publicSans(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
+                          style: AppTypography.main(
+                            const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           'Số trúng: ${prize.winningNumber}',
-                          style: GoogleFonts.publicSans(
-                            fontSize: 11,
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w700,
+                          style: AppTypography.main(
+                            const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                       ],
@@ -557,10 +579,12 @@ class _ResultState extends StatelessWidget {
                   ),
                   Text(
                     '${NumberFormat.decimalPattern('vi_VN').format(prize.prizeValue)}đ',
-                    style: GoogleFonts.publicSans(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.primary,
+                    style: AppTypography.main(
+                      const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.primary,
+                      ),
                     ),
                   ),
                 ],
@@ -579,18 +603,22 @@ class _ResultState extends StatelessWidget {
                 children: [
                   Text(
                     'Tổng giải thưởng:',
-                    style: GoogleFonts.publicSans(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
+                    style: AppTypography.main(
+                      const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                   const Spacer(),
                   Text(
                     '${NumberFormat.decimalPattern('vi_VN').format(result.totalWinningAmount)}đ',
-                    style: GoogleFonts.publicSans(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.primary,
+                    style: AppTypography.number(
+                      const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.primary,
+                      ),
                     ),
                   ),
                 ],
@@ -655,19 +683,23 @@ class _NeutralResult extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           title,
-          style: GoogleFonts.publicSans(
-            fontSize: 14,
-            fontWeight: FontWeight.w800,
-            color: const Color(0xFF334155),
+          style: AppTypography.display(
+            const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF334155),
+            ),
           ),
         ),
         const SizedBox(height: 6),
         Text(
           message,
           textAlign: TextAlign.center,
-          style: GoogleFonts.publicSans(
-            fontSize: 12,
-            color: const Color(0xFF64748B),
+          style: AppTypography.main(
+            const TextStyle(
+              fontSize: 12,
+              color: Color(0xFF64748B),
+            ),
           ),
         ),
         const SizedBox(height: 16),
@@ -741,10 +773,12 @@ class _FormStateState extends State<_FormState> {
       children: [
         Text(
           'Chọn ngày',
-          style: GoogleFonts.publicSans(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF334155),
+          style: AppTypography.main(
+            const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF334155),
+            ),
           ),
         ),
         const SizedBox(height: 8),
@@ -775,12 +809,14 @@ class _FormStateState extends State<_FormState> {
             ),
             child: Text(
               dateLabel,
-              style: GoogleFonts.publicSans(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: selectedDate == null
-                    ? const Color(0xFF94A3B8)
-                    : const Color(0xFF0F172A),
+              style: AppTypography.main(
+                TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: selectedDate == null
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF0F172A),
+                ),
               ),
             ),
           ),
@@ -788,10 +824,12 @@ class _FormStateState extends State<_FormState> {
         const SizedBox(height: 14),
         Text(
           'Chọn đài',
-          style: GoogleFonts.publicSans(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF334155),
+          style: AppTypography.main(
+            const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF334155),
+            ),
           ),
         ),
         const SizedBox(height: 8),
@@ -831,12 +869,14 @@ class _FormStateState extends State<_FormState> {
                   : state.isLoadingStations
                       ? 'Đang tải đài...'
                       : (state.selectedStation?.province ?? 'Chọn đài'),
-              style: GoogleFonts.publicSans(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: !canPickStation && state.selectedStation == null
-                    ? const Color(0xFF94A3B8)
-                    : const Color(0xFF0F172A),
+              style: AppTypography.main(
+                TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: !canPickStation && state.selectedStation == null
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF0F172A),
+                ),
               ),
             ),
           ),
@@ -844,10 +884,12 @@ class _FormStateState extends State<_FormState> {
         const SizedBox(height: 14),
         Text(
           'Nhập dãy số trên vé',
-          style: GoogleFonts.publicSans(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF334155),
+          style: AppTypography.main(
+            const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF334155),
+            ),
           ),
         ),
         const SizedBox(height: 8),
@@ -857,10 +899,12 @@ class _FormStateState extends State<_FormState> {
           maxLength: 6,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           onChanged: vm.setTicketNumber,
-          style: GoogleFonts.publicSans(
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 2,
+          style: AppTypography.number(
+            const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 2,
+            ),
           ),
           decoration: InputDecoration(
             counterText: '',
@@ -905,9 +949,11 @@ class _FormStateState extends State<_FormState> {
           ),
           label: Text(
             'Tra cứu kết quả',
-            style: GoogleFonts.publicSans(
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
+            style: AppTypography.main(
+              const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
         ),
@@ -915,11 +961,13 @@ class _FormStateState extends State<_FormState> {
         Text(
           'HOẶC CHỌN NHANH',
           textAlign: TextAlign.center,
-          style: GoogleFonts.publicSans(
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-            color: const Color(0xFF94A3B8),
-            letterSpacing: 0.8,
+          style: AppTypography.main(
+            const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF94A3B8),
+              letterSpacing: 0.8,
+            ),
           ),
         ),
         const SizedBox(height: 10),
@@ -999,9 +1047,11 @@ class _FormStateState extends State<_FormState> {
                 ),
                 title: Text(
                   station.province,
-                  style: GoogleFonts.publicSans(
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected ? AppColors.primary : null,
+                  style: AppTypography.main(
+                    TextStyle(
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      color: isSelected ? AppColors.primary : null,
+                    ),
                   ),
                 ),
                 trailing: isSelected
@@ -1057,10 +1107,12 @@ class _QuickDateChip extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               label,
-              style: GoogleFonts.publicSans(
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-                color: color,
+              style: AppTypography.main(
+                TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: color,
+                ),
               ),
             ),
           ],

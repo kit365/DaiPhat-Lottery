@@ -140,7 +140,9 @@ class UiChatMessage {
     required this.isUser,
     required this.text,
     required this.timeLabel,
+    this.conversationId,
     this.fromStaff = false,
+    this.isRead = false,
     this.variant = ChatMessageVariant.bubble,
     this.sentContent,
     this.suggestedTickets = const [],
@@ -150,7 +152,9 @@ class UiChatMessage {
   final bool isUser;
   final String text;
   final String timeLabel;
+  final int? conversationId;
   final bool fromStaff;
+  final bool isRead;
   final ChatMessageVariant variant;
   final String? sentContent;
   final List<SuggestedTicketModel> suggestedTickets;
@@ -160,7 +164,9 @@ class UiChatMessage {
     bool? isUser,
     String? text,
     String? timeLabel,
+    int? conversationId,
     bool? fromStaff,
+    bool? isRead,
     ChatMessageVariant? variant,
     String? sentContent,
     List<SuggestedTicketModel>? suggestedTickets,
@@ -170,7 +176,9 @@ class UiChatMessage {
       isUser: isUser ?? this.isUser,
       text: text ?? this.text,
       timeLabel: timeLabel ?? this.timeLabel,
+      conversationId: conversationId ?? this.conversationId,
       fromStaff: fromStaff ?? this.fromStaff,
+      isRead: isRead ?? this.isRead,
       variant: variant ?? this.variant,
       sentContent: sentContent ?? this.sentContent,
       suggestedTickets: suggestedTickets ?? this.suggestedTickets,
@@ -244,6 +252,8 @@ UiChatMessage mapApiMessage(ChatMessageModel message) {
       isUser: false,
       text: raw,
       timeLabel: formatMessageTime(message.createdAt),
+      conversationId: message.conversationId,
+      isRead: message.isRead,
       variant: ChatMessageVariant.divider,
     );
   }
@@ -255,7 +265,9 @@ UiChatMessage mapApiMessage(ChatMessageModel message) {
       isUser: false,
       text: ticketSuggest.text,
       timeLabel: formatMessageTime(message.createdAt),
+      conversationId: message.conversationId,
       fromStaff: fromStaff,
+      isRead: message.isRead,
       variant: ticketSuggest.tickets.isEmpty
           ? ChatMessageVariant.bubble
           : ChatMessageVariant.ticketSuggest,
@@ -278,7 +290,9 @@ UiChatMessage mapApiMessage(ChatMessageModel message) {
     isUser: isUser,
     text: displayText.isEmpty ? '[Tin nhắn trống]' : displayText,
     timeLabel: formatMessageTime(message.createdAt),
+    conversationId: message.conversationId,
     fromStaff: fromStaff,
+    isRead: message.isRead,
     sentContent: sentContent,
   );
 }

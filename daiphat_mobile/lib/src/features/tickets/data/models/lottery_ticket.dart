@@ -1,3 +1,5 @@
+const int kDefaultLotteryTicketPrice = 10000;
+
 class LotteryTicket {
   const LotteryTicket({
     required this.id,
@@ -47,6 +49,11 @@ class LotteryTicket {
   final String? createdBy;
   final String? lastModifiedBy;
 
+  int get effectivePrice =>
+      (priceSnapshot != null && priceSnapshot! > 0)
+          ? priceSnapshot!
+          : kDefaultLotteryTicketPrice;
+
   factory LotteryTicket.fromJson(Map<String, dynamic> json) {
     return LotteryTicket(
       id: (json['id'] as num?)?.toInt() ?? 0,
@@ -61,7 +68,9 @@ class LotteryTicket {
       status: json['status']?.toString() ?? '',
       statusDisplayName: json['statusDisplayName']?.toString() ?? '',
       verified: json['verified'] as bool? ?? false,
-      priceSnapshot: _parsePrice(json['priceSnapshot']),
+      priceSnapshot: _parsePrice(
+        json['priceSnapshot'] ?? json['price'] ?? json['unitPrice'],
+      ),
       importedById: json['importedById']?.toString(),
       importedAt: _parseDateTime(json['importedAt']),
       verifiedById: json['verifiedById']?.toString(),

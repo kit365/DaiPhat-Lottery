@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import 'package:daiphat_mobile/src/shared/providers/api_providers.dart';
 import '../../data/models/lottery_ticket.dart';
+export '../../data/models/lottery_ticket.dart';
 import '../../data/repositories/lottery_ticket_repository.dart';
 import '../../data/services/lottery_ticket_api_service.dart';
 import '../../utils/sellable_draw_date.dart';
@@ -50,15 +51,20 @@ class LotteryTicketListItem {
   String get stationDisplayText {
     final value = stationName?.trim();
     if (value == null || value.isEmpty) {
-      return 'Dang cap nhat';
+      return 'Đang cập nhật';
     }
     return value;
   }
 
+  String get productTitle => buildProductTitle(stationName);
+
+  int get effectivePrice =>
+      (price != null && price! > 0) ? price! : kDefaultLotteryTicketPrice;
+
   String get titleText {
     final value = displayName.trim();
     if (value.isEmpty) {
-      return stationDisplayText;
+      return productTitle;
     }
     return value;
   }
@@ -97,14 +103,14 @@ class BuyTicketState {
   bool get isTomorrowSellClosed => false;
 
   List<String> get provinces => <String>{
-    'Tat ca dai',
+    'Tất cả đài',
     ...availableProvinces,
   }.toList();
 
   List<LotteryTicketListItem> get filteredTickets {
     return tickets.where((ticket) {
       final matchesProvince =
-          selectedProvince == 'Tat ca dai' ||
+          selectedProvince == 'Tất cả đài' ||
           ticket.stationDisplayText == selectedProvince;
       return matchesProvince;
     }).toList();
@@ -199,7 +205,7 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
 
   Future<BuyTicketState> _load({
     String searchQuery = '',
-    String selectedProvince = 'Tat ca dai',
+    String selectedProvince = 'Tất cả đài',
     TicketDayFilter selectedDay = TicketDayFilter.today,
     TicketSearchFilter searchFilter = TicketSearchFilter.empty,
     int page = 1,
@@ -251,11 +257,11 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
     }
 
     var province = selectedProvince;
-    if (province != 'Tat ca dai' &&
+    if (province != 'Tất cả đài' &&
         refreshStations &&
         stationNames.isNotEmpty &&
         !stationNames.contains(province)) {
-      province = 'Tat ca dai';
+      province = 'Tất cả đài';
     }
 
     return BuyTicketState(
@@ -454,7 +460,7 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
     final current = state.asData?.value;
     if (current == null) return;
     for (final province in current.provinces) {
-      if (province == 'Tat ca dai') continue;
+      if (province == 'Tất cả đài') continue;
       final lower = province.toLowerCase();
       if (lower == wanted ||
           lower.contains(wanted) ||
@@ -487,7 +493,7 @@ LotteryTicketListItem mapLotteryTicketToListItem(LotteryTicket ticket) {
   final drawDate = ticket.drawDate ?? SellableDrawDate.todayVn();
   return LotteryTicketListItem(
     id: ticket.id,
-    displayName: ticket.stationName,
+    displayName: buildProductTitle(ticket.stationName),
     code: ticket.numbers,
     shortName: _buildShortName(ticket.stationName),
     dateLabel: _buildDateLabel(drawDate),
@@ -499,7 +505,7 @@ LotteryTicketListItem mapLotteryTicketToListItem(LotteryTicket ticket) {
     serialNumber: ticket.serialNumber,
     batchCode: ticket.batchCode,
     imageUrl: ticket.ticketImg,
-    price: ticket.priceSnapshot,
+    price: ticket.effectivePrice,
     quantity: ticket.quantity,
   );
 }
@@ -522,11 +528,38 @@ TicketDayFilter _resolveDayFilter(DateTime drawDate) {
       : TicketDayFilter.today;
 }
 
+const Map<int, String> _kVnWeekdayLabels = {
+  DateTime.monday: 'Thứ 2',
+  DateTime.tuesday: 'Thứ 3',
+  DateTime.wednesday: 'Thứ 4',
+  DateTime.thursday: 'Thứ 5',
+  DateTime.friday: 'Thứ 6',
+  DateTime.saturday: 'Thứ 7',
+  DateTime.sunday: 'Chủ nhật',
+};
+
 String _buildDateLabel(DateTime drawDate) {
-  final label = _resolveDayFilter(drawDate) == TicketDayFilter.today
-      ? 'Hom nay'
-      : 'Ngay mai';
-  return '$label - ${DateFormat('dd/MM/yyyy').format(drawDate)}';
+  final weekday = _kVnWeekdayLabels[drawDate.weekday] ?? '';
+  final dateStr = DateFormat('dd/MM/yyyy').format(drawDate);
+  if (weekday.isNotEmpty) {
+    return '$weekday, $dateStr';
+  }
+  return dateStr;
+}
+
+String buildProductTitle(String? stationName) {
+  final name = stationName?.trim() ?? '';
+  if (name.isEmpty || name == 'Đang cập nhật') {
+    return 'Vé số kiến thiết';
+  }
+  final lower = name.toLowerCase();
+  if (lower.startsWith('vé số')) {
+    return name;
+  }
+  if (lower.startsWith('đài ')) {
+    return 'Vé số ${name.substring(4).trim()}';
+  }
+  return 'Vé số $name';
 }
 
 String _buildShortName(String input) {

@@ -3,231 +3,50 @@ import 'package:go_router/go_router.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/login_viewmodel.dart';
-import 'package:daiphat_mobile/src/features/blog/presentation/views/blog_screen.dart';
 import 'package:daiphat_mobile/src/features/notifications/presentation/viewmodels/notification_viewmodel.dart';
-import 'package:daiphat_mobile/src/features/notifications/presentation/views/notification_view.dart';
-import 'package:daiphat_mobile/src/features/utilities/presentation/views/utilities_view.dart';
-import 'package:daiphat_mobile/src/features/utilities/presentation/views/utilities_two_view.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 
-enum _ShellSidePage { main, utilities, utilitiesTwo, notifications }
-
-class MainLayout extends StatefulWidget {
+class MainLayout extends StatelessWidget {
   final LoginViewModel loginViewModel;
   final NotificationViewModel notificationViewModel;
-  final Widget child;
+  final StatefulNavigationShell navigationShell;
 
   const MainLayout({
     super.key,
     required this.loginViewModel,
     required this.notificationViewModel,
-    required this.child,
+    required this.navigationShell,
   });
 
   @override
-  State<MainLayout> createState() => _MainLayoutState();
-}
-
-class _MainLayoutState extends State<MainLayout> {
-  late final PageController _pageController;
-  _ShellSidePage _sidePage = _ShellSidePage.main;
-
-  @override
-  void initState() {
-    super.initState();
-    _pageController = PageController(initialPage: 2);
-  }
-
-  void _syncSidePage(int index) {
-    final nextPage = switch (index) {
-      0 => _ShellSidePage.utilities,
-      1 => _ShellSidePage.utilitiesTwo,
-      3 => _ShellSidePage.notifications,
-      _ => _ShellSidePage.main,
-    };
-    if (nextPage != _sidePage) {
-      setState(() => _sidePage = nextPage);
-    }
-  }
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
-
-  void _goToMain() {
-    if (_sidePage != _ShellSidePage.main) {
-      setState(() => _sidePage = _ShellSidePage.main);
-    }
-    _pageController.animateToPage(
-      2,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
-  }
-
-  void _goToUtilities() {
-    if (_sidePage != _ShellSidePage.utilities) {
-      setState(() => _sidePage = _ShellSidePage.utilities);
-    }
-    _pageController.animateToPage(
-      0,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
-  }
-
-  void _goToUtilitiesTwo() {
-    if (_sidePage != _ShellSidePage.utilitiesTwo) {
-      setState(() => _sidePage = _ShellSidePage.utilitiesTwo);
-    }
-    _pageController.animateToPage(
-      1,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
-  }
-
-  void _goToNotifications(BuildContext context) {
-    if (!widget.loginViewModel.isAuthenticated) {
-      return;
-    }
-    if (_sidePage != _ShellSidePage.notifications) {
-      setState(() => _sidePage = _ShellSidePage.notifications);
-    }
-    _pageController.animateToPage(
-      3,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
-  }
-
-  int _getNavIndex(BuildContext context) {
-    switch (_sidePage) {
-      case _ShellSidePage.utilities:
-        return 2;
-      case _ShellSidePage.utilitiesTwo:
-        return 3;
-      case _ShellSidePage.notifications:
-        return 4;
-      case _ShellSidePage.main:
-        final location = GoRouterState.of(context).uri.path;
-        if (location.startsWith(AppRoute.buyTicket.path)) {
-          return 1;
-        }
-        if (location.startsWith(AppRoute.profile.path)) {
-          return 5;
-        }
-        return 0;
-    }
-  }
-
-  void _onNavTap(int index, BuildContext context) {
-    switch (index) {
-      case 0:
-        _goToMain();
-        context.go(AppRoute.home.path);
-        break;
-      case 1:
-        _goToMain();
-        context.go(AppRoute.buyTicket.path);
-        break;
-      case 2:
-        _goToUtilities();
-        break;
-      case 3:
-        _goToUtilitiesTwo();
-        break;
-      case 4:
-        _goToNotifications(context);
-        break;
-      case 5:
-        _goToMain();
-        if (widget.loginViewModel.isAuthenticated) {
-          context.go(AppRoute.profile.path);
-        } else {
-          context.go(AppRoute.login.path);
-        }
-        break;
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final navIndex = _getNavIndex(context);
-
-    return Scaffold(
-      body: PageView(
-        controller: _pageController,
-        physics: const BouncingScrollPhysics(),
-        onPageChanged: (index) {
-          if (index == 3 && !widget.loginViewModel.isAuthenticated) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted) return;
-              _pageController.jumpToPage(2);
-            });
-            return;
-          }
-          _syncSidePage(index);
-        },
-        children: [
-          UtilitiesView(
-            key: const ValueKey('shell-utilities'),
-            isAuthenticated: widget.loginViewModel.isAuthenticated,
-            onOpenNotifications: () => _goToNotifications(context),
-            onOpenBlog: () {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => BlogScreen(
-                    onBack: () => Navigator.of(context).pop(),
-                  ),
-                ),
-              );
+    return PopScope(
+      canPop: navigationShell.currentIndex == 2,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && navigationShell.currentIndex != 2) {
+          navigationShell.goBranch(2);
+        }
+      },
+      child: Scaffold(
+        body: navigationShell,
+        bottomNavigationBar: ListenableBuilder(
+          listenable: Listenable.merge([notificationViewModel, loginViewModel]),
+          builder: (context, _) => _AnimatedBottomNavigation(
+            selectedIndex: navigationShell.currentIndex,
+            notificationBadge: notificationViewModel.unreadCount,
+            onTap: (index) {
+              if (!loginViewModel.isAuthenticated &&
+                  (index == 3 || index == 4)) {
+                context.go(
+                  index == 3
+                      ? AppRoute.notifications.path
+                      : AppRoute.profile.path,
+                );
+                return;
+              }
+              navigationShell.goBranch(index);
             },
           ),
-          UtilitiesTwoView(
-            key: const ValueKey('shell-utilities-two'),
-            isAuthenticated: widget.loginViewModel.isAuthenticated,
-            onBack: () {
-              _goToMain();
-              context.go(AppRoute.home.path);
-            },
-            onOpenNotifications: () => _goToNotifications(context),
-            onOpenBlog: () {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => BlogScreen(
-                    onBack: () => Navigator.of(context).pop(),
-                  ),
-                ),
-              );
-            },
-          ),
-          KeyedSubtree(
-            key: ValueKey(GoRouterState.of(context).uri.path),
-            child: widget.child,
-          ),
-          NotificationView(
-            key: const ValueKey('shell-notifications'),
-            viewModel: widget.notificationViewModel,
-            onBack: () {
-              _goToMain();
-              context.go(AppRoute.home.path);
-            },
-          ),
-        ],
-      ),
-      bottomNavigationBar: ListenableBuilder(
-        listenable: Listenable.merge([
-          widget.notificationViewModel,
-          widget.loginViewModel,
-        ]),
-        builder: (context, _) => _AnimatedBottomNavigation(
-          selectedIndex: navIndex,
-          notificationBadge: widget.notificationViewModel.unreadCount,
-          showNotifications: widget.loginViewModel.isAuthenticated,
-          onTap: (index) => _onNavTap(index, context),
         ),
       ),
     );
@@ -239,34 +58,27 @@ class _AnimatedBottomNavigation extends StatelessWidget {
     required this.selectedIndex,
     required this.onTap,
     this.notificationBadge = 0,
-    this.showNotifications = true,
   });
 
   final int selectedIndex;
   final ValueChanged<int> onTap;
   final int notificationBadge;
-  final bool showNotifications;
 
   static const _items = <({String label, IconData icon, IconData activeIcon})>[
-    (
-      label: 'Trang chủ',
-      icon: Icons.home_outlined,
-      activeIcon: Icons.home_rounded,
-    ),
     (
       label: 'Mua vé',
       icon: Icons.confirmation_number_outlined,
       activeIcon: Icons.confirmation_number_rounded,
     ),
     (
-      label: 'Tiện ích',
-      icon: Icons.grid_view_rounded,
-      activeIcon: Icons.grid_view_rounded,
+      label: 'Dò vé',
+      icon: Icons.qr_code_scanner_rounded,
+      activeIcon: Icons.qr_code_scanner_rounded,
     ),
     (
-      label: 'Tiện ích 2',
-      icon: Icons.dashboard_customize_outlined,
-      activeIcon: Icons.dashboard_customize_rounded,
+      label: 'Trang chủ',
+      icon: Icons.home_outlined,
+      activeIcon: Icons.home_rounded,
     ),
     (
       label: 'Thông báo',
@@ -302,15 +114,14 @@ class _AnimatedBottomNavigation extends StatelessWidget {
       child: Row(
         children: [
           for (var index = 0; index < _items.length; index++)
-            if (index != 4 || showNotifications)
-              Expanded(
-                child: _AnimatedNavItem(
-                  item: _items[index],
-                  selected: selectedIndex == index,
-                  badge: index == 4 ? notificationBadge : 0,
-                  onTap: () => onTap(index),
-                ),
+            Expanded(
+              child: _AnimatedNavItem(
+                item: _items[index],
+                selected: selectedIndex == index,
+                badge: index == 3 ? notificationBadge : 0,
+                onTap: () => onTap(index),
               ),
+            ),
         ],
       ),
     );

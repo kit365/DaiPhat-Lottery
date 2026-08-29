@@ -36,7 +36,7 @@ class HomeLotteryApiService {
       throw ApiException(
         apiResponse.message.isNotEmpty
             ? apiResponse.message
-            : 'Khong the tai bang ket qua xo so.',
+            : 'Không thể tải bảng kết quả xổ số.',
       );
     }
 
@@ -71,7 +71,7 @@ class HomeLotteryApiService {
       throw ApiException(
         apiResponse.message.isNotEmpty
             ? apiResponse.message
-            : 'Khong the tai chi tiet ket qua xo so.',
+            : 'Không thể tải chi tiết kết quả xổ số.',
       );
     }
 

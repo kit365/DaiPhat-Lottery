@@ -5,10 +5,10 @@ import 'package:intl/intl.dart';
 
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 
-/// Date/Time picker nhận vé:
-/// - Ngày: hôm nay / ngày mai
-/// - Giờ: 5, 6, 7, 8
-/// - Hôm nay: chỉ AM | Ngày mai: AM hoặc PM
+/// Date/Time picker nhận vé đồng bộ với BE:
+/// - Giờ mở/đóng cửa động từ BE (Mặc định 08:00 - 20:00)
+/// - Ngày: Hôm nay / Ngày mai
+/// - Giờ 12h + Phút + AM/PM
 /// - Slot phút: 00 / 15 / 30 / 45
 /// - Lead time tối thiểu 15 phút
 class CheckoutDateTimePicker extends StatefulWidget {
@@ -16,6 +16,10 @@ class CheckoutDateTimePicker extends StatefulWidget {
   final ValueChanged<String> onChanged;
   final String? errorText;
   final int minLeadMinutes;
+  final int openHour;
+  final int closeHour;
+  final String openTimeStr;
+  final String closeTimeStr;
   final VoidCallback? onInfoTap;
 
   const CheckoutDateTimePicker({
@@ -24,6 +28,10 @@ class CheckoutDateTimePicker extends StatefulWidget {
     required this.onChanged,
     this.errorText,
     this.minLeadMinutes = 15,
+    this.openHour = 8,
+    this.closeHour = 20,
+    this.openTimeStr = '08:00',
+    this.closeTimeStr = '20:00',
     this.onInfoTap,
   });
 
@@ -58,10 +66,22 @@ class _CheckoutDateTimePickerState extends State<CheckoutDateTimePicker> {
   DateTime get _today => DateTime(_now.year, _now.month, _now.day);
   DateTime get _tomorrow => _today.add(const Duration(days: 1));
 
-  /// Slot sớm nhất hôm nay trong khung AM 5–8 (nếu còn).
+  /// Slot sớm nhất hôm nay trong khung giờ mở cửa (nếu còn).
   DateTime? get _earliestToday {
-    final open = DateTime(_today.year, _today.month, _today.day, 5);
-    final close = DateTime(_today.year, _today.month, _today.day, 8, 45);
+    final open = DateTime(
+      _today.year,
+      _today.month,
+      _today.day,
+      widget.openHour,
+      0,
+    );
+    final close = DateTime(
+      _today.year,
+      _today.month,
+      _today.day,
+      widget.closeHour,
+      0,
+    );
     if (_minSelectable.isAfter(close)) return null;
     return _minSelectable.isBefore(open) ? open : _minSelectable;
   }
@@ -74,6 +94,11 @@ class _CheckoutDateTimePickerState extends State<CheckoutDateTimePicker> {
     return DateTime.tryParse(raw);
   }
 
+  static int _toHour12(int hour24) {
+    final h = hour24 % 12;
+    return h == 0 ? 12 : h;
+  }
+
   String get _displayText {
     final selected = _selected;
     if (selected == null) return 'Chọn ngày và giờ';
@@ -84,8 +109,8 @@ class _CheckoutDateTimePickerState extends State<CheckoutDateTimePicker> {
             : DateFormat('dd/MM/yyyy').format(selected);
     final period = selected.hour >= 12 ? 'PM' : 'AM';
     final h12 = _toHour12(selected.hour);
-    final time =
-        '${h12.toString().padLeft(2, '0')}:${selected.minute.toString().padLeft(2, '0')} $period';
+    final m = selected.minute.toString().padLeft(2, '0');
+    final time = '${h12.toString().padLeft(2, '0')}:$m $period';
     return '$time · $dateLabel (${DateFormat('dd/MM/yyyy').format(selected)})';
   }
 
@@ -100,6 +125,10 @@ class _CheckoutDateTimePickerState extends State<CheckoutDateTimePicker> {
       builder: (ctx) => _PickupTimeSheet(
         initial: _selected,
         minLeadMinutes: widget.minLeadMinutes,
+        openHour: widget.openHour,
+        closeHour: widget.closeHour,
+        openTimeStr: widget.openTimeStr,
+        closeTimeStr: widget.closeTimeStr,
         canSelectToday: _canSelectToday,
         earliestToday: _earliestToday,
         today: _today,
@@ -132,15 +161,28 @@ class _CheckoutDateTimePickerState extends State<CheckoutDateTimePicker> {
             ),
             if (widget.onInfoTap != null) ...[
               const SizedBox(width: 4),
-              InkWell(
-                onTap: widget.onInfoTap,
-                borderRadius: BorderRadius.circular(12),
-                child: const Padding(
-                  padding: EdgeInsets.all(2),
-                  child: Icon(
-                    Icons.error_outline_rounded,
-                    size: 18,
-                    color: Color(0xFFFFB020),
+              Tooltip(
+                message: 'Thông tin thời gian nhận vé',
+                child: Semantics(
+                  button: true,
+                  label: 'Xem thông tin thời gian nhận vé',
+                  onTap: widget.onInfoTap,
+                  child: ExcludeSemantics(
+                    child: InkWell(
+                      onTap: widget.onInfoTap,
+                      borderRadius: BorderRadius.circular(12),
+                      child: const SizedBox(
+                        width: 44,
+                        height: 44,
+                        child: Center(
+                          child: Icon(
+                            Icons.error_outline_rounded,
+                            size: 18,
+                            color: Color(0xFFFFB020),
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -148,56 +190,68 @@ class _CheckoutDateTimePickerState extends State<CheckoutDateTimePicker> {
           ],
         ),
         const SizedBox(height: 8),
-        InkWell(
+        Semantics(
+          button: true,
+          label: hasValue
+              ? 'Thời gian đến lấy: $_displayText'
+              : 'Chọn ngày và giờ nhận vé',
+          hint: hasError
+              ? widget.errorText
+              : 'Mở bộ chọn ngày và giờ nhận vé',
           onTap: _openSheet,
-          borderRadius: BorderRadius.circular(12),
-          child: InputDecorator(
-            decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.calendar_month_rounded),
-              errorText: widget.errorText,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: hasError ? Colors.red : const Color(0xFFE5E7EB),
-                ),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: hasError ? Colors.red : AppColors.primary,
-                  width: 1.5,
-                ),
-              ),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    _displayText,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: hasValue ? FontWeight.w600 : FontWeight.w400,
-                      color: hasValue
-                          ? const Color(0xFF15213B)
-                          : AppColors.loginPlaceholder,
+          child: ExcludeSemantics(
+            child: InkWell(
+              onTap: _openSheet,
+              borderRadius: BorderRadius.circular(12),
+              child: InputDecorator(
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.calendar_month_rounded),
+                  errorText: widget.errorText,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: hasError ? Colors.red : const Color(0xFFE5E7EB),
                     ),
                   ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: hasError ? Colors.red : AppColors.primary,
+                      width: 1.5,
+                    ),
+                  ),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                 ),
-                const Icon(
-                  Icons.access_time_rounded,
-                  color: AppColors.primary,
-                  size: 20,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _displayText,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: hasValue ? FontWeight.w600 : FontWeight.w400,
+                          color: hasValue
+                              ? const Color(0xFF15213B)
+                              : AppColors.loginPlaceholder,
+                        ),
+                      ),
+                    ),
+                    const Icon(
+                      Icons.access_time_rounded,
+                      color: AppColors.primary,
+                      size: 20,
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
         const SizedBox(height: 6),
         Text(
-          'Hôm nay: buổi sáng (AM). Ngày mai: AM hoặc PM. Giờ 5–8, cách ít nhất ${widget.minLeadMinutes} phút.',
+          'Giờ mở cửa: ${widget.openTimeStr} – ${widget.closeTimeStr}. Đặt trước ít nhất ${widget.minLeadMinutes} phút.',
           style: const TextStyle(
             fontSize: 11,
             color: Color(0xFF919EAB),
@@ -206,11 +260,6 @@ class _CheckoutDateTimePickerState extends State<CheckoutDateTimePicker> {
         ),
       ],
     );
-  }
-
-  static int _toHour12(int hour24) {
-    final h = hour24 % 12;
-    return h == 0 ? 12 : h;
   }
 
   static DateTime _ceilToNextSlot(DateTime minTime) {
@@ -249,6 +298,10 @@ class _CheckoutDateTimePickerState extends State<CheckoutDateTimePicker> {
 class _PickupTimeSheet extends StatefulWidget {
   final DateTime? initial;
   final int minLeadMinutes;
+  final int openHour;
+  final int closeHour;
+  final String openTimeStr;
+  final String closeTimeStr;
   final bool canSelectToday;
   final DateTime? earliestToday;
   final DateTime today;
@@ -258,6 +311,10 @@ class _PickupTimeSheet extends StatefulWidget {
   const _PickupTimeSheet({
     required this.initial,
     required this.minLeadMinutes,
+    required this.openHour,
+    required this.closeHour,
+    required this.openTimeStr,
+    required this.closeTimeStr,
     required this.canSelectToday,
     required this.earliestToday,
     required this.today,
@@ -270,12 +327,11 @@ class _PickupTimeSheet extends StatefulWidget {
 }
 
 class _PickupTimeSheetState extends State<_PickupTimeSheet> {
-  static const _hours12 = [5, 6, 7, 8];
   static const _slotMinutes = [0, 15, 30, 45];
 
   late bool _isToday;
   late String _period; // AM | PM
-  late int _hour12; // 5..8
+  late int _hour12;
   late int _minute;
 
   @override
@@ -287,7 +343,8 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
             widget.tomorrow.year,
             widget.tomorrow.month,
             widget.tomorrow.day,
-            5,
+            widget.openHour,
+            0,
           );
     final initial = widget.initial;
     final seed = (initial != null && !initial.isBefore(widget.minSelectable))
@@ -299,9 +356,8 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
       _isToday = false;
     }
 
-    _period = _isToday ? 'AM' : (seed.hour >= 12 ? 'PM' : 'AM');
+    _period = seed.hour >= 12 ? 'PM' : 'AM';
     _hour12 = _toHour12(seed.hour);
-    if (!_hours12.contains(_hour12)) _hour12 = 5;
     _minute = (seed.minute ~/ 15) * 15;
     _normalizeSelection();
   }
@@ -315,38 +371,64 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
   }
 
   int _toHour24(int hour12, String period) {
-    if (period == 'AM') return hour12; // 5..8
-    return hour12 + 12; // 17..20
+    if (period == 'AM') {
+      return hour12 == 12 ? 0 : hour12;
+    } else {
+      return hour12 == 12 ? 12 : hour12 + 12;
+    }
   }
 
   DateTime get _selectedDate => _isToday ? widget.today : widget.tomorrow;
 
-  List<String> get _availablePeriods =>
-      _isToday ? const ['AM'] : const ['AM', 'PM'];
-
-  List<int> get _availableHours12 {
-    return _hours12.where((h12) {
-      final h24 = _toHour24(h12, _period);
-      if (!_isToday) return true;
-      final earliest = widget.earliestToday;
-      if (earliest == null) return false;
-      if (h24 < earliest.hour) return false;
-      if (h24 == earliest.hour) {
-        return _slotMinutes.any((m) {
-          final candidate = DateTime(
-            widget.today.year,
-            widget.today.month,
-            widget.today.day,
-            h24,
-            m,
-          );
-          return !candidate.isBefore(earliest);
-        });
+  List<String> get _availablePeriods {
+    final periods = <String>[];
+    for (final p in ['AM', 'PM']) {
+      final hours = _getAvailableHours12ForPeriod(p);
+      if (hours.isNotEmpty) {
+        periods.add(p);
       }
-      // Hôm nay chỉ AM → không vượt quá 8:45
-      return h24 <= 8;
-    }).toList();
+    }
+    return periods.isNotEmpty ? periods : ['AM'];
   }
+
+  List<int> _getAvailableHours12ForPeriod(String period) {
+    final start24 = period == 'AM' ? 0 : 12;
+    final end24 = period == 'AM' ? 11 : 23;
+
+    final openRangeStart = widget.openHour > start24 ? widget.openHour : start24;
+    final closeRangeEnd = widget.closeHour < end24 ? widget.closeHour : end24;
+
+    if (openRangeStart > closeRangeEnd) return [];
+
+    final hours12 = <int>[];
+    for (var h24 = openRangeStart; h24 <= closeRangeEnd; h24++) {
+      if (!_isToday) {
+        hours12.add(_toHour12(h24));
+      } else {
+        final earliest = widget.earliestToday;
+        if (earliest == null) continue;
+        if (h24 < earliest.hour) continue;
+        if (h24 == earliest.hour) {
+          final hasSlot = _slotMinutes.any((m) {
+            final candidate = DateTime(
+              widget.today.year,
+              widget.today.month,
+              widget.today.day,
+              h24,
+              m,
+            );
+            return !candidate.isBefore(earliest);
+          });
+          if (hasSlot) hours12.add(_toHour12(h24));
+        } else {
+          hours12.add(_toHour12(h24));
+        }
+      }
+    }
+    return hours12.toSet().toList();
+  }
+
+  List<int> get _availableHours12 => _getAvailableHours12ForPeriod(_period);
 
   List<int> get _availableMinutes {
     final h24 = _toHour24(_hour12, _period);
@@ -366,8 +448,9 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
   }
 
   void _normalizeSelection() {
-    if (!_availablePeriods.contains(_period)) {
-      _period = _availablePeriods.first;
+    final periods = _availablePeriods;
+    if (!periods.contains(_period)) {
+      _period = periods.first;
     }
     final hours = _availableHours12;
     if (hours.isEmpty) return;
@@ -381,9 +464,10 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
     if (!widget.canSelectToday || widget.earliestToday == null) return;
     setState(() {
       _isToday = true;
-      _period = 'AM';
-      _hour12 = _toHour12(widget.earliestToday!.hour);
-      _minute = widget.earliestToday!.minute;
+      final earliest = widget.earliestToday!;
+      _period = earliest.hour >= 12 ? 'PM' : 'AM';
+      _hour12 = _toHour12(earliest.hour);
+      _minute = earliest.minute;
       _normalizeSelection();
     });
   }
@@ -391,8 +475,8 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
   void _selectTomorrow() {
     setState(() {
       _isToday = false;
-      _period = 'AM';
-      _hour12 = 5;
+      _period = widget.openHour >= 12 ? 'PM' : 'AM';
+      _hour12 = _toHour12(widget.openHour);
       _minute = 0;
       _normalizeSelection();
     });
@@ -414,7 +498,8 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
               widget.tomorrow.year,
               widget.tomorrow.month,
               widget.tomorrow.day,
-              5,
+              widget.openHour,
+              0,
             );
     }
     Navigator.pop(context, picked);
@@ -425,10 +510,10 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final periods = _availablePeriods;
     final hours = _availableHours12;
     final minutes = _availableMinutes;
-    final periods = _availablePeriods;
-    final canConfirm = hours.isNotEmpty && minutes.isNotEmpty;
+    final canConfirm = periods.isNotEmpty && hours.isNotEmpty && minutes.isNotEmpty;
 
     return SafeArea(
       child: Padding(
@@ -452,135 +537,213 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
                 ),
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             const Text(
               'Chọn thời gian nhận vé',
+              textAlign: TextAlign.left,
               style: TextStyle(
-                fontSize: 17,
+                fontSize: 16,
                 fontWeight: FontWeight.w800,
                 color: Color(0xFF15213B),
               ),
             ),
             const SizedBox(height: 16),
+
+            // Date buttons
             const Text(
               'Ngày nhận vé',
               style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF212B36),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF6B7280),
               ),
             ),
             const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
-                  child: _DayChip(
+                  child: _DateOptionButton(
                     label: 'Hôm nay',
                     subLabel: _fmtDay(widget.today),
-                    selected: _isToday,
-                    enabled: widget.canSelectToday,
+                    isSelected: _isToday,
+                    isDisabled: !widget.canSelectToday,
                     onTap: _selectToday,
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: _DayChip(
+                  child: _DateOptionButton(
                     label: 'Ngày mai',
                     subLabel: _fmtDay(widget.tomorrow),
-                    selected: !_isToday,
-                    enabled: true,
+                    isSelected: !_isToday,
+                    isDisabled: false,
                     onTap: _selectTomorrow,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              _isToday
-                  ? 'Hôm nay chỉ chọn buổi sáng (AM), tối thiểu sau ${widget.minLeadMinutes} phút.'
-                  : 'Ngày mai có thể chọn AM hoặc PM. Giờ 5–8.',
-              style: const TextStyle(fontSize: 11, color: Color(0xFF919EAB)),
-            ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 16),
+
+            // Time Selection: 3 compact dropdowns (Giờ, Phút, AM/PM)
             const Text(
-              'Thời gian nhận vé',
+              'Khung giờ',
               style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF212B36),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF6B7280),
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             Row(
               children: [
+                // 1. Hour 12h dropdown
                 Expanded(
-                  child: _DropdownBox<int>(
-                    value: hours.contains(_hour12) ? _hour12 : null,
-                    items: hours,
-                    labelBuilder: (h) => h.toString().padLeft(2, '0'),
-                    onChanged: (v) {
-                      if (v == null) return;
-                      setState(() {
-                        _hour12 = v;
-                        _normalizeSelection();
-                      });
-                    },
-                  ),
-                ),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 6),
-                  child: Text(
-                    ':',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
+                  flex: 5,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: const Color(0xFFE5E8EB)),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<int>(
+                        value: hours.contains(_hour12) ? _hour12 : (hours.isNotEmpty ? hours.first : null),
+                        isExpanded: true,
+                        icon: const Icon(Icons.arrow_drop_down_rounded, color: Color(0xFF6B7280)),
+                        items: hours.map((h) {
+                          return DropdownMenuItem<int>(
+                            value: h,
+                            child: Text(
+                              '${h.toString().padLeft(2, '0')} giờ',
+                              style: const TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF15213B),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (newHour) {
+                          if (newHour == null) return;
+                          setState(() {
+                            _hour12 = newHour;
+                            _normalizeSelection();
+                          });
+                        },
+                      ),
                     ),
                   ),
                 ),
+                const SizedBox(width: 8),
+
+                // 2. Minute dropdown
                 Expanded(
-                  child: _DropdownBox<int>(
-                    value: minutes.contains(_minute) ? _minute : null,
-                    items: minutes,
-                    labelBuilder: (m) => m.toString().padLeft(2, '0'),
-                    onChanged: (v) {
-                      if (v == null) return;
-                      setState(() => _minute = v);
-                    },
+                  flex: 5,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: const Color(0xFFE5E8EB)),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<int>(
+                        value: minutes.contains(_minute) ? _minute : (minutes.isNotEmpty ? minutes.first : null),
+                        isExpanded: true,
+                        icon: const Icon(Icons.arrow_drop_down_rounded, color: Color(0xFF6B7280)),
+                        items: minutes.map((m) {
+                          return DropdownMenuItem<int>(
+                            value: m,
+                            child: Text(
+                              '${m.toString().padLeft(2, '0')} phút',
+                              style: const TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF15213B),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (newMinute) {
+                          if (newMinute == null) return;
+                          setState(() => _minute = newMinute);
+                        },
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
+
+                // 3. AM / PM dropdown
                 Expanded(
-                  child: _DropdownBox<String>(
-                    value: periods.contains(_period) ? _period : null,
-                    items: periods,
-                    labelBuilder: (p) => p,
-                    onChanged: (v) {
-                      if (v == null) return;
-                      setState(() {
-                        _period = v;
-                        _normalizeSelection();
-                      });
-                    },
+                  flex: 4,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: const Color(0xFFE5E8EB)),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: periods.contains(_period) ? _period : (periods.isNotEmpty ? periods.first : null),
+                        isExpanded: true,
+                        icon: const Icon(Icons.arrow_drop_down_rounded, color: Color(0xFF6B7280)),
+                        items: periods.map((p) {
+                          return DropdownMenuItem<String>(
+                            value: p,
+                            child: Text(
+                              p,
+                              style: const TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF15213B),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (newPeriod) {
+                          if (newPeriod == null) return;
+                          setState(() {
+                            _period = newPeriod;
+                            _normalizeSelection();
+                          });
+                        },
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 18),
-            SizedBox(
-              height: 48,
-              child: ElevatedButton(
-                onPressed: canConfirm ? _confirm : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: const Color(0xFFF3B5B2),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+            const SizedBox(height: 12),
+
+            // Hint
+            Text(
+              'Quầy mở cửa: ${widget.openTimeStr} – ${widget.closeTimeStr}. Vui lòng đặt trước ít nhất ${widget.minLeadMinutes} phút.',
+              style: const TextStyle(
+                fontSize: 11,
+                color: Color(0xFF919EAB),
+                height: 1.3,
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Confirm button
+            ElevatedButton(
+              onPressed: canConfirm ? _confirm : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: const Color(0xFFF3B5B2),
+                minimumSize: const Size.fromHeight(48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Text(
-                  'Xác nhận',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                elevation: 0,
+              ),
+              child: const Text(
+                'Xác nhận',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
@@ -591,105 +754,87 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
   }
 }
 
-class _DayChip extends StatelessWidget {
+class _DateOptionButton extends StatelessWidget {
   final String label;
   final String subLabel;
-  final bool selected;
-  final bool enabled;
+  final bool isSelected;
+  final bool isDisabled;
   final VoidCallback onTap;
 
-  const _DayChip({
+  const _DateOptionButton({
     required this.label,
     required this.subLabel,
-    required this.selected,
-    required this.enabled,
+    required this.isSelected,
+    required this.isDisabled,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Opacity(
-      opacity: enabled ? 1 : 0.4,
-      child: InkWell(
-        onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: selected ? const Color(0xFFFFF4F4) : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: selected ? AppColors.primary : const Color(0xFFE5E7EB),
-              width: selected ? 1.5 : 1,
+    if (isDisabled) {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF4F6F8),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFE5E8EB)),
+        ),
+        child: Column(
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF919EAB),
+              ),
             ),
-          ),
-          child: Column(
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  color: selected ? AppColors.primary : const Color(0xFF15213B),
-                ),
+            const SizedBox(height: 2),
+            Text(
+              subLabel,
+              style: const TextStyle(
+                fontSize: 11,
+                color: Color(0xFFC4CDD5),
               ),
-              const SizedBox(height: 2),
-              Text(
-                subLabel,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: selected ? AppColors.primary : const Color(0xFF6B7280),
-                ),
-              ),
-            ],
+            ),
+          ],
+        ),
+      );
+    }
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFFFF1EF) : Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : const Color(0xFFE5E8EB),
+            width: isSelected ? 1.5 : 1.0,
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _DropdownBox<T> extends StatelessWidget {
-  final T? value;
-  final List<T> items;
-  final String Function(T) labelBuilder;
-  final ValueChanged<T?> onChanged;
-
-  const _DropdownBox({
-    required this.value,
-    required this.items,
-    required this.labelBuilder,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<T>(
-          isExpanded: true,
-          value: value,
-          hint: const Text('-'),
-          items: items
-              .map(
-                (e) => DropdownMenuItem<T>(
-                  value: e,
-                  child: Text(
-                    labelBuilder(e),
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              )
-              .toList(),
-          onChanged: items.isEmpty ? null : onChanged,
+        child: Column(
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: isSelected ? AppColors.primary : const Color(0xFF15213B),
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              subLabel,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: isSelected ? AppColors.primary : const Color(0xFF6B7280),
+              ),
+            ),
+          ],
         ),
       ),
     );

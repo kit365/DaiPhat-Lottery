@@ -246,14 +246,14 @@ class _LotteryAppViewState extends State<LotteryAppView> {
         label: 'Tin tức',
       ),
       NavigationDestination(
-        icon: Icon(Icons.home_outlined),
-        selectedIcon: Icon(Icons.home, color: _red),
-        label: 'Trang chủ',
-      ),
-      NavigationDestination(
         icon: Icon(Icons.storefront_outlined),
         selectedIcon: Icon(Icons.storefront, color: _red),
         label: 'Mua vé số',
+      ),
+      NavigationDestination(
+        icon: Icon(Icons.home_outlined),
+        selectedIcon: Icon(Icons.home, color: _red),
+        label: 'Trang chủ',
       ),
       NavigationDestination(
         icon: Icon(Icons.confirmation_number_outlined),

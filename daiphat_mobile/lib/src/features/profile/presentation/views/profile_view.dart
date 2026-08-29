@@ -788,7 +788,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                 _buildUtilityItemIcon(
                   Icons.notifications_active_outlined,
                   'Thông báo',
-                  onTap: () => context.push(AppRoute.notifications.path),
+                  onTap: () => context.go(AppRoute.notifications.path),
                 ),
                 const SizedBox(width: 10),
                 _buildUtilityItemIcon(

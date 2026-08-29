@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'package:daiphat_mobile/src/features/home/data/models/lottery_result.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 
 class LotoCard extends StatefulWidget {
   final List<String> provinces;
@@ -66,11 +66,13 @@ class _LotoCardState extends State<LotoCard> {
                     const Icon(Icons.grid_view_rounded, color: AppColors.primary, size: 18),
                     const SizedBox(width: 7),
                     Text(
-                      'BANG LO TO',
-                      style: GoogleFonts.barlow(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textMain,
+                      'BẢNG LÔ TÔ',
+                      style: AppTypography.display(
+                        const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textMain,
+                        ),
                       ),
                     ),
                   ],
@@ -94,10 +96,12 @@ class _LotoCardState extends State<LotoCard> {
                         size: 18,
                         color: AppColors.textMuted,
                       ),
-                      style: GoogleFonts.publicSans(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textMain,
+                      style: AppTypography.main(
+                        const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textMain,
+                        ),
                       ),
                       onChanged: (value) => setState(() => _province = value),
                       items: [
@@ -108,7 +112,7 @@ class _LotoCardState extends State<LotoCard> {
                         ...widget.provinces.map(
                           (province) => DropdownMenuItem<String?>(
                             value: province,
-                            child: Text('Dai $province'),
+                            child: Text('Đài $province'),
                           ),
                         ),
                       ],
@@ -139,36 +143,42 @@ class _LotoCardState extends State<LotoCard> {
                 Expanded(
                   flex: 4,
                   child: Text(
-                    'CHUC',
+                    'CHỤC',
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.publicSans(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textMain,
+                    style: AppTypography.main(
+                      const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textMain,
+                      ),
                     ),
                   ),
                 ),
                 Expanded(
                   flex: 2,
                   child: Text(
-                    'SO',
+                    'SỐ',
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.publicSans(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
+                    style: AppTypography.main(
+                      const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                      ),
                     ),
                   ),
                 ),
                 Expanded(
                   flex: 4,
                   child: Text(
-                    'DON VI',
+                    'ĐƠN VỊ',
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.publicSans(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textMain,
+                    style: AppTypography.main(
+                      const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textMain,
+                      ),
                     ),
                   ),
                 ),
@@ -194,10 +204,12 @@ class _LotoCardState extends State<LotoCard> {
                     child: Text(
                       row.focus,
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.barlow(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.primary,
+                      style: AppTypography.number(
+                        const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.primary,
+                        ),
                       ),
                     ),
                   ),
@@ -227,10 +239,12 @@ class _LotoCardState extends State<LotoCard> {
         spans.add(
           TextSpan(
             text: split[0],
-            style: GoogleFonts.publicSans(
-              color: AppColors.textMain,
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
+            style: AppTypography.main(
+              const TextStyle(
+                color: AppColors.textMain,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
             ),
           ),
         );
@@ -240,10 +254,12 @@ class _LotoCardState extends State<LotoCard> {
               offset: const Offset(0, -5),
               child: Text(
                 split[1],
-                style: GoogleFonts.publicSans(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 9,
+                style: AppTypography.main(
+                  const TextStyle(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 9,
+                  ),
                 ),
               ),
             ),
@@ -253,10 +269,12 @@ class _LotoCardState extends State<LotoCard> {
         spans.add(
           TextSpan(
             text: value,
-            style: GoogleFonts.publicSans(
-              color: AppColors.textMain,
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
+            style: AppTypography.main(
+              const TextStyle(
+                color: AppColors.textMain,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
             ),
           ),
         );
@@ -266,9 +284,11 @@ class _LotoCardState extends State<LotoCard> {
         spans.add(
           TextSpan(
             text: ', ',
-            style: GoogleFonts.publicSans(
-              color: AppColors.textMain,
-              fontSize: 13,
+            style: AppTypography.main(
+              const TextStyle(
+                color: AppColors.textMain,
+                fontSize: 13,
+              ),
             ),
           ),
         );

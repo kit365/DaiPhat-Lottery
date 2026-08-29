@@ -89,6 +89,32 @@ flutter:
     - assets/images/
     - assets/images/icons/
 
+  fonts:
+    - family: Public Sans
+      fonts:
+        - asset: assets/fonts/public_sans/PublicSans-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/public_sans/PublicSans-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/public_sans/PublicSans-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/public_sans/PublicSans-Bold.ttf
+          weight: 700
+    - family: Barlow
+      fonts:
+        - asset: assets/fonts/barlow/Barlow-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/barlow/Barlow-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/barlow/Barlow-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/barlow/Barlow-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/barlow/Barlow-ExtraBold.ttf
+          weight: 800
+        - asset: assets/fonts/barlow/Barlow-Black.ttf
+          weight: 900
+
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 

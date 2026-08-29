@@ -133,6 +133,8 @@ class ChatViewModel extends Notifier<ChatState> {
   String? _timelineCursor;
   bool _bootstrapped = false;
   int? _subscribedConversationId;
+  String? _lastReadAckKey;
+  bool _timelineRefreshInFlight = false;
 
   @override
   ChatState build() {
@@ -329,15 +331,21 @@ class ChatViewModel extends Notifier<ChatState> {
   }
 
   Future<void> _loadTimeline({required bool reset}) async {
-    final page = await _repository.getTimeline();
-    final mapped = mapTimelineItems(page.items);
-    state = state.copyWith(
-      timelineMessages: reset ? mapped : [...mapped, ...state.timelineMessages],
-      hasMoreTimeline: page.hasMore,
-      overlayMessages: reset ? _pruneOverlay(mapped) : state.overlayMessages,
-      showWelcome: mapped.isEmpty,
-    );
-    _timelineCursor = page.nextCursor;
+    if (reset && _timelineRefreshInFlight) return;
+    if (reset) _timelineRefreshInFlight = true;
+    try {
+      final page = await _repository.getTimeline();
+      final mapped = mapTimelineItems(page.items);
+      state = state.copyWith(
+        timelineMessages: reset ? mapped : [...mapped, ...state.timelineMessages],
+        hasMoreTimeline: page.hasMore,
+        overlayMessages: reset ? _pruneOverlay(mapped) : state.overlayMessages,
+        showWelcome: mapped.isEmpty,
+      );
+      _timelineCursor = page.nextCursor;
+    } finally {
+      if (reset) _timelineRefreshInFlight = false;
+    }
   }
 
   List<UiChatMessage> _pruneOverlay(List<UiChatMessage> timeline) {
@@ -358,9 +366,18 @@ class ChatViewModel extends Notifier<ChatState> {
     );
 
     final conversationId = state.conversationId;
-    if (conversationId == null) return;
+    if (conversationId == null) {
+      if (_subscribedConversationId != null) {
+        _repository.unsubscribeConversation(_subscribedConversationId!);
+        _subscribedConversationId = null;
+      }
+      return;
+    }
     if (!forceResubscribe && _subscribedConversationId == conversationId) {
       return;
+    }
+    if (_subscribedConversationId != null) {
+      _repository.unsubscribeConversation(_subscribedConversationId!);
     }
     _subscribedConversationId = conversationId;
     _repository.subscribeConversation(
@@ -407,6 +424,14 @@ class ChatViewModel extends Notifier<ChatState> {
       statusBanner: _bannerForEvent(event.eventType),
     );
 
+    // The backend emits MESSAGE_READ after the detail/read endpoints update
+    // the conversation. Calling getConversationDetail here would emit another
+    // MESSAGE_READ event and create a client/server feedback loop.
+    if (event.eventType == 'MESSAGE_READ') {
+      _markConversationMessagesAsRead(event.conversationId);
+      return;
+    }
+
     if (event.eventType == 'CONVERSATION_CLOSED') {
       await _loadTimeline(reset: true);
       if (!ref.mounted) return;
@@ -416,12 +441,21 @@ class ChatViewModel extends Notifier<ChatState> {
         _applyConversation(open.conversation);
         await _connectAndSubscribe(forceResubscribe: true);
       } else {
+        if (_subscribedConversationId != null) {
+          _repository.unsubscribeConversation(_subscribedConversationId!);
+          _subscribedConversationId = null;
+        }
+        _lastReadAckKey = null;
         state = state.copyWith(clearConversation: true);
       }
-    } else {
+    } else if (event.eventType == 'CONVERSATION_STAFF_REQUEST_CANCELLED' ||
+        event.eventType == 'CONVERSATION_TAKEN' ||
+        event.eventType == 'CONVERSATION_ASSIGNED') {
       final detail = await _repository.getConversationDetail(event.conversationId);
       if (!ref.mounted) return;
       if (detail != null) _applyConversation(detail.conversation);
+      await _loadTimeline(reset: true);
+    } else {
       await _loadTimeline(reset: true);
     }
     if (!ref.mounted) return;
@@ -442,6 +476,14 @@ class ChatViewModel extends Notifier<ChatState> {
   }
 
   void _applyConversation(ChatConversationModel conversation) {
+    if (state.conversationId != conversation.id) {
+      _lastReadAckKey = null;
+      if (_subscribedConversationId != null &&
+          _subscribedConversationId != conversation.id) {
+        _repository.unsubscribeConversation(_subscribedConversationId!);
+        _subscribedConversationId = null;
+      }
+    }
     state = state.copyWith(
       conversationId: conversation.id,
       conversationStatus: conversation.status,
@@ -478,11 +520,40 @@ class ChatViewModel extends Notifier<ChatState> {
   Future<void> _markReadIfNeeded() async {
     final conversationId = state.conversationId;
     if (conversationId == null) return;
-    final hasUnreadStaff = state.timelineMessages.any(
-      (message) => !message.isUser && message.fromStaff && message.variant == ChatMessageVariant.bubble,
-    );
-    if (!hasUnreadStaff) return;
+    final unreadMessageIds =
+        state.timelineMessages
+            .where(
+              (message) =>
+                  message.conversationId == conversationId &&
+                  message.fromStaff &&
+                  !message.isRead,
+            )
+            .map((message) => message.id)
+            .toList()
+          ..sort();
+    if (unreadMessageIds.isEmpty) return;
+
+    final readAckKey = '$conversationId:${unreadMessageIds.join(',')}';
+    if (_lastReadAckKey == readAckKey) return;
+    _lastReadAckKey = readAckKey;
+    _markConversationMessagesAsRead(conversationId);
     await _repository.markAsRead(conversationId);
+  }
+
+  void _markConversationMessagesAsRead(int conversationId) {
+    var changed = false;
+    final updated = state.timelineMessages.map((message) {
+      if (message.conversationId != conversationId ||
+          !message.fromStaff ||
+          message.isRead) {
+        return message;
+      }
+      changed = true;
+      return message.copyWith(isRead: true);
+    }).toList();
+    if (changed) {
+      state = state.copyWith(timelineMessages: updated);
+    }
   }
 
   Future<void> _refreshTimelineSoon() async {
@@ -532,6 +603,8 @@ class ChatViewModel extends Notifier<ChatState> {
   void _disposeTimers() {
     _typingTimer?.cancel();
     _aiStatusTimer?.cancel();
+    _lastReadAckKey = null;
+    _subscribedConversationId = null;
     unawaited(_repository.disconnectWebSocket());
   }
 

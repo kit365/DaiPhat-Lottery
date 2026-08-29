@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:shimmer/shimmer.dart';
 
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import '../models/blog_post.dart';
 import '../viewmodels/blog_viewmodel.dart';
 import 'blog_detail_screen.dart';
@@ -125,7 +125,7 @@ class _BlogContent extends StatelessWidget {
         ),
         const SliverToBoxAdapter(child: SizedBox(height: 26)),
         if (featured != null || popular.isNotEmpty) ...[
-          const SliverToBoxAdapter(child: _SectionHeader(title: 'Noi bat')),
+          const SliverToBoxAdapter(child: _SectionHeader(title: 'Nổi bật')),
           const SliverToBoxAdapter(child: SizedBox(height: 14)),
           SliverToBoxAdapter(
             child: _buildPopularSection(
@@ -136,7 +136,7 @@ class _BlogContent extends StatelessWidget {
           ),
           const SliverToBoxAdapter(child: SizedBox(height: 28)),
         ],
-        const SliverToBoxAdapter(child: _SectionHeader(title: 'Bai viet moi')),
+        const SliverToBoxAdapter(child: _SectionHeader(title: 'Bài viết mới')),
         const SliverToBoxAdapter(child: SizedBox(height: 14)),
         if (recent.isEmpty)
           SliverToBoxAdapter(
@@ -144,8 +144,8 @@ class _BlogContent extends StatelessWidget {
               padding: const EdgeInsets.all(32),
               child: Center(
                 child: Text(
-                  'Khong tim thay bai viet nao.',
-                  style: GoogleFonts.inter(color: _secondary),
+                  'Không tìm thấy bài viết nào.',
+                  style: AppTypography.main(const TextStyle(color: _secondary)),
                 ),
               ),
             ),
@@ -199,22 +199,26 @@ Widget _buildAppBar(VoidCallback? onBack) {
             children: [
               Text(
                 'Dai Phat Lottery',
-                style: GoogleFonts.inter(
-                  fontSize: 21,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.primaryDark,
-                  height: 1.1,
+                style: AppTypography.display(
+                  const TextStyle(
+                    fontSize: 21,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primaryDark,
+                    height: 1.1,
+                  ),
                 ),
               ),
               const SizedBox(height: 4),
               Text(
-                'XO SO - MAY MAN - THINH VUONG',
+                'XỔ SỐ - MAY MẮN - THỊNH VƯỢNG',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 0.9,
-                  color: const Color.fromARGB(255, 87, 91, 61),
+                style: AppTypography.main(
+                  const TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.9,
+                    color: Color.fromARGB(255, 87, 91, 61),
+                  ),
                 ),
               ),
             ],
@@ -270,12 +274,14 @@ Widget _buildSearchBar({
         controller: controller,
         textInputAction: TextInputAction.search,
         onSubmitted: onSubmitted,
-        style: GoogleFonts.inter(fontSize: 14, color: _ink),
+        style: AppTypography.main(const TextStyle(fontSize: 14, color: _ink)),
         decoration: InputDecoration(
-          hintText: 'Tim kiem ...',
-          hintStyle: GoogleFonts.inter(
-            fontSize: 14,
-            color: _secondary.withValues(alpha: 0.75),
+          hintText: 'Tìm kiếm ...',
+          hintStyle: AppTypography.main(
+            TextStyle(
+              fontSize: 14,
+              color: _secondary.withValues(alpha: 0.75),
+            ),
           ),
           prefixIcon: const Icon(
             Icons.search_rounded,
@@ -325,10 +331,12 @@ Widget _buildCategoryChips({
             ),
             child: Text(
               categories[i],
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                color: selected ? Colors.white : _ink,
+              style: AppTypography.main(
+                TextStyle(
+                  fontSize: 13,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  color: selected ? Colors.white : _ink,
+                ),
               ),
             ),
           ),
@@ -363,20 +371,24 @@ class _SectionHeader extends StatelessWidget {
               const SizedBox(width: 12),
               Text(
                 title,
-                style: GoogleFonts.inter(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: _ink,
+                style: AppTypography.display(
+                  const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: _ink,
+                  ),
                 ),
               ),
             ],
           ),
           Text(
-            'Xem tat ca',
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: _primary,
+            'Xem tất cả',
+            style: AppTypography.main(
+              const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: _primary,
+              ),
             ),
           ),
         ],
@@ -462,11 +474,13 @@ Widget _buildFeaturedCard(BlogPost post, void Function(BlogPost) onOpenDetail) {
               children: [
                 Text(
                   post.title,
-                  style: GoogleFonts.inter(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                    height: 1.35,
+                  style: AppTypography.display(
+                    const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      height: 1.35,
+                    ),
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -475,11 +489,13 @@ Widget _buildFeaturedCard(BlogPost post, void Function(BlogPost) onOpenDetail) {
                   const SizedBox(height: 8),
                   Text(
                     post.excerpt,
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w400,
-                      color: Colors.white.withValues(alpha: 0.84),
-                      height: 1.45,
+                    style: AppTypography.main(
+                      TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.white.withValues(alpha: 0.84),
+                        height: 1.45,
+                      ),
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -498,10 +514,12 @@ Widget _buildFeaturedCard(BlogPost post, void Function(BlogPost) onOpenDetail) {
                       alignment: Alignment.center,
                       child: Text(
                         'DP',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
+                        style: AppTypography.display(
+                          const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),
@@ -510,11 +528,13 @@ Widget _buildFeaturedCard(BlogPost post, void Function(BlogPost) onOpenDetail) {
                       child: Text(
                         (post.author.isEmpty ? 'Dai Phat' : post.author)
                             .toUpperCase(),
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                          letterSpacing: 0.3,
+                        style: AppTypography.main(
+                          const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            letterSpacing: 0.3,
+                          ),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -522,10 +542,12 @@ Widget _buildFeaturedCard(BlogPost post, void Function(BlogPost) onOpenDetail) {
                     ),
                     Text(
                       post.authorDate.isNotEmpty ? post.authorDate : post.date,
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white.withValues(alpha: 0.78),
+                      style: AppTypography.main(
+                        TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white.withValues(alpha: 0.78),
+                        ),
                       ),
                     ),
                   ],
@@ -589,11 +611,13 @@ Widget _buildRecentCard(BlogPost post, void Function(BlogPost) onOpenDetail) {
                   children: [
                     Text(
                       post.title,
-                      style: GoogleFonts.inter(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: _ink,
-                        height: 1.3,
+                      style: AppTypography.display(
+                        const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: _ink,
+                          height: 1.3,
+                        ),
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -601,10 +625,12 @@ Widget _buildRecentCard(BlogPost post, void Function(BlogPost) onOpenDetail) {
                     const SizedBox(height: 6),
                     Text(
                       post.excerpt,
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        color: _secondary,
-                        height: 1.45,
+                      style: AppTypography.main(
+                        const TextStyle(
+                          fontSize: 13,
+                          color: _secondary,
+                          height: 1.45,
+                        ),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -620,10 +646,12 @@ Widget _buildRecentCard(BlogPost post, void Function(BlogPost) onOpenDetail) {
                         const SizedBox(width: 6),
                         Text(
                           post.date,
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: _secondary,
-                            fontWeight: FontWeight.w500,
+                          style: AppTypography.main(
+                            const TextStyle(
+                              fontSize: 12,
+                              color: _secondary,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                       ],
@@ -745,17 +773,19 @@ class _BlogError extends StatelessWidget {
             const Icon(Icons.error_outline, size: 48, color: _primary),
             const SizedBox(height: 16),
             Text(
-              'Khong the tai danh sach blog',
-              style: GoogleFonts.inter(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
+              'Không thể tải danh sách blog',
+              style: AppTypography.display(
+                const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
             const SizedBox(height: 8),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(color: _secondary),
+              style: AppTypography.main(const TextStyle(color: _secondary)),
             ),
             const SizedBox(height: 24),
             FilledButton(

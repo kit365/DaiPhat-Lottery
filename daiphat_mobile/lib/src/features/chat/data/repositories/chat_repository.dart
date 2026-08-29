@@ -101,6 +101,9 @@ class ChatRepository {
     );
   }
 
+  void unsubscribeConversation(int conversationId) =>
+      _webSocketService.unsubscribeConversation(conversationId);
+
   Future<void> saveLastConversationId(int id) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(chatLastConversationKey, id);

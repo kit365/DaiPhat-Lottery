@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
-
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/login_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/chat/presentation/views/chat_screen.dart';
 import 'package:daiphat_mobile/src/features/notifications/presentation/viewmodels/notification_viewmodel.dart';
@@ -59,20 +58,24 @@ class HomeHeader extends StatelessWidget {
                 children: [
                   Text(
                     'ĐẠI PHÁT',
-                    style: GoogleFonts.barlow(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.primaryDark,
-                      height: 1.1,
+                    style: AppTypography.display(
+                      const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.primaryDark,
+                        height: 1.1,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     'XỔ SỐ - MAY MẮN - THỊNH VƯỢNG',
-                    style: GoogleFonts.publicSans(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.goldDark,
+                    style: AppTypography.main(
+                      const TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.goldDark,
+                      ),
                     ),
                   ),
                 ],

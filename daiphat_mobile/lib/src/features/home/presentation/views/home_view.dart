@@ -9,9 +9,11 @@ import 'package:daiphat_mobile/src/features/notifications/presentation/viewmodel
 import 'package:daiphat_mobile/src/shared/services/notification_service.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import '../viewmodels/home_viewmodel.dart';
+import 'widgets/home_blog_section.dart';
 import 'widgets/home_header.dart';
 import 'widgets/home_title_date.dart';
 import 'widgets/loto_card.dart';
+import 'widgets/lottery_date_picker_dialog.dart';
 import 'widgets/province_chips.dart';
 import 'widgets/results_card.dart';
 
@@ -134,30 +136,26 @@ class _HomeContentState extends ConsumerState<_HomeContent>
   }
 
   Future<void> _pickDate() async {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final lastDate = _date.isAfter(today) ? _date : today;
-    final initialDate = _date.isAfter(lastDate) ? lastDate : _date;
-
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: initialDate,
-      firstDate: DateTime(2000),
-      lastDate: lastDate,
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(
-            primary: AppColors.primaryDark,
-            onPrimary: Colors.white,
-            onSurface: AppColors.textMain,
-          ),
-        ),
-        child: child!,
-      ),
-    );
-
+    final picked = await LotteryDatePickerDialog.show(context, _date);
     if (picked != null) {
       setState(() => _date = picked);
+    }
+  }
+
+  void _previousDay() {
+    setState(() {
+      _date = _date.subtract(const Duration(days: 1));
+    });
+  }
+
+  void _nextDay() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final next = _date.add(const Duration(days: 1));
+    if (!next.isAfter(today)) {
+      setState(() {
+        _date = next;
+      });
     }
   }
 
@@ -357,6 +355,8 @@ class _HomeContentState extends ConsumerState<_HomeContent>
                 child: HomeTitleDate(
                   date: _date,
                   onPickDate: _pickDate,
+                  onPreviousDay: _previousDay,
+                  onNextDay: _nextDay,
                 ),
               ),
               const SliverToBoxAdapter(child: SizedBox(height: 20)),
@@ -431,6 +431,10 @@ class _HomeContentState extends ConsumerState<_HomeContent>
                     provinces: allProvinces,
                     results: data.results,
                   ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                const SliverToBoxAdapter(
+                  child: HomeBlogSection(),
                 ),
               ],
               const SliverToBoxAdapter(child: SizedBox(height: 40)),

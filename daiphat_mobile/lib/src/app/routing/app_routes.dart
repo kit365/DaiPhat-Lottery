@@ -31,6 +31,9 @@ enum AppRoute {
   adminScan,
   fortune,
   schedule,
+  blog,
+  utilities,
+  utilitiesTwo,
 }
 
 extension AppRouteDefinition on AppRoute {
@@ -100,6 +103,12 @@ extension AppRouteDefinition on AppRoute {
         return '/fortune';
       case AppRoute.schedule:
         return '/schedule';
+      case AppRoute.blog:
+        return '/blog';
+      case AppRoute.utilities:
+        return '/utilities';
+      case AppRoute.utilitiesTwo:
+        return '/utilities-2';
     }
   }
 
@@ -169,6 +178,12 @@ extension AppRouteDefinition on AppRoute {
         return 'fortune';
       case AppRoute.schedule:
         return 'schedule';
+      case AppRoute.blog:
+        return 'blog';
+      case AppRoute.utilities:
+        return 'utilities';
+      case AppRoute.utilitiesTwo:
+        return 'utilities_two';
     }
   }
 
@@ -193,7 +208,6 @@ extension AppRouteDefinition on AppRoute {
       case AppRoute.complaints:
       case AppRoute.complaintDetail:
       case AppRoute.bankAccounts:
-      case AppRoute.notifications:
       case AppRoute.notificationSettings:
       case AppRoute.security:
       case AppRoute.myTickets:
@@ -203,10 +217,14 @@ extension AppRouteDefinition on AppRoute {
       case AppRoute.adminScan:
       case AppRoute.fortune:
       case AppRoute.schedule:
+      case AppRoute.blog:
+      case AppRoute.utilities:
+      case AppRoute.utilitiesTwo:
         return true;
       case AppRoute.home:
       case AppRoute.buyTicket:
       case AppRoute.checkTicket:
+      case AppRoute.notifications:
       case AppRoute.profile:
         return false;
     }
