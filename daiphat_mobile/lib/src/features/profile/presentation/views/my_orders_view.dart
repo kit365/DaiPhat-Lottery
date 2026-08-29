@@ -2,14 +2,17 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
+import 'package:daiphat_mobile/src/features/chat/presentation/views/chat_screen.dart';
 import 'package:daiphat_mobile/src/features/checkout/models/order_type.dart';
 import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
+import 'package:daiphat_mobile/src/shared/widgets/app_status_tab_bar.dart';
 import 'package:daiphat_mobile/src/shared/widgets/brand_scrollbar.dart';
 import '../viewmodels/my_orders_viewmodel.dart';
 
@@ -25,15 +28,17 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
   final _scrollController = ScrollController();
   final _searchController = TextEditingController();
   Timer? _searchDebounce;
+  bool _isSearchMode = false;
+  final Set<String> _expandedOrderIds = {};
 
-  static const _statusFilters = <(String?, String)>[
-    (null, 'Tất cả'),
-    ('PENDING_PAYMENT', 'Chờ TT'),
-    ('PAID', 'Đã TT'),
-    ('PREPARING', 'Chuẩn bị'),
-    ('PENDING_PICKUP', 'Chờ lấy'),
-    ('COMPLETED', 'Hoàn thành'),
-    ('CANCELLED', 'Đã hủy'),
+  static const _statusFilters = <AppStatusTabItem<String?>>[
+    AppStatusTabItem(value: null, label: 'Tất cả'),
+    AppStatusTabItem(value: 'PENDING_PAYMENT', label: 'Chờ thanh toán'),
+    AppStatusTabItem(value: 'PAID', label: 'Đã thanh toán'),
+    AppStatusTabItem(value: 'PREPARING', label: 'Đang chuẩn bị'),
+    AppStatusTabItem(value: 'PENDING_PICKUP', label: 'Chờ nhận vé'),
+    AppStatusTabItem(value: 'COMPLETED', label: 'Hoàn thành'),
+    AppStatusTabItem(value: 'CANCELLED', label: 'Đã hủy'),
   ];
 
   @override
@@ -59,40 +64,40 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
     super.dispose();
   }
 
+  void _openChat() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ChatScreen(
+          isAuthenticated: true,
+          isActive: true,
+          onBack: () => Navigator.of(context).pop(),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new_rounded,
-            size: 20,
-            color: AppColors.primary,
-          ),
-          onPressed: () => context.pop(),
-        ),
-        title: Text(
-          'Đơn hàng của tôi',
-          style: GoogleFonts.publicSans(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textMain,
-          ),
-        ),
-        centerTitle: true,
-      ),
+      backgroundColor: const Color(0xFFF5F5F5),
+      appBar: _isSearchMode ? _buildSearchAppBar() : _buildMainAppBar(),
       body: ListenableBuilder(
         listenable: _viewModel,
         builder: (context, _) {
+          if (_isSearchMode) {
+            return _buildSearchScreenContent();
+          }
+
           return Column(
             children: [
-              _buildSearchAndPriceFilter(),
-              _buildStatusFilter(),
-              const Divider(height: 1, color: Color(0xFFEEEEEE)),
+              // 1. Status Tabs
+              AppStatusTabBar<String?>(
+                items: _statusFilters,
+                selectedValue: _viewModel.selectedStatus,
+                onSelected: (value) => _viewModel.setStatusFilter(value),
+              ),
+
+              // 2. Order List
               Expanded(child: _buildBody()),
             ],
           );
@@ -101,38 +106,156 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
     );
   }
 
-  Widget _buildSearchAndPriceFilter() {
-    final selectedPriceDirection =
-        _viewModel.sortBy == 'totalAmount' ? _viewModel.direction : null;
+  AppBar _buildMainAppBar() {
+    return AppBar(
+      backgroundColor: AppColors.surfacePrimary,
+      surfaceTintColor: AppColors.transparent,
+      elevation: 0,
+      leading: IconButton(
+        icon: const Icon(
+          Icons.arrow_back_ios_new_rounded,
+          size: 20,
+          color: AppColors.primary,
+        ),
+        onPressed: () => context.pop(),
+      ),
+      title: Text(
+        'Đơn hàng của tôi',
+        style: AppTypography.main(
+          const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textMain,
+          ),
+        ),
+      ),
+      centerTitle: true,
+      actions: [
+        IconButton(
+          icon: const Icon(
+            Icons.search_rounded,
+            size: 24,
+            color: AppColors.primary,
+          ),
+          tooltip: 'Tìm kiếm đơn hàng',
+          onPressed: () {
+            setState(() {
+              _isSearchMode = true;
+            });
+          },
+        ),
+        _buildChatActionButton(),
+        const SizedBox(width: 4),
+      ],
+    );
+  }
 
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      child: Column(
-        children: [
-          TextField(
+  AppBar _buildSearchAppBar() {
+    return AppBar(
+      backgroundColor: AppColors.surfacePrimary,
+      surfaceTintColor: AppColors.transparent,
+      elevation: 0,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back, size: 24, color: AppColors.primary),
+        onPressed: () {
+          setState(() {
+            _isSearchMode = false;
+            _searchController.clear();
+            _viewModel.setSearch('');
+          });
+        },
+      ),
+      title: Text(
+        'Tìm kiếm đơn hàng',
+        style: AppTypography.main(
+          const TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF1F2937),
+          ),
+        ),
+      ),
+      centerTitle: true,
+      actions: [_buildChatActionButton(), const SizedBox(width: 4)],
+    );
+  }
+
+  Widget _buildChatActionButton() {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        IconButton(
+          icon: const Icon(
+            Icons.chat_bubble_outline_rounded,
+            size: 23,
+            color: AppColors.primary,
+          ),
+          tooltip: 'Hỗ trợ / Trò chuyện',
+          onPressed: _openChat,
+        ),
+        Positioned(
+          top: 10,
+          right: 10,
+          child: Container(
+            width: 7.5,
+            height: 7.5,
+            decoration: const BoxDecoration(
+              color: Color(0xFFEE4D2D),
+              shape: BoxShape.circle,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSearchScreenContent() {
+    return Column(
+      children: [
+        Container(
+          color: AppColors.surfacePrimary,
+          padding: const EdgeInsets.fromLTRB(14, 6, 14, 12),
+          child: TextField(
             controller: _searchController,
+            autofocus: true,
             textInputAction: TextInputAction.search,
             onSubmitted: _viewModel.setSearch,
+            style: AppTypography.main(const TextStyle(fontSize: 14)),
             decoration: InputDecoration(
-              hintText: 'Tìm theo mã đơn hàng',
-              prefixIcon: const Icon(Icons.search_rounded, size: 22),
+              hintText: 'Mã đơn hàng, đài quay hoặc số vé...',
+              hintStyle: AppTypography.main(
+                const TextStyle(fontSize: 13.5, color: Color(0xFF9CA3AF)),
+              ),
+              prefixIcon: const Icon(
+                Icons.search_rounded,
+                size: 20,
+                color: Color(0xFF888888),
+              ),
               suffixIcon: _searchController.text.trim().isEmpty
                   ? null
                   : IconButton(
-                      icon: const Icon(Icons.close_rounded, size: 20),
+                      icon: const Icon(
+                        Icons.close_rounded,
+                        size: 18,
+                        color: Color(0xFF888888),
+                      ),
                       onPressed: () {
                         _searchController.clear();
                         _viewModel.setSearch('');
+                        setState(() {});
                       },
                     ),
               filled: true,
-              fillColor: const Color(0xFFF6F7F9),
+              fillColor: const Color(0xFFF3F4F6),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(6),
                 borderSide: BorderSide.none,
               ),
-              contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 9,
+              ),
+              isDense: true,
             ),
             onChanged: (value) {
               setState(() {});
@@ -142,69 +265,79 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
               });
             },
           ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              _PriceSortChip(
-                label: 'Mới nhất',
-                selected: selectedPriceDirection == null,
-                onTap: () => _viewModel.setPriceSort(null),
+        ),
+
+        const Divider(height: 1, color: Color(0xFFEEEEEE)),
+
+        Expanded(
+          child: _searchController.text.trim().isEmpty
+              ? _buildSearchEmptyPrompt()
+              : _buildBody(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSearchEmptyPrompt() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.08),
+                shape: BoxShape.circle,
               ),
-              const SizedBox(width: 8),
-              _PriceSortChip(
-                label: 'Giá thấp-cao',
-                selected: selectedPriceDirection == 'asc',
-                onTap: () => _viewModel.setPriceSort('asc'),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Icon(
+                    Icons.receipt_long_rounded,
+                    size: 56,
+                    color: AppColors.primary.withValues(alpha: 0.35),
+                  ),
+                  Positioned(
+                    right: 18,
+                    bottom: 18,
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: const BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.search_rounded,
+                        size: 20,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
-              _PriceSortChip(
-                label: 'Giá cao-thấp',
-                selected: selectedPriceDirection == 'desc',
-                onTap: () => _viewModel.setPriceSort('desc'),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Bạn có thể tìm kiếm theo mã đơn hàng, đài quay\nhoặc số vé đặt mua',
+              textAlign: TextAlign.center,
+              style: AppTypography.main(
+                const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF4B5563),
+                  height: 1.45,
+                ),
               ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildStatusFilter() {
-    return Container(
-      color: Colors.white,
-      height: 50,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        itemCount: _statusFilters.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final (value, label) = _statusFilters[index];
-          final isSelected = _viewModel.selectedStatus == value;
-          return GestureDetector(
-            onTap: () => _viewModel.setStatusFilter(value),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              decoration: BoxDecoration(
-                color: isSelected ? AppColors.primary : const Color(0xFFF4F6F8),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                label,
-                style: GoogleFonts.publicSans(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: isSelected ? Colors.white : AppColors.textMuted,
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
 
   Widget _buildBody() {
     if (_viewModel.isLoading) {
@@ -218,13 +351,16 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, size: 48, color: AppColors.textMuted),
+            const Icon(
+              Icons.error_outline,
+              size: 48,
+              color: AppColors.textMuted,
+            ),
             const SizedBox(height: 12),
             Text(
               'Không thể tải đơn hàng',
-              style: GoogleFonts.publicSans(
-                fontSize: 15,
-                color: AppColors.textMuted,
+              style: AppTypography.main(
+                const TextStyle(fontSize: 15, color: AppColors.textMuted),
               ),
             ),
             const SizedBox(height: 16),
@@ -232,9 +368,11 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
               onPressed: () => _viewModel.fetchOrders(refresh: true),
               child: Text(
                 'Thử lại',
-                style: GoogleFonts.publicSans(
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.primary,
+                style: AppTypography.main(
+                  const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
+                  ),
                 ),
               ),
             ),
@@ -255,7 +393,7 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
         child: ListView.builder(
           controller: _scrollController,
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           itemCount:
               _viewModel.orders.length + (_viewModel.isLoadingMore ? 1 : 0),
           itemBuilder: (context, index) {
@@ -269,7 +407,7 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
             }
             final order = _viewModel.orders[index];
             return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.only(bottom: 10),
               child: GestureDetector(
                 onTap: () => context.pushNamed(
                   AppRoute.orderDetail.name,
@@ -293,7 +431,7 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
             width: 80,
             height: 80,
             decoration: const BoxDecoration(
-              color: Color(0xFFF4F6F8),
+              color: Color(0xFFEAEAEA),
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -305,18 +443,19 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
           const SizedBox(height: 16),
           Text(
             'Chưa có đơn hàng nào',
-            style: GoogleFonts.publicSans(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textMain,
+            style: AppTypography.main(
+              const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textMain,
+              ),
             ),
           ),
           const SizedBox(height: 8),
           Text(
             'Hãy mua vé số để tham gia ngay!',
-            style: GoogleFonts.publicSans(
-              fontSize: 14,
-              color: AppColors.textMuted,
+            style: AppTypography.main(
+              const TextStyle(fontSize: 14, color: AppColors.textMuted),
             ),
           ),
         ],
@@ -325,17 +464,302 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
   }
 
   Widget _buildOrderCard(OrderResponse order) {
-    final status = OrderStatus.fromValue(order.status);
-    final statusColor = _statusColor(order.status);
+    final statusStyle = _statusStyle(order.status);
+    final items = order.orderDetails ?? [];
+    final totalTickets = items.isNotEmpty
+        ? items.fold<int>(0, (sum, i) => sum + i.quantity)
+        : 1;
 
-    String? formattedCreatedAt;
-    if (order.createdAt != null) {
+    final receiveLabel =
+        order.receiveType == 'COUNTER_PICKUP'
+            ? 'Nhận tại quầy'
+            : order.receiveType == 'DELIVERY'
+            ? 'Giao tận nơi'
+            : 'Nhận tại quầy';
+
+    final isExpanded = _expandedOrderIds.contains(order.id);
+    final displayedItems = isExpanded ? items : (items.isNotEmpty ? [items.first] : <OrderDetailItem>[]);
+    final hasMoreTickets = items.length > 1;
+
+    final actionButtons = _buildOrderActionButtons(order);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surfacePrimary,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.borderLight, width: 0.8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.025),
+            blurRadius: 6,
+            offset: const Offset(0, 1.5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Header: Icon store + Tên đại lý/Mã đơn + Trạng thái chữ Shopee ──
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.storefront_outlined,
+                  size: 17,
+                  color: AppColors.contentPrimary,
+                ),
+                const SizedBox(width: 7),
+                Expanded(
+                  child: Text(
+                    'Đại Phát Lottery  •  DP${order.orderCode}',
+                    style: AppTypography.main(
+                      const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.contentPrimary,
+                      ),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  statusStyle.label,
+                  style: AppTypography.main(
+                    TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: statusStyle.text,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const Divider(height: 1, color: AppColors.borderLight),
+
+          // ── Body: Danh sách thông tin vé (Hiện số, hiện đài, không thumbnail) ──
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            child: Column(
+              children: [
+                if (items.isEmpty)
+                  _buildEmptyTicketRow(order, receiveLabel)
+                else
+                  for (int i = 0; i < displayedItems.length; i++)
+                    _buildTicketRow(
+                      displayedItems[i],
+                      receiveLabel,
+                      isLast: i == displayedItems.length - 1 && !hasMoreTickets,
+                    ),
+
+                // Nút "Xem thêm (n vé) ⌵" hoặc "Thu gọn ▴"
+                if (hasMoreTickets)
+                  InkWell(
+                    onTap: () {
+                      setState(() {
+                        if (isExpanded) {
+                          _expandedOrderIds.remove(order.id);
+                        } else {
+                          _expandedOrderIds.add(order.id);
+                        }
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(6),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            isExpanded
+                                ? 'Thu gọn'
+                                : 'Xem thêm (${items.length - 1} vé)',
+                            style: AppTypography.main(
+                              const TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.contentSecondary,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            isExpanded
+                                ? Icons.keyboard_arrow_up_rounded
+                                : Icons.keyboard_arrow_down_rounded,
+                            size: 17,
+                            color: AppColors.contentSecondary,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
+          const Divider(height: 1, color: AppColors.borderLight),
+
+          // ── Footer: Tổng tiền + Nút hành động theo trạng thái ──
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text(
+                      'Tổng số tiền ($totalTickets vé): ',
+                      style: AppTypography.main(
+                        const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.contentSecondary,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      AppFormatters.formatCurrency(order.totalAmount),
+                      style: AppTypography.number(
+                        const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.brandPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (actionButtons.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: actionButtons,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTicketRow(
+    OrderDetailItem item,
+    String receiveLabel, {
+    bool isLast = false,
+  }) {
+    final ticket = item.lotteryTicket;
+    final station = ticket?.province ?? ticket?.stationName;
+    final rawDrawDate = ticket?.drawDate;
+    final symbol = ticket?.symbol;
+    final numbers = ticket?.numbers;
+    final ticketType = ticket?.ticketType;
+
+    String? formattedDrawDate;
+    if (rawDrawDate != null && rawDrawDate.trim().isNotEmpty) {
       try {
-        final dt = DateTime.parse(order.createdAt!).toLocal();
-        formattedCreatedAt = DateFormat('dd/MM/yyyy - HH:mm').format(dt);
-      } catch (_) {}
+        final dt = DateTime.parse(rawDrawDate.trim());
+        formattedDrawDate = DateFormat('dd/MM/yyyy').format(dt);
+      } catch (_) {
+        formattedDrawDate = rawDrawDate.trim();
+      }
     }
 
+    // Tên đài / Vé số
+    final title = station != null && station.trim().isNotEmpty
+        ? (station.trim().startsWith('Xổ số')
+            ? station.trim()
+            : 'Xổ số ${station.trim()}')
+        : ticketType != null && ticketType.trim().isNotEmpty
+        ? 'Vé số $ticketType'
+        : 'Vé Xổ Số Kiến Thiết';
+
+    final subInfo = [
+      if (numbers != null && numbers.trim().isNotEmpty) 'Số: $numbers',
+      if (formattedDrawDate != null && formattedDrawDate.isNotEmpty)
+        'Kỳ quay: $formattedDrawDate',
+      if (symbol != null && symbol.trim().isNotEmpty) 'Ký hiệu: $symbol',
+      receiveLabel,
+    ].join('  •  ');
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 9),
+      decoration: BoxDecoration(
+        border: isLast
+            ? null
+            : const Border(
+                bottom: BorderSide(color: Color(0xFFF3F4F6), width: 0.8),
+              ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: AppTypography.main(
+                    const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.contentPrimary,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'x${item.quantity}',
+                style: AppTypography.main(
+                  const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.contentMuted,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  subInfo,
+                  style: AppTypography.main(
+                    const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.contentMuted,
+                    ),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                AppFormatters.formatCurrency(item.price),
+                style: AppTypography.main(
+                  const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.contentPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyTicketRow(OrderResponse order, String receiveLabel) {
     String? formattedPickupAt;
     if (order.expectedPickupAt != null) {
       try {
@@ -344,210 +768,215 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
       } catch (_) {}
     }
 
-    final currencyFmt = NumberFormat.currency(
-      locale: 'vi_VN',
-      symbol: '₫',
-      decimalDigits: 0,
-    );
+    final subInfo = [
+      receiveLabel,
+      if (formattedPickupAt != null) 'Hẹn lấy: $formattedPickupAt',
+    ].join('  •  ');
 
-    final receiveLabel = order.receiveType == 'COUNTER_PICKUP'
-        ? 'Nhận tại quầy'
-        : order.receiveType == 'DELIVERY'
-            ? 'Giao tận nơi'
-            : 'Nhận tại quầy';
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 9),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Header: order code + status badge ──
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-            child: Row(
-              children: [
-                const Icon(Icons.receipt_outlined, size: 16, color: AppColors.primary),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    'DP${order.orderCode}',
-                    style: GoogleFonts.publicSans(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textMain,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    status.label,
-                    style: GoogleFonts.publicSans(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: statusColor,
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Vé Xổ Số Đại Phát',
+                  style: AppTypography.main(
+                    const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.contentPrimary,
                     ),
                   ),
                 ),
-              ],
-            ),
-          ),
-
-          // ── Created at ──
-          if (formattedCreatedAt != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-              child: Row(
-                children: [
-                  const Icon(Icons.access_time_rounded, size: 13, color: AppColors.textMuted),
-                  const SizedBox(width: 5),
-                  Text(
-                    formattedCreatedAt,
-                    style: GoogleFonts.publicSans(
-                      fontSize: 12,
-                      color: AppColors.textMuted,
-                    ),
-                  ),
-                ],
               ),
-            ),
-
-          const Divider(height: 1, color: Color(0xFFF0F0F0)),
-
-          // ── Footer: receive type | pickup time | total ──
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.store_outlined, size: 14, color: AppColors.textMuted),
-                          const SizedBox(width: 5),
-                          Text(
-                            receiveLabel,
-                            style: GoogleFonts.publicSans(
-                              fontSize: 13,
-                              color: AppColors.textMuted,
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (formattedPickupAt != null) ...[
-                        const SizedBox(height: 5),
-                        Row(
-                          children: [
-                            const Icon(Icons.schedule_rounded, size: 14, color: AppColors.textMuted),
-                            const SizedBox(width: 5),
-                            Text(
-                              'Lấy lúc: $formattedPickupAt',
-                              style: GoogleFonts.publicSans(
-                                fontSize: 13,
-                                color: AppColors.textMuted,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ],
+              Text(
+                'x1',
+                style: AppTypography.main(
+                  const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.contentMuted,
                   ),
                 ),
-                const SizedBox(width: 12),
-                Text(
-                  currencyFmt.format(order.totalAmount),
-                  style: GoogleFonts.publicSans(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.primary,
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  subInfo,
+                  style: AppTypography.main(
+                    const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.contentMuted,
+                    ),
                   ),
                 ),
-              ],
-            ),
+              ),
+              Text(
+                AppFormatters.formatCurrency(order.totalAmount),
+                style: AppTypography.main(
+                  const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.contentPrimary,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Color _statusColor(String status) {
-    switch (status) {
-      case 'PENDING_PAYMENT':
-        return const Color(0xFFF57C00);
-      case 'PAID':
-        return const Color(0xFF1565C0);
-      case 'PREPARING':
-        return const Color(0xFF6A1B9A);
-      case 'PENDING_PICKUP':
-        return const Color(0xFF00695C);
-      case 'COMPLETED':
-        return const Color(0xFF2E7D32);
-      case 'CANCELLED':
-        return const Color(0xFF757575);
-      default:
-        return AppColors.textMuted;
-    }
-  }
-}
+  List<Widget> _buildOrderActionButtons(OrderResponse order) {
+    final buttons = <Widget>[];
 
-class _PriceSortChip extends StatelessWidget {
-  const _PriceSortChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          height: 38,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: selected ? const Color(0xFFFFE7EA) : const Color(0xFFF6F7F9),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: selected ? AppColors.primary : const Color(0xFFE9EDF2),
+    if (order.status == 'PENDING_PAYMENT') {
+      buttons.add(
+        ElevatedButton(
+          onPressed:
+              () => context.pushNamed(
+                AppRoute.orderDetail.name,
+                pathParameters: {'id': order.id},
+              ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.brandPrimary,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(6),
             ),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
           child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.publicSans(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: selected ? AppColors.primary : AppColors.textMuted,
+            'Thanh toán ngay',
+            style: AppTypography.main(
+              const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
+    } else if (order.refundEligible == true) {
+      buttons.add(
+        OutlinedButton(
+          onPressed:
+              () => context.pushNamed(
+                AppRoute.orderDetail.name,
+                pathParameters: {'id': order.id},
+              ),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.contentPrimary,
+            side: const BorderSide(color: AppColors.borderDefault),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(6),
+            ),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          child: Text(
+            'Yêu cầu hoàn tiền',
+            style: AppTypography.main(
+              const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.contentPrimary,
+              ),
+            ),
+          ),
+        ),
+      );
+    } else if (order.status == 'CANCELLED') {
+      buttons.add(
+        OutlinedButton(
+          onPressed:
+              () => context.pushNamed(
+                AppRoute.orderDetail.name,
+                pathParameters: {'id': order.id},
+              ),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.contentPrimary,
+            side: const BorderSide(color: AppColors.borderDefault),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(6),
+            ),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          child: Text(
+            'Xem thông tin hoàn tiền',
+            style: AppTypography.main(
+              const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.contentPrimary,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return buttons;
+  }
+
+  ({Color surface, Color text, String label}) _statusStyle(String status) {
+    switch (status) {
+      case 'PENDING_PAYMENT':
+        return (
+          surface: AppColors.statusWarningSurface,
+          text: AppColors.statusWarningForeground,
+          label: 'Chờ thanh toán',
+        );
+      case 'PAID':
+        return (
+          surface: AppColors.statusInfoSurface,
+          text: AppColors.statusInfoForeground,
+          label: 'Đã thanh toán',
+        );
+      case 'PREPARING':
+        return (
+          surface: AppColors.statusAttentionSurface,
+          text: AppColors.statusAttentionForeground,
+          label: 'Đang chuẩn bị',
+        );
+      case 'PENDING_PICKUP':
+        return (
+          surface: const Color(0xFFE6FFFA),
+          text: const Color(0xFF0D9488),
+          label: 'Chờ nhận vé',
+        );
+      case 'COMPLETED':
+        return (
+          surface: AppColors.statusSuccessSurface,
+          text: AppColors.statusSuccessForeground,
+          label: 'Hoàn thành',
+        );
+      case 'CANCELLED':
+        return (
+          surface: AppColors.statusNeutralSurface,
+          text: AppColors.statusNeutralForeground,
+          label: 'Đã hủy',
+        );
+      default:
+        return (
+          surface: AppColors.statusNeutralSurface,
+          text: AppColors.contentMuted,
+          label: status,
+        );
+    }
   }
 }

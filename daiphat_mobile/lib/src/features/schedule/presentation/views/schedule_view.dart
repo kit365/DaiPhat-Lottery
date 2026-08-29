@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import '../../data/models/lottery_station_schedule.dart';
@@ -10,7 +10,7 @@ import '../providers/schedule_providers.dart';
 class ScheduleView extends ConsumerStatefulWidget {
   const ScheduleView({super.key});
 
-  static const _headerRed = Color(0xFFEE1314);
+  static const _headerRed = AppColors.brandPrimaryStrong;
 
   @override
   ConsumerState<ScheduleView> createState() => _ScheduleViewState();
@@ -32,10 +32,10 @@ class _ScheduleViewState extends ConsumerState<ScheduleView> {
     final asyncSchedule = ref.watch(lotteryScheduleProvider);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.surfacePrimary,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
+        backgroundColor: AppColors.surfacePrimary,
+        surfaceTintColor: AppColors.transparent,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(
@@ -47,7 +47,7 @@ class _ScheduleViewState extends ConsumerState<ScheduleView> {
         ),
         title: Text(
           'Lịch mở thưởng',
-          style: GoogleFonts.publicSans(
+          style: AppTypography.mainWith(
             fontSize: 18,
             fontWeight: FontWeight.w800,
             color: AppColors.textMain,
@@ -97,12 +97,16 @@ class _ScheduleError extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, size: 48, color: AppColors.textMuted),
+            const Icon(
+              Icons.error_outline,
+              size: 48,
+              color: AppColors.textMuted,
+            ),
             const SizedBox(height: 12),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: GoogleFonts.publicSans(
+              style: AppTypography.mainWith(
                 fontSize: 14,
                 color: AppColors.textMuted,
               ),
@@ -112,7 +116,7 @@ class _ScheduleError extends StatelessWidget {
               onPressed: onRetry,
               child: Text(
                 'Thử lại',
-                style: GoogleFonts.publicSans(
+                style: AppTypography.mainWith(
                   fontWeight: FontWeight.w700,
                   color: AppColors.primary,
                 ),
@@ -143,17 +147,17 @@ class _ScheduleTable extends StatelessWidget {
       children: [
         Text(
           'Theo dõi thời gian quay số theo từng miền',
-          style: GoogleFonts.publicSans(
+          style: AppTypography.mainWith(
             fontSize: 13,
-            color: const Color(0xFF637381),
+            color: AppColors.contentNeutral,
           ),
         ),
         const SizedBox(height: 18),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.surfacePrimary,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFFE5E7EB)),
+            border: Border.all(color: AppColors.borderDefault),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.05),
@@ -175,8 +179,12 @@ class _ScheduleTable extends StatelessWidget {
                   width: tableWidth,
                   child: Table(
                     border: const TableBorder(
-                      horizontalInside: BorderSide(color: Color(0xFFE5E7EB)),
-                      verticalInside: BorderSide(color: Color(0xFFE5E7EB)),
+                      horizontalInside: BorderSide(
+                        color: AppColors.borderDefault,
+                      ),
+                      verticalInside: BorderSide(
+                        color: AppColors.borderDefault,
+                      ),
                     ),
                     defaultVerticalAlignment: TableCellVerticalAlignment.middle,
                     columnWidths: {
@@ -202,8 +210,8 @@ class _ScheduleTable extends StatelessWidget {
                         return TableRow(
                           decoration: BoxDecoration(
                             color: isToday
-                                ? const Color(0xFFFFF4F4)
-                                : Colors.white,
+                                ? AppColors.statusErrorSurface
+                                : AppColors.surfacePrimary,
                           ),
                           children: [
                             _dayCell(day.dayLabel, isToday: isToday),
@@ -235,10 +243,10 @@ class _ScheduleTable extends StatelessWidget {
       child: Text(
         title,
         textAlign: TextAlign.center,
-        style: GoogleFonts.publicSans(
+        style: AppTypography.mainWith(
           fontSize: 13,
           fontWeight: FontWeight.w800,
-          color: Colors.white,
+          color: AppColors.surfacePrimary,
           letterSpacing: 0.3,
         ),
       ),
@@ -260,7 +268,7 @@ class _ScheduleTable extends StatelessWidget {
           Text(
             label,
             textAlign: TextAlign.center,
-            style: GoogleFonts.publicSans(
+            style: AppTypography.mainWith(
               fontSize: 14,
               fontWeight: FontWeight.w800,
               color: isToday ? AppColors.primary : AppColors.textMain,
@@ -284,7 +292,7 @@ class _ScheduleTable extends StatelessWidget {
               (station) => Text(
                 'Xổ Số ${station.stationName}',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.publicSans(
+                style: AppTypography.mainWith(
                   fontSize: 13,
                   height: 1.5,
                   fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,

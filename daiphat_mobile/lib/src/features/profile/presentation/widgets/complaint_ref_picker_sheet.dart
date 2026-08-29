@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:intl/intl.dart';
 
 import 'package:daiphat_mobile/src/features/checkout/data/order_service.dart';
@@ -10,6 +10,7 @@ import 'package:daiphat_mobile/src/features/profile/data/models/support_ticket.d
 import 'package:daiphat_mobile/src/features/profile/data/prize_payout_service.dart';
 import 'package:daiphat_mobile/src/features/profile/data/refund_service.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 
 /// Kết quả chọn tham chiếu khi tạo khiếu nại.
 class ComplaintRefSelection {
@@ -30,7 +31,7 @@ Future<ComplaintRefSelection?> showComplaintRefPicker({
   return showModalBottomSheet<ComplaintRefSelection>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: Colors.white,
+    backgroundColor: AppColors.surfacePrimary,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
@@ -69,8 +70,7 @@ class _ComplaintRefPickerSheetState extends State<_ComplaintRefPickerSheet> {
   String? _error;
   List<_PickerItem> _items = const [];
 
-  String _money(int amount) =>
-      '${NumberFormat.decimalPattern('vi_VN').format(amount)}đ';
+  String _money(int amount) => AppFormatters.formatCurrency(amount);
 
   @override
   void initState() {
@@ -86,17 +86,24 @@ class _ComplaintRefPickerSheetState extends State<_ComplaintRefPickerSheet> {
     try {
       switch (widget.refType) {
         case TicketRefType.order:
-          final page = await widget.orderService.getMyOrders(page: 1, size: 100);
+          final page = await widget.orderService.getMyOrders(
+            page: 1,
+            size: 100,
+          );
           _items = page.records.map(_mapOrder).toList();
           break;
         case TicketRefType.refundRequest:
-          final page =
-              await widget.refundService.getMyRefunds(page: 1, limit: 100);
+          final page = await widget.refundService.getMyRefunds(
+            page: 1,
+            limit: 100,
+          );
           _items = page.records.map(_mapRefund).toList();
           break;
         case TicketRefType.prizeClaim:
-          final page =
-              await widget.prizePayoutService.getMyRequests(page: 1, limit: 100);
+          final page = await widget.prizePayoutService.getMyRequests(
+            page: 1,
+            limit: 100,
+          );
           _items = page.records.map(_mapPrize).toList();
           break;
         case TicketRefType.paymentTransaction:
@@ -163,7 +170,8 @@ class _ComplaintRefPickerSheetState extends State<_ComplaintRefPickerSheet> {
   (bool, String?) _refundEligible(RefundRequestResponse refund) {
     const waitHours = 48;
     const graceDays = 7;
-    final slow = refund.status == RefundRequestStatus.waitingForInfo ||
+    final slow =
+        refund.status == RefundRequestStatus.waitingForInfo ||
         refund.status == RefundRequestStatus.readyToPay;
     if (slow) {
       final updated = DateTime.tryParse(refund.updatedAt);
@@ -191,7 +199,8 @@ class _ComplaintRefPickerSheetState extends State<_ComplaintRefPickerSheet> {
   (bool, String?) _prizeEligible(PrizePayoutRequestResponse payout) {
     const waitHours = 48;
     const graceDays = 15;
-    final slow = payout.status == PrizePayoutRequestStatus.pending ||
+    final slow =
+        payout.status == PrizePayoutRequestStatus.pending ||
         payout.status == PrizePayoutRequestStatus.approved;
     if (slow) {
       final updated = DateTime.tryParse(payout.updatedAt ?? '');
@@ -202,8 +211,9 @@ class _ComplaintRefPickerSheetState extends State<_ComplaintRefPickerSheet> {
       return (true, null);
     }
     if (payout.status == PrizePayoutRequestStatus.completed) {
-      final anchor =
-          DateTime.tryParse(payout.completedAt ?? payout.updatedAt ?? '');
+      final anchor = DateTime.tryParse(
+        payout.completedAt ?? payout.updatedAt ?? '',
+      );
       if (anchor != null &&
           DateTime.now().difference(anchor).inDays > graceDays) {
         return (false, 'Đã quá hạn');
@@ -265,7 +275,7 @@ class _ComplaintRefPickerSheetState extends State<_ComplaintRefPickerSheet> {
                 Expanded(
                   child: Text(
                     _title,
-                    style: GoogleFonts.publicSans(
+                    style: AppTypography.mainWith(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
                       color: AppColors.textMain,
@@ -297,14 +307,20 @@ class _ComplaintRefPickerSheetState extends State<_ComplaintRefPickerSheet> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(_error!,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.publicSans(color: AppColors.textMuted)),
+            Text(
+              _error!,
+              textAlign: TextAlign.center,
+              style: AppTypography.mainWith(color: AppColors.textMuted),
+            ),
             TextButton(
               onPressed: _load,
-              child: Text('Thử lại',
-                  style: GoogleFonts.publicSans(
-                      color: AppColors.primary, fontWeight: FontWeight.w700)),
+              child: Text(
+                'Thử lại',
+                style: AppTypography.mainWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ],
         ),
@@ -314,7 +330,7 @@ class _ComplaintRefPickerSheetState extends State<_ComplaintRefPickerSheet> {
       return Center(
         child: Text(
           _emptyText,
-          style: GoogleFonts.publicSans(
+          style: AppTypography.mainWith(
             fontSize: 14,
             color: AppColors.textMuted,
           ),
@@ -332,12 +348,9 @@ class _ComplaintRefPickerSheetState extends State<_ComplaintRefPickerSheet> {
         return InkWell(
           onTap: item.eligible
               ? () => Navigator.pop(
-                    context,
-                    ComplaintRefSelection(
-                      id: item.id,
-                      displayLabel: item.title,
-                    ),
-                  )
+                  context,
+                  ComplaintRefSelection(id: item.id, displayLabel: item.title),
+                )
               : null,
           borderRadius: BorderRadius.circular(14),
           child: Container(
@@ -346,13 +359,11 @@ class _ComplaintRefPickerSheetState extends State<_ComplaintRefPickerSheet> {
               color: !item.eligible
                   ? const Color(0xFFF9FAFB)
                   : selected
-                      ? const Color(0xFFFFF4F4)
-                      : Colors.white,
+                  ? AppColors.statusErrorSurface
+                  : AppColors.surfacePrimary,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: selected
-                    ? AppColors.primary
-                    : const Color(0xFFE5E8EB),
+                color: selected ? AppColors.primary : AppColors.borderLight,
               ),
             ),
             child: Row(
@@ -363,7 +374,7 @@ class _ComplaintRefPickerSheetState extends State<_ComplaintRefPickerSheet> {
                     children: [
                       Text(
                         item.title,
-                        style: GoogleFonts.publicSans(
+                        style: AppTypography.mainWith(
                           fontSize: 14,
                           fontWeight: FontWeight.w800,
                           color: item.eligible
@@ -374,7 +385,7 @@ class _ComplaintRefPickerSheetState extends State<_ComplaintRefPickerSheet> {
                       const SizedBox(height: 4),
                       Text(
                         item.subtitle,
-                        style: GoogleFonts.publicSans(
+                        style: AppTypography.mainWith(
                           fontSize: 12,
                           color: AppColors.textMuted,
                         ),
@@ -383,7 +394,7 @@ class _ComplaintRefPickerSheetState extends State<_ComplaintRefPickerSheet> {
                         const SizedBox(height: 4),
                         Text(
                           item.reason!,
-                          style: GoogleFonts.publicSans(
+                          style: AppTypography.mainWith(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                             color: AppColors.error,
@@ -400,7 +411,7 @@ class _ComplaintRefPickerSheetState extends State<_ComplaintRefPickerSheet> {
                         : Icons.chevron_right_rounded,
                     color: selected
                         ? AppColors.primary
-                        : const Color(0xFF919EAB),
+                        : AppColors.contentPlaceholderStrong,
                   ),
               ],
             ),

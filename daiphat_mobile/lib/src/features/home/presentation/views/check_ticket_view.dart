@@ -7,153 +7,133 @@ import 'package:daiphat_mobile/src/features/home/data/models/ticket_check_models
 import 'package:daiphat_mobile/src/features/home/presentation/viewmodels/ticket_check_viewmodel.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 
 class CheckTicketView extends ConsumerWidget {
   const CheckTicketView({super.key});
-
-  /// Chiều cao vùng đỏ phía sau (không gồm safe-area).
-  static const double _heroBodyHeight = 148;
-
-  /// Card trắng kéo lên chồng lên hero.
-  static const double _cardOverlap = 52;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(ticketCheckViewModelProvider);
     final vm = ref.read(ticketCheckViewModelProvider.notifier);
-    final topInset = MediaQuery.paddingOf(context).top;
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: RefreshIndicator(
-        color: AppColors.primary,
-        onRefresh: () async {
-          final date = state.selectedDate;
-          if (date != null) {
-            await vm.loadStations(date);
-          }
-        },
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Column(
-            children: [
-              // Hero + card chồng lên — cùng cuộn (non-sticky).
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  // Nền đỏ + đồ trang trí phía sau
-                  SizedBox(
-                    height: topInset + _heroBodyHeight,
-                    width: double.infinity,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        const DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                AppColors.primary,
-                                Color(0xFFE70F20),
-                                AppColors.primaryDark,
-                              ],
-                              stops: [0, 0.55, 1],
-                            ),
-                            borderRadius: BorderRadius.vertical(
-                              bottom: Radius.circular(36),
-                            ),
-                          ),
-                        ),
-                        const _HeroDecorations(),
-                        // Header nằm trên hero, cuộn theo nội dung
-                        Positioned(
-                          top: topInset + 10,
-                          left: 18,
-                          right: 18,
-                          child: const _HeaderBar(),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Card trắng chồng lên nửa dưới hero
-                  Padding(
-                    padding: EdgeInsets.only(
-                      top: topInset + _heroBodyHeight - _cardOverlap,
-                    ),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.fromLTRB(20, 28, 20, 28),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.vertical(
-                          top: Radius.circular(28),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Color(0x14000000),
-                            blurRadius: 20,
-                            offset: Offset(0, -4),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Text(
-                            'TRA CỨU VÉ SỐ',
-                            textAlign: TextAlign.center,
-                            style: AppTypography.display(
-                              const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w900,
-                                color: AppColors.primary,
-                                letterSpacing: 0.6,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Nhập thông tin vé để kiểm tra kết quả nhanh chóng',
-                            textAlign: TextAlign.center,
-                            style: AppTypography.main(
-                              const TextStyle(
-                                fontSize: 13,
-                                color: Color(0xFF64748B),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 22),
-                          if (state.isChecking)
-                            const _CheckingState()
-                          else if (state.errorMessage != null)
-                            _ErrorState(
-                              message: state.errorMessage!,
-                              onRetry: vm.clearErrorMessage,
-                            )
-                          else if (state.hasChecked &&
-                              state.checkResult != null)
-                            _ResultState(
-                              result: state.checkResult!,
-                              onReset: vm.resetCheck,
-                            )
-                          else ...[
-                            _FormState(state: state, vm: vm),
-                            const SizedBox(height: 22),
-                            const _ImportantNotes(),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              // Chừa khoảng dưới để không sát bottom nav khi cuộn hết.
-              const SizedBox(height: 12),
-            ],
+      backgroundColor: AppColors.pageBg,
+      body: Stack(
+        children: [
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 320,
+            child: ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [AppColors.surfacePrimary, AppColors.transparent],
+                stops: [0.4, 1.0],
+              ).createShader(bounds),
+              blendMode: BlendMode.dstIn,
+              child: Image.asset('assets/images/home_bg.png', fit: BoxFit.cover),
+            ),
           ),
-        ),
+          SafeArea(
+            bottom: false,
+            child: RefreshIndicator(
+              color: AppColors.primary,
+              onRefresh: () async {
+                final date = state.selectedDate;
+                if (date != null) {
+                  await vm.loadStations(date);
+                }
+              },
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  children: [
+                    // Header Bar on top of background
+                    const Padding(
+                      padding: EdgeInsets.fromLTRB(16, 8, 16, 12),
+                      child: _HeaderBar(),
+                    ),
+
+                    // Main Form Card
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfacePrimary,
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                            color: const Color(0xFFEAEBED),
+                            width: 1.0,
+                          ),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x0A000000),
+                              blurRadius: 16,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                              'TRA CỨU VÉ SỐ',
+                              textAlign: TextAlign.center,
+                              style: AppTypography.display(
+                                const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w900,
+                                  color: AppColors.primary,
+                                  letterSpacing: 0.6,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Nhập thông tin vé để kiểm tra kết quả nhanh chóng',
+                              textAlign: TextAlign.center,
+                              style: AppTypography.main(
+                                const TextStyle(
+                                  fontSize: 13,
+                                  color: AppColors.contentMuted,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 22),
+                            if (state.isChecking)
+                              const _CheckingState()
+                            else if (state.errorMessage != null)
+                              _ErrorState(
+                                message: state.errorMessage!,
+                                onRetry: vm.clearErrorMessage,
+                              )
+                            else if (state.hasChecked &&
+                                state.checkResult != null)
+                              _ResultState(
+                                result: state.checkResult!,
+                                onReset: vm.resetCheck,
+                              )
+                            else ...[
+                              _FormState(state: state, vm: vm),
+                              const SizedBox(height: 22),
+                              const _ImportantNotes(),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -166,170 +146,33 @@ class _HeaderBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
+        Text(
+          'Dò vé',
+          style: AppTypography.pageTitle(),
+        ),
+        const Spacer(),
         Container(
-          width: 40,
-          height: 40,
+          width: 42,
+          height: 42,
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(12),
+            color: AppColors.surfacePrimary,
+            shape: BoxShape.circle,
+            border: Border.all(color: const Color(0xFFEAEBED)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0A000000),
+                blurRadius: 8,
+                offset: Offset(0, 2),
+              ),
+            ],
           ),
           child: const Icon(
             Icons.qr_code_scanner_rounded,
-            color: Colors.white,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            'Dò vé số',
-            style: AppTypography.display(
-              const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: Colors.white,
-              ),
-            ),
+            color: AppColors.primary,
+            size: 20,
           ),
         ),
       ],
-    );
-  }
-}
-
-/// Đồ trang trí bên phải hero (vé + kính lúp + xu + bóng số).
-class _HeroDecorations extends StatelessWidget {
-  const _HeroDecorations();
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Stack(
-        children: [
-          Positioned(
-            right: -28,
-            top: 18,
-            child: Container(
-              width: 160,
-              height: 160,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [Color(0x55FFB85C), Color(0x00FFB85C)],
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            right: 28,
-            top: 46,
-            child: Transform.rotate(
-              angle: -0.18,
-              child: Container(
-                width: 72,
-                height: 88,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.95),
-                  borderRadius: BorderRadius.circular(10),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x33000000),
-                      blurRadius: 12,
-                      offset: Offset(0, 6),
-                    ),
-                  ],
-                ),
-                padding: const EdgeInsets.all(8),
-                child: Column(
-                  children: [
-                    Container(
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFE4E4),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    ...List.generate(
-                      4,
-                      (_) => Padding(
-                        padding: const EdgeInsets.only(bottom: 5),
-                        child: Container(
-                          height: 6,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE2E8F0),
-                            borderRadius: BorderRadius.circular(3),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            right: 18,
-            top: 38,
-            child: Icon(
-              Icons.search_rounded,
-              size: 54,
-              color: Colors.white.withValues(alpha: 0.92),
-              shadows: const [
-                Shadow(
-                  color: Color(0x44000000),
-                  blurRadius: 8,
-                  offset: Offset(0, 3),
-                ),
-              ],
-            ),
-          ),
-          Positioned(
-            right: 88,
-            top: 108,
-            child: Container(
-              width: 28,
-              height: 28,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: [Color(0xFFFFD54F), Color(0xFFF9A826)],
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Color(0x44000000),
-                    blurRadius: 6,
-                    offset: Offset(0, 2),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Positioned(
-            right: 58,
-            top: 118,
-            child: Container(
-              width: 22,
-              height: 22,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.primaryDark,
-                border: Border.all(color: Colors.white, width: 2),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                '23',
-                style: AppTypography.main(
-                  const TextStyle(
-                    fontSize: 8,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -439,7 +282,7 @@ class _CheckingState extends StatelessWidget {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF64748B),
+              color: AppColors.contentMuted,
             ),
           ),
         ],
@@ -544,9 +387,9 @@ class _ResultState extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
+                color: AppColors.surfaceSoft,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                border: Border.all(color: AppColors.borderSubtle),
               ),
               child: Row(
                 children: [
@@ -578,7 +421,7 @@ class _ResultState extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '${NumberFormat.decimalPattern('vi_VN').format(prize.prizeValue)}đ',
+                    AppFormatters.formatCurrency(prize.prizeValue),
                     style: AppTypography.main(
                       const TextStyle(
                         fontSize: 13,
@@ -612,7 +455,7 @@ class _ResultState extends StatelessWidget {
                   ),
                   const Spacer(),
                   Text(
-                    '${NumberFormat.decimalPattern('vi_VN').format(result.totalWinningAmount)}đ',
+                    AppFormatters.formatCurrency(result.totalWinningAmount),
                     style: AppTypography.number(
                       const TextStyle(
                         fontSize: 14,
@@ -630,7 +473,7 @@ class _ResultState extends StatelessWidget {
             onPressed: onReset,
             style: OutlinedButton.styleFrom(
               foregroundColor: const Color(0xFF475569),
-              side: const BorderSide(color: Color(0xFFE2E8F0)),
+              side: const BorderSide(color: AppColors.borderSubtle),
               minimumSize: const Size.fromHeight(44),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
@@ -698,7 +541,7 @@ class _NeutralResult extends StatelessWidget {
           style: AppTypography.main(
             const TextStyle(
               fontSize: 12,
-              color: Color(0xFF64748B),
+              color: AppColors.contentMuted,
             ),
           ),
         ),
@@ -707,7 +550,7 @@ class _NeutralResult extends StatelessWidget {
           onPressed: onReset,
           style: OutlinedButton.styleFrom(
             foregroundColor: const Color(0xFF475569),
-            side: const BorderSide(color: Color(0xFFE2E8F0)),
+            side: const BorderSide(color: AppColors.borderSubtle),
             minimumSize: const Size.fromHeight(44),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
@@ -788,20 +631,20 @@ class _FormStateState extends State<_FormState> {
           child: InputDecorator(
             decoration: InputDecoration(
               filled: true,
-              fillColor: Colors.white,
+              fillColor: AppColors.surfacePrimary,
               errorText: state.dateError,
               prefixIcon: const Icon(Icons.calendar_month_outlined,
                   color: AppColors.primary, size: 18),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                borderSide: const BorderSide(color: AppColors.borderSubtle),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
                 borderSide: BorderSide(
                   color: state.dateError != null
                       ? const Color(0xFFF87171)
-                      : const Color(0xFFE2E8F0),
+                      : AppColors.borderSubtle,
                 ),
               ),
               contentPadding:
@@ -814,7 +657,7 @@ class _FormStateState extends State<_FormState> {
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: selectedDate == null
-                      ? const Color(0xFF94A3B8)
+                      ? AppColors.contentSubtle
                       : const Color(0xFF0F172A),
                 ),
               ),
@@ -839,7 +682,7 @@ class _FormStateState extends State<_FormState> {
           child: InputDecorator(
             decoration: InputDecoration(
               filled: true,
-              fillColor: canPickStation ? Colors.white : const Color(0xFFF8FAFC),
+              fillColor: canPickStation ? AppColors.surfacePrimary : AppColors.surfaceSoft,
               errorText: state.stationError,
               prefixIcon: Icon(
                 Icons.place_outlined,
@@ -850,14 +693,14 @@ class _FormStateState extends State<_FormState> {
               ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                borderSide: const BorderSide(color: AppColors.borderSubtle),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
                 borderSide: BorderSide(
                   color: state.stationError != null
                       ? const Color(0xFFF87171)
-                      : const Color(0xFFE2E8F0),
+                      : AppColors.borderSubtle,
                 ),
               ),
               contentPadding:
@@ -874,7 +717,7 @@ class _FormStateState extends State<_FormState> {
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: !canPickStation && state.selectedStation == null
-                      ? const Color(0xFF94A3B8)
+                      ? AppColors.contentSubtle
                       : const Color(0xFF0F172A),
                 ),
               ),
@@ -916,17 +759,17 @@ class _FormStateState extends State<_FormState> {
             prefixIcon: const Icon(Icons.confirmation_number_outlined,
                 color: AppColors.primary, size: 18),
             filled: true,
-            fillColor: Colors.white,
+            fillColor: AppColors.surfacePrimary,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              borderSide: const BorderSide(color: AppColors.borderSubtle),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
               borderSide: BorderSide(
                 color: state.numberError != null
                     ? const Color(0xFFF87171)
-                    : const Color(0xFFE2E8F0),
+                    : AppColors.borderSubtle,
               ),
             ),
             focusedBorder: OutlineInputBorder(
@@ -965,7 +808,7 @@ class _FormStateState extends State<_FormState> {
             const TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF94A3B8),
+              color: AppColors.contentSubtle,
               letterSpacing: 0.8,
             ),
           ),
@@ -1043,7 +886,7 @@ class _FormStateState extends State<_FormState> {
                 leading: Icon(
                   Icons.place_outlined,
                   color:
-                      isSelected ? AppColors.primary : const Color(0xFF94A3B8),
+                      isSelected ? AppColors.primary : AppColors.contentSubtle,
                 ),
                 title: Text(
                   station.province,
@@ -1093,10 +936,10 @@ class _QuickDateChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFFFFF1F1) : const Color(0xFFF8FAFC),
+          color: selected ? const Color(0xFFFFF1F1) : AppColors.surfaceSoft,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: selected ? const Color(0xFFFECACA) : const Color(0xFFE2E8F0),
+            color: selected ? const Color(0xFFFECACA) : AppColors.borderSubtle,
           ),
         ),
         alignment: Alignment.center,

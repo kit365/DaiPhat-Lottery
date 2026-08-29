@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import '../models/blog_post.dart';
 import '../viewmodels/blog_viewmodel.dart';
@@ -11,7 +12,7 @@ const _gold = Color(0xFFFFD700);
 const _goldLight = Color(0xFFFFF9E6);
 const _ink = Color(0xFF17191F);
 const _secondary = Color(0xFF5D3F3C);
-const _surface = Colors.white;
+const _surface = AppColors.surfacePrimary;
 const _pageBg = Color(0xFFF7F7FB);
 const _tagBg = Color(0xFFF9ECEE);
 const _divider = Color(0xFFE7BDB8);
@@ -112,7 +113,7 @@ class BlogDetailScreen extends ConsumerWidget {
                           onPressed: () => ref.invalidate(blogDetailProvider(slug)),
                           style: FilledButton.styleFrom(
                             backgroundColor: _primary,
-                            foregroundColor: Colors.white,
+                            foregroundColor: AppColors.surfacePrimary,
                             padding: const EdgeInsets.symmetric(
                               horizontal: 26,
                               vertical: 14,

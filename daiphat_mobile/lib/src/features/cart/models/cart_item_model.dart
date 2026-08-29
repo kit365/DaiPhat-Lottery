@@ -48,16 +48,21 @@ class CartItemData {
   }
 
   factory CartItemData.fromMap(Map<dynamic, dynamic> map) {
+    var prov = map['province'] as String? ?? '';
+    final logo = map['logoText'] as String? ?? '';
+    if (prov.trim().isEmpty || prov.trim() == 'Đang cập nhật') {
+      prov = logo.trim().isNotEmpty ? logo.trim() : 'Đài Miền Nam';
+    }
     return CartItemData(
       lotteryTicketId: map['lotteryTicketId'] as int? ?? 0,
-      province: map['province'] as String? ?? '',
+      province: prov,
       dateLabel: map['dateLabel'] as String? ?? '',
       drawTime: map['drawTime'] as String? ?? '',
       kyHieu: map['kyHieu'] as String? ?? '',
       number: map['number'] as String? ?? '',
       quantity: map['quantity'] as int? ?? 1,
       unitPrice: map['unitPrice'] as int? ?? 0,
-      logoText: map['logoText'] as String? ?? '',
+      logoText: logo,
       ticketImageUrl: map['ticketImageUrl'] as String?,
       drawDateIso: map['drawDateIso'] as String?,
       maxStock: map['maxStock'] as int? ?? 1,

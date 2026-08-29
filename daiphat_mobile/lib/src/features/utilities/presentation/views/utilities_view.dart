@@ -37,86 +37,93 @@ class UtilitiesView extends ConsumerWidget {
     final cartCount = ref.watch(cartTicketCountProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F8FA),
-      body: SafeArea(
-        bottom: false,
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            SliverToBoxAdapter(
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 22),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Color(0xFFE20F15), Color(0xFFD31010)],
-                  ),
-                  borderRadius: BorderRadius.vertical(
-                    bottom: Radius.circular(26),
+      backgroundColor: AppColors.pageBg,
+      body: Stack(
+        children: [
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 320,
+            child: ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [AppColors.surfacePrimary, AppColors.transparent],
+                stops: [0.4, 1.0],
+              ).createShader(bounds),
+              blendMode: BlendMode.dstIn,
+              child: Image.asset('assets/images/home_bg.png', fit: BoxFit.cover),
+            ),
+          ),
+          SafeArea(
+            bottom: false,
+            child: CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                SliverToBoxAdapter(
+                  child: _UtilitiesHeader(
+                    cartCount: cartCount,
+                    onCartTap: () => context.pushNamed(AppRoute.cart.name),
+                    onChatTap: () => _openChat(context),
                   ),
                 ),
-                child: Column(
-                  children: [
-                    _UtilitiesHeader(
-                      cartCount: cartCount,
-                      onCartTap: () => context.pushNamed(AppRoute.cart.name),
-                      onChatTap: () => _openChat(context),
-                    ),
-                    const SizedBox(height: 22),
-                    _UtilitiesHero(onTap: () {}),
-                  ],
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                    child: _UtilitiesHero(onTap: () {}),
+                  ),
                 ),
-              ),
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  sliver: SliverGrid.count(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    childAspectRatio: 0.78,
+                    children: [
+                      _UtilityCard(
+                        icon: Icons.notifications_active_outlined,
+                        title: 'Thông báo',
+                        subtitle: 'Cập nhật các thông báo mới nhất từ hệ thống',
+                        actionLabel: 'Xem ngay',
+                        onTap: onOpenNotifications,
+                      ),
+                      _UtilityCard(
+                        icon: Icons.auto_awesome_rounded,
+                        title: 'Gieo quẻ',
+                        subtitle: 'Gieo quẻ may mắn nhận lời giải cho bạn',
+                        actionLabel: 'Gieo ngay',
+                        onTap: () => context.push(AppRoute.fortune.path),
+                      ),
+                      _UtilityCard(
+                        icon: Icons.calendar_month_outlined,
+                        title: 'Lịch mở thưởng',
+                        subtitle: 'Theo dõi lịch mở thưởng và kết quả chi tiết',
+                        actionLabel: 'Xem lịch',
+                        onTap: () => context.push(AppRoute.schedule.path),
+                      ),
+                      _UtilityCard(
+                        icon: Icons.article_outlined,
+                        title: 'Tin tức',
+                        subtitle:
+                            'Cập nhật tin tức, sự kiện và khuyến mãi mới nhất',
+                        actionLabel: 'Đọc ngay',
+                        onTap: onOpenBlog,
+                      ),
+                    ],
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
+                    child: _SupportBanner(onTap: () => _openChat(context)),
+                  ),
+                ),
+              ],
             ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-              sliver: SliverGrid.count(
-                crossAxisCount: 2,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 0.78,
-                children: [
-                  _UtilityCard(
-                    icon: Icons.notifications_active_outlined,
-                    title: 'Thông báo',
-                    subtitle: 'Cập nhật các thông báo mới nhất từ hệ thống',
-                    actionLabel: 'Xem ngay',
-                    onTap: onOpenNotifications,
-                  ),
-                  _UtilityCard(
-                    icon: Icons.auto_awesome_rounded,
-                    title: 'Gieo quẻ',
-                    subtitle: 'Gieo quẻ may mắn nhận lời giải cho bạn',
-                    actionLabel: 'Gieo ngay',
-                    onTap: () => context.push(AppRoute.fortune.path),
-                  ),
-                  _UtilityCard(
-                    icon: Icons.calendar_month_outlined,
-                    title: 'Lịch mở thưởng',
-                    subtitle: 'Theo dõi lịch mở thưởng và kết quả chi tiết',
-                    actionLabel: 'Xem lịch',
-                    onTap: () => context.push(AppRoute.schedule.path),
-                  ),
-                  _UtilityCard(
-                    icon: Icons.article_outlined,
-                    title: 'Tin tức',
-                    subtitle:
-                        'Cập nhật tin tức, sự kiện và khuyến mãi mới nhất',
-                    actionLabel: 'Đọc ngay',
-                    onTap: onOpenBlog,
-                  ),
-                ],
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
-                child: _SupportBanner(onTap: () => _openChat(context)),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -135,33 +142,35 @@ class _UtilitiesHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const SizedBox(width: 88),
-        const Expanded(
-          child: Text(
-            'Tiện ích',
-            textAlign: TextAlign.center,
+    return Container(
+      color: AppColors.transparent,
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+      child: Row(
+        children: [
+          const Text(
+            'Tiện Ích',
             style: TextStyle(
-              color: Colors.white,
-              fontSize: 22,
+              fontSize: 20,
               fontWeight: FontWeight.w900,
+              color: AppColors.primaryDark,
+              letterSpacing: -.3,
             ),
           ),
-        ),
-        AppHeaderActionButton(
-          icon: Icons.shopping_cart_outlined,
-          tooltip: 'Giỏ hàng',
-          badgeCount: cartCount,
-          onTap: onCartTap,
-        ),
-        const SizedBox(width: 8),
-        AppHeaderActionButton(
-          icon: Icons.chat_bubble_outline_rounded,
-          tooltip: 'Trò chuyện / Hỗ trợ',
-          onTap: onChatTap,
-        ),
-      ],
+          const Spacer(),
+          AppHeaderActionButton(
+            icon: Icons.chat_bubble_outline_rounded,
+            tooltip: 'Trò chuyện / Hỗ trợ',
+            onTap: onChatTap,
+          ),
+          const SizedBox(width: 8),
+          AppHeaderActionButton(
+            icon: Icons.shopping_cart_outlined,
+            tooltip: 'Giỏ hàng',
+            badgeCount: cartCount,
+            onTap: onCartTap,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -183,7 +192,7 @@ class _UtilitiesHero extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [Color(0xFFE9282D), Color(0xFFC90D0D)],
         ),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+        border: Border.all(color: AppColors.surfacePrimary.withValues(alpha: 0.22)),
         boxShadow: [
           BoxShadow(
             color: AppColors.primary.withValues(alpha: 0.25),
@@ -201,7 +210,7 @@ class _UtilitiesHero extends StatelessWidget {
                 const Text(
                   'Khám phá ngay',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: AppColors.surfacePrimary,
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                   ),
@@ -210,7 +219,7 @@ class _UtilitiesHero extends StatelessWidget {
                 const Text(
                   'Những tiện ích\nhấp dẫn',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: AppColors.surfacePrimary,
                     fontSize: 28,
                     fontWeight: FontWeight.w900,
                     height: 1.16,
@@ -256,7 +265,7 @@ class _UtilitiesHero extends StatelessWidget {
                   width: 92,
                   height: 92,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.16),
+                    color: AppColors.surfacePrimary.withValues(alpha: 0.16),
                     borderRadius: BorderRadius.circular(22),
                   ),
                 ),
@@ -338,7 +347,7 @@ class _UtilityCard extends StatelessWidget {
       child: Ink(
         padding: const EdgeInsets.fromLTRB(12, 18, 12, 14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surfacePrimary,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: const Color(0xFFF0E5E3)),
           boxShadow: [
@@ -366,7 +375,7 @@ class _UtilityCard extends StatelessWidget {
                     color: AppColors.primary,
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(icon, color: Colors.white, size: 30),
+                  child: Icon(icon, color: AppColors.surfacePrimary, size: 30),
                 ),
               ),
             ),
@@ -502,7 +511,7 @@ class _SupportBanner extends StatelessWidget {
               ),
               child: const Icon(
                 Icons.chevron_right_rounded,
-                color: Colors.white,
+                color: AppColors.surfacePrimary,
               ),
             ),
           ],

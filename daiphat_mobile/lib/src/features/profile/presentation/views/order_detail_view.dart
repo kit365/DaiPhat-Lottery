@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:intl/intl.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
@@ -13,6 +13,7 @@ import 'package:daiphat_mobile/src/features/profile/data/models/refund_request.d
 import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/refund_request_sheet.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import '../viewmodels/order_detail_viewmodel.dart';
 
@@ -28,7 +29,13 @@ class OrderDetailView extends ConsumerStatefulWidget {
 class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
   late OrderDetailViewModel _viewModel;
 
-  static const _stepLabels = ['Đặt hàng', 'Thanh toán', 'Chuẩn bị', 'Chờ nhận', 'Hoàn thành'];
+  static const _stepLabels = [
+    'Đặt hàng',
+    'Thanh toán',
+    'Chuẩn bị',
+    'Chờ nhận',
+    'Hoàn thành',
+  ];
   static const _stepIcons = [
     Icons.shopping_cart_outlined,
     Icons.credit_card_outlined,
@@ -118,7 +125,9 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
   String _formatDate(String? iso) {
     if (iso == null) return '-';
     try {
-      return DateFormat('dd/MM/yyyy HH:mm').format(DateTime.parse(iso).toLocal());
+      return DateFormat(
+        'dd/MM/yyyy HH:mm',
+      ).format(DateTime.parse(iso).toLocal());
     } catch (_) {
       return iso;
     }
@@ -133,10 +142,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
     }
     context.pushNamed(
       AppRoute.paymentWebView.name,
-      queryParameters: {
-        'checkoutUrl': url,
-        'orderId': widget.orderId,
-      },
+      queryParameters: {'checkoutUrl': url, 'orderId': widget.orderId},
     );
   }
 
@@ -147,11 +153,12 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
       builder: (context, _) {
         final order = _viewModel.order;
         return Scaffold(
-          backgroundColor: const Color(0xFFF8F9FA),
+          backgroundColor: AppColors.surfaceCanvas,
           appBar: _buildAppBar(order),
           body: _buildBody(order),
-          bottomNavigationBar:
-              _viewModel.isPendingPayment ? _buildBottomPayBar() : null,
+          bottomNavigationBar: _viewModel.isPendingPayment
+              ? _buildBottomPayBar()
+              : null,
         );
       },
     );
@@ -159,8 +166,8 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
 
   AppBar _buildAppBar(OrderResponse? order) {
     return AppBar(
-      backgroundColor: Colors.white,
-      surfaceTintColor: Colors.transparent,
+      backgroundColor: AppColors.surfacePrimary,
+      surfaceTintColor: AppColors.transparent,
       elevation: 0,
       leading: IconButton(
         icon: const Icon(
@@ -172,7 +179,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
       ),
       title: Text(
         'Chi tiết đơn hàng',
-        style: GoogleFonts.publicSans(
+        style: AppTypography.mainWith(
           fontSize: 18,
           fontWeight: FontWeight.w700,
           color: AppColors.textMain,
@@ -185,14 +192,17 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
             padding: const EdgeInsets.only(right: 12),
             child: Center(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: _statusColor(order.status).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   _statusLabel(order.status),
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.mainWith(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: _statusColor(order.status),
@@ -217,11 +227,15 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, size: 48, color: AppColors.textMuted),
+            const Icon(
+              Icons.error_outline,
+              size: 48,
+              color: AppColors.textMuted,
+            ),
             const SizedBox(height: 12),
             Text(
               'Không tìm thấy đơn hàng',
-              style: GoogleFonts.publicSans(
+              style: AppTypography.mainWith(
                 fontSize: 15,
                 color: AppColors.textMuted,
               ),
@@ -231,7 +245,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
               onPressed: () => _viewModel.fetchOrderDetail(),
               child: Text(
                 'Thử lại',
-                style: GoogleFonts.publicSans(
+                style: AppTypography.mainWith(
                   fontWeight: FontWeight.w700,
                   color: AppColors.primary,
                 ),
@@ -290,7 +304,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surfacePrimary,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -325,7 +339,8 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 500),
                   height: 3,
-                  width: (constraints.maxWidth * 0.8) *
+                  width:
+                      (constraints.maxWidth * 0.8) *
                       (current / (_stepLabels.length - 1)),
                   decoration: BoxDecoration(
                     color: const Color(0xFF00A76F),
@@ -348,13 +363,14 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                         decoration: BoxDecoration(
                           color: done
                               ? const Color(0xFF00A76F)
-                              : const Color(0xFFF4F6F8),
+                              : AppColors.surfaceNeutral,
                           shape: BoxShape.circle,
                           boxShadow: done
                               ? [
                                   BoxShadow(
-                                    color: const Color(0xFF00A76F)
-                                        .withValues(alpha: 0.3),
+                                    color: const Color(
+                                      0xFF00A76F,
+                                    ).withValues(alpha: 0.3),
                                     blurRadius: 8,
                                     spreadRadius: 2,
                                   ),
@@ -364,16 +380,18 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                         child: Icon(
                           _stepIcons[i],
                           size: 18,
-                          color: done ? Colors.white : AppColors.textMuted,
+                          color: done ? AppColors.surfacePrimary : AppColors.textMuted,
                         ),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         _stepLabels[i],
-                        style: GoogleFonts.publicSans(
+                        style: AppTypography.mainWith(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
-                          color: done ? AppColors.textMain : AppColors.textMuted,
+                          color: done
+                              ? AppColors.textMain
+                              : AppColors.textMuted,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -392,7 +410,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF4F4),
+        color: AppColors.statusErrorSurface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFFFEBEE)),
       ),
@@ -405,7 +423,11 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
               color: AppColors.primary,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.close_rounded, color: Colors.white, size: 24),
+            child: const Icon(
+              Icons.close_rounded,
+              color: AppColors.surfacePrimary,
+              size: 24,
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -414,7 +436,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
               children: [
                 Text(
                   'Đơn hàng đã bị hủy',
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.mainWith(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                     color: AppColors.primary,
@@ -423,7 +445,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                 const SizedBox(height: 4),
                 Text(
                   'Đơn hàng này đã bị hủy và không thể tiếp tục giao dịch.',
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.mainWith(
                     fontSize: 13,
                     color: AppColors.textMuted,
                   ),
@@ -444,7 +466,9 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
       decoration: BoxDecoration(
         color: const Color(0xFFFFFBF0),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFFB020).withValues(alpha: 0.4)),
+        border: Border.all(
+          color: const Color(0xFFFFB020).withValues(alpha: 0.4),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -467,7 +491,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                         child: Text(
                           '!',
                           style: TextStyle(
-                            color: Colors.white,
+                            color: AppColors.surfacePrimary,
                             fontSize: 13,
                             fontWeight: FontWeight.w900,
                           ),
@@ -477,7 +501,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                     const SizedBox(width: 8),
                     Text(
                       'Bạn cần làm gì tiếp theo?',
-                      style: GoogleFonts.publicSans(
+                      style: AppTypography.mainWith(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
                         color: const Color(0xFFFFB020),
@@ -504,10 +528,11 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
             margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppColors.surfacePrimary,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                  color: const Color(0xFFFFB020).withValues(alpha: 0.25)),
+                color: const Color(0xFFFFB020).withValues(alpha: 0.25),
+              ),
             ),
             child: Row(
               children: [
@@ -517,7 +542,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                     children: [
                       Text(
                         'THỜI GIAN CÒN LẠI',
-                        style: GoogleFonts.publicSans(
+                        style: AppTypography.mainWith(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
                           color: AppColors.textMuted,
@@ -527,22 +552,26 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                       const SizedBox(height: 6),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFFF4F4),
+                          color: AppColors.statusErrorSurface,
                           borderRadius: BorderRadius.circular(8),
-                          border:
-                              Border.all(color: const Color(0xFFFFEBEE)),
+                          border: Border.all(color: const Color(0xFFFFEBEE)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.timer_rounded,
-                                size: 16, color: AppColors.primary),
+                            const Icon(
+                              Icons.timer_rounded,
+                              size: 16,
+                              color: AppColors.primary,
+                            ),
                             const SizedBox(width: 6),
                             Text(
                               countdown,
-                              style: GoogleFonts.publicSans(
+                              style: AppTypography.mainWith(
                                 fontSize: 20,
                                 fontWeight: FontWeight.w900,
                                 color: AppColors.primary,
@@ -557,8 +586,8 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                 ),
                 const SizedBox(width: 12),
                 ElevatedButton.icon(
-                  onPressed: _viewModel.isProcessingPayment ||
-                          _viewModel.isExpired
+                  onPressed:
+                      _viewModel.isProcessingPayment || _viewModel.isExpired
                       ? null
                       : _handlePayment,
                   icon: _viewModel.isProcessingPayment
@@ -567,22 +596,24 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                           height: 16,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Colors.white,
+                            color: AppColors.surfacePrimary,
                           ),
                         )
                       : const Icon(Icons.payment_rounded, size: 18),
                   label: Text(
                     'Thanh toán',
-                    style: GoogleFonts.publicSans(
+                    style: AppTypography.mainWith(
                       fontWeight: FontWeight.w700,
                       fontSize: 13,
                     ),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
+                    foregroundColor: AppColors.surfacePrimary,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -610,7 +641,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
         Expanded(
           child: Text(
             text,
-            style: GoogleFonts.publicSans(
+            style: AppTypography.mainWith(
               fontSize: 13,
               color: const Color(0xFF454F5B),
             ),
@@ -626,8 +657,8 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
     final orderType = order.orderType == 'ONLINE'
         ? 'Trực tuyến'
         : order.orderType == 'DIRECT'
-            ? 'Tại quầy'
-            : '-';
+        ? 'Tại quầy'
+        : '-';
     final orderTypeColor = order.orderType == 'ONLINE'
         ? const Color(0xFF2065D1)
         : const Color(0xFFF57C00);
@@ -644,7 +675,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
               children: [
                 Text(
                   'DP${order.orderCode}',
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.mainWith(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textMain,
@@ -656,8 +687,11 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                     Clipboard.setData(ClipboardData(text: order.orderCode));
                     AppToast.success('Đã sao chép mã đơn hàng!');
                   },
-                  child: const Icon(Icons.copy_rounded,
-                      size: 15, color: AppColors.textMuted),
+                  child: const Icon(
+                    Icons.copy_rounded,
+                    size: 15,
+                    color: AppColors.textMuted,
+                  ),
                 ),
               ],
             ),
@@ -668,15 +702,14 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
           _infoRow(
             'Loại đơn',
             trailing: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
                 color: orderTypeColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
                 orderType,
-                style: GoogleFonts.publicSans(
+                style: AppTypography.mainWith(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                   color: orderTypeColor,
@@ -690,8 +723,8 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
             value: order.receiveType == 'COUNTER_PICKUP'
                 ? 'Nhận tại quầy'
                 : order.receiveType == 'DELIVERY'
-                    ? 'Giao tận nơi'
-                    : '-',
+                ? 'Giao tận nơi'
+                : '-',
           ),
           const SizedBox(height: 12),
           _infoRow(
@@ -733,11 +766,11 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
               decoration: BoxDecoration(
                 color: const Color(0xFFF9FAFB),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE5E8EB)),
+                border: Border.all(color: AppColors.borderLight),
               ),
               child: Text(
                 'Không có dữ liệu vé',
-                style: GoogleFonts.publicSans(
+                style: AppTypography.mainWith(
                   fontSize: 13,
                   color: AppColors.textMuted,
                 ),
@@ -750,7 +783,8 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                   .map(
                     (e) => Padding(
                       padding: EdgeInsets.only(
-                          bottom: e.key < items.length - 1 ? 12 : 0),
+                        bottom: e.key < items.length - 1 ? 12 : 0,
+                      ),
                       child: _buildTicketItem(e.value, order.status),
                     ),
                   )
@@ -768,17 +802,11 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
     final ticketType = item.lotteryTicket?.ticketType;
     final symbol = item.lotteryTicket?.symbol;
 
-    final currencyFmt = NumberFormat.currency(
-      locale: 'vi_VN',
-      symbol: '₫',
-      decimalDigits: 0,
-    );
-
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFFF9FAFB),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E8EB)),
+        border: Border.all(color: AppColors.borderLight),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -804,10 +832,12 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    province != null
+                    province != null && province.trim().isNotEmpty
                         ? 'Xổ số $province'
-                        : 'Vé số #${item.id}',
-                    style: GoogleFonts.publicSans(
+                        : ticketType != null && ticketType.trim().isNotEmpty
+                        ? 'Vé số $ticketType'
+                        : 'Vé Xổ Số Kiến Thiết',
+                    style: AppTypography.mainWith(
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
                       color: AppColors.textMain,
@@ -815,17 +845,20 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                   ),
                 ),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: ticketStatusColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                        color: ticketStatusColor.withValues(alpha: 0.25)),
+                      color: ticketStatusColor.withValues(alpha: 0.25),
+                    ),
                   ),
                   child: Text(
                     ticketStatusLabel,
-                    style: GoogleFonts.publicSans(
+                    style: AppTypography.mainWith(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                       color: ticketStatusColor,
@@ -849,8 +882,12 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (symbol != null)
-                        _ticketDetail(Icons.tag_rounded, 'Mã vé: $symbol',
-                            bold: true, color: AppColors.primary),
+                        _ticketDetail(
+                          Icons.tag_rounded,
+                          'Mã vé: $symbol',
+                          bold: true,
+                          color: AppColors.primary,
+                        ),
                       if (drawDate != null) ...[
                         const SizedBox(height: 6),
                         _ticketDetail(
@@ -860,10 +897,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                       ],
                       if (ticketType != null) ...[
                         const SizedBox(height: 6),
-                        _ticketDetail(
-                          Icons.category_outlined,
-                          ticketType,
-                        ),
+                        _ticketDetail(Icons.category_outlined, ticketType),
                       ],
                     ],
                   ),
@@ -874,15 +908,15 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                   children: [
                     Text(
                       'Giá vé',
-                      style: GoogleFonts.publicSans(
+                      style: AppTypography.mainWith(
                         fontSize: 11,
                         color: AppColors.textMuted,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      currencyFmt.format(item.price),
-                      style: GoogleFonts.publicSans(
+                      AppFormatters.formatCurrency(item.price),
+                      style: AppTypography.mainWith(
                         fontSize: 16,
                         fontWeight: FontWeight.w900,
                         color: AppColors.primary,
@@ -898,8 +932,12 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
     );
   }
 
-  Widget _ticketDetail(IconData icon, String text,
-      {bool bold = false, Color? color}) {
+  Widget _ticketDetail(
+    IconData icon,
+    String text, {
+    bool bold = false,
+    Color? color,
+  }) {
     return Row(
       children: [
         Icon(icon, size: 13, color: color ?? AppColors.textMuted),
@@ -907,7 +945,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
         Expanded(
           child: Text(
             text,
-            style: GoogleFonts.publicSans(
+            style: AppTypography.mainWith(
               fontSize: 13,
               fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
               color: color ?? AppColors.textMuted,
@@ -963,11 +1001,6 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
     final tx = order.transactions?.isNotEmpty == true
         ? order.transactions!.first
         : null;
-    final currencyFmt = NumberFormat.currency(
-      locale: 'vi_VN',
-      symbol: '₫',
-      decimalDigits: 0,
-    );
     final txStatusLabel = _txStatusLabel(tx?.status);
     final txStatusColor = _txStatusColor(tx?.status);
     final ticketCount = order.orderDetails?.length ?? 0;
@@ -986,7 +1019,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                   children: [
                     Text(
                       'Phương thức',
-                      style: GoogleFonts.publicSans(
+                      style: AppTypography.mainWith(
                         fontSize: 12,
                         color: AppColors.textMuted,
                       ),
@@ -994,11 +1027,13 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                     const SizedBox(height: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFF9FAFB),
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFFE5E8EB)),
+                        border: Border.all(color: AppColors.borderLight),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -1007,10 +1042,11 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                             width: 28,
                             height: 28,
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: AppColors.surfacePrimary,
                               borderRadius: BorderRadius.circular(6),
-                              border:
-                                  Border.all(color: const Color(0xFFE5E8EB)),
+                              border: Border.all(
+                                color: AppColors.borderLight,
+                              ),
                             ),
                             child: const Icon(
                               Icons.qr_code_rounded,
@@ -1021,7 +1057,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                           const SizedBox(width: 8),
                           Text(
                             'Chuyển khoản QR',
-                            style: GoogleFonts.publicSans(
+                            style: AppTypography.mainWith(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
                               color: AppColors.textMain,
@@ -1039,7 +1075,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                 children: [
                   Text(
                     'Trạng thái',
-                    style: GoogleFonts.publicSans(
+                    style: AppTypography.mainWith(
                       fontSize: 12,
                       color: AppColors.textMuted,
                     ),
@@ -1047,14 +1083,16 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                   const SizedBox(height: 6),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 8),
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: txStatusColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
                       txStatusLabel,
-                      style: GoogleFonts.publicSans(
+                      style: AppTypography.mainWith(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: txStatusColor,
@@ -1076,38 +1114,40 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
             decoration: BoxDecoration(
               color: const Color(0xFFF9FAFB),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE5E8EB)),
+              border: Border.all(color: AppColors.borderLight),
             ),
             child: Column(
               children: [
                 _costRow('Số lượng vé', '$ticketCount vé'),
                 const SizedBox(height: 10),
                 _costRow(
-                    'Tạm tính', currencyFmt.format(order.totalAmount)),
+                  'Tạm tính',
+                  AppFormatters.formatCurrency(order.totalAmount),
+                ),
                 const SizedBox(height: 10),
-                _costRow('Phí dịch vụ', 'Miễn phí',
-                    valueColor: const Color(0xFF00A76F)),
+                _costRow(
+                  'Phí dịch vụ',
+                  'Miễn phí',
+                  valueColor: const Color(0xFF00A76F),
+                ),
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 12),
-                  child: Divider(
-                    color: Color(0xFFE5E8EB),
-                    height: 1,
-                  ),
+                  child: Divider(color: AppColors.borderLight, height: 1),
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
                       'Tổng thanh toán',
-                      style: GoogleFonts.publicSans(
+                      style: AppTypography.mainWith(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
                         color: AppColors.textMain,
                       ),
                     ),
                     Text(
-                      currencyFmt.format(order.totalAmount),
-                      style: GoogleFonts.publicSans(
+                      AppFormatters.formatCurrency(order.totalAmount),
+                      style: AppTypography.mainWith(
                         fontSize: 20,
                         fontWeight: FontWeight.w900,
                         color: AppColors.primary,
@@ -1129,12 +1169,14 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
       children: [
         Text(
           label,
-          style: GoogleFonts.publicSans(
-              fontSize: 13, color: AppColors.textMuted),
+          style: AppTypography.mainWith(
+            fontSize: 13,
+            color: AppColors.textMuted,
+          ),
         ),
         Text(
           value,
-          style: GoogleFonts.publicSans(
+          style: AppTypography.mainWith(
             fontSize: 13,
             fontWeight: FontWeight.w700,
             color: valueColor ?? AppColors.textMain,
@@ -1181,18 +1223,30 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
 
   Widget _buildGuarantees() {
     final items = [
-      (Icons.shield_outlined, const Color(0xFF00A76F), 'Bảo mật thông tin',
-          'Cam kết bảo mật tuyệt đối'),
-      (Icons.headset_mic_outlined, AppColors.primary, 'Hỗ trợ 24/7',
-          '1900 636 555'),
-      (Icons.verified_user_outlined, AppColors.primary, 'Giao dịch an toàn',
-          'Được bảo vệ bởi hệ thống'),
+      (
+        Icons.shield_outlined,
+        const Color(0xFF00A76F),
+        'Bảo mật thông tin',
+        'Cam kết bảo mật tuyệt đối',
+      ),
+      (
+        Icons.headset_mic_outlined,
+        AppColors.primary,
+        'Hỗ trợ 24/7',
+        '1900 636 555',
+      ),
+      (
+        Icons.verified_user_outlined,
+        AppColors.primary,
+        'Giao dịch an toàn',
+        'Được bảo vệ bởi hệ thống',
+      ),
     ];
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surfacePrimary,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -1220,7 +1274,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                     const SizedBox(height: 8),
                     Text(
                       e.$3,
-                      style: GoogleFonts.publicSans(
+                      style: AppTypography.mainWith(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                         color: AppColors.textMain,
@@ -1230,7 +1284,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                     const SizedBox(height: 2),
                     Text(
                       e.$4,
-                      style: GoogleFonts.publicSans(
+                      style: AppTypography.mainWith(
                         fontSize: 10,
                         color: AppColors.textMuted,
                       ),
@@ -1260,7 +1314,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
         decoration: BoxDecoration(
           color: const Color(0xFFF9FAFB),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE5E8EB)),
+          border: Border.all(color: AppColors.borderLight),
         ),
         child: Row(
           children: [
@@ -1275,7 +1329,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
             const SizedBox(width: 12),
             Text(
               'Đang kiểm tra điều kiện hủy đơn...',
-              style: GoogleFonts.publicSans(
+              style: AppTypography.mainWith(
                 fontSize: 13,
                 color: AppColors.textMuted,
               ),
@@ -1300,18 +1354,17 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
     final low = _viewModel.isRefundLowTime;
     final grace =
         _viewModel.eligibility?.graceMinutes ?? order.refundGraceMinutes ?? 30;
-    final submitted =
-        _viewModel.eligibility?.refundRequestsSubmittedToday ?? 0;
+    final submitted = _viewModel.eligibility?.refundRequestsSubmittedToday ?? 0;
     final maxPerDay = _viewModel.eligibility?.maxRefundRequestsPerDay;
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: low ? const Color(0xFFFFF9F3) : const Color(0xFFF8FAFC),
+        color: low ? AppColors.statusWarningSurface : AppColors.surfaceSoft,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: low ? const Color(0x40FFB020) : const Color(0xFFE5E8EB),
+          color: low ? const Color(0x40FFB020) : AppColors.borderLight,
         ),
       ),
       child: Column(
@@ -1324,16 +1377,16 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: low ? const Color(0xFFFFF4E5) : Colors.white,
+                  color: low ? const Color(0xFFFFF4E5) : AppColors.surfacePrimary,
                   borderRadius: BorderRadius.circular(12),
                   border: low
                       ? null
-                      : Border.all(color: const Color(0xFFE5E8EB)),
+                      : Border.all(color: AppColors.borderLight),
                 ),
                 child: Icon(
                   Icons.replay_rounded,
                   size: 18,
-                  color: low ? const Color(0xFFB76E00) : AppColors.textMuted,
+                  color: low ? AppColors.statusWarningForeground : AppColors.textMuted,
                 ),
               ),
               const SizedBox(width: 12),
@@ -1343,7 +1396,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                   children: [
                     Text(
                       'Hủy đơn & hoàn tiền',
-                      style: GoogleFonts.publicSans(
+                      style: AppTypography.mainWith(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
                         color: AppColors.textMain,
@@ -1352,7 +1405,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                     const SizedBox(height: 4),
                     Text(
                       'Bạn có thể yêu cầu hoàn tiền trong $grace phút kể từ khi thanh toán.',
-                      style: GoogleFonts.publicSans(
+                      style: AppTypography.mainWith(
                         fontSize: 12,
                         color: AppColors.textMuted,
                         height: 1.4,
@@ -1368,28 +1421,29 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
             children: [
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed:
-                      _viewModel.isRefunding ? null : _showRefundRequestSheet,
+                  onPressed: _viewModel.isRefunding
+                      ? null
+                      : _showRefundRequestSheet,
                   icon: _viewModel.isRefunding
                       ? const SizedBox(
                           width: 16,
                           height: 16,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Colors.white,
+                            color: AppColors.surfacePrimary,
                           ),
                         )
                       : const Icon(Icons.replay_rounded, size: 16),
                   label: Text(
                     'Yêu cầu hoàn tiền',
-                    style: GoogleFonts.publicSans(
+                    style: AppTypography.mainWith(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
+                    foregroundColor: AppColors.surfacePrimary,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
@@ -1401,11 +1455,14 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
               const SizedBox(width: 10),
               Container(
                 constraints: const BoxConstraints(minWidth: 116),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
-                  color:
-                      low ? const Color(0xFFFFF9F3) : const Color(0xFFF0F5FF),
+                  color: low
+                      ? AppColors.statusWarningSurface
+                      : const Color(0xFFF0F5FF),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: low
@@ -1417,22 +1474,23 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                   children: [
                     Text(
                       low ? 'SẮP HẾT HẠN' : 'CÒN LẠI',
-                      style: GoogleFonts.publicSans(
+                      style: AppTypography.mainWith(
                         fontSize: 9,
                         fontWeight: FontWeight.w600,
-                        color:
-                            low ? const Color(0xFFB76E00) : AppColors.textMuted,
+                        color: low
+                            ? AppColors.statusWarningForeground
+                            : AppColors.textMuted,
                         letterSpacing: 0.4,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       formatRefundCountdown(_viewModel.refundSecondsLeft),
-                      style: GoogleFonts.publicSans(
+                      style: AppTypography.mainWith(
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
                         color: low
-                            ? const Color(0xFFB76E00)
+                            ? AppColors.statusWarningForeground
                             : const Color(0xFF2065D1),
                       ),
                     ),
@@ -1442,11 +1500,11 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
             ],
           ),
           const SizedBox(height: 12),
-          const Divider(height: 1, color: Color(0xFFE5E8EB)),
+          const Divider(height: 1, color: AppColors.borderLight),
           const SizedBox(height: 10),
           Text(
             'Số yêu cầu hôm nay: $submitted/${maxPerDay ?? '—'}',
-            style: GoogleFonts.publicSans(
+            style: AppTypography.mainWith(
               fontSize: 12,
               color: AppColors.textMuted,
             ),
@@ -1470,7 +1528,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
       decoration: BoxDecoration(
         color: const Color(0xFFF9FAFB),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E8EB)),
+        border: Border.all(color: AppColors.borderLight),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1481,9 +1539,9 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.surfacePrimary,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE5E8EB)),
+                  border: Border.all(color: AppColors.borderLight),
                 ),
                 child: const Icon(
                   Icons.info_outline_rounded,
@@ -1498,7 +1556,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                   children: [
                     Text(
                       'Hủy đơn & hoàn tiền',
-                      style: GoogleFonts.publicSans(
+                      style: AppTypography.mainWith(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
                         color: AppColors.textMain,
@@ -1507,7 +1565,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                     const SizedBox(height: 4),
                     Text(
                       'Số yêu cầu hôm nay: $submitted/${maxPerDay ?? '—'}',
-                      style: GoogleFonts.publicSans(
+                      style: AppTypography.mainWith(
                         fontSize: 12,
                         color: AppColors.textMuted,
                       ),
@@ -1525,14 +1583,14 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
               icon: const Icon(Icons.replay_rounded, size: 14),
               label: Text(
                 'Yêu cầu hoàn tiền',
-                style: GoogleFonts.publicSans(
+                style: AppTypography.mainWith(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                 ),
               ),
               style: ElevatedButton.styleFrom(
                 disabledBackgroundColor: const Color(0xFFC4CDD5),
-                disabledForegroundColor: Colors.white,
+                disabledForegroundColor: AppColors.surfacePrimary,
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -1542,11 +1600,11 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
           ),
           if (reason != null && reason.isNotEmpty) ...[
             const SizedBox(height: 12),
-            const Divider(height: 1, color: Color(0xFFE5E8EB)),
+            const Divider(height: 1, color: AppColors.borderLight),
             const SizedBox(height: 10),
             Text(
               reason,
-              style: GoogleFonts.publicSans(
+              style: AppTypography.mainWith(
                 fontSize: 13,
                 color: AppColors.textMuted,
                 height: 1.4,
@@ -1564,7 +1622,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF9F3),
+        color: AppColors.statusWarningSurface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0x40FFB020)),
       ),
@@ -1580,7 +1638,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
             child: const Icon(
               Icons.schedule_rounded,
               size: 18,
-              color: Color(0xFFB76E00),
+              color: AppColors.statusWarningForeground,
             ),
           ),
           const SizedBox(width: 12),
@@ -1592,7 +1650,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                   waitingTransfer
                       ? 'Đang chờ chuyển khoản'
                       : 'Yêu cầu đang chờ duyệt',
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.mainWith(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textMain,
@@ -1603,7 +1661,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                   waitingTransfer
                       ? 'Yêu cầu hoàn tiền đã được duyệt và đang chờ chuyển khoản.'
                       : 'Yêu cầu hủy đơn & hoàn tiền của bạn đang được xử lý.',
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.mainWith(
                     fontSize: 12,
                     color: AppColors.textMuted,
                     height: 1.4,
@@ -1628,7 +1686,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
             ),
             child: Text(
               'Xem chi tiết',
-              style: GoogleFonts.publicSans(
+              style: AppTypography.mainWith(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),
@@ -1646,7 +1704,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
     final result = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.surfacePrimary,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
@@ -1667,9 +1725,13 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
   Widget _buildBottomPayBar() {
     return Container(
       padding: EdgeInsets.fromLTRB(
-          16, 12, 16, 12 + MediaQuery.of(context).padding.bottom),
+        16,
+        12,
+        16,
+        12 + MediaQuery.of(context).padding.bottom,
+      ),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surfacePrimary,
         border: const Border(top: BorderSide(color: Color(0xFFEEEEEE))),
         boxShadow: [
           BoxShadow(
@@ -1687,7 +1749,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
             children: [
               Text(
                 'HẾT HẠN SAU',
-                style: GoogleFonts.publicSans(
+                style: AppTypography.mainWith(
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textMuted,
@@ -1697,12 +1759,15 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
               const SizedBox(height: 2),
               Row(
                 children: [
-                  const Icon(Icons.timer_rounded,
-                      size: 14, color: AppColors.primary),
+                  const Icon(
+                    Icons.timer_rounded,
+                    size: 14,
+                    color: AppColors.primary,
+                  ),
                   const SizedBox(width: 4),
                   Text(
                     _formatCountdown(_viewModel.remainingSeconds),
-                    style: GoogleFonts.publicSans(
+                    style: AppTypography.mainWith(
                       fontSize: 18,
                       fontWeight: FontWeight.w900,
                       color: AppColors.primary,
@@ -1724,20 +1789,20 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                       height: 18,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Colors.white,
+                        color: AppColors.surfacePrimary,
                       ),
                     )
                   : const Icon(Icons.payment_rounded, size: 20),
               label: Text(
                 'Tiếp tục thanh toán',
-                style: GoogleFonts.publicSans(
+                style: AppTypography.mainWith(
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
                 ),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
+                foregroundColor: AppColors.surfacePrimary,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
@@ -1762,7 +1827,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surfacePrimary,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -1789,7 +1854,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
               const SizedBox(width: 10),
               Text(
                 title,
-                style: GoogleFonts.publicSans(
+                style: AppTypography.mainWith(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
                   color: AppColors.textMain,
@@ -1812,7 +1877,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
       children: [
         Text(
           label,
-          style: GoogleFonts.publicSans(
+          style: AppTypography.mainWith(
             fontSize: 13,
             color: AppColors.textMuted,
           ),
@@ -1820,7 +1885,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
         trailing ??
             Text(
               value ?? '-',
-              style: GoogleFonts.publicSans(
+              style: AppTypography.mainWith(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textMain,

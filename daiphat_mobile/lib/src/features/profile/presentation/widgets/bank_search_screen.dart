@@ -1,6 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 
 import 'package:daiphat_mobile/src/features/checkout/models/refund_type.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
@@ -39,17 +39,17 @@ class _BankSearchScreenState extends State<BankSearchScreen> {
     final filtered = _filteredBanks;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.surfacePrimary,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
+        backgroundColor: AppColors.surfacePrimary,
+        surfaceTintColor: AppColors.transparent,
         elevation: 0,
         centerTitle: true,
         leading: const SizedBox.shrink(),
         leadingWidth: 0,
         title: Text(
           'Tìm ngân hàng',
-          style: GoogleFonts.publicSans(
+          style: AppTypography.mainWith(
             fontSize: 17,
             fontWeight: FontWeight.w700,
             color: AppColors.textMain,
@@ -58,7 +58,7 @@ class _BankSearchScreenState extends State<BankSearchScreen> {
         actions: [
           IconButton(
             onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.close_rounded, color: Color(0xFF919EAB)),
+            icon: const Icon(Icons.close_rounded, color: AppColors.contentPlaceholderStrong),
           ),
         ],
       ),
@@ -70,16 +70,16 @@ class _BankSearchScreenState extends State<BankSearchScreen> {
               controller: _searchController,
               autofocus: true,
               onChanged: (value) => setState(() => _query = value),
-              style: GoogleFonts.publicSans(fontSize: 14),
+              style: AppTypography.mainWith(fontSize: 14),
               decoration: InputDecoration(
                 hintText: 'Nhập tên Ngân hàng cần tìm kiếm',
-                hintStyle: GoogleFonts.publicSans(
+                hintStyle: AppTypography.mainWith(
                   fontSize: 14,
                   color: const Color(0xFFC4CDD5),
                 ),
                 prefixIcon: const Icon(
                   Icons.search_rounded,
-                  color: Color(0xFF919EAB),
+                  color: AppColors.contentPlaceholderStrong,
                   size: 22,
                 ),
                 suffixIcon: _query.isNotEmpty
@@ -100,7 +100,7 @@ class _BankSearchScreenState extends State<BankSearchScreen> {
                   vertical: 12,
                 ),
                 filled: true,
-                fillColor: const Color(0xFFF4F6F8),
+                fillColor: AppColors.surfaceNeutral,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
@@ -121,9 +121,9 @@ class _BankSearchScreenState extends State<BankSearchScreen> {
                 ? Center(
                     child: Text(
                       'Không tìm thấy ngân hàng',
-                      style: GoogleFonts.publicSans(
+                      style: AppTypography.mainWith(
                         fontSize: 14,
-                        color: const Color(0xFF919EAB),
+                        color: AppColors.contentPlaceholderStrong,
                       ),
                     ),
                   )
@@ -133,7 +133,7 @@ class _BankSearchScreenState extends State<BankSearchScreen> {
                     separatorBuilder: (_, _) => const Divider(
                       height: 1,
                       indent: 72,
-                      color: Color(0xFFF4F6F8),
+                      color: AppColors.surfaceNeutral,
                     ),
                     itemBuilder: (context, index) {
                       final bank = filtered[index];
@@ -161,7 +161,7 @@ class _BankListTile extends StatelessWidget {
     final logoUrl = bank.logo?.trim();
 
     return Material(
-      color: Colors.white,
+      color: AppColors.surfacePrimary,
       child: InkWell(
         onTap: onTap,
         child: Padding(
@@ -176,7 +176,7 @@ class _BankListTile extends StatelessWidget {
                   children: [
                     Text(
                       bank.shortName,
-                      style: GoogleFonts.publicSans(
+                      style: AppTypography.mainWith(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                         color: AppColors.textMain,
@@ -187,9 +187,9 @@ class _BankListTile extends StatelessWidget {
                       bank.name,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.publicSans(
+                      style: AppTypography.mainWith(
                         fontSize: 12,
-                        color: const Color(0xFF919EAB),
+                        color: AppColors.contentPlaceholderStrong,
                         height: 1.35,
                       ),
                     ),
@@ -220,9 +220,9 @@ class _BankLogo extends StatelessWidget {
       width: 44,
       height: 44,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surfacePrimary,
         shape: BoxShape.circle,
-        border: Border.all(color: const Color(0xFFE5E8EB)),
+        border: Border.all(color: AppColors.borderLight),
       ),
       clipBehavior: Clip.antiAlias,
       child: hasLogo
@@ -232,7 +232,7 @@ class _BankLogo extends StatelessWidget {
               placeholder: (_, _) => Center(
                 child: Text(
                   initial,
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.mainWith(
                     fontWeight: FontWeight.w800,
                     color: AppColors.primary,
                   ),
@@ -241,7 +241,7 @@ class _BankLogo extends StatelessWidget {
               errorWidget: (_, _, _) => Center(
                 child: Text(
                   initial,
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.mainWith(
                     fontWeight: FontWeight.w800,
                     color: AppColors.primary,
                   ),
@@ -251,7 +251,7 @@ class _BankLogo extends StatelessWidget {
           : Center(
               child: Text(
                 initial,
-                style: GoogleFonts.publicSans(
+                style: AppTypography.mainWith(
                   fontWeight: FontWeight.w800,
                   color: AppColors.primary,
                 ),

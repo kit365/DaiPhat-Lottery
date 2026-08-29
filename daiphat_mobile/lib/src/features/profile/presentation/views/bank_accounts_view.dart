@@ -2,7 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 
 import 'package:daiphat_mobile/src/features/checkout/models/refund_type.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
@@ -71,27 +71,27 @@ class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
       builder: (ctx) => AlertDialog(
         title: Text(
           'Xoá tài khoản',
-          style: GoogleFonts.publicSans(fontWeight: FontWeight.w800),
+          style: AppTypography.mainWith(fontWeight: FontWeight.w800),
         ),
         content: Text(
           'Bạn có chắc muốn xoá tài khoản ${account.bankName} - '
           '${account.bankAccountNo}?',
-          style: GoogleFonts.publicSans(fontSize: 14),
+          style: AppTypography.mainWith(fontSize: 14),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Không', style: GoogleFonts.publicSans()),
+            child: Text('Không', style: AppTypography.mainWith()),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
+              foregroundColor: AppColors.surfacePrimary,
             ),
             child: Text(
               'Xoá',
-              style: GoogleFonts.publicSans(fontWeight: FontWeight.w700),
+              style: AppTypography.mainWith(fontWeight: FontWeight.w700),
             ),
           ),
         ],
@@ -109,10 +109,10 @@ class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: AppColors.surfaceCanvas,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
+        backgroundColor: AppColors.surfacePrimary,
+        surfaceTintColor: AppColors.transparent,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(
@@ -124,7 +124,7 @@ class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
         ),
         title: Text(
           'Tài khoản ngân hàng',
-          style: GoogleFonts.publicSans(
+          style: AppTypography.mainWith(
             fontSize: 18,
             fontWeight: FontWeight.w700,
             color: AppColors.textMain,
@@ -141,11 +141,11 @@ class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
           return FloatingActionButton.extended(
             onPressed: () => _openForm(),
             backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
+            foregroundColor: AppColors.surfacePrimary,
             icon: const Icon(Icons.add_rounded),
             label: Text(
               'Thêm tài khoản',
-              style: GoogleFonts.publicSans(fontWeight: FontWeight.w700),
+              style: AppTypography.mainWith(fontWeight: FontWeight.w700),
             ),
           );
         },
@@ -191,7 +191,7 @@ class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surfacePrimary,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: account.isDefault
@@ -224,7 +224,7 @@ class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
                             account.bankName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.publicSans(
+                            style: AppTypography.mainWith(
                               fontSize: 15,
                               fontWeight: FontWeight.w800,
                               color: AppColors.textMain,
@@ -244,7 +244,7 @@ class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
                             ),
                             child: Text(
                               'Mặc định',
-                              style: GoogleFonts.publicSans(
+                              style: AppTypography.mainWith(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.primary,
@@ -257,7 +257,7 @@ class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
                     const SizedBox(height: 4),
                     Text(
                       account.bankAccountNo,
-                      style: GoogleFonts.publicSans(
+                      style: AppTypography.mainWith(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 0.6,
@@ -267,7 +267,7 @@ class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
                     const SizedBox(height: 2),
                     Text(
                       account.bankAccountName,
-                      style: GoogleFonts.publicSans(
+                      style: AppTypography.mainWith(
                         fontSize: 12,
                         color: AppColors.textMuted,
                       ),
@@ -335,7 +335,10 @@ class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
       icon: Icon(icon, size: 17),
       label: Text(
         label,
-        style: GoogleFonts.publicSans(fontSize: 13, fontWeight: FontWeight.w700),
+        style: AppTypography.mainWith(
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -350,7 +353,7 @@ class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
           Text(
             _viewModel.error ?? 'Đã xảy ra lỗi',
             textAlign: TextAlign.center,
-            style: GoogleFonts.publicSans(
+            style: AppTypography.mainWith(
               fontSize: 14,
               color: AppColors.textMuted,
             ),
@@ -360,7 +363,7 @@ class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
             onPressed: _viewModel.load,
             child: Text(
               'Thử lại',
-              style: GoogleFonts.publicSans(
+              style: AppTypography.mainWith(
                 fontWeight: FontWeight.w700,
                 color: AppColors.primary,
               ),
@@ -383,7 +386,7 @@ class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
                 width: 72,
                 height: 72,
                 decoration: const BoxDecoration(
-                  color: Color(0xFFFFF4F4),
+                  color: AppColors.statusErrorSurface,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -395,7 +398,7 @@ class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
               const SizedBox(height: 16),
               Text(
                 'Chưa có tài khoản ngân hàng',
-                style: GoogleFonts.publicSans(
+                style: AppTypography.mainWith(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textMain,
@@ -407,7 +410,7 @@ class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
                 child: Text(
                   'Thêm tài khoản để nhận hoàn tiền và trả thưởng nhanh chóng.',
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.mainWith(
                     fontSize: 13,
                     height: 1.45,
                     color: AppColors.textMuted,
@@ -419,7 +422,7 @@ class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
                 onPressed: () => _openForm(),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
+                  foregroundColor: AppColors.surfacePrimary,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 20,
                     vertical: 12,
@@ -431,7 +434,7 @@ class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
                 icon: const Icon(Icons.add_rounded, size: 20),
                 label: Text(
                   'Thêm tài khoản',
-                  style: GoogleFonts.publicSans(fontWeight: FontWeight.w700),
+                  style: AppTypography.mainWith(fontWeight: FontWeight.w700),
                 ),
               ),
             ],
@@ -454,7 +457,7 @@ class _BankLogo extends StatelessWidget {
     final fallback = Center(
       child: Text(
         initial,
-        style: GoogleFonts.publicSans(
+        style: AppTypography.mainWith(
           fontWeight: FontWeight.w800,
           color: AppColors.primary,
         ),
@@ -465,9 +468,9 @@ class _BankLogo extends StatelessWidget {
       width: 48,
       height: 48,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surfacePrimary,
         shape: BoxShape.circle,
-        border: Border.all(color: const Color(0xFFE5E8EB)),
+        border: Border.all(color: AppColors.borderLight),
       ),
       clipBehavior: Clip.antiAlias,
       padding: const EdgeInsets.all(4),

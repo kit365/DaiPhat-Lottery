@@ -10,8 +10,10 @@ import 'package:shimmer/shimmer.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import 'package:daiphat_mobile/src/shared/utils/auth_navigation.dart';
+import 'package:daiphat_mobile/src/shared/widgets/app_filter_tab_strip.dart';
 import 'package:daiphat_mobile/src/shared/widgets/app_header_action_button.dart';
 import 'package:daiphat_mobile/src/shared/widgets/brand_scrollbar.dart';
 import 'package:daiphat_mobile/src/features/cart/models/cart_item_model.dart';
@@ -27,12 +29,7 @@ String _compactPrice(int? price) {
   final effective = (price != null && price > 0)
       ? price
       : kDefaultLotteryTicketPrice;
-  final currencyFormatter = NumberFormat.currency(
-    locale: 'vi_VN',
-    symbol: 'đ',
-    decimalDigits: 0,
-  );
-  return currencyFormatter.format(effective);
+  return AppFormatters.formatCurrency(effective);
 }
 
 class BuyTicketView extends ConsumerStatefulWidget {
@@ -91,7 +88,7 @@ class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
       context: context,
       isScrollControlled: true,
       useRootNavigator: true,
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppColors.transparent,
       builder: (_) => TicketDetailModalSheet(ticket: ticket),
     );
   }
@@ -176,54 +173,75 @@ class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
     final searchQuery = data?.searchQuery ?? '';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F9FC),
-      body: Column(
+      backgroundColor: AppColors.pageBg,
+      body: Stack(
         children: [
-          _BuyTicketHeader(
-            onBack: () => context.go(AppRoute.home.path),
-            onOpenCart: () => requireAuthOrGoLoginWithRef(
-              context,
-              ref,
-              redirectPath: AppRoute.cart.path,
-              onAuthenticated: () => context.push(AppRoute.cart.path),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 320,
+            child: ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [AppColors.surfacePrimary, AppColors.transparent],
+                stops: [0.4, 1.0],
+              ).createShader(bounds),
+              blendMode: BlendMode.dstIn,
+              child: Image.asset('assets/images/home_bg.png', fit: BoxFit.cover),
             ),
-            searchQuery: searchQuery,
-            filterCount: searchFilter.count,
-            onSearchChanged: viewModel.updateSearchQuery,
-            onOpenFilter: () async {
-              final currentFilter =
-                  ref
-                      .read(buyTicketViewModelProvider)
-                      .asData
-                      ?.value
-                      .searchFilter ??
-                  TicketSearchFilter.empty;
-              final applied = await showTicketSearchFilterSheet(
-                context: context,
-                initial: currentFilter,
-              );
-              if (applied == null) return;
-              await viewModel.applySearchFilter(applied);
-            },
           ),
-          Expanded(
-            child: state.when(
-              data: (loadedData) => _LoadedView(
-                state: loadedData,
-                viewModel: viewModel,
-                onOpenDetail: (ticket) => _openTicketDetail(context, ticket),
-                onAddToCart: (ticket) => _addToCart(context, ticket),
-                onBuyNow: (ticket) =>
-                    _addToCart(context, ticket, openCheckout: true),
-              ),
-              loading: () => const _BuyTicketSkeleton(),
-              error: (error, _) => _ErrorState(
-                message: error.toString(),
-                onRetry: () {
-                  viewModel.refresh();
+          Column(
+            children: [
+              _BuyTicketHeader(
+                onOpenCart: () => requireAuthOrGoLoginWithRef(
+                  context,
+                  ref,
+                  redirectPath: AppRoute.cart.path,
+                  onAuthenticated: () => context.push(AppRoute.cart.path),
+                ),
+                searchQuery: searchQuery,
+                filterCount: searchFilter.count,
+                isLoading: data?.isListLoading ?? false,
+                onSearchChanged: viewModel.updateSearchQuery,
+                onOpenFilter: () async {
+                  final currentFilter =
+                      ref
+                          .read(buyTicketViewModelProvider)
+                          .asData
+                          ?.value
+                          .searchFilter ??
+                      TicketSearchFilter.empty;
+                  final applied = await showTicketSearchFilterSheet(
+                    context: context,
+                    initial: currentFilter,
+                  );
+                  if (applied == null) return;
+                  await viewModel.applySearchFilter(applied);
                 },
               ),
-            ),
+              Expanded(
+                child: state.when(
+                  data: (loadedData) => _LoadedView(
+                    state: loadedData,
+                    viewModel: viewModel,
+                    onOpenDetail: (ticket) =>
+                        _openTicketDetail(context, ticket),
+                    onAddToCart: (ticket) => _addToCart(context, ticket),
+                    onBuyNow: (ticket) =>
+                        _addToCart(context, ticket, openCheckout: true),
+                  ),
+                  loading: () => const _BuyTicketSkeleton(),
+                  error: (error, _) => _ErrorState(
+                    message: error.toString(),
+                    onRetry: () {
+                      viewModel.refresh();
+                    },
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -342,20 +360,13 @@ class _LoadedViewState extends State<_LoadedView> {
               child: state.isListLoading
                   ? const _TicketListSkeleton(count: 6)
                   : AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 320),
-                      switchInCurve: Curves.easeOutCubic,
-                      switchOutCurve: Curves.easeInCubic,
+                      duration: const Duration(milliseconds: 200),
+                      switchInCurve: Curves.easeOut,
+                      switchOutCurve: Curves.easeIn,
                       transitionBuilder: (child, animation) {
-                        final offset = Tween<Offset>(
-                          begin: const Offset(0.04, 0),
-                          end: Offset.zero,
-                        ).animate(animation);
                         return FadeTransition(
                           opacity: animation,
-                          child: SlideTransition(
-                            position: offset,
-                            child: child,
-                          ),
+                          child: child,
                         );
                       },
                       child: Column(
@@ -437,12 +448,14 @@ class _SearchField extends StatefulWidget {
     required this.onChanged,
     this.filterCount = 0,
     this.onOpenFilter,
+    this.isLoading = false,
   });
 
   final String initialValue;
   final ValueChanged<String> onChanged;
   final int filterCount;
   final VoidCallback? onOpenFilter;
+  final bool isLoading;
 
   @override
   State<_SearchField> createState() => _SearchFieldState();
@@ -450,6 +463,8 @@ class _SearchField extends StatefulWidget {
 
 class _SearchFieldState extends State<_SearchField> {
   late final TextEditingController _controller;
+  Timer? _debounceTimer;
+  bool _isDebouncing = false;
 
   @override
   void initState() {
@@ -461,7 +476,8 @@ class _SearchFieldState extends State<_SearchField> {
   void didUpdateWidget(covariant _SearchField oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.initialValue != oldWidget.initialValue &&
-        widget.initialValue != _controller.text) {
+        widget.initialValue != _controller.text &&
+        !_isDebouncing) {
       _controller.value = TextEditingValue(
         text: widget.initialValue,
         selection: TextSelection.collapsed(offset: widget.initialValue.length),
@@ -471,50 +487,67 @@ class _SearchFieldState extends State<_SearchField> {
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }
 
+  void _onTextChanged(String val) {
+    setState(() {
+      _isDebouncing = true;
+    });
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 350), () {
+      if (mounted) {
+        setState(() {
+          _isDebouncing = false;
+        });
+        widget.onChanged(val);
+      }
+    });
+  }
+
+  void _onClear() {
+    _debounceTimer?.cancel();
+    _controller.clear();
+    setState(() {
+      _isDebouncing = false;
+    });
+    widget.onChanged('');
+  }
+
   @override
   Widget build(BuildContext context) {
+    final showLoading = _isDebouncing || widget.isLoading;
+
     return Container(
       height: 42,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surfaceNeutral,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x10000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
+        border: Border.all(color: AppColors.borderSubtle, width: 1.0),
       ),
       child: Row(
         children: [
           const SizedBox(width: 12),
-          const Icon(Icons.search_rounded, color: Color(0xFF94A3B8), size: 20),
+          const Icon(Icons.search_rounded, color: AppColors.contentSubtle, size: 20),
           const SizedBox(width: 8),
           Expanded(
             child: TextField(
               controller: _controller,
-              onChanged: (val) {
-                setState(() {});
-                widget.onChanged(val);
-              },
+              onChanged: _onTextChanged,
               keyboardType: TextInputType.text,
               style: AppTypography.main(
                 const TextStyle(
                   fontSize: 13.5,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF1E293B),
+                  color: AppColors.contentNavy,
                 ),
               ),
               decoration: const InputDecoration(
                 hintText: 'Tìm số vé (VD: 6868...), tên đài...',
                 hintStyle: TextStyle(
-                  color: Color(0xFF94A3B8),
+                  color: AppColors.contentSubtle,
                   fontSize: 13,
                   fontWeight: FontWeight.w400,
                 ),
@@ -524,13 +557,21 @@ class _SearchFieldState extends State<_SearchField> {
               ),
             ),
           ),
-          if (_controller.text.isNotEmpty)
+          if (showLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 10),
+              child: SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.primary,
+                ),
+              ),
+            )
+          else if (_controller.text.isNotEmpty)
             GestureDetector(
-              onTap: () {
-                _controller.clear();
-                setState(() {});
-                widget.onChanged('');
-              },
+              onTap: _onClear,
               child: const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 10),
                 child: Icon(
@@ -678,7 +719,7 @@ class _TicketHeroBannerState extends State<_TicketHeroBanner> {
                           const Color(0xFFB40716).withValues(alpha: 0.94),
                           const Color(0xFFD51C29).withValues(alpha: 0.72),
                           const Color(0xFFE43732).withValues(alpha: 0.12),
-                          Colors.transparent,
+                          AppColors.transparent,
                         ],
                       ),
                     ),
@@ -708,7 +749,7 @@ class _TicketHeroBannerState extends State<_TicketHeroBanner> {
                           slide.title,
                           style: AppTypography.display(
                             const TextStyle(
-                              color: Colors.white,
+                              color: AppColors.surfacePrimary,
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
                               height: 1.15,
@@ -721,7 +762,7 @@ class _TicketHeroBannerState extends State<_TicketHeroBanner> {
                           slide.subtitle,
                           style: AppTypography.main(
                             TextStyle(
-                              color: Colors.white.withValues(alpha: 0.85),
+                              color: AppColors.surfacePrimary.withValues(alpha: 0.85),
                               fontSize: 11.5,
                               fontWeight: FontWeight.w500,
                             ),
@@ -749,8 +790,8 @@ class _TicketHeroBannerState extends State<_TicketHeroBanner> {
                     margin: const EdgeInsets.symmetric(horizontal: 2),
                     decoration: BoxDecoration(
                       color: index == _currentIndex
-                          ? Colors.white
-                          : Colors.white.withValues(alpha: .5),
+                          ? AppColors.surfacePrimary
+                          : AppColors.surfacePrimary.withValues(alpha: .5),
                       borderRadius: BorderRadius.circular(999),
                     ),
                   ),
@@ -783,7 +824,7 @@ class _DaySegmentedControl extends StatelessWidget {
     return Container(
       decoration: const BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1.0),
+          bottom: BorderSide(color: AppColors.borderSubtle, width: 1.0),
         ),
       ),
       child: Row(
@@ -826,7 +867,7 @@ class _ShopeeTabItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.transparent,
+      color: AppColors.transparent,
       child: InkWell(
         onTap: disabled ? null : onTap,
         child: Container(
@@ -844,10 +885,10 @@ class _ShopeeTabItem extends StatelessWidget {
                     fontSize: 14,
                     fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                     color: disabled
-                        ? const Color(0xFF94A3B8)
+                        ? AppColors.contentSubtle
                         : selected
                         ? AppColors.primary
-                        : const Color(0xFF64748B),
+                        : AppColors.contentMuted,
                   ),
                 ),
               ),
@@ -858,7 +899,7 @@ class _ShopeeTabItem extends StatelessWidget {
                 height: 2.5,
                 width: selected ? 48 : 0,
                 decoration: BoxDecoration(
-                  color: selected ? AppColors.primary : Colors.transparent,
+                  color: selected ? AppColors.primary : AppColors.transparent,
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
@@ -976,6 +1017,7 @@ class _AllTicketsPageState extends ConsumerState<_AllTicketsPage> {
                         child: _SearchField(
                           initialValue: data.searchQuery,
                           filterCount: data.searchFilter.count,
+                          isLoading: data.isListLoading,
                           onChanged: viewModel.updateSearchQuery,
                           onOpenFilter: () async {
                             final applied = await showTicketSearchFilterSheet(
@@ -1154,7 +1196,7 @@ class _AllTicketCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: AppColors.surfacePrimary,
       borderRadius: BorderRadius.circular(18),
       elevation: 2.5,
       shadowColor: Colors.black.withValues(alpha: 0.12),
@@ -1185,7 +1227,7 @@ class _AllTicketCard extends StatelessWidget {
                       width: 32,
                       height: 32,
                       decoration: const BoxDecoration(
-                        color: Colors.white,
+                        color: AppColors.surfacePrimary,
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -1217,9 +1259,9 @@ class _AllTicketCard extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                                 style: AppTypography.main(
                                   const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: Color(0xFF6B625F),
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.contentMuted,
                                   ),
                                 ),
                               ),
@@ -1228,9 +1270,9 @@ class _AllTicketCard extends StatelessWidget {
                               _compactPrice(ticket.price),
                               style: AppTypography.main(
                                 const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.black,
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.primary,
                                 ),
                               ),
                             ),
@@ -1243,11 +1285,11 @@ class _AllTicketCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: AppTypography.number(
                             const TextStyle(
-                              color: Color(0xFFC90F1D),
-                              fontSize: 26,
+                              color: AppColors.contentPrimary,
+                              fontSize: 25,
                               height: 1,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 1.2,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.8,
                             ),
                           ),
                         ),
@@ -1259,17 +1301,20 @@ class _AllTicketCard extends StatelessWidget {
                         const Icon(
                           Icons.calendar_month_outlined,
                           size: 12,
-                          color: Color(0xFF8A6D68),
+                          color: AppColors.contentMuted,
                         ),
+                        const SizedBox(width: 3.5),
                         Expanded(
                           child: Text(
                             ticket.dateLabel,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF755E59),
+                            style: AppTypography.main(
+                              const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.contentMuted,
+                              ),
                             ),
                           ),
                         ),
@@ -1285,7 +1330,7 @@ class _AllTicketCard extends StatelessWidget {
                               height: 30,
                               child: Icon(
                                 Icons.add_rounded,
-                                color: Colors.white,
+                                color: AppColors.surfacePrimary,
                                 size: 21,
                               ),
                             ),
@@ -1318,7 +1363,7 @@ class _TicketCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: AppColors.surfacePrimary,
       borderRadius: BorderRadius.circular(16),
       elevation: 0,
       clipBehavior: Clip.antiAlias,
@@ -1328,7 +1373,7 @@ class _TicketCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.surfacePrimary,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: const Color(0xFFEAEBED), width: 1.0),
             boxShadow: const [
@@ -1352,9 +1397,9 @@ class _TicketCard extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: AppTypography.main(
                   const TextStyle(
-                    fontSize: 12,
+                    fontSize: 12.5,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF64748B),
+                    color: AppColors.contentMuted,
                   ),
                 ),
               ),
@@ -1368,7 +1413,7 @@ class _TicketCard extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: AppTypography.number(
                     const TextStyle(
-                      color: Color(0xFF17191F),
+                      color: AppColors.contentPrimary,
                       fontSize: 25,
                       height: 1.0,
                       fontWeight: FontWeight.w900,
@@ -1481,7 +1526,7 @@ class _TicketThumbFallback extends StatelessWidget {
           child: Text(
             shortName,
             style: const TextStyle(
-              color: Colors.white,
+              color: AppColors.surfacePrimary,
               fontWeight: FontWeight.w800,
               fontSize: 16,
             ),
@@ -1526,14 +1571,7 @@ class _TicketDetailModalSheetState
 
   int get _totalPrice => _unitPrice * _quantity;
 
-  String get _formattedTotalPrice {
-    final formatter = NumberFormat.currency(
-      locale: 'vi_VN',
-      symbol: 'đ',
-      decimalDigits: 0,
-    );
-    return formatter.format(_totalPrice);
-  }
+  String get _formattedTotalPrice => AppFormatters.formatCurrency(_totalPrice);
 
   String get _dateText {
     final weekday = _kVnWeekdayLabels[widget.ticket.drawDate.weekday] ?? '';
@@ -1634,7 +1672,7 @@ class _TicketDetailModalSheetState
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surfacePrimary,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         boxShadow: [
           BoxShadow(
@@ -1662,7 +1700,7 @@ class _TicketDetailModalSheetState
                         width: 40,
                         height: 4.5,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE2E8F0),
+                          color: AppColors.borderSubtle,
                           borderRadius: BorderRadius.circular(99),
                         ),
                       ),
@@ -1680,7 +1718,7 @@ class _TicketDetailModalSheetState
                       child: const Icon(
                         Icons.close_rounded,
                         size: 18,
-                        color: Color(0xFF64748B),
+                        color: AppColors.contentMuted,
                       ),
                     ),
                   ),
@@ -1690,14 +1728,24 @@ class _TicketDetailModalSheetState
 
               // Ticket Hero Box
               Container(
-                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFF9F9),
-                  borderRadius: BorderRadius.circular(20),
+                  color: AppColors.surfacePrimary,
+                  borderRadius: BorderRadius.circular(18),
                   border: Border.all(
-                    color: const Color(0xFFFFDDD6),
-                    width: 1.2,
+                    color: const Color(0xFFEAEBED),
+                    width: 1.0,
                   ),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x08000000),
+                      blurRadius: 10,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
                 ),
                 child: Column(
                   children: [
@@ -1710,9 +1758,9 @@ class _TicketDetailModalSheetState
                             overflow: TextOverflow.ellipsis,
                             style: AppTypography.main(
                               const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.textMain,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.contentMuted,
                               ),
                             ),
                           ),
@@ -1741,35 +1789,26 @@ class _TicketDetailModalSheetState
                         ),
                       ],
                     ),
+                    const SizedBox(height: 10),
+                    const Divider(height: 1, color: Color(0xFFF1F2F4)),
                     const SizedBox(height: 12),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: const Color(0xFFE2E8F0),
-                          width: 1.2,
-                        ),
-                      ),
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          widget.ticket.code,
-                          textAlign: TextAlign.center,
-                          style: AppTypography.number(
-                            const TextStyle(
-                              color: Color(0xFF17191F),
-                              fontSize: 36,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 4,
-                              height: 1,
-                            ),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        widget.ticket.code,
+                        textAlign: TextAlign.center,
+                        style: AppTypography.number(
+                          const TextStyle(
+                            color: Color(0xFF17191F),
+                            fontSize: 36,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 4,
+                            height: 1,
                           ),
                         ),
                       ),
                     ),
+                    const SizedBox(height: 2),
                   ],
                 ),
               ),
@@ -1780,9 +1819,9 @@ class _TicketDetailModalSheetState
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
+                  color: const Color(0xFFFAFAFB),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(color: const Color(0xFFF1F2F4)),
                 ),
                 child: Column(
                   children: [
@@ -1795,7 +1834,7 @@ class _TicketDetailModalSheetState
                           style: AppTypography.main(
                             const TextStyle(
                               fontSize: 13.5,
-                              color: Color(0xFF64748B),
+                              color: AppColors.contentMuted,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -1805,7 +1844,7 @@ class _TicketDetailModalSheetState
                           style: AppTypography.main(
                             const TextStyle(
                               fontSize: 14,
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w800,
                               color: AppColors.primary,
                             ),
                           ),
@@ -1814,7 +1853,7 @@ class _TicketDetailModalSheetState
                     ),
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 10),
-                      child: Divider(height: 1, color: Color(0xFFE2E8F0)),
+                      child: Divider(height: 1, color: Color(0xFFEAEBED)),
                     ),
 
                     // 2. Stock available
@@ -1826,27 +1865,31 @@ class _TicketDetailModalSheetState
                           style: AppTypography.main(
                             const TextStyle(
                               fontSize: 13.5,
-                              color: Color(0xFF64748B),
+                              color: AppColors.contentMuted,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
                         ),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
+                            horizontal: 10,
+                            vertical: 3.5,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFE0F2FE),
-                            borderRadius: BorderRadius.circular(6),
+                            color: const Color(0xFFFFF1F1),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: const Color(0xFFFFDEDE),
+                              width: 1,
+                            ),
                           ),
                           child: Text(
                             '$_maxStock vé',
                             style: AppTypography.main(
                               const TextStyle(
-                                fontSize: 12.5,
+                                fontSize: 12,
                                 fontWeight: FontWeight.w700,
-                                color: Color(0xFF0369A1),
+                                color: AppColors.primary,
                               ),
                             ),
                           ),
@@ -1855,7 +1898,7 @@ class _TicketDetailModalSheetState
                     ),
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 10),
-                      child: Divider(height: 1, color: Color(0xFFE2E8F0)),
+                      child: Divider(height: 1, color: Color(0xFFEAEBED)),
                     ),
 
                     // Quantity Stepper
@@ -1874,7 +1917,7 @@ class _TicketDetailModalSheetState
                         ),
                         Container(
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: AppColors.surfacePrimary,
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(color: const Color(0xFFCBD5E1)),
                           ),
@@ -1922,7 +1965,7 @@ class _TicketDetailModalSheetState
                     ),
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 10),
-                      child: Divider(height: 1, color: Color(0xFFE2E8F0)),
+                      child: Divider(height: 1, color: Color(0xFFEAEBED)),
                     ),
 
                     // Total Row
@@ -1943,7 +1986,7 @@ class _TicketDetailModalSheetState
                           _formattedTotalPrice,
                           style: AppTypography.number(
                             const TextStyle(
-                              fontSize: 17,
+                              fontSize: 18,
                               fontWeight: FontWeight.w900,
                               color: AppColors.primary,
                             ),
@@ -1961,23 +2004,31 @@ class _TicketDetailModalSheetState
               Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _addToCart,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        side: const BorderSide(color: Color(0xFFF0B5AF)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                    child: SizedBox(
+                      height: 48,
+                      child: OutlinedButton.icon(
+                        onPressed: _addToCart,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          side: const BorderSide(
+                            color: AppColors.primary,
+                            width: 1.2,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
                         ),
-                      ),
-                      icon: const Icon(Icons.shopping_cart_outlined, size: 18),
-                      label: Text(
-                        'Thêm vào giỏ',
-                        style: AppTypography.main(
-                          const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13.5,
+                        icon: const Icon(
+                          Icons.shopping_cart_outlined,
+                          size: 19,
+                        ),
+                        label: Text(
+                          'Thêm vào giỏ',
+                          style: AppTypography.main(
+                            const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                            ),
                           ),
                         ),
                       ),
@@ -1985,23 +2036,26 @@ class _TicketDetailModalSheetState
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: ElevatedButton(
-                      onPressed: _buyNow,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                    child: SizedBox(
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: _buyNow,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: AppColors.surfacePrimary,
+                          elevation: 1,
+                          shadowColor: const Color(0x33D31010),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
                         ),
-                      ),
-                      child: Text(
-                        'Mua ngay',
-                        style: AppTypography.main(
-                          const TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 14.5,
+                        child: Text(
+                          'Mua ngay',
+                          style: AppTypography.main(
+                            const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 15,
+                            ),
                           ),
                         ),
                       ),
@@ -2041,7 +2095,7 @@ class _StepButton extends StatelessWidget {
       onTap: disabled ? null : onTap,
       child: ExcludeSemantics(
         child: Material(
-          color: Colors.transparent,
+          color: AppColors.transparent,
           child: InkWell(
             onTap: disabled ? onDisabledTap : onTap,
             borderRadius: BorderRadius.circular(8),
@@ -2056,8 +2110,8 @@ class _StepButton extends StatelessWidget {
                     icon,
                     size: 16,
                     color: disabled
-                        ? const Color(0xFF94A3B8)
-                        : const Color(0xFF1E293B),
+                        ? AppColors.contentSubtle
+                        : AppColors.contentNavy,
                   ),
                 ),
               ),
@@ -2092,7 +2146,7 @@ class _TicketBadge extends StatelessWidget {
                 height: 18,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: Colors.white,
+                  color: AppColors.surfacePrimary,
                 ),
               ),
             ),
@@ -2122,7 +2176,7 @@ class _TicketBadge extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          border: Border.all(color: Colors.white, width: 2),
+          border: Border.all(color: AppColors.surfacePrimary, width: 2),
           gradient: const LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
@@ -2146,7 +2200,7 @@ class _TicketBadgeFallback extends StatelessWidget {
       child: Text(
         shortName,
         style: const TextStyle(
-          color: Colors.white,
+          color: AppColors.surfacePrimary,
           fontWeight: FontWeight.w800,
           fontSize: 14,
         ),
@@ -2208,7 +2262,7 @@ class _TicketCardSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surfacePrimary,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFEAEBED), width: 1.0),
       ),
@@ -2245,7 +2299,7 @@ class _ShimmerBox extends StatelessWidget {
         width: width,
         height: height,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surfacePrimary,
           borderRadius: BorderRadius.circular(radius),
         ),
       ),
@@ -2292,7 +2346,7 @@ class _ErrorState extends StatelessWidget {
               onPressed: onRetry,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
+                foregroundColor: AppColors.surfacePrimary,
               ),
               child: const Text('Thử lại'),
             ),
@@ -2305,78 +2359,63 @@ class _ErrorState extends StatelessWidget {
 
 class _BuyTicketHeader extends StatelessWidget {
   const _BuyTicketHeader({
-    required this.onBack,
     required this.onOpenCart,
     required this.searchQuery,
     required this.filterCount,
     required this.onSearchChanged,
     required this.onOpenFilter,
+    this.isLoading = false,
+    this.onBack,
+    this.showBackButton = false,
   });
 
-  final VoidCallback onBack;
   final VoidCallback onOpenCart;
   final String searchQuery;
   final int filterCount;
   final ValueChanged<String> onSearchChanged;
   final VoidCallback onOpenFilter;
+  final bool isLoading;
+  final VoidCallback? onBack;
+  final bool showBackButton;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [AppColors.primary, AppColors.primaryDark],
-        ),
-      ),
+      color: AppColors.transparent,
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Row 1: Back | Title | Cart | Chat
+              // Row 1: Title + Action buttons (Cart & Chat)
               Row(
                 children: [
-                  AppHeaderActionButton(
-                    icon: Icons.arrow_back_ios_new_rounded,
-                    tooltip: 'Quay lại',
-                    onTap: onBack,
-                  ),
-                  Expanded(
-                    child: Text(
-                      'Vé Đang Bán',
-                      textAlign: TextAlign.center,
-                      style: AppTypography.display(
-                        const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          letterSpacing: -.2,
-                        ),
-                      ),
+                  if (showBackButton && onBack != null) ...[
+                    AppHeaderActionButton(
+                      icon: Icons.arrow_back_ios_new_rounded,
+                      tooltip: 'Quay lại',
+                      onTap: onBack!,
                     ),
+                    const SizedBox(width: 10),
+                  ],
+                  Text(
+                    'Mua vé',
+                    style: AppTypography.pageTitle(),
                   ),
+                  const Spacer(),
                   Consumer(
                     builder: (context, ref, _) {
                       final isAuthenticated =
                           (ref.watch(apiClientProvider).accessToken ?? '')
                               .isNotEmpty;
                       if (!isAuthenticated) {
-                        return const SizedBox(width: 42);
+                        return const SizedBox.shrink();
                       }
                       final count = ref.watch(cartTicketCountProvider);
                       return Row(
                         children: [
-                          AppHeaderActionButton(
-                            icon: Icons.shopping_cart_outlined,
-                            tooltip: 'Giỏ hàng',
-                            badgeCount: count,
-                            onTap: onOpenCart,
-                          ),
-                          const SizedBox(width: 8),
                           AppHeaderActionButton(
                             icon: Icons.chat_bubble_outline_rounded,
                             tooltip: 'Trò chuyện / Hỗ trợ',
@@ -2392,13 +2431,20 @@ class _BuyTicketHeader extends StatelessWidget {
                               );
                             },
                           ),
+                          const SizedBox(width: 8),
+                          AppHeaderActionButton(
+                            icon: Icons.shopping_cart_outlined,
+                            tooltip: 'Giỏ hàng',
+                            badgeCount: count,
+                            onTap: onOpenCart,
+                          ),
                         ],
                       );
                     },
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
 
               // Row 2: Search Bar + Separate Filter Button
               Row(
@@ -2407,6 +2453,7 @@ class _BuyTicketHeader extends StatelessWidget {
                     child: _SearchField(
                       initialValue: searchQuery,
                       onChanged: onSearchChanged,
+                      isLoading: isLoading,
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -2439,49 +2486,10 @@ class _ProvinceChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(999),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-          decoration: BoxDecoration(
-            color: selected ? const Color(0xFFFEF2F2) : Colors.white,
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(
-              color: selected ? AppColors.primary : const Color(0xFFE2E8F0),
-              width: selected ? 1.2 : 1.0,
-            ),
-            boxShadow: selected
-                ? const [
-                    BoxShadow(
-                      color: Color(0x12D31010),
-                      blurRadius: 6,
-                      offset: Offset(0, 2),
-                    ),
-                  ]
-                : const [
-                    BoxShadow(
-                      color: Color(0x05000000),
-                      blurRadius: 4,
-                      offset: Offset(0, 1),
-                    ),
-                  ],
-          ),
-          child: Text(
-            label,
-            style: AppTypography.main(
-              TextStyle(
-                fontSize: 12.5,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                color: selected ? AppColors.primary : const Color(0xFF475569),
-              ),
-            ),
-          ),
-        ),
-      ),
+    return AppFilterChip(
+      label: label,
+      isSelected: selected,
+      onTap: onTap,
     );
   }
 }
@@ -2495,7 +2503,7 @@ class _EmptyState extends StatelessWidget {
       margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surfacePrimary,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: const Color(0xFFF1E3E0)),
       ),

@@ -14,9 +14,10 @@ Flutter does not use CSS/Tailwind. You must implement these configurations insid
 - **Accent/Gold Colors (Vàng):** Accent Gold `"#FFD700"`, Light Gold `"#FFF9E6"`.
 - **Surface & Text Colors:** Surface/Background `"#FFFFFF"`, Ink (Main Text) `"#17191F"`, Secondary Text `"#505050"`, Navy Dark `"#102937"`.
 
-### Typography (Google Fonts)
-- **Main Font (Body, Captions, Labels):** `Public Sans` (via `google_fonts` package).
-- **Heading/Accent Font (Titles, Headers, Highlights):** `Barlow` (via `google_fonts` package).
+### Typography (AppTypography)
+- **Main Font (Body, Captions, Labels):** bundled `Public Sans`, exposed through `AppTypography.main`.
+- **Heading/Accent Font (Titles, Headers, Highlights):** bundled `Barlow`, exposed through `AppTypography.display`.
+- **Technical/serial values:** platform `monospace`, exposed through `AppTypography.mono`.
 
 ### Shapes & Geometry (Border Radius)
 - **Small components (Inputs, Small tags):** `BorderRadius.circular(8.0)`

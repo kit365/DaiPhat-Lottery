@@ -109,7 +109,7 @@ class _RegisterViewState extends State<RegisterView> {
                                 margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                                 padding: const EdgeInsets.all(24),
                                 decoration: BoxDecoration(
-                                  color: Colors.white,
+                                  color: AppColors.surfacePrimary,
                                   borderRadius: BorderRadius.circular(24),
                                   boxShadow: const [
                                     BoxShadow(
@@ -163,7 +163,7 @@ class _RegisterViewState extends State<RegisterView> {
               },
               child: Container(
                 width: 40, height: 40,
-                decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 2))]),
+                decoration: BoxDecoration(color: AppColors.surfacePrimary, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 2))]),
                 child: const Icon(Icons.arrow_back_rounded, color: AppColors.loginPrimary, size: 22),
               ),
             ),
@@ -193,8 +193,8 @@ class _RegisterViewState extends State<RegisterView> {
       ),
       alignment: Alignment.center,
       child: _currentStep > step 
-        ? const Icon(Icons.check, size: 14, color: Colors.white)
-        : Text('$step', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+        ? const Icon(Icons.check, size: 14, color: AppColors.surfacePrimary)
+        : Text('$step', style: const TextStyle(color: AppColors.surfacePrimary, fontSize: 12, fontWeight: FontWeight.bold)),
     );
   }
 
@@ -269,7 +269,7 @@ class _RegisterViewState extends State<RegisterView> {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.loginPrimary,
-              foregroundColor: Colors.white,
+              foregroundColor: AppColors.surfacePrimary,
               elevation: 0,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -367,13 +367,13 @@ class _RegisterViewState extends State<RegisterView> {
                   onPressed: widget.viewModel.isLoading ? null : _handleRegister,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.loginPrimary,
-                    foregroundColor: Colors.white,
+                    foregroundColor: AppColors.surfacePrimary,
                     elevation: 0,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
                   child: widget.viewModel.isLoading
-                      ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                      ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: AppColors.surfacePrimary, strokeWidth: 2.5))
                       : Text('Đăng ký', style: AppTypography.main(const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.5))),
                 ),
               ),
@@ -409,7 +409,7 @@ class _RegisterViewState extends State<RegisterView> {
         prefixIcon: Icon(prefixIcon, color: AppColors.loginPlaceholder, size: 20),
         suffixIcon: suffixIcon,
         filled: true,
-        fillColor: Colors.white,
+        fillColor: AppColors.surfacePrimary,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppColors.loginBorder)),
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppColors.loginPrimary, width: 1.4)),

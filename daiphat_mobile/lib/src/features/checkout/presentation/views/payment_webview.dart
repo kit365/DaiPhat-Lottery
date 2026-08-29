@@ -223,11 +223,11 @@ class _PaymentWebViewState extends ConsumerState<PaymentWebView> {
               fontSize: 18,
             ),
           ),
-          backgroundColor: Colors.white,
+          backgroundColor: AppColors.surfacePrimary,
           foregroundColor: const Color(0xFF15213B),
           elevation: 0,
           scrolledUnderElevation: 0,
-          surfaceTintColor: Colors.transparent,
+          surfaceTintColor: AppColors.transparent,
           leading: IconButton(
             icon: const Icon(Icons.close_rounded, size: 24),
             onPressed: _handleCancel,

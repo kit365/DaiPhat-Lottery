@@ -34,13 +34,13 @@ class AppHeaderActionButton extends StatelessWidget {
     final effectiveBorderRadius = borderRadius ?? BorderRadius.circular(999);
 
     final defaultBgColor = variant == AppHeaderActionVariant.translucent
-        ? Colors.white.withValues(alpha: 0.2)
-        : Colors.white;
+        ? AppColors.surfacePrimary.withValues(alpha: 0.2)
+        : AppColors.surfacePrimary;
 
     final effectiveBgColor = backgroundColor ?? defaultBgColor;
 
     final defaultIconColor = variant == AppHeaderActionVariant.translucent
-        ? Colors.white
+        ? AppColors.surfacePrimary
         : AppColors.primary;
 
     final effectiveIconColor = iconColor ?? defaultIconColor;
@@ -93,13 +93,13 @@ class AppHeaderActionButton extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppColors.goldDark,
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: Colors.white, width: 1.5),
+                  border: Border.all(color: AppColors.surfacePrimary, width: 1.5),
                 ),
                 alignment: Alignment.center,
                 child: Text(
                   badgeCount > 99 ? '99+' : '$badgeCount',
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: AppColors.surfacePrimary,
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
                     height: 1,

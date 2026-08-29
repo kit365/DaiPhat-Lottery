@@ -1,7 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 
 import 'package:daiphat_mobile/src/features/checkout/models/refund_type.dart';
 import 'package:daiphat_mobile/src/features/profile/data/bank_account_service.dart';
@@ -121,10 +121,10 @@ class _BankAccountFormPageState extends State<BankAccountFormPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: AppColors.surfaceCanvas,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
+        backgroundColor: AppColors.surfacePrimary,
+        surfaceTintColor: AppColors.transparent,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(
@@ -136,7 +136,7 @@ class _BankAccountFormPageState extends State<BankAccountFormPage> {
         ),
         title: Text(
           widget.isEditing ? 'Sửa tài khoản' : 'Thêm tài khoản',
-          style: GoogleFonts.publicSans(
+          style: AppTypography.mainWith(
             fontSize: 18,
             fontWeight: FontWeight.w700,
             color: AppColors.textMain,
@@ -156,7 +156,7 @@ class _BankAccountFormPageState extends State<BankAccountFormPage> {
               const SizedBox(height: 6),
               Text(
                 _bankError!,
-                style: GoogleFonts.publicSans(
+                style: AppTypography.mainWith(
                   fontSize: 12,
                   color: AppColors.error,
                 ),
@@ -198,7 +198,7 @@ class _BankAccountFormPageState extends State<BankAccountFormPage> {
             const SizedBox(height: 8),
             Text(
               'Tên phải trùng khớp với tên đã đăng ký tại ngân hàng.',
-              style: GoogleFonts.publicSans(
+              style: AppTypography.mainWith(
                 fontSize: 12,
                 color: AppColors.textMuted,
               ),
@@ -234,15 +234,15 @@ class _BankAccountFormPageState extends State<BankAccountFormPage> {
                         height: 22,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.white,
+                          color: AppColors.surfacePrimary,
                         ),
                       )
                     : Text(
                         widget.isEditing ? 'Lưu thay đổi' : 'Thêm tài khoản',
-                        style: GoogleFonts.publicSans(
+                        style: AppTypography.mainWith(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
-                          color: Colors.white,
+                          color: AppColors.surfacePrimary,
                         ),
                       ),
               ),
@@ -256,7 +256,7 @@ class _BankAccountFormPageState extends State<BankAccountFormPage> {
   Widget _buildLabel(String text) {
     return Text(
       text,
-      style: GoogleFonts.publicSans(
+      style: AppTypography.mainWith(
         fontSize: 13,
         fontWeight: FontWeight.w700,
         color: AppColors.textMain,
@@ -273,10 +273,10 @@ class _BankAccountFormPageState extends State<BankAccountFormPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: const Color(0xFFF4F6F8),
+          color: AppColors.surfaceNeutral,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: _bankError != null ? AppColors.error : Colors.transparent,
+            color: _bankError != null ? AppColors.error : AppColors.transparent,
           ),
         ),
         child: Row(
@@ -300,7 +300,7 @@ class _BankAccountFormPageState extends State<BankAccountFormPage> {
                     : '${bank.shortName} - ${bank.name}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.publicSans(
+                style: AppTypography.mainWith(
                   fontSize: 14,
                   fontWeight: bank == null ? FontWeight.w400 : FontWeight.w600,
                   color: bank == null
@@ -311,7 +311,7 @@ class _BankAccountFormPageState extends State<BankAccountFormPage> {
             ),
             const Icon(
               Icons.keyboard_arrow_down_rounded,
-              color: Color(0xFF919EAB),
+              color: AppColors.contentPlaceholderStrong,
             ),
           ],
         ),
@@ -333,16 +333,16 @@ class _BankAccountFormPageState extends State<BankAccountFormPage> {
       textCapitalization: textCapitalization,
       inputFormatters: inputFormatters,
       validator: validator,
-      style: GoogleFonts.publicSans(fontSize: 14, fontWeight: FontWeight.w600),
+      style: AppTypography.mainWith(fontSize: 14, fontWeight: FontWeight.w600),
       decoration: InputDecoration(
         hintText: hintText,
-        hintStyle: GoogleFonts.publicSans(
+        hintStyle: AppTypography.mainWith(
           fontSize: 14,
           color: const Color(0xFFA0A8AF),
           fontWeight: FontWeight.w400,
         ),
         filled: true,
-        fillColor: const Color(0xFFF4F6F8),
+        fillColor: AppColors.surfaceNeutral,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 14,
           vertical: 14,
@@ -396,7 +396,7 @@ class _BankAccountFormPageState extends State<BankAccountFormPage> {
                 padding: const EdgeInsets.only(top: 3),
                 child: Text(
                   label,
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.mainWith(
                     fontSize: 13,
                     height: 1.4,
                     color: AppColors.textMain,

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:intl/intl.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
@@ -9,6 +9,7 @@ import 'package:daiphat_mobile/src/features/profile/data/models/prize_payout_req
 import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/profile_status_badge.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import '../viewmodels/prize_payout_detail_viewmodel.dart';
 
@@ -23,12 +24,6 @@ class PrizePayoutDetailView extends ConsumerStatefulWidget {
 
 class _PrizePayoutDetailViewState extends ConsumerState<PrizePayoutDetailView> {
   late final PrizePayoutDetailViewModel _viewModel;
-
-  final _currencyFmt = NumberFormat.currency(
-    locale: 'vi_VN',
-    symbol: 'đ',
-    decimalDigits: 0,
-  );
 
   @override
   void initState() {
@@ -46,38 +41,42 @@ class _PrizePayoutDetailViewState extends ConsumerState<PrizePayoutDetailView> {
   }
 
   String _money(int? amount) =>
-      amount == null ? '—' : _currencyFmt.format(amount);
+      amount == null ? '—' : AppFormatters.formatCurrency(amount);
 
   String _fmtDate(String? raw, {bool withTime = false}) {
     if (raw == null || raw.isEmpty) return '—';
-    final dt = DateTime.tryParse(raw)?.toLocal();
-    if (dt == null) return '—';
-    return DateFormat(withTime ? 'dd/MM/yyyy HH:mm' : 'dd/MM/yyyy').format(dt);
+    return withTime
+        ? AppFormatters.formatDateTimeIso(raw, fallback: '—')
+        : AppFormatters.formatDateIso(raw, fallback: '—');
   }
 
   Future<void> _confirmCancel() async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Hủy yêu cầu?',
-            style: GoogleFonts.publicSans(fontWeight: FontWeight.w800)),
+        title: Text(
+          'Hủy yêu cầu?',
+          style: AppTypography.mainWith(fontWeight: FontWeight.w800),
+        ),
         content: Text(
           'Vé sẽ quay về trạng thái đang giữ hộ và bạn có thể gửi lại sau.',
-          style: GoogleFonts.publicSans(fontSize: 14),
+          style: AppTypography.mainWith(fontSize: 14),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Không', style: GoogleFonts.publicSans()),
+            child: Text('Không', style: AppTypography.mainWith()),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
+              foregroundColor: AppColors.surfacePrimary,
             ),
-            child: Text('Hủy yêu cầu',
-                style: GoogleFonts.publicSans(fontWeight: FontWeight.w700)),
+            child: Text(
+              'Hủy yêu cầu',
+              style: AppTypography.mainWith(fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),
@@ -95,19 +94,22 @@ class _PrizePayoutDetailViewState extends ConsumerState<PrizePayoutDetailView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: AppColors.surfaceCanvas,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
+        backgroundColor: AppColors.surfacePrimary,
+        surfaceTintColor: AppColors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              size: 20, color: AppColors.primary),
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            size: 20,
+            color: AppColors.primary,
+          ),
           onPressed: () => context.pop(),
         ),
         title: Text(
           'Chi tiết trả thưởng',
-          style: GoogleFonts.publicSans(
+          style: AppTypography.mainWith(
             fontSize: 18,
             fontWeight: FontWeight.w700,
             color: AppColors.textMain,
@@ -171,14 +173,21 @@ class _PrizePayoutDetailViewState extends ConsumerState<PrizePayoutDetailView> {
           Text(
             _viewModel.error ?? 'Không tìm thấy yêu cầu trả thưởng',
             textAlign: TextAlign.center,
-            style: GoogleFonts.publicSans(fontSize: 14, color: AppColors.textMuted),
+            style: AppTypography.mainWith(
+              fontSize: 14,
+              color: AppColors.textMuted,
+            ),
           ),
           const SizedBox(height: 16),
           TextButton(
             onPressed: _viewModel.load,
-            child: Text('Thử lại',
-                style: GoogleFonts.publicSans(
-                    fontWeight: FontWeight.w700, color: AppColors.primary)),
+            child: Text(
+              'Thử lại',
+              style: AppTypography.mainWith(
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary,
+              ),
+            ),
           ),
         ],
       ),
@@ -194,7 +203,7 @@ class _PrizePayoutDetailViewState extends ConsumerState<PrizePayoutDetailView> {
             children: [
               Text(
                 payout.requestCode,
-                style: GoogleFonts.publicSans(
+                style: AppTypography.mainWith(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
                   color: AppColors.textMain,
@@ -203,8 +212,10 @@ class _PrizePayoutDetailViewState extends ConsumerState<PrizePayoutDetailView> {
               const SizedBox(height: 4),
               Text(
                 'Tạo lúc ${_fmtDate(payout.createdAt, withTime: true)}',
-                style: GoogleFonts.publicSans(
-                    fontSize: 13, color: AppColors.textMuted),
+                style: AppTypography.mainWith(
+                  fontSize: 13,
+                  color: AppColors.textMuted,
+                ),
               ),
             ],
           ),
@@ -215,7 +226,8 @@ class _PrizePayoutDetailViewState extends ConsumerState<PrizePayoutDetailView> {
   }
 
   Widget _buildInfoCard(PrizePayoutRequestResponse payout) {
-    final showReject = payout.status == PrizePayoutRequestStatus.rejected &&
+    final showReject =
+        payout.status == PrizePayoutRequestStatus.rejected &&
         payout.rejectCount > 0;
     return _card(
       'Thông tin yêu cầu',
@@ -223,18 +235,27 @@ class _PrizePayoutDetailViewState extends ConsumerState<PrizePayoutDetailView> {
         children: [
           _row('Mã yêu cầu', payout.requestCode),
           if (showReject)
-            _row('Số lần từ chối trực tuyến',
-                '${payout.rejectCount} / ${payout.maxOnlineRejectRetry}'),
+            _row(
+              'Số lần từ chối trực tuyến',
+              '${payout.rejectCount} / ${payout.maxOnlineRejectRetry}',
+            ),
           _row('Giá trị giải', _money(payout.grossAmount)),
           _row('Thuế TNCN', _money(payout.taxAmount)),
           _row('Hoa hồng đại lý', _money(payout.commissionAmount)),
-          _row('Thực nhận', _money(payout.netAmount ?? payout.grossAmount),
-              highlight: true),
-          _row('Đài / Ngày quay',
-              '${payout.stationName ?? '—'} · ${_fmtDate(payout.drawDate)}'),
-          _row('Dãy số / Giải',
-              '${payout.numbers ?? '—'} · ${payout.prizeDisplayName ?? payout.prizeCode ?? '—'}',
-              isLast: true),
+          _row(
+            'Thực nhận',
+            _money(payout.netAmount ?? payout.grossAmount),
+            highlight: true,
+          ),
+          _row(
+            'Đài / Ngày quay',
+            '${payout.stationName ?? '—'} · ${_fmtDate(payout.drawDate)}',
+          ),
+          _row(
+            'Dãy số / Giải',
+            '${payout.numbers ?? '—'} · ${payout.prizeDisplayName ?? payout.prizeCode ?? '—'}',
+            isLast: true,
+          ),
         ],
       ),
     );
@@ -263,11 +284,15 @@ class _PrizePayoutDetailViewState extends ConsumerState<PrizePayoutDetailView> {
           fit: BoxFit.cover,
           errorBuilder: (_, _, _) => Container(
             height: 120,
-            color: const Color(0xFFF4F6F8),
+            color: AppColors.surfaceNeutral,
             alignment: Alignment.center,
-            child: Text('Không tải được ảnh biên lai',
-                style: GoogleFonts.publicSans(
-                    fontSize: 12, color: AppColors.textMuted)),
+            child: Text(
+              'Không tải được ảnh biên lai',
+              style: AppTypography.mainWith(
+                fontSize: 12,
+                color: AppColors.textMuted,
+              ),
+            ),
           ),
         ),
       ),
@@ -275,11 +300,12 @@ class _PrizePayoutDetailViewState extends ConsumerState<PrizePayoutDetailView> {
   }
 
   Widget _buildRejectCard(PrizePayoutRequestResponse payout) {
-    final canResubmit = !payout.onlineClaimLocked && payout.orderDetailId != null;
+    final canResubmit =
+        !payout.onlineClaimLocked && payout.orderDetailId != null;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF4F4),
+        color: AppColors.statusErrorSurface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
       ),
@@ -288,18 +314,22 @@ class _PrizePayoutDetailViewState extends ConsumerState<PrizePayoutDetailView> {
         children: [
           Text(
             'Lý do từ chối',
-            style: GoogleFonts.publicSans(
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-                color: AppColors.primary),
+            style: AppTypography.mainWith(
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: AppColors.primary,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             payout.rejectReason?.isNotEmpty == true
                 ? payout.rejectReason!
                 : 'Không rõ',
-            style: GoogleFonts.publicSans(
-                fontSize: 14, color: const Color(0xFF454F5B), height: 1.5),
+            style: AppTypography.mainWith(
+              fontSize: 14,
+              color: const Color(0xFF454F5B),
+              height: 1.5,
+            ),
           ),
           if (canResubmit) ...[
             const SizedBox(height: 12),
@@ -307,13 +337,15 @@ class _PrizePayoutDetailViewState extends ConsumerState<PrizePayoutDetailView> {
               onPressed: () => context.pushNamed(AppRoute.myTickets.name),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
+                foregroundColor: AppColors.surfacePrimary,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              child: Text('Gửi yêu cầu mới từ Vé của tôi',
-                  style: GoogleFonts.publicSans(fontWeight: FontWeight.w700)),
+              child: Text(
+                'Gửi yêu cầu mới từ Vé của tôi',
+                style: AppTypography.mainWith(fontWeight: FontWeight.w700),
+              ),
             ),
           ],
         ],
@@ -328,7 +360,7 @@ class _PrizePayoutDetailViewState extends ConsumerState<PrizePayoutDetailView> {
         onPressed: _viewModel.isCancelling ? null : _confirmCancel,
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.textMuted,
-          side: const BorderSide(color: Color(0xFF637381)),
+          side: const BorderSide(color: AppColors.contentNeutral),
           padding: const EdgeInsets.symmetric(vertical: 14),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -341,22 +373,26 @@ class _PrizePayoutDetailViewState extends ConsumerState<PrizePayoutDetailView> {
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
             : const Icon(Icons.close_rounded, size: 18),
-        label: Text('Hủy yêu cầu',
-            style: GoogleFonts.publicSans(fontWeight: FontWeight.w700)),
+        label: Text(
+          'Hủy yêu cầu',
+          style: AppTypography.mainWith(fontWeight: FontWeight.w700),
+        ),
       ),
     );
   }
 
-  Widget _row(String label, String value,
-      {bool highlight = false, bool isLast = false}) {
+  Widget _row(
+    String label,
+    String value, {
+    bool highlight = false,
+    bool isLast = false,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10),
       decoration: BoxDecoration(
         border: isLast
             ? null
-            : const Border(
-                bottom: BorderSide(color: Color(0xFFF0F0F0)),
-              ),
+            : const Border(bottom: BorderSide(color: Color(0xFFF0F0F0))),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -364,8 +400,10 @@ class _PrizePayoutDetailViewState extends ConsumerState<PrizePayoutDetailView> {
           Expanded(
             child: Text(
               label,
-              style: GoogleFonts.publicSans(
-                  fontSize: 13, color: AppColors.textMuted),
+              style: AppTypography.mainWith(
+                fontSize: 13,
+                color: AppColors.textMuted,
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -373,7 +411,7 @@ class _PrizePayoutDetailViewState extends ConsumerState<PrizePayoutDetailView> {
             child: Text(
               value,
               textAlign: TextAlign.right,
-              style: GoogleFonts.publicSans(
+              style: AppTypography.mainWith(
                 fontSize: highlight ? 15 : 14,
                 fontWeight: highlight ? FontWeight.w800 : FontWeight.w600,
                 color: highlight ? AppColors.primary : AppColors.textMain,
@@ -389,7 +427,7 @@ class _PrizePayoutDetailViewState extends ConsumerState<PrizePayoutDetailView> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surfacePrimary,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFEEEEEE)),
       ),
@@ -398,7 +436,7 @@ class _PrizePayoutDetailViewState extends ConsumerState<PrizePayoutDetailView> {
         children: [
           Text(
             title.toUpperCase(),
-            style: GoogleFonts.publicSans(
+            style: AppTypography.mainWith(
               fontSize: 13,
               fontWeight: FontWeight.w800,
               color: AppColors.primary,

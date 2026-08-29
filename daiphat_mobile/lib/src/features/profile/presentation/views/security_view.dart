@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 
 import 'package:daiphat_mobile/src/features/auth/data/models/password_policy.dart';
 import 'package:daiphat_mobile/src/features/auth/data/services/auth_api_service.dart';
@@ -61,8 +61,9 @@ class _SecurityViewState extends ConsumerState<SecurityView> {
 
   Future<void> _loadPasswordPolicy() async {
     try {
-      final policy =
-          await AuthApiService(ref.read(apiClientProvider)).getPasswordPolicy();
+      final policy = await AuthApiService(
+        ref.read(apiClientProvider),
+      ).getPasswordPolicy();
       if (!mounted) return;
       setState(() {
         _passwordPolicy = policy;
@@ -127,10 +128,10 @@ class _SecurityViewState extends ConsumerState<SecurityView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: AppColors.surfaceCanvas,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
+        backgroundColor: AppColors.surfacePrimary,
+        surfaceTintColor: AppColors.transparent,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(
@@ -142,7 +143,7 @@ class _SecurityViewState extends ConsumerState<SecurityView> {
         ),
         title: Text(
           'Bảo mật',
-          style: GoogleFonts.publicSans(
+          style: AppTypography.mainWith(
             fontSize: 18,
             fontWeight: FontWeight.w700,
             color: AppColors.textMain,
@@ -159,7 +160,7 @@ class _SecurityViewState extends ConsumerState<SecurityView> {
               children: [
                 Text(
                   'Bảo mật tài khoản',
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.mainWith(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
                     color: AppColors.navy,
@@ -168,7 +169,7 @@ class _SecurityViewState extends ConsumerState<SecurityView> {
                 const SizedBox(height: 6),
                 Text(
                   'Cập nhật mật khẩu để bảo vệ tài khoản của bạn.',
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.mainWith(
                     fontSize: 14,
                     color: AppColors.textSecondary,
                   ),
@@ -177,7 +178,7 @@ class _SecurityViewState extends ConsumerState<SecurityView> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.surfacePrimary,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: const Color(0xFFF0E6E4)),
                   ),
@@ -224,7 +225,8 @@ class _SecurityViewState extends ConsumerState<SecurityView> {
                         onToggle: () => setState(
                           () => _showConfirmPassword = !_showConfirmPassword,
                         ),
-                        hasError: _confirmPasswordController.text.isNotEmpty &&
+                        hasError:
+                            _confirmPasswordController.text.isNotEmpty &&
                             _confirmPasswordController.text !=
                                 _newPasswordController.text,
                       ),
@@ -235,9 +237,9 @@ class _SecurityViewState extends ConsumerState<SecurityView> {
                           onPressed: _canSubmit ? _handleSubmit : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
-                            disabledBackgroundColor:
-                                AppColors.primary.withValues(alpha: 0.45),
-                            foregroundColor: Colors.white,
+                            disabledBackgroundColor: AppColors.primary
+                                .withValues(alpha: 0.45),
+                            foregroundColor: AppColors.surfacePrimary,
                             disabledForegroundColor: Colors.white70,
                             elevation: 0,
                             shape: RoundedRectangleBorder(
@@ -248,7 +250,7 @@ class _SecurityViewState extends ConsumerState<SecurityView> {
                             _isSubmitting
                                 ? 'Đang cập nhật...'
                                 : 'Cập nhật mật khẩu',
-                            style: GoogleFonts.publicSans(
+                            style: AppTypography.mainWith(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
                             ),
@@ -277,7 +279,7 @@ class _SecurityViewState extends ConsumerState<SecurityView> {
       children: [
         Text(
           label,
-          style: GoogleFonts.publicSans(
+          style: AppTypography.mainWith(
             fontSize: 14,
             fontWeight: FontWeight.w700,
             color: AppColors.navy,
@@ -289,22 +291,22 @@ class _SecurityViewState extends ConsumerState<SecurityView> {
           child: TextField(
             controller: controller,
             obscureText: obscure,
-            style: GoogleFonts.publicSans(
+            style: AppTypography.mainWith(
               fontSize: 15,
               fontWeight: FontWeight.w600,
               color: AppColors.ink,
             ),
             decoration: InputDecoration(
               hintText: hintText,
-              hintStyle: GoogleFonts.publicSans(
+              hintStyle: AppTypography.mainWith(
                 fontSize: 14,
-                color: const Color(0xFF94A3B8),
+                color: AppColors.contentSubtle,
                 fontWeight: FontWeight.w500,
               ),
               prefixIcon: const Icon(
                 Icons.lock_outline_rounded,
                 size: 20,
-                color: Color(0xFF94A3B8),
+                color: AppColors.contentSubtle,
               ),
               suffixIcon: IconButton(
                 onPressed: onToggle,
@@ -313,11 +315,11 @@ class _SecurityViewState extends ConsumerState<SecurityView> {
                       ? Icons.visibility_outlined
                       : Icons.visibility_off_outlined,
                   size: 20,
-                  color: const Color(0xFF94A3B8),
+                  color: AppColors.contentSubtle,
                 ),
               ),
               filled: true,
-              fillColor: const Color(0xFFF8FAFC),
+              fillColor: AppColors.surfaceSoft,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 14,
                 vertical: 14,
@@ -327,15 +329,13 @@ class _SecurityViewState extends ConsumerState<SecurityView> {
                 borderSide: BorderSide(
                   color: hasError
                       ? const Color(0xFFF87171)
-                      : const Color(0xFFE2E8F0),
+                      : AppColors.borderSubtle,
                 ),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(
-                  color: hasError
-                      ? const Color(0xFFF87171)
-                      : AppColors.primary,
+                  color: hasError ? const Color(0xFFF87171) : AppColors.primary,
                   width: 1.4,
                 ),
               ),
@@ -367,18 +367,21 @@ class _PasswordStrengthMeter extends StatelessWidget {
         'min_length' => password.length >= policy.minLength,
         'max_length' =>
           password.isNotEmpty && password.length <= policy.maxLength,
-        _ => req.regex != null &&
-            req.regex!.isNotEmpty &&
-            RegExp(req.regex!).hasMatch(password),
+        _ =>
+          req.regex != null &&
+              req.regex!.isNotEmpty &&
+              RegExp(req.regex!).hasMatch(password),
       };
       return (id: req.id, description: req.description, isMet: isMet);
     }).toList();
 
     final metCount = items.where((item) => item.isMet).length;
     final totalCount = items.length;
-    final isAllMet = totalCount > 0 && metCount == totalCount && password.isNotEmpty;
-    final strengthPercent =
-        totalCount > 0 ? (metCount / totalCount) * 100 : 0.0;
+    final isAllMet =
+        totalCount > 0 && metCount == totalCount && password.isNotEmpty;
+    final strengthPercent = totalCount > 0
+        ? (metCount / totalCount) * 100
+        : 0.0;
 
     Color strengthColor = const Color(0xFFCBD5E1);
     var strengthLabel = '';
@@ -387,7 +390,7 @@ class _PasswordStrengthMeter extends StatelessWidget {
         strengthColor = const Color(0xFFEF4444);
         strengthLabel = 'Yếu';
       } else if (strengthPercent < 90) {
-        strengthColor = const Color(0xFFF59E0B);
+        strengthColor = AppColors.statusWarningAccent;
         strengthLabel = 'Trung bình';
       } else if (strengthPercent < 100) {
         strengthColor = const Color(0xFFFBBF24);
@@ -408,8 +411,7 @@ class _PasswordStrengthMeter extends StatelessWidget {
                 child: Row(
                   children: List.generate(4, (index) {
                     final seg = index + 1;
-                    final isActive =
-                        strengthPercent >= (seg * 25 - 5);
+                    final isActive = strengthPercent >= (seg * 25 - 5);
                     return Expanded(
                       child: Container(
                         height: 6,
@@ -428,7 +430,7 @@ class _PasswordStrengthMeter extends StatelessWidget {
               const SizedBox(width: 10),
               Text(
                 strengthLabel,
-                style: GoogleFonts.publicSans(
+                style: AppTypography.mainWith(
                   fontSize: 11,
                   fontWeight: FontWeight.w800,
                   color: strengthColor,
@@ -456,13 +458,13 @@ class _PasswordStrengthMeter extends StatelessWidget {
                           size: item.isMet ? 14 : 8,
                           color: item.isMet
                               ? const Color(0xFF22C55E)
-                              : const Color(0xFF64748B),
+                              : AppColors.contentMuted,
                         ),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
                             item.description,
-                            style: GoogleFonts.publicSans(
+                            style: AppTypography.mainWith(
                               fontSize: 11.5,
                               fontWeight: FontWeight.w700,
                               color: item.isMet

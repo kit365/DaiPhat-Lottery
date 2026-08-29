@@ -1,25 +1,26 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
+import '../../data/system_config_service.dart';
+import '../providers/checkout_provider.dart';
 
-/// Date/Time picker nhận vé đồng bộ với BE:
-/// - Giờ mở/đóng cửa động từ BE (Mặc định 08:00 - 20:00)
+/// Date/Time picker nhận vé đọc động từ BE qua [operatingHoursProvider]:
+/// - Giờ mở/đóng cửa động từ BE (SITE_SUPPORT_OPEN_TIME, SITE_SUPPORT_CLOSE_TIME)
 /// - Ngày: Hôm nay / Ngày mai
 /// - Giờ 12h + Phút + AM/PM
 /// - Slot phút: 00 / 15 / 30 / 45
 /// - Lead time tối thiểu 15 phút
-class CheckoutDateTimePicker extends StatefulWidget {
+class CheckoutDateTimePicker extends ConsumerStatefulWidget {
   final String? value;
   final ValueChanged<String> onChanged;
   final String? errorText;
   final int minLeadMinutes;
-  final int openHour;
-  final int closeHour;
-  final String openTimeStr;
-  final String closeTimeStr;
   final VoidCallback? onInfoTap;
   final bool embedded;
 
@@ -29,21 +30,23 @@ class CheckoutDateTimePicker extends StatefulWidget {
     required this.onChanged,
     this.errorText,
     this.minLeadMinutes = 15,
-    this.openHour = 8,
-    this.closeHour = 20,
-    this.openTimeStr = '08:00',
-    this.closeTimeStr = '20:00',
     this.onInfoTap,
     this.embedded = false,
   });
 
   @override
-  State<CheckoutDateTimePicker> createState() => _CheckoutDateTimePickerState();
+  ConsumerState<CheckoutDateTimePicker> createState() =>
+      _CheckoutDateTimePickerState();
 }
 
-class _CheckoutDateTimePickerState extends State<CheckoutDateTimePicker> {
+class _CheckoutDateTimePickerState
+    extends ConsumerState<CheckoutDateTimePicker> {
   Timer? _tickTimer;
   DateTime _now = DateTime.now();
+
+  SiteOperatingHours get _opHours =>
+      ref.watch(operatingHoursProvider).asData?.value ??
+      const SiteOperatingHours();
 
   @override
   void initState() {
@@ -74,14 +77,14 @@ class _CheckoutDateTimePickerState extends State<CheckoutDateTimePicker> {
       _today.year,
       _today.month,
       _today.day,
-      widget.openHour,
+      _opHours.openHour,
       0,
     );
     final close = DateTime(
       _today.year,
       _today.month,
       _today.day,
-      widget.closeHour,
+      _opHours.closeHour,
       0,
     );
     if (_minSelectable.isAfter(close)) return null;
@@ -120,17 +123,14 @@ class _CheckoutDateTimePickerState extends State<CheckoutDateTimePicker> {
     final result = await showModalBottomSheet<DateTime>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.surfacePrimary,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) => _PickupTimeSheet(
         initial: _selected,
         minLeadMinutes: widget.minLeadMinutes,
-        openHour: widget.openHour,
-        closeHour: widget.closeHour,
-        openTimeStr: widget.openTimeStr,
-        closeTimeStr: widget.closeTimeStr,
+        operatingHours: _opHours,
         canSelectToday: _canSelectToday,
         earliestToday: _earliestToday,
         today: _today,
@@ -162,7 +162,7 @@ class _CheckoutDateTimePickerState extends State<CheckoutDateTimePicker> {
                     width: 48,
                     child: Icon(
                       Icons.calendar_month_outlined,
-                      color: Color(0xFF15213B),
+                      color: AppColors.contentPrimary,
                       size: 26,
                     ),
                   ),
@@ -172,12 +172,14 @@ class _CheckoutDateTimePickerState extends State<CheckoutDateTimePicker> {
                       children: [
                         Text(
                           'Thời gian đến lấy *',
-                          style: TextStyle(
-                            color: hasError
-                                ? AppColors.primary
-                                : const Color(0xFF8B94A3),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
+                          style: AppTypography.main(
+                            TextStyle(
+                              color: hasError
+                                  ? AppColors.primary
+                                  : AppColors.contentMuted,
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -185,14 +187,16 @@ class _CheckoutDateTimePickerState extends State<CheckoutDateTimePicker> {
                           _displayText,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: hasValue
-                                ? const Color(0xFF15213B)
-                                : AppColors.loginPlaceholder,
-                            fontSize: 15,
-                            fontWeight: hasValue
-                                ? FontWeight.w700
-                                : FontWeight.w500,
+                          style: AppTypography.main(
+                            TextStyle(
+                              color: hasValue
+                                  ? AppColors.contentPrimary
+                                  : AppColors.contentPlaceholder,
+                              fontSize: 15,
+                              fontWeight: hasValue
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                            ),
                           ),
                         ),
                       ],
@@ -200,7 +204,7 @@ class _CheckoutDateTimePickerState extends State<CheckoutDateTimePicker> {
                   ),
                   const Icon(
                     Icons.chevron_right_rounded,
-                    color: Color(0xFF15213B),
+                    color: AppColors.contentPrimary,
                     size: 28,
                   ),
                 ],
@@ -288,7 +292,7 @@ class _CheckoutDateTimePickerState extends State<CheckoutDateTimePicker> {
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(
-                      color: hasError ? Colors.red : const Color(0xFFE5E7EB),
+                      color: hasError ? Colors.red : AppColors.borderDefault,
                     ),
                   ),
                   focusedBorder: OutlineInputBorder(
@@ -332,11 +336,13 @@ class _CheckoutDateTimePickerState extends State<CheckoutDateTimePicker> {
         ),
         const SizedBox(height: 6),
         Text(
-          'Giờ mở cửa: ${widget.openTimeStr} – ${widget.closeTimeStr}. Đặt trước ít nhất ${widget.minLeadMinutes} phút.',
-          style: const TextStyle(
-            fontSize: 11,
-            color: Color(0xFF919EAB),
-            height: 1.4,
+          'Giờ mở cửa: ${_opHours.openTime} – ${_opHours.closeTime}. Đặt trước ít nhất ${widget.minLeadMinutes} phút.',
+          style: AppTypography.main(
+            const TextStyle(
+              fontSize: 11.5,
+              color: AppColors.contentPlaceholder,
+              height: 1.4,
+            ),
           ),
         ),
       ],
@@ -379,10 +385,7 @@ class _CheckoutDateTimePickerState extends State<CheckoutDateTimePicker> {
 class _PickupTimeSheet extends StatefulWidget {
   final DateTime? initial;
   final int minLeadMinutes;
-  final int openHour;
-  final int closeHour;
-  final String openTimeStr;
-  final String closeTimeStr;
+  final SiteOperatingHours operatingHours;
   final bool canSelectToday;
   final DateTime? earliestToday;
   final DateTime today;
@@ -392,10 +395,7 @@ class _PickupTimeSheet extends StatefulWidget {
   const _PickupTimeSheet({
     required this.initial,
     required this.minLeadMinutes,
-    required this.openHour,
-    required this.closeHour,
-    required this.openTimeStr,
-    required this.closeTimeStr,
+    required this.operatingHours,
     required this.canSelectToday,
     required this.earliestToday,
     required this.today,
@@ -424,7 +424,7 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
             widget.tomorrow.year,
             widget.tomorrow.month,
             widget.tomorrow.day,
-            widget.openHour,
+            widget.operatingHours.openHour,
             0,
           );
     final initial = widget.initial;
@@ -476,10 +476,12 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
     final start24 = period == 'AM' ? 0 : 12;
     final end24 = period == 'AM' ? 11 : 23;
 
-    final openRangeStart = widget.openHour > start24
-        ? widget.openHour
+    final openRangeStart = widget.operatingHours.openHour > start24
+        ? widget.operatingHours.openHour
         : start24;
-    final closeRangeEnd = widget.closeHour < end24 ? widget.closeHour : end24;
+    final closeRangeEnd = widget.operatingHours.closeHour < end24
+        ? widget.operatingHours.closeHour
+        : end24;
 
     if (openRangeStart > closeRangeEnd) return [];
 
@@ -558,8 +560,8 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
   void _selectTomorrow() {
     setState(() {
       _isToday = false;
-      _period = widget.openHour >= 12 ? 'PM' : 'AM';
-      _hour12 = _toHour12(widget.openHour);
+      _period = widget.operatingHours.openHour >= 12 ? 'PM' : 'AM';
+      _hour12 = _toHour12(widget.operatingHours.openHour);
       _minute = 0;
       _normalizeSelection();
     });
@@ -581,7 +583,7 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
               widget.tomorrow.year,
               widget.tomorrow.month,
               widget.tomorrow.day,
-              widget.openHour,
+              widget.operatingHours.openHour,
               0,
             );
     }
@@ -616,30 +618,34 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFDFE3E8),
+                  color: AppColors.borderLight,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'Chọn thời gian nhận vé',
               textAlign: TextAlign.left,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF15213B),
+              style: AppTypography.main(
+                const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.contentPrimary,
+                ),
               ),
             ),
             const SizedBox(height: 16),
 
             // Date buttons
-            const Text(
+            Text(
               'Ngày nhận vé',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF6B7280),
+              style: AppTypography.main(
+                const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.contentMuted,
+                ),
               ),
             ),
             const SizedBox(height: 8),
@@ -669,12 +675,14 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
             const SizedBox(height: 16),
 
             // Time Selection: 3 compact dropdowns (Giờ, Phút, AM/PM)
-            const Text(
+            Text(
               'Khung giờ',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF6B7280),
+              style: AppTypography.main(
+                const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.contentMuted,
+                ),
               ),
             ),
             const SizedBox(height: 8),
@@ -686,7 +694,7 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                     decoration: BoxDecoration(
-                      border: Border.all(color: const Color(0xFFE5E8EB)),
+                      border: Border.all(color: AppColors.cardBorder),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: DropdownButtonHideUnderline(
@@ -697,17 +705,19 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
                         isExpanded: true,
                         icon: const Icon(
                           Icons.arrow_drop_down_rounded,
-                          color: Color(0xFF6B7280),
+                          color: AppColors.contentMuted,
                         ),
                         items: hours.map((h) {
                           return DropdownMenuItem<int>(
                             value: h,
                             child: Text(
                               '${h.toString().padLeft(2, '0')} giờ',
-                              style: const TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF15213B),
+                              style: AppTypography.main(
+                                const TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.contentPrimary,
+                                ),
                               ),
                             ),
                           );
@@ -731,7 +741,7 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                     decoration: BoxDecoration(
-                      border: Border.all(color: const Color(0xFFE5E8EB)),
+                      border: Border.all(color: AppColors.cardBorder),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: DropdownButtonHideUnderline(
@@ -742,17 +752,19 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
                         isExpanded: true,
                         icon: const Icon(
                           Icons.arrow_drop_down_rounded,
-                          color: Color(0xFF6B7280),
+                          color: AppColors.contentMuted,
                         ),
                         items: minutes.map((m) {
                           return DropdownMenuItem<int>(
                             value: m,
                             child: Text(
                               '${m.toString().padLeft(2, '0')} phút',
-                              style: const TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF15213B),
+                              style: AppTypography.main(
+                                const TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.contentPrimary,
+                                ),
                               ),
                             ),
                           );
@@ -773,7 +785,7 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     decoration: BoxDecoration(
-                      border: Border.all(color: const Color(0xFFE5E8EB)),
+                      border: Border.all(color: AppColors.cardBorder),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: DropdownButtonHideUnderline(
@@ -784,17 +796,19 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
                         isExpanded: true,
                         icon: const Icon(
                           Icons.arrow_drop_down_rounded,
-                          color: Color(0xFF6B7280),
+                          color: AppColors.contentMuted,
                         ),
                         items: periods.map((p) {
                           return DropdownMenuItem<String>(
                             value: p,
                             child: Text(
                               p,
-                              style: const TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF15213B),
+                              style: AppTypography.main(
+                                const TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.contentPrimary,
+                                ),
                               ),
                             ),
                           );
@@ -816,11 +830,13 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
 
             // Hint
             Text(
-              'Quầy mở cửa: ${widget.openTimeStr} – ${widget.closeTimeStr}. Vui lòng đặt trước ít nhất ${widget.minLeadMinutes} phút.',
-              style: const TextStyle(
-                fontSize: 11,
-                color: Color(0xFF919EAB),
-                height: 1.3,
+              'Quầy mở cửa: ${widget.operatingHours.openTime} – ${widget.operatingHours.closeTime}. Vui lòng đặt trước ít nhất ${widget.minLeadMinutes} phút.',
+              style: AppTypography.main(
+                const TextStyle(
+                  fontSize: 11.5,
+                  color: AppColors.contentPlaceholder,
+                  height: 1.3,
+                ),
               ),
             ),
             const SizedBox(height: 20),
@@ -830,7 +846,7 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
               onPressed: canConfirm ? _confirm : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
+                foregroundColor: AppColors.surfacePrimary,
                 disabledBackgroundColor: const Color(0xFFF3B5B2),
                 minimumSize: const Size.fromHeight(48),
                 shape: RoundedRectangleBorder(
@@ -838,9 +854,15 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
                 ),
                 elevation: 0,
               ),
-              child: const Text(
+              child: Text(
                 'Xác nhận',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                style: AppTypography.main(
+                  const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.surfacePrimary,
+                  ),
+                ),
               ),
             ),
           ],
@@ -871,24 +893,31 @@ class _DateOptionButton extends StatelessWidget {
       return Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: const Color(0xFFF4F6F8),
+          color: AppColors.backgroundPrimary,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFFE5E8EB)),
+          border: Border.all(color: AppColors.cardBorder),
         ),
         child: Column(
           children: [
             Text(
               label,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF919EAB),
+              style: AppTypography.main(
+                const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.contentPlaceholder,
+                ),
               ),
             ),
             const SizedBox(height: 2),
             Text(
               subLabel,
-              style: const TextStyle(fontSize: 11, color: Color(0xFFC4CDD5)),
+              style: AppTypography.main(
+                const TextStyle(
+                  fontSize: 11,
+                  color: AppColors.contentPlaceholder,
+                ),
+              ),
             ),
           ],
         ),
@@ -901,10 +930,10 @@ class _DateOptionButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFFFF1EF) : Colors.white,
+          color: isSelected ? const Color(0xFFFFF1EF) : AppColors.surfacePrimary,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isSelected ? AppColors.primary : const Color(0xFFE5E8EB),
+            color: isSelected ? AppColors.primary : AppColors.cardBorder,
             width: isSelected ? 1.5 : 1.0,
           ),
         ),
@@ -912,19 +941,23 @@ class _DateOptionButton extends StatelessWidget {
           children: [
             Text(
               label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: isSelected ? AppColors.primary : const Color(0xFF15213B),
+              style: AppTypography.main(
+                TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: isSelected ? AppColors.primary : AppColors.contentPrimary,
+                ),
               ),
             ),
             const SizedBox(height: 2),
             Text(
               subLabel,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: isSelected ? AppColors.primary : const Color(0xFF6B7280),
+              style: AppTypography.main(
+                TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: isSelected ? AppColors.primary : AppColors.contentMuted,
+                ),
               ),
             ),
           ],

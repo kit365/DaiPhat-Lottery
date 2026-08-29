@@ -3,12 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
 import 'package:daiphat_mobile/src/features/chat/presentation/views/chat_screen.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:daiphat_mobile/src/shared/widgets/app_header_action_button.dart';
 
 class UtilitiesTwoView extends ConsumerWidget {
@@ -40,76 +40,96 @@ class UtilitiesTwoView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F9FC),
-      body: Column(
+      backgroundColor: AppColors.pageBg,
+      body: Stack(
         children: [
-          _UtilitiesTwoHeader(
-            title: 'Tiện ích',
-            onBack: onBack,
-            onOpenCart: () => context.pushNamed(AppRoute.cart.name),
-            onOpenChat: () => _openChat(context),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 320,
+            child: ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [AppColors.surfacePrimary, AppColors.transparent],
+                stops: [0.4, 1.0],
+              ).createShader(bounds),
+              blendMode: BlendMode.dstIn,
+              child: Image.asset('assets/images/home_bg.png', fit: BoxFit.cover),
+            ),
           ),
-          Expanded(
-            child: RefreshIndicator(
-              color: AppColors.primary,
-              onRefresh: () async {},
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: EdgeInsets.zero,
-                children: [
-                  const _UtilitiesTwoShowcase(),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
-                    child: Column(
-                      children: [
-                        GridView.count(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          crossAxisCount: 2,
-                          mainAxisSpacing: 12,
-                          crossAxisSpacing: 12,
-                          childAspectRatio: 0.66,
+          Column(
+            children: [
+              _UtilitiesTwoHeader(
+                title: 'Tiện ích',
+                onBack: onBack,
+                onOpenCart: () => context.pushNamed(AppRoute.cart.name),
+                onOpenChat: () => _openChat(context),
+              ),
+              Expanded(
+                child: RefreshIndicator(
+                  color: AppColors.primary,
+                  onRefresh: () async {},
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: EdgeInsets.zero,
+                    children: [
+                      const _UtilitiesTwoShowcase(),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+                        child: Column(
                           children: [
-                            _UtilityCard(
-                              icon: Icons.notifications_active_outlined,
-                              title: 'Thông báo',
-                              subtitle:
-                                  'Cập nhật các thông báo mới nhất từ hệ thống',
-                              actionLabel: 'Xem ngay',
-                              onTap: onOpenNotifications,
-                            ),
-                            _UtilityCard(
-                              icon: Icons.auto_awesome_rounded,
-                              title: 'Gieo quẻ',
-                              subtitle:
-                                  'Gieo quẻ may mắn nhận lời giải cho bạn',
-                              actionLabel: 'Gieo ngay',
-                              onTap: () => context.push(AppRoute.fortune.path),
-                            ),
-                            _UtilityCard(
-                              icon: Icons.calendar_month_outlined,
-                              title: 'Lịch mở thưởng',
-                              subtitle:
-                                  'Theo dõi lịch mở thưởng và kết quả chi tiết',
-                              actionLabel: 'Xem lịch',
-                              onTap: () => context.push(AppRoute.schedule.path),
-                            ),
-                            _UtilityCard(
-                              icon: Icons.article_outlined,
-                              title: 'Tin tức',
-                              subtitle:
-                                  'Cập nhật tin tức, sự kiện và khuyến mãi mới nhất',
-                              actionLabel: 'Đọc ngay',
-                              onTap: onOpenBlog,
+                            GridView.count(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              crossAxisCount: 2,
+                              mainAxisSpacing: 12,
+                              crossAxisSpacing: 12,
+                              childAspectRatio: 0.66,
+                              children: [
+                                _UtilityCard(
+                                  icon: Icons.notifications_active_outlined,
+                                  title: 'Thông báo',
+                                  subtitle:
+                                      'Cập nhật các thông báo mới nhất từ hệ thống',
+                                  actionLabel: 'Xem ngay',
+                                  onTap: onOpenNotifications,
+                                ),
+                                _UtilityCard(
+                                  icon: Icons.auto_awesome_rounded,
+                                  title: 'Gieo quẻ',
+                                  subtitle:
+                                      'Gieo quẻ may mắn nhận lời giải cho bạn',
+                                  actionLabel: 'Gieo ngay',
+                                  onTap: () => context.push(AppRoute.fortune.path),
+                                ),
+                                _UtilityCard(
+                                  icon: Icons.calendar_month_outlined,
+                                  title: 'Lịch mở thưởng',
+                                  subtitle:
+                                      'Theo dõi lịch mở thưởng và kết quả chi tiết',
+                                  actionLabel: 'Xem lịch',
+                                  onTap: () => context.push(AppRoute.schedule.path),
+                                ),
+                                _UtilityCard(
+                                  icon: Icons.article_outlined,
+                                  title: 'Tin tức',
+                                  subtitle:
+                                      'Cập nhật tin tức, sự kiện và khuyến mãi mới nhất',
+                                  actionLabel: 'Đọc ngay',
+                                  onTap: onOpenBlog,
+                                ),
+                              ],
                             ),
                           ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
         ],
       ),
@@ -135,17 +155,11 @@ class _UtilitiesTwoHeader extends ConsumerWidget {
     final count = ref.watch(cartTicketCountProvider);
 
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [AppColors.primary, AppColors.primaryDark],
-        ),
-      ),
+      color: AppColors.transparent,
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
           child: Row(
             children: [
               AppHeaderActionButton(
@@ -153,31 +167,25 @@ class _UtilitiesTwoHeader extends ConsumerWidget {
                 tooltip: 'Quay lại',
                 onTap: onBack,
               ),
-              Expanded(
-                child: Text(
-                  title,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.barlow(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                    letterSpacing: -.2,
-                  ),
-                ),
+              const SizedBox(width: 10),
+              Text(
+                title,
+                style: AppTypography.pageTitle(),
               ),
+              const Spacer(),
               Row(
                 children: [
+                  AppHeaderActionButton(
+                    icon: Icons.chat_bubble_outline_rounded,
+                    tooltip: 'Trò chuyện / Hỗ trợ',
+                    onTap: onOpenChat,
+                  ),
+                  const SizedBox(width: 8),
                   AppHeaderActionButton(
                     icon: Icons.shopping_cart_outlined,
                     tooltip: 'Giỏ hàng',
                     badgeCount: count,
                     onTap: onOpenCart,
-                  ),
-                  const SizedBox(width: 8),
-                  AppHeaderActionButton(
-                    icon: Icons.chat_bubble_outline_rounded,
-                    tooltip: 'Trò chuyện / Hỗ trợ',
-                    onTap: onOpenChat,
                   ),
                 ],
               ),
@@ -378,7 +386,7 @@ class _HeroBannerState extends State<_HeroBanner> {
                           const Color(0xFFB40716).withValues(alpha: 0.96),
                           const Color(0xFFD51C29).withValues(alpha: 0.76),
                           const Color(0xFFE43732).withValues(alpha: 0.18),
-                          Colors.transparent,
+                          AppColors.transparent,
                         ],
                       ),
                     ),
@@ -392,7 +400,7 @@ class _HeroBannerState extends State<_HeroBanner> {
                         Text(
                           slide.eyebrow,
                           style: const TextStyle(
-                            color: Colors.white,
+                            color: AppColors.surfacePrimary,
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                           ),
@@ -403,7 +411,7 @@ class _HeroBannerState extends State<_HeroBanner> {
                           child: Text(
                             slide.title,
                             style: const TextStyle(
-                              color: Colors.white,
+                              color: AppColors.surfacePrimary,
                               fontSize: 25,
                               fontWeight: FontWeight.w900,
                               height: 1.12,
@@ -459,7 +467,7 @@ class _HeroBannerState extends State<_HeroBanner> {
                   height: 6,
                   margin: const EdgeInsets.only(left: 5),
                   decoration: BoxDecoration(
-                    color: active ? Colors.white : Colors.white54,
+                    color: active ? AppColors.surfacePrimary : Colors.white54,
                     borderRadius: BorderRadius.circular(999),
                   ),
                 );
@@ -495,7 +503,7 @@ class _UtilityCard extends StatelessWidget {
       child: Ink(
         padding: const EdgeInsets.fromLTRB(12, 16, 12, 14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surfacePrimary,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: const Color(0xFFF0E5E3)),
           boxShadow: [
@@ -523,7 +531,7 @@ class _UtilityCard extends StatelessWidget {
                     color: AppColors.primary,
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(icon, color: Colors.white, size: 30),
+                  child: Icon(icon, color: AppColors.surfacePrimary, size: 30),
                 ),
               ),
             ),

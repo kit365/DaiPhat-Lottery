@@ -116,12 +116,12 @@ class _LotteryDatePickerDialogState extends State<LotteryDatePickerDialog> {
     final days = _buildDays();
 
     return Dialog(
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppColors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       child: Container(
         constraints: const BoxConstraints(maxWidth: 360),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surfacePrimary,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
@@ -224,7 +224,7 @@ class _LotteryDatePickerDialogState extends State<LotteryDatePickerDialog> {
                 final isFuture = d.isAfter(_today);
 
                 return Material(
-                  color: Colors.transparent,
+                  color: AppColors.transparent,
                   child: InkWell(
                     onTap: isFuture
                         ? null
@@ -235,7 +235,7 @@ class _LotteryDatePickerDialogState extends State<LotteryDatePickerDialog> {
                     child: Container(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: isSelected ? AppColors.primary : Colors.transparent,
+                        color: isSelected ? AppColors.primary : AppColors.transparent,
                         boxShadow: isSelected
                             ? [
                                 BoxShadow(
@@ -256,7 +256,7 @@ class _LotteryDatePickerDialogState extends State<LotteryDatePickerDialog> {
                                 fontSize: 14.5,
                                 fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                                 color: isSelected
-                                    ? Colors.white
+                                    ? AppColors.surfacePrimary
                                     : (isFuture
                                         ? const Color(0xFFCBD5E1)
                                         : AppColors.textMain),
@@ -332,7 +332,7 @@ class _IconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.transparent,
+      color: AppColors.transparent,
       child: InkWell(
         onTap: disabled ? null : onTap,
         borderRadius: BorderRadius.circular(20),

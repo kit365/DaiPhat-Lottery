@@ -95,6 +95,13 @@ class MyOrdersViewModel extends ChangeNotifier {
     fetchOrders(refresh: true);
   }
 
+  void setSort(String sortBy, String direction) {
+    if (_sortBy == sortBy && _direction == direction) return;
+    _sortBy = sortBy;
+    _direction = direction;
+    fetchOrders(refresh: true);
+  }
+
   void setPriceSort(String? direction) {
     if (direction == null) {
       if (_sortBy == 'createdAt' && _direction == 'desc') return;

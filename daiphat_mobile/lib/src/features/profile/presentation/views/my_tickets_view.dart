@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 
@@ -9,6 +9,8 @@ import 'package:daiphat_mobile/src/features/checkout/presentation/providers/chec
 import 'package:daiphat_mobile/src/features/profile/data/models/purchased_ticket.dart';
 import 'package:daiphat_mobile/src/features/profile/utils/ticket_display_utils.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
+import 'package:daiphat_mobile/src/shared/widgets/app_status_tab_bar.dart';
 import 'package:daiphat_mobile/src/shared/widgets/brand_scrollbar.dart';
 import '../viewmodels/my_tickets_viewmodel.dart';
 
@@ -59,10 +61,10 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: AppColors.surfaceCanvas,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
+        backgroundColor: AppColors.surfacePrimary,
+        surfaceTintColor: AppColors.transparent,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(
@@ -74,7 +76,7 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
         ),
         title: Text(
           'Vé của tôi',
-          style: GoogleFonts.publicSans(
+          style: AppTypography.mainWith(
             fontSize: 18,
             fontWeight: FontWeight.w700,
             color: AppColors.textMain,
@@ -101,7 +103,7 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
 
   Widget _buildSummaryCards() {
     return Container(
-      color: Colors.white,
+      color: AppColors.surfacePrimary,
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       child: Row(
         children: [
@@ -151,7 +153,7 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
             const SizedBox(height: 6),
             Text(
               value,
-              style: GoogleFonts.publicSans(
+              style: AppTypography.mainWith(
                 fontSize: 16,
                 fontWeight: FontWeight.w800,
                 color: AppColors.textMain,
@@ -159,7 +161,7 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
             ),
             Text(
               label,
-              style: GoogleFonts.publicSans(
+              style: AppTypography.mainWith(
                 fontSize: 10,
                 fontWeight: FontWeight.w500,
                 color: AppColors.textMuted,
@@ -173,64 +175,43 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
 
   Widget _buildSearchBar() {
     return Container(
-      color: Colors.white,
+      color: AppColors.surfacePrimary,
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
       child: TextField(
         controller: _searchController,
         decoration: InputDecoration(
           hintText: 'Tìm mã vé / bộ số...',
-          hintStyle: GoogleFonts.publicSans(
+          hintStyle: AppTypography.mainWith(
             fontSize: 13,
             color: AppColors.textMuted,
           ),
-          prefixIcon: const Icon(Icons.search, size: 20, color: AppColors.textMuted),
+          prefixIcon: const Icon(
+            Icons.search,
+            size: 20,
+            color: AppColors.textMuted,
+          ),
           filled: true,
-          fillColor: const Color(0xFFF4F6F8),
+          fillColor: AppColors.surfaceNeutral,
           contentPadding: const EdgeInsets.symmetric(vertical: 0),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none,
           ),
         ),
-        style: GoogleFonts.publicSans(fontSize: 14),
+        style: AppTypography.mainWith(fontSize: 14),
       ),
     );
   }
 
   Widget _buildStatusFilter() {
-    return Container(
-      color: Colors.white,
-      height: 50,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        itemCount: _statusFilters.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final (value, label) = _statusFilters[index];
-          final isSelected = _viewModel.selectedStatus == value;
-          return GestureDetector(
-            onTap: () => _viewModel.setStatusFilter(value),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              decoration: BoxDecoration(
-                color: isSelected ? AppColors.primary : const Color(0xFFF4F6F8),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                label,
-                style: GoogleFonts.publicSans(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: isSelected ? Colors.white : AppColors.textMuted,
-                ),
-              ),
-            ),
-          );
-        },
-      ),
+    final items = _statusFilters.map((entry) {
+      return AppStatusTabItem<String?>(value: entry.$1, label: entry.$2);
+    }).toList();
+
+    return AppStatusTabBar<String?>(
+      items: items,
+      selectedValue: _viewModel.selectedStatus,
+      onSelected: (value) => _viewModel.setStatusFilter(value),
     );
   }
 
@@ -246,11 +227,15 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, size: 48, color: AppColors.textMuted),
+            const Icon(
+              Icons.error_outline,
+              size: 48,
+              color: AppColors.textMuted,
+            ),
             const SizedBox(height: 12),
             Text(
               'Không thể tải danh sách vé',
-              style: GoogleFonts.publicSans(
+              style: AppTypography.mainWith(
                 fontSize: 15,
                 color: AppColors.textMuted,
               ),
@@ -260,7 +245,7 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
               onPressed: () => _viewModel.fetchTickets(refresh: true),
               child: Text(
                 'Thử lại',
-                style: GoogleFonts.publicSans(
+                style: AppTypography.mainWith(
                   fontWeight: FontWeight.w700,
                   color: AppColors.primary,
                 ),
@@ -322,7 +307,7 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
             width: 80,
             height: 80,
             decoration: const BoxDecoration(
-              color: Color(0xFFF4F6F8),
+              color: AppColors.surfaceNeutral,
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -334,7 +319,7 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
           const SizedBox(height: 16),
           Text(
             'Chưa có vé nào',
-            style: GoogleFonts.publicSans(
+            style: AppTypography.mainWith(
               fontSize: 16,
               fontWeight: FontWeight.w700,
               color: AppColors.textMain,
@@ -343,7 +328,7 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
           const SizedBox(height: 8),
           Text(
             'Hãy mua vé số để tham gia ngay!',
-            style: GoogleFonts.publicSans(
+            style: AppTypography.mainWith(
               fontSize: 14,
               color: AppColors.textMuted,
             ),
@@ -358,23 +343,14 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
     final possession = resolveTicketPossessionDisplay(ticket);
     final payout = resolveTicketPayoutDisplay(ticket);
     final numberParts = splitTicketNumbers(ticket.numbers);
-    final currencyFmt = NumberFormat.currency(
-      locale: 'vi_VN',
-      symbol: '₫',
-      decimalDigits: 0,
+    final formattedDrawDate = AppFormatters.formatDateIso(
+      ticket.drawDate,
+      fallback: ticket.drawDate,
     );
-
-    String? formattedDrawDate;
-    try {
-      final dt = DateTime.parse(ticket.drawDate).toLocal();
-      formattedDrawDate = DateFormat('dd/MM/yyyy').format(dt);
-    } catch (_) {
-      formattedDrawDate = ticket.drawDate;
-    }
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surfacePrimary,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -397,7 +373,7 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
                     children: [
                       Text(
                         ticket.stationName ?? 'Vé số Đại Phát',
-                        style: GoogleFonts.publicSans(
+                        style: AppTypography.mainWith(
                           fontSize: 15,
                           fontWeight: FontWeight.w800,
                           color: AppColors.textMain,
@@ -406,7 +382,7 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
                       const SizedBox(height: 4),
                       Text(
                         'Kỳ quay: $formattedDrawDate',
-                        style: GoogleFonts.publicSans(
+                        style: AppTypography.mainWith(
                           fontSize: 12,
                           color: AppColors.textMuted,
                         ),
@@ -425,49 +401,49 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
               runSpacing: 8,
               children: numberParts.isNotEmpty
                   ? numberParts
-                      .map(
-                        (n) => Container(
-                          width: 36,
-                          height: 36,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            gradient: ticket.drawResultStatus == 'WON'
-                                ? const LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [
-                                      Color(0xFFFCD34D),
-                                      Color(0xFFF59E0B),
-                                    ],
-                                  )
-                                : null,
-                            color: ticket.drawResultStatus == 'WON'
-                                ? null
-                                : const Color(0xFFF4F6F8),
-                            shape: BoxShape.circle,
-                            border: Border.all(
+                        .map(
+                          (n) => Container(
+                            width: 36,
+                            height: 36,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              gradient: ticket.drawResultStatus == 'WON'
+                                  ? const LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [
+                                        Color(0xFFFCD34D),
+                                        AppColors.statusWarningAccent,
+                                      ],
+                                    )
+                                  : null,
                               color: ticket.drawResultStatus == 'WON'
-                                  ? const Color(0xFFFBBF24)
-                                  : const Color(0xFFE2E8F0),
+                                  ? null
+                                  : AppColors.surfaceNeutral,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: ticket.drawResultStatus == 'WON'
+                                    ? const Color(0xFFFBBF24)
+                                    : AppColors.borderSubtle,
+                              ),
+                            ),
+                            child: Text(
+                              n,
+                              style: AppTypography.mainWith(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: ticket.drawResultStatus == 'WON'
+                                    ? const Color(0xFF78350F)
+                                    : AppColors.textMain,
+                              ),
                             ),
                           ),
-                          child: Text(
-                            n,
-                            style: GoogleFonts.publicSans(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
-                              color: ticket.drawResultStatus == 'WON'
-                                  ? const Color(0xFF78350F)
-                                  : AppColors.textMain,
-                            ),
-                          ),
-                        ),
-                      )
-                      .toList()
+                        )
+                        .toList()
                   : [
                       Text(
                         ticket.numbers,
-                        style: GoogleFonts.publicSans(
+                        style: AppTypography.mainWith(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
                           color: AppColors.primary,
@@ -482,12 +458,16 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Row(
                 children: [
-                  const Icon(Icons.star_rounded, size: 16, color: Color(0xFFF59E0B)),
+                  const Icon(
+                    Icons.star_rounded,
+                    size: 16,
+                    color: AppColors.statusWarningAccent,
+                  ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       ticket.matchedPrizeDisplayName!,
-                      style: GoogleFonts.publicSans(
+                      style: AppTypography.mainWith(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: const Color(0xFFB45309),
@@ -509,7 +489,7 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
                     children: [
                       Text(
                         ticket.serialNumber ?? ticket.numbers,
-                        style: GoogleFonts.publicSans(
+                        style: AppTypography.mainWith(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                           color: AppColors.textMain,
@@ -540,8 +520,8 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      currencyFmt.format(ticket.price),
-                      style: GoogleFonts.publicSans(
+                      AppFormatters.formatCurrency(ticket.price),
+                      style: AppTypography.mainWith(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
                         color: AppColors.primary,
@@ -550,11 +530,11 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
                     if (ticket.prizeAmount != null &&
                         ticket.drawResultStatus == 'WON')
                       Text(
-                        '+ ${currencyFmt.format(ticket.prizeAmount)}',
-                        style: GoogleFonts.publicSans(
+                        '+ ${AppFormatters.formatCurrency(ticket.prizeAmount)}',
+                        style: AppTypography.mainWith(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: const Color(0xFFF59E0B),
+                          color: AppColors.statusWarningAccent,
                         ),
                       ),
                   ],
@@ -577,7 +557,7 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
       ),
       child: Text(
         label,
-        style: GoogleFonts.publicSans(
+        style: AppTypography.mainWith(
           fontSize: 11,
           fontWeight: FontWeight.w700,
           color: color,
@@ -607,7 +587,7 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
           Flexible(
             child: Text(
               label,
-              style: GoogleFonts.publicSans(
+              style: AppTypography.mainWith(
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
                 color: color,

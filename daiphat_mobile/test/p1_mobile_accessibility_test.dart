@@ -26,12 +26,12 @@ import 'package:daiphat_mobile/src/shared/storage/auth_token_storage.dart';
 class _FakeCheckoutNotifier extends CheckoutNotifier {
   @override
   CheckoutState build() => const CheckoutState(
-        name: 'Người dùng thử',
-        phone: '0900000000',
-        expectedPickupAt: '2026-08-28T10:00:00',
-        selectedReceiveType: 'COUNTER_PICKUP',
-        selectedTransactionType: 'ONLINE',
-      );
+    name: 'Người dùng thử',
+    phone: '0900000000',
+    expectedPickupAt: '2026-08-28T10:00:00',
+    selectedReceiveType: 'COUNTER_PICKUP',
+    selectedTransactionType: 'ONLINE',
+  );
 
   @override
   Future<void> loadUserProfile() async {}
@@ -228,7 +228,9 @@ void main() {
     expect(tester.getSize(info).height, greaterThanOrEqualTo(44));
   });
 
-  testWidgets('checkout selectors expose checked radio semantics', (tester) async {
+  testWidgets('checkout selectors expose checked radio semantics', (
+    tester,
+  ) async {
     await tester.binding.setSurfaceSize(const Size(800, 1800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -268,20 +270,27 @@ void main() {
     final payment = find.bySemanticsLabel('Chuyển khoản');
     expect(payment, findsOneWidget);
     expect(
-      tester.getSemantics(receive).flagsCollection.isChecked == CheckedState.isTrue,
+      tester.getSemantics(receive).flagsCollection.isChecked ==
+          CheckedState.isTrue,
       isTrue,
     );
     expect(
-      tester.getSemantics(payment).flagsCollection.isChecked == CheckedState.isTrue,
+      tester.getSemantics(payment).flagsCollection.isChecked ==
+          CheckedState.isTrue,
       isTrue,
     );
   });
 
-  testWidgets('cart stepper exposes labelled controls at 44dp', (tester) async {
+  testWidgets('cart keeps station name and exposes labelled controls at 44dp', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(332, 700));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
     final item = CartItemData(
       lotteryTicketId: 2,
       province: 'Đà Nẵng',
-      dateLabel: 'Ngày mai',
+      dateLabel: 'Thứ 7, 29/08/2026 (Hôm nay)',
       drawTime: '17:00',
       kyHieu: 'DN',
       number: '654321',
@@ -301,6 +310,11 @@ void main() {
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
+
+    final station = find.text('Đà Nẵng');
+    expect(station, findsOneWidget);
+    expect(tester.getSize(station).width, greaterThan(0));
+    expect(tester.takeException(), isNull);
 
     final minus = find.bySemanticsLabel('Giảm số lượng');
     final plus = find.bySemanticsLabel('Tăng số lượng');

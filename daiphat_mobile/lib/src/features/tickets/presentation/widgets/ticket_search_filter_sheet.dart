@@ -12,7 +12,7 @@ Future<TicketSearchFilter?> showTicketSearchFilterSheet({
   return showModalBottomSheet<TicketSearchFilter>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: Colors.white,
+    backgroundColor: AppColors.surfacePrimary,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
@@ -243,7 +243,7 @@ class _TicketSearchFilterSheetState extends State<TicketSearchFilterSheet> {
                           '–',
                           style: TextStyle(
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF94A3B8),
+                            color: AppColors.contentSubtle,
                           ),
                         ),
                       ),
@@ -293,7 +293,7 @@ class _TicketSearchFilterSheetState extends State<TicketSearchFilterSheet> {
                         const TextStyle(
                           fontSize: 13,
                           fontStyle: FontStyle.italic,
-                          color: Color(0xFF94A3B8),
+                          color: AppColors.contentSubtle,
                         ),
                       ),
                     )
@@ -311,7 +311,7 @@ class _TicketSearchFilterSheetState extends State<TicketSearchFilterSheet> {
                             );
                           },
                           deleteIconColor: AppColors.primary,
-                          backgroundColor: const Color(0xFFFFF4F4),
+                          backgroundColor: AppColors.statusErrorSurface,
                           side: const BorderSide(color: Color(0xFFFECDD3)),
                           labelStyle: const TextStyle(
                             color: AppColors.primary,
@@ -388,7 +388,7 @@ class _ChipButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected ? AppColors.primary : Colors.white,
+      color: selected ? AppColors.primary : AppColors.surfacePrimary,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,
@@ -398,7 +398,7 @@ class _ChipButton extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: selected ? AppColors.primary : const Color(0xFFE2E8F0),
+              color: selected ? AppColors.primary : AppColors.borderSubtle,
             ),
           ),
           child: Row(
@@ -408,7 +408,7 @@ class _ChipButton extends StatelessWidget {
                 Icon(
                   icon,
                   size: 14,
-                  color: selected ? Colors.white : AppColors.primary,
+                  color: selected ? AppColors.surfacePrimary : AppColors.primary,
                 ),
                 const SizedBox(width: 6),
               ],
@@ -418,7 +418,7 @@ class _ChipButton extends StatelessWidget {
                   TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: selected ? Colors.white : const Color(0xFF334155),
+                    color: selected ? AppColors.surfacePrimary : const Color(0xFF334155),
                   ),
                 ),
               ),
@@ -450,18 +450,18 @@ class _DigitField extends StatelessWidget {
         prefixStyle: const TextStyle(
           fontWeight: FontWeight.w500,
           fontSize: 13,
-          color: Color(0xFF64748B),
+          color: AppColors.contentMuted,
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
         filled: true,
-        fillColor: const Color(0xFFF8FAFC),
+        fillColor: AppColors.surfaceSoft,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+          borderSide: const BorderSide(color: AppColors.borderSubtle),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+          borderSide: const BorderSide(color: AppColors.borderSubtle),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),

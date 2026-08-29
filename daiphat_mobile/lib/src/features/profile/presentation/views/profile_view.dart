@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/widgets/app_header_action_button.dart';
 import 'package:go_router/go_router.dart';
@@ -116,7 +116,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
               shaderCallback: (bounds) => const LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Colors.white, Colors.white, Colors.transparent],
+                colors: [AppColors.surfacePrimary, AppColors.surfacePrimary, AppColors.transparent],
                 stops: [0, .72, 1],
               ).createShader(bounds),
               blendMode: BlendMode.dstIn,
@@ -135,14 +135,12 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
               children: [
                 AppHeaderActionButton(
                   icon: Icons.settings_outlined,
-                  iconColor: const Color(0xFF222222),
                   tooltip: 'Cài đặt hồ sơ',
                   onTap: () => context.push(AppRoute.profileDetail.path),
                 ),
                 const SizedBox(width: 8),
                 AppHeaderActionButton(
                   icon: Icons.chat_bubble_outline_rounded,
-                  iconColor: const Color(0xFF222222),
                   tooltip: 'Trò chuyện / Hỗ trợ',
                   onTap: () {
                     Navigator.of(context).push(
@@ -167,7 +165,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
             height: 124,
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: .97),
+                color: AppColors.surfacePrimary.withValues(alpha: .97),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: const Color(0xFFFFEEEE)),
                 boxShadow: const [
@@ -240,7 +238,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                                       width: 25,
                                       height: 25,
                                       decoration: BoxDecoration(
-                                        color: Colors.white,
+                                        color: AppColors.surfacePrimary,
                                         shape: BoxShape.circle,
                                         border: Border.all(
                                           color: const Color(0xFFF1E5E5),
@@ -273,7 +271,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                                     name,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: GoogleFonts.publicSans(
+                                    style: AppTypography.mainWith(
                                       fontSize: 17,
                                       fontWeight: FontWeight.w800,
                                       color: const Color(0xFF202124),
@@ -381,7 +379,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                 children: [
                   Text(
                     'Bảng điều khiển Admin',
-                    style: GoogleFonts.publicSans(
+                    style: AppTypography.mainWith(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
                       color: AppColors.textMain,
@@ -389,7 +387,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                   ),
                   Text(
                     'Quyền Quản trị viên & Nhân viên',
-                    style: GoogleFonts.publicSans(
+                    style: AppTypography.mainWith(
                       fontSize: 11,
                       color: AppColors.textMuted,
                     ),
@@ -429,7 +427,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                     ),
                     child: const Icon(
                       Icons.qr_code_scanner_rounded,
-                      color: Colors.white,
+                      color: AppColors.surfacePrimary,
                       size: 24,
                     ),
                   ),
@@ -440,8 +438,8 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                       children: [
                         Text(
                           'Quét vé số OCR (Trang Admin)',
-                          style: GoogleFonts.publicSans(
-                            color: Colors.white,
+                          style: AppTypography.mainWith(
+                            color: AppColors.surfacePrimary,
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
                           ),
@@ -449,7 +447,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                         const SizedBox(height: 2),
                         Text(
                           'Kết nối Real-time với màn hình Web Admin',
-                          style: GoogleFonts.publicSans(
+                          style: AppTypography.mainWith(
                             color: Colors.white70,
                             fontSize: 11,
                           ),
@@ -459,7 +457,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                   ),
                   const Icon(
                     Icons.arrow_forward_ios_rounded,
-                    color: Colors.white,
+                    color: AppColors.surfacePrimary,
                     size: 16,
                   ),
                 ],
@@ -494,7 +492,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                   Expanded(
                     child: Text(
                       'Vé của tôi',
-                      style: GoogleFonts.publicSans(
+                      style: AppTypography.mainWith(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                         color: AppColors.textMain,
@@ -505,7 +503,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                     onTap: () => context.push(AppRoute.myTickets.path),
                     child: Text(
                       'Xem tất cả',
-                      style: GoogleFonts.publicSans(
+                      style: AppTypography.mainWith(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: AppColors.primary,
@@ -574,7 +572,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
             const SizedBox(height: 8),
             Text(
               count,
-              style: GoogleFonts.publicSans(
+              style: AppTypography.mainWith(
                 fontSize: 16,
                 fontWeight: FontWeight.w800,
                 color: AppColors.textMain,
@@ -583,7 +581,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
             const SizedBox(height: 2),
             Text(
               label,
-              style: GoogleFonts.publicSans(
+              style: AppTypography.mainWith(
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
                 color: AppColors.textMuted,
@@ -629,7 +627,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
             const SizedBox(height: 8),
             Text(
               count,
-              style: GoogleFonts.publicSans(
+              style: AppTypography.mainWith(
                 fontSize: 16,
                 fontWeight: FontWeight.w800,
                 color: AppColors.textMain,
@@ -638,7 +636,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
             const SizedBox(height: 2),
             Text(
               label,
-              style: GoogleFonts.publicSans(
+              style: AppTypography.mainWith(
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
                 color: AppColors.textMuted,
@@ -661,7 +659,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
         children: [
           Text(
             'Tài khoản của tôi',
-            style: GoogleFonts.publicSans(
+            style: AppTypography.mainWith(
               fontSize: 16,
               fontWeight: FontWeight.w700,
               color: AppColors.textMain,
@@ -720,7 +718,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
         children: [
           Text(
             'Tiện ích',
-            style: GoogleFonts.publicSans(
+            style: AppTypography.mainWith(
               fontSize: 16,
               fontWeight: FontWeight.w700,
               color: AppColors.textMain,
@@ -777,7 +775,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 11),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.surfacePrimary,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: const Color(0xFFF0E6E4)),
           ),
@@ -800,7 +798,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.mainWith(
                     fontSize: 11,
                     height: 1.25,
                     fontWeight: FontWeight.w500,
@@ -822,7 +820,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
         children: [
           Text(
             'Cài đặt & hỗ trợ',
-            style: GoogleFonts.publicSans(
+            style: AppTypography.mainWith(
               fontSize: 16,
               fontWeight: FontWeight.w700,
               color: AppColors.textMain,
@@ -832,26 +830,22 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
           _buildListItem(
             Icons.notifications_outlined,
             'Cài đặt thông báo',
-            iconColor: const Color(0xFF242424),
             onTap: () => context.push(AppRoute.notificationSettings.path),
           ),
           _buildListItem(
             Icons.security_outlined,
             'Bảo mật',
-            iconColor: const Color(0xFF242424),
             onTap: () => context.pushNamed(AppRoute.security.name),
           ),
           _buildListItem(
             Icons.headset_mic_outlined,
             'Khiếu nại / Hỗ trợ',
-            iconColor: const Color(0xFF242424),
             onTap: () => context.push(AppRoute.complaints.path),
           ),
           _buildListItem(
             Icons.logout,
             'Đăng xuất',
             showDivider: false,
-            iconColor: const Color(0xFF242424),
             onTap: () async {
               await viewModel.logout();
               if (context.mounted) {
@@ -881,7 +875,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
           leading: Icon(icon, color: iconColor, size: 20),
           title: Text(
             title,
-            style: GoogleFonts.publicSans(
+            style: AppTypography.mainWith(
               fontSize: 12,
               fontWeight: FontWeight.w500,
               color: AppColors.textMain,
@@ -904,7 +898,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 15),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surfacePrimary,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFFFFF1EF)),
         boxShadow: const [

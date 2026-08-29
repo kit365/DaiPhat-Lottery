@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -14,6 +14,7 @@ import 'package:daiphat_mobile/src/features/profile/presentation/widgets/prize_p
 import 'package:daiphat_mobile/src/features/profile/utils/ticket_display_utils.dart';
 import 'package:daiphat_mobile/src/features/profile/utils/rebuy_ticket.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 
 class MyTicketDetailView extends ConsumerWidget {
@@ -54,17 +55,12 @@ class _TicketDetailBody extends ConsumerWidget {
     final isWon = ticket.drawResultStatus == 'WON';
     final isEligible = canRequestPrizePayout(ticket);
     final ineligibility = getPrizePayoutIneligibilityMessage(ticket);
-    final currencyFmt = NumberFormat.currency(
-      locale: 'vi_VN',
-      symbol: '₫',
-      decimalDigits: 0,
-    );
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: AppColors.surfaceCanvas,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
+        backgroundColor: AppColors.surfacePrimary,
+        surfaceTintColor: AppColors.transparent,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(
@@ -76,7 +72,7 @@ class _TicketDetailBody extends ConsumerWidget {
         ),
         title: Text(
           'Chi tiết vé',
-          style: GoogleFonts.publicSans(
+          style: AppTypography.mainWith(
             fontSize: 18,
             fontWeight: FontWeight.w700,
             color: AppColors.textMain,
@@ -96,7 +92,6 @@ class _TicketDetailBody extends ConsumerWidget {
               isWon: isWon,
               possession: possession,
               payout: payout,
-              currencyFmt: currencyFmt,
             ),
             if (isWon) ...[
               const SizedBox(height: 16),
@@ -126,7 +121,7 @@ class _TicketDetailBody extends ConsumerWidget {
         icon: const Icon(Icons.calendar_month_rounded, size: 18),
         label: Text(
           'Xem kết quả kỳ quay',
-          style: GoogleFonts.publicSans(
+          style: AppTypography.mainWith(
             fontWeight: FontWeight.w800,
             fontSize: 14,
           ),
@@ -152,7 +147,7 @@ class _TicketDetailBody extends ConsumerWidget {
         icon: const Icon(Icons.add_shopping_cart_rounded, size: 18),
         label: Text(
           'Mua lại bộ số này',
-          style: GoogleFonts.publicSans(
+          style: AppTypography.mainWith(
             fontWeight: FontWeight.w800,
             fontSize: 14,
           ),
@@ -176,7 +171,9 @@ class _TicketDetailBody extends ConsumerWidget {
     final stationName = ticket.stationName?.trim();
     final searchDigits = ticket.numbers.replaceAll(RegExp(r'\D'), '');
 
-    ref.read(lotteryResultsLookupProvider.notifier).setLookup(
+    ref
+        .read(lotteryResultsLookupProvider.notifier)
+        .setLookup(
           LotteryResultsLookup(
             drawDate: drawDate == null
                 ? null
@@ -214,13 +211,12 @@ class _TicketDetailBody extends ConsumerWidget {
     required bool isWon,
     required TicketPossessionDisplay? possession,
     required TicketPayoutDisplay? payout,
-    required NumberFormat currencyFmt,
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surfacePrimary,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: AppColors.borderSubtle),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
@@ -238,10 +234,18 @@ class _TicketDetailBody extends ConsumerWidget {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: isWon
-                    ? const [Color(0xFFFBBF24), Color(0xFFF59E0B), Color(0xFFEA580C)]
+                    ? const [
+                        Color(0xFFFBBF24),
+                        AppColors.statusWarningAccent,
+                        Color(0xFFEA580C),
+                      ]
                     : ticket.drawResultStatus == 'PENDING_DRAW'
-                        ? const [Color(0xFFFBBF24), Color(0xFFF97316), Color(0xFFF59E0B)]
-                        : const [Color(0xFFCBD5E1), Color(0xFF94A3B8)],
+                    ? const [
+                        Color(0xFFFBBF24),
+                        Color(0xFFF97316),
+                        AppColors.statusWarningAccent,
+                      ]
+                    : const [Color(0xFFCBD5E1), AppColors.contentSubtle],
               ),
             ),
           ),
@@ -259,10 +263,10 @@ class _TicketDetailBody extends ConsumerWidget {
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: isWon
-                              ? const [Color(0xFFFBBF24), Color(0xFFF59E0B)]
+                              ? const [Color(0xFFFBBF24), AppColors.statusWarningAccent]
                               : ticket.drawResultStatus == 'PENDING_DRAW'
-                                  ? const [Color(0xFFFBBF24), Color(0xFFF97316)]
-                                  : const [Color(0xFFE2E8F0), Color(0xFFCBD5E1)],
+                              ? const [Color(0xFFFBBF24), Color(0xFFF97316)]
+                              : const [AppColors.borderSubtle, Color(0xFFCBD5E1)],
                         ),
                         borderRadius: BorderRadius.circular(14),
                       ),
@@ -270,9 +274,10 @@ class _TicketDetailBody extends ConsumerWidget {
                         isWon
                             ? Icons.emoji_events_outlined
                             : Icons.confirmation_number_outlined,
-                        color: isWon || ticket.drawResultStatus == 'PENDING_DRAW'
-                            ? Colors.white
-                            : const Color(0xFF64748B),
+                        color:
+                            isWon || ticket.drawResultStatus == 'PENDING_DRAW'
+                            ? AppColors.surfacePrimary
+                            : AppColors.contentMuted,
                         size: 28,
                       ),
                     ),
@@ -283,14 +288,18 @@ class _TicketDetailBody extends ConsumerWidget {
                         children: [
                           Text(
                             ticket.stationName ?? 'Vé số Đại Phát',
-                            style: GoogleFonts.publicSans(
+                            style: AppTypography.mainWith(
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
                               color: AppColors.textMain,
                             ),
                           ),
                           const SizedBox(height: 6),
-                          _buildStatusChip(status.label, status.color, status.bgColor),
+                          _buildStatusChip(
+                            status.label,
+                            status.color,
+                            status.bgColor,
+                          ),
                         ],
                       ),
                     ),
@@ -300,9 +309,9 @@ class _TicketDetailBody extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
+                    color: AppColors.surfaceSoft,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    border: Border.all(color: AppColors.borderSubtle),
                   ),
                   child: Row(
                     children: [
@@ -312,7 +321,7 @@ class _TicketDetailBody extends ConsumerWidget {
                           children: [
                             Text(
                               'Mã serial vé',
-                              style: GoogleFonts.publicSans(
+                              style: AppTypography.mainWith(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.textMuted,
@@ -320,7 +329,7 @@ class _TicketDetailBody extends ConsumerWidget {
                             ),
                             Text(
                               ticket.serialNumber ?? ticket.numbers,
-                              style: GoogleFonts.publicSans(
+                              style: AppTypography.mainWith(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w900,
                                 color: AppColors.primary,
@@ -329,22 +338,26 @@ class _TicketDetailBody extends ConsumerWidget {
                           ],
                         ),
                       ),
-                      Container(width: 1, height: 36, color: const Color(0xFFE2E8F0)),
+                      Container(
+                        width: 1,
+                        height: 36,
+                        color: AppColors.borderSubtle,
+                      ),
                       const SizedBox(width: 14),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
                             'Giá vé',
-                            style: GoogleFonts.publicSans(
+                            style: AppTypography.mainWith(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
                               color: AppColors.textMuted,
                             ),
                           ),
                           Text(
-                            currencyFmt.format(ticket.price),
-                            style: GoogleFonts.publicSans(
+                            AppFormatters.formatCurrency(ticket.price),
+                            style: AppTypography.mainWith(
                               fontSize: 16,
                               fontWeight: FontWeight.w800,
                               color: AppColors.textMain,
@@ -358,7 +371,7 @@ class _TicketDetailBody extends ConsumerWidget {
                 const SizedBox(height: 16),
                 Text(
                   'Bộ số dự thưởng',
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.mainWith(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textMuted,
@@ -370,47 +383,47 @@ class _TicketDetailBody extends ConsumerWidget {
                   runSpacing: 10,
                   children: numberParts.isNotEmpty
                       ? numberParts
-                          .map(
-                            (n) => Container(
-                              width: 48,
-                              height: 48,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                gradient: isWon
-                                    ? const LinearGradient(
-                                        begin: Alignment.topCenter,
-                                        end: Alignment.bottomCenter,
-                                        colors: [
-                                          Color(0xFFFDE68A),
-                                          Color(0xFFF59E0B),
-                                        ],
-                                      )
-                                    : null,
-                                color: isWon ? null : const Color(0xFFF1F5F9),
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: isWon
-                                      ? const Color(0xFFFBBF24)
-                                      : const Color(0xFFCBD5E1),
+                            .map(
+                              (n) => Container(
+                                width: 48,
+                                height: 48,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  gradient: isWon
+                                      ? const LinearGradient(
+                                          begin: Alignment.topCenter,
+                                          end: Alignment.bottomCenter,
+                                          colors: [
+                                            Color(0xFFFDE68A),
+                                            AppColors.statusWarningAccent,
+                                          ],
+                                        )
+                                      : null,
+                                  color: isWon ? null : const Color(0xFFF1F5F9),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: isWon
+                                        ? const Color(0xFFFBBF24)
+                                        : const Color(0xFFCBD5E1),
+                                  ),
+                                ),
+                                child: Text(
+                                  n,
+                                  style: AppTypography.mainWith(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w900,
+                                    color: isWon
+                                        ? const Color(0xFF78350F)
+                                        : AppColors.textMain,
+                                  ),
                                 ),
                               ),
-                              child: Text(
-                                n,
-                                style: GoogleFonts.publicSans(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w900,
-                                  color: isWon
-                                      ? const Color(0xFF78350F)
-                                      : AppColors.textMain,
-                                ),
-                              ),
-                            ),
-                          )
-                          .toList()
+                            )
+                            .toList()
                       : [
                           Text(
                             ticket.numbers,
-                            style: GoogleFonts.publicSans(
+                            style: AppTypography.mainWith(
                               fontSize: 22,
                               fontWeight: FontWeight.w900,
                               color: AppColors.primary,
@@ -419,23 +432,35 @@ class _TicketDetailBody extends ConsumerWidget {
                         ],
                 ),
                 const SizedBox(height: 20),
-                const Divider(color: Color(0xFFE2E8F0)),
+                const Divider(color: AppColors.borderSubtle),
                 const SizedBox(height: 16),
-                _buildInfoRow('Ngày mở thưởng', _formatDrawDate(ticket.drawDate)),
-                _buildInfoRow('Thời gian mua vé', _formatDateTime(ticket.purchasedAt)),
-                _buildInfoRow('Kết quả đối chiếu', status.label, valueColor: status.color),
+                _buildInfoRow(
+                  'Ngày mở thưởng',
+                  _formatDrawDate(ticket.drawDate),
+                ),
+                _buildInfoRow(
+                  'Thời gian mua vé',
+                  _formatDateTime(ticket.purchasedAt),
+                ),
+                _buildInfoRow(
+                  'Kết quả đối chiếu',
+                  status.label,
+                  valueColor: status.color,
+                ),
                 if (isWon && ticket.prizeAmount != null)
                   _buildInfoRow(
                     'Tổng tiền trúng thưởng',
-                    currencyFmt.format(ticket.prizeAmount),
-                    valueColor: const Color(0xFFF59E0B),
+                    AppFormatters.formatCurrency(ticket.prizeAmount),
+                    valueColor: AppColors.statusWarningAccent,
                   ),
-                if (isWon && (ticket.customerRedemptionDeadline != null ||
+                if (isWon &&
+                    (ticket.customerRedemptionDeadline != null ||
                         ticket.issuerRedemptionDeadline != null))
                   _buildInfoRow(
                     'Thời gian còn lại đổi thưởng',
                     _redemptionRemainingLabel(ticket),
-                    valueColor: ticket.redemptionZone == 'PAST_CUSTOMER_URGENT' ||
+                    valueColor:
+                        ticket.redemptionZone == 'PAST_CUSTOMER_URGENT' ||
                             ticket.redemptionZone == 'PAST_ISSUER_LOCKED'
                         ? const Color(0xFFBE123C)
                         : const Color(0xFFB45309),
@@ -454,7 +479,7 @@ class _TicketDetailBody extends ConsumerWidget {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
+                      colors: [AppColors.contentNavy, Color(0xFF0F172A)],
                     ),
                     borderRadius: BorderRadius.circular(16),
                   ),
@@ -462,10 +487,10 @@ class _TicketDetailBody extends ConsumerWidget {
                     children: [
                       Text(
                         'Xác thực vé điện tử',
-                        style: GoogleFonts.publicSans(
+                        style: AppTypography.mainWith(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
-                          color: const Color(0xFF94A3B8),
+                          color: AppColors.contentSubtle,
                           letterSpacing: 1,
                         ),
                       ),
@@ -473,7 +498,7 @@ class _TicketDetailBody extends ConsumerWidget {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: AppColors.surfacePrimary,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: QrImageView(
@@ -486,7 +511,7 @@ class _TicketDetailBody extends ConsumerWidget {
                       const SizedBox(height: 8),
                       Text(
                         ticket.orderCode,
-                        style: GoogleFonts.publicSans(
+                        style: AppTypography.mainWith(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                           color: const Color(0xFFCBD5E1),
@@ -530,17 +555,17 @@ class _TicketDetailBody extends ConsumerWidget {
                 height: 40,
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [Color(0xFFFBBF24), Color(0xFFF59E0B)],
+                    colors: [Color(0xFFFBBF24), AppColors.statusWarningAccent],
                   ),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.card_giftcard, color: Colors.white),
+                child: const Icon(Icons.card_giftcard, color: AppColors.surfacePrimary),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   'Chúc mừng bạn đã trúng thưởng!',
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.mainWith(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
                     color: const Color(0xFF78350F),
@@ -553,12 +578,13 @@ class _TicketDetailBody extends ConsumerWidget {
           Text(
             isEligible
                 ? 'Bạn có thể gửi yêu cầu trả thưởng trực tuyến. Tiền sẽ được chuyển sau khi nhân viên duyệt.'
-                : ticket.canClaimOnline == false || ticket.claimChannel == 'IN_PERSON'
-                    ? 'Vé này cần mang đến đại lý để đổi thưởng trực tiếp.'
-                    : 'Tiền thưởng sẽ được chuyển tới tài khoản ngân hàng sau khi yêu cầu được duyệt.',
-            style: GoogleFonts.publicSans(
+                : ticket.canClaimOnline == false ||
+                      ticket.claimChannel == 'IN_PERSON'
+                ? 'Vé này cần mang đến đại lý để đổi thưởng trực tiếp.'
+                : 'Tiền thưởng sẽ được chuyển tới tài khoản ngân hàng sau khi yêu cầu được duyệt.',
+            style: AppTypography.mainWith(
               fontSize: 13,
-              color: const Color(0xFF64748B),
+              color: AppColors.contentMuted,
             ),
           ),
           if (payout != null) ...[
@@ -569,7 +595,7 @@ class _TicketDetailBody extends ConsumerWidget {
             const SizedBox(height: 8),
             Text(
               ineligibility,
-              style: GoogleFonts.publicSans(
+              style: AppTypography.mainWith(
                 fontSize: 12,
                 color: AppColors.textMuted,
               ),
@@ -582,8 +608,8 @@ class _TicketDetailBody extends ConsumerWidget {
               child: ElevatedButton(
                 onPressed: () => _openPayoutSheet(context, ref),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFF59E0B),
-                  foregroundColor: Colors.white,
+                  backgroundColor: AppColors.statusWarningAccent,
+                  foregroundColor: AppColors.surfacePrimary,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -591,7 +617,7 @@ class _TicketDetailBody extends ConsumerWidget {
                 ),
                 child: Text(
                   'Yêu cầu trả thưởng ngay',
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.mainWith(
                     fontWeight: FontWeight.w800,
                     fontSize: 14,
                   ),
@@ -608,7 +634,7 @@ class _TicketDetailBody extends ConsumerWidget {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppColors.transparent,
       builder: (context) => PrizePayoutRequestSheet(
         ticket: ticket,
         prizePayoutService: ref.read(prizePayoutServiceProvider),
@@ -627,7 +653,7 @@ class _TicketDetailBody extends ConsumerWidget {
             flex: 2,
             child: Text(
               label,
-              style: GoogleFonts.publicSans(
+              style: AppTypography.mainWith(
                 fontSize: 13,
                 color: AppColors.textMuted,
               ),
@@ -638,7 +664,7 @@ class _TicketDetailBody extends ConsumerWidget {
             child: Text(
               value,
               textAlign: TextAlign.end,
-              style: GoogleFonts.publicSans(
+              style: AppTypography.mainWith(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: valueColor ?? AppColors.textMain,
@@ -659,7 +685,7 @@ class _TicketDetailBody extends ConsumerWidget {
             flex: 2,
             child: Text(
               'Mã đơn hàng',
-              style: GoogleFonts.publicSans(
+              style: AppTypography.mainWith(
                 fontSize: 13,
                 color: AppColors.textMuted,
               ),
@@ -679,14 +705,18 @@ class _TicketDetailBody extends ConsumerWidget {
                   children: [
                     Text(
                       orderCode,
-                      style: GoogleFonts.publicSans(
+                      style: AppTypography.mainWith(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: AppColors.textMain,
                       ),
                     ),
                     const SizedBox(width: 6),
-                    const Icon(Icons.copy, size: 14, color: AppColors.textMuted),
+                    const Icon(
+                      Icons.copy,
+                      size: 14,
+                      color: AppColors.textMuted,
+                    ),
                   ],
                 ),
               ),
@@ -707,7 +737,7 @@ class _TicketDetailBody extends ConsumerWidget {
       ),
       child: Text(
         label,
-        style: GoogleFonts.publicSans(
+        style: AppTypography.mainWith(
           fontSize: 11,
           fontWeight: FontWeight.w700,
           color: color,
