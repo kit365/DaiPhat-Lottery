@@ -6,11 +6,10 @@ import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/login_v
 import 'package:daiphat_mobile/src/features/blog/presentation/views/blog_screen.dart';
 import 'package:daiphat_mobile/src/features/notifications/presentation/viewmodels/notification_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/notifications/presentation/views/notification_view.dart';
-import 'package:daiphat_mobile/src/features/utilities/presentation/views/utilities_view.dart';
 import 'package:daiphat_mobile/src/features/utilities/presentation/views/utilities_two_view.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 
-enum _ShellSidePage { main, utilities, utilitiesTwo, notifications }
+enum _ShellSidePage { main, utilitiesTwo, notifications }
 
 class MainLayout extends StatefulWidget {
   final LoginViewModel loginViewModel;
@@ -35,14 +34,13 @@ class _MainLayoutState extends State<MainLayout> {
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(initialPage: 2);
+    _pageController = PageController(initialPage: 1);
   }
 
   void _syncSidePage(int index) {
     final nextPage = switch (index) {
-      0 => _ShellSidePage.utilities,
-      1 => _ShellSidePage.utilitiesTwo,
-      3 => _ShellSidePage.notifications,
+      0 => _ShellSidePage.utilitiesTwo,
+      2 => _ShellSidePage.notifications,
       _ => _ShellSidePage.main,
     };
     if (nextPage != _sidePage) {
@@ -61,18 +59,7 @@ class _MainLayoutState extends State<MainLayout> {
       setState(() => _sidePage = _ShellSidePage.main);
     }
     _pageController.animateToPage(
-      2,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
-  }
-
-  void _goToUtilities() {
-    if (_sidePage != _ShellSidePage.utilities) {
-      setState(() => _sidePage = _ShellSidePage.utilities);
-    }
-    _pageController.animateToPage(
-      0,
+      1,
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
     );
@@ -83,7 +70,7 @@ class _MainLayoutState extends State<MainLayout> {
       setState(() => _sidePage = _ShellSidePage.utilitiesTwo);
     }
     _pageController.animateToPage(
-      1,
+      0,
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
     );
@@ -97,7 +84,7 @@ class _MainLayoutState extends State<MainLayout> {
       setState(() => _sidePage = _ShellSidePage.notifications);
     }
     _pageController.animateToPage(
-      3,
+      2,
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
     );
@@ -105,8 +92,6 @@ class _MainLayoutState extends State<MainLayout> {
 
   int _getNavIndex(BuildContext context) {
     switch (_sidePage) {
-      case _ShellSidePage.utilities:
-        return 2;
       case _ShellSidePage.utilitiesTwo:
         return 3;
       case _ShellSidePage.notifications:
@@ -115,6 +100,9 @@ class _MainLayoutState extends State<MainLayout> {
         final location = GoRouterState.of(context).uri.path;
         if (location.startsWith(AppRoute.buyTicket.path)) {
           return 1;
+        }
+        if (location.startsWith(AppRoute.checkTicket.path)) {
+          return 2;
         }
         if (location.startsWith(AppRoute.profile.path)) {
           return 5;
@@ -134,7 +122,8 @@ class _MainLayoutState extends State<MainLayout> {
         context.go(AppRoute.buyTicket.path);
         break;
       case 2:
-        _goToUtilities();
+        _goToMain();
+        context.go(AppRoute.checkTicket.path);
         break;
       case 3:
         _goToUtilitiesTwo();
@@ -162,30 +151,16 @@ class _MainLayoutState extends State<MainLayout> {
         controller: _pageController,
         physics: const BouncingScrollPhysics(),
         onPageChanged: (index) {
-          if (index == 3 && !widget.loginViewModel.isAuthenticated) {
+          if (index == 2 && !widget.loginViewModel.isAuthenticated) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (!mounted) return;
-              _pageController.jumpToPage(2);
+              _pageController.jumpToPage(1);
             });
             return;
           }
           _syncSidePage(index);
         },
         children: [
-          UtilitiesView(
-            key: const ValueKey('shell-utilities'),
-            isAuthenticated: widget.loginViewModel.isAuthenticated,
-            onOpenNotifications: () => _goToNotifications(context),
-            onOpenBlog: () {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => BlogScreen(
-                    onBack: () => Navigator.of(context).pop(),
-                  ),
-                ),
-              );
-            },
-          ),
           UtilitiesTwoView(
             key: const ValueKey('shell-utilities-two'),
             isAuthenticated: widget.loginViewModel.isAuthenticated,
@@ -259,12 +234,12 @@ class _AnimatedBottomNavigation extends StatelessWidget {
       activeIcon: Icons.confirmation_number_rounded,
     ),
     (
-      label: 'Tiện ích',
-      icon: Icons.grid_view_rounded,
-      activeIcon: Icons.grid_view_rounded,
+      label: 'Dò vé',
+      icon: Icons.fact_check_outlined,
+      activeIcon: Icons.fact_check_rounded,
     ),
     (
-      label: 'Tiện ích 2',
+      label: 'Tiện ích',
       icon: Icons.dashboard_customize_outlined,
       activeIcon: Icons.dashboard_customize_rounded,
     ),

@@ -43,7 +43,7 @@ class UtilitiesTwoView extends ConsumerWidget {
       body: Column(
         children: [
           _UtilitiesTwoHeader(
-            title: 'Tiện ích 2',
+            title: 'Tiện ích',
             onBack: onBack,
             onOpenCart: () => context.pushNamed(AppRoute.cart.name),
             onOpenChat: () => _openChat(context),
@@ -67,7 +67,7 @@ class UtilitiesTwoView extends ConsumerWidget {
                           crossAxisCount: 2,
                           mainAxisSpacing: 12,
                           crossAxisSpacing: 12,
-                          childAspectRatio: 0.78,
+                          childAspectRatio: 0.66,
                           children: [
                             _UtilityCard(
                               icon: Icons.notifications_active_outlined,
@@ -103,8 +103,6 @@ class UtilitiesTwoView extends ConsumerWidget {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 14),
-                        _SupportBanner(onTap: () => _openChat(context)),
                       ],
                     ),
                   ),
@@ -554,7 +552,7 @@ class _UtilityCard extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(18),
       child: Ink(
-        padding: const EdgeInsets.fromLTRB(12, 18, 12, 14),
+        padding: const EdgeInsets.fromLTRB(12, 16, 12, 14),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(18),
@@ -570,8 +568,8 @@ class _UtilityCard extends StatelessWidget {
         child: Column(
           children: [
             Container(
-              width: 68,
-              height: 68,
+              width: 64,
+              height: 64,
               decoration: const BoxDecoration(
                 color: Color(0xFFFCE7E7),
                 shape: BoxShape.circle,
@@ -588,7 +586,7 @@ class _UtilityCard extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 14),
             Text(
               title,
               textAlign: TextAlign.center,
@@ -596,7 +594,7 @@ class _UtilityCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: Color(0xFF1B1110),
-                fontSize: 20,
+                fontSize: 19,
                 fontWeight: FontWeight.w900,
               ),
             ),
@@ -605,7 +603,7 @@ class _UtilityCard extends StatelessWidget {
               child: Text(
                 subtitle,
                 textAlign: TextAlign.center,
-                maxLines: 3,
+                maxLines: 4,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: Color(0xFF3F3A38),
@@ -615,110 +613,42 @@ class _UtilityCard extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF1F1),
+            const SizedBox(height: 6),
+            Material(
+              color: const Color(0xFFFFF1F1),
+              borderRadius: BorderRadius.circular(999),
+              child: InkWell(
+                onTap: onTap,
                 borderRadius: BorderRadius.circular(999),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Flexible(
-                    child: Text(
-                      actionLabel,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w900,
+                hoverColor: AppColors.primary.withValues(alpha: 0.08),
+                splashColor: AppColors.primary.withValues(alpha: 0.12),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          actionLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 4),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: AppColors.primary,
+                        size: 18,
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 4),
-                  const Icon(
-                    Icons.chevron_right_rounded,
-                    color: AppColors.primary,
-                    size: 18,
-                  ),
-                ],
+                ),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SupportBanner extends StatelessWidget {
-  const _SupportBanner({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: Ink(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFFCF1),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFFFFF0BC)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 58,
-              height: 58,
-              decoration: const BoxDecoration(
-                color: Color(0xFFFFF3C4),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.support_agent_rounded,
-                color: AppColors.primary,
-                size: 30,
-              ),
-            ),
-            const SizedBox(width: 14),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Bạn cần hỗ trợ?',
-                    style: TextStyle(
-                      color: AppColors.primary,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'Đội ngũ CSKH luôn sẵn sàng hỗ trợ bạn 24/7',
-                    style: TextStyle(
-                      color: Color(0xFF6B625F),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              width: 44,
-              height: 44,
-              decoration: const BoxDecoration(
-                color: Color(0xFFFFD33F),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.chevron_right_rounded, color: Colors.white),
             ),
           ],
         ),

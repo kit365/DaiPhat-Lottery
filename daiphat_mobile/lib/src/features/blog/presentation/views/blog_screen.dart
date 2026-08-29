@@ -31,14 +31,6 @@ class BlogScreen extends ConsumerStatefulWidget {
 }
 
 class _BlogScreenState extends ConsumerState<BlogScreen> {
-  final _searchController = TextEditingController();
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
   void _openDetail(BlogPost post) {
     final slug = post.slug;
     if (slug == null || slug.isEmpty) return;
@@ -46,6 +38,14 @@ class _BlogScreenState extends ConsumerState<BlogScreen> {
     Navigator.of(
       context,
     ).push(MaterialPageRoute(builder: (_) => BlogDetailScreen(slug: slug)));
+  }
+
+  void _openAllPosts() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const _BlogAllScreen(),
+      ),
+    );
   }
 
   @override
@@ -62,12 +62,8 @@ class _BlogScreenState extends ConsumerState<BlogScreen> {
             child: _BlogContent(
               data: data,
               onBack: widget.onBack,
-              searchController: _searchController,
-              onSearch: (q) =>
-                  ref.read(blogViewModelProvider.notifier).search(q),
-              onCategorySelected: (i) =>
-                  ref.read(blogViewModelProvider.notifier).selectCategory(i),
               onOpenDetail: _openDetail,
+              onOpenAll: _openAllPosts,
             ),
           ),
           loading: () => _BlogSkeleton(onBack: widget.onBack),
@@ -85,47 +81,29 @@ class _BlogContent extends StatelessWidget {
   const _BlogContent({
     required this.data,
     required this.onBack,
-    required this.searchController,
-    required this.onSearch,
-    required this.onCategorySelected,
     required this.onOpenDetail,
+    required this.onOpenAll,
   });
 
   final BlogListState data;
   final VoidCallback? onBack;
-  final TextEditingController searchController;
-  final void Function(String) onSearch;
-  final void Function(int) onCategorySelected;
   final void Function(BlogPost) onOpenDetail;
+  final VoidCallback onOpenAll;
 
   @override
   Widget build(BuildContext context) {
     final featured = data.featured;
     final popular = data.popular;
     final recent = data.recent;
-    final categories = data.categories.map((c) => c.name).toList();
-
     return CustomScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
         SliverToBoxAdapter(child: _buildAppBar(onBack)),
-        SliverToBoxAdapter(
-          child: _buildSearchBar(
-            controller: searchController,
-            onSubmitted: onSearch,
-          ),
-        ),
-        const SliverToBoxAdapter(child: SizedBox(height: 18)),
-        SliverToBoxAdapter(
-          child: _buildCategoryChips(
-            categories: categories,
-            selectedIndex: data.selectedCategoryIndex,
-            onSelected: onCategorySelected,
-          ),
-        ),
-        const SliverToBoxAdapter(child: SizedBox(height: 26)),
+        const SliverToBoxAdapter(child: SizedBox(height: 12)),
         if (featured != null || popular.isNotEmpty) ...[
-          const SliverToBoxAdapter(child: _SectionHeader(title: 'Noi bat')),
+          SliverToBoxAdapter(
+            child: _SectionHeader(title: 'Noi bat', onSeeAll: onOpenAll),
+          ),
           const SliverToBoxAdapter(child: SizedBox(height: 14)),
           SliverToBoxAdapter(
             child: _buildPopularSection(
@@ -136,7 +114,9 @@ class _BlogContent extends StatelessWidget {
           ),
           const SliverToBoxAdapter(child: SizedBox(height: 28)),
         ],
-        const SliverToBoxAdapter(child: _SectionHeader(title: 'Bai viet moi')),
+        SliverToBoxAdapter(
+          child: _SectionHeader(title: 'Bai viet moi', onSeeAll: onOpenAll),
+        ),
         const SliverToBoxAdapter(child: SizedBox(height: 14)),
         if (recent.isEmpty)
           SliverToBoxAdapter(
@@ -158,6 +138,329 @@ class _BlogContent extends StatelessWidget {
           ),
         const SliverToBoxAdapter(child: SizedBox(height: 32)),
       ],
+    );
+  }
+}
+
+class _BlogAllScreen extends ConsumerStatefulWidget {
+  const _BlogAllScreen();
+
+  @override
+  ConsumerState<_BlogAllScreen> createState() => _BlogAllScreenState();
+}
+
+class _BlogAllScreenState extends ConsumerState<_BlogAllScreen> {
+  final _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    final current = ref.read(blogViewModelProvider).asData?.value;
+    _searchController.text = current?.searchQuery ?? '';
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _openDetail(BlogPost post) {
+    final slug = post.slug;
+    if (slug == null || slug.isEmpty) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => BlogDetailScreen(slug: slug),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final blogState = ref.watch(blogViewModelProvider);
+
+    return Scaffold(
+      backgroundColor: _pageBg,
+      body: SafeArea(
+        child: blogState.when(
+          data: (data) {
+            final categories = data.categories.map((c) => c.name).toList();
+            final posts = <BlogPost>[
+              if (data.featured != null) data.featured!,
+              ...data.popular,
+              ...data.recent,
+            ];
+            final seen = <String>{};
+            final uniquePosts = posts.where((post) {
+              final key = post.slug ?? post.title;
+              return seen.add(key);
+            }).toList();
+
+            return RefreshIndicator(
+              color: _primary,
+              onRefresh: () =>
+                  ref.read(blogViewModelProvider.notifier).refresh(),
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverToBoxAdapter(child: _buildAllPostsAppBar(context)),
+                  SliverToBoxAdapter(
+                    child: _buildSearchBar(
+                      controller: _searchController,
+                      onSubmitted: (q) =>
+                          ref.read(blogViewModelProvider.notifier).search(q),
+                    ),
+                  ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 18)),
+                  SliverToBoxAdapter(
+                    child: _buildCategoryChips(
+                      categories: categories,
+                      selectedIndex: data.selectedCategoryIndex,
+                      onSelected: (i) =>
+                          ref.read(blogViewModelProvider.notifier).selectCategory(i),
+                    ),
+                  ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 22)),
+                  if (uniquePosts.isEmpty)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Center(
+                        child: Text(
+                          'Khong tim thay bai viet nao.',
+                          style: GoogleFonts.inter(color: _secondary),
+                        ),
+                      ),
+                    )
+                  else
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 22),
+                      sliver: SliverGrid.builder(
+                        itemCount: uniquePosts.length,
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 14,
+                          crossAxisSpacing: 14,
+                          childAspectRatio: 0.66,
+                        ),
+                        itemBuilder: (_, index) => _AllBlogCard(
+                          post: uniquePosts[index],
+                          onTap: () => _openDetail(uniquePosts[index]),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+          loading: () => const Center(
+            child: CircularProgressIndicator(color: _primary),
+          ),
+          error: (e, _) => _BlogError(
+            message: e.toString(),
+            onRetry: () => ref.invalidate(blogViewModelProvider),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+Widget _buildAllPostsAppBar(BuildContext context) {
+  return Padding(
+    padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
+    child: Row(
+      children: [
+        _CircleIconButton(
+          icon: Icons.arrow_back_ios_new_rounded,
+          onTap: () => Navigator.of(context).pop(),
+        ),
+        Expanded(
+          child: Text(
+            'Tin tức',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              color: _primary,
+            ),
+          ),
+        ),
+        _CircleIconButton(
+          icon: Icons.search_rounded,
+          onTap: () {},
+        ),
+      ],
+    ),
+  );
+}
+
+class _CircleIconButton extends StatelessWidget {
+  const _CircleIconButton({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      shape: const CircleBorder(),
+      elevation: 4,
+      shadowColor: Colors.black.withValues(alpha: 0.16),
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: SizedBox(
+          width: 52,
+          height: 52,
+          child: Icon(icon, color: _primary, size: 25),
+        ),
+      ),
+    );
+  }
+}
+
+class _AllBlogCard extends StatelessWidget {
+  const _AllBlogCard({required this.post, required this.onTap});
+
+  final BlogPost post;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      elevation: 2.5,
+      shadowColor: Colors.black.withValues(alpha: 0.12),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              height: 118,
+              width: double.infinity,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.network(
+                    post.imageUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => Container(
+                      color: _goldLight,
+                      child: const Icon(
+                        Icons.image_outlined,
+                        color: _gold,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 8,
+                    top: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _primary,
+                        borderRadius: BorderRadius.circular(999),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.16),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        post.category.isNotEmpty ? post.category : 'Tin tức',
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      post.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        height: 1.25,
+                        fontWeight: FontWeight.w800,
+                        color: _ink,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      post.excerpt,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        height: 1.45,
+                        color: _secondary,
+                      ),
+                    ),
+                    const Spacer(),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.calendar_today_outlined,
+                          size: 13,
+                          color: _secondary,
+                        ),
+                        const SizedBox(width: 5),
+                        Expanded(
+                          child: Text(
+                            post.date,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              color: _secondary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          'Đọc tiếp',
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            color: _primary,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(width: 3),
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          size: 16,
+                          color: _primary,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -339,9 +642,10 @@ Widget _buildCategoryChips({
 }
 
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title});
+  const _SectionHeader({required this.title, this.onSeeAll});
 
   final String title;
+  final VoidCallback? onSeeAll;
 
   @override
   Widget build(BuildContext context) {
@@ -371,12 +675,19 @@ class _SectionHeader extends StatelessWidget {
               ),
             ],
           ),
-          Text(
-            'Xem tat ca',
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: _primary,
+          InkWell(
+            onTap: onSeeAll,
+            borderRadius: BorderRadius.circular(999),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              child: Text(
+                'Xem tất cả',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: _primary,
+                ),
+              ),
             ),
           ),
         ],
@@ -649,45 +960,6 @@ class _BlogSkeleton extends StatelessWidget {
     return CustomScrollView(
       slivers: [
         SliverToBoxAdapter(child: _buildAppBar(onBack)),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Shimmer.fromColors(
-              baseColor: Colors.grey[300]!,
-              highlightColor: Colors.grey[100]!,
-              child: Container(
-                height: 56,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(22),
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SliverToBoxAdapter(child: SizedBox(height: 24)),
-        SliverToBoxAdapter(
-          child: SizedBox(
-            height: 48,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: 4,
-              separatorBuilder: (_, _) => const SizedBox(width: 12),
-              itemBuilder: (_, _) => Shimmer.fromColors(
-                baseColor: Colors.grey[300]!,
-                highlightColor: Colors.grey[100]!,
-                child: Container(
-                  width: 118,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
         const SliverToBoxAdapter(child: SizedBox(height: 24)),
         SliverToBoxAdapter(
           child: Padding(

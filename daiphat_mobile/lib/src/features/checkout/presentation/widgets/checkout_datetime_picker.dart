@@ -17,6 +17,7 @@ class CheckoutDateTimePicker extends StatefulWidget {
   final String? errorText;
   final int minLeadMinutes;
   final VoidCallback? onInfoTap;
+  final bool embedded;
 
   const CheckoutDateTimePicker({
     super.key,
@@ -25,6 +26,7 @@ class CheckoutDateTimePicker extends StatefulWidget {
     this.errorText,
     this.minLeadMinutes = 15,
     this.onInfoTap,
+    this.embedded = false,
   });
 
   @override
@@ -116,6 +118,80 @@ class _CheckoutDateTimePickerState extends State<CheckoutDateTimePicker> {
   Widget build(BuildContext context) {
     final hasValue = _selected != null;
     final hasError = widget.errorText != null;
+
+    if (widget.embedded) {
+      return InkWell(
+        onTap: _openSheet,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const SizedBox(
+                    width: 48,
+                    child: Icon(
+                      Icons.calendar_month_outlined,
+                      color: Color(0xFF15213B),
+                      size: 26,
+                    ),
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Thời gian đến lấy *',
+                          style: TextStyle(
+                            color: hasError
+                                ? AppColors.primary
+                                : const Color(0xFF8B94A3),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _displayText,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: hasValue
+                                ? const Color(0xFF15213B)
+                                : AppColors.loginPlaceholder,
+                            fontSize: 15,
+                            fontWeight:
+                                hasValue ? FontWeight.w700 : FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: Color(0xFF15213B),
+                    size: 28,
+                  ),
+                ],
+              ),
+              if (hasError)
+                Padding(
+                  padding: const EdgeInsets.only(left: 48, top: 6),
+                  child: Text(
+                    widget.errorText!,
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

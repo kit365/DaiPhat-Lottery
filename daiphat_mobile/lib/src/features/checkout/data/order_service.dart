@@ -37,11 +37,17 @@ class OrderService {
     int page = 1,
     int size = 10,
     String? status,
+    String? search,
+    String sortBy = 'createdAt',
+    String direction = 'desc',
   }) async {
     final params = <String, dynamic>{
       'page': page,
       'size': size,
       if (status != null && status.isNotEmpty) 'status': status,
+      if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+      'sortBy': sortBy,
+      'direction': direction,
     };
     final response = await _apiClient.get(
       '$_baseOrders/my-orders',
