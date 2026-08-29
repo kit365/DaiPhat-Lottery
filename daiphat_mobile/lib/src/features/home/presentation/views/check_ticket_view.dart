@@ -167,7 +167,7 @@ class _HeaderBar extends StatelessWidget {
             ],
           ),
           child: const Icon(
-            Icons.qr_code_scanner_rounded,
+            Icons.search_rounded,
             color: AppColors.primary,
             size: 20,
           ),

@@ -72,8 +72,8 @@ class _AnimatedBottomNavigation extends StatelessWidget {
     ),
     (
       label: 'Dò vé',
-      icon: Icons.qr_code_scanner_rounded,
-      activeIcon: Icons.qr_code_scanner_rounded,
+      icon: Icons.search_rounded,
+      activeIcon: Icons.search_rounded,
     ),
     (
       label: 'Trang chủ',
@@ -86,11 +86,6 @@ class _AnimatedBottomNavigation extends StatelessWidget {
       activeIcon: Icons.dashboard_customize_rounded,
     ),
     (
-      label: 'Thông báo',
-      icon: Icons.notifications_none_rounded,
-      activeIcon: Icons.notifications_rounded,
-    ),
-    (
       label: 'Cá nhân',
       icon: Icons.person_outline_rounded,
       activeIcon: Icons.person_rounded,
@@ -100,6 +95,7 @@ class _AnimatedBottomNavigation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.paddingOf(context).bottom;
+    const branchIndexes = [0, 1, 2, 3, 5];
 
     return Container(
       height: 70 + bottomInset,
@@ -122,9 +118,8 @@ class _AnimatedBottomNavigation extends StatelessWidget {
             Expanded(
               child: _AnimatedNavItem(
                 item: _items[index],
-                selected: selectedIndex == index,
-                badge: index == 4 ? notificationBadge : 0,
-                onTap: () => onTap(index),
+                selected: selectedIndex == branchIndexes[index],
+                onTap: () => onTap(branchIndexes[index]),
               ),
             ),
         ],
@@ -138,13 +133,11 @@ class _AnimatedNavItem extends StatelessWidget {
     required this.item,
     required this.selected,
     required this.onTap,
-    this.badge = 0,
   });
 
   final ({String label, IconData icon, IconData activeIcon}) item;
   final bool selected;
   final VoidCallback onTap;
-  final int badge;
 
   @override
   Widget build(BuildContext context) {
@@ -192,38 +185,6 @@ class _AnimatedNavItem extends StatelessWidget {
                           color: activeColor,
                           size: 20 + (2 * value),
                         ),
-                        if (badge > 0)
-                          Positioned(
-                            right: -8,
-                            top: -6,
-                            child: Container(
-                              constraints: const BoxConstraints(
-                                minWidth: 16,
-                                minHeight: 16,
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 3,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary,
-                                borderRadius: BorderRadius.circular(999),
-                                border: Border.all(
-                                  color: AppColors.surfacePrimary,
-                                  width: 1.2,
-                                ),
-                              ),
-                              alignment: Alignment.center,
-                              child: Text(
-                                badge > 99 ? '99+' : '$badge',
-                                style: const TextStyle(
-                                  color: AppColors.surfacePrimary,
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w800,
-                                  height: 1,
-                                ),
-                              ),
-                            ),
-                          ),
                       ],
                     ),
                   ),

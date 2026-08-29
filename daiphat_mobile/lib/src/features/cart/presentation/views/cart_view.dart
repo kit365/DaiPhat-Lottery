@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
-import 'package:intl/intl.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -560,42 +559,50 @@ class _CartViewState extends ConsumerState<CartView> {
   ) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
-      child: Row(
+      child: Stack(
+        alignment: Alignment.center,
         children: [
-          AppHeaderActionButton(
-            icon: Icons.arrow_back_ios_new_rounded,
-            tooltip: 'Quay lại',
-            onTap: () {
-              if (_isSelectionMode) {
-                _toggleSelectionMode();
-                return;
-              }
-              if (Navigator.of(context).canPop()) {
-                Navigator.of(context).pop();
-              } else {
-                context.go(AppRoute.buyTicket.path);
-              }
-            },
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              items.isNotEmpty ? 'Giỏ hàng ($ticketCount)' : 'Giỏ hàng',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.pageTitle(),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: AppHeaderActionButton(
+              icon: Icons.arrow_back_ios_new_rounded,
+              tooltip: 'Quay lại',
+              onTap: () {
+                if (_isSelectionMode) {
+                  _toggleSelectionMode();
+                  return;
+                }
+                if (Navigator.of(context).canPop()) {
+                  Navigator.of(context).pop();
+                } else {
+                  context.go(AppRoute.buyTicket.path);
+                }
+              },
             ),
           ),
-          if (items.isNotEmpty) ...[
-            const SizedBox(width: 12),
-            AppHeaderActionButton(
-              icon: _isSelectionMode
-                  ? Icons.close_rounded
-                  : Icons.delete_outline_rounded,
-              tooltip: _isSelectionMode ? 'Đóng chọn' : 'Xóa nhiều',
-              onTap: _toggleSelectionMode,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 64),
+            child: Center(
+              child: Text(
+                items.isNotEmpty ? 'Giỏ hàng ($ticketCount)' : 'Giỏ hàng',
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.pageTitle(),
+              ),
             ),
-          ],
+          ),
+          if (items.isNotEmpty)
+            Align(
+              alignment: Alignment.centerRight,
+              child: AppHeaderActionButton(
+                icon: _isSelectionMode
+                    ? Icons.close_rounded
+                    : Icons.delete_outline_rounded,
+                tooltip: _isSelectionMode ? 'Đóng chọn' : 'Xóa nhiều',
+                onTap: _toggleSelectionMode,
+              ),
+            ),
         ],
       ),
     );
