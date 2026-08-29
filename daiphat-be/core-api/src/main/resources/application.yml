@@ -12,6 +12,8 @@ spring:
     schemas:
       - public
     default-schema: public
+    # Schema and reference data have separate, explicit migration streams.
+    locations: classpath:db/schema,classpath:db/seed
   config:
     import: optional:classpath:chat/chat-schedule.yml,optional:classpath:chat/chat-intent.yml,optional:classpath:chat/chat-messages.yml
   threads:

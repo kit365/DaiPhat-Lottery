@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/widgets/app_header_action_button.dart';
 import 'package:go_router/go_router.dart';
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
@@ -132,13 +133,17 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
             right: 16,
             child: Row(
               children: [
-                _buildHeaderAction(
+                AppHeaderActionButton(
                   icon: Icons.settings_outlined,
+                  iconColor: const Color(0xFF222222),
+                  tooltip: 'Cài đặt hồ sơ',
                   onTap: () => context.push(AppRoute.profileDetail.path),
                 ),
-                const SizedBox(width: 10),
-                _buildHeaderAction(
+                const SizedBox(width: 8),
+                AppHeaderActionButton(
                   icon: Icons.chat_bubble_outline_rounded,
+                  iconColor: const Color(0xFF222222),
+                  tooltip: 'Trò chuyện / Hỗ trợ',
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute<void>(
@@ -348,57 +353,6 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildHeaderAction({
-    required IconData icon,
-    required VoidCallback onTap,
-    int badge = 0,
-  }) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Material(
-          color: Colors.white,
-          shape: const CircleBorder(),
-          elevation: 2,
-          shadowColor: const Color(0x26000000),
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            onTap: onTap,
-            child: SizedBox(
-              width: 39,
-              height: 39,
-              child: Icon(icon, color: const Color(0xFF222222), size: 21),
-            ),
-          ),
-        ),
-        if (badge > 0)
-          Positioned(
-            right: -2,
-            top: -3,
-            child: Container(
-              constraints: const BoxConstraints(minWidth: 17, minHeight: 17),
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: Colors.white, width: 1.5),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                badge > 9 ? '9+' : '$badge',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 9,
-                  height: 1,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-          ),
-      ],
     );
   }
 

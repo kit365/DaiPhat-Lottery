@@ -9,6 +9,7 @@ import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
 import 'package:daiphat_mobile/src/features/chat/presentation/views/chat_screen.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/widgets/app_header_action_button.dart';
 
 class UtilitiesTwoView extends ConsumerWidget {
   const UtilitiesTwoView({
@@ -144,11 +145,12 @@ class _UtilitiesTwoHeader extends ConsumerWidget {
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 10, 18, 17),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
           child: Row(
             children: [
-              _HeaderSquareButton(
+              AppHeaderActionButton(
                 icon: Icons.arrow_back_ios_new_rounded,
+                tooltip: 'Quay lại',
                 onTap: onBack,
               ),
               Expanded(
@@ -156,22 +158,25 @@ class _UtilitiesTwoHeader extends ConsumerWidget {
                   title,
                   textAlign: TextAlign.center,
                   style: GoogleFonts.barlow(
-                    fontSize: 21,
+                    fontSize: 20,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
+                    letterSpacing: -.2,
                   ),
                 ),
               ),
               Row(
                 children: [
-                  _HeaderSquareButton(
+                  AppHeaderActionButton(
                     icon: Icons.shopping_cart_outlined,
-                    onTap: onOpenCart,
+                    tooltip: 'Giỏ hàng',
                     badgeCount: count,
+                    onTap: onOpenCart,
                   ),
-                  const SizedBox(width: 9),
-                  _HeaderSquareButton(
+                  const SizedBox(width: 8),
+                  AppHeaderActionButton(
                     icon: Icons.chat_bubble_outline_rounded,
+                    tooltip: 'Trò chuyện / Hỗ trợ',
                     onTap: onOpenChat,
                   ),
                 ],
@@ -179,70 +184,6 @@ class _UtilitiesTwoHeader extends ConsumerWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _HeaderSquareButton extends StatelessWidget {
-  const _HeaderSquareButton({
-    required this.icon,
-    required this.onTap,
-    this.badgeCount = 0,
-  });
-
-  final IconData icon;
-  final VoidCallback onTap;
-  final int badgeCount;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(999),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Icon(icon, color: AppColors.primary, size: 20),
-          ),
-          if (badgeCount > 0)
-            Positioned(
-              right: -4,
-              top: -4,
-              child: Container(
-                constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.goldDark,
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: Colors.white, width: 1.5),
-                ),
-                child: Center(
-                  child: Text(
-                    badgeCount > 99 ? '99+' : '$badgeCount',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
       ),
     );
   }
