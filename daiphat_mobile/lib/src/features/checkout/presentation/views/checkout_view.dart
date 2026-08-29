@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
@@ -7,6 +8,7 @@ import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
 import 'package:daiphat_mobile/src/features/cart/models/cart_item_model.dart';
 import '../../models/transaction_type.dart';
+import '../../data/system_config_service.dart';
 import '../providers/checkout_provider.dart';
 import '../widgets/checkout_datetime_picker.dart';
 
@@ -25,6 +27,7 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
   bool _submitted = false;
   bool _nameTouched = false;
   bool _phoneTouched = false;
+
   /// Khoá danh sách vé theo thời điểm vào màn (mua ngay / giỏ), tránh đổi khi thoát phiên.
   List<CartItemData>? _lockedCheckoutItems;
 
@@ -81,7 +84,9 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
     if (!_phoneTouched && !_submitted) return null;
     final phone = _phoneController.text.trim();
     if (phone.isEmpty) return 'Vui lòng nhập số điện thoại';
-    if (!RegExp(r'^\d+$').hasMatch(phone)) return 'Số điện thoại chỉ được chứa số';
+    if (!RegExp(r'^\d+$').hasMatch(phone)) {
+      return 'Số điện thoại chỉ được chứa số';
+    }
     if (!phone.startsWith('0')) return 'Số điện thoại phải bắt đầu bằng 0';
     if (phone.length > 11) return 'Số điện thoại không được dài hơn 11 số';
     return null;
@@ -92,7 +97,9 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
     final notifier = ref.read(checkoutProvider.notifier);
     final success = await notifier.submitOrder();
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     final checkoutState = ref.read(checkoutProvider);
     if (checkoutState.checkoutUrl != null) {
@@ -122,13 +129,18 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
     final checkoutState = ref.watch(checkoutProvider);
     final receiveTypesAsync = ref.watch(receiveTypesProvider);
     final transactionTypesAsync = ref.watch(transactionTypesProvider);
-    _lockedCheckoutItems ??=
-        List<CartItemData>.from(ref.read(checkoutItemsProvider));
+    _lockedCheckoutItems ??= List<CartItemData>.from(
+      ref.read(checkoutItemsProvider),
+    );
     final cartItems = _lockedCheckoutItems!;
-    final cartSubtotal =
-        cartItems.fold<int>(0, (sum, item) => sum + item.subtotal);
-    final cartTicketCount =
-        cartItems.fold<int>(0, (sum, item) => sum + item.quantity);
+    final cartSubtotal = cartItems.fold<int>(
+      0,
+      (sum, item) => sum + item.subtotal,
+    );
+    final cartTicketCount = cartItems.fold<int>(
+      0,
+      (sum, item) => sum + item.quantity,
+    );
     final cartTotal = cartSubtotal;
 
     // Init form fields once
@@ -146,231 +158,237 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
         ref.read(buyNowItemsProvider.notifier).clear();
       },
       child: Scaffold(
-      backgroundColor: const Color(0xFFF7F7F8),
-      appBar: AppBar(
-        title: const Text(
-          'Thanh toán',
-          style: TextStyle(
-            color: Color(0xFF15213B),
-            fontWeight: FontWeight.w800,
-            fontSize: 18,
+        backgroundColor: const Color(0xFFF7F7F8),
+        appBar: AppBar(
+          title: const Text(
+            'Thanh toán',
+            style: TextStyle(
+              color: Color(0xFF15213B),
+              fontWeight: FontWeight.w800,
+              fontSize: 18,
+            ),
+          ),
+          backgroundColor: Colors.white,
+          foregroundColor: const Color(0xFF15213B),
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          surfaceTintColor: Colors.transparent,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+            onPressed: () => context.pop(),
           ),
         ),
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF15213B),
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        surfaceTintColor: Colors.transparent,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => context.pop(),
-        ),
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: RefreshIndicator(
-              color: AppColors.primary,
-              onRefresh: () async {
-                ref.invalidate(receiveTypesProvider);
-                ref.invalidate(transactionTypesProvider);
-                await ref.read(checkoutProvider.notifier).loadUserProfile();
-              },
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-                children: [
-                const _CheckoutSecureHint(),
-                const SizedBox(height: 18),
-                // ─── 1. DANH SÁCH VÉ ──────────────────────────
-                _buildSectionTitle('Danh sách vé', number: 1),
-                const SizedBox(height: 10),
-                ...cartItems.map(
-                  (item) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: _CartItemCard(item: item),
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // ─── 2. THÔNG TIN NHẬN VÉ ─────────────────────
-                _buildSectionTitle('Thông tin nhận vé', number: 2),
-                const SizedBox(height: 12),
-                _buildUserInfoForm(checkoutState),
-                const SizedBox(height: 16),
-
-                // Receive types
-                receiveTypesAsync.when(
-                  data: (types) {
-                    if (checkoutState.selectedReceiveType == null &&
-                        types.isNotEmpty) {
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        ref
-                            .read(checkoutProvider.notifier)
-                            .setSelectedReceiveType(types.first.value);
-                      });
-                    }
-                    return _buildReceiveTypeSelector(
-                      types,
-                      checkoutState.selectedReceiveType,
-                      (val) => ref
-                          .read(checkoutProvider.notifier)
-                          .setSelectedReceiveType(val),
-                    );
-                  },
-                  loading: () => const Center(
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+        body: Column(
+          children: [
+            Expanded(
+              child: RefreshIndicator(
+                color: AppColors.primary,
+                onRefresh: () async {
+                  ref.invalidate(receiveTypesProvider);
+                  ref.invalidate(transactionTypesProvider);
+                  ref.invalidate(operatingHoursProvider);
+                  await ref.read(checkoutProvider.notifier).loadUserProfile();
+                },
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                  children: [
+                    // ─── 1. DANH SÁCH VÉ ──────────────────────────
+                    _buildSectionTitle('Danh sách vé', number: 1),
+                    const SizedBox(height: 10),
+                    ...cartItems.map(
+                      (item) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _CartItemCard(item: item),
+                      ),
                     ),
-                  ),
-                  error: (e, _) => Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Không tải được danh mục, dùng mặc định nhận tại quầy.',
-                        style: TextStyle(
-                          color: Colors.orange.shade800,
-                          fontSize: 13,
+                    const SizedBox(height: 24),
+
+                    // ─── 2. THÔNG TIN NHẬN VÉ ─────────────────────
+                    _buildSectionTitle('Thông tin nhận vé', number: 2),
+                    const SizedBox(height: 12),
+                    _buildUserInfoForm(checkoutState),
+                    const SizedBox(height: 16),
+
+                    // Receive types
+                    receiveTypesAsync.when(
+                      data: (types) {
+                        if (checkoutState.selectedReceiveType == null &&
+                            types.isNotEmpty) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            ref
+                                .read(checkoutProvider.notifier)
+                                .setSelectedReceiveType(types.first.value);
+                          });
+                        }
+                        return _buildReceiveTypeSelector(
+                          types,
+                          checkoutState.selectedReceiveType,
+                          (val) => ref
+                              .read(checkoutProvider.notifier)
+                              .setSelectedReceiveType(val),
+                        );
+                      },
+                      loading: () => const Center(
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      _buildReceiveTypeSelector(
-                        defaultReceiveTypes,
-                        checkoutState.selectedReceiveType ?? 'COUNTER_PICKUP',
-                        (val) => ref
-                            .read(checkoutProvider.notifier)
-                            .setSelectedReceiveType(val),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // ─── 3. PHƯƠNG THỨC THANH TOÁN ───────────────
-                _buildSectionTitle('Phương thức thanh toán', number: 3),
-                const SizedBox(height: 12),
-                transactionTypesAsync.when(
-                  data: (types) {
-                    // Bỏ REFUND và OFFLINE (tiền mặt) — mobile chỉ hỗ trợ thanh toán online.
-                    final paymentTypes = types
-                        .where(
-                          (t) => t.value != 'REFUND' && t.value != 'OFFLINE',
-                        )
-                        .toList();
-                    final effectiveTypes = paymentTypes.isNotEmpty
-                        ? paymentTypes
-                        : defaultTransactionTypes;
-                    // Tự chọn mặc định nếu chưa chọn hoặc đang giữ OFFLINE đã bị ẩn.
-                    final current = checkoutState.selectedTransactionType;
-                    final needDefault = current == null ||
-                        current == 'OFFLINE' ||
-                        !effectiveTypes.any((t) => t.value == current);
-                    if (needDefault && effectiveTypes.isNotEmpty) {
-                      final online =
-                          effectiveTypes.where((t) => t.value == 'ONLINE');
-                      final def = online.isNotEmpty
-                          ? online.first.value
-                          : effectiveTypes.first.value;
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        ref
-                            .read(checkoutProvider.notifier)
-                            .setSelectedTransactionType(def);
-                      });
-                    }
-                    return _buildPaymentMethodSelector(
-                      effectiveTypes,
-                      checkoutState.selectedTransactionType,
-                      (val) => ref
-                          .read(checkoutProvider.notifier)
-                          .setSelectedTransactionType(val),
-                    );
-                  },
-                  loading: () => const Center(
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  ),
-                  error: (e, _) => Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Không tải được danh mục, dùng mặc định chuyển khoản.',
-                        style: TextStyle(
-                          color: Colors.orange.shade800,
-                          fontSize: 13,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      _buildPaymentMethodSelector(
-                        defaultTransactionTypes,
-                        checkoutState.selectedTransactionType ?? 'ONLINE',
-                        (val) => ref
-                            .read(checkoutProvider.notifier)
-                            .setSelectedTransactionType(val),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // ─── TÓM TẮT ĐƠN HÀNG ─────────────────────────
-                _buildOrderSummary(cartTicketCount, cartSubtotal, cartTotal),
-                const SizedBox(height: 16),
-
-                // Error message
-                if (checkoutState.errorMessage != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.red.shade200),
-                      ),
-                      child: Row(
+                      error: (e, _) => Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(
-                            Icons.error_outline,
-                            color: Colors.red.shade700,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              checkoutState.errorMessage!,
-                              style: TextStyle(
-                                color: Colors.red.shade700,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                              ),
+                          Text(
+                            'Không tải được danh mục, dùng mặc định nhận tại quầy.',
+                            style: TextStyle(
+                              color: Colors.orange.shade800,
+                              fontSize: 13,
                             ),
+                          ),
+                          const SizedBox(height: 8),
+                          _buildReceiveTypeSelector(
+                            defaultReceiveTypes,
+                            checkoutState.selectedReceiveType ??
+                                'COUNTER_PICKUP',
+                            (val) => ref
+                                .read(checkoutProvider.notifier)
+                                .setSelectedReceiveType(val),
                           ),
                         ],
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 24),
 
-                const SizedBox(height: 8),
-              ],
+                    // ─── 3. PHƯƠNG THỨC THANH TOÁN ───────────────
+                    _buildSectionTitle('Phương thức thanh toán', number: 3),
+                    const SizedBox(height: 12),
+                    transactionTypesAsync.when(
+                      data: (types) {
+                        // Bỏ REFUND và OFFLINE (tiền mặt) — mobile chỉ hỗ trợ thanh toán online.
+                        final paymentTypes = types
+                            .where(
+                              (t) =>
+                                  t.value != 'REFUND' && t.value != 'OFFLINE',
+                            )
+                            .toList();
+                        final effectiveTypes = paymentTypes.isNotEmpty
+                            ? paymentTypes
+                            : defaultTransactionTypes;
+                        // Tự chọn mặc định nếu chưa chọn hoặc đang giữ OFFLINE đã bị ẩn.
+                        final current = checkoutState.selectedTransactionType;
+                        final needDefault =
+                            current == null ||
+                            current == 'OFFLINE' ||
+                            !effectiveTypes.any((t) => t.value == current);
+                        if (needDefault && effectiveTypes.isNotEmpty) {
+                          final online = effectiveTypes.where(
+                            (t) => t.value == 'ONLINE',
+                          );
+                          final def = online.isNotEmpty
+                              ? online.first.value
+                              : effectiveTypes.first.value;
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            ref
+                                .read(checkoutProvider.notifier)
+                                .setSelectedTransactionType(def);
+                          });
+                        }
+                        return _buildPaymentMethodSelector(
+                          effectiveTypes,
+                          checkoutState.selectedTransactionType,
+                          (val) => ref
+                              .read(checkoutProvider.notifier)
+                              .setSelectedTransactionType(val),
+                        );
+                      },
+                      loading: () => const Center(
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                      error: (e, _) => Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Không tải được danh mục, dùng mặc định chuyển khoản.',
+                            style: TextStyle(
+                              color: Colors.orange.shade800,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          _buildPaymentMethodSelector(
+                            defaultTransactionTypes,
+                            checkoutState.selectedTransactionType ?? 'ONLINE',
+                            (val) => ref
+                                .read(checkoutProvider.notifier)
+                                .setSelectedTransactionType(val),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // ─── TÓM TẮT ĐƠN HÀNG ─────────────────────────
+                    _buildOrderSummary(
+                      cartTicketCount,
+                      cartSubtotal,
+                      cartTotal,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Error message
+                    if (checkoutState.errorMessage != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.red.shade200),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.error_outline,
+                                color: Colors.red.shade700,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  checkoutState.errorMessage!,
+                                  style: TextStyle(
+                                    color: Colors.red.shade700,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
             ),
-          ),
-          ),
 
-          // ─── BOTTOM BAR ─────────────────────────────────────
-          _buildBottomBar(
-            total: cartTotal,
-            isSubmitting: checkoutState.isSubmitting,
-            canCheckout: checkoutState.isValid && !checkoutState.isSubmitting,
-            onCheckout: _handleCheckout,
-          ),
-        ],
+            // ─── BOTTOM BAR ─────────────────────────────────────
+            _buildBottomBar(
+              total: cartTotal,
+              isSubmitting: checkoutState.isSubmitting,
+              canCheckout: checkoutState.isValid && !checkoutState.isSubmitting,
+              onCheckout: _handleCheckout,
+            ),
+          ],
+        ),
       ),
-    ),
     );
   }
 
@@ -413,10 +431,15 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
   Widget _buildUserInfoForm(CheckoutState state) {
     final nameError = _getNameError();
     final phoneError = _getPhoneError();
-    final timeError = _submitted &&
+    final timeError =
+        _submitted &&
             (state.expectedPickupAt == null || state.expectedPickupAt!.isEmpty)
         ? 'Vui lòng chọn thời gian nhận vé'
         : null;
+
+    final opHours =
+        ref.watch(operatingHoursProvider).asData?.value ??
+        const SiteOperatingHours();
 
     return Container(
       decoration: _cardDecoration(),
@@ -455,6 +478,10 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
               value: state.expectedPickupAt,
               errorText: timeError,
               embedded: true,
+              openHour: opHours.openHour,
+              closeHour: opHours.closeHour,
+              openTimeStr: opHours.openTime,
+              closeTimeStr: opHours.closeTime,
               onChanged: (iso) {
                 ref.read(checkoutProvider.notifier).setExpectedPickupAt(iso);
               },
@@ -490,52 +517,63 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
             children: [
               if (types.indexOf(type) > 0)
                 const Divider(height: 1, color: Color(0xFFF1F3F5)),
-              InkWell(
-                borderRadius: BorderRadius.circular(16),
+              Semantics(
+                container: true,
+                button: true,
+                inMutuallyExclusiveGroup: true,
+                checked: isSelected,
+                label: type.label,
+                hint: isSelected ? 'Đã chọn' : 'Chọn phương thức nhận vé',
                 onTap: () => onSelect(type.value),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Icon(
-                        type.value == 'COUNTER_PICKUP'
-                            ? Icons.store_rounded
-                            : Icons.local_shipping_outlined,
-                        color: isSelected
-                            ? AppColors.primary
-                            : const Color(0xFFD1D5DB),
-                        size: 26,
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              type.label,
-                              style: TextStyle(
-                                color: isSelected
-                                    ? AppColors.primary
-                                    : const Color(0xFF15213B),
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            if (type.value == 'COUNTER_PICKUP')
-                              const Text(
-                                'Đến trực tiếp quầy giao dịch Đại Phát để nhận vé giấy',
-                                style: TextStyle(
-                                  color: Color(0xFF6B7280),
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
+                child: ExcludeSemantics(
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () => onSelect(type.value),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          Icon(
+                            type.value == 'COUNTER_PICKUP'
+                                ? Icons.store_rounded
+                                : Icons.local_shipping_outlined,
+                            color: isSelected
+                                ? AppColors.primary
+                                : const Color(0xFFD1D5DB),
+                            size: 26,
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  type.label,
+                                  style: TextStyle(
+                                    color: isSelected
+                                        ? AppColors.primary
+                                        : const Color(0xFF15213B),
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                  ),
                                 ),
-                              ),
-                          ],
-                        ),
+                                const SizedBox(height: 4),
+                                if (type.value == 'COUNTER_PICKUP')
+                                  const Text(
+                                    'Đến trực tiếp quầy giao dịch Đại Phát để nhận vé giấy',
+                                    style: TextStyle(
+                                      color: Color(0xFF6B7280),
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          _radio(isSelected),
+                        ],
                       ),
-                      _radio(isSelected),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -560,53 +598,64 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
             children: [
               if (types.indexOf(type) > 0)
                 const Divider(height: 1, color: Color(0xFFF1F3F5)),
-              InkWell(
-                borderRadius: BorderRadius.circular(16),
+              Semantics(
+                container: true,
+                button: true,
+                inMutuallyExclusiveGroup: true,
+                checked: isSelected,
+                label: type.label,
+                hint: isSelected ? 'Đã chọn' : 'Chọn phương thức thanh toán',
                 onTap: () => onSelect(type.value),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Icon(
-                        type.value == 'ONLINE'
-                            ? Icons.qr_code_scanner_rounded
-                            : Icons.money_rounded,
-                        color: isSelected
-                            ? AppColors.primary
-                            : const Color(0xFFD1D5DB),
-                        size: 26,
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              type.label,
-                              style: TextStyle(
-                                color: isSelected
-                                    ? AppColors.primary
-                                    : const Color(0xFF15213B),
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                              ),
+                child: ExcludeSemantics(
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () => onSelect(type.value),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          Icon(
+                            type.value == 'ONLINE'
+                                ? Icons.qr_code_scanner_rounded
+                                : Icons.money_rounded,
+                            color: isSelected
+                                ? AppColors.primary
+                                : const Color(0xFFD1D5DB),
+                            size: 26,
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  type.label,
+                                  style: TextStyle(
+                                    color: isSelected
+                                        ? AppColors.primary
+                                        : const Color(0xFF15213B),
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  type.value == 'ONLINE'
+                                      ? 'Quét mã QR bằng ứng dụng ngân hàng (24/7)'
+                                      : 'Thanh toán bằng tiền mặt khi nhận vé tại quầy',
+                                  style: const TextStyle(
+                                    color: Color(0xFF6B7280),
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              type.value == 'ONLINE'
-                                  ? 'Quét mã QR bằng ứng dụng ngân hàng (24/7)'
-                                  : 'Thanh toán bằng tiền mặt khi nhận vé tại quầy',
-                              style: const TextStyle(
-                                color: Color(0xFF6B7280),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                          _radio(isSelected),
+                        ],
                       ),
-                      _radio(isSelected),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -643,41 +692,41 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
         border: Border(top: BorderSide(color: Color(0xFFF1F3F5))),
       ),
       child: SafeArea(
         top: false,
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
                     'Tổng thanh toán',
                     style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF374151),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF15213B),
                     ),
                   ),
-                  const SizedBox(height: 5),
                   Text(
                     _money(total),
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.primary,
+                    style: AppTypography.number(
+                      const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.primary,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 16),
             SizedBox(
-              width: 220,
+              width: double.infinity,
               child: ElevatedButton(
                 onPressed: canCheckout ? onCheckout : null,
                 style: ElevatedButton.styleFrom(
@@ -699,19 +748,12 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                           color: Colors.white,
                         ),
                       )
-                    : const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Chốt đơn ngay',
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          SizedBox(width: 8),
-                          Icon(Icons.chevron_right_rounded, size: 22),
-                        ],
+                    : const Text(
+                        'Chốt đơn ngay',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
               ),
             ),
@@ -735,11 +777,19 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
         const Spacer(),
         Text(
           value,
-          style: TextStyle(
-            color: highlight ? AppColors.primary : const Color(0xFF111827),
-            fontSize: highlight ? 18 : 16,
-            fontWeight: highlight ? FontWeight.w900 : FontWeight.w600,
-          ),
+          style: highlight
+              ? AppTypography.number(
+                  const TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                )
+              : const TextStyle(
+                  color: Color(0xFF111827),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
         ),
       ],
     );
@@ -785,34 +835,8 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
       RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
       (match) => '${match[1]}.',
     );
-    return '$value' 'đ';
-  }
-}
-
-class _CheckoutSecureHint extends StatelessWidget {
-  const _CheckoutSecureHint();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.lock_rounded, size: 16, color: Color(0xFFB6BBC5)),
-        SizedBox(width: 8),
-        Flexible(
-          child: Text(
-            'Giao dịch được bảo mật và mã hóa an toàn',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: Color(0xFF9CA3AF),
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ],
-    );
+    return '$value'
+        'đ';
   }
 }
 
@@ -904,88 +928,106 @@ class _CartItemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFEDEFF3)),
-        boxShadow: [
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFF1E3E0)),
+        boxShadow: const [
           BoxShadow(
-            color: const Color(0xFF12213D).withValues(alpha: 0.07),
-            blurRadius: 20,
-            spreadRadius: -10,
-            offset: const Offset(0, 10),
+            color: Color(0x08000000),
+            blurRadius: 8,
+            offset: Offset(0, 3),
           ),
         ],
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: const Color(0xFFFFF1EF),
-              border: Border.all(color: const Color(0xFFFFE1D9)),
-            ),
-            child: Center(
-              child: Text(
-                item.logoText,
-                style: const TextStyle(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 14,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  'Vé số ${item.province}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 16,
-                    color: Color(0xFF15213B),
-                  ),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 2.5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFDE8E5),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          item.province,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.main(
+                            const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.calendar_month_outlined,
+                          size: 12,
+                          color: Color(0xFF8A6D68),
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          item.dateLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF755E59),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF1EF),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFFFE1D9)),
-                  ),
-                  child: Text(
-                    item.number,
-                    style: const TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 17,
-                      letterSpacing: 1.2,
+                const SizedBox(height: 8),
+                Text(
+                  item.number,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.number(
+                    const TextStyle(
+                      color: Color(0xFFC90F1D),
+                      fontSize: 26,
+                      height: 1,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 2.0,
                     ),
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 12),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
                 'x${item.quantity}',
                 style: const TextStyle(
                   fontWeight: FontWeight.w800,
-                  fontSize: 15,
-                  color: Color(0xFF15213B),
+                  fontSize: 14,
+                  color: Color(0xFF64748B),
                 ),
               ),
               const SizedBox(height: 4),
@@ -993,7 +1035,7 @@ class _CartItemCard extends StatelessWidget {
                 _money2(item.subtotal),
                 style: const TextStyle(
                   fontWeight: FontWeight.w900,
-                  fontSize: 15,
+                  fontSize: 16,
                   color: AppColors.primary,
                 ),
               ),
@@ -1009,6 +1051,7 @@ class _CartItemCard extends StatelessWidget {
       RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
       (match) => '${match[1]}.',
     );
-    return '$value' 'đ';
+    return '$value'
+        'đ';
   }
 }

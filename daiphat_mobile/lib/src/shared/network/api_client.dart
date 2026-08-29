@@ -295,11 +295,11 @@ class ApiClient {
 
       _refreshCompleter?.complete(null);
       return null;
-    } catch (error) {
+    } catch (_) {
       if (!(_refreshCompleter?.isCompleted ?? true)) {
-        _refreshCompleter?.completeError(error);
+        _refreshCompleter?.complete(null);
       }
-      rethrow;
+      return null;
     } finally {
       _isRefreshing = false;
       _refreshCompleter = null;

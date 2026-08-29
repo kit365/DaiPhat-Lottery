@@ -2,6 +2,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../shared/network/api_exception.dart';
 import '../../data/models/notification_model.dart';
 import '../../data/repositories/notification_repository.dart';
 
@@ -123,8 +124,10 @@ class NotificationViewModel extends ChangeNotifier {
   bool _hasNextPage = true;
   bool get hasNextPage => _hasNextPage;
 
-  NotificationViewModel(this._repository) {
-    fetchNotifications();
+  NotificationViewModel(this._repository, {bool autoFetch = false}) {
+    if (autoFetch) {
+      fetchNotifications();
+    }
     _setupFirebaseListener();
   }
 
@@ -169,8 +172,14 @@ class NotificationViewModel extends ChangeNotifier {
       if (_hasNextPage) _page++;
       _error = null;
     } catch (e) {
-      _error = 'Không tải được thông báo. Vui lòng thử lại.';
-      debugPrint('Failed to fetch notifications: $e');
+      if (e is ApiException && e.statusCode == 401) {
+        _notifications = [];
+        _statusCounts = const {};
+        _error = null;
+      } else {
+        _error = 'Không tải được thông báo. Vui lòng thử lại.';
+        debugPrint('Failed to fetch notifications: $e');
+      }
     } finally {
       _isLoading = false;
       _isLoadingMore = false;

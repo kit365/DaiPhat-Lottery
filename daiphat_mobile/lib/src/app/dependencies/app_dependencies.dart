@@ -61,6 +61,7 @@ class AppDependencies {
     final profileViewModel = ProfileViewModel(authRepository, loginViewModel);
     final notificationViewModel = NotificationViewModel(
       NotificationRepository(NotificationApiService(apiClient)),
+      autoFetch: authRepository.isAuthenticated,
     );
 
     return AppDependencies(

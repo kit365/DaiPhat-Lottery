@@ -1,6 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:intl/intl.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +12,8 @@ import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import '../../models/cart_item_model.dart';
 import '../../providers/cart_provider.dart';
+import '../../../tickets/presentation/viewmodels/buy_ticket_viewmodel.dart';
+import '../../../tickets/presentation/views/buy_ticket_view.dart';
 import '../../../tickets/utils/sellable_draw_date.dart';
 
 class CartView extends ConsumerStatefulWidget {
@@ -36,8 +40,45 @@ class _CartViewState extends ConsumerState<CartView> {
     });
   }
 
+  void _openDetail(BuildContext context, CartItemData item) {
+    final listItem = LotteryTicketListItem(
+      id: item.lotteryTicketId,
+      displayName: item.province,
+      code: item.number,
+      shortName: item.logoText,
+      dateLabel: item.dateLabel,
+      dayFilter: item.dateLabel.contains('nay')
+          ? TicketDayFilter.today
+          : TicketDayFilter.tomorrow,
+      drawDate: DateTime.tryParse(item.drawDateIso ?? '') ?? DateTime.now(),
+      status: 'reserved',
+      statusDisplayName: 'Đang giữ vé',
+      stationName: item.kyHieu,
+      imageUrl: item.ticketImageUrl,
+    );
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useRootNavigator: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => TicketDetailModalSheet(ticket: listItem),
+    );
+  }
+
   void _removeItem(CartItemData item, int index) {
     ref.read(cartProvider.notifier).removeAtIndex(index);
+    setState(() {
+      final remainingSelections = _checkoutSelectedIndexes
+          .where((selectedIndex) => selectedIndex != index)
+          .map(
+            (selectedIndex) =>
+                selectedIndex > index ? selectedIndex - 1 : selectedIndex,
+          )
+          .toSet();
+      _checkoutSelectedIndexes
+        ..clear()
+        ..addAll(remainingSelections);
+    });
 
     AppToast.show(
       'Đã xóa vé ${item.number} khỏi giỏ hàng',
@@ -68,6 +109,12 @@ class _CartViewState extends ConsumerState<CartView> {
   }
 
   void _toggleCheckoutSelection(int index) {
+    final items = ref.read(cartProvider);
+    if (index < 0 || index >= items.length) return;
+    if (_isPurchaseExpired(items[index])) {
+      AppToast.error('Vé này đã hết hạn mua. Vui lòng xóa khỏi giỏ hàng.');
+      return;
+    }
     setState(() {
       if (_checkoutSelectedIndexes.contains(index)) {
         _checkoutSelectedIndexes.remove(index);
@@ -91,7 +138,10 @@ class _CartViewState extends ConsumerState<CartView> {
 
   void _notifyExpiredItems() {
     if (_hasNotifiedExpiredItems) return;
-    final expiredCount = ref.read(cartProvider).where(_isPurchaseExpired).length;
+    final expiredCount = ref
+        .read(cartProvider)
+        .where(_isPurchaseExpired)
+        .length;
     if (expiredCount == 0) return;
     _hasNotifiedExpiredItems = true;
     AppToast.error(
@@ -99,36 +149,82 @@ class _CartViewState extends ConsumerState<CartView> {
     );
   }
 
+  Future<void> _confirmRemoveExpiredItems() async {
+    final items = ref.read(cartProvider);
+    final expiredIndexes = <int>[];
+    for (var i = 0; i < items.length; i++) {
+      if (_isPurchaseExpired(items[i])) {
+        expiredIndexes.add(i);
+      }
+    }
+    if (expiredIndexes.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Xóa vé hết hạn',
+          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+        ),
+        content: Text(
+          'Bạn có muốn xóa ${expiredIndexes.length} vé đã hết hạn mua khỏi giỏ hàng không?',
+          style: const TextStyle(
+            fontSize: 14,
+            height: 1.4,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text(
+              'Hủy',
+              style: TextStyle(
+                color: Color(0xFF64748B),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text(
+              'Xóa',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    ref.read(cartProvider.notifier).removeAtIndexes(expiredIndexes);
+    setState(() {
+      _selectedIndexes.clear();
+      _checkoutSelectedIndexes.clear();
+    });
+    AppToast.show('Đã xóa ${expiredIndexes.length} vé hết hạn khỏi giỏ hàng');
+  }
+
   bool _isPurchaseExpired(CartItemData item) {
-    final drawDate = _resolveDrawDate(item);
-    if (drawDate == null) return false;
-    final ticketDate = DateTime(drawDate.year, drawDate.month, drawDate.day);
-    final today = SellableDrawDate.todayVn();
-    if (ticketDate.isBefore(today)) return true;
-    if (_isSameDay(ticketDate, today)) {
-      return SellableDrawDate.isTodayDrawPassed();
-    }
-    return false;
-  }
-
-  DateTime? _resolveDrawDate(CartItemData item) {
     final iso = item.drawDateIso?.trim();
-    if (iso != null && iso.isNotEmpty) {
-      final parsed = DateTime.tryParse(iso);
-      if (parsed != null) return parsed;
-    }
+    if (iso == null || iso.isEmpty) return false;
+    final parsed = DateTime.tryParse(iso);
+    if (parsed == null) return false;
 
-    final match = RegExp(r'(\d{2})/(\d{2})/(\d{4})').firstMatch(item.dateLabel);
-    if (match == null) return null;
-    final day = int.tryParse(match.group(1)!);
-    final month = int.tryParse(match.group(2)!);
-    final year = int.tryParse(match.group(3)!);
-    if (day == null || month == null || year == null) return null;
-    return DateTime(year, month, day);
-  }
-
-  bool _isSameDay(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month && a.day == b.day;
+    final ticketDate = DateTime(parsed.year, parsed.month, parsed.day);
+    final today = SellableDrawDate.todayVn();
+    return ticketDate.isBefore(today) ||
+        (ticketDate == today && SellableDrawDate.isTodayDrawPassed());
   }
 
   Future<void> _confirmDeleteSelected() async {
@@ -207,48 +303,99 @@ class _CartViewState extends ConsumerState<CartView> {
     ref.read(cartProvider.notifier).removeAtIndexes(indexes);
     setState(() {
       _selectedIndexes.clear();
-      _checkoutSelectedIndexes.removeAll(indexes);
+      _checkoutSelectedIndexes.clear();
       _isSelectionMode = false;
     });
     AppToast.show('Đã xóa $count sản phẩm khỏi giỏ hàng');
   }
 
+  Future<void> _confirmRemoveItem(CartItemData item, int index) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Xác nhận xóa vé',
+          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+        ),
+        content: Text(
+          'Bạn có chắc muốn xóa vé số ${item.number} (${item.province}) khỏi giỏ hàng?',
+          style: const TextStyle(
+            fontSize: 14,
+            height: 1.4,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text(
+              'Hủy',
+              style: TextStyle(
+                color: Color(0xFF64748B),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text(
+              'Xóa',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      _removeItem(item, index);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final items = ref.watch(cartProvider);
+    final ticketCount = ref.watch(cartTicketCountProvider);
     final selectedCheckoutItems = [
-      for (var i = 0; i < items.length; i++)
-        if (_checkoutSelectedIndexes.contains(i)) items[i],
+      for (var index = 0; index < items.length; index++)
+        if (_checkoutSelectedIndexes.contains(index)) items[index],
     ];
-    final subtotal =
-        selectedCheckoutItems.fold<int>(0, (sum, item) => sum + item.subtotal);
-    final ticketCount = selectedCheckoutItems.fold<int>(
+    final selectedSubtotal = selectedCheckoutItems.fold<int>(
+      0,
+      (sum, item) => sum + item.subtotal,
+    );
+    final selectedTicketCount = selectedCheckoutItems.fold<int>(
       0,
       (sum, item) => sum + item.quantity,
     );
-    final total = subtotal;
     final expiredCount = items.where(_isPurchaseExpired).length;
     final hasExpiredItems = expiredCount > 0;
-    final selectedExpiredCount =
-        selectedCheckoutItems.where(_isPurchaseExpired).length;
+    final selectedExpiredCount = selectedCheckoutItems
+        .where(_isPurchaseExpired)
+        .length;
     final hasSelectedExpiredItems = selectedExpiredCount > 0;
     final canCheckout =
         selectedCheckoutItems.isNotEmpty && !hasSelectedExpiredItems;
 
-    // Đồng bộ selection khi danh sách thay đổi.
-    final hasInvalidDeleteSelection =
-        _selectedIndexes.any((index) => index < 0 || index >= items.length);
-    final hasInvalidCheckoutSelection = _checkoutSelectedIndexes
-        .any((index) => index < 0 || index >= items.length);
+    // Đồng bộ selection khi danh sách thay đổi ngoài chế độ xóa.
+    final hasInvalidCheckoutSelection = _checkoutSelectedIndexes.any(
+      (index) => index < 0 || index >= items.length,
+    );
     if ((!_isSelectionMode && _selectedIndexes.isNotEmpty) ||
-        hasInvalidDeleteSelection ||
         hasInvalidCheckoutSelection) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         setState(() {
-          if (!_isSelectionMode || hasInvalidDeleteSelection) {
-            _selectedIndexes.clear();
-          }
+          if (!_isSelectionMode) _selectedIndexes.clear();
           if (hasInvalidCheckoutSelection) {
             _checkoutSelectedIndexes.removeWhere(
               (index) => index < 0 || index >= items.length,
@@ -265,41 +412,42 @@ class _CartViewState extends ConsumerState<CartView> {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        title: const Text(
-          'Giỏ hàng',
-          style: TextStyle(
-            color: AppColors.primary,
-            fontWeight: FontWeight.w900,
-            fontSize: 24,
+        title: Text(
+          items.isNotEmpty ? 'Giỏ hàng ($ticketCount)' : 'Giỏ hàng',
+          style: const TextStyle(
+            color: AppColors.ink,
+            fontWeight: FontWeight.w700,
+            fontSize: 20,
           ),
         ),
-        leadingWidth: 72,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 16),
-          child: _CartHeaderButton(
-            icon: Icons.arrow_back_ios_new_rounded,
-            onTap: () {
-              if (_isSelectionMode) {
-                _toggleSelectionMode();
-                return;
-              }
-              if (Navigator.of(context).canPop()) {
-                Navigator.of(context).pop();
-              } else {
-                context.go(AppRoute.buyTicket.path);
-              }
-            },
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            size: 20,
+            color: AppColors.primary,
           ),
+          onPressed: () {
+            if (_isSelectionMode) {
+              _toggleSelectionMode();
+              return;
+            }
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              context.go(AppRoute.buyTicket.path);
+            }
+          },
         ),
         actions: [
           if (items.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: _CartHeaderButton(
-                icon: _isSelectionMode
+            IconButton(
+              onPressed: _toggleSelectionMode,
+              icon: Icon(
+                _isSelectionMode
                     ? Icons.close_rounded
                     : Icons.delete_outline_rounded,
-                onTap: _toggleSelectionMode,
+                color: AppColors.primary,
+                size: 26,
               ),
             ),
         ],
@@ -316,43 +464,41 @@ class _CartViewState extends ConsumerState<CartView> {
                     },
                     child: ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                       children: [
-                        _CartOverview(
-                          itemCount: items.length,
-                          ticketCount: ticketCount,
-                        ),
-                        const SizedBox(height: 14),
                         if (hasExpiredItems) ...[
-                          _ExpiredCartNotice(expiredCount: expiredCount),
+                          _ExpiredCartNotice(
+                            expiredCount: expiredCount,
+                            onDeleteAllExpired: _confirmRemoveExpiredItems,
+                          ),
                           const SizedBox(height: 12),
                         ],
                         ...items.asMap().entries.map((entry) {
                           final index = entry.key;
                           final item = entry.value;
-                          final isExpired = _isPurchaseExpired(item);
                           final card = _CartTicketCard(
                             item: item,
-                            isExpired: isExpired,
+                            isExpired: _isPurchaseExpired(item),
                             isSelectionMode: _isSelectionMode,
-                            isSelected: _isSelectionMode
-                                ? _selectedIndexes.contains(index)
-                                : _checkoutSelectedIndexes.contains(index),
+                            isSelected: _selectedIndexes.contains(index),
+                            isCheckoutSelected: _checkoutSelectedIndexes
+                                .contains(index),
                             onTap: () {
                               if (_isSelectionMode) {
                                 _toggleItemSelection(index);
                               } else {
-                                _toggleCheckoutSelection(index);
+                                _openDetail(context, item);
                               }
                             },
-                            onToggleSelect: () => _isSelectionMode
-                                ? _toggleItemSelection(index)
-                                : _toggleCheckoutSelection(index),
+                            onToggleSelect: () => _toggleItemSelection(index),
+                            onToggleCheckout: () =>
+                                _toggleCheckoutSelection(index),
                             onQuantityChanged: (qty) {
                               ref
                                   .read(cartProvider.notifier)
                                   .updateQuantityAtIndex(index, qty);
                             },
+                            onDelete: () => _confirmRemoveItem(item, index),
                           );
                           return Padding(
                             key: ValueKey(
@@ -386,11 +532,13 @@ class _CartViewState extends ConsumerState<CartView> {
                     onDelete: _confirmDeleteSelected,
                   )
                 : _CartBottomBar(
-                    ticketCount: ticketCount,
-                    subtotal: subtotal,
-                    total: total,
+                    ticketCount: selectedTicketCount,
+                    subtotal: selectedSubtotal,
+                    total: selectedSubtotal,
                     enabled: canCheckout,
-                    disabledReason: hasSelectedExpiredItems
+                    disabledReason: selectedCheckoutItems.isEmpty
+                        ? 'Chọn ít nhất một vé để thanh toán'
+                        : hasSelectedExpiredItems
                         ? 'Bỏ chọn hoặc xóa $selectedExpiredCount vé hết hạn để tiếp tục thanh toán'
                         : null,
                     onCheckout: () {
@@ -406,78 +554,74 @@ class _CartViewState extends ConsumerState<CartView> {
   }
 }
 
-class _CartOverview extends StatelessWidget {
-  const _CartOverview({required this.itemCount, required this.ticketCount});
+class _ExpiredCartNotice extends StatelessWidget {
+  const _ExpiredCartNotice({
+    required this.expiredCount,
+    this.onDeleteAllExpired,
+  });
 
-  final int itemCount;
-  final int ticketCount;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 17),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.07),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.shopping_cart_rounded,
-            size: 26,
-            color: AppColors.primary,
-          ),
-          const SizedBox(width: 14),
-          Text(
-            'Có $itemCount vé trong giỏ',
-            style: const TextStyle(
-              color: AppColors.ink,
-              fontWeight: FontWeight.w700,
-              fontSize: 16,
-            ),
-          ),
-          const Spacer(),
-          Text(
-            '$ticketCount vé đã chọn',
-            style: const TextStyle(
-              color: AppColors.primary,
-              fontWeight: FontWeight.w900,
-              fontSize: 16,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CartHeaderButton extends StatelessWidget {
-  const _CartHeaderButton({required this.icon, required this.onTap});
-
-  final IconData icon;
-  final VoidCallback onTap;
+  final int expiredCount;
+  final VoidCallback? onDeleteAllExpired;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
-      elevation: 7,
-      shadowColor: Colors.black.withValues(alpha: 0.16),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: SizedBox(
-          width: 52,
-          height: 52,
-          child: Icon(icon, color: AppColors.primary, size: 27),
+    return Semantics(
+      liveRegion: true,
+      label: 'Có $expiredCount vé đã hết hạn mua',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF2F1),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFFECACA), width: 1.2),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: AppColors.primary, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                '$expiredCount vé đã hết hạn mua. Hãy xóa để thanh toán.',
+                style: const TextStyle(
+                  color: AppColors.ink,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            if (onDeleteAllExpired != null) ...[
+              const SizedBox(width: 8),
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: onDeleteAllExpired,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEE2E2),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: const Color(0xFFFCA5A5),
+                        width: 0.8,
+                      ),
+                    ),
+                    child: const Text(
+                      'Xóa hết',
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -490,384 +634,486 @@ class _CartTicketCard extends StatelessWidget {
     required this.isExpired,
     required this.isSelectionMode,
     required this.isSelected,
+    required this.isCheckoutSelected,
     required this.onTap,
     required this.onToggleSelect,
+    required this.onToggleCheckout,
     required this.onQuantityChanged,
+    required this.onDelete,
   });
 
   final CartItemData item;
   final bool isExpired;
   final bool isSelectionMode;
   final bool isSelected;
+  final bool isCheckoutSelected;
   final VoidCallback onTap;
   final VoidCallback onToggleSelect;
+  final VoidCallback onToggleCheckout;
   final ValueChanged<int> onQuantityChanged;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          color: isExpired ? const Color(0xFFF9FAFB) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isExpired
-                ? const Color(0xFFD8E1EC)
-                : isSelected && isSelectionMode
-                    ? AppColors.primary.withValues(alpha: 0.35)
-                    : const Color(0xFFF1E3E0),
+            color: (isSelectionMode ? isSelected : isCheckoutSelected)
+                ? AppColors.primary.withValues(alpha: 0.35)
+                : (isExpired ? const Color(0xFFE5E7EB) : const Color(0xFFF1E3E0)),
+            width: isExpired ? 1.2 : 1.0,
           ),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x0F000000),
-              blurRadius: 16,
-              offset: Offset(0, 6),
-            ),
-          ],
+          boxShadow: isExpired
+              ? const [
+                  BoxShadow(
+                    color: Color(0x04000000),
+                    blurRadius: 4,
+                    offset: Offset(0, 2),
+                  ),
+                ]
+              : const [
+                  BoxShadow(
+                    color: Color(0x0A000000),
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  ),
+                ],
         ),
-        child: Column(
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _CartBadge(
-                  text: item.logoText,
-                  imageUrl: item.ticketImageUrl,
-                  muted: isExpired,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              if (isSelectionMode) ...[
+                GestureDetector(
+                  onTap: onToggleSelect,
+                  behavior: HitTestBehavior.opaque,
+                  child: _SelectionCheckbox(checked: isSelected),
                 ),
                 const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.province,
-                        style: const TextStyle(
-                          color: AppColors.ink,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                        ),
+              ] else ...[
+                Semantics(
+                  button: true,
+                  enabled: !isExpired,
+                  checked: isCheckoutSelected,
+                  label: isExpired
+                      ? 'Vé ${item.number} đã hết hạn mua'
+                      : 'Chọn vé ${item.number} để thanh toán',
+                  child: GestureDetector(
+                    onTap: onToggleCheckout,
+                    behavior: HitTestBehavior.opaque,
+                    child: ExcludeSemantics(
+                      child: _SelectionCheckbox(
+                        checked: isCheckoutSelected,
+                        disabled: isExpired,
                       ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.calendar_today_outlined,
-                            size: 13,
-                            color: AppColors.textMuted,
-                          ),
-                          const SizedBox(width: 5),
-                          Expanded(
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+              ],
+              // Left Column: Station tag, Date, 6-digit Number
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Row(
+                      children: [
+                        if (isExpired) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEE2E2),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: const Color(0xFFFCA5A5),
+                                width: 0.8,
+                              ),
+                            ),
                             child: Text(
-                              item.dateLabel,
-                              style: const TextStyle(
-                                color: AppColors.textMuted,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
+                              'HẾT HẠN',
+                              style: AppTypography.main(
+                                const TextStyle(
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFFDC2626),
+                                  letterSpacing: 0.3,
+                                ),
                               ),
                             ),
                           ),
+                          const SizedBox(width: 6),
                         ],
-                      ),
-
-                    ],
-                  ),
-                ),
-                if (isSelectionMode)
-                  GestureDetector(
-                    onTap: onToggleSelect,
-                    behavior: HitTestBehavior.opaque,
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 8, top: 2),
-                      child: _SelectionCheckbox(checked: isSelected),
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 2.5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isExpired
+                                  ? const Color(0xFFF3F4F6)
+                                  : const Color(0xFFFDE8E5),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              item.province,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTypography.main(
+                                TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: isExpired
+                                      ? const Color(0xFF6B7280)
+                                      : AppColors.primary,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.calendar_month_outlined,
+                              size: 12,
+                              color: isExpired
+                                  ? const Color(0xFF9CA3AF)
+                                  : const Color(0xFF8A6D68),
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              item.dateLabel,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: isExpired
+                                    ? const Color(0xFF9CA3AF)
+                                    : const Color(0xFF755E59),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                  )
-                else
-                  GestureDetector(
-                    onTap: onToggleSelect,
-                    behavior: HitTestBehavior.opaque,
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 8, top: 2),
-                      child: _SelectionCheckbox(checked: isSelected),
-                    ),
-                  ),
-              ],
-            ),
-            if (isExpired) ...[
-              const SizedBox(height: 10),
-              const _ExpiredTicketPill(),
-            ],
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFFBFA),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.primary, width: 1.4),
-                    ),
-                    child: Text(
+                    const SizedBox(height: 8),
+                    Text(
                       item.number,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 24,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.number(
+                        TextStyle(
+                          color: isExpired
+                              ? const Color(0xFF9CA3AF)
+                              : const Color(0xFFC90F1D),
+                          fontSize: 28,
+                          height: 1,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 2.0,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+
+              // Right Column: Price & Stepper / Delete action
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    _money(item.unitPrice),
+                    style: AppTypography.main(
+                      TextStyle(
+                        fontSize: 14,
+                        color: isExpired
+                            ? const Color(0xFF9CA3AF)
+                            : const Color(0xFF312624),
                         fontWeight: FontWeight.w800,
-                        letterSpacing: 1.4,
+                        decoration:
+                            isExpired ? TextDecoration.lineThrough : null,
+                        decorationColor: const Color(0xFF9CA3AF),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                _QuantityDropdown(
-                  quantity: item.quantity,
-                  maxStock: item.maxStock > 0 ? item.maxStock : 1,
-                  enabled: !isExpired,
-                  onChanged: onQuantityChanged,
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            const Divider(height: 1, color: Color(0xFFF1E8E6)),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _CartMeta(
-                    icon: Icons.sell_outlined,
-                    label: 'Đơn giá',
-                    value: _money(item.unitPrice),
-                  ),
-                ),
-                Expanded(
-                  child: _CartMeta(
-                    icon: Icons.account_balance_wallet_outlined,
-                    label: 'Tạm tính',
-                    value: _money(item.subtotal),
-                    highlight: true,
-                    alignEnd: true,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ExpiredCartNotice extends StatelessWidget {
-  const _ExpiredCartNotice({required this.expiredCount});
-
-  final int expiredCount;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(18, 18, 16, 18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-          colors: [Color(0xFFFFF7ED), Color(0xFFFFFBF5)],
-        ),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFFED7AA)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: const BoxDecoration(
-              color: Color(0xFFFF7A1A),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.priority_high_rounded,
-              color: Colors.white,
-              size: 30,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '$expiredCount vé đã hết hạn mua',
-                  style: const TextStyle(
-                    color: Color(0xFFEA580C),
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                const Text(
-                  'Bạn có thể vuốt để xóa từng vé hoặc dùng chế độ xóa để chọn nhiều vé.',
-                  style: TextStyle(
-                    color: Color(0xFF6B7280),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    height: 1.32,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Transform.rotate(
-                angle: 0.18,
-                child: Container(
-                  width: 48,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFB347),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(
-                    Icons.confirmation_number_rounded,
-                    color: Color(0xFFFFE5B7),
-                    size: 32,
-                  ),
-                ),
-              ),
-              const Positioned(
-                right: -11,
-                bottom: -6,
-                child: CircleAvatar(
-                  radius: 18,
-                  backgroundColor: Color(0xFFFF7A1A),
-                  child: Icon(Icons.close_rounded, color: Colors.white),
-                ),
+                  const SizedBox(height: 8),
+                  if (isExpired) ...[
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: onDelete,
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEE2E2),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: const Color(0xFFFECACA),
+                              width: 1,
+                            ),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.delete_outline_rounded,
+                                size: 15,
+                                color: Color(0xFFDC2626),
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                'Xóa',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFFDC2626),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ] else ...[
+                    _CartQuantityStepper(
+                      quantity: item.quantity,
+                      maxStock: item.maxStock > 0 ? item.maxStock : 1,
+                      enabled: !isSelectionMode,
+                      onChanged: onQuantityChanged,
+                      onDelete: onDelete,
+                    ),
+                  ],
+                ],
               ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _ExpiredTicketPill extends StatelessWidget {
-  const _ExpiredTicketPill();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFEDD5),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: const Row(
-        children: [
-          Icon(Icons.lock_clock_rounded, color: Color(0xFFEA580C), size: 16),
-          SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              'Đã hết hạn mua, chỉ có thể xóa khỏi giỏ',
-              style: TextStyle(
-                color: Color(0xFF9A3412),
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _QuantityDropdown extends StatelessWidget {
-  const _QuantityDropdown({
+class _CartQuantityStepper extends StatefulWidget {
+  const _CartQuantityStepper({
     required this.quantity,
     required this.maxStock,
     required this.enabled,
     required this.onChanged,
+    required this.onDelete,
   });
 
   final int quantity;
   final int maxStock;
   final bool enabled;
   final ValueChanged<int> onChanged;
+  final VoidCallback onDelete;
+
+  @override
+  State<_CartQuantityStepper> createState() => _CartQuantityStepperState();
+}
+
+class _CartQuantityStepperState extends State<_CartQuantityStepper> {
+  bool _showDelete = false;
+  Timer? _timer;
+
+  @override
+  void didUpdateWidget(covariant _CartQuantityStepper oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.quantity > 1 && _showDelete) {
+      _resetDelete();
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _resetDelete() {
+    _timer?.cancel();
+    if (_showDelete && mounted) {
+      setState(() => _showDelete = false);
+    }
+  }
+
+  void _onMinusTap() {
+    if (!widget.enabled) return;
+
+    if (widget.quantity > 1) {
+      _resetDelete();
+      widget.onChanged(widget.quantity - 1);
+    } else {
+      // Khi số lượng đang là 1:
+      if (!_showDelete) {
+        // Lần 1: Chuyển nút trừ thành icon xóa đỏ
+        setState(() => _showDelete = true);
+        _timer?.cancel();
+        _timer = Timer(const Duration(seconds: 4), () {
+          if (mounted) setState(() => _showDelete = false);
+        });
+      } else {
+        // Lần 2 (khi đang hiện nút xóa): Hiện hộp thoại xác nhận xóa
+        _resetDelete();
+        widget.onDelete();
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final options = maxStock < 1 ? 1 : maxStock;
-    return PopupMenuButton<int>(
-      enabled: enabled && options > 1,
-      initialValue: quantity,
-      onSelected: onChanged,
-      offset: const Offset(0, 48),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      itemBuilder: (context) => List.generate(
-        options,
-        (i) => PopupMenuItem<int>(
-          value: i + 1,
-          child: Text(
-            '${i + 1}',
-            style: TextStyle(
-              fontWeight: quantity == i + 1
-                  ? FontWeight.w800
-                  : FontWeight.w600,
-              color: quantity == i + 1 ? AppColors.primary : AppColors.ink,
-            ),
+    final effectiveMax = widget.maxStock > 0 ? widget.maxStock : 1;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {}, // Isolate tap events from parent card
+      child: IntrinsicWidth(
+        child: SizedBox(
+          height: 44,
+          child: Stack(
+            children: [
+              Positioned(
+                top: 6,
+                left: 0,
+                right: 0,
+                bottom: 6,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  decoration: BoxDecoration(
+                    color: _showDelete
+                        ? const Color(0xFFFFF1F0)
+                        : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: _showDelete
+                          ? const Color(0xFFFCA5A5)
+                          : const Color(0xFFCBD5E1),
+                    ),
+                  ),
+                ),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _CartStepBtn(
+                    icon: _showDelete
+                        ? Icons.delete_outline_rounded
+                        : Icons.remove_rounded,
+                    iconColor: _showDelete
+                        ? AppColors.primary
+                        : const Color(0xFF1E293B),
+                    disabled: !widget.enabled,
+                    onTap: _onMinusTap,
+                  ),
+                  Container(
+                    constraints: const BoxConstraints(minWidth: 26),
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '${widget.quantity}',
+                      style: TextStyle(
+                        color: _showDelete ? AppColors.primary : AppColors.ink,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  _CartStepBtn(
+                    icon: Icons.add_rounded,
+                    disabled:
+                        !widget.enabled || widget.quantity >= effectiveMax,
+                    iconColor: const Color(0xFF1E293B),
+                    onTap: (widget.enabled && widget.quantity < effectiveMax)
+                        ? () {
+                            _resetDelete();
+                            widget.onChanged(widget.quantity + 1);
+                          }
+                        : null,
+                    onDisabledTap: () {
+                      AppToast.info(
+                        'Vé này chỉ còn $effectiveMax vé trong kho',
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
-      child: Container(
-        width: 78,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFF7F4),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFF3DDD8)),
-        ),
-        child: Column(
-          children: [
-            const Text(
-              'Số lượng',
-              style: TextStyle(
-                color: AppColors.textMuted,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  '$quantity',
-                  style: const TextStyle(
-                    color: AppColors.ink,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
+    );
+  }
+}
+
+class _CartStepBtn extends StatelessWidget {
+  const _CartStepBtn({
+    required this.icon,
+    required this.disabled,
+    required this.onTap,
+    this.iconColor,
+    this.onDisabledTap,
+  });
+
+  final IconData icon;
+  final bool disabled;
+  final VoidCallback? onTap;
+  final Color? iconColor;
+  final VoidCallback? onDisabledTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = icon == Icons.add_rounded
+        ? 'Tăng số lượng'
+        : icon == Icons.delete_outline_rounded
+        ? 'Xóa vé'
+        : 'Giảm số lượng';
+
+    return Semantics(
+      button: true,
+      enabled: !disabled,
+      label: label,
+      onTap: disabled ? null : onTap,
+      child: ExcludeSemantics(
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: disabled ? onDisabledTap : onTap,
+            borderRadius: BorderRadius.circular(6),
+            child: SizedBox(
+              width: 44,
+              height: 44,
+              child: Center(
+                child: SizedBox(
+                  width: 28,
+                  height: 32,
+                  child: Icon(
+                    icon,
+                    size: 15,
+                    color: disabled
+                        ? const Color(0xFF94A3B8)
+                        : (iconColor ?? const Color(0xFF1E293B)),
                   ),
                 ),
-                if (options > 1) ...[
-                  const SizedBox(width: 2),
-                  const Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    size: 18,
-                    color: AppColors.primary,
-                  ),
-                ],
-              ],
+              ),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -875,18 +1121,42 @@ class _QuantityDropdown extends StatelessWidget {
 }
 
 class _SelectionCheckbox extends StatelessWidget {
-  const _SelectionCheckbox({required this.checked});
+  const _SelectionCheckbox({
+    required this.checked,
+    this.disabled = false,
+  });
 
   final bool checked;
+  final bool disabled;
 
   @override
   Widget build(BuildContext context) {
+    if (disabled) {
+      return Container(
+        width: 26,
+        height: 26,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: const Color(0xFFF3F4F6),
+          border: Border.all(
+            color: const Color(0xFFD1D5DB),
+            width: 1.5,
+          ),
+        ),
+        child: const Icon(
+          Icons.block_rounded,
+          size: 13,
+          color: Color(0xFF9CA3AF),
+        ),
+      );
+    }
+
     return AnimatedContainer(
       duration: const Duration(milliseconds: 160),
       width: 26,
       height: 26,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(7),
+        shape: BoxShape.circle,
         color: checked ? AppColors.primary : Colors.white,
         border: Border.all(
           color: checked ? AppColors.primary : const Color(0xFFD1D5DB),
@@ -932,60 +1202,6 @@ class _DeleteSwipeBackground extends StatelessWidget {
   }
 }
 
-class _CartMeta extends StatelessWidget {
-  const _CartMeta({
-    required this.label,
-    required this.value,
-    this.icon,
-    this.highlight = false,
-    this.alignEnd = false,
-  });
-
-  final String label;
-  final String value;
-  final IconData? icon;
-  final bool highlight;
-  final bool alignEnd;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment:
-          alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment:
-              alignEnd ? MainAxisAlignment.end : MainAxisAlignment.start,
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 14, color: AppColors.textMuted),
-              const SizedBox(width: 4),
-            ],
-            Text(
-              label,
-              style: const TextStyle(
-                color: AppColors.textMuted,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        Text(
-          value,
-          style: TextStyle(
-            color: highlight ? AppColors.primary : AppColors.ink,
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-
 class _CartBottomBar extends StatelessWidget {
   const _CartBottomBar({
     required this.ticketCount,
@@ -1006,10 +1222,9 @@ class _CartBottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
       decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         boxShadow: [
           BoxShadow(
             color: Color(0x14000000),
@@ -1023,15 +1238,6 @@ class _CartBottomBar extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 44,
-              height: 5,
-              margin: const EdgeInsets.only(bottom: 14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFD1D5DB),
-                borderRadius: BorderRadius.circular(999),
-              ),
-            ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -1104,78 +1310,33 @@ class _CartBottomBar extends StatelessWidget {
                 ),
                 Text(
                   _money(total),
-                  style: const TextStyle(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 24,
+                  style: AppTypography.number(
+                    const TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 24,
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 10),
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.verified_user_outlined,
-                  size: 14,
-                  color: Color(0xFF94A3B8),
-                ),
-                SizedBox(width: 6),
-                Text(
-                  'Thanh toán an toàn, bảo mật thông tin',
-                  style: TextStyle(
-                    color: Color(0xFF94A3B8),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             if (disabledReason != null) ...[
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF7ED),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.info_outline_rounded,
-                      size: 18,
-                      color: Color(0xFFEA580C),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        disabledReason!,
-                        style: const TextStyle(
-                          color: Color(0xFF9A3412),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
+              Text(
+                disabledReason!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
             ],
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton.icon(
+              child: ElevatedButton(
                 onPressed: enabled ? onCheckout : null,
-                icon: const Icon(Icons.credit_card_rounded, size: 20),
-                label: const Text(
-                  'Tiến hành thanh toán',
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
-                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
@@ -1184,6 +1345,10 @@ class _CartBottomBar extends StatelessWidget {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
+                ),
+                child: const Text(
+                  'Tiến hành thanh toán',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
                 ),
               ),
             ),
@@ -1368,85 +1533,6 @@ class _EmptyCartView extends StatelessWidget {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CartBadge extends StatelessWidget {
-  const _CartBadge({
-    required this.text,
-    this.imageUrl,
-    this.muted = false,
-  });
-
-  final String text;
-  final String? imageUrl;
-  final bool muted;
-
-  @override
-  Widget build(BuildContext context) {
-    final hasImage = imageUrl != null && imageUrl!.trim().isNotEmpty;
-    return Container(
-      width: 52,
-      height: 52,
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFFFF6358), Color(0xFFD31010)],
-        ),
-      ),
-      child: ColorFiltered(
-        colorFilter: muted
-            ? const ColorFilter.matrix(<double>[
-                0.55, 0.55, 0.55, 0, 0,
-                0.55, 0.55, 0.55, 0, 0,
-                0.55, 0.55, 0.55, 0, 0,
-                0, 0, 0, 1, 0,
-              ])
-            : const ColorFilter.mode(Colors.transparent, BlendMode.dst),
-        child: hasImage
-            ? CachedNetworkImage(
-                imageUrl: imageUrl!,
-                fit: BoxFit.cover,
-                width: double.infinity,
-                height: double.infinity,
-                errorWidget: (_, _, _) => _CartBadgeFallback(text: text),
-                placeholder: (_, _) => const Center(
-                  child: SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              )
-            : _CartBadgeFallback(text: text),
-      ),
-    );
-  }
-}
-
-class _CartBadgeFallback extends StatelessWidget {
-  const _CartBadgeFallback({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Text(
-        text,
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w800,
-          fontSize: 14,
         ),
       ),
     );

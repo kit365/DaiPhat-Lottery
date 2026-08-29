@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 
 class ProvinceChips extends StatelessWidget {
   final List<String> allProvinces;
@@ -69,15 +70,18 @@ class ProvinceChips extends StatelessWidget {
             ),
             const SizedBox(width: 5),
           ],
-          Text(label,
-              style: GoogleFonts.publicSans(
+          Text(
+            label,
+            style: AppTypography.main(
+              TextStyle(
                 fontSize: 13,
                 fontWeight: isSel ? FontWeight.w700 : FontWeight.w600,
                 color: isSel ? Colors.white : AppColors.textMain,
-              )),
+              ),
+            ),
+          ),
         ]),
       ),
     );
   }
 }
-

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/order_service.dart';
 import '../../data/transaction_service.dart';
+import '../../data/system_config_service.dart';
 import '../../models/order_type.dart';
 import '../../models/transaction_type.dart';
 import '../../../cart/providers/cart_provider.dart';
@@ -16,6 +17,18 @@ final orderServiceProvider = Provider<OrderService>((ref) {
 
 final transactionServiceProvider = Provider<TransactionService>((ref) {
   throw UnimplementedError('Must be overridden in main');
+});
+
+final systemConfigServiceProvider = Provider<SystemConfigService>((ref) {
+  final client = ref.watch(apiClientProvider);
+  return SystemConfigService(apiClient: client);
+});
+
+final operatingHoursProvider = FutureProvider.autoDispose<SiteOperatingHours>((
+  ref,
+) async {
+  final service = ref.watch(systemConfigServiceProvider);
+  return service.getOperatingHours();
 });
 
 // ─── Enum options (fetch once) ──────────────────────────────────────────────

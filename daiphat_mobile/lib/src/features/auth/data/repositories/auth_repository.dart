@@ -62,6 +62,15 @@ class AuthRepository {
   }
 
   Future<void> logout({bool clearCookies = true}) async {
+    try {
+      // Revoke the refresh token on the backend before removing the local
+      // cookie that the logout endpoint needs.
+      await _apiService.logout();
+    } catch (_) {
+      // Local cleanup must still happen when the backend is unreachable or
+      // the refresh token is already invalid.
+    }
+
     _apiClient.clearAccessToken();
     if (clearCookies) {
       await _apiClient.clearCookies();
@@ -127,4 +136,3 @@ class AuthRepository {
     return _apiService.updateFcmToken(token);
   }
 }
-

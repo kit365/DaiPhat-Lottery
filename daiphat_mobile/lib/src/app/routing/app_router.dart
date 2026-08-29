@@ -38,7 +38,10 @@ import 'package:daiphat_mobile/src/features/profile/presentation/views/security_
 import 'package:daiphat_mobile/src/features/admin/presentation/views/admin_scan_view.dart';
 import 'package:daiphat_mobile/src/features/admin/presentation/viewmodels/admin_scan_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/fortune/presentation/views/fortune_cast_view.dart';
+import 'package:daiphat_mobile/src/features/blog/presentation/views/blog_screen.dart';
 import 'package:daiphat_mobile/src/features/schedule/presentation/views/schedule_view.dart';
+import 'package:daiphat_mobile/src/features/utilities/presentation/views/utilities_two_view.dart';
+import 'package:daiphat_mobile/src/features/utilities/presentation/views/utilities_view.dart';
 import 'app_routes.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -103,7 +106,8 @@ GoRouter createAppRouter({
       if (path != AppRoute.login.path &&
           (path == AppRoute.cart.path ||
               path == AppRoute.checkout.path ||
-              path == AppRoute.notifications.path) &&
+              path == AppRoute.notifications.path ||
+              path == AppRoute.profile.path) &&
           !loginViewModel.isAuthenticated) {
         return Uri(
           path: AppRoute.login.path,
@@ -114,51 +118,94 @@ GoRouter createAppRouter({
       return null; // No redirect
     },
     routes: [
-      ShellRoute(
-        navigatorKey: _shellNavigatorKey,
-        builder: (context, state, child) => MainLayout(
-              loginViewModel: loginViewModel,
-              notificationViewModel: notificationViewModel,
-              child: child,
-            ),
-        routes: [
-          _route(
-            AppRoute.home,
-            loginViewModel,
-            registerViewModel,
-            forgotPasswordViewModel,
-            profileViewModel,
-            notificationViewModel,
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) => MainLayout(
+          loginViewModel: loginViewModel,
+          notificationViewModel: notificationViewModel,
+          navigationShell: navigationShell,
+        ),
+        branches: [
+          StatefulShellBranch(
+            navigatorKey: _shellNavigatorKey,
+            routes: [
+              _route(
+                AppRoute.buyTicket,
+                loginViewModel,
+                registerViewModel,
+                forgotPasswordViewModel,
+                profileViewModel,
+                notificationViewModel,
+              ),
+            ],
           ),
-          _route(
-            AppRoute.buyTicket,
-            loginViewModel,
-            registerViewModel,
-            forgotPasswordViewModel,
-            profileViewModel,
-            notificationViewModel,
+          StatefulShellBranch(
+            routes: [
+              _route(
+                AppRoute.checkTicket,
+                loginViewModel,
+                registerViewModel,
+                forgotPasswordViewModel,
+                profileViewModel,
+                notificationViewModel,
+              ),
+            ],
           ),
-          _route(
-            AppRoute.checkTicket,
-            loginViewModel,
-            registerViewModel,
-            forgotPasswordViewModel,
-            profileViewModel,
-            notificationViewModel,
+          StatefulShellBranch(
+            routes: [
+              _route(
+                AppRoute.home,
+                loginViewModel,
+                registerViewModel,
+                forgotPasswordViewModel,
+                profileViewModel,
+                notificationViewModel,
+              ),
+            ],
           ),
-          GoRoute(
-            path: AppRoute.profile.path,
-            name: AppRoute.profile.name,
-            builder: (context, state) => ProfileView(
-              viewModel: profileViewModel,
-              notificationViewModel: notificationViewModel,
-            ),
+          StatefulShellBranch(
             routes: [
               GoRoute(
-                path: 'security',
-                name: AppRoute.security.name,
-                parentNavigatorKey: rootNavigatorKey,
-                builder: (context, state) => const SecurityView(),
+                path: AppRoute.utilitiesTwo.path,
+                name: AppRoute.utilitiesTwo.name,
+                builder: (context, state) => UtilitiesTwoView(
+                  isAuthenticated: loginViewModel.isAuthenticated,
+                  onBack: () => context.go(AppRoute.home.path),
+                  onOpenNotifications: () =>
+                      context.go(AppRoute.notifications.path),
+                  onOpenBlog: () => context.push(AppRoute.blog.path),
+                ),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoute.notifications.path,
+                name: AppRoute.notifications.name,
+                builder: (context, state) => NotificationView(
+                  viewModel: notificationViewModel,
+                  showBackButton: false,
+                ),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoute.profile.path,
+                name: AppRoute.profile.name,
+                builder: (context, state) => ProfileView(
+                  viewModel: profileViewModel,
+                  notificationViewModel: notificationViewModel,
+                ),
+                routes: [
+                  GoRoute(
+                    path: 'security',
+                    name: AppRoute.security.name,
+                    parentNavigatorKey: rootNavigatorKey,
+                    builder: (context, state) => const SecurityView(),
+                  ),
+                ],
               ),
             ],
           ),
@@ -238,14 +285,6 @@ GoRouter createAppRouter({
       ),
       _route(
         AppRoute.deepLinkPayment,
-        loginViewModel,
-        registerViewModel,
-        forgotPasswordViewModel,
-        profileViewModel,
-        notificationViewModel,
-      ),
-      _route(
-        AppRoute.notifications,
         loginViewModel,
         registerViewModel,
         forgotPasswordViewModel,
@@ -380,6 +419,22 @@ GoRouter createAppRouter({
         profileViewModel,
         notificationViewModel,
       ),
+      _route(
+        AppRoute.blog,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
+      _route(
+        AppRoute.utilities,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
     ],
   );
 }
@@ -397,6 +452,7 @@ GoRoute _route(
     path: route.path,
     name: route.name,
     builder: (context, state) => _buildRoute(
+      context,
       route,
       state,
       loginViewModel,
@@ -409,6 +465,7 @@ GoRoute _route(
 }
 
 Widget _buildRoute(
+  BuildContext context,
   AppRoute route,
   GoRouterState state,
   LoginViewModel loginViewModel,
@@ -431,7 +488,8 @@ Widget _buildRoute(
       return ForgotPasswordView(viewModel: forgotPasswordViewModel);
     case AppRoute.buyTicket:
       return BuyTicketView(
-        ticketNumber: state.uri.queryParameters['ticketNumber'] ??
+        ticketNumber:
+            state.uri.queryParameters['ticketNumber'] ??
             state.uri.queryParameters['search'],
         drawDate: state.uri.queryParameters['drawDate'],
         stationName: state.uri.queryParameters['station'],
@@ -533,5 +591,28 @@ Widget _buildRoute(
       return FortuneCastView(profileViewModel: profileViewModel);
     case AppRoute.schedule:
       return const ScheduleView();
+    case AppRoute.blog:
+      return BlogScreen(
+        onBack: () {
+          if (Navigator.of(context).canPop()) {
+            Navigator.of(context).pop();
+          } else {
+            context.go(AppRoute.home.path);
+          }
+        },
+      );
+    case AppRoute.utilities:
+      return UtilitiesView(
+        isAuthenticated: loginViewModel.isAuthenticated,
+        onOpenNotifications: () => context.go(AppRoute.notifications.path),
+        onOpenBlog: () => context.push(AppRoute.blog.path),
+      );
+    case AppRoute.utilitiesTwo:
+      return UtilitiesTwoView(
+        isAuthenticated: loginViewModel.isAuthenticated,
+        onBack: () => context.go(AppRoute.home.path),
+        onOpenNotifications: () => context.go(AppRoute.notifications.path),
+        onOpenBlog: () => context.push(AppRoute.blog.path),
+      );
   }
 }

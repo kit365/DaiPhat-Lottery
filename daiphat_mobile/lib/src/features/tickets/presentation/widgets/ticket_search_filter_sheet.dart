@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import '../../utils/ticket_search_filter.dart';
 
@@ -148,10 +148,12 @@ class _TicketSearchFilterSheetState extends State<TicketSearchFilterSheet> {
                   Expanded(
                     child: Text(
                       'Lọc theo khoảng số',
-                      style: GoogleFonts.publicSans(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.ink,
+                      style: AppTypography.main(
+                        const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.ink,
+                        ),
                       ),
                     ),
                   ),
@@ -168,10 +170,12 @@ class _TicketSearchFilterSheetState extends State<TicketSearchFilterSheet> {
                 children: [
                   Text(
                     'Chọn khoảng 2 số cuối để lọc vé. Nhiều khoảng: khớp một khoảng là đủ. Kết hợp với loại số: phải thỏa cả hai nhóm.',
-                    style: GoogleFonts.publicSans(
-                      fontSize: 13,
-                      color: AppColors.textMuted,
-                      height: 1.4,
+                    style: AppTypography.main(
+                      const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textMuted,
+                        height: 1.4,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -191,10 +195,12 @@ class _TicketSearchFilterSheetState extends State<TicketSearchFilterSheet> {
                   const SizedBox(height: 20),
                   Text(
                     'Tùy chọn đặc biệt',
-                    style: GoogleFonts.publicSans(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: const Color(0xFF475569),
+                    style: AppTypography.main(
+                      const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF475569),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -214,10 +220,12 @@ class _TicketSearchFilterSheetState extends State<TicketSearchFilterSheet> {
                   const SizedBox(height: 20),
                   Text(
                     'Thêm khoảng tùy chỉnh',
-                    style: GoogleFonts.publicSans(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: const Color(0xFF475569),
+                    style: AppTypography.main(
+                      const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF475569),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -269,20 +277,24 @@ class _TicketSearchFilterSheetState extends State<TicketSearchFilterSheet> {
                   const SizedBox(height: 16),
                   Text(
                     'Khoảng đã chọn (${_draftRanges.length})',
-                    style: GoogleFonts.publicSans(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: const Color(0xFF475569),
+                    style: AppTypography.main(
+                      const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF475569),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 8),
                   if (_draftRanges.isEmpty)
                     Text(
                       'Chưa chọn khoảng nào',
-                      style: GoogleFonts.publicSans(
-                        fontSize: 13,
-                        fontStyle: FontStyle.italic,
-                        color: const Color(0xFF94A3B8),
+                      style: AppTypography.main(
+                        const TextStyle(
+                          fontSize: 13,
+                          fontStyle: FontStyle.italic,
+                          color: Color(0xFF94A3B8),
+                        ),
                       ),
                     )
                   else
@@ -402,10 +414,12 @@ class _ChipButton extends StatelessWidget {
               ],
               Text(
                 label,
-                style: GoogleFonts.publicSans(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: selected ? Colors.white : const Color(0xFF334155),
+                style: AppTypography.main(
+                  TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: selected ? Colors.white : const Color(0xFF334155),
+                  ),
                 ),
               ),
             ],

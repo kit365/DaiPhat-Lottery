@@ -13,10 +13,17 @@ typedef ChatConversationEventHandler = void Function(
   ChatConversationSocketEvent event,
 );
 
+class _ChatSubscription {
+  _ChatSubscription({required this.callback});
+
+  void Function(StompFrame) callback;
+  StompUnsubscribe? activeUnsubscribe;
+}
+
 class ChatWebSocketService {
   StompClient? _client;
   String? _token;
-  final Map<String, void Function(StompFrame)> _subscriptions = {};
+  final Map<String, _ChatSubscription> _subscriptions = {};
 
   Future<void> connect(String token) async {
     if (_client != null && _token == token && _client!.connected) {
@@ -54,6 +61,7 @@ class ChatWebSocketService {
           }
         },
         onDisconnect: (_) {
+          _clearActiveSubscriptions();
           _client = null;
         },
       ),
@@ -64,10 +72,15 @@ class ChatWebSocketService {
   }
 
   Future<void> disconnect() async {
+    _clearActiveSubscriptions();
     _client?.deactivate();
     _client = null;
     _token = null;
     _subscriptions.clear();
+  }
+
+  void unsubscribeConversation(int conversationId) {
+    _unsubscribe(ChatWsConstants.conversationTopic(conversationId));
   }
 
   Future<void> sendMessage({
@@ -107,17 +120,40 @@ class ChatWebSocketService {
   }
 
   void _subscribe(String destination, void Function(StompFrame) callback) {
-    _subscriptions[destination] = callback;
-    if (_client?.connected == true) {
-      _activateSubscription(destination, callback);
+    final existing = _subscriptions[destination];
+    if (existing != null) {
+      existing.callback = callback;
+      return;
     }
+
+    final subscription = _ChatSubscription(callback: callback);
+    _subscriptions[destination] = subscription;
+    if (_client?.connected == true) {
+      _activateSubscription(destination, subscription);
+    }
+  }
+
+  void _unsubscribe(String destination) {
+    final subscription = _subscriptions.remove(destination);
+    subscription?.activeUnsubscribe?.call();
   }
 
   void _activateSubscription(
     String destination,
-    void Function(StompFrame) callback,
+    _ChatSubscription subscription,
   ) {
-    _client?.subscribe(destination: destination, callback: callback);
+    subscription.activeUnsubscribe?.call();
+    subscription.activeUnsubscribe = _client?.subscribe(
+      destination: destination,
+      callback: (frame) => subscription.callback(frame),
+    );
+  }
+
+  void _clearActiveSubscriptions() {
+    for (final subscription in _subscriptions.values) {
+      subscription.activeUnsubscribe?.call();
+      subscription.activeUnsubscribe = null;
+    }
   }
 
   Future<void> _ensureConnected() async {

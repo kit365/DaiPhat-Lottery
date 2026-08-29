@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef, useId } from "react";
 
 import {
     Alert,
@@ -322,6 +322,7 @@ export const VendorSettlementBreakdown = ({
     depositRate?: number | null;
     depositHeld?: number | null;
 }) => {
+    const detailsId = useId();
     const [helpOpen, setHelpOpen] = useState(false);
     const netCashDue = netCashDueFromVendor ?? 0;
     const netCashToVendor = netCashPayableToVendor ?? 0;
@@ -361,51 +362,69 @@ export const VendorSettlementBreakdown = ({
                 </Tooltip>
             </Stack>
 
-            <Stack spacing={1}>
-                {(() => {
-                    const soldLine =
-                        soldQtyForLine > 0 && unit > 0
-                            ? `${soldQtyForLine} × ${formatCurrency(unit)}`
-                            : vendorSoldAmount > 0
-                                ? formatCurrency(vendorSoldAmount)
-                                : null;
-                    const soldLabel = isForcePurchase ? "Ép mua" : "Vé đã bán";
-                    const cọcHoàn = (depositRefundAmount ?? 0) > 0 ? (depositRefundAmount ?? 0) : 0;
-                    const cọcTrừ = (depositAppliedAmount ?? 0) > 0 ? (depositAppliedAmount ?? 0) : 0;
-                    const cọcHiện = cọcHoàn || cọcTrừ;
-                    const wePayVendor = netCashToVendor > 0;
+            <Accordion
+                elevation={0}
+                disableGutters
+                sx={{ bgcolor: "transparent", "&:before": { display: "none" } }}
+            >
+                <AccordionSummary
+                    expandIcon={<ExpandMoreIcon />}
+                    sx={{ px: 0, minHeight: 32, "& .MuiAccordionSummary-content": { my: 0 } }}
+                    aria-controls={`${detailsId}-content`}
+                    id={`${detailsId}-header`}
+                >
+                    <Typography variant="body2" color="text.secondary">
+                        Xem chi tiết các khoản quyết toán
+                    </Typography>
+                </AccordionSummary>
+                <AccordionDetails id={`${detailsId}-content`} sx={{ px: 0, pt: 1, pb: 0 }}>
+                    <Stack spacing={1}>
+                        {(() => {
+                            const soldLine =
+                                soldQtyForLine > 0 && unit > 0
+                                    ? `${soldQtyForLine} × ${formatCurrency(unit)}`
+                                    : vendorSoldAmount > 0
+                                        ? formatCurrency(vendorSoldAmount)
+                                        : null;
+                            const soldLabel = isForcePurchase ? "Ép mua" : "Vé đã bán";
+                            const cọcHoàn = (depositRefundAmount ?? 0) > 0 ? (depositRefundAmount ?? 0) : 0;
+                            const cọcTrừ = (depositAppliedAmount ?? 0) > 0 ? (depositAppliedAmount ?? 0) : 0;
+                            const cọcHiện = cọcHoàn || cọcTrừ;
+                            const wePayVendor = netCashToVendor > 0;
 
-                    if (wePayVendor) {
-                        return (
-                            <>
-                                {cọcHiện > 0 ? (
-                                    <ReceiptRow label="Cọc" value={formatCurrency(cọcHiện)} />
-                                ) : null}
-                                {soldLine ? (
-                                    <ReceiptRow label={soldLabel} value={`−${soldLine}`} deduct />
-                                ) : null}
-                                {(depositExcessRefundAmount ?? 0) > 0 ? (
-                                    <ReceiptRow label="Cọc dư" value={formatCurrency(depositExcessRefundAmount)} />
-                                ) : null}
-                            </>
-                        );
-                    }
+                            if (wePayVendor) {
+                                return (
+                                    <>
+                                        {cọcHiện > 0 ? (
+                                            <ReceiptRow label="Cọc" value={formatCurrency(cọcHiện)} />
+                                        ) : null}
+                                        {soldLine ? (
+                                            <ReceiptRow label={soldLabel} value={`−${soldLine}`} deduct />
+                                        ) : null}
+                                        {(depositExcessRefundAmount ?? 0) > 0 ? (
+                                            <ReceiptRow label="Cọc dư" value={formatCurrency(depositExcessRefundAmount)} />
+                                        ) : null}
+                                    </>
+                                );
+                            }
 
-                    return (
-                        <>
-                            {soldLine ? <ReceiptRow label={soldLabel} value={soldLine} /> : null}
-                            {cọcHiện > 0 ? (
-                                <ReceiptRow label="Cọc" value={`−${formatCurrency(cọcHiện)}`} deduct />
-                            ) : null}
-                            {(depositExcessRefundAmount ?? 0) > 0 ? (
-                                <ReceiptRow label="Cọc dư hoàn" value={formatCurrency(depositExcessRefundAmount)} />
-                            ) : null}
-                        </>
-                    );
-                })()}
+                            return (
+                                <>
+                                    {soldLine ? <ReceiptRow label={soldLabel} value={soldLine} /> : null}
+                                    {cọcHiện > 0 ? (
+                                        <ReceiptRow label="Cọc" value={`−${formatCurrency(cọcHiện)}`} deduct />
+                                    ) : null}
+                                    {(depositExcessRefundAmount ?? 0) > 0 ? (
+                                        <ReceiptRow label="Cọc dư hoàn" value={formatCurrency(depositExcessRefundAmount)} />
+                                    ) : null}
+                                </>
+                            );
+                        })()}
+                    </Stack>
+                </AccordionDetails>
+            </Accordion>
 
-                <ReceiptRow label={headline.label} value={formatCurrency(headline.amount)} total />
-            </Stack>
+            <ReceiptRow label={headline.label} value={formatCurrency(headline.amount)} total />
 
             <AdminDialog
                 open={helpOpen}

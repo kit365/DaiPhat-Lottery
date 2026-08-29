@@ -12,11 +12,13 @@ import '../viewmodels/notification_viewmodel.dart';
 class NotificationView extends StatefulWidget {
   final NotificationViewModel viewModel;
   final VoidCallback? onBack;
+  final bool showBackButton;
 
   const NotificationView({
     super.key,
     required this.viewModel,
     this.onBack,
+    this.showBackButton = true,
   });
 
   @override
@@ -117,20 +119,23 @@ class _NotificationViewState extends State<NotificationView> {
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new_rounded,
-            size: 20,
-            color: AppColors.primary,
-          ),
-          onPressed: () {
-            if (widget.onBack != null) {
-              widget.onBack!();
-            } else {
-              context.pop();
-            }
-          },
-        ),
+        automaticallyImplyLeading: false,
+        leading: widget.showBackButton
+            ? IconButton(
+                icon: const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  size: 20,
+                  color: AppColors.primary,
+                ),
+                onPressed: () {
+                  if (widget.onBack != null) {
+                    widget.onBack!();
+                  } else {
+                    context.pop();
+                  }
+                },
+              )
+            : null,
         title: Text(
           'Thông báo',
           style: GoogleFonts.publicSans(

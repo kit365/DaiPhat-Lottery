@@ -46,6 +46,21 @@ class AuthApiService {
     return apiResponse.data!;
   }
 
+  Future<void> logout() async {
+    final response = await _apiClient.post(
+      '$_baseAuth/logout',
+      includeAuth: false,
+    );
+    final apiResponse = ApiResponse.fromJson(response, null);
+    if (!apiResponse.isSuccess) {
+      throw ApiException(
+        apiResponse.message.isNotEmpty
+            ? apiResponse.message
+            : 'Đăng xuất thất bại.',
+      );
+    }
+  }
+
   Future<User> getCurrentUser() async {
     final response = await _apiClient.get('$_baseUsers/me');
     
@@ -174,4 +189,3 @@ class AuthApiService {
     return apiResponse.data!;
   }
 }
-

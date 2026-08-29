@@ -70,14 +70,14 @@ class LotteryResult {
   final LotteryPrizes prizes;
 
   List<LotteryPrizeRow> get prizeRows => [
-        LotteryPrizeRow(label: 'Giai nhat', values: _single(prizes.first)),
-        LotteryPrizeRow(label: 'Giai nhi', values: _single(prizes.second)),
-        LotteryPrizeRow(label: 'Giai ba', values: prizes.third),
-        LotteryPrizeRow(label: 'Giai tu', values: prizes.fourth),
-        LotteryPrizeRow(label: 'Giai nam', values: prizes.fifth),
-        LotteryPrizeRow(label: 'Giai sau', values: prizes.sixth),
-        LotteryPrizeRow(label: 'Giai bay', values: prizes.seventh, highlight: true),
-        LotteryPrizeRow(label: 'Giai tam', values: prizes.eighth, highlight: true),
+        LotteryPrizeRow(label: 'Giải nhất', values: _single(prizes.first)),
+        LotteryPrizeRow(label: 'Giải nhì', values: _single(prizes.second)),
+        LotteryPrizeRow(label: 'Giải ba', values: prizes.third),
+        LotteryPrizeRow(label: 'Giải tư', values: prizes.fourth),
+        LotteryPrizeRow(label: 'Giải năm', values: prizes.fifth),
+        LotteryPrizeRow(label: 'Giải sáu', values: prizes.sixth),
+        LotteryPrizeRow(label: 'Giải bảy', values: prizes.seventh, highlight: true),
+        LotteryPrizeRow(label: 'Giải tám', values: prizes.eighth, highlight: true),
       ];
 
   Iterable<String> get allPrizeNumbers => <String>[
@@ -283,13 +283,13 @@ DateTime _parseApiDate(String value) {
 
 String _weekdayLabel(DateTime date) {
   const labels = <int, String>{
-    DateTime.monday: 'Thu Hai',
-    DateTime.tuesday: 'Thu Ba',
-    DateTime.wednesday: 'Thu Tu',
-    DateTime.thursday: 'Thu Nam',
-    DateTime.friday: 'Thu Sau',
-    DateTime.saturday: 'Thu Bay',
-    DateTime.sunday: 'Chu Nhat',
+    DateTime.monday: 'Thứ Hai',
+    DateTime.tuesday: 'Thứ Ba',
+    DateTime.wednesday: 'Thứ Tư',
+    DateTime.thursday: 'Thứ Năm',
+    DateTime.friday: 'Thứ Sáu',
+    DateTime.saturday: 'Thứ Bảy',
+    DateTime.sunday: 'Chủ Nhật',
   };
   return labels[date.weekday] ?? '';
 }
