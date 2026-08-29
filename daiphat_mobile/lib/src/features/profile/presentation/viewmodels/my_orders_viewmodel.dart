@@ -24,6 +24,15 @@ class MyOrdersViewModel extends ChangeNotifier {
   String? _selectedStatus;
   String? get selectedStatus => _selectedStatus;
 
+  String _search = '';
+  String get search => _search;
+
+  String _sortBy = 'createdAt';
+  String get sortBy => _sortBy;
+
+  String _direction = 'desc';
+  String get direction => _direction;
+
   MyOrdersViewModel(this._orderService) {
     fetchOrders(refresh: true);
   }
@@ -47,6 +56,9 @@ class MyOrdersViewModel extends ChangeNotifier {
         page: _page,
         size: 10,
         status: _selectedStatus,
+        search: _search,
+        sortBy: _sortBy,
+        direction: _direction,
       );
 
       if (refresh) {
@@ -70,6 +82,29 @@ class MyOrdersViewModel extends ChangeNotifier {
   void setStatusFilter(String? status) {
     if (_selectedStatus == status) return;
     _selectedStatus = status;
+    fetchOrders(refresh: true);
+  }
+
+  void setSearch(String value) {
+    var next = value.trim();
+    if (next.toUpperCase().startsWith('DP')) {
+      next = next.substring(2).trim();
+    }
+    if (_search == next) return;
+    _search = next;
+    fetchOrders(refresh: true);
+  }
+
+  void setPriceSort(String? direction) {
+    if (direction == null) {
+      if (_sortBy == 'createdAt' && _direction == 'desc') return;
+      _sortBy = 'createdAt';
+      _direction = 'desc';
+    } else {
+      if (_sortBy == 'totalAmount' && _direction == direction) return;
+      _sortBy = 'totalAmount';
+      _direction = direction;
+    }
     fetchOrders(refresh: true);
   }
 }

@@ -86,24 +86,27 @@ void main() {
     expect(find.text('first: 1'), findsOneWidget);
   });
 
-  test('router uses five persistent branches in the bottom-nav order', () {
+  test('router uses six persistent branches, including utilities', () {
     final router = _readSource('lib/src/app/routing/app_router.dart');
 
     expect(router, contains('StatefulShellRoute.indexedStack('));
     final branches = router.substring(router.indexOf('branches: ['));
-    expect(RegExp(r'StatefulShellBranch\(').allMatches(branches).length, 5);
+    expect(RegExp(r'StatefulShellBranch\(').allMatches(branches).length, 6);
     expect(
       branches.indexOf('AppRoute.buyTicket') <
               branches.indexOf('AppRoute.checkTicket') &&
           branches.indexOf('AppRoute.checkTicket') <
               branches.indexOf('AppRoute.home') &&
           branches.indexOf('AppRoute.home') <
+              branches.indexOf('AppRoute.utilitiesTwo') &&
+          branches.indexOf('AppRoute.utilitiesTwo') <
               branches.indexOf('AppRoute.notifications') &&
           branches.indexOf('AppRoute.notifications') <
               branches.indexOf('AppRoute.profile'),
       isTrue,
     );
     expect(router, contains('showBackButton: false'));
+    expect(router, contains('UtilitiesTwoView('));
     expect(router, contains('path == AppRoute.profile.path'));
   });
 

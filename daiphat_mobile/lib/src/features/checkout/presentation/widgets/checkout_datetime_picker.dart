@@ -21,6 +21,7 @@ class CheckoutDateTimePicker extends StatefulWidget {
   final String openTimeStr;
   final String closeTimeStr;
   final VoidCallback? onInfoTap;
+  final bool embedded;
 
   const CheckoutDateTimePicker({
     super.key,
@@ -33,6 +34,7 @@ class CheckoutDateTimePicker extends StatefulWidget {
     this.openTimeStr = '08:00',
     this.closeTimeStr = '20:00',
     this.onInfoTap,
+    this.embedded = false,
   });
 
   @override
@@ -105,8 +107,8 @@ class _CheckoutDateTimePickerState extends State<CheckoutDateTimePicker> {
     final dateLabel = _isSameDay(selected, _today)
         ? 'Hôm nay'
         : _isSameDay(selected, _tomorrow)
-            ? 'Ngày mai'
-            : DateFormat('dd/MM/yyyy').format(selected);
+        ? 'Ngày mai'
+        : DateFormat('dd/MM/yyyy').format(selected);
     final period = selected.hour >= 12 ? 'PM' : 'AM';
     final h12 = _toHour12(selected.hour);
     final m = selected.minute.toString().padLeft(2, '0');
@@ -145,6 +147,81 @@ class _CheckoutDateTimePickerState extends State<CheckoutDateTimePicker> {
   Widget build(BuildContext context) {
     final hasValue = _selected != null;
     final hasError = widget.errorText != null;
+
+    if (widget.embedded) {
+      return InkWell(
+        onTap: _openSheet,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const SizedBox(
+                    width: 48,
+                    child: Icon(
+                      Icons.calendar_month_outlined,
+                      color: Color(0xFF15213B),
+                      size: 26,
+                    ),
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Thời gian đến lấy *',
+                          style: TextStyle(
+                            color: hasError
+                                ? AppColors.primary
+                                : const Color(0xFF8B94A3),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _displayText,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: hasValue
+                                ? const Color(0xFF15213B)
+                                : AppColors.loginPlaceholder,
+                            fontSize: 15,
+                            fontWeight: hasValue
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: Color(0xFF15213B),
+                    size: 28,
+                  ),
+                ],
+              ),
+              if (hasError)
+                Padding(
+                  padding: const EdgeInsets.only(left: 48, top: 6),
+                  child: Text(
+                    widget.errorText!,
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -195,9 +272,7 @@ class _CheckoutDateTimePickerState extends State<CheckoutDateTimePicker> {
           label: hasValue
               ? 'Thời gian đến lấy: $_displayText'
               : 'Chọn ngày và giờ nhận vé',
-          hint: hasError
-              ? widget.errorText
-              : 'Mở bộ chọn ngày và giờ nhận vé',
+          hint: hasError ? widget.errorText : 'Mở bộ chọn ngày và giờ nhận vé',
           onTap: _openSheet,
           child: ExcludeSemantics(
             child: InkWell(
@@ -207,7 +282,9 @@ class _CheckoutDateTimePickerState extends State<CheckoutDateTimePicker> {
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.calendar_month_rounded),
                   errorText: widget.errorText,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(
@@ -221,8 +298,10 @@ class _CheckoutDateTimePickerState extends State<CheckoutDateTimePicker> {
                       width: 1.5,
                     ),
                   ),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 14,
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -231,7 +310,9 @@ class _CheckoutDateTimePickerState extends State<CheckoutDateTimePicker> {
                         _displayText,
                         style: TextStyle(
                           fontSize: 14,
-                          fontWeight: hasValue ? FontWeight.w600 : FontWeight.w400,
+                          fontWeight: hasValue
+                              ? FontWeight.w600
+                              : FontWeight.w400,
                           color: hasValue
                               ? const Color(0xFF15213B)
                               : AppColors.loginPlaceholder,
@@ -395,7 +476,9 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
     final start24 = period == 'AM' ? 0 : 12;
     final end24 = period == 'AM' ? 11 : 23;
 
-    final openRangeStart = widget.openHour > start24 ? widget.openHour : start24;
+    final openRangeStart = widget.openHour > start24
+        ? widget.openHour
+        : start24;
     final closeRangeEnd = widget.closeHour < end24 ? widget.closeHour : end24;
 
     if (openRangeStart > closeRangeEnd) return [];
@@ -513,7 +596,8 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
     final periods = _availablePeriods;
     final hours = _availableHours12;
     final minutes = _availableMinutes;
-    final canConfirm = periods.isNotEmpty && hours.isNotEmpty && minutes.isNotEmpty;
+    final canConfirm =
+        periods.isNotEmpty && hours.isNotEmpty && minutes.isNotEmpty;
 
     return SafeArea(
       child: Padding(
@@ -607,9 +691,14 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<int>(
-                        value: hours.contains(_hour12) ? _hour12 : (hours.isNotEmpty ? hours.first : null),
+                        value: hours.contains(_hour12)
+                            ? _hour12
+                            : (hours.isNotEmpty ? hours.first : null),
                         isExpanded: true,
-                        icon: const Icon(Icons.arrow_drop_down_rounded, color: Color(0xFF6B7280)),
+                        icon: const Icon(
+                          Icons.arrow_drop_down_rounded,
+                          color: Color(0xFF6B7280),
+                        ),
                         items: hours.map((h) {
                           return DropdownMenuItem<int>(
                             value: h,
@@ -647,9 +736,14 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<int>(
-                        value: minutes.contains(_minute) ? _minute : (minutes.isNotEmpty ? minutes.first : null),
+                        value: minutes.contains(_minute)
+                            ? _minute
+                            : (minutes.isNotEmpty ? minutes.first : null),
                         isExpanded: true,
-                        icon: const Icon(Icons.arrow_drop_down_rounded, color: Color(0xFF6B7280)),
+                        icon: const Icon(
+                          Icons.arrow_drop_down_rounded,
+                          color: Color(0xFF6B7280),
+                        ),
                         items: minutes.map((m) {
                           return DropdownMenuItem<int>(
                             value: m,
@@ -684,9 +778,14 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
-                        value: periods.contains(_period) ? _period : (periods.isNotEmpty ? periods.first : null),
+                        value: periods.contains(_period)
+                            ? _period
+                            : (periods.isNotEmpty ? periods.first : null),
                         isExpanded: true,
-                        icon: const Icon(Icons.arrow_drop_down_rounded, color: Color(0xFF6B7280)),
+                        icon: const Icon(
+                          Icons.arrow_drop_down_rounded,
+                          color: Color(0xFF6B7280),
+                        ),
                         items: periods.map((p) {
                           return DropdownMenuItem<String>(
                             value: p,
@@ -741,10 +840,7 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
               ),
               child: const Text(
                 'Xác nhận',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
               ),
             ),
           ],
@@ -792,10 +888,7 @@ class _DateOptionButton extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               subLabel,
-              style: const TextStyle(
-                fontSize: 11,
-                color: Color(0xFFC4CDD5),
-              ),
+              style: const TextStyle(fontSize: 11, color: Color(0xFFC4CDD5)),
             ),
           ],
         ),

@@ -36,9 +36,9 @@ class MainLayout extends StatelessWidget {
             notificationBadge: notificationViewModel.unreadCount,
             onTap: (index) {
               if (!loginViewModel.isAuthenticated &&
-                  (index == 3 || index == 4)) {
+                  (index == 4 || index == 5)) {
                 context.go(
-                  index == 3
+                  index == 4
                       ? AppRoute.notifications.path
                       : AppRoute.profile.path,
                 );
@@ -81,6 +81,11 @@ class _AnimatedBottomNavigation extends StatelessWidget {
       activeIcon: Icons.home_rounded,
     ),
     (
+      label: 'Tiện ích',
+      icon: Icons.dashboard_customize_outlined,
+      activeIcon: Icons.dashboard_customize_rounded,
+    ),
+    (
       label: 'Thông báo',
       icon: Icons.notifications_none_rounded,
       activeIcon: Icons.notifications_rounded,
@@ -118,7 +123,7 @@ class _AnimatedBottomNavigation extends StatelessWidget {
               child: _AnimatedNavItem(
                 item: _items[index],
                 selected: selectedIndex == index,
-                badge: index == 3 ? notificationBadge : 0,
+                badge: index == 4 ? notificationBadge : 0,
                 onTap: () => onTap(index),
               ),
             ),

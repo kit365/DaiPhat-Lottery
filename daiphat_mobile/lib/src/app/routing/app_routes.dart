@@ -219,11 +219,11 @@ extension AppRouteDefinition on AppRoute {
       case AppRoute.schedule:
       case AppRoute.blog:
       case AppRoute.utilities:
-      case AppRoute.utilitiesTwo:
         return true;
       case AppRoute.home:
       case AppRoute.buyTicket:
       case AppRoute.checkTicket:
+      case AppRoute.utilitiesTwo:
       case AppRoute.notifications:
       case AppRoute.profile:
         return false;

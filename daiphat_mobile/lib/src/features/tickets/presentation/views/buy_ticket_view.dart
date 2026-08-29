@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -18,26 +17,15 @@ import 'package:daiphat_mobile/src/features/cart/models/cart_item_model.dart';
 import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
 import 'package:daiphat_mobile/src/features/chat/presentation/views/chat_screen.dart';
 import 'package:daiphat_mobile/src/shared/providers/api_providers.dart';
-import '../../data/models/lottery_ticket.dart';
 import '../viewmodels/buy_ticket_viewmodel.dart';
 import '../widgets/ticket_search_filter_sheet.dart';
 import '../../utils/sellable_draw_date.dart';
 import '../../utils/ticket_search_filter.dart';
 
-String _formatTicketPrice(int? price) {
-  final effective =
-      (price != null && price > 0) ? price : kDefaultLotteryTicketPrice;
-  final currencyFormatter = NumberFormat.currency(
-    locale: 'vi_VN',
-    symbol: 'đ',
-    decimalDigits: 0,
-  );
-  return '${currencyFormatter.format(effective)} / vé';
-}
-
 String _compactPrice(int? price) {
-  final effective =
-      (price != null && price > 0) ? price : kDefaultLotteryTicketPrice;
+  final effective = (price != null && price > 0)
+      ? price
+      : kDefaultLotteryTicketPrice;
   final currencyFormatter = NumberFormat.currency(
     locale: 'vi_VN',
     symbol: 'đ',
@@ -203,7 +191,11 @@ class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
             onSearchChanged: viewModel.updateSearchQuery,
             onOpenFilter: () async {
               final currentFilter =
-                  ref.read(buyTicketViewModelProvider).asData?.value?.searchFilter ??
+                  ref
+                      .read(buyTicketViewModelProvider)
+                      .asData
+                      ?.value
+                      .searchFilter ??
                   TicketSearchFilter.empty;
               final applied = await showTicketSearchFilterSheet(
                 context: context,
@@ -219,6 +211,7 @@ class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
                 state: loadedData,
                 viewModel: viewModel,
                 onOpenDetail: (ticket) => _openTicketDetail(context, ticket),
+                onAddToCart: (ticket) => _addToCart(context, ticket),
                 onBuyNow: (ticket) =>
                     _addToCart(context, ticket, openCheckout: true),
               ),
@@ -254,12 +247,14 @@ class _LoadedView extends StatefulWidget {
     required this.state,
     required this.viewModel,
     required this.onOpenDetail,
+    required this.onAddToCart,
     required this.onBuyNow,
   });
 
   final BuyTicketState state;
   final BuyTicketViewModel viewModel;
   final ValueChanged<LotteryTicketListItem> onOpenDetail;
+  final ValueChanged<LotteryTicketListItem> onAddToCart;
   final ValueChanged<LotteryTicketListItem> onBuyNow;
 
   @override
@@ -321,8 +316,7 @@ class _LoadedViewState extends State<_LoadedView> {
                 selectedDay: state.selectedDay,
                 isTodaySellClosed: state.isTodaySellClosed,
                 isTomorrowSellClosed: state.isTomorrowSellClosed,
-                onSelectToday: () =>
-                    viewModel.selectDay(TicketDayFilter.today),
+                onSelectToday: () => viewModel.selectDay(TicketDayFilter.today),
                 onSelectTomorrow: () {
                   viewModel.selectDay(TicketDayFilter.tomorrow);
                 },
@@ -440,10 +434,14 @@ class _SearchField extends StatefulWidget {
   const _SearchField({
     required this.initialValue,
     required this.onChanged,
+    this.filterCount = 0,
+    this.onOpenFilter,
   });
 
   final String initialValue;
   final ValueChanged<String> onChanged;
+  final int filterCount;
+  final VoidCallback? onOpenFilter;
 
   @override
   State<_SearchField> createState() => _SearchFieldState();
@@ -495,11 +493,7 @@ class _SearchFieldState extends State<_SearchField> {
       child: Row(
         children: [
           const SizedBox(width: 12),
-          const Icon(
-            Icons.search_rounded,
-            color: Color(0xFF94A3B8),
-            size: 20,
-          ),
+          const Icon(Icons.search_rounded, color: Color(0xFF94A3B8), size: 20),
           const SizedBox(width: 8),
           Expanded(
             child: TextField(
@@ -542,6 +536,23 @@ class _SearchFieldState extends State<_SearchField> {
                   Icons.cancel_rounded,
                   size: 17,
                   color: Color(0xFFCBD5E1),
+                ),
+              ),
+            ),
+          if (widget.onOpenFilter != null)
+            GestureDetector(
+              onTap: widget.onOpenFilter,
+              child: Padding(
+                padding: const EdgeInsets.only(right: 10),
+                child: Badge(
+                  isLabelVisible: widget.filterCount > 0,
+                  label: Text('${widget.filterCount}'),
+                  backgroundColor: AppColors.primary,
+                  child: const Icon(
+                    Icons.tune_rounded,
+                    size: 19,
+                    color: AppColors.primary,
+                  ),
                 ),
               ),
             ),
@@ -895,55 +906,413 @@ class _ProvinceFilterStrip extends StatelessWidget {
   }
 }
 
-class _TicketSectionHeader extends StatelessWidget {
-  const _TicketSectionHeader({required this.title, required this.count});
 
-  final String title;
-  final int count;
+
+class _AllTicketsPage extends ConsumerStatefulWidget {
+  const _AllTicketsPage({
+    required this.onOpenDetail,
+    required this.onAddToCart,
+  });
+
+  final ValueChanged<LotteryTicketListItem> onOpenDetail;
+  final ValueChanged<LotteryTicketListItem> onAddToCart;
+
+  @override
+  ConsumerState<_AllTicketsPage> createState() => _AllTicketsPageState();
+}
+
+class _AllTicketsPageState extends ConsumerState<_AllTicketsPage> {
+  final _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController
+      ..removeListener(_onScroll)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    if (position.pixels >= position.maxScrollExtent - 300) {
+      ref.read(allTicketsViewModelProvider.notifier).loadMore();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 4,
-          height: 24,
-          decoration: BoxDecoration(
-            color: const Color(0xFFB90014),
-            borderRadius: BorderRadius.circular(999),
+    final state = ref.watch(allTicketsViewModelProvider);
+    final viewModel = ref.read(allTicketsViewModelProvider.notifier);
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF9F9FC),
+      body: SafeArea(
+        child: state.when(
+          data: (data) {
+            final tickets = data.filteredTickets;
+            return BrandScrollbar(
+              controller: _scrollController,
+              child: RefreshIndicator(
+                color: AppColors.primary,
+                onRefresh: viewModel.refresh,
+                child: CustomScrollView(
+                  controller: _scrollController,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: _AllTicketsHeader(
+                        onBack: () => Navigator.of(context).pop(),
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+                        child: _SearchField(
+                          initialValue: data.searchQuery,
+                          filterCount: data.searchFilter.count,
+                          onChanged: viewModel.updateSearchQuery,
+                          onOpenFilter: () async {
+                            final applied = await showTicketSearchFilterSheet(
+                              context: context,
+                              initial: data.searchFilter,
+                            );
+                            if (applied == null) return;
+                            await viewModel.applySearchFilter(applied);
+                          },
+                        ),
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: _ProvinceFilterStrip(
+                        provinces: data.provinces,
+                        selectedProvince: data.selectedProvince,
+                        onSelectProvince: viewModel.selectProvince,
+                      ),
+                    ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: _DaySegmentedControl(
+                          selectedDay: data.selectedDay,
+                          isTodaySellClosed: data.isTodaySellClosed,
+                          isTomorrowSellClosed: data.isTomorrowSellClosed,
+                          onSelectToday: () =>
+                              viewModel.selectDay(TicketDayFilter.today),
+                          onSelectTomorrow: () =>
+                              viewModel.selectDay(TicketDayFilter.tomorrow),
+                        ),
+                      ),
+                    ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 14)),
+                    if (data.isListLoading)
+                      const SliverPadding(
+                        padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        sliver: SliverToBoxAdapter(
+                          child: _TicketListSkeleton(count: 6),
+                        ),
+                      )
+                    else if (tickets.isEmpty)
+                      const SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: Center(child: _EmptyState()),
+                      )
+                    else
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+                        sliver: SliverGrid.builder(
+                          itemCount: tickets.length,
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                mainAxisSpacing: 14,
+                                crossAxisSpacing: 14,
+                                childAspectRatio: 0.9,
+                              ),
+                          itemBuilder: (_, index) {
+                            final ticket = tickets[index];
+                            return _AllTicketCard(
+                              ticket: ticket,
+                              onTap: () => widget.onOpenDetail(ticket),
+                              onAddToCart: () => widget.onAddToCart(ticket),
+                            );
+                          },
+                        ),
+                      ),
+                    if (data.isLoadingMore)
+                      const SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.only(bottom: 24),
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+          loading: () => const Center(
+            child: CircularProgressIndicator(color: AppColors.primary),
+          ),
+          error: (error, _) => _ErrorState(
+            message: error.toString(),
+            onRetry: viewModel.refresh,
           ),
         ),
-        const SizedBox(width: 8),
-        Text(
-          title,
-          style: AppTypography.display(
-            const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1A1C1E),
+      ),
+    );
+  }
+}
+
+class _AllTicketsHeader extends StatelessWidget {
+  const _AllTicketsHeader({required this.onBack});
+
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+      child: Row(
+        children: [
+          Material(
+            color: Colors.white,
+            shape: const CircleBorder(),
+            elevation: 4,
+            shadowColor: Colors.black.withValues(alpha: 0.16),
+            child: InkWell(
+              onTap: onBack,
+              customBorder: const CircleBorder(),
+              child: const SizedBox(
+                width: 52,
+                height: 52,
+                child: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: AppColors.primary,
+                  size: 22,
+                ),
+              ),
             ),
           ),
-        ),
-        const Spacer(),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Semantics(
-              label: count > 0 ? 'Xem tất cả, sắp ra mắt' : '0 vé',
-              child: Text(
-                count > 0 ? 'Xem tất cả · Sắp ra mắt' : '0 vé',
-                style: AppTypography.main(
-                  const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFFD51A26),
+          Expanded(
+            child: Text(
+              'Mua vé',
+              textAlign: TextAlign.center,
+              style: AppTypography.display(
+                const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+          ),
+          Consumer(
+            builder: (context, ref, _) {
+              final count = ref.watch(cartTicketCountProvider);
+              return Row(
+                children: [
+                  _HeaderSquareButton(
+                    icon: Icons.shopping_cart_outlined,
+                    onTap: () => context.push(AppRoute.cart.path),
+                    badgeCount: count,
                   ),
+                  const SizedBox(width: 10),
+                  _HeaderSquareButton(
+                    icon: Icons.chat_bubble_outline_rounded,
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => ChatScreen(
+                            isAuthenticated: readIsAuthenticated(ref),
+                            isActive: true,
+                            onBack: () => Navigator.of(context).pop(),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AllTicketCard extends StatelessWidget {
+  const _AllTicketCard({
+    required this.ticket,
+    required this.onTap,
+    required this.onAddToCart,
+  });
+
+  final LotteryTicketListItem ticket;
+  final VoidCallback onTap;
+  final VoidCallback onAddToCart;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      elevation: 2.5,
+      shadowColor: Colors.black.withValues(alpha: 0.12),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              height: 96,
+              width: double.infinity,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  ticket.imageUrl != null && ticket.imageUrl!.trim().isNotEmpty
+                      ? CachedNetworkImage(
+                          imageUrl: ticket.imageUrl!,
+                          fit: BoxFit.cover,
+                          errorWidget: (_, _, _) =>
+                              _TicketThumbFallback(shortName: ticket.shortName),
+                        )
+                      : _TicketThumbFallback(shortName: ticket.shortName),
+                  Positioned(
+                    right: 10,
+                    top: 10,
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.favorite_border_rounded,
+                        color: Color(0xFF9B6D69),
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                ticket.stationDisplayText,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTypography.main(
+                                  const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF6B625F),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Text(
+                              _compactPrice(ticket.price),
+                              style: AppTypography.main(
+                                const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.black,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          ticket.code,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.number(
+                            const TextStyle(
+                              color: Color(0xFFC90F1D),
+                              fontSize: 26,
+                              height: 1,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.calendar_month_outlined,
+                          size: 12,
+                          color: Color(0xFF8A6D68),
+                        ),
+                        Expanded(
+                          child: Text(
+                            ticket.dateLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF755E59),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Material(
+                          color: AppColors.primary,
+                          shape: const CircleBorder(),
+                          clipBehavior: Clip.antiAlias,
+                          child: InkWell(
+                            onTap: onAddToCart,
+                            child: const SizedBox(
+                              width: 30,
+                              height: 30,
+                              child: Icon(
+                                Icons.add_rounded,
+                                color: Colors.white,
+                                size: 21,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ),
           ],
         ),
-      ],
+      ),
     );
   }
 }
@@ -1836,10 +2205,8 @@ class _TicketListSkeleton extends StatelessWidget {
           runSpacing: 10.0,
           children: List.generate(
             count,
-            (index) => SizedBox(
-              width: itemWidth,
-              child: const _TicketCardSkeleton(),
-            ),
+            (index) =>
+                SizedBox(width: itemWidth, child: const _TicketCardSkeleton()),
           ),
         );
       },
@@ -2070,10 +2437,7 @@ class _BuyTicketHeader extends StatelessWidget {
 }
 
 class _FilterSquareButton extends StatelessWidget {
-  const _FilterSquareButton({
-    required this.onTap,
-    this.filterCount = 0,
-  });
+  const _FilterSquareButton({required this.onTap, this.filterCount = 0});
 
   final VoidCallback onTap;
   final int filterCount;

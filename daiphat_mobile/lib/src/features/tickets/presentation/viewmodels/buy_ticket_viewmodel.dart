@@ -177,6 +177,11 @@ final buyTicketViewModelProvider =
       BuyTicketViewModel.new,
     );
 
+final allTicketsViewModelProvider =
+    AsyncNotifierProvider<BuyTicketViewModel, BuyTicketState>(
+      BuyTicketViewModel.new,
+    );
+
 class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
   Timer? _searchDebounce;
   int _listRequestId = 0;

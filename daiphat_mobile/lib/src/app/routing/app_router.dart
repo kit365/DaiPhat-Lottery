@@ -165,6 +165,21 @@ GoRouter createAppRouter({
           StatefulShellBranch(
             routes: [
               GoRoute(
+                path: AppRoute.utilitiesTwo.path,
+                name: AppRoute.utilitiesTwo.name,
+                builder: (context, state) => UtilitiesTwoView(
+                  isAuthenticated: loginViewModel.isAuthenticated,
+                  onBack: () => context.go(AppRoute.home.path),
+                  onOpenNotifications: () =>
+                      context.go(AppRoute.notifications.path),
+                  onOpenBlog: () => context.push(AppRoute.blog.path),
+                ),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
                 path: AppRoute.notifications.path,
                 name: AppRoute.notifications.name,
                 builder: (context, state) => NotificationView(
@@ -414,14 +429,6 @@ GoRouter createAppRouter({
       ),
       _route(
         AppRoute.utilities,
-        loginViewModel,
-        registerViewModel,
-        forgotPasswordViewModel,
-        profileViewModel,
-        notificationViewModel,
-      ),
-      _route(
-        AppRoute.utilitiesTwo,
         loginViewModel,
         registerViewModel,
         forgotPasswordViewModel,
