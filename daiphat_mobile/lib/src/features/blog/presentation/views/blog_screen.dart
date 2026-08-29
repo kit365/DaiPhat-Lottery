@@ -32,6 +32,15 @@ class BlogScreen extends ConsumerStatefulWidget {
 }
 
 class _BlogScreenState extends ConsumerState<BlogScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      if (!mounted) return;
+      ref.read(blogViewModelProvider.notifier).resetFilters();
+    });
+  }
+
   void _openDetail(BlogPost post) {
     final slug = post.slug;
     if (slug == null || slug.isEmpty) return;
@@ -41,10 +50,12 @@ class _BlogScreenState extends ConsumerState<BlogScreen> {
     ).push(MaterialPageRoute(builder: (_) => BlogDetailScreen(slug: slug)));
   }
 
-  void _openAllPosts() {
-    Navigator.of(
+  Future<void> _openAllPosts() async {
+    await Navigator.of(
       context,
     ).push(MaterialPageRoute<void>(builder: (_) => const _BlogAllScreen()));
+    if (!mounted) return;
+    await ref.read(blogViewModelProvider.notifier).resetFilters();
   }
 
   @override
@@ -604,11 +615,14 @@ Widget _buildCategoryChips({
   required void Function(int) onSelected,
 }) {
   final items = List.generate(categories.length, (i) {
-    return AppFilterTabItem<int>(value: i, label: categories[i]);
+    return AppFilterTabItem<int>(value: i + 1, label: categories[i]);
   });
 
   return AppFilterTabStrip<int>(
-    items: items,
+    items: [
+      const AppFilterTabItem<int>(value: 0, label: 'Tất cả'),
+      ...items,
+    ],
     selectedValue: selectedIndex,
     onSelected: onSelected,
     height: 44,
