@@ -28,7 +28,6 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
   final _scrollController = ScrollController();
   final _searchController = TextEditingController();
   Timer? _searchDebounce;
-  bool _isSearchMode = false;
   final Set<String> _expandedOrderIds = {};
 
   static const _statusFilters = <AppStatusTabItem<String?>>[
@@ -80,24 +79,22 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
-      appBar: _isSearchMode ? _buildSearchAppBar() : _buildMainAppBar(),
+      appBar: _buildMainAppBar(),
       body: ListenableBuilder(
         listenable: _viewModel,
         builder: (context, _) {
-          if (_isSearchMode) {
-            return _buildSearchScreenContent();
-          }
-
           return Column(
             children: [
-              // 1. Status Tabs
+              _buildInlineSearchBar(),
+
+              const Divider(height: 1, color: Color(0xFFEEEEEE)),
+
               AppStatusTabBar<String?>(
                 items: _statusFilters,
                 selectedValue: _viewModel.selectedStatus,
                 onSelected: (value) => _viewModel.setStatusFilter(value),
               ),
 
-              // 2. Order List
               Expanded(child: _buildBody()),
             ],
           );
@@ -131,52 +128,9 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
       ),
       centerTitle: true,
       actions: [
-        IconButton(
-          icon: const Icon(
-            Icons.search_rounded,
-            size: 24,
-            color: AppColors.primary,
-          ),
-          tooltip: 'Tìm kiếm đơn hàng',
-          onPressed: () {
-            setState(() {
-              _isSearchMode = true;
-            });
-          },
-        ),
         _buildChatActionButton(),
         const SizedBox(width: 4),
       ],
-    );
-  }
-
-  AppBar _buildSearchAppBar() {
-    return AppBar(
-      backgroundColor: AppColors.surfacePrimary,
-      surfaceTintColor: AppColors.transparent,
-      elevation: 0,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back, size: 24, color: AppColors.primary),
-        onPressed: () {
-          setState(() {
-            _isSearchMode = false;
-            _searchController.clear();
-            _viewModel.setSearch('');
-          });
-        },
-      ),
-      title: Text(
-        'Tìm kiếm đơn hàng',
-        style: AppTypography.main(
-          const TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF1F2937),
-          ),
-        ),
-      ),
-      centerTitle: true,
-      actions: [_buildChatActionButton(), const SizedBox(width: 4)],
     );
   }
 
@@ -209,135 +163,61 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
     );
   }
 
-  Widget _buildSearchScreenContent() {
-    return Column(
-      children: [
-        Container(
-          color: AppColors.surfacePrimary,
-          padding: const EdgeInsets.fromLTRB(14, 6, 14, 12),
-          child: TextField(
-            controller: _searchController,
-            autofocus: true,
-            textInputAction: TextInputAction.search,
-            onSubmitted: _viewModel.setSearch,
-            style: AppTypography.main(const TextStyle(fontSize: 14)),
-            decoration: InputDecoration(
-              hintText: 'Mã đơn hàng, đài quay hoặc số vé...',
-              hintStyle: AppTypography.main(
-                const TextStyle(fontSize: 13.5, color: Color(0xFF9CA3AF)),
-              ),
-              prefixIcon: const Icon(
-                Icons.search_rounded,
-                size: 20,
-                color: Color(0xFF888888),
-              ),
-              suffixIcon: _searchController.text.trim().isEmpty
-                  ? null
-                  : IconButton(
-                      icon: const Icon(
-                        Icons.close_rounded,
-                        size: 18,
-                        color: Color(0xFF888888),
-                      ),
-                      onPressed: () {
-                        _searchController.clear();
-                        _viewModel.setSearch('');
-                        setState(() {});
-                      },
-                    ),
-              filled: true,
-              fillColor: const Color(0xFFF3F4F6),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(6),
-                borderSide: BorderSide.none,
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 9,
-              ),
-              isDense: true,
-            ),
-            onChanged: (value) {
-              setState(() {});
-              _searchDebounce?.cancel();
-              _searchDebounce = Timer(const Duration(milliseconds: 450), () {
-                _viewModel.setSearch(value);
-              });
-            },
+  Widget _buildInlineSearchBar() {
+    return Container(
+      color: AppColors.surfacePrimary,
+      padding: const EdgeInsets.fromLTRB(14, 6, 14, 12),
+      child: TextField(
+        controller: _searchController,
+        textInputAction: TextInputAction.search,
+        onSubmitted: _viewModel.setSearch,
+        style: AppTypography.main(const TextStyle(fontSize: 14)),
+        decoration: InputDecoration(
+          hintText: 'Mã đơn hàng, đài quay hoặc số vé...',
+          hintStyle: AppTypography.main(
+            const TextStyle(fontSize: 13.5, color: Color(0xFF9CA3AF)),
           ),
-        ),
-
-        const Divider(height: 1, color: Color(0xFFEEEEEE)),
-
-        Expanded(
-          child: _searchController.text.trim().isEmpty
-              ? _buildSearchEmptyPrompt()
-              : _buildBody(),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSearchEmptyPrompt() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.08),
-                shape: BoxShape.circle,
-              ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Icon(
-                    Icons.receipt_long_rounded,
-                    size: 56,
-                    color: AppColors.primary.withValues(alpha: 0.35),
+          prefixIcon: const Icon(
+            Icons.search_rounded,
+            size: 20,
+            color: Color(0xFF888888),
+          ),
+          suffixIcon: _searchController.text.trim().isEmpty
+              ? null
+              : IconButton(
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    size: 18,
+                    color: Color(0xFF888888),
                   ),
-                  Positioned(
-                    right: 18,
-                    bottom: 18,
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: const BoxDecoration(
-                        color: AppColors.primary,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.search_rounded,
-                        size: 20,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Bạn có thể tìm kiếm theo mã đơn hàng, đài quay\nhoặc số vé đặt mua',
-              textAlign: TextAlign.center,
-              style: AppTypography.main(
-                const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF4B5563),
-                  height: 1.45,
+                  onPressed: () {
+                    _searchController.clear();
+                    _viewModel.setSearch('');
+                    setState(() {});
+                  },
                 ),
-              ),
-            ),
-          ],
+          filled: true,
+          fillColor: const Color(0xFFF3F4F6),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(6),
+            borderSide: BorderSide.none,
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 9,
+          ),
+          isDense: true,
         ),
+        onChanged: (value) {
+          setState(() {});
+          _searchDebounce?.cancel();
+          _searchDebounce = Timer(const Duration(milliseconds: 450), () {
+            _viewModel.setSearch(value);
+          });
+        },
       ),
     );
   }
-
 
   Widget _buildBody() {
     if (_viewModel.isLoading) {
