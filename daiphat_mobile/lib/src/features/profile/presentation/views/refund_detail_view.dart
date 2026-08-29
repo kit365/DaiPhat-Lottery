@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:intl/intl.dart';
 
 import 'package:daiphat_mobile/src/features/checkout/models/refund_type.dart';
@@ -9,6 +9,7 @@ import 'package:daiphat_mobile/src/features/profile/data/models/refund_request.d
 import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/profile_status_badge.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import '../viewmodels/refund_detail_viewmodel.dart';
 
@@ -23,12 +24,6 @@ class RefundDetailView extends ConsumerStatefulWidget {
 class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
   late final RefundDetailViewModel _viewModel;
   int? _selectedBankId;
-
-  final _currencyFmt = NumberFormat.currency(
-    locale: 'vi_VN',
-    symbol: 'đ',
-    decimalDigits: 0,
-  );
 
   @override
   void initState() {
@@ -73,19 +68,22 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: AppColors.surfaceCanvas,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
+        backgroundColor: AppColors.surfacePrimary,
+        surfaceTintColor: AppColors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              size: 20, color: AppColors.primary),
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            size: 20,
+            color: AppColors.primary,
+          ),
           onPressed: () => context.pop(),
         ),
         title: Text(
           'Chi tiết hoàn tiền',
-          style: GoogleFonts.publicSans(
+          style: AppTypography.mainWith(
             fontSize: 18,
             fontWeight: FontWeight.w700,
             color: AppColors.textMain,
@@ -143,14 +141,17 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
           Text(
             _viewModel.error ?? 'Không tìm thấy yêu cầu hoàn tiền',
             textAlign: TextAlign.center,
-            style: GoogleFonts.publicSans(fontSize: 14, color: AppColors.textMuted),
+            style: AppTypography.mainWith(
+              fontSize: 14,
+              color: AppColors.textMuted,
+            ),
           ),
           const SizedBox(height: 16),
           TextButton(
             onPressed: _viewModel.load,
             child: Text(
               'Thử lại',
-              style: GoogleFonts.publicSans(
+              style: AppTypography.mainWith(
                 fontWeight: FontWeight.w700,
                 color: AppColors.primary,
               ),
@@ -170,7 +171,7 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
             Expanded(
               child: Text(
                 'Yêu cầu hoàn tiền #${refund.id}',
-                style: GoogleFonts.publicSans(
+                style: AppTypography.mainWith(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
                   color: AppColors.textMain,
@@ -183,7 +184,10 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
         const SizedBox(height: 6),
         Text(
           'Tạo lúc ${_fmtDate(refund.createdAt)}',
-          style: GoogleFonts.publicSans(fontSize: 13, color: AppColors.textMuted),
+          style: AppTypography.mainWith(
+            fontSize: 13,
+            color: AppColors.textMuted,
+          ),
         ),
       ],
     );
@@ -194,9 +198,11 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF9F3),
+        color: AppColors.statusWarningSurface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFFB020).withValues(alpha: 0.4)),
+        border: Border.all(
+          color: const Color(0xFFFFB020).withValues(alpha: 0.4),
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -208,8 +214,11 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
               color: const Color(0xFFFFB020).withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.warning_amber_rounded,
-                color: Color(0xFFB76E00), size: 22),
+            child: const Icon(
+              Icons.warning_amber_rounded,
+              color: AppColors.statusWarningForeground,
+              size: 22,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -218,10 +227,10 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
               children: [
                 Text(
                   'Cần cập nhật tài khoản ngân hàng',
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.mainWith(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
-                    color: const Color(0xFFB76E00),
+                    color: AppColors.statusWarningForeground,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -229,7 +238,7 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
                   refund.operatorNote?.trim().isNotEmpty == true
                       ? refund.operatorNote!.trim()
                       : 'Vui lòng cung cấp hoặc chọn lại tài khoản ngân hàng để nhận hoàn tiền.',
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.mainWith(
                     fontSize: 13,
                     color: AppColors.textMuted,
                     height: 1.5,
@@ -238,7 +247,7 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
                 const SizedBox(height: 8),
                 Text(
                   'Số lần yêu cầu cập nhật: ${refund.retryCount} / ${refund.maxRefundBankInfoRetry}',
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.mainWith(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textMain,
@@ -271,8 +280,11 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
               color: Color(0xFFC62828),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.headset_mic_rounded,
-                color: Colors.white, size: 22),
+            child: const Icon(
+              Icons.headset_mic_rounded,
+              color: AppColors.surfacePrimary,
+              size: 22,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -281,7 +293,7 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
               children: [
                 Text(
                   'Cần xử lý thủ công',
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.mainWith(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
                     color: const Color(0xFFC62828),
@@ -290,7 +302,7 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
                 const SizedBox(height: 4),
                 Text(
                   'Yêu cầu hoàn tiền này không thể xử lý trực tuyến. Vui lòng mang CCCD đến quầy hỗ trợ hoặc liên hệ CSKH để được hỗ trợ trong thời gian sớm nhất.',
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.mainWith(
                     fontSize: 13,
                     color: AppColors.textMuted,
                     height: 1.5,
@@ -326,20 +338,23 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
               children: [
                 Text(
                   'Vé trong yêu cầu',
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.mainWith(
                     fontSize: 13,
                     color: AppColors.textMuted,
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF4F6F8),
+                    color: AppColors.surfaceNeutral,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     '${refund.refundTickets.length} vé',
-                    style: GoogleFonts.publicSans(
+                    style: AppTypography.mainWith(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textMain,
@@ -357,12 +372,15 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
           const SizedBox(height: 16),
           Text(
             'Số tiền hoàn',
-            style: GoogleFonts.publicSans(fontSize: 13, color: AppColors.textMuted),
+            style: AppTypography.mainWith(
+              fontSize: 13,
+              color: AppColors.textMuted,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
-            _currencyFmt.format(refund.refundAmount),
-            style: GoogleFonts.publicSans(
+            AppFormatters.formatCurrency(refund.refundAmount),
+            style: AppTypography.mainWith(
               fontSize: 22,
               fontWeight: FontWeight.w800,
               color: AppColors.primary,
@@ -376,23 +394,24 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
   }
 
   Widget _buildTicketItem(RefundTicketItem ticket) {
-    String drawLabel = '—';
-    final dt = DateTime.tryParse(ticket.drawDate ?? '');
-    if (dt != null) drawLabel = DateFormat('dd/MM/yyyy').format(dt);
+    final drawLabel = AppFormatters.formatDateIso(
+      ticket.drawDate,
+      fallback: '—',
+    );
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: const Color(0xFFFCFCFD),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE5E8EB)),
+        border: Border.all(color: AppColors.borderLight),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             ticket.numbers ?? '—',
-            style: GoogleFonts.publicSans(
+            style: AppTypography.mainWith(
               fontSize: 16,
               fontWeight: FontWeight.w800,
               color: AppColors.textMain,
@@ -401,7 +420,10 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
           if (ticket.serialNumber != null)
             Text(
               'SN: ${ticket.serialNumber}',
-              style: GoogleFonts.robotoMono(fontSize: 11, color: AppColors.textMuted),
+              style: AppTypography.monoWith(
+                fontSize: 11,
+                color: AppColors.textMuted,
+              ),
             ),
           const SizedBox(height: 8),
           Row(
@@ -417,7 +439,7 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
               Expanded(
                 child: _miniInfo(
                   'Thành tiền',
-                  _currencyFmt.format(ticket.subtotalAmount),
+                  AppFormatters.formatCurrency(ticket.subtotalAmount),
                   valueColor: AppColors.primary,
                 ),
               ),
@@ -434,12 +456,15 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
       children: [
         Text(
           label,
-          style: GoogleFonts.publicSans(fontSize: 11, color: const Color(0xFF919EAB)),
+          style: AppTypography.mainWith(
+            fontSize: 11,
+            color: AppColors.contentPlaceholderStrong,
+          ),
         ),
         const SizedBox(height: 2),
         Text(
           value,
-          style: GoogleFonts.publicSans(
+          style: AppTypography.mainWith(
             fontSize: 13,
             fontWeight: FontWeight.w700,
             color: valueColor ?? AppColors.textMain,
@@ -467,13 +492,16 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
           ] else if (!isWaiting)
             Text(
               'Không có thông tin tài khoản',
-              style: GoogleFonts.publicSans(fontSize: 14, color: AppColors.textMuted),
+              style: AppTypography.mainWith(
+                fontSize: 14,
+                color: AppColors.textMuted,
+              ),
             ),
           if (isWaiting) ...[
             if (banks.isEmpty)
               Text(
                 'Bạn chưa có tài khoản ngân hàng đã lưu. Vui lòng thêm tài khoản trong mục "Tài khoản ngân hàng".',
-                style: GoogleFonts.publicSans(
+                style: AppTypography.mainWith(
                   fontSize: 13,
                   color: AppColors.textMuted,
                   height: 1.5,
@@ -482,7 +510,7 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
             else ...[
               Text(
                 'Chọn tài khoản nhận hoàn',
-                style: GoogleFonts.publicSans(
+                style: AppTypography.mainWith(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textMain,
@@ -492,7 +520,7 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
-                  border: Border.all(color: const Color(0xFFE5E8EB)),
+                  border: Border.all(color: AppColors.borderLight),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: DropdownButtonHideUnderline(
@@ -501,7 +529,7 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
                     value: _selectedBankId ?? bank?.id,
                     hint: Text(
                       'Chọn tài khoản',
-                      style: GoogleFonts.publicSans(fontSize: 14),
+                      style: AppTypography.mainWith(fontSize: 14),
                     ),
                     items: banks
                         .map(
@@ -510,7 +538,7 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
                             child: Text(
                               '${b.bankName} — ${_maskBank(b.bankAccountNo)}',
                               overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.publicSans(fontSize: 13),
+                              style: AppTypography.mainWith(fontSize: 13),
                             ),
                           ),
                         )
@@ -531,7 +559,7 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
                         },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
+                    foregroundColor: AppColors.surfacePrimary,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -543,13 +571,13 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
                           height: 16,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Colors.white,
+                            color: AppColors.surfacePrimary,
                           ),
                         )
                       : const Icon(Icons.check_rounded, size: 18),
                   label: Text(
                     'Gửi cập nhật tài khoản',
-                    style: GoogleFonts.publicSans(
+                    style: AppTypography.mainWith(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                     ),
@@ -571,15 +599,23 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
           height: 48,
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border.all(color: const Color(0xFFE5E8EB)),
+            color: AppColors.surfacePrimary,
+            border: Border.all(color: AppColors.borderLight),
             borderRadius: BorderRadius.circular(12),
           ),
           child: bank.bankLogo != null && bank.bankLogo!.isNotEmpty
-              ? Image.network(bank.bankLogo!, fit: BoxFit.contain,
+              ? Image.network(
+                  bank.bankLogo!,
+                  fit: BoxFit.contain,
                   errorBuilder: (_, _, _) => const Icon(
-                      Icons.account_balance_rounded, color: AppColors.textMuted))
-              : const Icon(Icons.account_balance_rounded, color: AppColors.textMuted),
+                    Icons.account_balance_rounded,
+                    color: AppColors.textMuted,
+                  ),
+                )
+              : const Icon(
+                  Icons.account_balance_rounded,
+                  color: AppColors.textMuted,
+                ),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -588,7 +624,7 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
             children: [
               Text(
                 bank.bankName,
-                style: GoogleFonts.publicSans(
+                style: AppTypography.mainWith(
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
                   color: AppColors.textMain,
@@ -596,11 +632,17 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
               ),
               Text(
                 _maskBank(bank.bankAccountNo),
-                style: GoogleFonts.robotoMono(fontSize: 13, color: AppColors.textMuted),
+                style: AppTypography.monoWith(
+                  fontSize: 13,
+                  color: AppColors.textMuted,
+                ),
               ),
               Text(
                 bank.bankAccountName,
-                style: GoogleFonts.publicSans(fontSize: 12, color: const Color(0xFF919EAB)),
+                style: AppTypography.mainWith(
+                  fontSize: 12,
+                  color: AppColors.contentPlaceholderStrong,
+                ),
               ),
             ],
           ),
@@ -616,7 +658,9 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
       decoration: BoxDecoration(
         color: const Color(0xFFE4F8ED),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF1CD162).withValues(alpha: 0.2)),
+        border: Border.all(
+          color: const Color(0xFF1CD162).withValues(alpha: 0.2),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -630,12 +674,12 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
                   color: Color(0xFF1CD162),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.check_rounded, color: Colors.white),
+                child: const Icon(Icons.check_rounded, color: AppColors.surfacePrimary),
               ),
               const SizedBox(width: 12),
               Text(
                 'Đã chuyển khoản',
-                style: GoogleFonts.publicSans(
+                style: AppTypography.mainWith(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
                   color: AppColors.textMain,
@@ -647,14 +691,20 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
             const SizedBox(height: 12),
             Text(
               'Thời gian: ${_fmtDate(payout!.paidAt)}',
-              style: GoogleFonts.publicSans(fontSize: 13, color: AppColors.textMuted),
+              style: AppTypography.mainWith(
+                fontSize: 13,
+                color: AppColors.textMuted,
+              ),
             ),
           ],
           if (payout?.note != null && payout!.note!.isNotEmpty) ...[
             const SizedBox(height: 6),
             Text(
               'Ghi chú: ${payout.note}',
-              style: GoogleFonts.publicSans(fontSize: 13, color: AppColors.textMuted),
+              style: AppTypography.mainWith(
+                fontSize: 13,
+                color: AppColors.textMuted,
+              ),
             ),
           ],
           if (payout?.paymentEvidenceUrl != null &&
@@ -667,12 +717,14 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
                 fit: BoxFit.cover,
                 errorBuilder: (_, _, _) => Container(
                   height: 120,
-                  color: Colors.white,
+                  color: AppColors.surfacePrimary,
                   alignment: Alignment.center,
                   child: Text(
                     'Không tải được ảnh biên lai',
-                    style: GoogleFonts.publicSans(
-                        fontSize: 12, color: AppColors.textMuted),
+                    style: AppTypography.mainWith(
+                      fontSize: 12,
+                      color: AppColors.textMuted,
+                    ),
                   ),
                 ),
               ),
@@ -689,12 +741,15 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
       children: [
         Text(
           label,
-          style: GoogleFonts.publicSans(fontSize: 13, color: AppColors.textMuted),
+          style: AppTypography.mainWith(
+            fontSize: 13,
+            color: AppColors.textMuted,
+          ),
         ),
         const SizedBox(height: 4),
         Text(
           value,
-          style: GoogleFonts.publicSans(
+          style: AppTypography.mainWith(
             fontSize: 15,
             fontWeight: FontWeight.w600,
             color: AppColors.textMain,
@@ -714,7 +769,7 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: highlight ? const Color(0xFFFFF9F3) : Colors.white,
+        color: highlight ? AppColors.statusWarningSurface : AppColors.surfacePrimary,
         borderRadius: BorderRadius.circular(16),
         border: highlight
             ? Border.all(color: const Color(0xFFFFB020), width: 1.5)
@@ -731,19 +786,21 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
                 decoration: BoxDecoration(
                   color: highlight
                       ? const Color(0xFFFFB020).withValues(alpha: 0.15)
-                      : const Color(0xFFFFF4F4),
+                      : AppColors.statusErrorSurface,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon,
-                    size: 18,
-                    color: highlight
-                        ? const Color(0xFFB76E00)
-                        : AppColors.primary),
+                child: Icon(
+                  icon,
+                  size: 18,
+                  color: highlight
+                      ? AppColors.statusWarningForeground
+                      : AppColors.primary,
+                ),
               ),
               const SizedBox(width: 10),
               Text(
                 title,
-                style: GoogleFonts.publicSans(
+                style: AppTypography.mainWith(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
                   color: AppColors.textMain,

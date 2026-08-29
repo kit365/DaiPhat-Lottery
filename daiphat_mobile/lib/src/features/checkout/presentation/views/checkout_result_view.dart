@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 
 class CheckoutResultView extends StatelessWidget {
   final String? code;
@@ -40,16 +41,16 @@ class CheckoutResultView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFBF8),
+      backgroundColor: AppColors.backgroundPrimary,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
+        backgroundColor: AppColors.surfacePrimary,
+        surfaceTintColor: AppColors.transparent,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(
             Icons.arrow_back_ios_new_rounded,
             size: 20,
-            color: AppColors.primary,
+            color: AppColors.contentPrimary,
           ),
           onPressed: () {
             // Go back to home
@@ -70,7 +71,7 @@ class CheckoutResultView extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: isSuccess
                       ? const Color(0xFF00A76F)
-                      : Colors.red.shade500,
+                      : AppColors.primary,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -84,16 +85,16 @@ class CheckoutResultView extends StatelessWidget {
                   shape: BoxShape.circle,
                   color: isSuccess
                       ? const Color(0xFFE8F5E9)
-                      : Colors.red.shade50,
+                      : const Color(0xFFFFF1EF),
                   border: Border.all(
                     color: isSuccess
                         ? const Color(0xFFE8F5E9)
-                        : Colors.red.shade200,
+                        : const Color(0xFFFFD5D0),
                     width: 3,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: (isSuccess ? const Color(0xFF00A76F) : Colors.red)
+                      color: (isSuccess ? const Color(0xFF00A76F) : AppColors.primary)
                           .withValues(alpha: 0.15),
                       blurRadius: 20,
                       offset: const Offset(0, 6),
@@ -105,7 +106,7 @@ class CheckoutResultView extends StatelessWidget {
                   size: 56,
                   color: isSuccess
                       ? const Color(0xFF00A76F)
-                      : Colors.red.shade500,
+                      : AppColors.primary,
                 ),
               ),
               const SizedBox(height: 24),
@@ -113,12 +114,14 @@ class CheckoutResultView extends StatelessWidget {
               // Title
               Text(
                 isSuccess ? 'Thanh toán thành công!' : 'Thanh toán thất bại',
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w900,
-                  color: isSuccess
-                      ? const Color(0xFF00A76F)
-                      : Colors.red.shade500,
+                style: AppTypography.main(
+                  TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    color: isSuccess
+                        ? const Color(0xFF00A76F)
+                        : AppColors.primary,
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
@@ -128,10 +131,12 @@ class CheckoutResultView extends StatelessWidget {
                     ? 'Cảm ơn bạn đã đặt vé tại Đại Phát.'
                     : 'Rất tiếc, quá trình thanh toán không thành công hoặc đã bị hủy.',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFF6B7280),
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
+                style: AppTypography.main(
+                  const TextStyle(
+                    color: AppColors.contentMuted,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
               const SizedBox(height: 32),
@@ -142,9 +147,16 @@ class CheckoutResultView extends StatelessWidget {
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFAFBFC),
+                    color: AppColors.surfacePrimary,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFF4F6F8)),
+                    border: Border.all(color: AppColors.cardBorder),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x08000000),
+                        blurRadius: 10,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
                   ),
                   child: Column(
                     children: [
@@ -154,28 +166,24 @@ class CheckoutResultView extends StatelessWidget {
                             width: 36,
                             height: 36,
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: AppColors.backgroundPrimary,
                               shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.05),
-                                  blurRadius: 6,
-                                ),
-                              ],
                             ),
                             child: const Icon(
                               Icons.tag_rounded,
                               size: 18,
-                              color: Color(0xFF6B7280),
+                              color: AppColors.contentMuted,
                             ),
                           ),
                           const SizedBox(width: 12),
-                          const Text(
+                          Text(
                             'Mã đơn hàng',
-                            style: TextStyle(
-                              color: Color(0xFF15213B),
-                              fontWeight: FontWeight.w600,
-                              fontSize: 15,
+                            style: AppTypography.main(
+                              const TextStyle(
+                                color: AppColors.contentPrimary,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 15,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -185,17 +193,19 @@ class CheckoutResultView extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               textAlign: TextAlign.end,
-                              style: const TextStyle(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w900,
-                                fontSize: 15,
+                              style: AppTypography.main(
+                                const TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 15,
+                                ),
                               ),
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 16),
-                      const Divider(height: 1, color: Color(0xFFE5E8EB)),
+                      const Divider(height: 1, color: AppColors.borderLight),
                       const SizedBox(height: 16),
                       Row(
                         children: [
@@ -203,39 +213,35 @@ class CheckoutResultView extends StatelessWidget {
                             width: 36,
                             height: 36,
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: AppColors.backgroundPrimary,
                               shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.05),
-                                  blurRadius: 6,
-                                ),
-                              ],
                             ),
                             child: const Icon(
                               Icons.calendar_month_rounded,
                               size: 18,
-                              color: Color(0xFF6B7280),
+                              color: AppColors.contentMuted,
                             ),
                           ),
                           const SizedBox(width: 12),
-                          const Text(
+                          Text(
                             'Thời gian đặt',
-                            style: TextStyle(
-                              color: Color(0xFF15213B),
-                              fontWeight: FontWeight.w600,
-                              fontSize: 15,
+                            style: AppTypography.main(
+                              const TextStyle(
+                                color: AppColors.contentPrimary,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 15,
+                              ),
                             ),
                           ),
                           const Spacer(),
                           Text(
-                            DateFormat(
-                              'dd/MM/yyyy - HH:mm',
-                            ).format(DateTime.now()),
-                            style: const TextStyle(
-                              color: Color(0xFF15213B),
-                              fontWeight: FontWeight.w800,
-                              fontSize: 15,
+                            AppFormatters.formatDateTime(DateTime.now()),
+                            style: AppTypography.main(
+                              const TextStyle(
+                                color: AppColors.contentPrimary,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 14.5,
+                              ),
                             ),
                           ),
                         ],
@@ -253,18 +259,21 @@ class CheckoutResultView extends StatelessWidget {
                     child: OutlinedButton(
                       onPressed: () => context.go(AppRoute.home.path),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        side: const BorderSide(color: AppColors.primary),
+                        foregroundColor: AppColors.contentPrimary,
+                        side: const BorderSide(color: AppColors.borderDefault),
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
                       ),
-                      child: const Text(
+                      child: Text(
                         'Về trang chủ',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 15,
+                        style: AppTypography.main(
+                          const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                            color: AppColors.contentPrimary,
+                          ),
                         ),
                       ),
                     ),
@@ -284,18 +293,21 @@ class CheckoutResultView extends StatelessWidget {
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
+                        foregroundColor: AppColors.surfacePrimary,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
-                        elevation: 2,
+                        elevation: 0,
                       ),
-                      child: const Text(
+                      child: Text(
                         'Xem chi tiết đơn',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 15,
+                        style: AppTypography.main(
+                          const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                            color: AppColors.surfacePrimary,
+                          ),
                         ),
                       ),
                     ),

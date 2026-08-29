@@ -1,14 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 
 import '../../utils/fortune_ui.dart';
 
 class FortuneProseText extends StatelessWidget {
-  const FortuneProseText({
-    super.key,
-    required this.prose,
-    this.luckyTail,
-  });
+  const FortuneProseText({super.key, required this.prose, this.luckyTail});
 
   final String prose;
   final String? luckyTail;
@@ -17,7 +13,7 @@ class FortuneProseText extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text.rich(
       TextSpan(children: _spans(localizeFortuneProseDates(prose), luckyTail)),
-      style: GoogleFonts.publicSans(
+      style: AppTypography.mainWith(
         fontSize: 15,
         height: 1.75,
         color: const Color(0xD9FFF8E7),

@@ -99,7 +99,7 @@ class _LoginViewState extends State<LoginView> {
                                 margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                                 padding: const EdgeInsets.all(24),
                                 decoration: BoxDecoration(
-                                  color: Colors.white,
+                                  color: AppColors.surfacePrimary,
                                   borderRadius: BorderRadius.circular(24),
                                   boxShadow: const [
                                     BoxShadow(
@@ -263,7 +263,7 @@ class _LoginViewState extends State<LoginView> {
                                   backgroundColor: AppColors.loginPrimary,
                                   disabledBackgroundColor: AppColors.loginPrimary
                                       .withValues(alpha: 0.65),
-                                  foregroundColor: Colors.white,
+                                  foregroundColor: AppColors.surfacePrimary,
                                   elevation: 0,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
@@ -276,7 +276,7 @@ class _LoginViewState extends State<LoginView> {
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
                                           valueColor: AlwaysStoppedAnimation(
-                                            Colors.white,
+                                            AppColors.surfacePrimary,
                                           ),
                                         ),
                                       )
@@ -409,7 +409,7 @@ class _LoginViewState extends State<LoginView> {
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: AppColors.surfacePrimary,
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
@@ -477,7 +477,7 @@ class _LoginViewState extends State<LoginView> {
         prefixIcon: Icon(prefixIcon, color: AppColors.loginPlaceholder, size: 20),
         suffixIcon: suffixIcon,
         filled: true,
-        fillColor: Colors.white,
+        fillColor: AppColors.surfacePrimary,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 18,
           vertical: 16,
@@ -504,7 +504,7 @@ class _LoginViewState extends State<LoginView> {
       child: OutlinedButton(
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
-          backgroundColor: Colors.white,
+          backgroundColor: AppColors.surfacePrimary,
           side: const BorderSide(color: AppColors.loginBorder),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),

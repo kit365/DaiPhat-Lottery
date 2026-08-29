@@ -79,25 +79,42 @@ class OrderItemRequest {
 class LotteryTicketSnapshot {
   final int id;
   final String? province;
+  final String? stationName;
   final String? drawDate;
   final String? ticketType;
   final String? symbol;
+  final String? numbers;
 
   const LotteryTicketSnapshot({
     required this.id,
     this.province,
+    this.stationName,
     this.drawDate,
     this.ticketType,
     this.symbol,
+    this.numbers,
   });
 
   factory LotteryTicketSnapshot.fromJson(Map<String, dynamic> json) {
+    final prov = json['province']?.toString() ??
+        json['provinceName']?.toString() ??
+        json['stationName']?.toString() ??
+        json['station']?.toString() ??
+        json['channelName']?.toString();
+
+    final num = json['numbers']?.toString() ??
+        json['number']?.toString() ??
+        json['serialNumber']?.toString() ??
+        json['code']?.toString();
+
     return LotteryTicketSnapshot(
-      id: json['id'] as int? ?? 0,
-      province: json['province']?.toString(),
+      id: json['id'] as int? ?? json['ticketId'] as int? ?? 0,
+      province: prov,
+      stationName: json['stationName']?.toString() ?? prov,
       drawDate: json['drawDate']?.toString(),
-      ticketType: json['ticketType']?.toString(),
+      ticketType: json['ticketType']?.toString() ?? json['type']?.toString(),
       symbol: json['symbol']?.toString(),
+      numbers: num,
     );
   }
 }
@@ -120,17 +137,34 @@ class OrderDetailItem {
   });
 
   factory OrderDetailItem.fromJson(Map<String, dynamic> json) {
+    final ticketJson = (json['lotteryTicket'] ??
+            json['ticket'] ??
+            json['lotteryTicketDto'] ??
+            json['ticketSnapshot']) as Map<String, dynamic>?;
+
+    LotteryTicketSnapshot? ticket;
+    if (ticketJson != null) {
+      ticket = LotteryTicketSnapshot.fromJson(ticketJson);
+    } else if (json['province'] != null ||
+        json['provinceName'] != null ||
+        json['stationName'] != null ||
+        json['station'] != null ||
+        json['drawDate'] != null ||
+        json['ticketType'] != null ||
+        json['symbol'] != null ||
+        json['numbers'] != null ||
+        json['number'] != null ||
+        json['serialNumber'] != null) {
+      ticket = LotteryTicketSnapshot.fromJson(json);
+    }
+
     return OrderDetailItem(
       id: json['id'] as int? ?? 0,
       status: json['status']?.toString() ?? 'ACTIVE',
       price: json['price'] as int? ?? 0,
       quantity: json['quantity'] as int? ?? 1,
       lotteryTicketSerialId: json['lotteryTicketSerialId'] as int?,
-      lotteryTicket: json['lotteryTicket'] != null
-          ? LotteryTicketSnapshot.fromJson(
-              json['lotteryTicket'] as Map<String, dynamic>,
-            )
-          : null,
+      lotteryTicket: ticket,
     );
   }
 }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:intl/intl.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
@@ -9,6 +9,7 @@ import 'package:daiphat_mobile/src/features/chat/data/models/chat_models.dart';
 import 'package:daiphat_mobile/src/features/chat/presentation/viewmodels/chat_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/chat/utils/chat_message_mapper.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({
@@ -35,7 +36,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
-    _chatSubscription = ref.listenManual(chatViewModelProvider, (previous, next) {
+    _chatSubscription = ref.listenManual(chatViewModelProvider, (
+      previous,
+      next,
+    ) {
       if ((previous?.visibleMessages.length ?? 0) !=
           next.visibleMessages.length) {
         _scrollToBottom();
@@ -116,7 +120,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.surfacePrimary,
       body: Column(
         children: [
           _ChatHeader(onBack: widget.onBack),
@@ -184,7 +188,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Text(
                 chatState.errorMessage!,
-                style: GoogleFonts.publicSans(
+                style: AppTypography.mainWith(
                   fontSize: 11,
                   color: AppColors.error,
                 ),
@@ -228,7 +232,7 @@ class _StatusBanner extends StatelessWidget {
       color: const Color(0xFFFFF6F6),
       child: Text(
         text,
-        style: GoogleFonts.publicSans(
+        style: AppTypography.mainWith(
           fontSize: 12,
           fontWeight: FontWeight.w600,
           color: AppColors.primary,
@@ -250,7 +254,7 @@ class _ChatHeader extends StatelessWidget {
     return Container(
       padding: EdgeInsets.fromLTRB(8, topInset + 4, 8, 10),
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surfacePrimary,
         border: Border(bottom: BorderSide(color: Color(0xFFF0ECEC))),
       ),
       child: Row(
@@ -276,7 +280,7 @@ class _ChatHeader extends StatelessWidget {
                         'Đại Phát Official',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.publicSans(
+                        style: AppTypography.mainWith(
                           fontSize: 15,
                           fontWeight: FontWeight.w800,
                           color: const Color(0xFF202124),
@@ -293,7 +297,7 @@ class _ChatHeader extends StatelessWidget {
                 ),
                 Text(
                   'Hỗ trợ trực tuyến',
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.mainWith(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
                     color: const Color(0xFF8A8F98),
@@ -341,7 +345,7 @@ class _OfficialProfileCard extends StatelessWidget {
               children: [
                 Text(
                   'Đại Phát Official',
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.mainWith(
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
                     color: const Color(0xFF202124),
@@ -350,7 +354,7 @@ class _OfficialProfileCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   'Hỗ trợ khách hàng 24/7',
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.mainWith(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
                     color: const Color(0xFF7A8088),
@@ -368,7 +372,7 @@ class _OfficialProfileCard extends StatelessWidget {
                     Expanded(
                       child: Text(
                         'Tài khoản chính thức của Đại Phát',
-                        style: GoogleFonts.publicSans(
+                        style: AppTypography.mainWith(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
                           color: const Color(0xFF2E9E4D),
@@ -393,7 +397,7 @@ class _OfficialProfileCard extends StatelessWidget {
             ),
             child: Text(
               'Thông tin',
-              style: GoogleFonts.publicSans(
+              style: AppTypography.mainWith(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
@@ -438,7 +442,7 @@ class _BrandAvatar extends StatelessWidget {
         errorBuilder: (_, _, _) => Center(
           child: Text(
             'DP',
-            style: GoogleFonts.publicSans(
+            style: AppTypography.mainWith(
               fontSize: size * 0.34,
               fontWeight: FontWeight.w900,
               color: AppColors.primary,
@@ -467,7 +471,7 @@ class _SystemNotice extends StatelessWidget {
         child: Text(
           text,
           textAlign: TextAlign.center,
-          style: GoogleFonts.publicSans(
+          style: AppTypography.mainWith(
             fontSize: 11,
             color: const Color(0xFF7A8088),
           ),
@@ -507,7 +511,7 @@ class _UserBubble extends StatelessWidget {
             children: [
               Text(
                 message.text,
-                style: GoogleFonts.publicSans(
+                style: AppTypography.mainWith(
                   fontSize: 13,
                   height: 1.45,
                   fontWeight: FontWeight.w500,
@@ -520,7 +524,7 @@ class _UserBubble extends StatelessWidget {
                 children: [
                   Text(
                     message.timeLabel,
-                    style: GoogleFonts.publicSans(
+                    style: AppTypography.mainWith(
                       fontSize: 10,
                       color: const Color(0xFF9AA0A8),
                     ),
@@ -561,7 +565,7 @@ class _SupportBubble extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.surfacePrimary,
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(18),
                   topRight: Radius.circular(18),
@@ -585,7 +589,7 @@ class _SupportBubble extends StatelessWidget {
                       padding: const EdgeInsets.only(bottom: 4),
                       child: Text(
                         'Nhân viên Đại Phát',
-                        style: GoogleFonts.publicSans(
+                        style: AppTypography.mainWith(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
                           color: AppColors.primary,
@@ -594,7 +598,7 @@ class _SupportBubble extends StatelessWidget {
                     ),
                   Text(
                     message.text,
-                    style: GoogleFonts.publicSans(
+                    style: AppTypography.mainWith(
                       fontSize: 13,
                       height: 1.45,
                       fontWeight: FontWeight.w500,
@@ -604,7 +608,7 @@ class _SupportBubble extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     message.timeLabel,
-                    style: GoogleFonts.publicSans(
+                    style: AppTypography.mainWith(
                       fontSize: 10,
                       color: const Color(0xFF9AA0A8),
                     ),
@@ -632,13 +636,13 @@ class _TypingBubble extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.surfacePrimary,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(color: const Color(0xFFECECF0)),
           ),
           child: Text(
             'Đại Phát đang soạn tin...',
-            style: GoogleFonts.publicSans(
+            style: AppTypography.mainWith(
               fontSize: 12,
               color: const Color(0xFF7A8088),
               fontStyle: FontStyle.italic,
@@ -702,16 +706,11 @@ class _TicketSuggestCard extends StatelessWidget {
 
   String _formatPrice() {
     if (ticket.price == null) return '—';
-    return '${NumberFormat.decimalPattern('vi').format(ticket.price)}đ';
+    return AppFormatters.formatCurrency(ticket.price);
   }
 
-  String _formatDrawDate() {
-    final raw = ticket.drawDate;
-    if (raw == null || raw.isEmpty) return '—';
-    final parts = RegExp(r'^(\d{4})-(\d{2})-(\d{2})').firstMatch(raw);
-    if (parts == null) return raw;
-    return '${parts.group(3)}/${parts.group(2)}/${parts.group(1)}';
-  }
+  String _formatDrawDate() =>
+      AppFormatters.formatDateIso(ticket.drawDate, fallback: '—');
 
   @override
   Widget build(BuildContext context) {
@@ -719,7 +718,7 @@ class _TicketSuggestCard extends StatelessWidget {
       width: 180,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surfacePrimary,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFFFE0E3)),
       ),
@@ -728,7 +727,7 @@ class _TicketSuggestCard extends StatelessWidget {
         children: [
           Text(
             ticket.numbers,
-            style: GoogleFonts.publicSans(
+            style: AppTypography.mainWith(
               fontSize: 18,
               fontWeight: FontWeight.w800,
               color: AppColors.primary,
@@ -739,18 +738,24 @@ class _TicketSuggestCard extends StatelessWidget {
             ticket.stationName ?? 'Đài xổ số',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.publicSans(fontSize: 11, color: const Color(0xFF7A8088)),
+            style: AppTypography.mainWith(
+              fontSize: 11,
+              color: const Color(0xFF7A8088),
+            ),
           ),
           Text(
             _formatDrawDate(),
-            style: GoogleFonts.publicSans(fontSize: 11, color: const Color(0xFF7A8088)),
+            style: AppTypography.mainWith(
+              fontSize: 11,
+              color: const Color(0xFF7A8088),
+            ),
           ),
           const Spacer(),
           Row(
             children: [
               Text(
                 _formatPrice(),
-                style: GoogleFonts.publicSans(
+                style: AppTypography.mainWith(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                   color: const Color(0xFF2B2F36),
@@ -760,12 +765,16 @@ class _TicketSuggestCard extends StatelessWidget {
               TextButton(
                 onPressed: () {
                   final params = <String, String>{
-                    if (ticket.stationId != null) 'stationId': '${ticket.stationId}',
+                    if (ticket.stationId != null)
+                      'stationId': '${ticket.stationId}',
                     if (ticket.drawDate != null) 'drawDate': ticket.drawDate!,
                     'search': ticket.numbers,
                   };
                   final query = params.entries
-                      .map((entry) => '${entry.key}=${Uri.encodeComponent(entry.value)}')
+                      .map(
+                        (entry) =>
+                            '${entry.key}=${Uri.encodeComponent(entry.value)}',
+                      )
                       .join('&');
                   context.push('${AppRoute.buyTicket.path}?$query');
                 },
@@ -800,13 +809,13 @@ class _QuickReplyChips extends StatelessWidget {
             onPressed: () => onTap(reply),
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.primary,
-              backgroundColor: Colors.white,
+              backgroundColor: AppColors.surfacePrimary,
               side: const BorderSide(color: Color(0xFFF5CBCD)),
               padding: const EdgeInsets.symmetric(horizontal: 12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(999),
               ),
-              textStyle: GoogleFonts.publicSans(
+              textStyle: AppTypography.mainWith(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
@@ -837,7 +846,7 @@ class _ChatInputBar extends StatelessWidget {
     return Container(
       padding: EdgeInsets.fromLTRB(12, 10, 12, 10 + bottomInset),
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surfacePrimary,
         border: Border(top: BorderSide(color: Color(0xFFF0ECEC))),
       ),
       child: Row(
@@ -864,7 +873,7 @@ class _ChatInputBar extends StatelessWidget {
               onSubmitted: enabled ? (_) => onSend() : null,
               decoration: InputDecoration(
                 hintText: 'Nhập tin nhắn...',
-                hintStyle: GoogleFonts.publicSans(
+                hintStyle: AppTypography.mainWith(
                   fontSize: 13,
                   color: const Color(0xFFB0B6BE),
                 ),
@@ -879,7 +888,7 @@ class _ChatInputBar extends StatelessWidget {
                   borderSide: BorderSide.none,
                 ),
               ),
-              style: GoogleFonts.publicSans(
+              style: AppTypography.mainWith(
                 fontSize: 13,
                 color: const Color(0xFF2B2F36),
               ),
@@ -895,7 +904,7 @@ class _ChatInputBar extends StatelessWidget {
               child: const SizedBox(
                 width: 40,
                 height: 40,
-                child: Icon(Icons.send_rounded, color: Colors.white, size: 20),
+                child: Icon(Icons.send_rounded, color: AppColors.surfacePrimary, size: 20),
               ),
             ),
           ),

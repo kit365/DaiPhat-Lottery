@@ -44,7 +44,7 @@ class HomeView extends ConsumerWidget {
           Shimmer.fromColors(
             baseColor: Colors.grey[300]!,
             highlightColor: Colors.grey[100]!,
-            child: Container(height: 120, color: Colors.white),
+            child: Container(height: 120, color: AppColors.surfacePrimary),
           ),
           const SizedBox(height: 20),
           ...List.generate(
@@ -57,7 +57,7 @@ class HomeView extends ConsumerWidget {
                 child: Container(
                   height: 100,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.surfacePrimary,
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
@@ -323,7 +323,7 @@ class _HomeContentState extends ConsumerState<_HomeContent>
             shaderCallback: (bounds) => const LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Colors.white, Colors.transparent],
+              colors: [AppColors.surfacePrimary, AppColors.transparent],
               stops: [0.4, 1.0],
             ).createShader(bounds),
             blendMode: BlendMode.dstIn,
@@ -388,7 +388,7 @@ class _HomeContentState extends ConsumerState<_HomeContent>
                       child: Container(
                         height: 220,
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: AppColors.surfacePrimary,
                           borderRadius: BorderRadius.circular(16),
                         ),
                       ),
@@ -402,7 +402,7 @@ class _HomeContentState extends ConsumerState<_HomeContent>
                     child: Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: AppColors.surfacePrimary,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: AppColors.cardBorder),
                       ),

@@ -6,6 +6,7 @@ import org.mapstruct.factory.Mappers;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketSerialServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
 import com.daiphat.coreapi.application.port.in.order.OrderServicePort;
+import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
 import com.daiphat.coreapi.application.port.in.user.UserLookupServicePort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.PaymentCountdownCachePort;
@@ -77,6 +78,7 @@ class OrderServiceCustomerRefundTest {
         orderService = new OrderService(
                 orderRepositoryPort,
                 lotteryTicketServicePort,
+                mock(LotteryStationServicePort.class),
                 lotteryTicketSerialServicePort,
                 userLookupServicePort,
                 Mappers.getMapper(OrderApplicationMapper.class),

@@ -7,6 +7,7 @@ import com.daiphat.coreapi.application.dto.request.order.DirectOrderTransactionR
 import com.daiphat.coreapi.application.dto.request.order.OrderTicketItemRequest;
 import com.daiphat.coreapi.application.mapper.order.OrderApplicationMapper;
 import com.daiphat.coreapi.application.port.in.order.OrderServicePort;
+import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketSerialServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
 import com.daiphat.coreapi.application.port.in.user.UserLookupServicePort;
@@ -33,6 +34,8 @@ import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import com.daiphat.coreapi.application.dto.response.order.OrderResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import static org.mockito.ArgumentMatchers.eq;
 
@@ -81,6 +84,7 @@ private static final String DEFAULT_CUSTOMER_NAME = "Kiet";
 
     private final OrderRepositoryPort orderRepositoryPort = mock(OrderRepositoryPort.class);
     private final LotteryTicketServicePort lotteryTicketServicePort = mock(LotteryTicketServicePort.class);
+    private final LotteryStationServicePort lotteryStationServicePort = mock(LotteryStationServicePort.class);
     private final LotteryTicketSerialServicePort lotteryTicketSerialServicePort = mock(LotteryTicketSerialServicePort.class);
     private final UserLookupServicePort userLookupServicePort = mock(UserLookupServicePort.class);
     private final PaymentCountdownCachePort paymentCountdownCachePort = mock(PaymentCountdownCachePort.class);
@@ -109,6 +113,7 @@ private static final String DEFAULT_CUSTOMER_NAME = "Kiet";
         orderService = new OrderService(
                 orderRepositoryPort,
                 lotteryTicketServicePort,
+                lotteryStationServicePort,
                 lotteryTicketSerialServicePort,
                 userLookupServicePort,
                 Mappers.getMapper(OrderApplicationMapper.class),
@@ -835,6 +840,58 @@ private static final String DEFAULT_CUSTOMER_NAME = "Kiet";
 
         assertThat(result).isNotNull();
         assertThat(result.getRecordList()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("getMyOrders: enriches each detail with the ticket data required by mobile")
+    void getMyOrders_enrichesTicketDetailsForMobile() {
+        UUID customerId = UUID.randomUUID();
+        OrderDetailModel detail = OrderDetailModel.builder()
+                .id(10L)
+                .lotteryTicketId(12L)
+                .lotteryTicketSerialId(34L)
+                .price(BigDecimal.valueOf(10_000))
+                .quantity(1)
+                .status(OrderDetailStatus.HANDOVER_IN_PROGRESS)
+                .build();
+        OrderModel order = OrderModel.builder()
+                .id(UUID.randomUUID())
+                .userId(customerId)
+                .orderDetails(List.of(detail))
+                .build();
+
+        when(userLookupServicePort.findByIdOrThrow(customerId)).thenReturn(UserModel.builder().id(customerId).build());
+        when(orderRepositoryPort.findMyOrders(any(), eq(customerId), any(), any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(order)));
+        when(lotteryTicketServicePort.getById(12L)).thenReturn(LotteryTicketResponse.builder()
+                .id(12L)
+                .stationId(7L)
+                .stationName("Xổ số kiến thiết TP. Hồ Chí Minh")
+                .numbers("841785")
+                .drawDate(LocalDate.of(2026, 8, 29))
+                .build());
+        when(lotteryStationServicePort.getById(7L)).thenReturn(LotteryStationResponse.builder()
+                .id(7L)
+                .province("TP. Hồ Chí Minh")
+                .build());
+        when(lotteryTicketSerialServicePort.getByIdOrThrow(34L)).thenReturn(LotteryTicketSerialModel.builder()
+                .id(34L)
+                .ticketId(12L)
+                .serialNumber("12A")
+                .build());
+        when(lotteryTicketServicePort.findAvailableReplacementsInBulk(any(), any(), any()))
+                .thenReturn(List.of());
+
+        PageResponse<OrderResponse> result = orderService.getMyOrders(
+                1, 10, List.of(), null, null, List.of(), null, "createdAt", "DESC", customerId);
+
+        var responseDetail = result.getRecordList().getFirst().orderDetails().getFirst();
+        assertThat(responseDetail.stationName()).isEqualTo("Xổ số kiến thiết TP. Hồ Chí Minh");
+        assertThat(responseDetail.province()).isEqualTo("TP. Hồ Chí Minh");
+        assertThat(responseDetail.numbers()).isEqualTo("841785");
+        assertThat(responseDetail.drawDate()).isEqualTo(LocalDate.of(2026, 8, 29));
+        assertThat(responseDetail.symbol()).isEqualTo("12A");
+        assertThat(responseDetail.ticketType()).isEqualTo("TRADITIONAL");
     }
 
     @Test

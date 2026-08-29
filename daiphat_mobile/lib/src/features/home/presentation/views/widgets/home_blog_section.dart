@@ -41,7 +41,7 @@ class HomeBlogSection extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surfacePrimary,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppColors.cardBorder, width: 1.5),
           boxShadow: [
@@ -360,7 +360,7 @@ class HomeBlogSection extends ConsumerWidget {
             child: Container(
               height: 140,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.surfacePrimary,
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
@@ -372,7 +372,7 @@ class HomeBlogSection extends ConsumerWidget {
             child: Container(
               height: 16,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.surfacePrimary,
                 borderRadius: BorderRadius.circular(4),
               ),
             ),

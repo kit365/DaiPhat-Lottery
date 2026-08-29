@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
@@ -80,8 +80,9 @@ class _ComplaintFormPageState extends ConsumerState<ComplaintFormPage> {
     });
     try {
       final all = await widget.service.getCategories();
-      final selectable =
-          all.where((c) => !c.code.startsWith('GROUP_')).toList();
+      final selectable = all
+          .where((c) => !c.code.startsWith('GROUP_'))
+          .toList();
       TicketCategoryResponse? initial;
       final editing = widget.editingTicket;
       if (editing != null) {
@@ -184,9 +185,7 @@ class _ComplaintFormPageState extends ConsumerState<ComplaintFormPage> {
       final refType = _requiredRefType;
       final refId = refType == null
           ? null
-          : (_usesPicker
-              ? _selectedRefId!.trim()
-              : _refController.text.trim());
+          : (_usesPicker ? _selectedRefId!.trim() : _refController.text.trim());
       final data = SupportTicketFormData(
         ticketCategoryId: _selectedCategory!.id,
         title: _titleController.text.trim(),
@@ -216,10 +215,10 @@ class _ComplaintFormPageState extends ConsumerState<ComplaintFormPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: AppColors.surfaceCanvas,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
+        backgroundColor: AppColors.surfacePrimary,
+        surfaceTintColor: AppColors.transparent,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.close_rounded, color: AppColors.textMain),
@@ -227,7 +226,7 @@ class _ComplaintFormPageState extends ConsumerState<ComplaintFormPage> {
         ),
         title: Text(
           _isEditing ? 'Chỉnh sửa khiếu nại' : 'Tạo khiếu nại mới',
-          style: GoogleFonts.publicSans(
+          style: AppTypography.mainWith(
             fontSize: 18,
             fontWeight: FontWeight.w700,
             color: AppColors.textMain,
@@ -237,10 +236,11 @@ class _ComplaintFormPageState extends ConsumerState<ComplaintFormPage> {
       ),
       body: _loadingCategories
           ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primary))
+              child: CircularProgressIndicator(color: AppColors.primary),
+            )
           : _loadError != null
-              ? _buildError()
-              : _buildForm(),
+          ? _buildError()
+          : _buildForm(),
       bottomNavigationBar: _loadingCategories || _loadError != null
           ? null
           : _buildSubmitBar(),
@@ -254,14 +254,20 @@ class _ComplaintFormPageState extends ConsumerState<ComplaintFormPage> {
         children: [
           const Icon(Icons.error_outline, size: 48, color: AppColors.textMuted),
           const SizedBox(height: 12),
-          Text(_loadError!,
-              style: GoogleFonts.publicSans(color: AppColors.textMuted)),
+          Text(
+            _loadError!,
+            style: AppTypography.mainWith(color: AppColors.textMuted),
+          ),
           const SizedBox(height: 12),
           TextButton(
             onPressed: _loadCategories,
-            child: Text('Thử lại',
-                style: GoogleFonts.publicSans(
-                    color: AppColors.primary, fontWeight: FontWeight.w700)),
+            child: Text(
+              'Thử lại',
+              style: AppTypography.mainWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),
@@ -277,37 +283,41 @@ class _ComplaintFormPageState extends ConsumerState<ComplaintFormPage> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            color: _isEditing ? const Color(0xFFF4F6F8) : Colors.white,
-            border: Border.all(color: const Color(0xFFE5E8EB)),
+            color: _isEditing ? AppColors.surfaceNeutral : AppColors.surfacePrimary,
+            border: Border.all(color: AppColors.borderLight),
             borderRadius: BorderRadius.circular(12),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<TicketCategoryResponse>(
               isExpanded: true,
               value: _selectedCategory,
-              hint: Text('Chọn danh mục...',
-                  style: GoogleFonts.publicSans(
-                    fontSize: 14,
-                    color: AppColors.loginPlaceholder,
-                  )),
+              hint: Text(
+                'Chọn danh mục...',
+                style: AppTypography.mainWith(
+                  fontSize: 14,
+                  color: AppColors.loginPlaceholder,
+                ),
+              ),
               items: _categories
                   .map(
                     (c) => DropdownMenuItem(
                       value: c,
-                      child: Text(c.name,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.publicSans(fontSize: 14)),
+                      child: Text(
+                        c.name,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.mainWith(fontSize: 14),
+                      ),
                     ),
                   )
                   .toList(),
               onChanged: _isEditing
                   ? null
                   : (v) => setState(() {
-                        _selectedCategory = v;
-                        _refController.clear();
-                        _selectedRefId = null;
-                        _selectedRefLabel = null;
-                      }),
+                      _selectedCategory = v;
+                      _refController.clear();
+                      _selectedRefId = null;
+                      _selectedRefLabel = null;
+                    }),
             ),
           ),
         ),
@@ -316,8 +326,10 @@ class _ComplaintFormPageState extends ConsumerState<ComplaintFormPage> {
             padding: const EdgeInsets.only(top: 6),
             child: Text(
               _selectedCategory!.description,
-              style: GoogleFonts.publicSans(
-                  fontSize: 12, color: AppColors.textMuted),
+              style: AppTypography.mainWith(
+                fontSize: 12,
+                color: AppColors.textMuted,
+              ),
             ),
           ),
         if (_requiredRefType != null) ...[
@@ -329,7 +341,7 @@ class _ComplaintFormPageState extends ConsumerState<ComplaintFormPage> {
           else
             TextField(
               controller: _refController,
-              style: GoogleFonts.publicSans(fontSize: 14),
+              style: AppTypography.mainWith(fontSize: 14),
               decoration: _inputDecoration(
                 'Nhập mã ${_requiredRefType!.label.toLowerCase()}',
               ),
@@ -341,7 +353,7 @@ class _ComplaintFormPageState extends ConsumerState<ComplaintFormPage> {
         TextField(
           controller: _titleController,
           maxLength: 200,
-          style: GoogleFonts.publicSans(fontSize: 14),
+          style: AppTypography.mainWith(fontSize: 14),
           decoration: _inputDecoration('Tóm tắt vấn đề của bạn...'),
         ),
         const SizedBox(height: 8),
@@ -350,9 +362,8 @@ class _ComplaintFormPageState extends ConsumerState<ComplaintFormPage> {
         TextField(
           controller: _descController,
           maxLines: 5,
-          style: GoogleFonts.publicSans(fontSize: 14),
-          decoration:
-              _inputDecoration('Mô tả chi tiết vấn đề bạn gặp phải...'),
+          style: AppTypography.mainWith(fontSize: 14),
+          decoration: _inputDecoration('Mô tả chi tiết vấn đề bạn gặp phải...'),
         ),
         const SizedBox(height: 16),
         _label('Hình ảnh đính kèm'),
@@ -361,8 +372,10 @@ class _ComplaintFormPageState extends ConsumerState<ComplaintFormPage> {
           _evidenceRequired
               ? 'Bắt buộc đính kèm biên lai chuyển khoản để đối soát'
               : 'Hình ảnh minh chứng (không bắt buộc)',
-          style:
-              GoogleFonts.publicSans(fontSize: 12, color: AppColors.textMuted),
+          style: AppTypography.mainWith(
+            fontSize: 12,
+            color: AppColors.textMuted,
+          ),
         ),
         const SizedBox(height: 8),
         _buildAttachment(),
@@ -378,8 +391,8 @@ class _ComplaintFormPageState extends ConsumerState<ComplaintFormPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
-          color: _isEditing ? const Color(0xFFF4F6F8) : Colors.white,
-          border: Border.all(color: const Color(0xFFE5E8EB)),
+          color: _isEditing ? AppColors.surfaceNeutral : AppColors.surfacePrimary,
+          border: Border.all(color: AppColors.borderLight),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
@@ -389,7 +402,7 @@ class _ComplaintFormPageState extends ConsumerState<ComplaintFormPage> {
                 hasValue
                     ? (_selectedRefLabel ?? '#$_selectedRefId')
                     : 'Chọn ${_requiredRefType!.label.toLowerCase()}...',
-                style: GoogleFonts.publicSans(
+                style: AppTypography.mainWith(
                   fontSize: 14,
                   fontWeight: hasValue ? FontWeight.w700 : FontWeight.w400,
                   color: hasValue
@@ -400,15 +413,17 @@ class _ComplaintFormPageState extends ConsumerState<ComplaintFormPage> {
             ),
             if (!_isEditing)
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF4F6F8),
+                  color: AppColors.surfaceNeutral,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   hasValue ? 'Thay đổi' : 'Chọn',
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.mainWith(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: const Color(0xFF454F5B),
@@ -430,7 +445,7 @@ class _ComplaintFormPageState extends ConsumerState<ComplaintFormPage> {
         width: double.infinity,
         decoration: BoxDecoration(
           color: const Color(0xFFF9FAFB),
-          border: Border.all(color: const Color(0xFFE5E8EB)),
+          border: Border.all(color: AppColors.borderLight),
           borderRadius: BorderRadius.circular(12),
         ),
         clipBehavior: Clip.antiAlias,
@@ -447,28 +462,34 @@ class _ComplaintFormPageState extends ConsumerState<ComplaintFormPage> {
                 ],
               )
             : (existingUrl != null && existingUrl.isNotEmpty)
-                ? Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      Image.network(existingUrl, fit: BoxFit.contain),
-                      Positioned(
-                        bottom: 8,
-                        right: 8,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.black54,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text('Nhấn để đổi ảnh',
-                              style: GoogleFonts.publicSans(
-                                  fontSize: 12, color: Colors.white)),
+            ? Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.network(existingUrl, fit: BoxFit.contain),
+                  Positioned(
+                    bottom: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'Nhấn để đổi ảnh',
+                        style: AppTypography.mainWith(
+                          fontSize: 12,
+                          color: AppColors.surfacePrimary,
                         ),
                       ),
-                    ],
-                  )
-                : _buildFilePlaceholder(),
+                    ),
+                  ),
+                ],
+              )
+            : _buildFilePlaceholder(),
       ),
     );
   }
@@ -477,12 +498,19 @@ class _ComplaintFormPageState extends ConsumerState<ComplaintFormPage> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Icon(Icons.add_photo_alternate_outlined,
-            size: 36, color: AppColors.textMuted),
+        const Icon(
+          Icons.add_photo_alternate_outlined,
+          size: 36,
+          color: AppColors.textMuted,
+        ),
         const SizedBox(height: 8),
-        Text('Chọn ảnh từ thư viện',
-            style: GoogleFonts.publicSans(
-                fontSize: 13, color: AppColors.textMuted)),
+        Text(
+          'Chọn ảnh từ thư viện',
+          style: AppTypography.mainWith(
+            fontSize: 13,
+            color: AppColors.textMuted,
+          ),
+        ),
       ],
     );
   }
@@ -499,7 +527,7 @@ class _ComplaintFormPageState extends ConsumerState<ComplaintFormPage> {
             color: Colors.black54,
             shape: BoxShape.circle,
           ),
-          child: const Icon(Icons.close_rounded, size: 16, color: Colors.white),
+          child: const Icon(Icons.close_rounded, size: 16, color: AppColors.surfacePrimary),
         ),
       ),
     );
@@ -513,22 +541,27 @@ class _ComplaintFormPageState extends ConsumerState<ComplaintFormPage> {
           onPressed: _submitting ? null : _submit,
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
+            foregroundColor: AppColors.surfacePrimary,
             padding: const EdgeInsets.symmetric(vertical: 15),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
           child: _submitting
               ? const SizedBox(
                   width: 20,
                   height: 20,
                   child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Colors.white),
+                    strokeWidth: 2,
+                    color: AppColors.surfacePrimary,
+                  ),
                 )
               : Text(
                   _isEditing ? 'Lưu thay đổi' : 'Gửi yêu cầu',
-                  style: GoogleFonts.publicSans(
-                      fontSize: 15, fontWeight: FontWeight.w700),
+                  style: AppTypography.mainWith(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
         ),
       ),
@@ -536,36 +569,35 @@ class _ComplaintFormPageState extends ConsumerState<ComplaintFormPage> {
   }
 
   Widget _label(String text) => Text(
-        text,
-        style: GoogleFonts.publicSans(
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
-          color: const Color(0xFF454F5B),
-        ),
-      );
+    text,
+    style: AppTypography.mainWith(
+      fontSize: 13,
+      fontWeight: FontWeight.w700,
+      color: const Color(0xFF454F5B),
+    ),
+  );
 
   InputDecoration _inputDecoration(String hint) => InputDecoration(
-        hintText: hint,
-        hintStyle: GoogleFonts.publicSans(
-          fontSize: 14,
-          color: AppColors.loginPlaceholder,
-        ),
-        isDense: true,
-        filled: true,
-        fillColor: Colors.white,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFE5E8EB)),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFE5E8EB)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.primary),
-        ),
-      );
+    hintText: hint,
+    hintStyle: AppTypography.mainWith(
+      fontSize: 14,
+      color: AppColors.loginPlaceholder,
+    ),
+    isDense: true,
+    filled: true,
+    fillColor: AppColors.surfacePrimary,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: AppColors.borderLight),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: AppColors.borderLight),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: AppColors.primary),
+    ),
+  );
 }

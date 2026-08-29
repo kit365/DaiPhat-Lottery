@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
 import 'package:daiphat_mobile/src/features/cart/models/cart_item_model.dart';
 import '../../models/transaction_type.dart';
@@ -158,23 +159,23 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
         ref.read(buyNowItemsProvider.notifier).clear();
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFF7F7F8),
+        backgroundColor: AppColors.backgroundPrimary,
         appBar: AppBar(
-          title: const Text(
+          title: Text(
             'Thanh toán',
-            style: TextStyle(
-              color: Color(0xFF15213B),
-              fontWeight: FontWeight.w800,
-              fontSize: 18,
-            ),
+            style: AppTypography.pageTitle(),
           ),
-          backgroundColor: Colors.white,
-          foregroundColor: const Color(0xFF15213B),
+          backgroundColor: AppColors.surfacePrimary,
+          foregroundColor: AppColors.contentPrimary,
           elevation: 0,
           scrolledUnderElevation: 0,
-          surfaceTintColor: Colors.transparent,
+          surfaceTintColor: AppColors.transparent,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+            icon: const Icon(
+              Icons.arrow_back_ios_new_rounded,
+              size: 20,
+              color: AppColors.contentPrimary,
+            ),
             onPressed: () => context.pop(),
           ),
         ),
@@ -407,8 +408,8 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
               child: Text(
                 '$number',
                 style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
+                  color: AppColors.surfacePrimary,
+                  fontWeight: FontWeight.w800,
                   fontSize: 13,
                 ),
               ),
@@ -418,10 +419,12 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
         ],
         Text(
           title,
-          style: const TextStyle(
-            color: Color(0xFF15213B),
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
+          style: AppTypography.main(
+            const TextStyle(
+              color: AppColors.contentPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ),
       ],
@@ -436,10 +439,6 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
             (state.expectedPickupAt == null || state.expectedPickupAt!.isEmpty)
         ? 'Vui lòng chọn thời gian nhận vé'
         : null;
-
-    final opHours =
-        ref.watch(operatingHoursProvider).asData?.value ??
-        const SiteOperatingHours();
 
     return Container(
       decoration: _cardDecoration(),
@@ -457,7 +456,7 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
               ref.read(checkoutProvider.notifier).setName(v);
             },
           ),
-          const Divider(height: 1, color: Color(0xFFEDEFF3)),
+          const Divider(height: 1, color: AppColors.borderLight),
           _CheckoutTextFieldRow(
             icon: Icons.phone_outlined,
             label: 'Số điện thoại *',
@@ -471,23 +470,19 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
               ref.read(checkoutProvider.notifier).setPhone(v);
             },
           ),
-          const Divider(height: 1, color: Color(0xFFEDEFF3)),
+          const Divider(height: 1, color: AppColors.borderLight),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: CheckoutDateTimePicker(
               value: state.expectedPickupAt,
               errorText: timeError,
               embedded: true,
-              openHour: opHours.openHour,
-              closeHour: opHours.closeHour,
-              openTimeStr: opHours.openTime,
-              closeTimeStr: opHours.closeTime,
               onChanged: (iso) {
                 ref.read(checkoutProvider.notifier).setExpectedPickupAt(iso);
               },
             ),
           ),
-          const Divider(height: 1, color: Color(0xFFEDEFF3)),
+          const Divider(height: 1, color: AppColors.borderLight),
           _CheckoutTextFieldRow(
             icon: Icons.note_alt_outlined,
             label: 'Ghi chú (nếu có)',
@@ -516,7 +511,7 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
           return Column(
             children: [
               if (types.indexOf(type) > 0)
-                const Divider(height: 1, color: Color(0xFFF1F3F5)),
+                const Divider(height: 1, color: AppColors.borderLight),
               Semantics(
                 container: true,
                 button: true,
@@ -539,7 +534,7 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                                 : Icons.local_shipping_outlined,
                             color: isSelected
                                 ? AppColors.primary
-                                : const Color(0xFFD1D5DB),
+                                : AppColors.contentPlaceholder,
                             size: 26,
                           ),
                           const SizedBox(width: 16),
@@ -549,22 +544,26 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                               children: [
                                 Text(
                                   type.label,
-                                  style: TextStyle(
-                                    color: isSelected
-                                        ? AppColors.primary
-                                        : const Color(0xFF15213B),
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
+                                  style: AppTypography.main(
+                                    TextStyle(
+                                      color: isSelected
+                                          ? AppColors.primary
+                                          : AppColors.contentPrimary,
+                                      fontSize: 15.5,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(height: 4),
                                 if (type.value == 'COUNTER_PICKUP')
-                                  const Text(
+                                  Text(
                                     'Đến trực tiếp quầy giao dịch Đại Phát để nhận vé giấy',
-                                    style: TextStyle(
-                                      color: Color(0xFF6B7280),
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500,
+                                    style: AppTypography.main(
+                                      const TextStyle(
+                                        color: AppColors.contentMuted,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                      ),
                                     ),
                                   ),
                               ],
@@ -597,7 +596,7 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
           return Column(
             children: [
               if (types.indexOf(type) > 0)
-                const Divider(height: 1, color: Color(0xFFF1F3F5)),
+                const Divider(height: 1, color: AppColors.borderLight),
               Semantics(
                 container: true,
                 button: true,
@@ -620,7 +619,7 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                                 : Icons.money_rounded,
                             color: isSelected
                                 ? AppColors.primary
-                                : const Color(0xFFD1D5DB),
+                                : AppColors.contentPlaceholder,
                             size: 26,
                           ),
                           const SizedBox(width: 16),
@@ -630,12 +629,14 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                               children: [
                                 Text(
                                   type.label,
-                                  style: TextStyle(
-                                    color: isSelected
-                                        ? AppColors.primary
-                                        : const Color(0xFF15213B),
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
+                                  style: AppTypography.main(
+                                    TextStyle(
+                                      color: isSelected
+                                          ? AppColors.primary
+                                          : AppColors.contentPrimary,
+                                      fontSize: 15.5,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(height: 4),
@@ -643,10 +644,12 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                                   type.value == 'ONLINE'
                                       ? 'Quét mã QR bằng ứng dụng ngân hàng (24/7)'
                                       : 'Thanh toán bằng tiền mặt khi nhận vé tại quầy',
-                                  style: const TextStyle(
-                                    color: Color(0xFF6B7280),
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
+                                  style: AppTypography.main(
+                                    const TextStyle(
+                                      color: AppColors.contentMuted,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -668,15 +671,25 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
 
   Widget _buildOrderSummary(int ticketCount, int subtotal, int total) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       decoration: _cardDecoration(),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text(
+            'Tóm tắt chi phí',
+            style: AppTypography.main(
+              const TextStyle(
+                color: AppColors.contentPrimary,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
           _summaryRow('Số lượng vé', '$ticketCount vé'),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           _summaryRow('Tạm tính', _money(subtotal)),
-          const Divider(height: 24, color: Color(0xFFF1F3F5)),
-          _summaryRow('Tổng cộng', _money(total), highlight: true),
         ],
       ),
     );
@@ -691,8 +704,8 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Color(0xFFF1F3F5))),
+        color: AppColors.surfacePrimary,
+        border: Border(top: BorderSide(color: AppColors.borderLight)),
       ),
       child: SafeArea(
         top: false,
@@ -704,12 +717,14 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Tổng thanh toán',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF15213B),
+                    style: AppTypography.main(
+                      const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.contentPrimary,
+                      ),
                     ),
                   ),
                   Text(
@@ -731,7 +746,7 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                 onPressed: canCheckout ? onCheckout : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
+                  foregroundColor: AppColors.surfacePrimary,
                   disabledBackgroundColor: const Color(0xFFF3B5B2),
                   disabledForegroundColor: Colors.white70,
                   minimumSize: const Size.fromHeight(56),
@@ -745,14 +760,17 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                         height: 24,
                         child: CircularProgressIndicator(
                           strokeWidth: 2.5,
-                          color: Colors.white,
+                          color: AppColors.surfacePrimary,
                         ),
                       )
-                    : const Text(
+                    : Text(
                         'Chốt đơn ngay',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
+                        style: AppTypography.main(
+                          const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.surfacePrimary,
+                          ),
                         ),
                       ),
               ),
@@ -763,15 +781,24 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
     );
   }
 
-  Widget _summaryRow(String label, String value, {bool highlight = false}) {
+  Widget _summaryRow(
+    String label,
+    String value, {
+    bool highlight = false,
+    Color? valueColor,
+  }) {
     return Row(
       children: [
         Text(
           label,
-          style: TextStyle(
-            color: const Color(0xFF374151),
-            fontSize: highlight ? 18 : 16,
-            fontWeight: highlight ? FontWeight.w800 : FontWeight.w500,
+          style: AppTypography.main(
+            TextStyle(
+              color: highlight
+                  ? AppColors.contentPrimary
+                  : AppColors.contentSecondary,
+              fontSize: highlight ? 16 : 14,
+              fontWeight: highlight ? FontWeight.w800 : FontWeight.w500,
+            ),
           ),
         ),
         const Spacer(),
@@ -781,14 +808,16 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
               ? AppTypography.number(
                   const TextStyle(
                     color: AppColors.primary,
-                    fontSize: 18,
+                    fontSize: 19,
                     fontWeight: FontWeight.w900,
                   ),
                 )
-              : const TextStyle(
-                  color: Color(0xFF111827),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+              : AppTypography.main(
+                  TextStyle(
+                    color: valueColor ?? AppColors.contentPrimary,
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
         ),
       ],
@@ -802,42 +831,34 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
       height: 28,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: selected ? AppColors.primary : Colors.white,
+        color: selected ? AppColors.primary : AppColors.surfacePrimary,
         border: Border.all(
-          color: selected ? AppColors.primary : const Color(0xFFD1D5DB),
+          color: selected ? AppColors.primary : AppColors.borderDefault,
           width: 1.5,
         ),
       ),
       child: selected
-          ? const Icon(Icons.check, color: Colors.white, size: 18)
+          ? const Icon(Icons.check, color: AppColors.surfacePrimary, size: 18)
           : null,
     );
   }
 
   BoxDecoration _cardDecoration() {
     return BoxDecoration(
-      color: Colors.white,
+      color: AppColors.surfacePrimary,
       borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: const Color(0xFFF1F3F5)),
-      boxShadow: [
+      border: Border.all(color: AppColors.cardBorder),
+      boxShadow: const [
         BoxShadow(
-          color: const Color(0xFF12213D).withValues(alpha: 0.08),
-          blurRadius: 22,
-          spreadRadius: -10,
-          offset: const Offset(0, 10),
+          color: Color(0x08000000),
+          blurRadius: 10,
+          offset: Offset(0, 2),
         ),
       ],
     );
   }
 
-  String _money(int amount) {
-    final value = amount.toString().replaceAllMapped(
-      RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
-      (match) => '${match[1]}.',
-    );
-    return '$value'
-        'đ';
-  }
+  String _money(int amount) => AppFormatters.formatCurrency(amount);
 }
 
 class _CheckoutTextFieldRow extends StatelessWidget {
@@ -875,7 +896,7 @@ class _CheckoutTextFieldRow extends StatelessWidget {
           SizedBox(
             width: 48,
             height: 48,
-            child: Icon(icon, color: const Color(0xFF15213B), size: 27),
+            child: Icon(icon, color: AppColors.contentPrimary, size: 26),
           ),
           Expanded(
             child: TextField(
@@ -885,10 +906,12 @@ class _CheckoutTextFieldRow extends StatelessWidget {
               textInputAction: textInputAction,
               minLines: minLines,
               maxLines: maxLines,
-              style: const TextStyle(
-                color: Color(0xFF15213B),
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
+              style: AppTypography.main(
+                const TextStyle(
+                  color: AppColors.contentPrimary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               decoration: InputDecoration(
                 labelText: label,
@@ -901,15 +924,19 @@ class _CheckoutTextFieldRow extends StatelessWidget {
                 errorBorder: InputBorder.none,
                 focusedErrorBorder: InputBorder.none,
                 contentPadding: EdgeInsets.zero,
-                labelStyle: const TextStyle(
-                  color: Color(0xFF8B94A3),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+                labelStyle: AppTypography.main(
+                  const TextStyle(
+                    color: AppColors.contentMuted,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-                hintStyle: const TextStyle(
-                  color: AppColors.loginPlaceholder,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
+                hintStyle: AppTypography.main(
+                  const TextStyle(
+                    color: AppColors.contentPlaceholder,
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ),
@@ -927,17 +954,24 @@ class _CartItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final station = (item.province.trim().isNotEmpty &&
+            item.province.trim() != 'Đang cập nhật')
+        ? item.province.trim()
+        : (item.logoText.trim().isNotEmpty
+            ? item.logoText.trim()
+            : 'Đài Miền Nam');
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surfacePrimary,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFF1E3E0)),
+        border: Border.all(color: AppColors.cardBorder),
         boxShadow: const [
           BoxShadow(
             color: Color(0x08000000),
             blurRadius: 8,
-            offset: Offset(0, 3),
+            offset: Offset(0, 2),
           ),
         ],
       ),
@@ -949,68 +983,61 @@ class _CartItemCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Row(
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Flexible(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 7,
-                          vertical: 2.5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFDE8E5),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          item.province,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTypography.main(
-                            const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.primary,
-                            ),
-                          ),
+                    Text(
+                      station,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.main(
+                        const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.contentMuted,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(height: 3),
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(
                           Icons.calendar_month_outlined,
                           size: 12,
-                          color: Color(0xFF8A6D68),
+                          color: AppColors.contentMuted,
                         ),
-                        const SizedBox(width: 3),
-                        Text(
-                          item.dateLabel,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF755E59),
+                        const SizedBox(width: 3.5),
+                        Flexible(
+                          child: Text(
+                            item.dateLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTypography.main(
+                              const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.contentMuted,
+                              ),
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Text(
                   item.number,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTypography.number(
                     const TextStyle(
-                      color: Color(0xFFC90F1D),
-                      fontSize: 26,
-                      height: 1,
+                      color: AppColors.contentPrimary,
+                      fontSize: 25,
+                      height: 1.0,
                       fontWeight: FontWeight.w900,
-                      letterSpacing: 2.0,
+                      letterSpacing: 1.8,
                     ),
                   ),
                 ),
@@ -1024,19 +1051,23 @@ class _CartItemCard extends StatelessWidget {
             children: [
               Text(
                 'x${item.quantity}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 14,
-                  color: Color(0xFF64748B),
+                style: AppTypography.main(
+                  const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: AppColors.contentMuted,
+                  ),
                 ),
               ),
               const SizedBox(height: 4),
               Text(
-                _money2(item.subtotal),
-                style: const TextStyle(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 16,
-                  color: AppColors.primary,
+                AppFormatters.formatCurrency(item.subtotal),
+                style: AppTypography.main(
+                  const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13.5,
+                    color: AppColors.primary,
+                  ),
                 ),
               ),
             ],
@@ -1044,14 +1075,5 @@ class _CartItemCard extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  String _money2(int amount) {
-    final value = amount.toString().replaceAllMapped(
-      RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
-      (match) => '${match[1]}.',
-    );
-    return '$value'
-        'đ';
   }
 }

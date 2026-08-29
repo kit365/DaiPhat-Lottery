@@ -4,20 +4,21 @@ import 'package:shimmer/shimmer.dart';
 
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
+import 'package:daiphat_mobile/src/shared/widgets/app_filter_tab_strip.dart';
 import '../models/blog_post.dart';
 import '../viewmodels/blog_viewmodel.dart';
 import 'blog_detail_screen.dart';
 
-const _primary = Color(0xFFEE1314);
+const _primary = AppColors.brandPrimaryStrong;
 const _gold = Color(0xFFFFD700);
 const _goldLight = Color(0xFFFFF9E6);
 const _ink = Color(0xFF17191F);
 const _secondary = Color(0xFF6B5A57);
-// const _surface = Colors.white;// ban dau
-const _surface = Colors.white;
+// const _surface = AppColors.surfacePrimary;// ban dau
+const _surface = AppColors.surfacePrimary;
 
 // const _pageBg = Color(0xFFF7F7FB); // ban dau
-const _pageBg = Colors.white;
+const _pageBg = AppColors.surfacePrimary;
 
 const _cardBorder = Color(0xFFE6E6EC);
 
@@ -41,11 +42,9 @@ class _BlogScreenState extends ConsumerState<BlogScreen> {
   }
 
   void _openAllPosts() {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => const _BlogAllScreen(),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const _BlogAllScreen()));
   }
 
   @override
@@ -169,9 +168,7 @@ class _BlogAllScreenState extends ConsumerState<_BlogAllScreen> {
     final slug = post.slug;
     if (slug == null || slug.isEmpty) return;
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => BlogDetailScreen(slug: slug),
-      ),
+      MaterialPageRoute<void>(builder: (_) => BlogDetailScreen(slug: slug)),
     );
   }
 
@@ -216,8 +213,9 @@ class _BlogAllScreenState extends ConsumerState<_BlogAllScreen> {
                     child: _buildCategoryChips(
                       categories: categories,
                       selectedIndex: data.selectedCategoryIndex,
-                      onSelected: (i) =>
-                          ref.read(blogViewModelProvider.notifier).selectCategory(i),
+                      onSelected: (i) => ref
+                          .read(blogViewModelProvider.notifier)
+                          .selectCategory(i),
                     ),
                   ),
                   const SliverToBoxAdapter(child: SizedBox(height: 22)),
@@ -240,11 +238,11 @@ class _BlogAllScreenState extends ConsumerState<_BlogAllScreen> {
                         itemCount: uniquePosts.length,
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          mainAxisSpacing: 14,
-                          crossAxisSpacing: 14,
-                          childAspectRatio: 0.66,
-                        ),
+                              crossAxisCount: 2,
+                              mainAxisSpacing: 14,
+                              crossAxisSpacing: 14,
+                              childAspectRatio: 0.66,
+                            ),
                         itemBuilder: (_, index) => _AllBlogCard(
                           post: uniquePosts[index],
                           onTap: () => _openDetail(uniquePosts[index]),
@@ -255,9 +253,8 @@ class _BlogAllScreenState extends ConsumerState<_BlogAllScreen> {
               ),
             );
           },
-          loading: () => const Center(
-            child: CircularProgressIndicator(color: _primary),
-          ),
+          loading: () =>
+              const Center(child: CircularProgressIndicator(color: _primary)),
           error: (e, _) => _BlogError(
             message: e.toString(),
             onRetry: () => ref.invalidate(blogViewModelProvider),
@@ -290,10 +287,7 @@ Widget _buildAllPostsAppBar(BuildContext context) {
             ),
           ),
         ),
-        _CircleIconButton(
-          icon: Icons.search_rounded,
-          onTap: () {},
-        ),
+        _CircleIconButton(icon: Icons.search_rounded, onTap: () {}),
       ],
     ),
   );
@@ -308,7 +302,7 @@ class _CircleIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: AppColors.surfacePrimary,
       shape: const CircleBorder(),
       elevation: 4,
       shadowColor: Colors.black.withValues(alpha: 0.16),
@@ -334,7 +328,7 @@ class _AllBlogCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: AppColors.surfacePrimary,
       borderRadius: BorderRadius.circular(18),
       elevation: 2.5,
       shadowColor: Colors.black.withValues(alpha: 0.12),
@@ -355,10 +349,7 @@ class _AllBlogCard extends StatelessWidget {
                     fit: BoxFit.cover,
                     errorBuilder: (_, _, _) => Container(
                       color: _goldLight,
-                      child: const Icon(
-                        Icons.image_outlined,
-                        color: _gold,
-                      ),
+                      child: const Icon(Icons.image_outlined, color: _gold),
                     ),
                   ),
                   Positioned(
@@ -384,7 +375,7 @@ class _AllBlogCard extends StatelessWidget {
                         post.category.isNotEmpty ? post.category : 'Tin tức',
                         style: AppTypography.main(
                           const TextStyle(
-                            color: Colors.white,
+                            color: AppColors.surfacePrimary,
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                           ),
@@ -489,7 +480,7 @@ Widget _buildAppBar(VoidCallback? onBack) {
           width: 44,
           height: 44,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.surfacePrimary,
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
@@ -545,7 +536,7 @@ Widget _buildAppBar(VoidCallback? onBack) {
           width: 44,
           height: 44,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.surfacePrimary,
             borderRadius: BorderRadius.circular(22),
             border: Border.all(color: const Color(0xFFE8E8EE)),
             boxShadow: [
@@ -557,10 +548,7 @@ Widget _buildAppBar(VoidCallback? onBack) {
             ],
           ),
           clipBehavior: Clip.antiAlias,
-          child: Image.asset(
-            'assets/images/login_logo.jpg',
-            fit: BoxFit.cover,
-          ),
+          child: Image.asset('assets/images/login_logo.jpg', fit: BoxFit.cover),
         ),
       ],
     ),
@@ -595,10 +583,7 @@ Widget _buildSearchBar({
         decoration: InputDecoration(
           hintText: 'Tìm kiếm ...',
           hintStyle: AppTypography.main(
-            TextStyle(
-              fontSize: 14,
-              color: _secondary.withValues(alpha: 0.75),
-            ),
+            TextStyle(fontSize: 14, color: _secondary.withValues(alpha: 0.75)),
           ),
           prefixIcon: const Icon(
             Icons.search_rounded,
@@ -618,48 +603,15 @@ Widget _buildCategoryChips({
   required int selectedIndex,
   required void Function(int) onSelected,
 }) {
-  return SingleChildScrollView(
-    scrollDirection: Axis.horizontal,
-    padding: const EdgeInsets.symmetric(horizontal: 16),
-    child: Row(
-      children: List.generate(categories.length, (i) {
-        final selected = i == selectedIndex;
-        return GestureDetector(
-          onTap: () => onSelected(i),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            margin: EdgeInsets.only(right: i < categories.length - 1 ? 12 : 0),
-            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
-            decoration: BoxDecoration(
-              color: selected ? _primary : _surface,
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(
-                color: selected ? _primary : const Color(0xFFD8DAE2),
-              ),
-              boxShadow: selected
-                  ? [
-                      BoxShadow(
-                        color: _primary.withValues(alpha: 0.25),
-                        blurRadius: 14,
-                        offset: const Offset(0, 5),
-                      ),
-                    ]
-                  : [],
-            ),
-            child: Text(
-              categories[i],
-              style: AppTypography.main(
-                TextStyle(
-                  fontSize: 13,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                  color: selected ? Colors.white : _ink,
-                ),
-              ),
-            ),
-          ),
-        );
-      }),
-    ),
+  final items = List.generate(categories.length, (i) {
+    return AppFilterTabItem<int>(value: i, label: categories[i]);
+  });
+
+  return AppFilterTabStrip<int>(
+    items: items,
+    selectedValue: selectedIndex,
+    onSelected: onSelected,
+    height: 44,
   );
 }
 
@@ -803,7 +755,7 @@ Widget _buildFeaturedCard(BlogPost post, void Function(BlogPost) onOpenDetail) {
                     const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
-                      color: Colors.white,
+                      color: AppColors.surfacePrimary,
                       height: 1.35,
                     ),
                   ),
@@ -818,7 +770,7 @@ Widget _buildFeaturedCard(BlogPost post, void Function(BlogPost) onOpenDetail) {
                       TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w400,
-                        color: Colors.white.withValues(alpha: 0.84),
+                        color: AppColors.surfacePrimary.withValues(alpha: 0.84),
                         height: 1.45,
                       ),
                     ),
@@ -843,7 +795,7 @@ Widget _buildFeaturedCard(BlogPost post, void Function(BlogPost) onOpenDetail) {
                           const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w800,
-                            color: Colors.white,
+                            color: AppColors.surfacePrimary,
                           ),
                         ),
                       ),
@@ -857,7 +809,7 @@ Widget _buildFeaturedCard(BlogPost post, void Function(BlogPost) onOpenDetail) {
                           const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            color: Colors.white,
+                            color: AppColors.surfacePrimary,
                             letterSpacing: 0.3,
                           ),
                         ),
@@ -871,7 +823,9 @@ Widget _buildFeaturedCard(BlogPost post, void Function(BlogPost) onOpenDetail) {
                         TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
-                          color: Colors.white.withValues(alpha: 0.78),
+                          color: AppColors.surfacePrimary.withValues(
+                            alpha: 0.78,
+                          ),
                         ),
                       ),
                     ),
@@ -1012,7 +966,7 @@ class _BlogSkeleton extends StatelessWidget {
               child: Container(
                 height: 360,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.surfacePrimary,
                   borderRadius: BorderRadius.circular(26),
                 ),
               ),
@@ -1029,7 +983,7 @@ class _BlogSkeleton extends StatelessWidget {
                 child: Container(
                   height: 120,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.surfacePrimary,
                     borderRadius: BorderRadius.circular(22),
                   ),
                 ),
@@ -1061,10 +1015,7 @@ class _BlogError extends StatelessWidget {
             Text(
               'Không thể tải danh sách blog',
               style: AppTypography.display(
-                const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
+                const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
               ),
             ),
             const SizedBox(height: 8),

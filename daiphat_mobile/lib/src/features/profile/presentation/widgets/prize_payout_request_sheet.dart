@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:intl/intl.dart';
 
 import 'package:daiphat_mobile/src/features/checkout/models/refund_type.dart';
@@ -9,6 +9,7 @@ import 'package:daiphat_mobile/src/features/profile/data/prize_payout_service.da
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/refund_request_sheet.dart';
 import 'package:daiphat_mobile/src/shared/network/api_exception.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 
 class PrizePayoutRequestSheet extends StatefulWidget {
@@ -37,12 +38,6 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
   PrizePayoutPreview? _preview;
   List<UserBankAccountResponse> _bankAccounts = const [];
   int? _selectedBankAccountId;
-
-  final _currencyFmt = NumberFormat.currency(
-    locale: 'vi_VN',
-    symbol: '₫',
-    decimalDigits: 0,
-  );
 
   @override
   void initState() {
@@ -155,19 +150,11 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
     }
   }
 
-  String _formatDrawDate(String value) {
-    try {
-      final dt = DateTime.parse(value).toLocal();
-      return DateFormat('dd/MM/yyyy').format(dt);
-    } catch (_) {
-      return value.isEmpty ? '—' : value;
-    }
-  }
+  String _formatDrawDate(String value) =>
+      AppFormatters.formatDateIso(value, fallback: value.isEmpty ? '—' : value);
 
-  String _formatMoney(int? value) {
-    if (value == null) return '—';
-    return _currencyFmt.format(value);
-  }
+  String _formatMoney(int? value) =>
+      value == null ? '—' : AppFormatters.formatCurrency(value);
 
   @override
   Widget build(BuildContext context) {
@@ -179,7 +166,7 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
         maxHeight: MediaQuery.of(context).size.height * 0.9,
       ),
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surfacePrimary,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: SafeArea(
@@ -197,7 +184,7 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
                       width: 40,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE2E8F0),
+                        color: AppColors.borderSubtle,
                         borderRadius: BorderRadius.circular(999),
                       ),
                     ),
@@ -208,7 +195,7 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
                       Expanded(
                         child: Text(
                           'Yêu cầu trả thưởng',
-                          style: GoogleFonts.publicSans(
+                          style: AppTypography.mainWith(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
                             color: AppColors.textMain,
@@ -219,7 +206,7 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
                         onPressed: () => Navigator.of(context).pop(),
                         icon: const Icon(
                           Icons.close_rounded,
-                          color: Color(0xFF919EAB),
+                          color: AppColors.contentPlaceholderStrong,
                         ),
                       ),
                     ],
@@ -258,7 +245,7 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
           child: Container(
             height: 4,
             decoration: BoxDecoration(
-              color: _step >= 2 ? AppColors.primary : const Color(0xFFE5E8EB),
+              color: _step >= 2 ? AppColors.primary : AppColors.borderLight,
               borderRadius: BorderRadius.circular(999),
             ),
           ),
@@ -281,7 +268,7 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
         children: [
           Text(
             _error!,
-            style: GoogleFonts.publicSans(color: AppColors.textMuted),
+            style: AppTypography.mainWith(color: AppColors.textMuted),
           ),
           const SizedBox(height: 12),
           TextButton(onPressed: _loadPreview, child: const Text('Thử lại')),
@@ -294,9 +281,9 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
       children: [
         Text(
           'Xác nhận thông tin vé trúng thưởng',
-          style: GoogleFonts.publicSans(
+          style: AppTypography.mainWith(
             fontSize: 14,
-            color: const Color(0xFF637381),
+            color: AppColors.contentNeutral,
           ),
         ),
         const SizedBox(height: 12),
@@ -305,7 +292,7 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE5E8EB)),
+            border: Border.all(color: AppColors.borderLight),
           ),
           child: Column(
             children: [
@@ -314,7 +301,7 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
               _buildInfoRow(
                 'Dãy số',
                 ticket.numbers,
-                valueStyle: GoogleFonts.publicSans(
+                valueStyle: AppTypography.mainWith(
                   fontSize: 14,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.2,
@@ -332,28 +319,28 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
                     'Đang tính số tiền thực nhận…',
-                    style: GoogleFonts.publicSans(
+                    style: AppTypography.mainWith(
                       fontSize: 13,
-                      color: const Color(0xFF637381),
+                      color: AppColors.contentNeutral,
                     ),
                   ),
                 )
               else ...[
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 8),
-                  child: Divider(height: 1, color: Color(0xFFE5E8EB)),
+                  child: Divider(height: 1, color: AppColors.borderLight),
                 ),
                 _buildInfoRow('Giá trị giải', _formatMoney(gross)),
                 _buildInfoRow('Thuế TNCN', _formatMoney(tax)),
                 _buildInfoRow('Hoa hồng đại lý', _formatMoney(commission)),
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 8),
-                  child: Divider(height: 1, color: Color(0xFFE5E8EB)),
+                  child: Divider(height: 1, color: AppColors.borderLight),
                 ),
                 _buildInfoRow(
                   'Thực nhận',
                   _formatMoney(net ?? gross),
-                  valueStyle: GoogleFonts.publicSans(
+                  valueStyle: AppTypography.mainWith(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                     color: AppColors.primary,
@@ -366,9 +353,9 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
         const SizedBox(height: 12),
         Text(
           'Tên chủ tài khoản ngân hàng phải khớp tên khách hàng. Yêu cầu vẫn cần nhân viên duyệt trước khi chuyển tiền.',
-          style: GoogleFonts.publicSans(
+          style: AppTypography.mainWith(
             fontSize: 12,
-            color: const Color(0xFF919EAB),
+            color: AppColors.contentPlaceholderStrong,
           ),
         ),
         const SizedBox(height: 16),
@@ -378,7 +365,7 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
             onPressed: canContinue ? _goToStep2 : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
+              foregroundColor: AppColors.surfacePrimary,
               disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.4),
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(
@@ -387,7 +374,7 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
             ),
             child: Text(
               'Tiếp tục',
-              style: GoogleFonts.publicSans(
+              style: AppTypography.mainWith(
                 fontWeight: FontWeight.w800,
                 fontSize: 14,
               ),
@@ -404,9 +391,9 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
       children: [
         Text(
           'Chọn tài khoản nhận thưởng',
-          style: GoogleFonts.publicSans(
+          style: AppTypography.mainWith(
             fontSize: 14,
-            color: const Color(0xFF637381),
+            color: AppColors.contentNeutral,
           ),
         ),
         const SizedBox(height: 12),
@@ -422,7 +409,7 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
             children: [
               Text(
                 _error!,
-                style: GoogleFonts.publicSans(color: AppColors.textMuted),
+                style: AppTypography.mainWith(color: AppColors.textMuted),
               ),
               const SizedBox(height: 12),
               TextButton(
@@ -438,7 +425,7 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: const Color(0xFFE5E8EB),
+                color: AppColors.borderLight,
                 style: BorderStyle.solid,
               ),
             ),
@@ -446,9 +433,9 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
               children: [
                 Text(
                   'Bạn chưa có tài khoản ngân hàng.',
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.mainWith(
                     fontSize: 14,
-                    color: const Color(0xFF637381),
+                    color: AppColors.contentNeutral,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -456,7 +443,7 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
                   onPressed: _handleAddBankAccount,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF212B36),
-                    foregroundColor: Colors.white,
+                    foregroundColor: AppColors.surfacePrimary,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 10,
@@ -467,7 +454,7 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
                   ),
                   child: Text(
                     'Thêm tài khoản',
-                    style: GoogleFonts.publicSans(
+                    style: AppTypography.mainWith(
                       fontWeight: FontWeight.w700,
                       fontSize: 13,
                     ),
@@ -490,12 +477,12 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
                   decoration: BoxDecoration(
                     color: selected
                         ? const Color(0xFFFFF5F5)
-                        : const Color(0xFFF8FAFC),
+                        : AppColors.surfaceSoft,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: selected
                           ? AppColors.primary
-                          : const Color(0xFFE5E8EB),
+                          : AppColors.borderLight,
                     ),
                   ),
                   child: Row(
@@ -517,7 +504,7 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
                           children: [
                             Text(
                               account.bankName,
-                              style: GoogleFonts.publicSans(
+                              style: AppTypography.mainWith(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 13,
                               ),
@@ -525,7 +512,7 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
                             const SizedBox(height: 2),
                             Text(
                               account.bankAccountNo,
-                              style: GoogleFonts.publicSans(
+                              style: AppTypography.mainWith(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
                                 letterSpacing: 0.4,
@@ -533,9 +520,9 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
                             ),
                             Text(
                               account.bankAccountName,
-                              style: GoogleFonts.publicSans(
+                              style: AppTypography.mainWith(
                                 fontSize: 12,
-                                color: const Color(0xFF637381),
+                                color: AppColors.contentNeutral,
                               ),
                             ),
                           ],
@@ -555,7 +542,7 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
             ),
             child: Text(
               '+ Thêm tài khoản khác',
-              style: GoogleFonts.publicSans(
+              style: AppTypography.mainWith(
                 fontWeight: FontWeight.w700,
                 fontSize: 13,
               ),
@@ -567,10 +554,12 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
           children: [
             Expanded(
               child: OutlinedButton(
-                onPressed: _isSubmitting ? null : () => setState(() => _step = 1),
+                onPressed: _isSubmitting
+                    ? null
+                    : () => setState(() => _step = 1),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.textMain,
-                  side: const BorderSide(color: Color(0xFFE5E8EB)),
+                  side: const BorderSide(color: AppColors.borderLight),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -578,7 +567,7 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
                 ),
                 child: Text(
                   'Quay lại',
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.mainWith(
                     fontWeight: FontWeight.w800,
                     fontSize: 14,
                   ),
@@ -593,9 +582,10 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
                     : _submit,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor:
-                      AppColors.primary.withValues(alpha: 0.4),
+                  foregroundColor: AppColors.surfacePrimary,
+                  disabledBackgroundColor: AppColors.primary.withValues(
+                    alpha: 0.4,
+                  ),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -607,12 +597,12 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
                         height: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.white,
+                          color: AppColors.surfacePrimary,
                         ),
                       )
                     : Text(
                         'Gửi yêu cầu',
-                        style: GoogleFonts.publicSans(
+                        style: AppTypography.mainWith(
                           fontWeight: FontWeight.w800,
                           fontSize: 14,
                         ),
@@ -634,9 +624,9 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
           Expanded(
             child: Text(
               label,
-              style: GoogleFonts.publicSans(
+              style: AppTypography.mainWith(
                 fontSize: 14,
-                color: const Color(0xFF637381),
+                color: AppColors.contentNeutral,
               ),
             ),
           ),
@@ -644,8 +634,9 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
             child: Text(
               value,
               textAlign: TextAlign.end,
-              style: valueStyle ??
-                  GoogleFonts.publicSans(
+              style:
+                  valueStyle ??
+                  AppTypography.mainWith(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textMain,

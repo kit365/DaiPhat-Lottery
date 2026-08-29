@@ -50,10 +50,16 @@ class LotteryTicketListItem {
 
   String get stationDisplayText {
     final value = stationName?.trim();
-    if (value == null || value.isEmpty) {
-      return 'Đang cập nhật';
+    if (value != null && value.isNotEmpty && value != 'Đang cập nhật') {
+      return value;
     }
-    return value;
+    if (displayName.trim().isNotEmpty && !displayName.contains('kiến thiết')) {
+      return displayName.replaceFirst('Vé số ', '').trim();
+    }
+    if (shortName.trim().isNotEmpty && shortName != 'VS') {
+      return shortName.trim();
+    }
+    return 'Đài Miền Nam';
   }
 
   String get productTitle => buildProductTitle(stationName);
@@ -183,12 +189,10 @@ final allTicketsViewModelProvider =
     );
 
 class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
-  Timer? _searchDebounce;
   int _listRequestId = 0;
 
   @override
   FutureOr<BuyTicketState> build() async {
-    ref.onDispose(() => _searchDebounce?.cancel());
     return _load(selectedDay: _defaultDayFilter());
   }
 
@@ -344,20 +348,13 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
   Future<void> updateSearchQuery(String query) async {
     final current = state.asData?.value;
     if (current == null) return;
+    if (current.searchQuery == query) return;
 
-    // Cập nhật query ngay để UI giữ trạng thái ô tìm kiếm, không full reload.
-    state = AsyncData(current.copyWith(searchQuery: query));
-
-    _searchDebounce?.cancel();
-    _searchDebounce = Timer(const Duration(milliseconds: 350), () async {
-      final latest = state.asData?.value;
-      if (latest == null) return;
-      await _reloadList(
-        searchQuery: latest.searchQuery,
-        selectedProvince: latest.selectedProvince,
-        selectedDay: latest.selectedDay,
-      );
-    });
+    await _reloadList(
+      searchQuery: query,
+      selectedProvince: current.selectedProvince,
+      selectedDay: current.selectedDay,
+    );
   }
 
   void selectProvince(String province) {

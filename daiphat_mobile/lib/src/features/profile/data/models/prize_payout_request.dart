@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 import 'package:daiphat_mobile/src/features/checkout/models/order_type.dart';
 
 /// Trạng thái của yêu cầu trả thưởng (đồng bộ BE / FE web).
@@ -20,40 +18,6 @@ enum PrizePayoutRequestStatus {
       (e) => e.value == value,
       orElse: () => PrizePayoutRequestStatus.pending,
     );
-  }
-
-  Color get bgColor {
-    switch (this) {
-      case PrizePayoutRequestStatus.pending:
-        return const Color(0xFFFFF9F3);
-      case PrizePayoutRequestStatus.approved:
-        return const Color(0xFFEFF8FF);
-      case PrizePayoutRequestStatus.completed:
-        return const Color(0xFFE4F8ED);
-      case PrizePayoutRequestStatus.rejected:
-        return const Color(0xFFFFF4F4);
-      case PrizePayoutRequestStatus.manualResolution:
-        return const Color(0xFFFFF5F5);
-      case PrizePayoutRequestStatus.cancelled:
-        return const Color(0xFFF4F6F8);
-    }
-  }
-
-  Color get textColor {
-    switch (this) {
-      case PrizePayoutRequestStatus.pending:
-        return const Color(0xFFB76E00);
-      case PrizePayoutRequestStatus.approved:
-        return const Color(0xFF175CD3);
-      case PrizePayoutRequestStatus.completed:
-        return const Color(0xFF1CA75A);
-      case PrizePayoutRequestStatus.rejected:
-        return const Color(0xFFEE1314);
-      case PrizePayoutRequestStatus.manualResolution:
-        return const Color(0xFFC62828);
-      case PrizePayoutRequestStatus.cancelled:
-        return const Color(0xFF637381);
-    }
   }
 }
 
@@ -174,8 +138,10 @@ class PrizePayoutPageResult {
     final list = json['recordList'] as List<dynamic>? ?? const [];
     return PrizePayoutPageResult(
       records: list
-          .map((e) =>
-              PrizePayoutRequestResponse.fromJson(e as Map<String, dynamic>))
+          .map(
+            (e) =>
+                PrizePayoutRequestResponse.fromJson(e as Map<String, dynamic>),
+          )
           .toList(),
       pagination: PaginationMeta.fromJson(
         json['pagination'] as Map<String, dynamic>? ?? {},

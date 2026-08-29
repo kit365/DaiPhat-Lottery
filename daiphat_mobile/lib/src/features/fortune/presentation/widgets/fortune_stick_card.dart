@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 
 class FortuneStickCard extends StatelessWidget {
   const FortuneStickCard({super.key, required this.luckyTail});
@@ -36,7 +36,7 @@ class FortuneStickCard extends StatelessWidget {
         children: [
           Text(
             'ĐUÔI MAY MẮN',
-            style: GoogleFonts.publicSans(
+            style: AppTypography.mainWith(
               fontSize: 12,
               fontWeight: FontWeight.w800,
               letterSpacing: 2.2,
@@ -59,7 +59,7 @@ class FortuneStickCard extends StatelessWidget {
               const SizedBox(width: 16),
               Text(
                 luckyTail,
-                style: GoogleFonts.publicSans(
+                style: AppTypography.mainWith(
                   fontSize: 56,
                   height: 1,
                   fontWeight: FontWeight.w900,
@@ -81,7 +81,7 @@ class FortuneStickCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             'Thẻ xăm Đại Phát',
-            style: GoogleFonts.publicSans(
+            style: AppTypography.mainWith(
               fontSize: 13,
               fontWeight: FontWeight.w700,
               color: const Color(0xCC451A03),

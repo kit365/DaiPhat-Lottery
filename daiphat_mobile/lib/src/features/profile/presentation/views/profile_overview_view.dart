@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:intl/intl.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
@@ -13,6 +13,7 @@ import 'package:daiphat_mobile/src/features/checkout/presentation/providers/chec
 import 'package:daiphat_mobile/src/features/profile/data/models/purchased_ticket.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/viewmodels/profile_viewmodel.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 import '../viewmodels/profile_overview_viewmodel.dart';
 
 class ProfileOverviewView extends ConsumerStatefulWidget {
@@ -27,12 +28,6 @@ class ProfileOverviewView extends ConsumerStatefulWidget {
 
 class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
   late final ProfileOverviewViewModel _viewModel;
-
-  final _currencyFmt = NumberFormat.currency(
-    locale: 'vi_VN',
-    symbol: 'đ',
-    decimalDigits: 0,
-  );
 
   @override
   void initState() {
@@ -49,10 +44,10 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: AppColors.surfaceCanvas,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
+        backgroundColor: AppColors.surfacePrimary,
+        surfaceTintColor: AppColors.transparent,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(
@@ -64,7 +59,7 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
         ),
         title: Text(
           'Tổng quan tài khoản',
-          style: GoogleFonts.publicSans(
+          style: AppTypography.mainWith(
             fontSize: 18,
             fontWeight: FontWeight.w700,
             color: AppColors.textMain,
@@ -119,12 +114,13 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
   Widget _buildProfileBanner(User? user) {
     final rawName = user?.fullName?.trim();
     final username = user?.username.trim();
-    final name = (rawName != null && rawName.isNotEmpty
-            ? rawName
-            : (username != null && username.isNotEmpty
-                ? username
-                : 'Thành viên Đại Phát'))
-        .toUpperCase();
+    final name =
+        (rawName != null && rawName.isNotEmpty
+                ? rawName
+                : (username != null && username.isNotEmpty
+                      ? username
+                      : 'Thành viên Đại Phát'))
+            .toUpperCase();
     final emailValue = user?.email?.trim();
     final email = (emailValue != null && emailValue.isNotEmpty)
         ? emailValue
@@ -156,9 +152,8 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
               'assets/images/profile_cherry_bg.png',
               fit: BoxFit.cover,
               alignment: Alignment.topLeft,
-              errorBuilder: (_, error, stackTrace) => Container(
-                color: const Color(0xFFFFF5F5),
-              ),
+              errorBuilder: (_, error, stackTrace) =>
+                  Container(color: const Color(0xFFFFF5F5)),
             ),
           ),
           Positioned(
@@ -212,7 +207,7 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                         name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.publicSans(
+                        style: AppTypography.mainWith(
                           fontSize: 14,
                           fontWeight: FontWeight.w800,
                           color: const Color(0xFF212B36),
@@ -223,15 +218,15 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                         email,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.publicSans(
+                        style: AppTypography.mainWith(
                           fontSize: 12,
-                          color: const Color(0xFF637381),
+                          color: AppColors.contentNeutral,
                         ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         phone,
-                        style: GoogleFonts.publicSans(
+                        style: AppTypography.mainWith(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: const Color(0xFF454F5B),
@@ -253,9 +248,9 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surfacePrimary,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE5E8EB)),
+        border: Border.all(color: AppColors.borderLight),
         boxShadow: const [
           BoxShadow(
             color: Color(0x08000000),
@@ -285,7 +280,7 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
           _buildStatCard(
             icon: Icons.emoji_events_rounded,
             color: const Color(0xFFFFB020),
-            bg: const Color(0xFFFFF9F3),
+            bg: AppColors.statusWarningSurface,
             value: '${stats.wonCount}',
             label: 'Trúng thưởng',
           ),
@@ -327,12 +322,12 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                 color: color,
                 borderRadius: BorderRadius.circular(iconRadius),
               ),
-              child: Icon(icon, color: Colors.white, size: 18),
+              child: Icon(icon, color: AppColors.surfacePrimary, size: 18),
             ),
             const SizedBox(height: 8),
             Text(
               value,
-              style: GoogleFonts.publicSans(
+              style: AppTypography.mainWith(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
                 color: const Color(0xFF212B36),
@@ -344,9 +339,9 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.publicSans(
+              style: AppTypography.mainWith(
                 fontSize: 10,
-                color: const Color(0xFF637381),
+                color: AppColors.contentNeutral,
               ),
             ),
           ],
@@ -360,15 +355,15 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
       _QuickAction(
         Icons.confirmation_number_outlined,
         'Mua vé số',
-        const Color(0xFFEE1314),
-        const Color(0xFFFFF4F4),
+        AppColors.brandPrimaryStrong,
+        AppColors.statusErrorSurface,
         () => context.go(AppRoute.buyTicket.path),
       ),
       _QuickAction(
         Icons.account_balance_wallet_outlined,
         'Vé của tôi',
         const Color(0xFFFFB020),
-        const Color(0xFFFFF9F3),
+        AppColors.statusWarningSurface,
         () => context.push(AppRoute.myTickets.path),
       ),
       _QuickAction(
@@ -404,7 +399,7 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                 child: Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFE5E8EB)),
+                    border: Border.all(color: AppColors.borderLight),
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -424,7 +419,7 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                         textAlign: TextAlign.center,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.publicSans(
+                        style: AppTypography.mainWith(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: const Color(0xFF454F5B),
@@ -451,7 +446,7 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
               children: [
                 for (var i = 0; i < orders.length; i++) ...[
                   if (i > 0)
-                    const Divider(height: 1, color: Color(0xFFF4F6F8)),
+                    const Divider(height: 1, color: AppColors.surfaceNeutral),
                   _buildOrderRow(orders[i]),
                 ],
               ],
@@ -467,11 +462,8 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
       final dt = DateTime.tryParse(order.createdAt!)?.toLocal();
       if (dt != null) createdAt = DateFormat('dd/MM/yyyy - HH:mm').format(dt);
     }
-    final qty = order.orderDetails?.fold<int>(
-          0,
-          (sum, e) => sum + e.quantity,
-        ) ??
-        0;
+    final qty =
+        order.orderDetails?.fold<int>(0, (sum, e) => sum + e.quantity) ?? 0;
 
     return InkWell(
       onTap: () => context.push('/profile/orders/${order.id}'),
@@ -487,7 +479,7 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                     order.orderCode.isNotEmpty
                         ? order.orderCode
                         : 'DP${order.id}',
-                    style: GoogleFonts.publicSans(
+                    style: AppTypography.mainWith(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: const Color(0xFF212B36),
@@ -496,9 +488,9 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                   const SizedBox(height: 3),
                   Text(
                     createdAt,
-                    style: GoogleFonts.publicSans(
+                    style: AppTypography.mainWith(
                       fontSize: 11,
-                      color: const Color(0xFF637381),
+                      color: AppColors.contentNeutral,
                     ),
                   ),
                 ],
@@ -509,9 +501,9 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                 padding: const EdgeInsets.only(right: 10),
                 child: Text(
                   '$qty vé',
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.mainWith(
                     fontSize: 12,
-                    color: const Color(0xFF637381),
+                    color: AppColors.contentNeutral,
                   ),
                 ),
               ),
@@ -519,8 +511,8 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  _currencyFmt.format(order.totalAmount),
-                  style: GoogleFonts.publicSans(
+                  AppFormatters.formatCurrency(order.totalAmount),
+                  style: AppTypography.mainWith(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: const Color(0xFF212B36),
@@ -528,15 +520,17 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                 ),
                 const SizedBox(height: 4),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: badge.bg,
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
                     status.label,
-                    style: GoogleFonts.publicSans(
+                    style: AppTypography.mainWith(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                       color: badge.fg,
@@ -557,11 +551,14 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
       case OrderStatus.paid:
         return (fg: const Color(0xFF1CD162), bg: const Color(0xFFF4FBFA));
       case OrderStatus.cancelled:
-        return (fg: const Color(0xFF637381), bg: const Color(0xFFF4F6F8));
+        return (fg: AppColors.contentNeutral, bg: AppColors.surfaceNeutral);
       case OrderStatus.pendingPayment:
       case OrderStatus.preparing:
       case OrderStatus.pendingPickup:
-        return (fg: const Color(0xFFFFB020), bg: const Color(0xFFFFF9F3));
+        return (
+          fg: const Color(0xFFFFB020),
+          bg: AppColors.statusWarningSurface,
+        );
     }
   }
 
@@ -601,9 +598,9 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: const Color(0xFFF4F6F8),
+              color: AppColors.surfaceNeutral,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFE5E8EB)),
+              border: Border.all(color: AppColors.borderLight),
             ),
             child: const Icon(
               Icons.confirmation_number_outlined,
@@ -620,7 +617,7 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                   ticket.stationName ?? 'Vé số',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.mainWith(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: const Color(0xFF212B36),
@@ -629,9 +626,9 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                 const SizedBox(height: 2),
                 Text(
                   drawDate,
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.mainWith(
                     fontSize: 11,
-                    color: const Color(0xFF637381),
+                    color: AppColors.contentNeutral,
                   ),
                 ),
               ],
@@ -642,7 +639,7 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
             children: [
               Text(
                 ticket.numbers,
-                style: GoogleFonts.publicSans(
+                style: AppTypography.mainWith(
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1,
@@ -651,10 +648,10 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
               ),
               const SizedBox(height: 2),
               Text(
-                '1 vé - ${_currencyFmt.format(ticket.price)}',
-                style: GoogleFonts.publicSans(
+                '1 vé - ${AppFormatters.formatCurrency(ticket.price)}',
+                style: AppTypography.mainWith(
                   fontSize: 11,
-                  color: const Color(0xFF637381),
+                  color: AppColors.contentNeutral,
                 ),
               ),
             ],
@@ -685,8 +682,8 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            _currencyFmt.format(total),
-                            style: GoogleFonts.publicSans(
+                            AppFormatters.formatCurrency(total),
+                            style: AppTypography.mainWith(
                               fontSize: 15,
                               fontWeight: FontWeight.w900,
                               color: const Color(0xFF212B36),
@@ -694,9 +691,9 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                           ),
                           Text(
                             'Tổng chi tiêu',
-                            style: GoogleFonts.publicSans(
+                            style: AppTypography.mainWith(
                               fontSize: 11,
-                              color: const Color(0xFF637381),
+                              color: AppColors.contentNeutral,
                             ),
                           ),
                         ],
@@ -727,7 +724,7 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                             slice.label,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.publicSans(
+                            style: AppTypography.mainWith(
                               fontSize: 13,
                               color: const Color(0xFF454F5B),
                             ),
@@ -738,18 +735,18 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                           child: Text(
                             '$pct%',
                             textAlign: TextAlign.right,
-                            style: GoogleFonts.publicSans(
+                            style: AppTypography.mainWith(
                               fontSize: 13,
-                              color: const Color(0xFF637381),
+                              color: AppColors.contentNeutral,
                             ),
                           ),
                         ),
                         SizedBox(
                           width: 88,
                           child: Text(
-                            _currencyFmt.format(slice.amount),
+                            AppFormatters.formatCurrency(slice.amount),
                             textAlign: TextAlign.right,
-                            style: GoogleFonts.publicSans(
+                            style: AppTypography.mainWith(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
                               color: const Color(0xFF212B36),
@@ -767,7 +764,7 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
 
   List<_SpendSlice> _buildSpendingSlices() {
     const palette = [
-      Color(0xFFEE1314),
+      AppColors.brandPrimaryStrong,
       Color(0xFFFFB020),
       Color(0xFF2065D1),
       Color(0xFF1CD162),
@@ -797,20 +794,11 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
     }
 
     final top = entries.take(4).toList();
-    final otherAmount =
-        entries.skip(4).fold<int>(0, (sum, e) => sum + e.value);
+    final otherAmount = entries.skip(4).fold<int>(0, (sum, e) => sum + e.value);
     return [
       for (var i = 0; i < top.length; i++)
-        _SpendSlice(
-          label: top[i].key,
-          amount: top[i].value,
-          color: palette[i],
-        ),
-      _SpendSlice(
-        label: 'Vé số khác',
-        amount: otherAmount,
-        color: palette[4],
-      ),
+        _SpendSlice(label: top[i].key, amount: top[i].value, color: palette[i]),
+      _SpendSlice(label: 'Vé số khác', amount: otherAmount, color: palette[4]),
     ];
   }
 
@@ -834,7 +822,7 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
               children: [
                 Text(
                   'Bạn cần hỗ trợ?',
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.mainWith(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
                     color: const Color(0xFF212B36),
@@ -843,9 +831,9 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                 const SizedBox(height: 4),
                 Text(
                   'Đội ngũ CSKH của chúng tôi luôn sẵn sàng!',
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.mainWith(
                     fontSize: 12,
-                    color: const Color(0xFF637381),
+                    color: AppColors.contentNeutral,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -887,7 +875,7 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
       child: Center(
         child: Text(
           text,
-          style: GoogleFonts.publicSans(
+          style: AppTypography.mainWith(
             fontSize: 13,
             color: AppColors.textMuted,
           ),
@@ -904,9 +892,9 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surfacePrimary,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE5E8EB)),
+        border: Border.all(color: AppColors.borderLight),
         boxShadow: const [
           BoxShadow(
             color: Color(0x08000000),
@@ -923,7 +911,7 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
               Expanded(
                 child: Text(
                   title,
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.mainWith(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                     color: const Color(0xFF212B36),
@@ -935,7 +923,7 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                   onTap: onSeeAll,
                   child: Text(
                     'Xem tất cả >',
-                    style: GoogleFonts.publicSans(
+                    style: AppTypography.mainWith(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: AppColors.primary,

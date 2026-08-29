@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:toastification/toastification.dart';
 
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 
 /// Toast dùng chung toàn app với giao diện Custom chuẩn DaiPhat Design System.
 class AppToast {
@@ -77,31 +77,31 @@ _ToastThemeSpec _resolveToastTheme(ToastificationType type) {
     case ToastificationType.success:
       return const _ToastThemeSpec(
         icon: Icons.check_circle_rounded,
-        accentColor: Color(0xFF10B981),
-        badgeBgColor: Color(0xFFECFDF5),
-        borderColor: Color(0xFFA7F3D0),
+        accentColor: AppColors.toastSuccessAccent,
+        badgeBgColor: AppColors.toastSuccessSurface,
+        borderColor: AppColors.toastSuccessBorder,
       );
     case ToastificationType.error:
       return const _ToastThemeSpec(
         icon: Icons.cancel_rounded,
         accentColor: AppColors.redAlert,
-        badgeBgColor: Color(0xFFFEF2F2),
-        borderColor: Color(0xFFFECACA),
+        badgeBgColor: AppColors.toastErrorSurface,
+        borderColor: AppColors.toastErrorBorder,
       );
     case ToastificationType.warning:
       return const _ToastThemeSpec(
         icon: Icons.warning_rounded,
-        accentColor: Color(0xFFF59E0B),
-        badgeBgColor: Color(0xFFFFFBEB),
-        borderColor: Color(0xFFFDE68A),
+        accentColor: AppColors.toastWarningAccent,
+        badgeBgColor: AppColors.toastWarningSurface,
+        borderColor: AppColors.toastWarningBorder,
       );
     case ToastificationType.info:
     default:
       return const _ToastThemeSpec(
         icon: Icons.info_rounded,
-        accentColor: Color(0xFF3B82F6),
-        badgeBgColor: Color(0xFFEFF6FF),
-        borderColor: Color(0xFFBFDBFE),
+        accentColor: AppColors.toastInfoAccent,
+        badgeBgColor: AppColors.toastInfoSurface,
+        borderColor: AppColors.toastInfoBorder,
       );
   }
 }
@@ -131,7 +131,7 @@ class _CustomToastCard extends StatelessWidget {
         margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surfacePrimary,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: spec.borderColor.withValues(alpha: 0.7),
@@ -139,7 +139,7 @@ class _CustomToastCard extends StatelessWidget {
           ),
           boxShadow: [
             const BoxShadow(
-              color: Color(0x14000000),
+              color: AppColors.shadowSubtle,
               blurRadius: 18,
               offset: Offset(0, 6),
               spreadRadius: -2,
@@ -166,11 +166,7 @@ class _CustomToastCard extends StatelessWidget {
                 ),
               ),
               child: Center(
-                child: Icon(
-                  spec.icon,
-                  color: spec.accentColor,
-                  size: 18,
-                ),
+                child: Icon(spec.icon, color: spec.accentColor, size: 18),
               ),
             ),
             const SizedBox(width: 11),
@@ -181,10 +177,10 @@ class _CustomToastCard extends StatelessWidget {
                 message,
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.publicSans(
+                style: AppTypography.mainWith(
                   fontSize: 13.5,
                   fontWeight: FontWeight.w600,
-                  color: const Color(0xFF1E293B),
+                  color: AppColors.contentNavy,
                   height: 1.32,
                 ),
               ),
@@ -194,7 +190,7 @@ class _CustomToastCard extends StatelessWidget {
             if (actionLabel != null && onAction != null) ...[
               const SizedBox(width: 8),
               Material(
-                color: Colors.transparent,
+                color: AppColors.transparent,
                 child: InkWell(
                   onTap: onAction,
                   borderRadius: BorderRadius.circular(999),
@@ -208,7 +204,7 @@ class _CustomToastCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(999),
                       boxShadow: const [
                         BoxShadow(
-                          color: Color(0x28D31010),
+                          color: AppColors.shadowBrand,
                           blurRadius: 6,
                           offset: Offset(0, 2),
                         ),
@@ -216,10 +212,10 @@ class _CustomToastCard extends StatelessWidget {
                     ),
                     child: Text(
                       actionLabel!,
-                      style: GoogleFonts.publicSans(
+                      style: AppTypography.mainWith(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w700,
-                        color: Colors.white,
+                        color: AppColors.surfacePrimary,
                       ),
                     ),
                   ),
@@ -231,7 +227,7 @@ class _CustomToastCard extends StatelessWidget {
 
             // Subtle Close Button
             Material(
-              color: Colors.transparent,
+              color: AppColors.transparent,
               child: InkWell(
                 onTap: onClose,
                 borderRadius: BorderRadius.circular(999),
@@ -240,7 +236,7 @@ class _CustomToastCard extends StatelessWidget {
                   child: Icon(
                     Icons.close_rounded,
                     size: 16,
-                    color: Color(0xFF94A3B8),
+                    color: AppColors.contentSubtle,
                   ),
                 ),
               ),

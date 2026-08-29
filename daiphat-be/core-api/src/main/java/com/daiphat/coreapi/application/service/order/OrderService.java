@@ -12,6 +12,7 @@ import com.daiphat.coreapi.application.dto.request.order.OrderHandoverItemReques
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationResponse;
 import com.daiphat.coreapi.application.dto.response.order.OrderDetailAllocatedSerialResponse;
 import com.daiphat.coreapi.application.dto.response.order.OrderDetailResponse;
 import com.daiphat.coreapi.application.dto.response.order.OrderResponse;
@@ -21,6 +22,7 @@ import com.daiphat.coreapi.application.mapper.order.OrderApplicationMapper;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketSerialServicePort;
 import com.daiphat.coreapi.application.port.in.order.OrderServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
+import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
 import com.daiphat.coreapi.application.port.in.user.UserLookupServicePort;
 import com.daiphat.coreapi.application.port.out.order.PaymentCountdownCachePort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
@@ -84,6 +86,7 @@ public class OrderService implements OrderServicePort {
 
     private final OrderRepositoryPort orderRepositoryPort;
     private final LotteryTicketServicePort lotteryTicketServicePort;
+    private final LotteryStationServicePort lotteryStationServicePort;
     private final LotteryTicketSerialServicePort lotteryTicketSerialServicePort;
     private final UserLookupServicePort userLookupServicePort;
     private final OrderApplicationMapper orderApplicationMapper;
@@ -613,7 +616,7 @@ public class OrderService implements OrderServicePort {
                 .paymentComplaintResolutionReason(base.paymentComplaintResolutionReason())
                 .actualPickedUpAt(base.actualPickedUpAt())
                 .pickedUpBy(base.pickedUpBy())
-                .orderDetails(base.orderDetails())
+                .orderDetails(enrichOrderDetails(order.getOrderDetails()))
                 .transactions(base.transactions())
                 .createdAt(base.createdAt())
                 .updatedAt(base.updatedAt())
@@ -632,6 +635,7 @@ public class OrderService implements OrderServicePort {
         }
 
         Map<Long, LotteryTicketResponse> ticketsById = new LinkedHashMap<>();
+        Map<Long, LotteryStationResponse> stationsById = new LinkedHashMap<>();
         Map<Long, LotteryTicketSerialModel> serialsById = new LinkedHashMap<>();
 
         details.forEach(detail -> {
@@ -646,6 +650,11 @@ public class OrderService implements OrderServicePort {
                 targetTicketId = serial.getTicketId();
             }
             resolveTicket(targetTicketId, ticketsById);
+
+            LotteryTicketResponse ticket = resolveTicket(targetTicketId, ticketsById);
+            if (ticket != null && ticket.stationId() != null) {
+                resolveStation(ticket.stationId(), stationsById);
+            }
 
             List<Long> allocatedIds = detail.getAllocatedSerialIds();
             if (allocatedIds != null) {
@@ -686,6 +695,9 @@ public class OrderService implements OrderServicePort {
                     }
 
                     LotteryTicketResponse ticket = resolveTicket(displayTicketId, ticketsById);
+                    LotteryStationResponse station = ticket != null
+                            ? resolveStation(ticket.stationId(), stationsById)
+                            : null;
                     OrderDetailResponse base = orderApplicationMapper.toDetailResponse(detail);
 
                     boolean hasRep = false;
@@ -729,12 +741,15 @@ public class OrderService implements OrderServicePort {
                             .lotteryTicketSerialId(displaySerialId)
                             .stationId(ticket != null ? ticket.stationId() : null)
                             .stationName(ticket != null ? ticket.stationName() : null)
+                            .province(station != null ? station.province() : null)
                             .numbers(ticket != null ? ticket.numbers() : null)
                             .drawDate(ticket != null ? ticket.drawDate() : null)
                             .ticketImg(serial != null && serial.getTicketImg() != null
                                     ? serial.getTicketImg()
                                     : ticket != null ? ticket.ticketImg() : null)
                             .serialNumber(serial != null ? serial.getSerialNumber() : null)
+                            .symbol(serial != null ? serial.getSerialNumber() : null)
+                            .ticketType("TRADITIONAL")
                             .serialStatus(serial != null ? serial.getStatus() : null)
                             .serialStatusDisplayName(serial != null && serial.getStatus() != null
                                     ? serial.getStatus().getLabel()
@@ -777,6 +792,16 @@ public class OrderService implements OrderServicePort {
             return null;
         }
         return serialsById.computeIfAbsent(lotteryTicketSerialId, lotteryTicketSerialServicePort::getByIdOrThrow);
+    }
+
+    private LotteryStationResponse resolveStation(
+            Long stationId,
+            Map<Long, LotteryStationResponse> stationsById
+    ) {
+        if (stationId == null) {
+            return null;
+        }
+        return stationsById.computeIfAbsent(stationId, lotteryStationServicePort::getById);
     }
 
     private void validateTicketIds(List<Long> ticketIds) {

@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import '../viewmodels/admin_scan_viewmodel.dart';
@@ -41,7 +41,7 @@ class _AdminScanViewState extends State<AdminScanView> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           'Kết nối Web Admin',
-          style: GoogleFonts.publicSans(
+          style: AppTypography.mainWith(
             fontWeight: FontWeight.bold,
             fontSize: 18,
           ),
@@ -52,7 +52,10 @@ class _AdminScanViewState extends State<AdminScanView> {
           children: [
             Text(
               'Nhập mã kết nối hiển thị trên màn hình Tạo/Nhập lô vé số của Web Admin:',
-              style: GoogleFonts.publicSans(fontSize: 13, color: Colors.grey[700]),
+              style: AppTypography.mainWith(
+                fontSize: 13,
+                color: Colors.grey[700],
+              ),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -60,9 +63,17 @@ class _AdminScanViewState extends State<AdminScanView> {
               textCapitalization: TextCapitalization.characters,
               decoration: InputDecoration(
                 hintText: 'Ví dụ: BATCH-8891',
-                prefixIcon: const Icon(Icons.qr_code_scanner_rounded, color: AppColors.primary),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                prefixIcon: const Icon(
+                  Icons.qr_code_scanner_rounded,
+                  color: AppColors.primary,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
               ),
             ),
           ],
@@ -75,12 +86,16 @@ class _AdminScanViewState extends State<AdminScanView> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              foregroundColor: AppColors.surfacePrimary,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
             onPressed: () async {
               final navigator = Navigator.of(context);
-              final ok = await widget.viewModel.connectToWebSession(_codeController.text);
+              final ok = await widget.viewModel.connectToWebSession(
+                _codeController.text,
+              );
               if (ok && mounted) {
                 navigator.pop();
               }
@@ -102,11 +117,11 @@ class _AdminScanViewState extends State<AdminScanView> {
         return Scaffold(
           backgroundColor: const Color(0xFFF9F9FB),
           appBar: AppBar(
-            backgroundColor: Colors.white,
+            backgroundColor: AppColors.surfacePrimary,
             elevation: 0.5,
             title: Text(
               'Quét vé số OCR (Admin)',
-              style: GoogleFonts.publicSans(
+              style: AppTypography.mainWith(
                 color: AppColors.textMain,
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
@@ -116,7 +131,10 @@ class _AdminScanViewState extends State<AdminScanView> {
             actions: [
               if (isConnected)
                 IconButton(
-                  icon: const Icon(Icons.link_off_rounded, color: Colors.redAccent),
+                  icon: const Icon(
+                    Icons.link_off_rounded,
+                    color: Colors.redAccent,
+                  ),
                   tooltip: 'Ngắt kết nối Web',
                   onPressed: () => widget.viewModel.disconnectSession(),
                 ),
@@ -157,12 +175,14 @@ class _AdminScanViewState extends State<AdminScanView> {
         side: BorderSide(
           color: isConnected
               ? Colors.green.shade300
-              : (errorMessage != null ? Colors.red.shade300 : const Color(0xFFE5E7EB)),
+              : (errorMessage != null
+                    ? Colors.red.shade300
+                    : AppColors.borderDefault),
         ),
       ),
       color: isConnected
           ? const Color(0xFFF0FDF4)
-          : (errorMessage != null ? const Color(0xFFFEF2F2) : Colors.white),
+          : (errorMessage != null ? const Color(0xFFFEF2F2) : AppColors.surfacePrimary),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -175,19 +195,21 @@ class _AdminScanViewState extends State<AdminScanView> {
                     color: isConnected
                         ? Colors.green.withValues(alpha: 0.15)
                         : (errorMessage != null
-                            ? Colors.red.withValues(alpha: 0.15)
-                            : Colors.orange.withValues(alpha: 0.15)),
+                              ? Colors.red.withValues(alpha: 0.15)
+                              : Colors.orange.withValues(alpha: 0.15)),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     isConnected
                         ? Icons.phonelink_ring_rounded
                         : (errorMessage != null
-                            ? Icons.error_outline_rounded
-                            : Icons.phonelink_erase_rounded),
+                              ? Icons.error_outline_rounded
+                              : Icons.phonelink_erase_rounded),
                     color: isConnected
                         ? Colors.green[700]
-                        : (errorMessage != null ? Colors.red[700] : Colors.orange[800]),
+                        : (errorMessage != null
+                              ? Colors.red[700]
+                              : Colors.orange[800]),
                     size: 26,
                   ),
                 ),
@@ -200,16 +222,16 @@ class _AdminScanViewState extends State<AdminScanView> {
                         isConnected
                             ? 'ĐÃ KẾT NỐI WEB ADMIN'
                             : (isConnecting
-                                ? 'ĐANG CHỜ KẾT NỐI WEB ($countdown s)'
-                                : 'CHƯA KẾT NỐI WEB ADMIN'),
-                        style: GoogleFonts.publicSans(
+                                  ? 'ĐANG CHỜ KẾT NỐI WEB ($countdown s)'
+                                  : 'CHƯA KẾT NỐI WEB ADMIN'),
+                        style: AppTypography.mainWith(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
                           color: isConnected
                               ? Colors.green[800]
                               : (errorMessage != null
-                                  ? Colors.red[800]
-                                  : Colors.orange[900]),
+                                    ? Colors.red[800]
+                                    : Colors.orange[900]),
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -217,9 +239,9 @@ class _AdminScanViewState extends State<AdminScanView> {
                         isConnected
                             ? 'Mã phiên: ${widget.viewModel.sessionCode} (Real-time Active)'
                             : (isConnecting
-                                ? 'Đang tìm kiếm trang Admin Web đang mở để tự động kết nối...'
-                                : 'Mở màn hình "Quét vé bằng Mobile App" trên Web Admin để ghép nối.'),
-                        style: GoogleFonts.publicSans(
+                                  ? 'Đang tìm kiếm trang Admin Web đang mở để tự động kết nối...'
+                                  : 'Mở màn hình "Quét vé bằng Mobile App" trên Web Admin để ghép nối.'),
+                        style: AppTypography.mainWith(
                           fontSize: 12,
                           color: Colors.grey[700],
                         ),
@@ -234,18 +256,22 @@ class _AdminScanViewState extends State<AdminScanView> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.surfacePrimary,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: Colors.red.shade200),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 20),
+                    const Icon(
+                      Icons.warning_amber_rounded,
+                      color: Colors.redAccent,
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         errorMessage,
-                        style: GoogleFonts.publicSans(
+                        style: AppTypography.mainWith(
                           fontSize: 12,
                           color: Colors.red[900],
                           fontWeight: FontWeight.w500,
@@ -263,7 +289,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
+                    foregroundColor: AppColors.surfacePrimary,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -271,17 +297,24 @@ class _AdminScanViewState extends State<AdminScanView> {
                   ),
                   onPressed: isConnecting
                       ? null
-                      : () => widget.viewModel.startConnecting(webIsWaiting: true),
+                      : () => widget.viewModel.startConnecting(
+                          webIsWaiting: true,
+                        ),
                   icon: isConnecting
                       ? const SizedBox(
                           width: 18,
                           height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.surfacePrimary,
+                          ),
                         )
                       : const Icon(Icons.sync_rounded, size: 20),
                   label: Text(
-                    isConnecting ? 'Đang kết nối ($countdown s)...' : 'Thử kết nối lại với Web',
-                    style: GoogleFonts.publicSans(fontWeight: FontWeight.bold),
+                    isConnecting
+                        ? 'Đang kết nối ($countdown s)...'
+                        : 'Thử kết nối lại với Web',
+                    style: AppTypography.mainWith(fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -300,7 +333,7 @@ class _AdminScanViewState extends State<AdminScanView> {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: Color(0xFFE5E7EB)),
+        side: const BorderSide(color: AppColors.borderDefault),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -309,7 +342,7 @@ class _AdminScanViewState extends State<AdminScanView> {
           children: [
             Text(
               'Thao tác Quét vé số OCR',
-              style: GoogleFonts.publicSans(
+              style: AppTypography.mainWith(
                 fontWeight: FontWeight.bold,
                 fontSize: 15,
                 color: AppColors.textMain,
@@ -318,7 +351,10 @@ class _AdminScanViewState extends State<AdminScanView> {
             const SizedBox(height: 6),
             Text(
               'Ảnh chụp vé sau khi xử lý OCR sẽ tự động đồng bộ Real-time lên danh sách của phiếu nhập lô vé trên Web Admin.',
-              style: GoogleFonts.publicSans(fontSize: 12, color: Colors.grey[600]),
+              style: AppTypography.mainWith(
+                fontSize: 12,
+                color: Colors.grey[600],
+              ),
             ),
             const SizedBox(height: 16),
             Row(
@@ -326,10 +362,16 @@ class _AdminScanViewState extends State<AdminScanView> {
                 Expanded(
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: isConnected ? AppColors.primary : Colors.grey[300],
-                      foregroundColor: isConnected ? Colors.white : Colors.grey[600],
+                      backgroundColor: isConnected
+                          ? AppColors.primary
+                          : Colors.grey[300],
+                      foregroundColor: isConnected
+                          ? AppColors.surfacePrimary
+                          : Colors.grey[600],
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                     onPressed: (isConnected && !isScanning)
                         ? () => widget.viewModel.scanTicket(ImageSource.camera)
@@ -338,12 +380,17 @@ class _AdminScanViewState extends State<AdminScanView> {
                         ? const SizedBox(
                             width: 18,
                             height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.surfacePrimary,
+                            ),
                           )
                         : const Icon(Icons.camera_alt_rounded),
                     label: Text(
                       isScanning ? 'Đang soi vé...' : 'Chụp vé số',
-                      style: GoogleFonts.publicSans(fontWeight: FontWeight.bold),
+                      style: AppTypography.mainWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
@@ -351,12 +398,18 @@ class _AdminScanViewState extends State<AdminScanView> {
                 Expanded(
                   child: OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: isConnected ? AppColors.primary : Colors.grey[500],
+                      foregroundColor: isConnected
+                          ? AppColors.primary
+                          : Colors.grey[500],
                       side: BorderSide(
-                        color: isConnected ? AppColors.primary : Colors.grey[300]!,
+                        color: isConnected
+                            ? AppColors.primary
+                            : Colors.grey[300]!,
                       ),
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                     onPressed: (isConnected && !isScanning)
                         ? () => widget.viewModel.scanTicket(ImageSource.gallery)
@@ -364,7 +417,9 @@ class _AdminScanViewState extends State<AdminScanView> {
                     icon: const Icon(Icons.photo_library_rounded),
                     label: Text(
                       'Tải ảnh lên',
-                      style: GoogleFonts.publicSans(fontWeight: FontWeight.bold),
+                      style: AppTypography.mainWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
@@ -383,7 +438,7 @@ class _AdminScanViewState extends State<AdminScanView> {
       children: [
         Text(
           'Vé đã quét trong phiên (${tickets.length})',
-          style: GoogleFonts.publicSans(
+          style: AppTypography.mainWith(
             fontWeight: FontWeight.bold,
             fontSize: 16,
             color: AppColors.textMain,
@@ -398,7 +453,7 @@ class _AdminScanViewState extends State<AdminScanView> {
             ),
             child: Text(
               'Real-time Synced',
-              style: GoogleFonts.publicSans(
+              style: AppTypography.mainWith(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 color: Colors.blue[800],
@@ -411,7 +466,7 @@ class _AdminScanViewState extends State<AdminScanView> {
 
   Widget _buildStationTabs() {
     final tickets = widget.viewModel.scannedTickets;
-    
+
     // Extract unique station names dynamically from scanned tickets
     final Map<String, int> stationCounts = {};
     for (var ticket in tickets) {
@@ -423,11 +478,9 @@ class _AdminScanViewState extends State<AdminScanView> {
 
     final List<Map<String, dynamic>> tabs = [
       {'id': 'ALL', 'label': 'Tất cả', 'count': tickets.length},
-      ...stationCounts.entries.map((e) => {
-        'id': e.key,
-        'label': e.key,
-        'count': e.value,
-      }),
+      ...stationCounts.entries.map(
+        (e) => {'id': e.key, 'label': e.key, 'count': e.value},
+      ),
     ];
 
     return SingleChildScrollView(
@@ -450,20 +503,22 @@ class _AdminScanViewState extends State<AdminScanView> {
                   });
                 }
               },
-              backgroundColor: Colors.white,
+              backgroundColor: AppColors.surfacePrimary,
               selectedColor: AppColors.primary,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
                 side: BorderSide(
-                  color: isSelected ? AppColors.primary : const Color(0xFFE5E7EB),
+                  color: isSelected
+                      ? AppColors.primary
+                      : AppColors.borderDefault,
                 ),
               ),
               label: Text(
                 '$label ($count)',
-                style: GoogleFonts.publicSans(
+                style: AppTypography.mainWith(
                   fontSize: 13,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                  color: isSelected ? Colors.white : AppColors.textMain,
+                  color: isSelected ? AppColors.surfacePrimary : AppColors.textMain,
                 ),
               ),
             ),
@@ -477,16 +532,18 @@ class _AdminScanViewState extends State<AdminScanView> {
     final allTickets = widget.viewModel.scannedTickets;
     final tickets = _selectedStationFilter == 'ALL'
         ? allTickets
-        : allTickets.where((t) => t.stationName == _selectedStationFilter).toList();
+        : allTickets
+              .where((t) => t.stationName == _selectedStationFilter)
+              .toList();
 
     if (tickets.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(32),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surfacePrimary,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE5E7EB)),
+          border: Border.all(color: AppColors.borderDefault),
         ),
         child: Column(
           children: [
@@ -494,7 +551,7 @@ class _AdminScanViewState extends State<AdminScanView> {
             const SizedBox(height: 12),
             Text(
               'Chưa có vé nào được quét',
-              style: GoogleFonts.publicSans(
+              style: AppTypography.mainWith(
                 fontWeight: FontWeight.w600,
                 color: Colors.grey[700],
               ),
@@ -503,7 +560,10 @@ class _AdminScanViewState extends State<AdminScanView> {
             Text(
               'Bấm nút "Chụp vé số" hoặc "Tải ảnh lên" để bắt đầu nhận diện và đồng bộ với Web Admin.',
               textAlign: TextAlign.center,
-              style: GoogleFonts.publicSans(fontSize: 12, color: Colors.grey[500]),
+              style: AppTypography.mainWith(
+                fontSize: 12,
+                color: Colors.grey[500],
+              ),
             ),
           ],
         ),
@@ -522,7 +582,7 @@ class _AdminScanViewState extends State<AdminScanView> {
           margin: EdgeInsets.zero,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
-            side: const BorderSide(color: Color(0xFFE5E7EB)),
+            side: const BorderSide(color: AppColors.borderDefault),
           ),
           child: Padding(
             padding: const EdgeInsets.all(12.0),
@@ -553,7 +613,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                         children: [
                           Text(
                             ticket.ticketNumber,
-                            style: GoogleFonts.publicSans(
+                            style: AppTypography.mainWith(
                               fontWeight: FontWeight.w800,
                               fontSize: 16,
                               color: AppColors.primary,
@@ -561,14 +621,17 @@ class _AdminScanViewState extends State<AdminScanView> {
                           ),
                           const Spacer(),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.green.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
                               ticket.status,
-                              style: GoogleFonts.publicSans(
+                              style: AppTypography.mainWith(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.green[800],
@@ -580,7 +643,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                       const SizedBox(height: 4),
                       Text(
                         'Đài: ${ticket.stationName} • Ngày: ${ticket.drawDate}',
-                        style: GoogleFonts.publicSans(
+                        style: AppTypography.mainWith(
                           fontSize: 12,
                           color: AppColors.textMain,
                           fontWeight: FontWeight.w500,
@@ -589,7 +652,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                       const SizedBox(height: 2),
                       Text(
                         'Độ tin cậy OCR: ${(ticket.confidence * 100).toStringAsFixed(0)}% • Đã gửi Web',
-                        style: GoogleFonts.publicSans(
+                        style: AppTypography.mainWith(
                           fontSize: 11,
                           color: Colors.grey[600],
                         ),

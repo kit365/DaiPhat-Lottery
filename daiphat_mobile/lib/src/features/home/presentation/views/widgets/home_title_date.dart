@@ -137,10 +137,10 @@ class HomeTitleDate extends StatelessWidget {
             height: 44,
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.surfacePrimary,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: const Color(0xFFE5E7EB),
+                  color: AppColors.borderDefault,
                   width: 1.2,
                 ),
                 boxShadow: [
@@ -160,7 +160,7 @@ class HomeTitleDate extends StatelessWidget {
                     label: 'Xem kết quả ngày trước',
                     onTap: onPreviousDay,
                     child: Material(
-                      color: Colors.transparent,
+                      color: AppColors.transparent,
                       child: InkWell(
                         onTap: onPreviousDay,
                         borderRadius: const BorderRadius.horizontal(
@@ -187,7 +187,7 @@ class HomeTitleDate extends StatelessWidget {
                     label: 'Chọn ngày $_dateStr',
                     onTap: onPickDate,
                     child: Material(
-                      color: Colors.transparent,
+                      color: AppColors.transparent,
                       child: InkWell(
                         onTap: onPickDate,
                         child: Padding(
@@ -235,7 +235,7 @@ class HomeTitleDate extends StatelessWidget {
                     label: 'Xem kết quả ngày tiếp theo',
                     onTap: _canGoNext ? onNextDay : null,
                     child: Material(
-                      color: Colors.transparent,
+                      color: AppColors.transparent,
                       child: InkWell(
                         onTap: _canGoNext ? onNextDay : null,
                         borderRadius: const BorderRadius.horizontal(

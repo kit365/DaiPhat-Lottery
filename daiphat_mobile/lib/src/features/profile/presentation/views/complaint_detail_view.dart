@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
@@ -55,8 +55,10 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
 
   Future<void> _pickCommentImage() async {
     final picker = ImagePicker();
-    final picked =
-        await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
     if (picked != null) setState(() => _commentAttachment = picked);
   }
 
@@ -66,8 +68,10 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
       AppToast.error('Vui lòng nhập nội dung tin nhắn');
       return;
     }
-    final err = await _viewModel.sendComment(text,
-        filePath: _commentAttachment?.path);
+    final err = await _viewModel.sendComment(
+      text,
+      filePath: _commentAttachment?.path,
+    );
     if (!mounted) return;
     if (err == null) {
       _commentController.clear();
@@ -81,9 +85,11 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
     final err = await _viewModel.submitFeedback(satisfied);
     if (!mounted) return;
     if (err == null) {
-      AppToast.success(satisfied
-          ? 'Cảm ơn bạn đã xác nhận hài lòng.'
-          : 'Yêu cầu đã được mở lại để tiếp tục hỗ trợ.');
+      AppToast.success(
+        satisfied
+            ? 'Cảm ơn bạn đã xác nhận hài lòng.'
+            : 'Yêu cầu đã được mở lại để tiếp tục hỗ trợ.',
+      );
     } else {
       AppToast.error(err);
     }
@@ -93,24 +99,29 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Huỷ khiếu nại',
-            style: GoogleFonts.publicSans(fontWeight: FontWeight.w800)),
+        title: Text(
+          'Huỷ khiếu nại',
+          style: AppTypography.mainWith(fontWeight: FontWeight.w800),
+        ),
         content: Text(
           'Bạn có chắc muốn huỷ khiếu nại này? Hành động này không thể hoàn tác.',
-          style: GoogleFonts.publicSans(fontSize: 14),
+          style: AppTypography.mainWith(fontSize: 14),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Không', style: GoogleFonts.publicSans()),
+            child: Text('Không', style: AppTypography.mainWith()),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white),
-            child: Text('Huỷ khiếu nại',
-                style: GoogleFonts.publicSans(fontWeight: FontWeight.w700)),
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.surfacePrimary,
+            ),
+            child: Text(
+              'Huỷ khiếu nại',
+              style: AppTypography.mainWith(fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),
@@ -142,19 +153,22 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: AppColors.surfaceCanvas,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
+        backgroundColor: AppColors.surfacePrimary,
+        surfaceTintColor: AppColors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              size: 20, color: AppColors.primary),
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            size: 20,
+            color: AppColors.primary,
+          ),
           onPressed: () => context.pop(),
         ),
         title: Text(
           'Chi tiết khiếu nại',
-          style: GoogleFonts.publicSans(
+          style: AppTypography.mainWith(
             fontSize: 18,
             fontWeight: FontWeight.w700,
             color: AppColors.textMain,
@@ -194,14 +208,21 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
           Text(
             _viewModel.error ?? 'Không tìm thấy khiếu nại',
             textAlign: TextAlign.center,
-            style: GoogleFonts.publicSans(fontSize: 14, color: AppColors.textMuted),
+            style: AppTypography.mainWith(
+              fontSize: 14,
+              color: AppColors.textMuted,
+            ),
           ),
           const SizedBox(height: 16),
           TextButton(
             onPressed: _viewModel.load,
-            child: Text('Thử lại',
-                style: GoogleFonts.publicSans(
-                    fontWeight: FontWeight.w700, color: AppColors.primary)),
+            child: Text(
+              'Thử lại',
+              style: AppTypography.mainWith(
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary,
+              ),
+            ),
           ),
         ],
       ),
@@ -232,12 +253,16 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
                         side: const BorderSide(color: Color(0xFF2065D1)),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       icon: const Icon(Icons.edit_outlined, size: 18),
-                      label: Text('Chỉnh sửa',
-                          style:
-                              GoogleFonts.publicSans(fontWeight: FontWeight.w700)),
+                      label: Text(
+                        'Chỉnh sửa',
+                        style: AppTypography.mainWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                   ),
                 if (canEdit && canCancel) const SizedBox(width: 12),
@@ -250,12 +275,16 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
                         side: const BorderSide(color: AppColors.primary),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       icon: const Icon(Icons.block_rounded, size: 18),
-                      label: Text('Huỷ khiếu nại',
-                          style:
-                              GoogleFonts.publicSans(fontWeight: FontWeight.w700)),
+                      label: Text(
+                        'Huỷ khiếu nại',
+                        style: AppTypography.mainWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                   ),
               ],
@@ -276,8 +305,10 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
           Center(
             child: Text(
               'Cập nhật lần cuối: ${_fmtDate(ticket.updatedAt)}',
-              style: GoogleFonts.publicSans(
-                  fontSize: 12, color: const Color(0xFF919EAB)),
+              style: AppTypography.mainWith(
+                fontSize: 12,
+                color: AppColors.contentPlaceholderStrong,
+              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -295,7 +326,7 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
             Expanded(
               child: Text(
                 'Khiếu nại #${ticket.id}',
-                style: GoogleFonts.publicSans(
+                style: AppTypography.mainWith(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
                   color: AppColors.textMain,
@@ -309,14 +340,18 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
         Text(
           'Tạo lúc ${_fmtDate(ticket.createdAt)}'
           '${ticket.dueAt != null ? ' · Hạn xử lý: ${_fmtDate(ticket.dueAt)}' : ''}',
-          style: GoogleFonts.publicSans(fontSize: 13, color: AppColors.textMuted),
+          style: AppTypography.mainWith(
+            fontSize: 13,
+            color: AppColors.textMuted,
+          ),
         ),
       ],
     );
   }
 
   Widget _buildInfoCard(SupportTicketResponse ticket) {
-    final categoryName = ticket.ticketCategoryName ??
+    final categoryName =
+        ticket.ticketCategoryName ??
         _viewModel.categoryNames[ticket.ticketCategoryId] ??
         '—';
     return _card(
@@ -329,9 +364,13 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
           const SizedBox(height: 12),
           _infoRow('Tiêu đề', ticket.title),
           const SizedBox(height: 12),
-          Text('Mô tả',
-              style: GoogleFonts.publicSans(
-                  fontSize: 13, color: AppColors.textMuted)),
+          Text(
+            'Mô tả',
+            style: AppTypography.mainWith(
+              fontSize: 13,
+              color: AppColors.textMuted,
+            ),
+          ),
           const SizedBox(height: 6),
           Container(
             width: double.infinity,
@@ -339,12 +378,15 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
             decoration: BoxDecoration(
               color: const Color(0xFFF9FAFB),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE5E8EB)),
+              border: Border.all(color: AppColors.borderLight),
             ),
             child: Text(
               ticket.description,
-              style: GoogleFonts.publicSans(
-                  fontSize: 14, color: AppColors.textMain, height: 1.5),
+              style: AppTypography.mainWith(
+                fontSize: 14,
+                color: AppColors.textMain,
+                height: 1.5,
+              ),
             ),
           ),
           if (ticket.refId != null && ticket.refType != null) ...[
@@ -362,21 +404,27 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
     VoidCallback? onTap;
     switch (refType) {
       case TicketRefType.order:
-        onTap = () => context.pushNamed(AppRoute.orderDetail.name,
-            pathParameters: {'id': refId});
+        onTap = () => context.pushNamed(
+          AppRoute.orderDetail.name,
+          pathParameters: {'id': refId},
+        );
         break;
       case TicketRefType.refundRequest:
         final id = int.tryParse(refId);
         if (id != null) {
-          onTap = () => context.pushNamed(AppRoute.refundDetail.name,
-              pathParameters: {'id': '$id'});
+          onTap = () => context.pushNamed(
+            AppRoute.refundDetail.name,
+            pathParameters: {'id': '$id'},
+          );
         }
         break;
       case TicketRefType.prizeClaim:
         final id = int.tryParse(refId);
         if (id != null) {
-          onTap = () => context.pushNamed(AppRoute.prizePayoutDetail.name,
-              pathParameters: {'id': '$id'});
+          onTap = () => context.pushNamed(
+            AppRoute.prizePayoutDetail.name,
+            pathParameters: {'id': '$id'},
+          );
         }
         break;
       case TicketRefType.paymentTransaction:
@@ -389,9 +437,13 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
 
     return Row(
       children: [
-        Text('${refType.label}: ',
-            style: GoogleFonts.publicSans(
-                fontSize: 13, color: AppColors.textMuted)),
+        Text(
+          '${refType.label}: ',
+          style: AppTypography.mainWith(
+            fontSize: 13,
+            color: AppColors.textMuted,
+          ),
+        ),
         const SizedBox(width: 4),
         Flexible(
           child: GestureDetector(
@@ -410,7 +462,7 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
                       displayId,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.publicSans(
+                      style: AppTypography.mainWith(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: const Color(0xFF2065D1),
@@ -419,8 +471,11 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
                   ),
                   if (onTap != null) ...[
                     const SizedBox(width: 4),
-                    const Icon(Icons.open_in_new_rounded,
-                        size: 13, color: Color(0xFF2065D1)),
+                    const Icon(
+                      Icons.open_in_new_rounded,
+                      size: 13,
+                      color: Color(0xFF2065D1),
+                    ),
                   ],
                 ],
               ),
@@ -444,11 +499,15 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
           width: double.infinity,
           errorBuilder: (_, _, _) => Container(
             height: 120,
-            color: const Color(0xFFF4F6F8),
+            color: AppColors.surfaceNeutral,
             alignment: Alignment.center,
-            child: Text('Không tải được ảnh',
-                style: GoogleFonts.publicSans(
-                    fontSize: 12, color: AppColors.textMuted)),
+            child: Text(
+              'Không tải được ảnh',
+              style: AppTypography.mainWith(
+                fontSize: 12,
+                color: AppColors.textMuted,
+              ),
+            ),
           ),
         ),
       ),
@@ -469,8 +528,8 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
         );
       case TicketStatus.closed:
         return _banner(
-          color: const Color(0xFFF4F6F8),
-          iconBg: const Color(0xFF637381),
+          color: AppColors.surfaceNeutral,
+          iconBg: AppColors.contentNeutral,
           icon: Icons.lock_rounded,
           title: 'Đã đóng',
           subtitle: 'Khiếu nại đã được đóng.',
@@ -497,9 +556,12 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
       return null;
     }
 
-    final reason = find(ticket.resolvedReasonId) ?? find(ticket.rejectedReasonId);
+    final reason =
+        find(ticket.resolvedReasonId) ?? find(ticket.rejectedReasonId);
     final text = reason?.content ?? ticket.response ?? '';
-    return text.isNotEmpty ? text : 'Vui lòng xem lý do trong trao đổi phía trên.';
+    return text.isNotEmpty
+        ? text
+        : 'Vui lòng xem lý do trong trao đổi phía trên.';
   }
 
   Widget _banner({
@@ -522,24 +584,30 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
-            child: Icon(icon, color: Colors.white, size: 22),
+            child: Icon(icon, color: AppColors.surfacePrimary, size: 22),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: GoogleFonts.publicSans(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textMain)),
+                Text(
+                  title,
+                  style: AppTypography.mainWith(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textMain,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                Text(subtitle,
-                    style: GoogleFonts.publicSans(
-                        fontSize: 13,
-                        color: const Color(0xFF454F5B),
-                        height: 1.5)),
+                Text(
+                  subtitle,
+                  style: AppTypography.mainWith(
+                    fontSize: 13,
+                    color: const Color(0xFF454F5B),
+                    height: 1.5,
+                  ),
+                ),
               ],
             ),
           ),
@@ -551,10 +619,14 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
   Widget _buildChat(SupportTicketResponse ticket) {
     final hideId = ticket.resolvedReasonId;
     final comments = [...ticket.comments]
-      ..sort((a, b) => (DateTime.tryParse(a.createdAt) ?? DateTime(0))
-          .compareTo(DateTime.tryParse(b.createdAt) ?? DateTime(0)));
-    final visible =
-        comments.where((c) => hideId == null || c.id != hideId).toList();
+      ..sort(
+        (a, b) => (DateTime.tryParse(a.createdAt) ?? DateTime(0)).compareTo(
+          DateTime.tryParse(b.createdAt) ?? DateTime(0),
+        ),
+      );
+    final visible = comments
+        .where((c) => hideId == null || c.id != hideId)
+        .toList();
 
     return _card(
       icon: Icons.forum_outlined,
@@ -566,11 +638,14 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 24),
               child: Center(
-                child: Text('Chưa có trao đổi',
-                    style: GoogleFonts.publicSans(
-                        fontSize: 14,
-                        color: const Color(0xFF919EAB),
-                        fontStyle: FontStyle.italic)),
+                child: Text(
+                  'Chưa có trao đổi',
+                  style: AppTypography.mainWith(
+                    fontSize: 14,
+                    color: AppColors.contentPlaceholderStrong,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
               ),
             )
           else
@@ -588,14 +663,16 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: const Color(0xFFF4F6F8),
+              color: AppColors.surfaceNeutral,
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
               comment.content,
               textAlign: TextAlign.center,
-              style: GoogleFonts.publicSans(
-                  fontSize: 12, color: AppColors.textMuted),
+              style: AppTypography.mainWith(
+                fontSize: 12,
+                color: AppColors.textMuted,
+              ),
             ),
           ),
         ),
@@ -605,8 +682,9 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
-        mainAxisAlignment:
-            isCustomer ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isCustomer
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (!isCustomer) _avatar(false),
@@ -615,7 +693,7 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isCustomer ? AppColors.primary : const Color(0xFFF4F6F8),
+                color: isCustomer ? AppColors.primary : AppColors.surfaceNeutral,
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Column(
@@ -624,9 +702,9 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
                   if (comment.content.isNotEmpty)
                     Text(
                       comment.content,
-                      style: GoogleFonts.publicSans(
+                      style: AppTypography.mainWith(
                         fontSize: 14,
-                        color: isCustomer ? Colors.white : AppColors.textMain,
+                        color: isCustomer ? AppColors.surfacePrimary : AppColors.textMain,
                         height: 1.4,
                       ),
                     ),
@@ -646,11 +724,11 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
                   const SizedBox(height: 4),
                   Text(
                     _fmtDate(comment.createdAt),
-                    style: GoogleFonts.publicSans(
+                    style: AppTypography.mainWith(
                       fontSize: 10,
                       color: isCustomer
-                          ? Colors.white.withValues(alpha: 0.8)
-                          : const Color(0xFF919EAB),
+                          ? AppColors.surfacePrimary.withValues(alpha: 0.8)
+                          : AppColors.contentPlaceholderStrong,
                     ),
                   ),
                 ],
@@ -671,13 +749,13 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
       decoration: BoxDecoration(
         color: isCustomer
             ? AppColors.primary.withValues(alpha: 0.15)
-            : const Color(0xFFE5E8EB),
+            : AppColors.borderLight,
         shape: BoxShape.circle,
       ),
       child: Icon(
         isCustomer ? Icons.person_rounded : Icons.support_agent_rounded,
         size: 18,
-        color: isCustomer ? AppColors.primary : const Color(0xFF637381),
+        color: isCustomer ? AppColors.primary : AppColors.contentNeutral,
       ),
     );
   }
@@ -698,7 +776,7 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
       child: Container(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
         decoration: const BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surfacePrimary,
           border: Border(top: BorderSide(color: Color(0xFFEEEEEE))),
         ),
         child: Column(
@@ -720,9 +798,13 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text('Đã đính kèm 1 ảnh',
-                          style: GoogleFonts.publicSans(
-                              fontSize: 12, color: AppColors.textMuted)),
+                      child: Text(
+                        'Đã đính kèm 1 ảnh',
+                        style: AppTypography.mainWith(
+                          fontSize: 12,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
                     ),
                     IconButton(
                       icon: const Icon(Icons.close_rounded, size: 18),
@@ -736,8 +818,10 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 IconButton(
-                  icon: const Icon(Icons.image_outlined,
-                      color: AppColors.textMuted),
+                  icon: const Icon(
+                    Icons.image_outlined,
+                    color: AppColors.textMuted,
+                  ),
                   onPressed: _viewModel.isSendingComment
                       ? null
                       : _pickCommentImage,
@@ -748,19 +832,23 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
                     minLines: 1,
                     maxLines: 4,
                     maxLength: 2000,
-                    buildCounter: (_,
-                            {required currentLength,
-                            required isFocused,
-                            maxLength}) =>
-                        null,
-                    style: GoogleFonts.publicSans(fontSize: 14),
+                    buildCounter:
+                        (
+                          _, {
+                          required currentLength,
+                          required isFocused,
+                          maxLength,
+                        }) => null,
+                    style: AppTypography.mainWith(fontSize: 14),
                     decoration: InputDecoration(
                       hintText: 'Nhập nội dung trao đổi...',
                       isDense: true,
                       filled: true,
-                      fillColor: const Color(0xFFF4F6F8),
+                      fillColor: AppColors.surfaceNeutral,
                       contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 10),
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(20),
                         borderSide: BorderSide.none,
@@ -775,13 +863,14 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
                         child: SizedBox(
                           width: 20,
                           height: 20,
-                          child:
-                              CircularProgressIndicator(strokeWidth: 2),
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         ),
                       )
                     : IconButton(
-                        icon: const Icon(Icons.send_rounded,
-                            color: AppColors.primary),
+                        icon: const Icon(
+                          Icons.send_rounded,
+                          color: AppColors.primary,
+                        ),
                         onPressed: _sendComment,
                       ),
               ],
@@ -798,7 +887,7 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: const BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surfacePrimary,
           border: Border(top: BorderSide(color: Color(0xFFEEEEEE))),
         ),
         child: Column(
@@ -807,47 +896,58 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
             Text(
               'Bạn có hài lòng với phương án giải quyết không?',
               textAlign: TextAlign.center,
-              style: GoogleFonts.publicSans(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textMain),
+              style: AppTypography.mainWith(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textMain,
+              ),
             ),
             const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed:
-                        _viewModel.isBusy ? null : () => _submitFeedback(true),
+                    onPressed: _viewModel.isBusy
+                        ? null
+                        : () => _submitFeedback(true),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF00A76F),
-                      foregroundColor: Colors.white,
+                      foregroundColor: AppColors.surfacePrimary,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     icon: const Icon(Icons.thumb_up_rounded, size: 16),
-                    label: Text('Hài lòng',
-                        style:
-                            GoogleFonts.publicSans(fontWeight: FontWeight.w700)),
+                    label: Text(
+                      'Hài lòng',
+                      style: AppTypography.mainWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed:
-                        _viewModel.isBusy ? null : () => _submitFeedback(false),
+                    onPressed: _viewModel.isBusy
+                        ? null
+                        : () => _submitFeedback(false),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.primary,
                       side: const BorderSide(color: AppColors.primary),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     icon: const Icon(Icons.refresh_rounded, size: 16),
-                    label: Text('Mở lại',
-                        style:
-                            GoogleFonts.publicSans(fontWeight: FontWeight.w700)),
+                    label: Text(
+                      'Mở lại',
+                      style: AppTypography.mainWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -865,14 +965,16 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
         width: double.infinity,
         padding: const EdgeInsets.all(16),
         decoration: const BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surfacePrimary,
           border: Border(top: BorderSide(color: Color(0xFFEEEEEE))),
         ),
         child: Text(
           text,
           textAlign: TextAlign.center,
-          style: GoogleFonts.publicSans(
-              fontSize: 13, color: AppColors.textMuted),
+          style: AppTypography.mainWith(
+            fontSize: 13,
+            color: AppColors.textMuted,
+          ),
         ),
       ),
     );
@@ -882,16 +984,23 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: GoogleFonts.publicSans(
-                fontSize: 13, color: AppColors.textMuted)),
+        Text(
+          label,
+          style: AppTypography.mainWith(
+            fontSize: 13,
+            color: AppColors.textMuted,
+          ),
+        ),
         const SizedBox(height: 4),
-        Text(value,
-            style: GoogleFonts.publicSans(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textMain,
-                height: 1.4)),
+        Text(
+          value,
+          style: AppTypography.mainWith(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textMain,
+            height: 1.4,
+          ),
+        ),
       ],
     );
   }
@@ -904,7 +1013,7 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surfacePrimary,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFEEEEEE)),
       ),
@@ -917,17 +1026,20 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
                 width: 36,
                 height: 36,
                 decoration: const BoxDecoration(
-                  color: Color(0xFFFFF4F4),
+                  color: AppColors.statusErrorSurface,
                   shape: BoxShape.circle,
                 ),
                 child: Icon(icon, size: 18, color: AppColors.primary),
               ),
               const SizedBox(width: 10),
-              Text(title,
-                  style: GoogleFonts.publicSans(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textMain)),
+              Text(
+                title,
+                style: AppTypography.mainWith(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textMain,
+                ),
+              ),
             ],
           ),
           const Divider(height: 24, color: Color(0xFFF0F0F0)),

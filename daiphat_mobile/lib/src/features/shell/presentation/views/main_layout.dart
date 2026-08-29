@@ -105,7 +105,7 @@ class _AnimatedBottomNavigation extends StatelessWidget {
       height: 70 + bottomInset,
       padding: EdgeInsets.fromLTRB(4, 7, 4, bottomInset),
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surfacePrimary,
         borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
         boxShadow: [
           BoxShadow(
@@ -175,7 +175,7 @@ class _AnimatedNavItem extends StatelessWidget {
                   height: 31,
                   decoration: BoxDecoration(
                     color: Color.lerp(
-                      Colors.transparent,
+                      AppColors.transparent,
                       const Color(0xFFFFE7EA),
                       value,
                     ),
@@ -208,7 +208,7 @@ class _AnimatedNavItem extends StatelessWidget {
                                 color: AppColors.primary,
                                 borderRadius: BorderRadius.circular(999),
                                 border: Border.all(
-                                  color: Colors.white,
+                                  color: AppColors.surfacePrimary,
                                   width: 1.2,
                                 ),
                               ),
@@ -216,7 +216,7 @@ class _AnimatedNavItem extends StatelessWidget {
                               child: Text(
                                 badge > 99 ? '99+' : '$badge',
                                 style: const TextStyle(
-                                  color: Colors.white,
+                                  color: AppColors.surfacePrimary,
                                   fontSize: 9,
                                   fontWeight: FontWeight.w800,
                                   height: 1,
