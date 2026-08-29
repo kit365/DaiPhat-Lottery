@@ -9,6 +9,8 @@ export enum PrizePayoutRequestStatus {
     REJECTED = 'REJECTED',
     MANUAL_RESOLUTION = 'MANUAL_RESOLUTION',
     CANCELLED = 'CANCELLED',
+    /** Quỹ đại lý không đủ — chờ tiền về từ nhà đài */
+    AWAITING_FUND = 'AWAITING_FUND',
 }
 
 export type PrizePayoutChannel = 'ONLINE' | 'IN_PERSON';
@@ -81,6 +83,12 @@ export interface PrizePayoutRequestResponse {
     serialStatus?: LotteryTicketSerialStatus;
     ticketCondition?: TicketCondition;
     payoutState?: SerialPayoutState;
+    // Partial payout fields
+    totalPrizeAmount?: number;
+    paidAmountToDate?: number;
+    fundAdvanceNote?: string;
+    commitmentVoucherCode?: string;
+    commitmentExpiresAt?: string;
 }
 
 export interface PrizePayoutPreviewResponse {
@@ -270,6 +278,7 @@ export const PRIZE_PAYOUT_STATUS_MAP: Record<
         text: 'text-[#C62828]',
     },
     [PrizePayoutRequestStatus.CANCELLED]: { label: 'Đã hủy', bg: 'bg-[#F4F6F8]', text: 'text-[#637381]' },
+    [PrizePayoutRequestStatus.AWAITING_FUND]: { label: 'Chờ quỹ', bg: 'bg-[#FFF9F3]', text: 'text-[#B76E00]' },
 };
 
 export const PRIZE_PAYOUT_CHANNEL_LABELS: Record<PrizePayoutChannel, string> = {
@@ -601,3 +610,157 @@ export const getPrizePayoutIneligibilityMessage = (ticket: PurchasedTicket): str
 
 export const formatPrizePayoutCurrency = (value?: number | null) =>
     value == null ? '—' : `${Number(value).toLocaleString('vi-VN')}đ`;
+
+// ─── Partial Payout types ────────────────────────────────────────────────────────
+
+export enum PrizeClaimSubmissionStatus {
+    DRAFT = 'DRAFT',
+    SUBMITTED = 'SUBMITTED',
+    CONFIRMED = 'CONFIRMED',
+    PAYMENT_PENDING = 'PAYMENT_PENDING',
+    COMPLETED = 'COMPLETED',
+    CANCELLED = 'CANCELLED',
+}
+
+export enum PrizeClaimSubmissionLineStatus {
+    PENDING = 'PENDING',
+    CONFIRMED = 'CONFIRMED',
+    REJECTED_RETRYABLE = 'REJECTED_RETRYABLE',
+    REJECTED_FINAL = 'REJECTED_FINAL',
+    PAID = 'PAID',
+    WITHDRAWN = 'WITHDRAWN',
+}
+
+export enum PrizeClaimSubmissionSettlementStatus {
+    FULL = 'FULL',
+    UNDERPAID = 'UNDERPAID',
+    OVERPAID = 'OVERPAID',
+}
+
+export enum PrizeClaimRejectionReason {
+    PAPER_DAMAGED = 'PAPER_DAMAGED',
+    WRONG_STATION = 'WRONG_STATION',
+    FRAUD_SUSPECTED = 'FRAUD_SUSPECTED',
+    DUPLICATE_CLAIM = 'DUPLICATE_CLAIM',
+    EXPIRED = 'EXPIRED',
+    OTHER = 'OTHER',
+}
+
+export const PRIZE_CIM_SUBMISSION_STATUS_LABELS: Record<PrizeClaimSubmissionStatus, string> = {
+    [PrizeClaimSubmissionStatus.DRAFT]: 'Nháp',
+    [PrizeClaimSubmissionStatus.SUBMITTED]: 'Đã gửi',
+    [PrizeClaimSubmissionStatus.CONFIRMED]: 'Đã xác nhận',
+    [PrizeClaimSubmissionStatus.PAYMENT_PENDING]: 'Chờ thanh toán',
+    [PrizeClaimSubmissionStatus.COMPLETED]: 'Hoàn thành',
+    [PrizeClaimSubmissionStatus.CANCELLED]: 'Đã hủy',
+};
+
+export const LINE_STATUS_LABELS: Record<PrizeClaimSubmissionLineStatus, string> = {
+    [PrizeClaimSubmissionLineStatus.PENDING]: 'Chờ xác nhận',
+    [PrizeClaimSubmissionLineStatus.CONFIRMED]: 'Đã xác nhận',
+    [PrizeClaimSubmissionLineStatus.REJECTED_RETRYABLE]: 'Từ chối - có thể nộp lại',
+    [PrizeClaimSubmissionLineStatus.REJECTED_FINAL]: 'Từ chối vĩnh viễn',
+    [PrizeClaimSubmissionLineStatus.PAID]: 'Đã trả',
+    [PrizeClaimSubmissionLineStatus.WITHDRAWN]: 'Đã rút',
+};
+
+export const SETTLEMENT_STATUS_LABELS: Record<PrizeClaimSubmissionSettlementStatus, string> = {
+    [PrizeClaimSubmissionSettlementStatus.FULL]: 'Đủ',
+    [PrizeClaimSubmissionSettlementStatus.UNDERPAID]: 'Thiếu',
+    [PrizeClaimSubmissionSettlementStatus.OVERPAID]: 'Thừa',
+};
+
+export interface PrizeClaimSubmissionResponse {
+    id: number;
+    submissionCode: string;
+    supplierId: number;
+    supplierName?: string;
+    periodFrom?: string;
+    periodTo?: string;
+    totalTicketCount?: number;
+    totalGrossPrizeAmount?: number;
+    totalNetClaimAmount?: number;
+    totalCommissionAmount?: number;
+    status: PrizeClaimSubmissionStatus;
+    submittedAt?: string;
+    submittedBy?: string;
+    confirmedAt?: string;
+    confirmedBy?: string;
+    completedAt?: string;
+    completedBy?: string;
+    cancelledAt?: string;
+    cancelledBy?: string;
+    approvedBy?: string;
+    confirmationReference?: string;
+    confirmationEvidenceUrl?: string;
+    paymentDeadline?: string;
+    isOverdue?: boolean;
+    paidAmount?: number;
+    settlementStatus?: PrizeClaimSubmissionSettlementStatus;
+    settlementDifferenceAmount?: number;
+    cancelReason?: string;
+    paymentEvidenceUrls?: string[];
+    paymentNote?: string;
+    createdAt?: string;
+}
+
+export interface PrizeClaimSubmissionLineResponse {
+    id: number;
+    submissionId: number;
+    serialId: number;
+    serialNumber?: string;
+    ticketNumbers?: string;
+    stationId: number;
+    drawDate?: string;
+    prizeCode?: string;
+    prizeDisplayName?: string;
+    grossPrizeAmount?: number;
+    netClaimAmount?: number;
+    commissionAmount?: number;
+    lineStatus: PrizeClaimSubmissionLineStatus;
+    rejectionReason?: PrizeClaimRejectionReason;
+    rejectionNote?: string;
+}
+
+export interface PrizeClaimEligibleTicketResponse {
+    prizePayoutRequestId: number;
+    payoutRequestCode: string;
+    serialId: number;
+    serialNumber: string;
+    ticketNumbers?: string;
+    stationId: number;
+    drawDate?: string;
+    prizeCode?: string;
+    prizeDisplayName?: string;
+    grossPrizeAmount?: number;
+    netClaimAmount?: number;
+    commissionAmount?: number;
+    payoutCompletedAt?: string;
+}
+
+export interface CommitmentVoucherResponse {
+    requestId: number;
+    commitmentVoucherCode: string;
+    remainingAmount: number;
+    paidAmountToDate: number;
+    totalPrizeAmount: number;
+    commitmentExpiresAt: string;
+    fundAdvanceNote?: string;
+}
+
+export interface PayoutInstallmentResponse {
+    id: number;
+    requestId: number;
+    installmentAmount: number;
+    paidAt: string;
+    paidBy: string;
+    paymentMethod: PrizePayoutPaymentMethod;
+    note?: string;
+}
+
+export interface PayoutFundPreviewResponse {
+    agencyId: string;
+    availableBalance: number;
+    sufficient: boolean;
+    requestedAmount?: number;
+}

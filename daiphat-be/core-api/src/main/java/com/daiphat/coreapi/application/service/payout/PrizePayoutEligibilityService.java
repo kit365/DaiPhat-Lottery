@@ -430,6 +430,7 @@ public class PrizePayoutEligibilityService {
     }
 
     /** @deprecated Prefer validateCustomerOnlineCreate / validateStaffInPersonCreate. */
+    @Deprecated
     @Transactional(readOnly = true)
     public void validateEligible(OrderDetailEntity detail, LotteryTicketSerialEntity serial) {
         validateCustomerOnlineCreate(detail, serial);
