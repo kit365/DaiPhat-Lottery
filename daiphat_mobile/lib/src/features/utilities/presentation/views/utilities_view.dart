@@ -80,7 +80,7 @@ class UtilitiesView extends ConsumerWidget {
                     crossAxisCount: 2,
                     mainAxisSpacing: 12,
                     crossAxisSpacing: 12,
-                    childAspectRatio: 0.78,
+                    childAspectRatio: 0.82,
                     children: [
                       _UtilityCard(
                         icon: Icons.notifications_active_outlined,
@@ -143,31 +143,39 @@ class _UtilitiesHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: AppColors.transparent,
+      color: const Color(0xFFBF1A22),
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-      child: Row(
+      child: Stack(
+        alignment: Alignment.center,
         children: [
           const Text(
             'Tiện Ích',
+            textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w900,
-              color: AppColors.primaryDark,
-              letterSpacing: -.3,
+              color: AppColors.surfacePrimary,
             ),
           ),
-          const Spacer(),
-          AppHeaderActionButton(
-            icon: Icons.chat_bubble_outline_rounded,
-            tooltip: 'Trò chuyện / Hỗ trợ',
-            onTap: onChatTap,
-          ),
-          const SizedBox(width: 8),
-          AppHeaderActionButton(
-            icon: Icons.shopping_cart_outlined,
-            tooltip: 'Giỏ hàng',
-            badgeCount: cartCount,
-            onTap: onCartTap,
+          Align(
+            alignment: Alignment.centerRight,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AppHeaderActionButton(
+                  icon: Icons.chat_bubble_outline_rounded,
+                  tooltip: 'Trò chuyện / Hỗ trợ',
+                  onTap: onChatTap,
+                ),
+                const SizedBox(width: 8),
+                AppHeaderActionButton(
+                  icon: Icons.shopping_cart_outlined,
+                  tooltip: 'Giỏ hàng',
+                  badgeCount: cartCount,
+                  onTap: onCartTap,
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -229,26 +237,53 @@ class _UtilitiesHero extends StatelessWidget {
                 FilledButton(
                   onPressed: onTap,
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFFFD54A),
+                    backgroundColor: AppColors.transparent,
                     foregroundColor: const Color(0xFF7A1B12),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 18,
-                      vertical: 12,
-                    ),
+                    shadowColor: AppColors.transparent,
+                    padding: EdgeInsets.zero,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(999),
                     ),
                   ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Khám phá ngay',
-                        style: TextStyle(fontWeight: FontWeight.w900),
+                  child: Ink(
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color(0xFFFFF2A3),
+                          Color(0xFFFFD23F),
+                          Color(0xFFFFA81D),
+                        ],
                       ),
-                      SizedBox(width: 6),
-                      Icon(Icons.chevron_right_rounded, size: 20),
-                    ],
+                      borderRadius: BorderRadius.circular(999),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFFFB21D).withValues(alpha: 0.42),
+                          blurRadius: 14,
+                          offset: const Offset(0, 6),
+                        ),
+                        BoxShadow(
+                          color: Colors.white.withValues(alpha: 0.7),
+                          blurRadius: 1,
+                          offset: const Offset(0, -1),
+                        ),
+                      ],
+                    ),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Khám phá ngay',
+                            style: TextStyle(fontWeight: FontWeight.w900),
+                          ),
+                          SizedBox(width: 6),
+                          Icon(Icons.chevron_right_rounded, size: 20),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -345,7 +380,7 @@ class _UtilityCard extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(18),
       child: Ink(
-        padding: const EdgeInsets.fromLTRB(12, 18, 12, 14),
+        padding: const EdgeInsets.fromLTRB(12, 16, 12, 14),
         decoration: BoxDecoration(
           color: AppColors.surfacePrimary,
           borderRadius: BorderRadius.circular(18),
@@ -361,8 +396,8 @@ class _UtilityCard extends StatelessWidget {
         child: Column(
           children: [
             Container(
-              width: 68,
-              height: 68,
+              width: 64,
+              height: 64,
               decoration: const BoxDecoration(
                 color: Color(0xFFFCE7E7),
                 shape: BoxShape.circle,
@@ -379,7 +414,7 @@ class _UtilityCard extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 12),
             Text(
               title,
               textAlign: TextAlign.center,
@@ -391,22 +426,20 @@ class _UtilityCard extends StatelessWidget {
                 fontWeight: FontWeight.w900,
               ),
             ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: Text(
-                subtitle,
-                textAlign: TextAlign.center,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Color(0xFF3F3A38),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  height: 1.35,
-                ),
+            const SizedBox(height: 6),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF3F3A38),
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                height: 1.3,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 10),

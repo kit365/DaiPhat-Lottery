@@ -86,7 +86,7 @@ class UtilitiesTwoView extends ConsumerWidget {
                               crossAxisCount: 2,
                               mainAxisSpacing: 12,
                               crossAxisSpacing: 12,
-                              childAspectRatio: 0.66,
+                              childAspectRatio: 0.78,
                               children: [
                                 _UtilityCard(
                                   icon: Icons.notifications_active_outlined,
@@ -155,39 +155,48 @@ class _UtilitiesTwoHeader extends ConsumerWidget {
     final count = ref.watch(cartTicketCountProvider);
 
     return Container(
-      color: AppColors.transparent,
+      color: const Color(0xFFBF1A22),
       child: SafeArea(
         bottom: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-          child: Row(
+          child: Stack(
+            alignment: Alignment.center,
             children: [
-              AppHeaderActionButton(
-                icon: Icons.arrow_back_ios_new_rounded,
-                tooltip: 'Quay lại',
-                onTap: onBack,
+              Align(
+                alignment: Alignment.centerLeft,
+                child: AppHeaderActionButton(
+                  icon: Icons.arrow_back_ios_new_rounded,
+                  tooltip: 'Quay lại',
+                  onTap: onBack,
+                ),
               ),
-              const SizedBox(width: 10),
               Text(
                 title,
-                style: AppTypography.pageTitle(),
+                textAlign: TextAlign.center,
+                style: AppTypography.pageTitle().copyWith(
+                  color: AppColors.surfacePrimary,
+                ),
               ),
-              const Spacer(),
-              Row(
-                children: [
-                  AppHeaderActionButton(
-                    icon: Icons.chat_bubble_outline_rounded,
-                    tooltip: 'Trò chuyện / Hỗ trợ',
-                    onTap: onOpenChat,
-                  ),
-                  const SizedBox(width: 8),
-                  AppHeaderActionButton(
-                    icon: Icons.shopping_cart_outlined,
-                    tooltip: 'Giỏ hàng',
-                    badgeCount: count,
-                    onTap: onOpenCart,
-                  ),
-                ],
+              Align(
+                alignment: Alignment.centerRight,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AppHeaderActionButton(
+                      icon: Icons.chat_bubble_outline_rounded,
+                      tooltip: 'Trò chuyện / Hỗ trợ',
+                      onTap: onOpenChat,
+                    ),
+                    const SizedBox(width: 8),
+                    AppHeaderActionButton(
+                      icon: Icons.shopping_cart_outlined,
+                      tooltip: 'Giỏ hàng',
+                      badgeCount: count,
+                      onTap: onOpenCart,
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -425,8 +434,29 @@ class _HeroBannerState extends State<_HeroBanner> {
                             vertical: 10,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFFD86B),
-                            borderRadius: BorderRadius.circular(12),
+                            gradient: const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Color(0xFFFFF2A3),
+                                Color(0xFFFFD23F),
+                                Color(0xFFFFA81D),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(999),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFFFB21D)
+                                    .withValues(alpha: 0.42),
+                                blurRadius: 14,
+                                offset: const Offset(0, 6),
+                              ),
+                              BoxShadow(
+                                color: Colors.white.withValues(alpha: 0.65),
+                                blurRadius: 1,
+                                offset: const Offset(0, -1),
+                              ),
+                            ],
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -535,7 +565,7 @@ class _UtilityCard extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             Text(
               title,
               textAlign: TextAlign.center,
@@ -547,22 +577,20 @@ class _UtilityCard extends StatelessWidget {
                 fontWeight: FontWeight.w900,
               ),
             ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: Text(
-                subtitle,
-                textAlign: TextAlign.center,
-                maxLines: 4,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Color(0xFF3F3A38),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  height: 1.35,
-                ),
+            const SizedBox(height: 6),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF3F3A38),
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                height: 1.3,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 10),
             Material(
               color: const Color(0xFFFFF1F1),
               borderRadius: BorderRadius.circular(999),
