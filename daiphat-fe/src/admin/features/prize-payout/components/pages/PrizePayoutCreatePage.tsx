@@ -722,9 +722,10 @@ export const PrizePayoutCreatePage = () => {
     })();
 
     return (
-        <Box sx={{ width: '100%', mx: 'auto', pt: 1, pb: 5 }}>
+        <div className="admin-list-page">
             {/* Header Section */}
             <PageHeader
+                disableBottomMargin
                 title="Tạo trả thưởng tại quầy"
                 breadcrumbItems={[
                     { label: 'Bảng điều khiển', to: `/${prefixAdmin}` },
@@ -763,13 +764,9 @@ export const PrizePayoutCreatePage = () => {
                 </Box>
                 }
             />
-            <Grid container spacing={2.5} alignItems="stretch">
-                
-                {/* LEFT COLUMN: Tra cứu, Kết quả vé, Định danh & Hợp đồng (50%) */}
-                <Grid size={{ xs: 12, md: 6 }} sx={{ display: 'flex', flexDirection: 'column' }}>
-                    <Stack spacing={2.5} sx={{ width: '100%' }}>
-                        {/* Section 1: Search Card */}
-                        <SectionCard title="1. Tra cứu vé số" icon="solar:magnifer-bold-duotone">
+
+            {/* Section 1: Search Card */}
+            <SectionCard title="1. Tra cứu vé số" icon="solar:magnifer-bold-duotone">
                             <Alert severity="info" sx={{ mb: 2, borderRadius: '10px' }}>
                                 Chỉ hỗ trợ vé đã bán qua hệ thống. Tra cứu bằng số điện thoại hoặc email của khách hàng.
                             </Alert>
@@ -867,11 +864,11 @@ export const PrizePayoutCreatePage = () => {
                             >
                                 {loadingLookup ? 'Đang tra cứu…' : 'Tra cứu vé số'}
                             </Button>
-                        </SectionCard>
+            </SectionCard>
 
-                        {/* Section 2: Ticket Selection & Match Proof */}
-                        {lookupItems.length > 0 && (
-                            <SectionCard title="2. Chọn vé trúng & Đối chiếu KQXS" icon="solar:ticket-bold-duotone">
+            {/* Section 2: Ticket Selection & Match Proof */}
+            {lookupItems.length > 0 && (
+                <SectionCard title="2. Chọn vé trúng & Đối chiếu KQXS" icon="solar:ticket-bold-duotone">
                                 <TableContainer>
                                     <Table size="small">
                                         <TableHead>
@@ -1056,12 +1053,12 @@ export const PrizePayoutCreatePage = () => {
                                         />
                                     </Stack>
                                 )}
-                            </SectionCard>
-                        )}
+                </SectionCard>
+            )}
 
-                        {/* Section 3: Identity & CCCD Images */}
-                        {selectedItems.length > 0 && (
-                            <SectionCard title="3. Định danh người nhận thưởng" icon="solar:user-id-bold-duotone">
+            {/* Section 3: Identity & CCCD Images */}
+            {selectedItems.length > 0 && (
+                <SectionCard title="3. Định danh người nhận thưởng" icon="solar:user-id-bold-duotone">
                                 <Alert severity="info" sx={{ mb: 2, borderRadius: '10px' }}>
                                     Cần họ tên, CCCD và ảnh mặt trước + mặt sau.
                                 </Alert>
@@ -1145,12 +1142,12 @@ export const PrizePayoutCreatePage = () => {
                                         />
                                     )}
                                 </Stack>
-                            </SectionCard>
-                        )}
+                </SectionCard>
+            )}
 
-                        {/* Section 4: Hợp đồng xác nhận trả thưởng (Placed in Left Column to perfectly equalize height) */}
-                        {selectedItems.length > 0 && (
-                            <SectionCard title="4. Hợp đồng xác nhận trả thưởng" icon="solar:document-bold-duotone">
+            {/* Section 4: Hợp đồng xác nhận trả thưởng */}
+            {selectedItems.length > 0 && (
+                <SectionCard title="4. Hợp đồng xác nhận trả thưởng" icon="solar:document-bold-duotone">
                                 <Stack spacing={1.5}>
                                     <Button
                                         variant="outlined"
@@ -1229,18 +1226,13 @@ export const PrizePayoutCreatePage = () => {
                                         </Stack>
                                     ) : null}
                                 </Stack>
-                            </SectionCard>
-                        )}
-                    </Stack>
-                </Grid>
+                </SectionCard>
+            )}
 
-                {/* RIGHT COLUMN: Tổng tiền & Thanh toán (50%) */}
-                <Grid size={{ xs: 12, md: 6 }} sx={{ display: 'flex', flexDirection: 'column' }}>
-                    <Stack spacing={2.5} sx={{ width: '100%' }}>
-                        {/* Money Summary Card */}
-                        {selectedItems.length > 0 ? (
-                            <>
-                                <MoneySummary
+            {/* Money Summary */}
+            {selectedItems.length > 0 ? (
+                <>
+                    <MoneySummary
                                     gross={totalGross}
                                     commission={totalCommission}
                                     tax={totalTax}
@@ -1257,10 +1249,10 @@ export const PrizePayoutCreatePage = () => {
                                         Vé đã <strong>quá hạn đổi thưởng của khách</strong> nhưng còn trong hạn nhà đài.
                                         Cần xác nhận ưu tiên mang đi lĩnh khi hoàn tất.
                                     </Alert>
-                                )}
-                            </>
-                        ) : (
-                            <SectionCard title="Tổng tiền thưởng" icon="solar:wallet-money-bold-duotone">
+                    )}
+                </>
+            ) : (
+                <SectionCard title="Tổng tiền thưởng" icon="solar:wallet-money-bold-duotone">
                                 <Box sx={{ py: 4, textCenter: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
                                     <Box className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mb-1">
                                         <Icon icon="solar:wallet-money-bold-duotone" width={28} />
@@ -1272,12 +1264,12 @@ export const PrizePayoutCreatePage = () => {
                                         Vui lòng tra cứu và tích chọn vé trúng thưởng ở cột bên trái để xem bảng phân bổ số tiền.
                                     </Typography>
                                 </Box>
-                            </SectionCard>
-                        )}
+                </SectionCard>
+            )}
 
-                        {/* Section 5: Payment & Finalize */}
-                        {selectedItems.length > 0 && (
-                            <SectionCard title="5. Thanh toán & Hoàn tất" icon="solar:wallet-money-bold-duotone">
+            {/* Section 5: Payment & Finalize */}
+            {selectedItems.length > 0 && (
+                <SectionCard title="5. Thanh toán & Hoàn tất" icon="solar:wallet-money-bold-duotone">
                                 <Stack spacing={2}>
                                     {!identityDocsReady && (
                                         <Alert severity="warning" sx={{ borderRadius: '10px' }}>
@@ -1517,12 +1509,8 @@ export const PrizePayoutCreatePage = () => {
                                         {createMutation.isPending ? 'Đang hoàn tất…' : 'Hoàn tất trả thưởng tại quầy'}
                                     </Button>
                                 </Stack>
-                            </SectionCard>
-                        )}
-                    </Stack>
-                </Grid>
-
-            </Grid>
+                </SectionCard>
+            )}
 
             <ContractDocumentViewerDialog
                 open={viewSignedOpen}
@@ -1641,6 +1629,6 @@ export const PrizePayoutCreatePage = () => {
                     )}
                 </Stack>
             </AdminConfirmDialog>
-        </Box>
+        </div>
     );
 };

@@ -160,6 +160,10 @@ public enum ErrorCode {
             "ORD_054",
             "Vé đã quá hạn đổi thưởng của khách. Cần xác nhận ưu tiên mang đi lĩnh trước hạn nhà đài.",
             HttpStatus.BAD_REQUEST),
+    PRIZE_PAYOUT_INSUFFICIENT_FUND(
+            "ORD_055",
+            "Quỹ đại lý không đủ để thực hiện thanh toán.",
+            HttpStatus.BAD_REQUEST),
 
     // Lottery Errors
     // Lottery Product Errors
@@ -558,7 +562,7 @@ public enum ErrorCode {
     STREET_AGENT_PROFILE_INVALID_CONTRACT_DATE("SAG_005", "Ngày kết thúc hợp đồng phải sau ngày bắt đầu.", HttpStatus.BAD_REQUEST),
     VENDOR_ALLOCATION_NOT_FOUND("SAG_006", "Phiếu bàn giao vé không tồn tại.", HttpStatus.NOT_FOUND),
     VENDOR_ALLOCATION_INVALID_STATE("SAG_007", "Phiếu bàn giao không ở trạng thái phù hợp cho thao tác này.", HttpStatus.CONFLICT),
-    /** @deprecated Prefer specific SAG_017–SAG_020 eligibility codes; kept as generic fallback. */
+    @Deprecated
     VENDOR_ALLOCATION_NOT_ELIGIBLE("SAG_008", "Hồ sơ vendor chưa đủ điều kiện nhận vé.", HttpStatus.BAD_REQUEST),
     VENDOR_ALLOCATION_DAILY_CAP_EXCEEDED("SAG_009", "Số vé bàn giao vượt hạn mức trong ngày của vendor.", HttpStatus.BAD_REQUEST),
     VENDOR_ALLOCATION_OPEN_BATCH_EXISTS("SAG_010", "Vendor vẫn còn phiếu bàn giao chưa quyết toán.", HttpStatus.CONFLICT),
