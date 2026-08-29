@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -21,6 +23,8 @@ class MyOrdersView extends ConsumerStatefulWidget {
 class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
   late MyOrdersViewModel _viewModel;
   final _scrollController = ScrollController();
+  final _searchController = TextEditingController();
+  Timer? _searchDebounce;
 
   static const _statusFilters = <(String?, String)>[
     (null, 'Tất cả'),
@@ -48,8 +52,10 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _viewModel.dispose();
     _scrollController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -84,12 +90,81 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
         builder: (context, _) {
           return Column(
             children: [
+              _buildSearchAndPriceFilter(),
               _buildStatusFilter(),
               const Divider(height: 1, color: Color(0xFFEEEEEE)),
               Expanded(child: _buildBody()),
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildSearchAndPriceFilter() {
+    final selectedPriceDirection =
+        _viewModel.sortBy == 'totalAmount' ? _viewModel.direction : null;
+
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: Column(
+        children: [
+          TextField(
+            controller: _searchController,
+            textInputAction: TextInputAction.search,
+            onSubmitted: _viewModel.setSearch,
+            decoration: InputDecoration(
+              hintText: 'Tìm theo mã đơn hàng',
+              prefixIcon: const Icon(Icons.search_rounded, size: 22),
+              suffixIcon: _searchController.text.trim().isEmpty
+                  ? null
+                  : IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 20),
+                      onPressed: () {
+                        _searchController.clear();
+                        _viewModel.setSearch('');
+                      },
+                    ),
+              filled: true,
+              fillColor: const Color(0xFFF6F7F9),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+            onChanged: (value) {
+              setState(() {});
+              _searchDebounce?.cancel();
+              _searchDebounce = Timer(const Duration(milliseconds: 450), () {
+                _viewModel.setSearch(value);
+              });
+            },
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              _PriceSortChip(
+                label: 'Mới nhất',
+                selected: selectedPriceDirection == null,
+                onTap: () => _viewModel.setPriceSort(null),
+              ),
+              const SizedBox(width: 8),
+              _PriceSortChip(
+                label: 'Giá thấp-cao',
+                selected: selectedPriceDirection == 'asc',
+                onTap: () => _viewModel.setPriceSort('asc'),
+              ),
+              const SizedBox(width: 8),
+              _PriceSortChip(
+                label: 'Giá cao-thấp',
+                selected: selectedPriceDirection == 'desc',
+                onTap: () => _viewModel.setPriceSort('desc'),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -430,5 +505,49 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
       default:
         return AppColors.textMuted;
     }
+  }
+}
+
+class _PriceSortChip extends StatelessWidget {
+  const _PriceSortChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          height: 38,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFFFFE7EA) : const Color(0xFFF6F7F9),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: selected ? AppColors.primary : const Color(0xFFE9EDF2),
+            ),
+          ),
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.publicSans(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: selected ? AppColors.primary : AppColors.textMuted,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
