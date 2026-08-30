@@ -188,7 +188,23 @@ class _BlogAllScreenState extends ConsumerState<_BlogAllScreen> {
       body: SafeArea(
         child: blogState.when(
           data: (data) {
-            final categories = data.categories.map((c) => c.name).toList();
+            final categoryTabs = data.categories.indexed
+                .where((entry) {
+                  final category = entry.$2;
+                  final name = category.name.trim().toLowerCase();
+                  final slug = category.slug.trim().toLowerCase();
+                  return category.id != 0 &&
+                      slug != 'all' &&
+                      name != 'tất cả' &&
+                      name != 'tất cả bài viết';
+                })
+                .map(
+                  (entry) => AppFilterTabItem<int>(
+                    value: entry.$1 + 1,
+                    label: entry.$2.name,
+                  ),
+                )
+                .toList();
             final posts = <BlogPost>[
               if (data.featured != null) data.featured!,
               ...data.popular,
@@ -218,7 +234,7 @@ class _BlogAllScreenState extends ConsumerState<_BlogAllScreen> {
                   const SliverToBoxAdapter(child: SizedBox(height: 18)),
                   SliverToBoxAdapter(
                     child: _buildCategoryChips(
-                      categories: categories,
+                      categoryTabs: categoryTabs,
                       selectedIndex: data.selectedCategoryIndex,
                       onSelected: (i) => ref
                           .read(blogViewModelProvider.notifier)
@@ -589,18 +605,14 @@ Widget _buildSearchBar({
 }
 
 Widget _buildCategoryChips({
-  required List<String> categories,
+  required List<AppFilterTabItem<int>> categoryTabs,
   required int selectedIndex,
   required void Function(int) onSelected,
 }) {
-  final items = List.generate(categories.length, (i) {
-    return AppFilterTabItem<int>(value: i + 1, label: categories[i]);
-  });
-
   return AppFilterTabStrip<int>(
     items: [
       const AppFilterTabItem<int>(value: 0, label: 'Tất cả'),
-      ...items,
+      ...categoryTabs,
     ],
     selectedValue: selectedIndex,
     onSelected: onSelected,
