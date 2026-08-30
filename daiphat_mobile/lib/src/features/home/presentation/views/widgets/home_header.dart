@@ -59,24 +59,20 @@ class HomeHeader extends StatelessWidget {
                 children: [
                   Text(
                     'ĐẠI PHÁT',
-                    style: AppTypography.display(
-                      const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.primaryDark,
-                        height: 1.1,
-                      ),
+                    style: AppTypography.h3(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.primaryDark,
+                      height: 1.1,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     'XỔ SỐ - MAY MẮN - THỊNH VƯỢNG',
-                    style: AppTypography.main(
-                      const TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.goldDark,
-                      ),
+                    style: AppTypography.overline(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.goldDark,
                     ),
                   ),
                 ],

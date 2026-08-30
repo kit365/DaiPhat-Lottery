@@ -208,12 +208,19 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: CheckoutDateTimePicker(
-            value: null,
-            onChanged: (_) {},
-            onInfoTap: () {},
+      ProviderScope(
+        overrides: [
+          operatingHoursProvider.overrideWith(
+            (ref) async => const SiteOperatingHours(),
+          ),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: CheckoutDateTimePicker(
+              value: null,
+              onChanged: (_) {},
+              onInfoTap: () {},
+            ),
           ),
         ),
       ),

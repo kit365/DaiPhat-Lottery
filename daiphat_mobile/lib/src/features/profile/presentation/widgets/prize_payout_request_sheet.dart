@@ -442,7 +442,7 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
                 ElevatedButton(
                   onPressed: _handleAddBankAccount,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF212B36),
+                    backgroundColor: AppColors.contentHeading,
                     foregroundColor: AppColors.surfacePrimary,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
@@ -476,7 +476,7 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: selected
-                        ? const Color(0xFFFFF5F5)
+                        ? AppColors.surfaceDestructiveSoft
                         : AppColors.surfaceSoft,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(

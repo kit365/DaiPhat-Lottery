@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
+import 'package:daiphat_mobile/src/shared/services/notification_service.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import 'package:daiphat_mobile/src/shared/widgets/app_filter_tab_strip.dart';
@@ -15,6 +16,7 @@ class NotificationView extends StatefulWidget {
   final NotificationViewModel viewModel;
   final VoidCallback? onBack;
   final bool showBackButton;
+  // Custom header disables default scaffold app bar (automaticallyImplyLeading: false).
 
   const NotificationView({
     super.key,
@@ -83,16 +85,16 @@ class _NotificationViewState extends State<NotificationView> {
       builder: (ctx) => AlertDialog(
         title: Text(
           'Xoá thông báo đã đọc',
-          style: AppTypography.mainWith(fontWeight: FontWeight.w800),
+          style: AppTypography.h4(fontWeight: FontWeight.w800),
         ),
         content: Text(
           'Toàn bộ thông báo đã đọc sẽ bị xoá. Bạn có chắc chắn?',
-          style: AppTypography.mainWith(fontSize: 14),
+          style: AppTypography.bodyMedium(fontSize: 14),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Không', style: AppTypography.mainWith()),
+            child: Text('Không', style: AppTypography.buttonMedium()),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -102,7 +104,7 @@ class _NotificationViewState extends State<NotificationView> {
             ),
             child: Text(
               'Xoá',
-              style: AppTypography.mainWith(fontWeight: FontWeight.w700),
+              style: AppTypography.buttonMedium(fontWeight: FontWeight.w700),
             ),
           ),
         ],
@@ -195,7 +197,7 @@ class _NotificationViewState extends State<NotificationView> {
                                 const SizedBox(width: 8),
                                 Text(
                                   'Đánh dấu tất cả đã đọc',
-                                  style: AppTypography.mainWith(
+                                  style: AppTypography.bodySmall(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -215,7 +217,7 @@ class _NotificationViewState extends State<NotificationView> {
                                 const SizedBox(width: 8),
                                 Text(
                                   'Xoá thông báo đã đọc',
-                                  style: AppTypography.mainWith(
+                                  style: AppTypography.bodySmall(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w500,
                                     color: AppColors.statusError,
@@ -240,7 +242,7 @@ class _NotificationViewState extends State<NotificationView> {
                     child: Column(
                       children: [
                         _buildFilters(),
-                        const Divider(height: 1, color: Color(0xFFEEEEEE)),
+                        const Divider(height: 1, color: AppColors.borderLight),
                         Expanded(child: _buildBody()),
                       ],
                     ),
@@ -329,7 +331,10 @@ class _NotificationViewState extends State<NotificationView> {
           color: AppColors.error,
           borderRadius: BorderRadius.circular(14),
         ),
-        child: const Icon(Icons.delete_outline_rounded, color: AppColors.surfacePrimary),
+        child: const Icon(
+          Icons.delete_outline_rounded,
+          color: AppColors.surfacePrimary,
+        ),
       ),
       onDismissed: (_) async {
         final err = await _viewModel.deleteNotification(item.id);
@@ -340,9 +345,11 @@ class _NotificationViewState extends State<NotificationView> {
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: item.isRead ? const Color(0xFFFAFAFA) : AppColors.surfacePrimary,
+            color: item.isRead
+                ? AppColors.surfaceNeutral
+                : AppColors.surfacePrimary,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFEFEFEF)),
+            border: Border.all(color: AppColors.borderLight),
             boxShadow: item.isRead
                 ? null
                 : [
@@ -360,13 +367,13 @@ class _NotificationViewState extends State<NotificationView> {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: item.isRead ? const Color(0xFFF1F1F1) : style.bgColor,
+                  color: item.isRead ? AppColors.surfaceNeutral : style.bgColor,
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   style.icon,
                   size: 22,
-                  color: item.isRead ? const Color(0xFF9A9A9A) : style.color,
+                  color: item.isRead ? AppColors.contentNeutral : style.color,
                 ),
               ),
               const SizedBox(width: 12),
@@ -379,36 +386,43 @@ class _NotificationViewState extends State<NotificationView> {
                         Expanded(
                           child: Text(
                             item.title,
-                            maxLines: 2,
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: AppTypography.mainWith(
+                            style: AppTypography.subtitle2(
                               fontSize: 14,
                               fontWeight: item.isRead
                                   ? FontWeight.w600
                                   : FontWeight.w800,
-                              color: AppColors.textMain,
+                              color: item.isRead
+                                  ? AppColors.textSecondary
+                                  : AppColors.textMain,
                             ),
                           ),
                         ),
-                        if (!item.isRead)
+                        if (!item.isRead) ...[
+                          const SizedBox(width: 6),
                           Container(
                             width: 8,
                             height: 8,
-                            margin: const EdgeInsets.only(left: 8, top: 4),
                             decoration: const BoxDecoration(
                               color: AppColors.primary,
                               shape: BoxShape.circle,
                             ),
                           ),
+                        ],
                       ],
                     ),
-                    const SizedBox(height: 5),
+                    const SizedBox(height: 4),
                     Text(
                       item.body,
-                      style: AppTypography.mainWith(
-                        fontSize: 13,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.bodySmall(
+                        fontSize: 12,
                         height: 1.4,
-                        color: AppColors.textMuted,
+                        color: item.isRead
+                            ? AppColors.textMuted
+                            : AppColors.textSecondary,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -417,7 +431,7 @@ class _NotificationViewState extends State<NotificationView> {
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
-                            vertical: 3,
+                            vertical: 2,
                           ),
                           decoration: BoxDecoration(
                             color: AppColors.surfaceNeutral,
@@ -425,7 +439,7 @@ class _NotificationViewState extends State<NotificationView> {
                           ),
                           child: Text(
                             style.label,
-                            style: AppTypography.mainWith(
+                            style: AppTypography.caption(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
                               color: AppColors.textMuted,
@@ -435,10 +449,10 @@ class _NotificationViewState extends State<NotificationView> {
                         const Spacer(),
                         Text(
                           item.timeText,
-                          style: AppTypography.mainWith(
+                          style: AppTypography.caption(
                             fontSize: 11,
                             fontWeight: FontWeight.w500,
-                            color: const Color(0xFF9A9A9A),
+                            color: AppColors.contentNeutral,
                           ),
                         ),
                       ],
@@ -463,7 +477,7 @@ class _NotificationViewState extends State<NotificationView> {
           Text(
             _viewModel.error ?? 'Đã xảy ra lỗi',
             textAlign: TextAlign.center,
-            style: AppTypography.mainWith(
+            style: AppTypography.bodyMedium(
               fontSize: 14,
               color: AppColors.textMuted,
             ),
@@ -473,7 +487,7 @@ class _NotificationViewState extends State<NotificationView> {
             onPressed: () => _viewModel.fetchNotifications(refresh: true),
             child: Text(
               'Thử lại',
-              style: AppTypography.mainWith(
+              style: AppTypography.buttonMedium(
                 fontWeight: FontWeight.w700,
                 color: AppColors.primary,
               ),
@@ -490,8 +504,9 @@ class _NotificationViewState extends State<NotificationView> {
       onRefresh: () => _viewModel.fetchNotifications(refresh: true),
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 24),
         children: [
-          const SizedBox(height: 120),
+          const SizedBox(height: 80),
           Center(
             child: Column(
               children: [
@@ -511,10 +526,50 @@ class _NotificationViewState extends State<NotificationView> {
                 const SizedBox(height: 16),
                 Text(
                   'Bạn chưa có thông báo nào',
-                  style: AppTypography.mainWith(
-                    fontSize: 15,
+                  style: AppTypography.subtitle1(
+                    fontSize: 16,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textMain,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Bật thông báo để nhận kết quả xổ số và trạng thái đơn hàng ngay khi có cập nhật mới.',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.bodySmall(
+                    fontSize: 13,
+                    height: 1.45,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    await NotificationService().requestPermission();
+                    AppToast.success('Đã gửi yêu cầu cấp quyền thông báo.');
+                  },
+                  icon: const Icon(
+                    Icons.notifications_active_outlined,
+                    size: 18,
+                  ),
+                  label: Text(
+                    'Bật thông báo',
+                    style: AppTypography.buttonMedium(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.surfacePrimary,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
               ],
@@ -540,23 +595,23 @@ class _NotificationStyle {
       case 'SECURITY':
         return const _NotificationStyle(
           Icons.shield_outlined,
-          Color(0xFF388E3C),
-          Color(0xFFE8F5E9),
+          AppColors.statusSuccess,
+          AppColors.statusSuccessSurface,
           'Bảo mật',
         );
       case 'BLOG':
         return const _NotificationStyle(
           Icons.article_outlined,
-          Color(0xFF1976D2),
-          Color(0xFFE3F2FD),
+          AppColors.brandSecondary,
+          AppColors.statusInfoSurface,
           'Bài viết',
         );
       case 'ORDER':
       case 'PAYMENT':
         return const _NotificationStyle(
           Icons.receipt_long_outlined,
-          Color(0xFFFFA000),
-          Color(0xFFFFF8E1),
+          AppColors.statusWarningForeground,
+          AppColors.statusWarningSurface,
           'Đơn hàng',
         );
       case 'RESULT':
@@ -564,21 +619,21 @@ class _NotificationStyle {
         return const _NotificationStyle(
           Icons.emoji_events_outlined,
           AppColors.primary,
-          Color(0xFFFFEBEB),
+          AppColors.surfaceDestructiveSoft,
           'Kết quả',
         );
       case 'OFFER':
         return const _NotificationStyle(
           Icons.card_giftcard_rounded,
           AppColors.primary,
-          Color(0xFFFFEBEB),
+          AppColors.surfaceDestructiveSoft,
           'Ưu đãi',
         );
       default:
         return const _NotificationStyle(
           Icons.notifications_none_rounded,
           AppColors.contentMuted,
-          Color(0xFFF1F5F9),
+          AppColors.surfaceSlate100,
           'Hệ thống',
         );
     }

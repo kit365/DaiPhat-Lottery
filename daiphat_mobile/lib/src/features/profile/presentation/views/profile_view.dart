@@ -66,7 +66,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
         }
 
         return Scaffold(
-          backgroundColor: const Color(0xFFFFFBFA),
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           body: RefreshIndicator(
             onRefresh: () async {
               await viewModel.loadUser();
@@ -116,7 +116,11 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
               shaderCallback: (bounds) => const LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [AppColors.surfacePrimary, AppColors.surfacePrimary, AppColors.transparent],
+                colors: [
+                  AppColors.surfacePrimary,
+                  AppColors.surfacePrimary,
+                  AppColors.transparent,
+                ],
                 stops: [0, .72, 1],
               ).createShader(bounds),
               blendMode: BlendMode.dstIn,
@@ -167,10 +171,10 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
               decoration: BoxDecoration(
                 color: AppColors.surfacePrimary.withValues(alpha: .97),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFFFFEEEE)),
+                border: Border.all(color: AppColors.brandPrimaryBorderLight),
                 boxShadow: const [
                   BoxShadow(
-                    color: Color(0x147B1820),
+                    color: AppColors.shadowBrandFaint,
                     blurRadius: 24,
                     spreadRadius: -6,
                     offset: Offset(0, 9),
@@ -204,10 +208,10 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                                   width: 72,
                                   height: 72,
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFFFF6F6),
+                                    color: AppColors.brandPrimarySubtle,
                                     shape: BoxShape.circle,
                                     border: Border.all(
-                                      color: const Color(0xFFF5D8DA),
+                                      color: AppColors.brandPrimaryBorder,
                                     ),
                                   ),
                                   clipBehavior: Clip.antiAlias,
@@ -218,13 +222,13 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                                           fit: BoxFit.cover,
                                           errorBuilder: (_, _, _) => const Icon(
                                             Icons.person_rounded,
-                                            color: Color(0xFF8D9AA8),
+                                            color: AppColors.contentMuted,
                                             size: 43,
                                           ),
                                         )
                                       : const Icon(
                                           Icons.person_rounded,
-                                          color: Color(0xFF8D9AA8),
+                                          color: AppColors.contentMuted,
                                           size: 43,
                                         ),
                                 ),
@@ -241,11 +245,11 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                                         color: AppColors.surfacePrimary,
                                         shape: BoxShape.circle,
                                         border: Border.all(
-                                          color: const Color(0xFFF1E5E5),
+                                          color: AppColors.borderWarm,
                                         ),
                                         boxShadow: const [
                                           BoxShadow(
-                                            color: Color(0x19000000),
+                                            color: AppColors.shadowMedium,
                                             blurRadius: 6,
                                             offset: Offset(0, 2),
                                           ),
@@ -254,7 +258,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                                       child: const Icon(
                                         Icons.photo_camera_rounded,
                                         size: 13,
-                                        color: Color(0xFF78828D),
+                                        color: AppColors.contentSlate600,
                                       ),
                                     ),
                                   ),
@@ -271,10 +275,10 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                                     name,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: AppTypography.mainWith(
+                                    style: AppTypography.h4(
                                       fontSize: 17,
                                       fontWeight: FontWeight.w800,
-                                      color: const Color(0xFF202124),
+                                      color: AppColors.contentPrimary,
                                     ),
                                   ),
                                   const SizedBox(height: 11),
@@ -288,36 +292,36 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                                         vertical: 7,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFFFFF8F8),
+                                        color: AppColors.surfaceBrandWarm,
                                         borderRadius: BorderRadius.circular(
                                           999,
                                         ),
                                         border: Border.all(
-                                          color: const Color(0xFFF5CBCD),
+                                          color: AppColors.brandPrimaryBorder,
                                         ),
                                       ),
-                                      child: const Row(
+                                      child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Icon(
+                                          const Icon(
                                             Icons.edit_outlined,
                                             size: 14,
                                             color: AppColors.primary,
                                           ),
-                                          SizedBox(width: 6),
+                                          const SizedBox(width: 6),
                                           Flexible(
                                             child: Text(
                                               'Chỉnh sửa hồ sơ',
                                               maxLines: 1,
-                                              style: TextStyle(
+                                              style: AppTypography.caption(
                                                 fontSize: 11,
                                                 fontWeight: FontWeight.w600,
                                                 color: AppColors.primary,
                                               ),
                                             ),
                                           ),
-                                          SizedBox(width: 3),
-                                          Icon(
+                                          const SizedBox(width: 3),
+                                          const Icon(
                                             Icons.chevron_right_rounded,
                                             size: 15,
                                             color: AppColors.primary,
@@ -379,7 +383,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                 children: [
                   Text(
                     'Bảng điều khiển Admin',
-                    style: AppTypography.mainWith(
+                    style: AppTypography.h4(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
                       color: AppColors.textMain,
@@ -387,7 +391,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                   ),
                   Text(
                     'Quyền Quản trị viên & Nhân viên',
-                    style: AppTypography.mainWith(
+                    style: AppTypography.caption(
                       fontSize: 11,
                       color: AppColors.textMuted,
                     ),
@@ -404,14 +408,14 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFFD32F2F), Color(0xFFE53935)],
+                  colors: [AppColors.brandPrimary, AppColors.brandPrimaryDark],
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight,
                 ),
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: const [
                   BoxShadow(
-                    color: Color(0x33D32F2F),
+                    color: AppColors.shadowBrand,
                     blurRadius: 10,
                     offset: Offset(0, 4),
                   ),
@@ -438,7 +442,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                       children: [
                         Text(
                           'Quét vé số OCR (Trang Admin)',
-                          style: AppTypography.mainWith(
+                          style: AppTypography.subtitle2(
                             color: AppColors.surfacePrimary,
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
@@ -447,7 +451,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                         const SizedBox(height: 2),
                         Text(
                           'Kết nối Real-time với màn hình Web Admin',
-                          style: AppTypography.mainWith(
+                          style: AppTypography.caption(
                             color: Colors.white70,
                             fontSize: 11,
                           ),
@@ -492,7 +496,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                   Expanded(
                     child: Text(
                       'Vé của tôi',
-                      style: AppTypography.mainWith(
+                      style: AppTypography.h4(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                         color: AppColors.textMain,
@@ -503,7 +507,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                     onTap: () => context.push(AppRoute.myTickets.path),
                     child: Text(
                       'Xem tất cả',
-                      style: AppTypography.mainWith(
+                      style: AppTypography.caption(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: AppColors.primary,
@@ -517,7 +521,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                 children: [
                   _buildTicketStatItemAsset(
                     'assets/images/icons/icon_ve_cho_quay.png',
-                    const Color(0xFFFBC02D),
+                    AppColors.brandAccentYellow,
                     pending,
                     'Chờ quay',
                     onTap: () => context.push(AppRoute.myTickets.path),
@@ -525,7 +529,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                   _buildVerticalDivider(),
                   _buildTicketStatItemAsset(
                     'assets/images/icons/icon_ve_da_quay.png',
-                    const Color(0xFFE91E63),
+                    AppColors.brandPrimaryDeep,
                     drawn,
                     'Đã quay',
                     onTap: () => context.push(AppRoute.myTickets.path),
@@ -533,7 +537,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                   _buildVerticalDivider(),
                   _buildTicketStatItemIcon(
                     Icons.emoji_events_outlined,
-                    const Color(0xFFF57F17),
+                    AppColors.brandAccentGoldAmber,
                     won,
                     'Trúng thưởng',
                     onTap: () => context.push(AppRoute.myTickets.path),
@@ -572,7 +576,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
             const SizedBox(height: 8),
             Text(
               count,
-              style: AppTypography.mainWith(
+              style: AppTypography.h4(
                 fontSize: 16,
                 fontWeight: FontWeight.w800,
                 color: AppColors.textMain,
@@ -581,7 +585,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
             const SizedBox(height: 2),
             Text(
               label,
-              style: AppTypography.mainWith(
+              style: AppTypography.caption(
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
                 color: AppColors.textMuted,
@@ -595,7 +599,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
 
   Widget _buildTicketStatItemAsset(
     String assetPath,
-    Color color,
+    Color accentColor,
     String count,
     String label, {
     VoidCallback? onTap,
@@ -609,25 +613,28 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
             Container(
               width: 52,
               height: 52,
-              alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
+                color: accentColor.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
-              child: Transform.scale(
-                scale: 1.55,
+              child: Center(
                 child: Image.asset(
                   assetPath,
-                  width: 34,
-                  height: 34,
+                  width: 25,
+                  height: 25,
                   fit: BoxFit.contain,
+                  errorBuilder: (_, _, _) => Icon(
+                    Icons.confirmation_number_outlined,
+                    color: accentColor,
+                    size: 24,
+                  ),
                 ),
               ),
             ),
             const SizedBox(height: 8),
             Text(
               count,
-              style: AppTypography.mainWith(
+              style: AppTypography.h4(
                 fontSize: 16,
                 fontWeight: FontWeight.w800,
                 color: AppColors.textMain,
@@ -636,7 +643,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
             const SizedBox(height: 2),
             Text(
               label,
-              style: AppTypography.mainWith(
+              style: AppTypography.caption(
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
                 color: AppColors.textMuted,
@@ -649,7 +656,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
   }
 
   Widget _buildVerticalDivider() {
-    return Container(height: 42, width: 1, color: const Color(0xFFF1E7E5));
+    return Container(height: 42, width: 1, color: AppColors.borderDecorative);
   }
 
   Widget _buildMyAccountSection(BuildContext context) {
@@ -659,7 +666,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
         children: [
           Text(
             'Tài khoản của tôi',
-            style: AppTypography.mainWith(
+            style: AppTypography.h4(
               fontSize: 16,
               fontWeight: FontWeight.w700,
               color: AppColors.textMain,
@@ -718,7 +725,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
         children: [
           Text(
             'Tiện ích',
-            style: AppTypography.mainWith(
+            style: AppTypography.h4(
               fontSize: 16,
               fontWeight: FontWeight.w700,
               color: AppColors.textMain,
@@ -777,7 +784,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
           decoration: BoxDecoration(
             color: AppColors.surfacePrimary,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFF0E6E4)),
+            border: Border.all(color: AppColors.borderDecorative),
           ),
           child: Column(
             children: [
@@ -785,7 +792,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                 width: 48,
                 height: 48,
                 decoration: const BoxDecoration(
-                  color: Color(0xFFFFF2F3),
+                  color: AppColors.surfaceBrandWarm,
                   shape: BoxShape.circle,
                 ),
                 child: Icon(icon, color: AppColors.primary, size: 23),
@@ -798,7 +805,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: AppTypography.mainWith(
+                  style: AppTypography.caption(
                     fontSize: 11,
                     height: 1.25,
                     fontWeight: FontWeight.w500,
@@ -820,7 +827,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
         children: [
           Text(
             'Cài đặt & hỗ trợ',
-            style: AppTypography.mainWith(
+            style: AppTypography.h4(
               fontSize: 16,
               fontWeight: FontWeight.w700,
               color: AppColors.textMain,
@@ -875,7 +882,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
           leading: Icon(icon, color: iconColor, size: 20),
           title: Text(
             title,
-            style: AppTypography.mainWith(
+            style: AppTypography.bodySmall(
               fontSize: 12,
               fontWeight: FontWeight.w500,
               color: AppColors.textMain,
@@ -883,12 +890,12 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
           ),
           trailing: const Icon(
             Icons.chevron_right_rounded,
-            color: Color(0xFF9A9A9A),
+            color: AppColors.contentDisabled,
             size: 19,
           ),
           onTap: onTap ?? () {},
         ),
-        if (showDivider) const Divider(height: 1, color: Color(0xFFF2EAE8)),
+        if (showDivider) const Divider(height: 1, color: AppColors.borderDecorative),
       ],
     );
   }
@@ -900,10 +907,10 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
       decoration: BoxDecoration(
         color: AppColors.surfacePrimary,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFFFF1EF)),
+        border: Border.all(color: AppColors.surfaceEmptyState),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x0F6D1F20),
+            color: AppColors.shadowBrandFaint,
             blurRadius: 18,
             spreadRadius: -5,
             offset: Offset(0, 7),

@@ -6,10 +6,7 @@ import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 class LotteryDatePickerDialog extends StatefulWidget {
   final DateTime initialDate;
 
-  const LotteryDatePickerDialog({
-    super.key,
-    required this.initialDate,
-  });
+  const LotteryDatePickerDialog({super.key, required this.initialDate});
 
   static Future<DateTime?> show(BuildContext context, DateTime initialDate) {
     return showDialog<DateTime>(
@@ -20,7 +17,8 @@ class LotteryDatePickerDialog extends StatefulWidget {
   }
 
   @override
-  State<LotteryDatePickerDialog> createState() => _LotteryDatePickerDialogState();
+  State<LotteryDatePickerDialog> createState() =>
+      _LotteryDatePickerDialogState();
 }
 
 class _LotteryDatePickerDialogState extends State<LotteryDatePickerDialog> {
@@ -89,7 +87,10 @@ class _LotteryDatePickerDialogState extends State<LotteryDatePickerDialog> {
 
   List<DateTime?> _buildDays() {
     final firstDayOfMonth = DateTime(_viewMonth.year, _viewMonth.month, 1);
-    final daysInMonth = DateUtils.getDaysInMonth(_viewMonth.year, _viewMonth.month);
+    final daysInMonth = DateUtils.getDaysInMonth(
+      _viewMonth.year,
+      _viewMonth.month,
+    );
 
     // Monday = 1, Sunday = 7
     final weekdayOffset = (firstDayOfMonth.weekday - 1) % 7;
@@ -141,11 +142,13 @@ class _LotteryDatePickerDialogState extends State<LotteryDatePickerDialog> {
                 // Prev Year (<<)
                 _IconButton(
                   icon: Icons.keyboard_double_arrow_left_rounded,
+                  tooltip: 'Năm trước',
                   onTap: _prevYear,
                 ),
                 // Prev Month (<)
                 _IconButton(
                   icon: Icons.chevron_left_rounded,
+                  tooltip: 'Tháng trước',
                   onTap: _prevMonth,
                 ),
 
@@ -154,12 +157,10 @@ class _LotteryDatePickerDialogState extends State<LotteryDatePickerDialog> {
                   child: Text(
                     'Tháng ${_viewMonth.month} ${_viewMonth.year}',
                     textAlign: TextAlign.center,
-                    style: AppTypography.main(
-                      const TextStyle(
-                        fontSize: 15.5,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textMain,
-                      ),
+                    style: AppTypography.h5(
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textMain,
                     ),
                   ),
                 ),
@@ -167,12 +168,14 @@ class _LotteryDatePickerDialogState extends State<LotteryDatePickerDialog> {
                 // Next Month (>)
                 _IconButton(
                   icon: Icons.chevron_right_rounded,
+                  tooltip: 'Tháng sau',
                   onTap: _canNextMonth ? _nextMonth : null,
                   disabled: !_canNextMonth,
                 ),
                 // Next Year (>>)
                 _IconButton(
                   icon: Icons.keyboard_double_arrow_right_rounded,
+                  tooltip: 'Năm sau',
                   onTap: _canNextYear ? _nextYear : null,
                   disabled: !_canNextYear,
                 ),
@@ -189,12 +192,12 @@ class _LotteryDatePickerDialogState extends State<LotteryDatePickerDialog> {
                     child: Center(
                       child: Text(
                         ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'][i],
-                        style: AppTypography.main(
-                          TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: i >= 5 ? AppColors.primary : const Color(0x99444444),
-                          ),
+                        style: AppTypography.labelMedium(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: i >= 5
+                              ? AppColors.primary
+                              : AppColors.contentSlate600,
                         ),
                       ),
                     ),
@@ -235,11 +238,15 @@ class _LotteryDatePickerDialogState extends State<LotteryDatePickerDialog> {
                     child: Container(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: isSelected ? AppColors.primary : AppColors.transparent,
+                        color: isSelected
+                            ? AppColors.primary
+                            : AppColors.transparent,
                         boxShadow: isSelected
                             ? [
                                 BoxShadow(
-                                  color: AppColors.primary.withValues(alpha: 0.35),
+                                  color: AppColors.primary.withValues(
+                                    alpha: 0.35,
+                                  ),
                                   blurRadius: 8,
                                   offset: const Offset(0, 3),
                                 ),
@@ -251,16 +258,16 @@ class _LotteryDatePickerDialogState extends State<LotteryDatePickerDialog> {
                         children: [
                           Text(
                             '${d.day}',
-                            style: AppTypography.main(
-                              TextStyle(
-                                fontSize: 14.5,
-                                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                                color: isSelected
-                                    ? AppColors.surfacePrimary
-                                    : (isFuture
-                                        ? const Color(0xFFCBD5E1)
+                            style: AppTypography.bodyMedium(
+                              fontSize: 14.5,
+                              fontWeight: isSelected
+                                  ? FontWeight.w800
+                                  : FontWeight.w600,
+                              color: isSelected
+                                  ? AppColors.surfacePrimary
+                                  : (isFuture
+                                        ? AppColors.contentDisabled
                                         : AppColors.textMain),
-                              ),
                             ),
                           ),
                           if (isToday && !isSelected)
@@ -270,7 +277,9 @@ class _LotteryDatePickerDialogState extends State<LotteryDatePickerDialog> {
                                 width: 14,
                                 height: 2.5,
                                 decoration: BoxDecoration(
-                                  color: AppColors.primary.withValues(alpha: 0.5),
+                                  color: AppColors.primary.withValues(
+                                    alpha: 0.5,
+                                  ),
                                   borderRadius: BorderRadius.circular(2),
                                 ),
                               ),
@@ -294,19 +303,17 @@ class _LotteryDatePickerDialogState extends State<LotteryDatePickerDialog> {
                   Navigator.of(context).pop(_today);
                 },
                 style: TextButton.styleFrom(
-                  backgroundColor: const Color(0xFFFDE8E5),
+                  backgroundColor: AppColors.surfaceBrandSubtle,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
                 child: Text(
                   'Hôm nay',
-                  style: AppTypography.main(
-                    const TextStyle(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
-                    ),
+                  style: AppTypography.buttonMedium(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
                   ),
                 ),
               ),
@@ -320,11 +327,13 @@ class _LotteryDatePickerDialogState extends State<LotteryDatePickerDialog> {
 
 class _IconButton extends StatelessWidget {
   final IconData icon;
+  final String tooltip;
   final VoidCallback? onTap;
   final bool disabled;
 
   const _IconButton({
     required this.icon,
+    required this.tooltip,
     required this.onTap,
     this.disabled = false,
   });
@@ -333,16 +342,26 @@ class _IconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: AppColors.transparent,
-      child: InkWell(
-        onTap: disabled ? null : onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: SizedBox(
-          width: 32,
-          height: 32,
-          child: Icon(
-            icon,
-            size: 19,
-            color: disabled ? const Color(0xFFCBD5E1) : const Color(0xFF444444),
+      child: Tooltip(
+        message: tooltip,
+        child: Semantics(
+          button: true,
+          enabled: !disabled,
+          label: tooltip,
+          child: InkWell(
+            onTap: disabled ? null : onTap,
+            borderRadius: BorderRadius.circular(24),
+            child: SizedBox(
+              width: 48,
+              height: 48,
+              child: Icon(
+                icon,
+                size: 19,
+                color: disabled
+                    ? AppColors.contentDisabled
+                    : AppColors.contentSecondary,
+              ),
+            ),
           ),
         ),
       ),

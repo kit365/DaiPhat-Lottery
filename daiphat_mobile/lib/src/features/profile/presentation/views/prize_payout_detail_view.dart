@@ -327,7 +327,7 @@ class _PrizePayoutDetailViewState extends ConsumerState<PrizePayoutDetailView> {
                 : 'Không rõ',
             style: AppTypography.mainWith(
               fontSize: 14,
-              color: const Color(0xFF454F5B),
+              color: AppColors.contentSlate700,
               height: 1.5,
             ),
           ),
@@ -392,7 +392,7 @@ class _PrizePayoutDetailViewState extends ConsumerState<PrizePayoutDetailView> {
       decoration: BoxDecoration(
         border: isLast
             ? null
-            : const Border(bottom: BorderSide(color: Color(0xFFF0F0F0))),
+            : const Border(bottom: BorderSide(color: AppColors.borderLight)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -429,7 +429,7 @@ class _PrizePayoutDetailViewState extends ConsumerState<PrizePayoutDetailView> {
       decoration: BoxDecoration(
         color: AppColors.surfacePrimary,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEEEEEE)),
+        border: Border.all(color: AppColors.borderLight),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

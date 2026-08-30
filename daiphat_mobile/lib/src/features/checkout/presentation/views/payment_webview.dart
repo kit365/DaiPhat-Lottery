@@ -7,6 +7,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import '../providers/checkout_provider.dart';
 
 /// In-app WebView for PayOS payment.
@@ -215,16 +216,16 @@ class _PaymentWebViewState extends ConsumerState<PaymentWebView> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text(
+          title: Text(
             'Thanh toán PayOS',
-            style: TextStyle(
-              color: Color(0xFF15213B),
+            style: AppTypography.h4(
+              color: AppColors.contentPrimary,
               fontWeight: FontWeight.w800,
               fontSize: 18,
             ),
           ),
           backgroundColor: AppColors.surfacePrimary,
-          foregroundColor: const Color(0xFF15213B),
+          foregroundColor: AppColors.contentPrimary,
           elevation: 0,
           scrolledUnderElevation: 0,
           surfaceTintColor: AppColors.transparent,
@@ -242,7 +243,7 @@ class _PaymentWebViewState extends ConsumerState<PaymentWebView> {
             if (_loadingProgress < 100)
               LinearProgressIndicator(
                 value: _loadingProgress / 100,
-                backgroundColor: Colors.grey.shade200,
+                backgroundColor: AppColors.borderLight,
                 valueColor: const AlwaysStoppedAnimation<Color>(
                   AppColors.primary,
                 ),
@@ -283,21 +284,21 @@ class _PaymentWebViewState extends ConsumerState<PaymentWebView> {
     final IconData icon;
 
     if (_isExpired) {
-      bgColor = const Color(0xFFFEF2F2);
-      textColor = const Color(0xFFB91C1C);
-      iconColor = const Color(0xFFDC2626);
+      bgColor = AppColors.statusDangerSurface;
+      textColor = AppColors.brandPrimaryDarkRed;
+      iconColor = AppColors.statusDanger;
       label = 'Hết giờ';
       icon = Icons.timer_off_rounded;
     } else if (_remainingSeconds <= 120) {
-      bgColor = const Color(0xFFFFF7ED);
-      textColor = const Color(0xFFC2410C);
-      iconColor = const Color(0xFFEA580C);
+      bgColor = AppColors.statusWarningSurface;
+      textColor = AppColors.statusWarning;
+      iconColor = AppColors.statusWarningForeground;
       label = _formatCountdown(_remainingSeconds);
       icon = Icons.timer_rounded;
     } else {
-      bgColor = const Color(0xFFF0FDF4);
-      textColor = const Color(0xFF15803D);
-      iconColor = const Color(0xFF22C55E);
+      bgColor = AppColors.statusSuccessSurface;
+      textColor = AppColors.statusSuccessDeep;
+      iconColor = AppColors.statusSuccess;
       label = _formatCountdown(_remainingSeconds);
       icon = Icons.timer_rounded;
     }
@@ -316,7 +317,7 @@ class _PaymentWebViewState extends ConsumerState<PaymentWebView> {
           const SizedBox(width: 4),
           Text(
             label,
-            style: TextStyle(
+            style: AppTypography.subtitle2(
               color: textColor,
               fontSize: 13,
               fontWeight: FontWeight.w700,

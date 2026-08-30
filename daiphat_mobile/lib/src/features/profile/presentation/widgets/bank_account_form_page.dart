@@ -223,7 +223,7 @@ class _BankAccountFormPageState extends State<BankAccountFormPage> {
                 onPressed: _isSubmitting ? null : _submit,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
-                  disabledBackgroundColor: const Color(0xFFE4A2A2),
+                  disabledBackgroundColor: AppColors.brandPrimaryBorder,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -304,7 +304,7 @@ class _BankAccountFormPageState extends State<BankAccountFormPage> {
                   fontSize: 14,
                   fontWeight: bank == null ? FontWeight.w400 : FontWeight.w600,
                   color: bank == null
-                      ? const Color(0xFFA0A8AF)
+                      ? AppColors.contentPlaceholderStrong
                       : AppColors.textMain,
                 ),
               ),
@@ -338,7 +338,7 @@ class _BankAccountFormPageState extends State<BankAccountFormPage> {
         hintText: hintText,
         hintStyle: AppTypography.mainWith(
           fontSize: 14,
-          color: const Color(0xFFA0A8AF),
+          color: AppColors.contentPlaceholderStrong,
           fontWeight: FontWeight.w400,
         ),
         filled: true,

@@ -62,13 +62,11 @@ class AppStatusTabBar<T> extends StatelessWidget {
                   const Spacer(),
                   Text(
                     displayLabel,
-                    style: AppTypography.main(
-                      TextStyle(
-                        fontSize: 13.5,
-                        fontWeight:
-                            isSelected ? FontWeight.w700 : FontWeight.w500,
-                        color: isSelected ? activeColor : inactiveColor,
-                      ),
+                    style: AppTypography.subtitle2(
+                      fontSize: 13.5,
+                      fontWeight:
+                          isSelected ? FontWeight.w700 : FontWeight.w500,
+                      color: isSelected ? activeColor : inactiveColor,
                     ),
                   ),
                   const Spacer(),

@@ -47,7 +47,7 @@ class _ScheduleViewState extends ConsumerState<ScheduleView> {
         ),
         title: Text(
           'Lịch mở thưởng',
-          style: AppTypography.mainWith(
+          style: AppTypography.h3(
             fontSize: 18,
             fontWeight: FontWeight.w800,
             color: AppColors.textMain,
@@ -106,7 +106,7 @@ class _ScheduleError extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: AppTypography.mainWith(
+              style: AppTypography.bodyMedium(
                 fontSize: 14,
                 color: AppColors.textMuted,
               ),
@@ -116,7 +116,7 @@ class _ScheduleError extends StatelessWidget {
               onPressed: onRetry,
               child: Text(
                 'Thử lại',
-                style: AppTypography.mainWith(
+                style: AppTypography.buttonMedium(
                   fontWeight: FontWeight.w700,
                   color: AppColors.primary,
                 ),
@@ -147,7 +147,7 @@ class _ScheduleTable extends StatelessWidget {
       children: [
         Text(
           'Theo dõi thời gian quay số theo từng miền',
-          style: AppTypography.mainWith(
+          style: AppTypography.bodySmall(
             fontSize: 13,
             color: AppColors.contentNeutral,
           ),
@@ -243,7 +243,7 @@ class _ScheduleTable extends StatelessWidget {
       child: Text(
         title,
         textAlign: TextAlign.center,
-        style: AppTypography.mainWith(
+        style: AppTypography.buttonSmall(
           fontSize: 13,
           fontWeight: FontWeight.w800,
           color: AppColors.surfacePrimary,
@@ -268,7 +268,7 @@ class _ScheduleTable extends StatelessWidget {
           Text(
             label,
             textAlign: TextAlign.center,
-            style: AppTypography.mainWith(
+            style: AppTypography.subtitle2(
               fontSize: 14,
               fontWeight: FontWeight.w800,
               color: isToday ? AppColors.primary : AppColors.textMain,
@@ -292,11 +292,11 @@ class _ScheduleTable extends StatelessWidget {
               (station) => Text(
                 'Xổ Số ${station.stationName}',
                 textAlign: TextAlign.center,
-                style: AppTypography.mainWith(
+                style: AppTypography.bodySmall(
                   fontSize: 13,
                   height: 1.5,
                   fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
-                  color: isToday ? AppColors.primary : const Color(0xFF333333),
+                  color: isToday ? AppColors.primary : AppColors.contentHeading,
                 ),
               ),
             )

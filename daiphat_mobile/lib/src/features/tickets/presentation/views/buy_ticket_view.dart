@@ -173,7 +173,7 @@ class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
     final searchQuery = data?.searchQuery ?? '';
 
     return Scaffold(
-      backgroundColor: AppColors.pageBg,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
           Positioned(
@@ -189,7 +189,10 @@ class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
                 stops: [0.4, 1.0],
               ).createShader(bounds),
               blendMode: BlendMode.dstIn,
-              child: Image.asset('assets/images/home_bg.png', fit: BoxFit.cover),
+              child: Image.asset(
+                'assets/images/home_bg.png',
+                fit: BoxFit.cover,
+              ),
             ),
           ),
           Column(
@@ -364,10 +367,7 @@ class _LoadedViewState extends State<_LoadedView> {
                       switchInCurve: Curves.easeOut,
                       switchOutCurve: Curves.easeIn,
                       transitionBuilder: (child, animation) {
-                        return FadeTransition(
-                          opacity: animation,
-                          child: child,
-                        );
+                        return FadeTransition(opacity: animation, child: child);
                       },
                       child: Column(
                         key: ValueKey(
@@ -419,27 +419,6 @@ class _LoadedViewState extends State<_LoadedView> {
       ),
     );
   }
-}
-
-LotteryTicketListItem _buildHardcodedTicketDetail(
-  LotteryTicketListItem baseTicket,
-) {
-  return LotteryTicketListItem(
-    id: baseTicket.id,
-    displayName: 'Vé số kiến thiết Đại Phát',
-    code: baseTicket.code,
-    shortName: baseTicket.shortName,
-    dateLabel: baseTicket.dateLabel,
-    dayFilter: baseTicket.dayFilter,
-    drawDate: baseTicket.drawDate,
-    status: 'IN_STOCK',
-    statusDisplayName: 'Sẵn sàng mở thưởng',
-    stationName: 'Đài Bạc Liêu',
-    serialNumber: 'DP-BL-2026-000123',
-    batchCode: 'UI-DEMO-44',
-    imageUrl: baseTicket.imageUrl,
-    price: 10000,
-  );
 }
 
 class _SearchField extends StatefulWidget {
@@ -521,7 +500,7 @@ class _SearchFieldState extends State<_SearchField> {
     final showLoading = _isDebouncing || widget.isLoading;
 
     return Container(
-      height: 42,
+      height: 48,
       decoration: BoxDecoration(
         color: AppColors.surfaceNeutral,
         borderRadius: BorderRadius.circular(999),
@@ -530,23 +509,25 @@ class _SearchFieldState extends State<_SearchField> {
       child: Row(
         children: [
           const SizedBox(width: 12),
-          const Icon(Icons.search_rounded, color: AppColors.contentSubtle, size: 20),
+          const Icon(
+            Icons.search_rounded,
+            color: AppColors.contentSubtle,
+            size: 20,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: TextField(
               controller: _controller,
               onChanged: _onTextChanged,
               keyboardType: TextInputType.text,
-              style: AppTypography.main(
-                const TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.contentNavy,
-                ),
+              style: AppTypography.bodyMedium(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.contentNavy,
               ),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: 'Tìm số vé (VD: 6868...), tên đài...',
-                hintStyle: TextStyle(
+                hintStyle: AppTypography.bodyMedium(
                   color: AppColors.contentSubtle,
                   fontSize: 13,
                   fontWeight: FontWeight.w400,
@@ -561,40 +542,44 @@ class _SearchFieldState extends State<_SearchField> {
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 10),
               child: SizedBox(
-                width: 16,
-                height: 16,
+                width: 14,
+                height: 14,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: AppColors.primary,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    AppColors.contentSubtle,
+                  ),
                 ),
               ),
             )
           else if (_controller.text.isNotEmpty)
             GestureDetector(
-              onTap: _onClear,
+              onTap: () {
+                _controller.clear();
+                _onTextChanged('');
+              },
+              behavior: HitTestBehavior.opaque,
               child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 10),
+                padding: EdgeInsets.symmetric(horizontal: 6),
                 child: Icon(
-                  Icons.cancel_rounded,
-                  size: 17,
-                  color: Color(0xFFCBD5E1),
+                  Icons.close_rounded,
+                  color: AppColors.contentSubtle,
+                  size: 18,
                 ),
               ),
             ),
           if (widget.onOpenFilter != null)
-            GestureDetector(
-              onTap: widget.onOpenFilter,
-              child: Padding(
-                padding: const EdgeInsets.only(right: 10),
-                child: Badge(
-                  isLabelVisible: widget.filterCount > 0,
-                  label: Text('${widget.filterCount}'),
-                  backgroundColor: AppColors.primary,
-                  child: const Icon(
-                    Icons.tune_rounded,
-                    size: 19,
-                    color: AppColors.primary,
-                  ),
+            IconButton(
+              onPressed: widget.onOpenFilter,
+              tooltip: 'Lọc vé',
+              icon: Badge(
+                isLabelVisible: widget.filterCount > 0,
+                label: Text('${widget.filterCount}'),
+                backgroundColor: AppColors.primary,
+                child: const Icon(
+                  Icons.tune_rounded,
+                  size: 20,
+                  color: AppColors.primary,
                 ),
               ),
             ),
@@ -690,7 +675,7 @@ class _TicketHeroBannerState extends State<_TicketHeroBanner> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x18000000),
+            color: AppColors.shadowMedium,
             blurRadius: 18,
             spreadRadius: -2,
             offset: Offset(0, 6),
@@ -716,9 +701,9 @@ class _TicketHeroBannerState extends State<_TicketHeroBanner> {
                         begin: Alignment.centerLeft,
                         end: Alignment.centerRight,
                         colors: [
-                          const Color(0xFFB40716).withValues(alpha: 0.94),
-                          const Color(0xFFD51C29).withValues(alpha: 0.72),
-                          const Color(0xFFE43732).withValues(alpha: 0.12),
+                          AppColors.brandPrimaryDeep.withValues(alpha: 0.94),
+                          AppColors.brandPrimaryDark.withValues(alpha: 0.72),
+                          AppColors.brandPrimary.withValues(alpha: 0.12),
                           AppColors.transparent,
                         ],
                       ),
@@ -735,37 +720,33 @@ class _TicketHeroBannerState extends State<_TicketHeroBanner> {
                       children: [
                         Text(
                           slide.eyebrow,
-                          style: AppTypography.main(
-                            const TextStyle(
-                              color: Color(0xFFFFD86B),
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.8,
-                            ),
+                          style: AppTypography.overline(
+                            color: AppColors.brandAccentYellow,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.8,
                           ),
                         ),
                         const SizedBox(height: 3),
                         Text(
                           slide.title,
-                          style: AppTypography.display(
-                            const TextStyle(
-                              color: AppColors.surfacePrimary,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                              height: 1.15,
-                              letterSpacing: -0.3,
-                            ),
+                          style: AppTypography.h4(
+                            color: AppColors.surfacePrimary,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            height: 1.15,
+                            letterSpacing: -0.3,
                           ),
                         ),
                         const SizedBox(height: 3),
                         Text(
                           slide.subtitle,
-                          style: AppTypography.main(
-                            TextStyle(
-                              color: AppColors.surfacePrimary.withValues(alpha: 0.85),
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w500,
+                          style: AppTypography.caption(
+                            color: AppColors.surfacePrimary.withValues(
+                              alpha: 0.85,
                             ),
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
@@ -880,16 +861,14 @@ class _ShopeeTabItem extends StatelessWidget {
                 title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: AppTypography.main(
-                  TextStyle(
-                    fontSize: 14,
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                    color: disabled
-                        ? AppColors.contentSubtle
-                        : selected
-                        ? AppColors.primary
-                        : AppColors.contentMuted,
-                  ),
+                style: AppTypography.labelLarge(
+                  fontSize: 14,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  color: disabled
+                      ? AppColors.contentSubtle
+                      : selected
+                      ? AppColors.primary
+                      : AppColors.contentMuted,
                 ),
               ),
               const SizedBox(height: 6),
@@ -992,7 +971,7 @@ class _AllTicketsPageState extends ConsumerState<_AllTicketsPage> {
     final viewModel = ref.read(allTicketsViewModelProvider.notifier);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F9FC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: state.when(
           data: (data) {
@@ -1136,12 +1115,10 @@ class _AllTicketsHeader extends StatelessWidget {
             child: Text(
               'Mua vé',
               textAlign: TextAlign.center,
-              style: AppTypography.display(
-                const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.primary,
-                ),
+              style: AppTypography.h1(
+                fontSize: 28,
+                fontWeight: FontWeight.w900,
+                color: AppColors.primary,
               ),
             ),
           ),
@@ -1220,23 +1197,6 @@ class _AllTicketCard extends StatelessWidget {
                               _TicketThumbFallback(shortName: ticket.shortName),
                         )
                       : _TicketThumbFallback(shortName: ticket.shortName),
-                  Positioned(
-                    right: 10,
-                    top: 10,
-                    child: Container(
-                      width: 32,
-                      height: 32,
-                      decoration: const BoxDecoration(
-                        color: AppColors.surfacePrimary,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.favorite_border_rounded,
-                        color: Color(0xFF9B6D69),
-                        size: 20,
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -1257,23 +1217,19 @@ class _AllTicketCard extends StatelessWidget {
                                 ticket.stationDisplayText,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: AppTypography.main(
-                                  const TextStyle(
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.contentMuted,
-                                  ),
+                                style: AppTypography.subtitle2(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.contentMuted,
                                 ),
                               ),
                             ),
                             Text(
                               _compactPrice(ticket.price),
-                              style: AppTypography.main(
-                                const TextStyle(
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.primary,
-                                ),
+                              style: AppTypography.priceMedium(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.primary,
                               ),
                             ),
                           ],
@@ -1283,14 +1239,12 @@ class _AllTicketCard extends StatelessWidget {
                           ticket.code,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: AppTypography.number(
-                            const TextStyle(
-                              color: AppColors.contentPrimary,
-                              fontSize: 25,
-                              height: 1,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 1.8,
-                            ),
+                          style: AppTypography.lotteryDigit(
+                            color: AppColors.contentPrimary,
+                            fontSize: 25,
+                            height: 1,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.8,
                           ),
                         ),
                       ],
@@ -1309,12 +1263,10 @@ class _AllTicketCard extends StatelessWidget {
                             ticket.dateLabel,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: AppTypography.main(
-                              const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.contentMuted,
-                              ),
+                            style: AppTypography.caption(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.contentMuted,
                             ),
                           ),
                         ),
@@ -1375,10 +1327,10 @@ class _TicketCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppColors.surfacePrimary,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFEAEBED), width: 1.0),
+            border: Border.all(color: AppColors.borderDecorative, width: 1.0),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x08000000),
+                color: AppColors.shadowLight,
                 blurRadius: 8,
                 offset: Offset(0, 2),
               ),
@@ -1395,12 +1347,10 @@ class _TicketCard extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: AppTypography.main(
-                  const TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.contentMuted,
-                  ),
+                style: AppTypography.subtitle2(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.contentMuted,
                 ),
               ),
               const SizedBox(height: 8),
@@ -1411,14 +1361,12 @@ class _TicketCard extends StatelessWidget {
                 child: Text(
                   ticket.code,
                   textAlign: TextAlign.center,
-                  style: AppTypography.number(
-                    const TextStyle(
-                      color: AppColors.contentPrimary,
-                      fontSize: 25,
-                      height: 1.0,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1.8,
-                    ),
+                  style: AppTypography.lotteryDigit(
+                    color: AppColors.contentPrimary,
+                    fontSize: 25,
+                    height: 1.0,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.8,
                   ),
                 ),
               ),
@@ -1430,67 +1378,16 @@ class _TicketCard extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: AppTypography.main(
-                  const TextStyle(
-                    fontSize: 13.5,
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w800,
-                  ),
+                style: AppTypography.priceMedium(
+                  fontSize: 13.5,
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ],
           ),
         ),
       ),
-    );
-  }
-}
-
-class _DashedLinePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFFE9DEDB)
-      ..strokeWidth = 1;
-    const dash = 4.0;
-    const gap = 4.0;
-    var y = 0.0;
-    while (y < size.height) {
-      canvas.drawLine(Offset.zero + Offset(0, y), Offset(0, y + dash), paint);
-      y += dash + gap;
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _TicketThumb extends StatelessWidget {
-  const _TicketThumb({required this.ticket});
-
-  final LotteryTicketListItem ticket;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 94,
-      height: 90,
-      decoration: BoxDecoration(
-        color: const Color(0xFFF7F7FA),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0xFFE7BDB8).withValues(alpha: 0.35),
-        ),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: ticket.imageUrl != null && ticket.imageUrl!.trim().isNotEmpty
-          ? CachedNetworkImage(
-              imageUrl: ticket.imageUrl!,
-              fit: BoxFit.cover,
-              errorWidget: (_, _, _) =>
-                  _TicketThumbFallback(shortName: ticket.shortName),
-            )
-          : _TicketThumbFallback(shortName: ticket.shortName),
     );
   }
 }
@@ -1507,7 +1404,7 @@ class _TicketThumbFallback extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFFFFF1EF), Color(0xFFFFD5C8)],
+          colors: [AppColors.surfaceEmptyState, AppColors.surfaceBrandLight],
         ),
       ),
       child: Center(
@@ -1519,13 +1416,13 @@ class _TicketThumbFallback extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Color(0xFFFF5C4D), Color(0xFFD31010)],
+              colors: [AppColors.brandPrimaryStrong, AppColors.brandPrimary],
             ),
           ),
           alignment: Alignment.center,
           child: Text(
             shortName,
-            style: const TextStyle(
+            style: AppTypography.h5(
               color: AppColors.surfacePrimary,
               fontWeight: FontWeight.w800,
               fontSize: 16,
@@ -1536,10 +1433,6 @@ class _TicketThumbFallback extends StatelessWidget {
     );
   }
 }
-
-const Color _kDetailSoftPink = Color(0xFFFFF2F0);
-const Color _kDetailBorder = Color(0xFFF6E3DF);
-const Color _kDetailMuted = Color(0xFF8C8C93);
 
 const Map<int, String> _kVnWeekdayLabels = {
   DateTime.monday: 'Thứ 2',
@@ -1676,7 +1569,7 @@ class _TicketDetailModalSheetState
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         boxShadow: [
           BoxShadow(
-            color: Color(0x1F000000),
+            color: AppColors.cardShadow,
             blurRadius: 28,
             offset: Offset(0, -6),
           ),
@@ -1712,7 +1605,7 @@ class _TicketDetailModalSheetState
                     child: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: const BoxDecoration(
-                        color: Color(0xFFF1F5F9),
+                        color: AppColors.surfaceSlate100,
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -1732,12 +1625,12 @@ class _TicketDetailModalSheetState
                   color: AppColors.surfacePrimary,
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(
-                    color: const Color(0xFFEAEBED),
+                    color: AppColors.borderDecorative,
                     width: 1.0,
                   ),
                   boxShadow: const [
                     BoxShadow(
-                      color: Color(0x08000000),
+                      color: AppColors.shadowLight,
                       blurRadius: 10,
                       offset: Offset(0, 2),
                     ),
@@ -1756,12 +1649,10 @@ class _TicketDetailModalSheetState
                             widget.ticket.productTitle,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: AppTypography.main(
-                              const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.contentMuted,
-                              ),
+                            style: AppTypography.subtitle1(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.contentMuted,
                             ),
                           ),
                         ),
@@ -1777,12 +1668,10 @@ class _TicketDetailModalSheetState
                             const SizedBox(width: 4),
                             Text(
                               _dateText,
-                              style: AppTypography.main(
-                                const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textSecondary,
-                                ),
+                              style: AppTypography.subtitle2(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textSecondary,
                               ),
                             ),
                           ],
@@ -1790,21 +1679,19 @@ class _TicketDetailModalSheetState
                       ],
                     ),
                     const SizedBox(height: 10),
-                    const Divider(height: 1, color: Color(0xFFF1F2F4)),
+                    const Divider(height: 1, color: AppColors.borderSubtle),
                     const SizedBox(height: 12),
                     FittedBox(
                       fit: BoxFit.scaleDown,
                       child: Text(
                         widget.ticket.code,
                         textAlign: TextAlign.center,
-                        style: AppTypography.number(
-                          const TextStyle(
-                            color: Color(0xFF17191F),
-                            fontSize: 36,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 4,
-                            height: 1,
-                          ),
+                        style: AppTypography.lotteryDigit(
+                          color: AppColors.contentPrimary,
+                          fontSize: 36,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 4,
+                          height: 1,
                         ),
                       ),
                     ),
@@ -1819,9 +1706,9 @@ class _TicketDetailModalSheetState
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFAFAFB),
+                  color: AppColors.surfaceSoft,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFF1F2F4)),
+                  border: Border.all(color: AppColors.borderSubtle),
                 ),
                 child: Column(
                   children: [
@@ -1831,29 +1718,28 @@ class _TicketDetailModalSheetState
                       children: [
                         Text(
                           'Đơn giá',
-                          style: AppTypography.main(
-                            const TextStyle(
-                              fontSize: 13.5,
-                              color: AppColors.contentMuted,
-                              fontWeight: FontWeight.w500,
-                            ),
+                          style: AppTypography.bodyMedium(
+                            fontSize: 13.5,
+                            color: AppColors.contentMuted,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                         Text(
                           '${_compactPrice(_unitPrice)} / vé',
-                          style: AppTypography.main(
-                            const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.primary,
-                            ),
+                          style: AppTypography.priceMedium(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.primary,
                           ),
                         ),
                       ],
                     ),
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 10),
-                      child: Divider(height: 1, color: Color(0xFFEAEBED)),
+                      child: Divider(
+                        height: 1,
+                        color: AppColors.borderDecorative,
+                      ),
                     ),
 
                     // 2. Stock available
@@ -1862,12 +1748,10 @@ class _TicketDetailModalSheetState
                       children: [
                         Text(
                           'Số lượng còn',
-                          style: AppTypography.main(
-                            const TextStyle(
-                              fontSize: 13.5,
-                              color: AppColors.contentMuted,
-                              fontWeight: FontWeight.w500,
-                            ),
+                          style: AppTypography.bodyMedium(
+                            fontSize: 13.5,
+                            color: AppColors.contentMuted,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                         Container(
@@ -1876,21 +1760,19 @@ class _TicketDetailModalSheetState
                             vertical: 3.5,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFFF1F1),
+                            color: AppColors.brandPrimarySubtle,
                             borderRadius: BorderRadius.circular(999),
                             border: Border.all(
-                              color: const Color(0xFFFFDEDE),
+                              color: AppColors.brandPrimaryBorderLight,
                               width: 1,
                             ),
                           ),
                           child: Text(
                             '$_maxStock vé',
-                            style: AppTypography.main(
-                              const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.primary,
-                              ),
+                            style: AppTypography.labelSmall(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary,
                             ),
                           ),
                         ),
@@ -1898,63 +1780,71 @@ class _TicketDetailModalSheetState
                     ),
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 10),
-                      child: Divider(height: 1, color: Color(0xFFEAEBED)),
+                      child: Divider(
+                        height: 1,
+                        color: AppColors.borderDecorative,
+                      ),
                     ),
 
-                    // Quantity Stepper
+                    // 3. Step control
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
                           'Số lượng mua',
-                          style: AppTypography.main(
-                            const TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textMain,
-                            ),
+                          style: AppTypography.bodyMedium(
+                            fontSize: 13.5,
+                            color: AppColors.contentMuted,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                         Container(
                           decoration: BoxDecoration(
                             color: AppColors.surfacePrimary,
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: const Color(0xFFCBD5E1)),
+                            border: Border.all(
+                              color: AppColors.borderDecorative,
+                              width: 1,
+                            ),
                           ),
                           child: Row(
                             children: [
                               _StepButton(
                                 icon: Icons.remove_rounded,
                                 disabled: _quantity <= 1,
-                                onTap: _quantity > 1 ? _decrease : null,
-                                onDisabledTap: () {
-                                  AppToast.info('Số lượng tối thiểu là 1 vé');
-                                },
+                                onTap: _decrease,
                               ),
                               Container(
-                                constraints: const BoxConstraints(minWidth: 36),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                ),
+                                width: 44,
+                                height: 36,
                                 alignment: Alignment.center,
+                                decoration: const BoxDecoration(
+                                  border: Border.symmetric(
+                                    vertical: BorderSide(
+                                      color: AppColors.borderDecorative,
+                                    ),
+                                  ),
+                                ),
                                 child: Text(
                                   '$_quantity',
-                                  style: AppTypography.number(
-                                    const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppColors.textMain,
-                                    ),
+                                  style: AppTypography.subtitle1(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 15,
                                   ),
                                 ),
                               ),
                               _StepButton(
                                 icon: Icons.add_rounded,
                                 disabled: _quantity >= _maxStock,
-                                onTap: _quantity < _maxStock ? _increase : null,
+                                onTap: _increase,
                                 onDisabledTap: () {
-                                  AppToast.info(
-                                    'Vé này chỉ còn $_maxStock vé trong kho',
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Đã đạt số lượng vé tối đa còn lại',
+                                      ),
+                                      duration: Duration(seconds: 1),
+                                    ),
                                   );
                                 },
                               ),
@@ -1965,31 +1855,29 @@ class _TicketDetailModalSheetState
                     ),
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 10),
-                      child: Divider(height: 1, color: Color(0xFFEAEBED)),
+                      child: Divider(
+                        height: 1,
+                        color: AppColors.borderDecorative,
+                      ),
                     ),
 
-                    // Total Row
+                    // 4. Total calculation
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Tạm tính',
-                          style: AppTypography.main(
-                            const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textMain,
-                            ),
+                          'Tổng tiền',
+                          style: AppTypography.h6(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
                           ),
                         ),
                         Text(
-                          _formattedTotalPrice,
-                          style: AppTypography.number(
-                            const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w900,
-                              color: AppColors.primary,
-                            ),
+                          '${_compactPrice(_totalPrice)} đ',
+                          style: AppTypography.priceLarge(
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.primary,
+                            fontSize: 18,
                           ),
                         ),
                       ],
@@ -1998,9 +1886,9 @@ class _TicketDetailModalSheetState
                 ),
               ),
 
-              const SizedBox(height: 18),
+              const SizedBox(height: 20),
 
-              // Actions
+              // Action Buttons: Add to cart vs Buy now
               Row(
                 children: [
                   Expanded(
@@ -2024,11 +1912,9 @@ class _TicketDetailModalSheetState
                         ),
                         label: Text(
                           'Thêm vào giỏ',
-                          style: AppTypography.main(
-                            const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 14,
-                            ),
+                          style: AppTypography.buttonMedium(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
                           ),
                         ),
                       ),
@@ -2044,18 +1930,16 @@ class _TicketDetailModalSheetState
                           backgroundColor: AppColors.primary,
                           foregroundColor: AppColors.surfacePrimary,
                           elevation: 1,
-                          shadowColor: const Color(0x33D31010),
+                          shadowColor: AppColors.shadowBrand,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
                           ),
                         ),
                         child: Text(
                           'Mua ngay',
-                          style: AppTypography.main(
-                            const TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 15,
-                            ),
+                          style: AppTypography.buttonLarge(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
                           ),
                         ),
                       ),
@@ -2086,123 +1970,19 @@ class _StepButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = icon == Icons.add_rounded ? 'Tăng số lượng' : 'Giảm số lượng';
-
-    return Semantics(
-      button: true,
-      enabled: !disabled,
-      label: label,
-      onTap: disabled ? null : onTap,
-      child: ExcludeSemantics(
-        child: Material(
-          color: AppColors.transparent,
-          child: InkWell(
-            onTap: disabled ? onDisabledTap : onTap,
-            borderRadius: BorderRadius.circular(8),
-            child: SizedBox(
-              width: 44,
-              height: 44,
-              child: Center(
-                child: SizedBox(
-                  width: 32,
-                  height: 32,
-                  child: Icon(
-                    icon,
-                    size: 16,
-                    color: disabled
-                        ? AppColors.contentSubtle
-                        : AppColors.contentNavy,
-                  ),
-                ),
-              ),
-            ),
+    return Material(
+      color: AppColors.transparent,
+      child: InkWell(
+        onTap: disabled ? onDisabledTap : onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: SizedBox(
+          width: 44,
+          height: 36,
+          child: Icon(
+            icon,
+            size: 18,
+            color: disabled ? AppColors.contentSubtle : AppColors.primary,
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _TicketBadge extends StatelessWidget {
-  const _TicketBadge({required this.shortName, this.imageUrl});
-
-  final String shortName;
-  final String? imageUrl;
-
-  @override
-  Widget build(BuildContext context) {
-    final hasImage = imageUrl != null && imageUrl!.trim().isNotEmpty;
-    final badgeContent = hasImage
-        ? CachedNetworkImage(
-            imageUrl: imageUrl!,
-            fit: BoxFit.cover,
-            width: double.infinity,
-            height: double.infinity,
-            errorWidget: (_, _, _) =>
-                _TicketBadgeFallback(shortName: shortName),
-            placeholder: (_, _) => const Center(
-              child: SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: AppColors.surfacePrimary,
-                ),
-              ),
-            ),
-          )
-        : _TicketBadgeFallback(shortName: shortName);
-
-    return Container(
-      width: 60,
-      height: 60,
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: const Color(0xFFFFE1D9)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x12D31010),
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          ),
-        ],
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFFFF2CC), Color(0xFFFFB347)],
-        ),
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(color: AppColors.surfacePrimary, width: 2),
-          gradient: const LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFFFF6358), Color(0xFFD31010)],
-          ),
-        ),
-        child: ClipOval(child: badgeContent),
-      ),
-    );
-  }
-}
-
-class _TicketBadgeFallback extends StatelessWidget {
-  const _TicketBadgeFallback({required this.shortName});
-
-  final String shortName;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Text(
-        shortName,
-        style: const TextStyle(
-          color: AppColors.surfacePrimary,
-          fontWeight: FontWeight.w800,
-          fontSize: 14,
         ),
       ),
     );
@@ -2264,7 +2044,7 @@ class _TicketCardSkeleton extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surfacePrimary,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEAEBED), width: 1.0),
+        border: Border.all(color: AppColors.borderDecorative, width: 1.0),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       child: const Column(
@@ -2293,8 +2073,8 @@ class _ShimmerBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Shimmer.fromColors(
-      baseColor: const Color(0xFFE9E2E1),
-      highlightColor: const Color(0xFFF7F3F2),
+      baseColor: AppColors.surfaceDisabled,
+      highlightColor: AppColors.surfaceSoft,
       child: Container(
         width: width,
         height: height,
@@ -2327,9 +2107,9 @@ class _ErrorState extends StatelessWidget {
               color: AppColors.textMuted,
             ),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'Không tải được danh sách vé',
-              style: TextStyle(
+              style: AppTypography.h4(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
                 color: AppColors.ink,
@@ -2339,7 +2119,7 @@ class _ErrorState extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.textMuted),
+              style: AppTypography.bodyMedium(color: AppColors.textMuted),
             ),
             const SizedBox(height: 16),
             ElevatedButton(
@@ -2365,8 +2145,6 @@ class _BuyTicketHeader extends StatelessWidget {
     required this.onSearchChanged,
     required this.onOpenFilter,
     this.isLoading = false,
-    this.onBack,
-    this.showBackButton = false,
   });
 
   final VoidCallback onOpenCart;
@@ -2375,8 +2153,6 @@ class _BuyTicketHeader extends StatelessWidget {
   final ValueChanged<String> onSearchChanged;
   final VoidCallback onOpenFilter;
   final bool isLoading;
-  final VoidCallback? onBack;
-  final bool showBackButton;
 
   @override
   Widget build(BuildContext context) {
@@ -2392,18 +2168,7 @@ class _BuyTicketHeader extends StatelessWidget {
               // Row 1: Title + Action buttons (Cart & Chat)
               Row(
                 children: [
-                  if (showBackButton && onBack != null) ...[
-                    AppHeaderActionButton(
-                      icon: Icons.arrow_back_ios_new_rounded,
-                      tooltip: 'Quay lại',
-                      onTap: onBack!,
-                    ),
-                    const SizedBox(width: 10),
-                  ],
-                  Text(
-                    'Mua vé',
-                    style: AppTypography.pageTitle(),
-                  ),
+                  Text('Mua vé', style: AppTypography.pageTitle()),
                   const Spacer(),
                   Consumer(
                     builder: (context, ref, _) {
@@ -2473,6 +2238,63 @@ class _BuyTicketHeader extends StatelessWidget {
   }
 }
 
+class _EmptyStateCard extends StatelessWidget {
+  const _EmptyStateCard({
+    required this.message,
+    required this.onResetFilter,
+  });
+
+  final String message;
+  final VoidCallback onResetFilter;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.confirmation_number_outlined,
+              size: 48,
+              color: AppColors.borderMuted,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: AppTypography.subtitle1(
+                fontSize: 14.5,
+                color: AppColors.contentMuted,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 14),
+            OutlinedButton(
+              onPressed: onResetFilter,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: Text(
+                'Đặt lại bộ lọc',
+                style: AppTypography.buttonSmall(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ProvinceChip extends StatelessWidget {
   const _ProvinceChip({
     required this.label,
@@ -2486,11 +2308,7 @@ class _ProvinceChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppFilterChip(
-      label: label,
-      isSelected: selected,
-      onTap: onTap,
-    );
+    return AppFilterChip(label: label, isSelected: selected, onTap: onTap);
   }
 }
 
@@ -2505,29 +2323,29 @@ class _EmptyState extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surfacePrimary,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFF1E3E0)),
+        border: Border.all(color: AppColors.borderWarm),
       ),
-      child: const Column(
+      child: Column(
         children: [
-          Image(
+          const Image(
             image: AssetImage('assets/images/thantai.png'),
             height: 110,
             fit: BoxFit.contain,
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
           Text(
             'Không tìm thấy vé phù hợp',
-            style: TextStyle(
+            style: AppTypography.h5(
               fontSize: 16,
               fontWeight: FontWeight.w700,
               color: AppColors.ink,
             ),
           ),
-          SizedBox(height: 6),
+          const SizedBox(height: 6),
           Text(
             'Hãy thử đổi ngày quay, bộ lọc hoặc từ khóa tìm kiếm.',
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: AppTypography.bodyMedium(
               color: AppColors.textMuted,
               fontWeight: FontWeight.w500,
             ),

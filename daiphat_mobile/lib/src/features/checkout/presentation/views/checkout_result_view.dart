@@ -70,7 +70,7 @@ class CheckoutResultView extends StatelessWidget {
                 width: 80,
                 decoration: BoxDecoration(
                   color: isSuccess
-                      ? const Color(0xFF00A76F)
+                      ? AppColors.statusSuccess
                       : AppColors.primary,
                   borderRadius: BorderRadius.circular(2),
                 ),
@@ -84,17 +84,17 @@ class CheckoutResultView extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: isSuccess
-                      ? const Color(0xFFE8F5E9)
-                      : const Color(0xFFFFF1EF),
+                      ? AppColors.statusSuccessSurface
+                      : AppColors.surfaceEmptyState,
                   border: Border.all(
                     color: isSuccess
-                        ? const Color(0xFFE8F5E9)
-                        : const Color(0xFFFFD5D0),
+                        ? AppColors.statusSuccessSurface
+                        : AppColors.borderWarm,
                     width: 3,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: (isSuccess ? const Color(0xFF00A76F) : AppColors.primary)
+                      color: (isSuccess ? AppColors.statusSuccess : AppColors.primary)
                           .withValues(alpha: 0.15),
                       blurRadius: 20,
                       offset: const Offset(0, 6),
@@ -105,7 +105,7 @@ class CheckoutResultView extends StatelessWidget {
                   isSuccess ? Icons.check_circle_rounded : Icons.cancel_rounded,
                   size: 56,
                   color: isSuccess
-                      ? const Color(0xFF00A76F)
+                      ? AppColors.statusSuccess
                       : AppColors.primary,
                 ),
               ),
@@ -114,14 +114,12 @@ class CheckoutResultView extends StatelessWidget {
               // Title
               Text(
                 isSuccess ? 'Thanh toán thành công!' : 'Thanh toán thất bại',
-                style: AppTypography.main(
-                  TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
-                    color: isSuccess
-                        ? const Color(0xFF00A76F)
-                        : AppColors.primary,
-                  ),
+                style: AppTypography.h3(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  color: isSuccess
+                      ? AppColors.statusSuccess
+                      : AppColors.primary,
                 ),
               ),
               const SizedBox(height: 8),
@@ -131,12 +129,10 @@ class CheckoutResultView extends StatelessWidget {
                     ? 'Cảm ơn bạn đã đặt vé tại Đại Phát.'
                     : 'Rất tiếc, quá trình thanh toán không thành công hoặc đã bị hủy.',
                 textAlign: TextAlign.center,
-                style: AppTypography.main(
-                  const TextStyle(
-                    color: AppColors.contentMuted,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                  ),
+                style: AppTypography.bodyLarge(
+                  color: AppColors.contentMuted,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
               const SizedBox(height: 32),
@@ -152,7 +148,7 @@ class CheckoutResultView extends StatelessWidget {
                     border: Border.all(color: AppColors.cardBorder),
                     boxShadow: const [
                       BoxShadow(
-                        color: Color(0x08000000),
+                        color: AppColors.shadowLight,
                         blurRadius: 10,
                         offset: Offset(0, 2),
                       ),
@@ -165,7 +161,7 @@ class CheckoutResultView extends StatelessWidget {
                           Container(
                             width: 36,
                             height: 36,
-                            decoration: BoxDecoration(
+                            decoration: const BoxDecoration(
                               color: AppColors.backgroundPrimary,
                               shape: BoxShape.circle,
                             ),
@@ -178,12 +174,10 @@ class CheckoutResultView extends StatelessWidget {
                           const SizedBox(width: 12),
                           Text(
                             'Mã đơn hàng',
-                            style: AppTypography.main(
-                              const TextStyle(
-                                color: AppColors.contentPrimary,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 15,
-                              ),
+                            style: AppTypography.subtitle2(
+                              color: AppColors.contentPrimary,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -193,12 +187,10 @@ class CheckoutResultView extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               textAlign: TextAlign.end,
-                              style: AppTypography.main(
-                                const TextStyle(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 15,
-                                ),
+                              style: AppTypography.monoCode(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 15,
                               ),
                             ),
                           ),
@@ -212,7 +204,7 @@ class CheckoutResultView extends StatelessWidget {
                           Container(
                             width: 36,
                             height: 36,
-                            decoration: BoxDecoration(
+                            decoration: const BoxDecoration(
                               color: AppColors.backgroundPrimary,
                               shape: BoxShape.circle,
                             ),
@@ -225,23 +217,19 @@ class CheckoutResultView extends StatelessWidget {
                           const SizedBox(width: 12),
                           Text(
                             'Thời gian đặt',
-                            style: AppTypography.main(
-                              const TextStyle(
-                                color: AppColors.contentPrimary,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 15,
-                              ),
+                            style: AppTypography.subtitle2(
+                              color: AppColors.contentPrimary,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
                             ),
                           ),
                           const Spacer(),
                           Text(
                             AppFormatters.formatDateTime(DateTime.now()),
-                            style: AppTypography.main(
-                              const TextStyle(
-                                color: AppColors.contentPrimary,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 14.5,
-                              ),
+                            style: AppTypography.bodyMedium(
+                              color: AppColors.contentPrimary,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14.5,
                             ),
                           ),
                         ],
@@ -268,12 +256,10 @@ class CheckoutResultView extends StatelessWidget {
                       ),
                       child: Text(
                         'Về trang chủ',
-                        style: AppTypography.main(
-                          const TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 15,
-                            color: AppColors.contentPrimary,
-                          ),
+                        style: AppTypography.buttonMedium(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                          color: AppColors.contentPrimary,
                         ),
                       ),
                     ),
@@ -302,12 +288,10 @@ class CheckoutResultView extends StatelessWidget {
                       ),
                       child: Text(
                         'Xem chi tiết đơn',
-                        style: AppTypography.main(
-                          const TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 15,
-                            color: AppColors.surfacePrimary,
-                          ),
+                        style: AppTypography.buttonMedium(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                          color: AppColors.surfacePrimary,
                         ),
                       ),
                     ),

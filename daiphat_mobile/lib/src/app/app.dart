@@ -22,6 +22,8 @@ class DaiPhatMobileApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         routerConfig: router,
         theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: ThemeMode.system,
       ),
     );
   }

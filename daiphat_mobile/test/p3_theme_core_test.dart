@@ -33,7 +33,7 @@ void main() {
       expect(AppColors.neutral700.toARGB32(), equals(0xFF333333));
       expect(AppColors.neutral600.toARGB32(), equals(0xFF505050));
       expect(AppColors.neutral500.toARGB32(), equals(0xFF64748B));
-      expect(AppColors.neutral400.toARGB32(), equals(0xFF999999));
+      expect(AppColors.neutral400.toARGB32(), equals(0xFF767676));
       expect(AppColors.neutral300.toARGB32(), equals(0xFFE0E0E0));
       expect(AppColors.neutral200.toARGB32(), equals(0xFFE5E7EB));
       expect(AppColors.neutral100.toARGB32(), equals(0xFFF8FAFC));
@@ -150,7 +150,7 @@ void main() {
         expect(AppColors.loginLabel, equals(AppColors.contentLabel));
 
         // 15. loginPlaceholder
-        expect(AppColors.loginPlaceholder.toARGB32(), equals(0xFF999999));
+        expect(AppColors.loginPlaceholder.toARGB32(), equals(0xFF767676));
         expect(
           AppColors.loginPlaceholder,
           equals(AppColors.contentPlaceholder),

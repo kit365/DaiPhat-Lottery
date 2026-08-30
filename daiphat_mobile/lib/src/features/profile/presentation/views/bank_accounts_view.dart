@@ -196,7 +196,7 @@ class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
         border: Border.all(
           color: account.isDefault
               ? AppColors.primary.withValues(alpha: 0.35)
-              : const Color(0xFFF0E6E4),
+              : AppColors.borderDecorative,
         ),
         boxShadow: [
           BoxShadow(
@@ -239,7 +239,7 @@ class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
                               vertical: 3,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFFFF2F3),
+                              color: AppColors.surfaceBrandWarm,
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -277,7 +277,7 @@ class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
               ),
             ],
           ),
-          const Divider(height: 22, color: Color(0xFFF2EAE8)),
+          const Divider(height: 22, color: AppColors.borderDecorative),
           if (isMutating)
             const Center(
               child: SizedBox(

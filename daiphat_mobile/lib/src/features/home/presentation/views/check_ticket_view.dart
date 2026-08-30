@@ -67,12 +67,12 @@ class CheckTicketView extends ConsumerWidget {
                           color: AppColors.surfacePrimary,
                           borderRadius: BorderRadius.circular(24),
                           border: Border.all(
-                            color: const Color(0xFFEAEBED),
+                            color: AppColors.borderDecorative,
                             width: 1.0,
                           ),
                           boxShadow: const [
                             BoxShadow(
-                              color: Color(0x0A000000),
+                              color: AppColors.shadowLight,
                               blurRadius: 16,
                               offset: Offset(0, 4),
                             ),
@@ -84,24 +84,20 @@ class CheckTicketView extends ConsumerWidget {
                             Text(
                               'TRA CỨU VÉ SỐ',
                               textAlign: TextAlign.center,
-                              style: AppTypography.display(
-                                const TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w900,
-                                  color: AppColors.primary,
-                                  letterSpacing: 0.6,
-                                ),
+                              style: AppTypography.h3(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.primary,
+                                letterSpacing: 0.6,
                               ),
                             ),
                             const SizedBox(height: 6),
                             Text(
                               'Nhập thông tin vé để kiểm tra kết quả nhanh chóng',
                               textAlign: TextAlign.center,
-                              style: AppTypography.main(
-                                const TextStyle(
-                                  fontSize: 13,
-                                  color: AppColors.contentMuted,
-                                ),
+                              style: AppTypography.bodySmall(
+                                fontSize: 13,
+                                color: AppColors.contentMuted,
                               ),
                             ),
                             const SizedBox(height: 22),
@@ -157,10 +153,10 @@ class _HeaderBar extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppColors.surfacePrimary,
             shape: BoxShape.circle,
-            border: Border.all(color: const Color(0xFFEAEBED)),
+            border: Border.all(color: AppColors.borderDecorative),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x0A000000),
+                color: AppColors.shadowLight,
                 blurRadius: 8,
                 offset: Offset(0, 2),
               ),
@@ -185,9 +181,9 @@ class _ImportantNotes extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF5F5),
+        color: AppColors.statusDangerSurface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFFE0E0)),
+        border: Border.all(color: AppColors.brandPrimaryBorderLight),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -198,7 +194,7 @@ class _ImportantNotes extends StatelessWidget {
                 width: 28,
                 height: 28,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFE4E4),
+                  color: AppColors.statusErrorSurface,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
@@ -210,12 +206,10 @@ class _ImportantNotes extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 'Lưu ý quan trọng',
-                style: AppTypography.main(
-                  const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF7F1D1D),
-                  ),
+                style: AppTypography.subtitle2(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.brandPrimaryCrimson,
                 ),
               ),
             ],
@@ -252,12 +246,10 @@ class _ImportantNotes extends StatelessWidget {
         Expanded(
           child: Text(
             text,
-            style: AppTypography.main(
-              const TextStyle(
-                fontSize: 12,
-                height: 1.45,
-                color: Color(0xFF7F1D1D),
-              ),
+            style: AppTypography.caption(
+              fontSize: 12,
+              height: 1.45,
+              color: AppColors.brandPrimaryCrimson,
             ),
           ),
         ),
@@ -271,15 +263,15 @@ class _CheckingState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 40),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 40),
       child: Column(
         children: [
-          CircularProgressIndicator(color: AppColors.primary),
-          SizedBox(height: 14),
+          const CircularProgressIndicator(color: AppColors.primary),
+          const SizedBox(height: 14),
           Text(
             'Đang dò kết quả...',
-            style: TextStyle(
+            style: AppTypography.bodyMedium(
               fontSize: 13,
               fontWeight: FontWeight.w600,
               color: AppColors.contentMuted,
@@ -305,7 +297,7 @@ class _ErrorState extends StatelessWidget {
           width: 48,
           height: 48,
           decoration: const BoxDecoration(
-            color: Color(0xFFFFE4E4),
+            color: AppColors.statusErrorSurface,
             shape: BoxShape.circle,
           ),
           child: const Icon(Icons.error_outline, color: AppColors.primary),
@@ -314,12 +306,10 @@ class _ErrorState extends StatelessWidget {
         Text(
           message,
           textAlign: TextAlign.center,
-          style: AppTypography.main(
-            const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFFB91C1C),
-            ),
+          style: AppTypography.bodyMedium(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: AppColors.brandPrimaryDarkRed,
           ),
         ),
         const SizedBox(height: 14),
@@ -349,33 +339,29 @@ class _ResultState extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFFECFDF5), Color(0xFFF0FDFA)],
+                colors: [AppColors.statusSuccessSurface, AppColors.surfaceSuccess],
               ),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFA7F3D0)),
+              border: Border.all(color: AppColors.statusSuccessBorder),
             ),
             child: Column(
               children: [
-                const Text('🎉', style: TextStyle(fontSize: 28)),
+                Text('🎉', style: AppTypography.h1(fontSize: 28)),
                 const SizedBox(height: 6),
                 Text(
                   'Chúc mừng bạn đã trúng!',
-                  style: AppTypography.display(
-                    const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF065F46),
-                    ),
+                  style: AppTypography.h5(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.statusSuccessDeep,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Vé số của bạn trùng khớp với kết quả:',
-                  style: AppTypography.main(
-                    const TextStyle(
-                      fontSize: 11,
-                      color: Color(0xFF059669),
-                    ),
+                  style: AppTypography.bodySmall(
+                    fontSize: 11,
+                    color: AppColors.statusSuccessMedium,
                   ),
                 ),
               ],
@@ -399,22 +385,18 @@ class _ResultState extends StatelessWidget {
                       children: [
                         Text(
                           prize.prizeDisplayName,
-                          style: AppTypography.main(
-                            const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                            ),
+                          style: AppTypography.subtitle2(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           'Số trúng: ${prize.winningNumber}',
-                          style: AppTypography.main(
-                            const TextStyle(
-                              fontSize: 11,
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w700,
-                            ),
+                          style: AppTypography.lotteryDigit(
+                            fontSize: 11,
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ],
@@ -422,12 +404,10 @@ class _ResultState extends StatelessWidget {
                   ),
                   Text(
                     AppFormatters.formatCurrency(prize.prizeValue),
-                    style: AppTypography.main(
-                      const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.primary,
-                      ),
+                    style: AppTypography.priceMedium(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primary,
                     ),
                   ),
                 ],
@@ -439,29 +419,25 @@ class _ResultState extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFF1F1),
+                color: AppColors.brandPrimarySubtle,
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Row(
                 children: [
                   Text(
                     'Tổng giải thưởng:',
-                    style: AppTypography.main(
-                      const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    style: AppTypography.subtitle2(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                   const Spacer(),
                   Text(
                     AppFormatters.formatCurrency(result.totalWinningAmount),
-                    style: AppTypography.number(
-                      const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.primary,
-                      ),
+                    style: AppTypography.priceMedium(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.primary,
                     ),
                   ),
                 ],
@@ -472,7 +448,7 @@ class _ResultState extends StatelessWidget {
           OutlinedButton(
             onPressed: onReset,
             style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF475569),
+              foregroundColor: AppColors.contentSlate600,
               side: const BorderSide(color: AppColors.borderSubtle),
               minimumSize: const Size.fromHeight(44),
               shape: RoundedRectangleBorder(
@@ -522,34 +498,30 @@ class _NeutralResult extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(emoji, style: const TextStyle(fontSize: 28)),
+        Text(emoji, style: AppTypography.h1(fontSize: 28)),
         const SizedBox(height: 8),
         Text(
           title,
-          style: AppTypography.display(
-            const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF334155),
-            ),
+          style: AppTypography.h5(
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+            color: AppColors.contentSlate700,
           ),
         ),
         const SizedBox(height: 6),
         Text(
           message,
           textAlign: TextAlign.center,
-          style: AppTypography.main(
-            const TextStyle(
-              fontSize: 12,
-              color: AppColors.contentMuted,
-            ),
+          style: AppTypography.bodySmall(
+            fontSize: 12,
+            color: AppColors.contentMuted,
           ),
         ),
         const SizedBox(height: 16),
         OutlinedButton(
           onPressed: onReset,
           style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFF475569),
+            foregroundColor: AppColors.contentSlate600,
             side: const BorderSide(color: AppColors.borderSubtle),
             minimumSize: const Size.fromHeight(44),
             shape: RoundedRectangleBorder(
@@ -616,12 +588,10 @@ class _FormStateState extends State<_FormState> {
       children: [
         Text(
           'Chọn ngày',
-          style: AppTypography.main(
-            const TextStyle(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF334155),
-            ),
+          style: AppTypography.subtitle2(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w700,
+            color: AppColors.contentSlate700,
           ),
         ),
         const SizedBox(height: 8),
@@ -643,7 +613,7 @@ class _FormStateState extends State<_FormState> {
                 borderRadius: BorderRadius.circular(14),
                 borderSide: BorderSide(
                   color: state.dateError != null
-                      ? const Color(0xFFF87171)
+                      ? AppColors.statusError
                       : AppColors.borderSubtle,
                 ),
               ),
@@ -652,14 +622,12 @@ class _FormStateState extends State<_FormState> {
             ),
             child: Text(
               dateLabel,
-              style: AppTypography.main(
-                TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: selectedDate == null
-                      ? AppColors.contentSubtle
-                      : const Color(0xFF0F172A),
-                ),
+              style: AppTypography.bodyMedium(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: selectedDate == null
+                    ? AppColors.contentSubtle
+                    : AppColors.contentSlate900,
               ),
             ),
           ),
@@ -667,12 +635,10 @@ class _FormStateState extends State<_FormState> {
         const SizedBox(height: 14),
         Text(
           'Chọn đài',
-          style: AppTypography.main(
-            const TextStyle(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF334155),
-            ),
+          style: AppTypography.subtitle2(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w700,
+            color: AppColors.contentSlate700,
           ),
         ),
         const SizedBox(height: 8),
@@ -688,7 +654,7 @@ class _FormStateState extends State<_FormState> {
                 Icons.place_outlined,
                 color: canPickStation
                     ? AppColors.primary
-                    : const Color(0xFFCBD5E1),
+                    : AppColors.borderMuted,
                 size: 18,
               ),
               border: OutlineInputBorder(
@@ -699,7 +665,7 @@ class _FormStateState extends State<_FormState> {
                 borderRadius: BorderRadius.circular(14),
                 borderSide: BorderSide(
                   color: state.stationError != null
-                      ? const Color(0xFFF87171)
+                      ? AppColors.statusError
                       : AppColors.borderSubtle,
                 ),
               ),
@@ -712,14 +678,12 @@ class _FormStateState extends State<_FormState> {
                   : state.isLoadingStations
                       ? 'Đang tải đài...'
                       : (state.selectedStation?.province ?? 'Chọn đài'),
-              style: AppTypography.main(
-                TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: !canPickStation && state.selectedStation == null
-                      ? AppColors.contentSubtle
-                      : const Color(0xFF0F172A),
-                ),
+              style: AppTypography.bodyMedium(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: !canPickStation && state.selectedStation == null
+                    ? AppColors.contentSubtle
+                    : AppColors.contentSlate900,
               ),
             ),
           ),
@@ -727,12 +691,10 @@ class _FormStateState extends State<_FormState> {
         const SizedBox(height: 14),
         Text(
           'Nhập dãy số trên vé',
-          style: AppTypography.main(
-            const TextStyle(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF334155),
-            ),
+          style: AppTypography.subtitle2(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w700,
+            color: AppColors.contentSlate700,
           ),
         ),
         const SizedBox(height: 8),
@@ -742,12 +704,10 @@ class _FormStateState extends State<_FormState> {
           maxLength: 6,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           onChanged: vm.setTicketNumber,
-          style: AppTypography.number(
-            const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 2,
-            ),
+          style: AppTypography.lotteryDigit(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 2,
           ),
           decoration: InputDecoration(
             counterText: '',
@@ -768,7 +728,7 @@ class _FormStateState extends State<_FormState> {
               borderRadius: BorderRadius.circular(14),
               borderSide: BorderSide(
                 color: state.numberError != null
-                    ? const Color(0xFFF87171)
+                    ? AppColors.statusError
                     : AppColors.borderSubtle,
               ),
             ),
@@ -792,11 +752,9 @@ class _FormStateState extends State<_FormState> {
           ),
           label: Text(
             'Tra cứu kết quả',
-            style: AppTypography.main(
-              const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-              ),
+            style: AppTypography.buttonMedium(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ),
@@ -804,13 +762,11 @@ class _FormStateState extends State<_FormState> {
         Text(
           'HOẶC CHỌN NHANH',
           textAlign: TextAlign.center,
-          style: AppTypography.main(
-            const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              color: AppColors.contentSubtle,
-              letterSpacing: 0.8,
-            ),
+          style: AppTypography.overline(
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            color: AppColors.contentSubtle,
+            letterSpacing: 0.8,
           ),
         ),
         const SizedBox(height: 10),
@@ -890,11 +846,9 @@ class _FormStateState extends State<_FormState> {
                 ),
                 title: Text(
                   station.province,
-                  style: AppTypography.main(
-                    TextStyle(
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                      color: isSelected ? AppColors.primary : null,
-                    ),
+                  style: AppTypography.bodyMedium(
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    color: isSelected ? AppColors.primary : null,
                   ),
                 ),
                 trailing: isSelected
@@ -913,7 +867,7 @@ class _FormStateState extends State<_FormState> {
   }
 
   bool _isSameDay(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month && a.day == b.day;
+    a.year == b.year && a.month == b.month && a.day == b.day;
 }
 
 class _QuickDateChip extends StatelessWidget {
@@ -929,17 +883,17 @@ class _QuickDateChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? AppColors.primary : const Color(0xFF475569);
+    final color = selected ? AppColors.primary : AppColors.contentSlate600;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFFFFF1F1) : AppColors.surfaceSoft,
+          color: selected ? AppColors.brandPrimarySubtle : AppColors.surfaceSoft,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: selected ? const Color(0xFFFECACA) : AppColors.borderSubtle,
+            color: selected ? AppColors.brandPrimaryBorder : AppColors.borderSubtle,
           ),
         ),
         alignment: Alignment.center,
@@ -950,12 +904,10 @@ class _QuickDateChip extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               label,
-              style: AppTypography.main(
-                TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: color,
-                ),
+              style: AppTypography.buttonSmall(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: color,
               ),
             ),
           ],
@@ -964,3 +916,4 @@ class _QuickDateChip extends StatelessWidget {
     );
   }
 }
+

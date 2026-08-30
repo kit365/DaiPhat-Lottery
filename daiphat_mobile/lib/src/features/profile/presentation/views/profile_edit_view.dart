@@ -153,7 +153,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
                         child: Center(
                           child: Text(
                             'Chỉnh sửa hồ sơ',
-                            style: AppTypography.mainWith(
+                            style: AppTypography.h3(
                               fontSize: 22,
                               fontWeight: FontWeight.w800,
                               color: AppColors.primary,
@@ -359,7 +359,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
                                         )
                                       : Text(
                                           'Lưu thay đổi',
-                                          style: AppTypography.mainWith(
+                                          style: AppTypography.buttonLarge(
                                             fontSize: 16,
                                             fontWeight: FontWeight.w700,
                                             color: AppColors.surfacePrimary,
@@ -394,7 +394,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
       children: [
         Text(
           label,
-          style: AppTypography.mainWith(
+          style: AppTypography.bodyMedium(
             fontSize: 14,
             fontWeight: FontWeight.w600,
             color: AppColors.textMain,
@@ -406,7 +406,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
           enabled: enabled,
           keyboardType: keyboardType,
           maxLines: maxLines,
-          style: TextStyle(
+          style: AppTypography.bodyMedium(
             color: enabled ? AppColors.textMain : AppColors.textMuted,
           ),
           decoration: InputDecoration(
@@ -432,7 +432,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
       children: [
         Text(
           label,
-          style: AppTypography.mainWith(
+          style: AppTypography.bodyMedium(
             fontSize: 14,
             fontWeight: FontWeight.w600,
             color: AppColors.textMain,
@@ -497,7 +497,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
       children: [
         Text(
           label,
-          style: AppTypography.mainWith(
+          style: AppTypography.bodyMedium(
             fontSize: 14,
             fontWeight: FontWeight.w600,
             color: AppColors.textMain,

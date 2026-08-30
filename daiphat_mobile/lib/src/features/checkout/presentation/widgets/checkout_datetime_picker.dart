@@ -6,7 +6,6 @@ import 'package:intl/intl.dart';
 
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
-import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 import '../../data/system_config_service.dart';
 import '../providers/checkout_provider.dart';
 
@@ -172,14 +171,12 @@ class _CheckoutDateTimePickerState
                       children: [
                         Text(
                           'Thời gian đến lấy *',
-                          style: AppTypography.main(
-                            TextStyle(
-                              color: hasError
-                                  ? AppColors.primary
-                                  : AppColors.contentMuted,
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w600,
-                            ),
+                          style: AppTypography.caption(
+                            color: hasError
+                                ? AppColors.primary
+                                : AppColors.contentMuted,
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -187,16 +184,14 @@ class _CheckoutDateTimePickerState
                           _displayText,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: AppTypography.main(
-                            TextStyle(
-                              color: hasValue
-                                  ? AppColors.contentPrimary
-                                  : AppColors.contentPlaceholder,
-                              fontSize: 15,
-                              fontWeight: hasValue
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
-                            ),
+                          style: AppTypography.bodyLarge(
+                            color: hasValue
+                                ? AppColors.contentPrimary
+                                : AppColors.contentPlaceholder,
+                            fontSize: 15,
+                            fontWeight: hasValue
+                                ? FontWeight.w700
+                                : FontWeight.w500,
                           ),
                         ),
                       ],
@@ -214,7 +209,7 @@ class _CheckoutDateTimePickerState
                   padding: const EdgeInsets.only(left: 48, top: 6),
                   child: Text(
                     widget.errorText!,
-                    style: const TextStyle(
+                    style: AppTypography.caption(
                       color: AppColors.primary,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -232,10 +227,10 @@ class _CheckoutDateTimePickerState
       children: [
         Row(
           children: [
-            const Text(
+            Text(
               'Thời gian đến lấy *',
-              style: TextStyle(
-                color: Color(0xFF374151),
+              style: AppTypography.caption(
+                color: AppColors.contentSlate700,
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
               ),
@@ -259,7 +254,7 @@ class _CheckoutDateTimePickerState
                           child: Icon(
                             Icons.error_outline_rounded,
                             size: 18,
-                            color: Color(0xFFFFB020),
+                            color: AppColors.statusWarningForeground,
                           ),
                         ),
                       ),
@@ -292,13 +287,13 @@ class _CheckoutDateTimePickerState
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(
-                      color: hasError ? Colors.red : AppColors.borderDefault,
+                      color: hasError ? AppColors.error : AppColors.borderDefault,
                     ),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(
-                      color: hasError ? Colors.red : AppColors.primary,
+                      color: hasError ? AppColors.error : AppColors.primary,
                       width: 1.5,
                     ),
                   ),
@@ -312,13 +307,13 @@ class _CheckoutDateTimePickerState
                     Expanded(
                       child: Text(
                         _displayText,
-                        style: TextStyle(
+                        style: AppTypography.bodyMedium(
                           fontSize: 14,
                           fontWeight: hasValue
                               ? FontWeight.w600
                               : FontWeight.w400,
                           color: hasValue
-                              ? const Color(0xFF15213B)
+                              ? AppColors.contentPrimary
                               : AppColors.loginPlaceholder,
                         ),
                       ),
@@ -337,12 +332,10 @@ class _CheckoutDateTimePickerState
         const SizedBox(height: 6),
         Text(
           'Giờ mở cửa: ${_opHours.openTime} – ${_opHours.closeTime}. Đặt trước ít nhất ${widget.minLeadMinutes} phút.',
-          style: AppTypography.main(
-            const TextStyle(
-              fontSize: 11.5,
-              color: AppColors.contentPlaceholder,
-              height: 1.4,
-            ),
+          style: AppTypography.caption(
+            fontSize: 11.5,
+            color: AppColors.contentPlaceholder,
+            height: 1.4,
           ),
         ),
       ],
@@ -627,12 +620,10 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
             Text(
               'Chọn thời gian nhận vé',
               textAlign: TextAlign.left,
-              style: AppTypography.main(
-                const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.contentPrimary,
-                ),
+              style: AppTypography.h4(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: AppColors.contentPrimary,
               ),
             ),
             const SizedBox(height: 16),
@@ -640,12 +631,10 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
             // Date buttons
             Text(
               'Ngày nhận vé',
-              style: AppTypography.main(
-                const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.contentMuted,
-                ),
+              style: AppTypography.caption(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.contentMuted,
               ),
             ),
             const SizedBox(height: 8),
@@ -677,12 +666,10 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
             // Time Selection: 3 compact dropdowns (Giờ, Phút, AM/PM)
             Text(
               'Khung giờ',
-              style: AppTypography.main(
-                const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.contentMuted,
-                ),
+              style: AppTypography.caption(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.contentMuted,
               ),
             ),
             const SizedBox(height: 8),
@@ -712,12 +699,10 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
                             value: h,
                             child: Text(
                               '${h.toString().padLeft(2, '0')} giờ',
-                              style: AppTypography.main(
-                                const TextStyle(
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.contentPrimary,
-                                ),
+                              style: AppTypography.bodyMedium(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.contentPrimary,
                               ),
                             ),
                           );
@@ -759,12 +744,10 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
                             value: m,
                             child: Text(
                               '${m.toString().padLeft(2, '0')} phút',
-                              style: AppTypography.main(
-                                const TextStyle(
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.contentPrimary,
-                                ),
+                              style: AppTypography.bodyMedium(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.contentPrimary,
                               ),
                             ),
                           );
@@ -803,12 +786,10 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
                             value: p,
                             child: Text(
                               p,
-                              style: AppTypography.main(
-                                const TextStyle(
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.contentPrimary,
-                                ),
+                              style: AppTypography.bodyMedium(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.contentPrimary,
                               ),
                             ),
                           );
@@ -831,12 +812,10 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
             // Hint
             Text(
               'Quầy mở cửa: ${widget.operatingHours.openTime} – ${widget.operatingHours.closeTime}. Vui lòng đặt trước ít nhất ${widget.minLeadMinutes} phút.',
-              style: AppTypography.main(
-                const TextStyle(
-                  fontSize: 11.5,
-                  color: AppColors.contentPlaceholder,
-                  height: 1.3,
-                ),
+              style: AppTypography.caption(
+                fontSize: 11.5,
+                color: AppColors.contentPlaceholder,
+                height: 1.3,
               ),
             ),
             const SizedBox(height: 20),
@@ -847,7 +826,7 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: AppColors.surfacePrimary,
-                disabledBackgroundColor: const Color(0xFFF3B5B2),
+                disabledBackgroundColor: AppColors.brandPrimaryBorder,
                 minimumSize: const Size.fromHeight(48),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -856,12 +835,10 @@ class _PickupTimeSheetState extends State<_PickupTimeSheet> {
               ),
               child: Text(
                 'Xác nhận',
-                style: AppTypography.main(
-                  const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.surfacePrimary,
-                  ),
+                style: AppTypography.buttonMedium(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.surfacePrimary,
                 ),
               ),
             ),
@@ -901,22 +878,18 @@ class _DateOptionButton extends StatelessWidget {
           children: [
             Text(
               label,
-              style: AppTypography.main(
-                const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.contentPlaceholder,
-                ),
+              style: AppTypography.bodySmall(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.contentPlaceholder,
               ),
             ),
             const SizedBox(height: 2),
             Text(
               subLabel,
-              style: AppTypography.main(
-                const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.contentPlaceholder,
-                ),
+              style: AppTypography.caption(
+                fontSize: 11,
+                color: AppColors.contentPlaceholder,
               ),
             ),
           ],
@@ -930,7 +903,9 @@ class _DateOptionButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFFFF1EF) : AppColors.surfacePrimary,
+          color: isSelected
+              ? AppColors.surfaceEmptyState
+              : AppColors.surfacePrimary,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: isSelected ? AppColors.primary : AppColors.cardBorder,
@@ -941,23 +916,23 @@ class _DateOptionButton extends StatelessWidget {
           children: [
             Text(
               label,
-              style: AppTypography.main(
-                TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: isSelected ? AppColors.primary : AppColors.contentPrimary,
-                ),
+              style: AppTypography.bodySmall(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: isSelected
+                    ? AppColors.primary
+                    : AppColors.contentPrimary,
               ),
             ),
             const SizedBox(height: 2),
             Text(
               subLabel,
-              style: AppTypography.main(
-                TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: isSelected ? AppColors.primary : AppColors.contentMuted,
-                ),
+              style: AppTypography.caption(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: isSelected
+                    ? AppColors.primary
+                    : AppColors.contentMuted,
               ),
             ),
           ],
