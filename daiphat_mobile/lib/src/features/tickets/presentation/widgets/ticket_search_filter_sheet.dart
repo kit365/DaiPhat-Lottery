@@ -293,7 +293,12 @@ class _TicketSearchFilterSheetState extends State<TicketSearchFilterSheet> {
                       runSpacing: 8,
                       children: _draftRanges.map((range) {
                         return InputChip(
-                          label: Text(range),
+                          label: Text(
+                            range,
+                            style: AppTypography.bodySmall(
+                              color: AppColors.contentPrimary,
+                            ),
+                          ),
                           onDeleted: () {
                             setState(
                               () => _draftRanges = [..._draftRanges]

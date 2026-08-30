@@ -24,7 +24,7 @@ spring:
       max-file-size: ${CORE_MULTIPART_MAX_FILE_SIZE:5MB}
       max-request-size: ${CORE_MULTIPART_MAX_REQUEST_SIZE:5MB}
   google:
-    client-id: ${GOOGLE_CLIENT_ID:}
+    client-id: ${GOOGLE_WEB_CLIENT_ID:${GOOGLE_CLIENT_ID:}}
     client-secret: ${GOOGLE_CLIENT_SECRET:}
     token-url: https://oauth2.googleapis.com/token
     token-info-url: https://oauth2.googleapis.com/tokeninfo

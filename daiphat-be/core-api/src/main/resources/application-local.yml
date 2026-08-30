@@ -51,7 +51,7 @@ spring:
           writetimeout: 5000
   # IntelliJ often does not load repo-root .env — keep Google OAuth placeholders local-safe.
   google:
-    client-id: ${GOOGLE_CLIENT_ID:}
+    client-id: ${GOOGLE_WEB_CLIENT_ID:${GOOGLE_CLIENT_ID:}}
     client-secret: ${GOOGLE_CLIENT_SECRET:}
     token-url: https://oauth2.googleapis.com/token
     token-info-url: https://oauth2.googleapis.com/tokeninfo

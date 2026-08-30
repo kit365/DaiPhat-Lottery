@@ -110,6 +110,20 @@ void main() {
     expect(router, contains('path == AppRoute.profile.path'));
   });
 
+  test('legacy utilities route redirects to the canonical tab', () {
+    final router = _readSource('lib/src/app/routing/app_router.dart');
+    final legacyView = File(
+      'lib/src/features/utilities/presentation/views/utilities_view.dart',
+    );
+
+    expect(
+      router,
+      contains('redirect: (context, state) => AppRoute.utilitiesTwo.path'),
+    );
+    expect(router, isNot(contains('utilities_view.dart')));
+    expect(legacyView.existsSync(), isFalse);
+  });
+
   test('main layout selects branches without a PageView side channel', () {
     final layout = _readSource(
       'lib/src/features/shell/presentation/views/main_layout.dart',
@@ -117,7 +131,7 @@ void main() {
 
     expect(layout, contains('final StatefulNavigationShell navigationShell;'));
     expect(layout, contains('body: navigationShell'));
-    expect(layout, contains('navigationShell.goBranch(index);'));
+    expect(layout, contains('navigationShell.goBranch(branchIndex);'));
     expect(layout, contains('canPop: navigationShell.currentIndex == 2'));
     expect(layout, contains('navigationShell.goBranch(2);'));
     expect(layout, isNot(contains('PageView(')));

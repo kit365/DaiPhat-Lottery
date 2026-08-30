@@ -141,7 +141,7 @@ class ProfileDetailView extends StatelessWidget {
                                       height: 120,
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
-                                        color: Colors.grey[200],
+                                        color: AppColors.surfaceNeutral,
                                         border: Border.all(
                                           color: AppColors.surfacePrimary,
                                           width: 4,
@@ -166,13 +166,13 @@ class ProfileDetailView extends StatelessWidget {
                                                         const Icon(
                                                   Icons.person,
                                                   size: 60,
-                                                  color: Colors.grey,
+                                                  color: AppColors.contentPlaceholder,
                                                 ),
                                               )
                                             : const Icon(
                                                 Icons.person,
                                                 size: 60,
-                                                color: Colors.grey,
+                                                color: AppColors.contentPlaceholder,
                                               ),
                                       ),
                                     ),
@@ -186,13 +186,11 @@ class ProfileDetailView extends StatelessWidget {
                                 decoration: BoxDecoration(
                                   color: AppColors.surfacePrimary,
                                   borderRadius: BorderRadius.circular(16),
-                                  boxShadow: [
+                                  boxShadow: const [
                                     BoxShadow(
-                                      color: Colors.black.withValues(
-                                        alpha: 0.04,
-                                      ),
+                                      color: AppColors.shadowLight,
                                       blurRadius: 10,
-                                      offset: const Offset(0, 2),
+                                      offset: Offset(0, 2),
                                     ),
                                   ],
                                 ),

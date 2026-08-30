@@ -26,8 +26,10 @@ class BrandScrollbar extends StatelessWidget {
       trackVisibility: isDesktop ? true : false,
       thickness: 4,
       radius: const Radius.circular(999),
-      thumbColor: const Color(0x66C90F1D),
-      trackColor: isDesktop ? const Color(0x14C90F1D) : AppColors.transparent,
+      thumbColor: AppColors.brandPrimary.withValues(alpha: 0.4),
+      trackColor: isDesktop
+          ? AppColors.brandPrimary.withValues(alpha: 0.08)
+          : AppColors.transparent,
       trackBorderColor: AppColors.transparent,
       padding: const EdgeInsets.only(right: 2, top: 4, bottom: 4),
       child: child,

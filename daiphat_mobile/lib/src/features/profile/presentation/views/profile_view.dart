@@ -425,8 +425,8 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                 children: [
                   Container(
                     padding: const EdgeInsets.all(8),
-                    decoration: const BoxDecoration(
-                      color: Colors.white24,
+                    decoration: BoxDecoration(
+                      color: AppColors.white.withValues(alpha: 0.24),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
@@ -452,7 +452,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                         Text(
                           'Kết nối Real-time với màn hình Web Admin',
                           style: AppTypography.caption(
-                            color: Colors.white70,
+                            color: AppColors.white.withValues(alpha: 0.70),
                             fontSize: 11,
                           ),
                         ),

@@ -41,7 +41,6 @@ import 'package:daiphat_mobile/src/features/fortune/presentation/views/fortune_c
 import 'package:daiphat_mobile/src/features/blog/presentation/views/blog_screen.dart';
 import 'package:daiphat_mobile/src/features/schedule/presentation/views/schedule_view.dart';
 import 'package:daiphat_mobile/src/features/utilities/presentation/views/utilities_two_view.dart';
-import 'package:daiphat_mobile/src/features/utilities/presentation/views/utilities_view.dart';
 import 'app_routes.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -427,13 +426,10 @@ GoRouter createAppRouter({
         profileViewModel,
         notificationViewModel,
       ),
-      _route(
-        AppRoute.utilities,
-        loginViewModel,
-        registerViewModel,
-        forgotPasswordViewModel,
-        profileViewModel,
-        notificationViewModel,
+      GoRoute(
+        path: AppRoute.utilities.path,
+        name: AppRoute.utilities.name,
+        redirect: (context, state) => AppRoute.utilitiesTwo.path,
       ),
     ],
   );
@@ -602,7 +598,7 @@ Widget _buildRoute(
         },
       );
     case AppRoute.utilities:
-      return UtilitiesView(
+      return UtilitiesTwoView(
         isAuthenticated: loginViewModel.isAuthenticated,
         onOpenNotifications: () => context.go(AppRoute.notifications.path),
         onOpenBlog: () => context.push(AppRoute.blog.path),

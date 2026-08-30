@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
-import 'package:intl/intl.dart';
 
 import 'package:daiphat_mobile/src/features/checkout/data/order_service.dart';
 import 'package:daiphat_mobile/src/features/checkout/models/order_type.dart';
@@ -282,7 +281,12 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
                         backgroundColor: AppColors.primary,
                         foregroundColor: AppColors.surfacePrimary,
                       ),
-                      child: const Text('Thử lại'),
+                      child: Text(
+                        'Thử lại',
+                        style: AppTypography.buttonMedium(
+                          color: AppColors.surfacePrimary,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -444,7 +448,9 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isExpired ? AppColors.statusErrorSurface : AppColors.statusWarningSurface,
+        color: isExpired
+            ? AppColors.statusErrorSurface
+            : AppColors.statusWarningSurface,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: isExpired
@@ -1074,7 +1080,10 @@ class _BankAccountFormDialogState extends State<BankAccountFormDialog> {
                   ),
                 ),
               ),
-            const Icon(Icons.chevron_right_rounded, color: AppColors.contentPlaceholderStrong),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.contentPlaceholderStrong,
+            ),
           ],
         ),
       ),
@@ -1352,7 +1361,8 @@ class _BankAccountFormDialogState extends State<BankAccountFormDialog> {
                                 foregroundColor: AppColors.surfacePrimary,
                                 disabledBackgroundColor: AppColors.primary
                                     .withValues(alpha: 0.35),
-                                disabledForegroundColor: AppColors.surfacePrimary
+                                disabledForegroundColor: AppColors
+                                    .surfacePrimary
                                     .withValues(alpha: 0.85),
                                 padding: const EdgeInsets.symmetric(
                                   vertical: 14,

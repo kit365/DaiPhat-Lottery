@@ -32,7 +32,7 @@ class AppStatusTabBar<T> extends StatelessWidget {
     this.height = 44,
     this.backgroundColor = AppColors.surfacePrimary,
     this.activeColor = AppColors.primary,
-    this.inactiveColor = const Color(0xFF555555),
+    this.inactiveColor = AppColors.contentSecondary,
   });
 
   @override

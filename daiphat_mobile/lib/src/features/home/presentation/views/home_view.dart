@@ -42,8 +42,8 @@ class HomeView extends ConsumerWidget {
     padding: EdgeInsets.zero,
     children: [
       Shimmer.fromColors(
-        baseColor: Colors.grey[300]!,
-        highlightColor: Colors.grey[100]!,
+        baseColor: AppColors.neutral300,
+        highlightColor: AppColors.neutral100,
         child: Container(height: 120, color: AppColors.surfacePrimary),
       ),
       const SizedBox(height: 20),
@@ -52,8 +52,8 @@ class HomeView extends ConsumerWidget {
         (_) => Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           child: Shimmer.fromColors(
-            baseColor: Colors.grey[300]!,
-            highlightColor: Colors.grey[100]!,
+            baseColor: AppColors.neutral300,
+            highlightColor: AppColors.neutral100,
             child: Container(
               height: 100,
               decoration: BoxDecoration(
@@ -435,8 +435,8 @@ class _HomeContentState extends ConsumerState<_HomeContent>
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Shimmer.fromColors(
-                        baseColor: Colors.grey[300]!,
-                        highlightColor: Colors.grey[100]!,
+                        baseColor: AppColors.neutral300,
+                        highlightColor: AppColors.neutral100,
                         child: Container(
                           height: 220,
                           decoration: BoxDecoration(

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
-import 'package:intl/intl.dart';
 
 import 'package:daiphat_mobile/src/features/checkout/data/order_service.dart';
 import 'package:daiphat_mobile/src/features/checkout/models/order_type.dart';

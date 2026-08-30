@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:daiphat_mobile/src/app/routing/app_router.dart';
 import 'package:daiphat_mobile/src/features/auth/data/repositories/auth_repository.dart';
 import 'package:daiphat_mobile/src/features/auth/data/services/auth_api_service.dart';
+import 'package:daiphat_mobile/src/features/auth/data/services/google_auth_service.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/forgot_password_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/login_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/register_viewmodel.dart';
@@ -20,10 +21,7 @@ class AppDependencies {
   final ApiClient apiClient;
   final GoRouter router;
 
-  const AppDependencies({
-    required this.apiClient,
-    required this.router,
-  });
+  const AppDependencies({required this.apiClient, required this.router});
 
   static Future<AppDependencies> create() async {
     final documentsDirectory = await getApplicationDocumentsDirectory();
@@ -38,6 +36,7 @@ class AppDependencies {
       AuthApiService(apiClient),
       apiClient,
       tokenStorage,
+      GoogleAuthService(),
     );
     apiClient.resolveAccessToken = tokenStorage.getAccessToken;
     apiClient.onAccessTokenRefreshed = tokenStorage.saveAccessToken;

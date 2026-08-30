@@ -531,16 +531,19 @@ class _ResultPane extends StatelessWidget {
                   OutlinedButton.icon(
                     onPressed: onBackToJar,
                     icon: const Icon(Icons.arrow_back_rounded),
-                    label: const Text('Về ống quẻ'),
+                    label: Text(
+                      'Về ống quẻ',
+                      style: AppTypography.buttonLarge(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                        color: AppColors.fortuneCrimsonDark,
+                      ),
+                    ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.fortuneCrimsonDark,
                       backgroundColor: AppColors.fortuneGoldLight,
                       side: BorderSide.none,
                       minimumSize: const Size.fromHeight(48),
-                      textStyle: AppTypography.buttonLarge(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 15,
-                      ),
                     ),
                   ),
                 ],
@@ -600,14 +603,17 @@ class _ResultPane extends StatelessWidget {
             child: FilledButton.icon(
               onPressed: onBuy,
               icon: const Icon(Icons.shopping_cart_outlined),
-              label: Text('Mua vé đuôi ${result.luckyTail}'),
+              label: Text(
+                'Mua vé đuôi ${result.luckyTail}',
+                style: AppTypography.buttonLarge(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.surfacePrimary,
+                ),
+              ),
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: AppColors.surfacePrimary,
-                textStyle: AppTypography.buttonLarge(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                ),
               ),
             ),
           ),

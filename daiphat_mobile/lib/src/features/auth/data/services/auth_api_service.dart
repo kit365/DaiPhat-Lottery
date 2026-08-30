@@ -51,6 +51,33 @@ class AuthApiService {
     return apiResponse.data!;
   }
 
+  Future<AuthToken> loginWithGoogle(String idToken) async {
+    final response = await _apiClient.post(
+      '$_baseAuth/google',
+      data: {'idToken': idToken},
+      includeAuth: false,
+    );
+
+    final apiResponse = ApiResponse<AuthToken>.fromJson(
+      response,
+      (json) => AuthToken.fromJson(json as Map<String, dynamic>),
+    );
+
+    if (!apiResponse.isSuccess) {
+      throw ApiException(
+        apiResponse.message.isNotEmpty
+            ? apiResponse.message
+            : 'Đăng nhập Google thất bại.',
+      );
+    }
+
+    if (apiResponse.data == null || apiResponse.data!.accessToken.isEmpty) {
+      throw const ApiException('Dữ liệu đăng nhập Google không hợp lệ.');
+    }
+
+    return apiResponse.data!;
+  }
+
   Future<void> logout() async {
     final response = await _apiClient.post(
       '$_baseAuth/logout',
@@ -123,8 +150,9 @@ class AuthApiService {
     );
 
     if (!apiResponse.isSuccess) throw ApiException(apiResponse.message);
-    if (apiResponse.data == null)
+    if (apiResponse.data == null) {
       throw const ApiException('Dữ liệu xác thực OTP không hợp lệ.');
+    }
 
     return apiResponse.data!;
   }
@@ -178,8 +206,9 @@ class AuthApiService {
     );
 
     if (!apiResponse.isSuccess) throw ApiException(apiResponse.message);
-    if (apiResponse.data == null)
+    if (apiResponse.data == null) {
       throw const ApiException('Không thể lấy thông tin người dùng.');
+    }
 
     return apiResponse.data!;
   }

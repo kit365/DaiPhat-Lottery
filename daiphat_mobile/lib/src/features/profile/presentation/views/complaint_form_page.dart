@@ -475,7 +475,7 @@ class _ComplaintFormPageState extends ConsumerState<ComplaintFormPage> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.black54,
+                        color: AppColors.neutralInk.withValues(alpha: 0.54),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -523,11 +523,15 @@ class _ComplaintFormPageState extends ConsumerState<ComplaintFormPage> {
         onTap: () => setState(() => _attachment = null),
         child: Container(
           padding: const EdgeInsets.all(4),
-          decoration: const BoxDecoration(
-            color: Colors.black54,
+          decoration: BoxDecoration(
+            color: AppColors.neutralInk.withValues(alpha: 0.54),
             shape: BoxShape.circle,
           ),
-          child: const Icon(Icons.close_rounded, size: 16, color: AppColors.surfacePrimary),
+          child: const Icon(
+            Icons.close_rounded,
+            size: 16,
+            color: AppColors.surfacePrimary,
+          ),
         ),
       ),
     );

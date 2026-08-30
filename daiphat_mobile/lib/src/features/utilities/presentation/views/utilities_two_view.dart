@@ -469,7 +469,7 @@ class _HeroBannerState extends State<_HeroBanner> {
                                 offset: const Offset(0, 6),
                               ),
                               BoxShadow(
-                                color: Colors.white.withValues(alpha: 0.65),
+                                color: AppColors.white.withValues(alpha: 0.65),
                                 blurRadius: 1,
                                 offset: const Offset(0, -1),
                               ),
@@ -514,7 +514,9 @@ class _HeroBannerState extends State<_HeroBanner> {
                   height: 6,
                   margin: const EdgeInsets.only(left: 5),
                   decoration: BoxDecoration(
-                    color: active ? AppColors.surfacePrimary : Colors.white54,
+                    color: active
+                        ? AppColors.surfacePrimary
+                        : AppColors.white.withValues(alpha: 0.54),
                     borderRadius: BorderRadius.circular(999),
                   ),
                 );
@@ -553,11 +555,11 @@ class _UtilityCard extends StatelessWidget {
           color: AppColors.surfacePrimary,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: AppColors.borderLight),
-          boxShadow: [
+          boxShadow: const [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.035),
+              color: AppColors.shadowFaint,
               blurRadius: 16,
-              offset: const Offset(0, 7),
+              offset: Offset(0, 7),
             ),
           ],
         ),

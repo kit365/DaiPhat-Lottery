@@ -120,7 +120,12 @@ class BlogDetailScreen extends ConsumerWidget {
                               borderRadius: BorderRadius.circular(14),
                             ),
                           ),
-                          child: const Text('Thử lại ngay'),
+                          child: Text(
+                            'Thử lại ngay',
+                            style: AppTypography.buttonMedium(
+                              color: AppColors.surfacePrimary,
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -370,17 +375,17 @@ class BlogDetailScreen extends ConsumerWidget {
             fontSize: FontSize(16),
             lineHeight: const LineHeight(1.8),
             color: _ink,
-            fontFamily: AppTypography.main().fontFamily,
+            fontFamily: AppTypography.mainFamily,
           ),
           'p': Style(
             margin: Margins.only(bottom: 20),
             color: _ink,
             fontSize: FontSize(16),
             lineHeight: const LineHeight(1.8),
-            fontFamily: AppTypography.main().fontFamily,
+            fontFamily: AppTypography.mainFamily,
           ),
           'h1': Style(
-            fontFamily: AppTypography.display().fontFamily,
+            fontFamily: AppTypography.displayFamily,
             fontSize: FontSize(24),
             fontWeight: FontWeight.w700,
             color: _ink,
@@ -388,7 +393,7 @@ class BlogDetailScreen extends ConsumerWidget {
             margin: Margins.only(bottom: 18),
           ),
           'h2': Style(
-            fontFamily: AppTypography.display().fontFamily,
+            fontFamily: AppTypography.displayFamily,
             fontSize: FontSize(22),
             fontWeight: FontWeight.w700,
             color: _ink,
@@ -396,7 +401,7 @@ class BlogDetailScreen extends ConsumerWidget {
             margin: Margins.only(top: 10, bottom: 18),
           ),
           'h3': Style(
-            fontFamily: AppTypography.display().fontFamily,
+            fontFamily: AppTypography.displayFamily,
             fontSize: FontSize(18),
             fontWeight: FontWeight.w700,
             color: _ink,
@@ -411,7 +416,7 @@ class BlogDetailScreen extends ConsumerWidget {
             margin: Margins.only(bottom: 10),
             fontSize: FontSize(16),
             lineHeight: const LineHeight(1.7),
-            fontFamily: AppTypography.main().fontFamily,
+            fontFamily: AppTypography.mainFamily,
           ),
           'a': Style(
             color: _primary,
@@ -430,7 +435,7 @@ class BlogDetailScreen extends ConsumerWidget {
             color: _secondary,
             fontStyle: FontStyle.italic,
             lineHeight: const LineHeight(1.8),
-            fontFamily: AppTypography.main().fontFamily,
+            fontFamily: AppTypography.mainFamily,
           ),
         },
       );
@@ -544,11 +549,11 @@ class BlogDetailScreen extends ConsumerWidget {
           color: _surface,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: _divider.withValues(alpha: 0.28)),
-          boxShadow: [
+          boxShadow: const [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
+              color: AppColors.shadowLight,
               blurRadius: 10,
-              offset: const Offset(0, 4),
+              offset: Offset(0, 4),
             ),
           ],
         ),
@@ -691,11 +696,11 @@ class _CircleHeaderButton extends StatelessWidget {
         color: AppColors.surfacePrimary,
         shape: BoxShape.circle,
         border: Border.all(color: AppColors.borderLight),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
+            color: AppColors.shadowLight,
             blurRadius: 18,
-            offset: const Offset(0, 8),
+            offset: Offset(0, 8),
           ),
         ],
       ),

@@ -43,11 +43,11 @@ class _ResultsCardState extends State<ResultsCard> {
           color: AppColors.surfacePrimary,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppColors.cardBorder, width: 1.5),
-          boxShadow: [
+          boxShadow: const [
             BoxShadow(
-              color: Colors.black.withValues(alpha: .03),
+              color: AppColors.shadowFaint,
               blurRadius: 20,
-              offset: const Offset(0, 8),
+              offset: Offset(0, 8),
             ),
           ],
         ),

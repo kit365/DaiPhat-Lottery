@@ -15,7 +15,6 @@ class AdminScanView extends StatefulWidget {
 }
 
 class _AdminScanViewState extends State<AdminScanView> {
-  final TextEditingController _codeController = TextEditingController();
   String _selectedStationFilter = 'ALL';
 
   @override
@@ -26,85 +25,6 @@ class _AdminScanViewState extends State<AdminScanView> {
         widget.viewModel.startConnecting(webIsWaiting: true);
       }
     });
-  }
-
-  @override
-  void dispose() {
-    _codeController.dispose();
-    super.dispose();
-  }
-
-  void _showConnectDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          'Kết nối Web Admin',
-          style: AppTypography.h4(
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Nhập mã kết nối hiển thị trên màn hình Tạo/Nhập lô vé số của Web Admin:',
-              style: AppTypography.bodySmall(
-                fontSize: 13,
-                color: Colors.grey[700],
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _codeController,
-              textCapitalization: TextCapitalization.characters,
-              decoration: InputDecoration(
-                hintText: 'Ví dụ: BATCH-8891',
-                prefixIcon: const Icon(
-                  Icons.qr_code_scanner_rounded,
-                  color: AppColors.primary,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
-                ),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.surfacePrimary,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            onPressed: () async {
-              final navigator = Navigator.of(context);
-              final ok = await widget.viewModel.connectToWebSession(
-                _codeController.text,
-              );
-              if (ok && mounted) {
-                navigator.pop();
-              }
-            },
-            child: const Text('Kết nối'),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -182,7 +102,9 @@ class _AdminScanViewState extends State<AdminScanView> {
       ),
       color: isConnected
           ? AppColors.statusSuccessSurface
-          : (errorMessage != null ? AppColors.surfaceDestructiveSoft : AppColors.surfacePrimary),
+          : (errorMessage != null
+                ? AppColors.surfaceDestructiveSoft
+                : AppColors.surfacePrimary),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -193,10 +115,10 @@ class _AdminScanViewState extends State<AdminScanView> {
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: isConnected
-                        ? Colors.green.withValues(alpha: 0.15)
+                        ? AppColors.statusSuccessSurface
                         : (errorMessage != null
-                              ? Colors.red.withValues(alpha: 0.15)
-                              : Colors.orange.withValues(alpha: 0.15)),
+                              ? AppColors.statusErrorSurface
+                              : AppColors.statusWarningSurface),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -206,10 +128,10 @@ class _AdminScanViewState extends State<AdminScanView> {
                               ? Icons.error_outline_rounded
                               : Icons.phonelink_erase_rounded),
                     color: isConnected
-                        ? Colors.green[700]
+                        ? AppColors.statusSuccessForeground
                         : (errorMessage != null
-                              ? Colors.red[700]
-                              : Colors.orange[800]),
+                              ? AppColors.statusErrorForeground
+                              : AppColors.statusWarningForeground),
                     size: 26,
                   ),
                 ),
@@ -228,10 +150,10 @@ class _AdminScanViewState extends State<AdminScanView> {
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
                           color: isConnected
-                              ? Colors.green[800]
+                              ? AppColors.statusSuccessForeground
                               : (errorMessage != null
-                                    ? Colors.red[800]
-                                    : Colors.orange[900]),
+                                    ? AppColors.statusErrorForeground
+                                    : AppColors.statusWarningForeground),
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -243,7 +165,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                                   : 'Mở màn hình "Quét vé bằng Mobile App" trên Web Admin để ghép nối.'),
                         style: AppTypography.caption(
                           fontSize: 12,
-                          color: Colors.grey[700],
+                          color: AppColors.contentSecondary,
                         ),
                       ),
                     ],
@@ -258,13 +180,13 @@ class _AdminScanViewState extends State<AdminScanView> {
                 decoration: BoxDecoration(
                   color: AppColors.surfacePrimary,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.red.shade200),
+                  border: Border.all(color: AppColors.borderDestructiveSubtle),
                 ),
                 child: Row(
                   children: [
                     const Icon(
                       Icons.warning_amber_rounded,
-                      color: Colors.redAccent,
+                      color: AppColors.statusError,
                       size: 20,
                     ),
                     const SizedBox(width: 8),
@@ -273,7 +195,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                         errorMessage,
                         style: AppTypography.caption(
                           fontSize: 12,
-                          color: Colors.red[900],
+                          color: AppColors.statusErrorForeground,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -314,7 +236,9 @@ class _AdminScanViewState extends State<AdminScanView> {
                     isConnecting
                         ? 'Đang kết nối ($countdown s)...'
                         : 'Thử kết nối lại với Web',
-                    style: AppTypography.buttonMedium(fontWeight: FontWeight.bold),
+                    style: AppTypography.buttonMedium(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
@@ -353,7 +277,7 @@ class _AdminScanViewState extends State<AdminScanView> {
               'Ảnh chụp vé sau khi xử lý OCR sẽ tự động đồng bộ Real-time lên danh sách của phiếu nhập lô vé trên Web Admin.',
               style: AppTypography.caption(
                 fontSize: 12,
-                color: Colors.grey[600],
+                color: AppColors.contentSecondary,
               ),
             ),
             const SizedBox(height: 16),
@@ -364,10 +288,10 @@ class _AdminScanViewState extends State<AdminScanView> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: isConnected
                           ? AppColors.primary
-                          : Colors.grey[300],
+                          : AppColors.surfaceDisabled,
                       foregroundColor: isConnected
                           ? AppColors.surfacePrimary
-                          : Colors.grey[600],
+                          : AppColors.contentDisabled,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
@@ -400,11 +324,11 @@ class _AdminScanViewState extends State<AdminScanView> {
                     style: OutlinedButton.styleFrom(
                       foregroundColor: isConnected
                           ? AppColors.primary
-                          : Colors.grey[500],
+                          : AppColors.contentDisabled,
                       side: BorderSide(
                         color: isConnected
                             ? AppColors.primary
-                            : Colors.grey[300]!,
+                            : AppColors.borderDefault,
                       ),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
@@ -448,7 +372,7 @@ class _AdminScanViewState extends State<AdminScanView> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.blue.withValues(alpha: 0.1),
+              color: AppColors.statusInfoSurface,
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
@@ -456,7 +380,7 @@ class _AdminScanViewState extends State<AdminScanView> {
               style: AppTypography.caption(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: Colors.blue[800],
+                color: AppColors.statusInfoForeground,
               ),
             ),
           ),
@@ -518,7 +442,9 @@ class _AdminScanViewState extends State<AdminScanView> {
                 style: AppTypography.labelMedium(
                   fontSize: 13,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                  color: isSelected ? AppColors.surfacePrimary : AppColors.textMain,
+                  color: isSelected
+                      ? AppColors.surfacePrimary
+                      : AppColors.textMain,
                 ),
               ),
             ),
@@ -547,13 +473,17 @@ class _AdminScanViewState extends State<AdminScanView> {
         ),
         child: Column(
           children: [
-            Icon(Icons.style_outlined, size: 48, color: Colors.grey[400]),
+            const Icon(
+              Icons.style_outlined,
+              size: 48,
+              color: AppColors.contentPlaceholder,
+            ),
             const SizedBox(height: 12),
             Text(
               'Chưa có vé nào được quét',
               style: AppTypography.subtitle2(
                 fontWeight: FontWeight.w600,
-                color: Colors.grey[700],
+                color: AppColors.contentSecondary,
               ),
             ),
             const SizedBox(height: 4),
@@ -562,7 +492,7 @@ class _AdminScanViewState extends State<AdminScanView> {
               textAlign: TextAlign.center,
               style: AppTypography.caption(
                 fontSize: 12,
-                color: Colors.grey[500],
+                color: AppColors.contentMuted,
               ),
             ),
           ],
@@ -574,7 +504,7 @@ class _AdminScanViewState extends State<AdminScanView> {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: tickets.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
         final ticket = tickets[index];
         return Card(
@@ -600,7 +530,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                       : Container(
                           width: 60,
                           height: 60,
-                          color: Colors.grey[200],
+                          color: AppColors.surfaceNeutral,
                           child: const Icon(Icons.confirmation_number_rounded),
                         ),
                 ),
@@ -626,7 +556,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.green.withValues(alpha: 0.15),
+                              color: AppColors.statusSuccessSurface,
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -634,7 +564,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                               style: AppTypography.caption(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.green[800],
+                                color: AppColors.statusSuccessForeground,
                               ),
                             ),
                           ),
@@ -654,7 +584,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                         'Độ tin cậy OCR: ${(ticket.confidence * 100).toStringAsFixed(0)}% • Đã gửi Web',
                         style: AppTypography.caption(
                           fontSize: 11,
-                          color: Colors.grey[600],
+                          color: AppColors.contentSecondary,
                         ),
                       ),
                     ],

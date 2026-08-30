@@ -134,11 +134,11 @@ class HomeTitleDate extends StatelessWidget {
                   color: AppColors.borderDefault,
                   width: 1.2,
                 ),
-                boxShadow: [
+                boxShadow: const [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: .03),
+                    color: AppColors.shadowFaint,
                     blurRadius: 8,
-                    offset: const Offset(0, 2),
+                    offset: Offset(0, 2),
                   ),
                 ],
               ),

@@ -481,11 +481,11 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
         color: AppColors.surfacePrimary,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: AppColors.borderLight, width: 0.8),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.025),
+            color: AppColors.shadowFaint,
             blurRadius: 6,
-            offset: const Offset(0, 1.5),
+            offset: Offset(0, 1.5),
           ),
         ],
       ),
