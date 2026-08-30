@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,13 +11,20 @@ import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 
-class CheckTicketView extends ConsumerWidget {
+class CheckTicketView extends ConsumerStatefulWidget {
   const CheckTicketView({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CheckTicketView> createState() => _CheckTicketViewState();
+}
+
+class _CheckTicketViewState extends ConsumerState<CheckTicketView> {
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(ticketCheckViewModelProvider);
     final vm = ref.read(ticketCheckViewModelProvider.notifier);
+    final winEffectKey = _winEffectKey(state);
+    final animationsDisabled = MediaQuery.of(context).disableAnimations;
 
     return Scaffold(
       backgroundColor: AppColors.pageBg,
@@ -129,9 +138,276 @@ class CheckTicketView extends ConsumerWidget {
               ),
             ),
           ),
+          if (winEffectKey != null)
+            _WinConfettiOverlay(
+              active: !animationsDisabled,
+              triggerKey: winEffectKey,
+            ),
         ],
       ),
     );
+  }
+
+  String? _winEffectKey(TicketCheckState state) {
+    final result = state.checkResult;
+    if (!state.hasChecked || result == null || !result.winning) {
+      return null;
+    }
+
+    final prizeKey = result.matchedPrizes
+        .map(
+          (prize) =>
+              '${prize.prizeDisplayName}:${prize.winningNumber}:${prize.prizeValue}',
+        )
+        .join('|');
+    final dateKey = state.selectedDate?.toIso8601String() ?? '';
+
+    return [
+      state.selectedStationId,
+      dateKey,
+      result.ticketNumber,
+      prizeKey,
+    ].join('|');
+  }
+}
+
+class _WinConfettiOverlay extends StatefulWidget {
+  const _WinConfettiOverlay({
+    required this.active,
+    required this.triggerKey,
+  });
+
+  final bool active;
+  final String triggerKey;
+
+  @override
+  State<_WinConfettiOverlay> createState() => _WinConfettiOverlayState();
+}
+
+class _WinConfettiOverlayState extends State<_WinConfettiOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  List<_ConfettiParticle> _particles = const [];
+
+  static const List<Color> _palette = [
+    AppColors.primary,
+    AppColors.statusWarning,
+    AppColors.statusSuccess,
+    AppColors.brandSecondary,
+    AppColors.surfacePrimary,
+    AppColors.brandPrimaryCrimson,
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3400),
+    );
+
+    if (widget.active) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _restart();
+        }
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _WinConfettiOverlay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.active) {
+      _controller.stop();
+      return;
+    }
+
+    if (oldWidget.triggerKey != widget.triggerKey || !oldWidget.active) {
+      _restart();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _restart() {
+    _particles = _buildParticles(math.Random(widget.triggerKey.hashCode));
+    HapticFeedback.mediumImpact();
+    _controller.forward(from: 0);
+  }
+
+  List<_ConfettiParticle> _buildParticles(math.Random random) {
+    final particles = <_ConfettiParticle>[];
+
+    void addParticle({
+      required Offset start,
+      required Offset velocity,
+      required double gravity,
+      required double size,
+      required _ConfettiShape shape,
+    }) {
+      particles.add(
+        _ConfettiParticle(
+          start: start,
+          velocity: velocity,
+          gravity: gravity,
+          size: size,
+          color: _palette[random.nextInt(_palette.length)],
+          rotation: random.nextDouble() * math.pi,
+          rotationSpeed: (random.nextDouble() * 5 + 2) *
+              (random.nextBool() ? 1 : -1),
+          wobble: random.nextDouble() * math.pi * 2,
+          shape: shape,
+        ),
+      );
+    }
+
+    for (var i = 0; i < 92; i++) {
+      final fromLeft = i.isEven;
+      final angle = (fromLeft ? -52 : -128) + random.nextDouble() * 34;
+      final radians = angle * math.pi / 180;
+      final speed = 0.58 + random.nextDouble() * 0.55;
+
+      addParticle(
+        start: Offset(
+          fromLeft ? -0.04 : 1.04,
+          0.78 + random.nextDouble() * 0.1,
+        ),
+        velocity: Offset(math.cos(radians) * speed, math.sin(radians) * speed),
+        gravity: 0.72 + random.nextDouble() * 0.32,
+        size: 6 + random.nextDouble() * 7,
+        shape: i % 5 == 0 ? _ConfettiShape.circle : _ConfettiShape.rectangle,
+      );
+    }
+
+    for (var i = 0; i < 80; i++) {
+      addParticle(
+        start: Offset(random.nextDouble(), -0.12 - random.nextDouble() * 0.12),
+        velocity: Offset(
+          (random.nextDouble() - 0.5) * 0.24,
+          0.28 + random.nextDouble() * 0.3,
+        ),
+        gravity: 0.2 + random.nextDouble() * 0.22,
+        size: 5 + random.nextDouble() * 6,
+        shape: i % 4 == 0 ? _ConfettiShape.circle : _ConfettiShape.rectangle,
+      );
+    }
+
+    return particles;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.active) {
+      return const SizedBox.shrink();
+    }
+
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) {
+            return CustomPaint(
+              painter: _ConfettiPainter(
+                particles: _particles,
+                progress: Curves.easeOutCubic.transform(_controller.value),
+                rawProgress: _controller.value,
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+enum _ConfettiShape { circle, rectangle }
+
+class _ConfettiParticle {
+  const _ConfettiParticle({
+    required this.start,
+    required this.velocity,
+    required this.gravity,
+    required this.size,
+    required this.color,
+    required this.rotation,
+    required this.rotationSpeed,
+    required this.wobble,
+    required this.shape,
+  });
+
+  final Offset start;
+  final Offset velocity;
+  final double gravity;
+  final double size;
+  final Color color;
+  final double rotation;
+  final double rotationSpeed;
+  final double wobble;
+  final _ConfettiShape shape;
+}
+
+class _ConfettiPainter extends CustomPainter {
+  const _ConfettiPainter({
+    required this.particles,
+    required this.progress,
+    required this.rawProgress,
+  });
+
+  final List<_ConfettiParticle> particles;
+  final double progress;
+  final double rawProgress;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final fade = (1 - ((rawProgress - 0.74) / 0.26).clamp(0.0, 1.0));
+    final paint = Paint()..style = PaintingStyle.fill;
+
+    for (final particle in particles) {
+      final travelX = particle.velocity.dx * progress;
+      final travelY =
+          particle.velocity.dy * progress + particle.gravity * progress * progress;
+      final wobble =
+          math.sin(progress * math.pi * 4 + particle.wobble) * 0.018;
+      final x = (particle.start.dx + travelX + wobble) * size.width;
+      final y = (particle.start.dy + travelY) * size.height;
+
+      if (y > size.height + 32 || x < -32 || x > size.width + 32) {
+        continue;
+      }
+
+      paint.color = particle.color.withValues(alpha: fade);
+      canvas.save();
+      canvas.translate(x, y);
+      canvas.rotate(particle.rotation + progress * particle.rotationSpeed);
+
+      if (particle.shape == _ConfettiShape.circle) {
+        canvas.drawCircle(Offset.zero, particle.size * 0.42, paint);
+      } else {
+        final rect = Rect.fromCenter(
+          center: Offset.zero,
+          width: particle.size * 0.72,
+          height: particle.size * 1.28,
+        );
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(rect, Radius.circular(particle.size * 0.18)),
+          paint,
+        );
+      }
+
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ConfettiPainter oldDelegate) {
+    return oldDelegate.progress != progress ||
+        oldDelegate.rawProgress != rawProgress ||
+        oldDelegate.particles != particles;
   }
 }
 
@@ -829,34 +1105,74 @@ class _FormStateState extends State<_FormState> {
     final selected = await showModalBottomSheet<LotteryStationDraw>(
       context: context,
       showDragHandle: true,
+      backgroundColor: AppColors.surfacePrimary,
       builder: (context) {
-        return SafeArea(
-          child: ListView.separated(
-            shrinkWrap: true,
-            itemCount: state.stations.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final station = state.stations[index];
-              final isSelected = station.id == state.selectedStationId;
-              return ListTile(
-                leading: Icon(
-                  Icons.place_outlined,
-                  color:
-                      isSelected ? AppColors.primary : AppColors.contentSubtle,
-                ),
-                title: Text(
-                  station.province,
-                  style: AppTypography.bodyMedium(
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected ? AppColors.primary : null,
+        return Theme(
+          data: Theme.of(context).copyWith(
+            bottomSheetTheme: const BottomSheetThemeData(
+              backgroundColor: AppColors.surfacePrimary,
+              modalBackgroundColor: AppColors.surfacePrimary,
+            ),
+          ),
+          child: SafeArea(
+            child: ColoredBox(
+              color: AppColors.surfacePrimary,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 10, 24, 22),
+                    child: Text(
+                      'Chọn đài vé số',
+                      textAlign: TextAlign.center,
+                      style: AppTypography.h4(
+                        fontSize: 21,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.contentHeading,
+                      ),
+                    ),
                   ),
-                ),
-                trailing: isSelected
-                    ? const Icon(Icons.check, color: AppColors.primary)
-                    : null,
-                onTap: () => Navigator.of(context).pop(station),
-              );
-            },
+                  const Divider(height: 1, color: AppColors.borderSubtle),
+                  Flexible(
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: state.stations.length,
+                      separatorBuilder: (_, _) => const Divider(
+                        height: 1,
+                        color: AppColors.borderSubtle,
+                      ),
+                      itemBuilder: (context, index) {
+                        final station = state.stations[index];
+                        final isSelected = station.id == state.selectedStationId;
+                        return InkWell(
+                          onTap: () => Navigator.of(context).pop(station),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 20,
+                            ),
+                            color: AppColors.surfacePrimary,
+                            child: Text(
+                              station.province,
+                              style: AppTypography.bodyLarge(
+                                fontSize: 18,
+                                fontWeight: isSelected
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : AppColors.contentHeading,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         );
       },
