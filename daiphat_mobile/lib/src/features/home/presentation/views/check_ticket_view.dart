@@ -5,11 +5,18 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import 'package:go_router/go_router.dart';
+import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
+import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
+import 'package:daiphat_mobile/src/features/chat/presentation/views/chat_screen.dart';
 import 'package:daiphat_mobile/src/features/home/data/models/ticket_check_models.dart';
 import 'package:daiphat_mobile/src/features/home/presentation/viewmodels/ticket_check_viewmodel.dart';
+import 'package:daiphat_mobile/src/features/notifications/presentation/providers/notification_providers.dart';
+import 'package:daiphat_mobile/src/shared/providers/api_providers.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
+import 'package:daiphat_mobile/src/shared/widgets/app_header_action_button.dart';
 
 class CheckTicketView extends ConsumerStatefulWidget {
   const CheckTicketView({super.key});
@@ -411,36 +418,53 @@ class _ConfettiPainter extends CustomPainter {
   }
 }
 
-class _HeaderBar extends StatelessWidget {
+class _HeaderBar extends ConsumerWidget {
   const _HeaderBar();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isAuthenticated =
+        (ref.watch(apiClientProvider).accessToken ?? '').isNotEmpty;
+    final unreadCount = isAuthenticated
+        ? ref.watch(unreadNotificationCountProvider)
+        : 0;
+    final count = isAuthenticated ? ref.watch(cartTicketCountProvider) : 0;
+
     return Row(
       children: [
         Text('Dò vé', style: AppTypography.pageTitle()),
         const Spacer(),
-        Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: AppColors.surfacePrimary,
-            shape: BoxShape.circle,
-            border: Border.all(color: AppColors.borderDecorative),
-            boxShadow: const [
-              BoxShadow(
-                color: AppColors.shadowLight,
-                blurRadius: 8,
-                offset: Offset(0, 2),
-              ),
-            ],
+        if (isAuthenticated) ...[
+          AppHeaderActionButton(
+            icon: Icons.notifications_outlined,
+            tooltip: 'Thông báo',
+            badgeCount: unreadCount,
+            onTap: () => context.push(AppRoute.notifications.path),
           ),
-          child: const Icon(
-            Icons.search_rounded,
-            color: AppColors.primary,
-            size: 20,
+          const SizedBox(width: 8),
+          AppHeaderActionButton(
+            icon: Icons.chat_bubble_outline_rounded,
+            tooltip: 'Trò chuyện / Hỗ trợ',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => ChatScreen(
+                    isAuthenticated: true,
+                    isActive: true,
+                    onBack: () => Navigator.of(context).pop(),
+                  ),
+                ),
+              );
+            },
           ),
-        ),
+          const SizedBox(width: 8),
+          AppHeaderActionButton(
+            icon: Icons.shopping_cart_outlined,
+            tooltip: 'Giỏ hàng',
+            badgeCount: count,
+            onTap: () => context.push(AppRoute.cart.path),
+          ),
+        ],
       ],
     );
   }

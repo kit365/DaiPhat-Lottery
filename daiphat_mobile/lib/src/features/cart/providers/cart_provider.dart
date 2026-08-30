@@ -91,11 +91,6 @@ class CartNotifier extends Notifier<List<CartItemData>> {
         .fold(0, (sum, e) => sum + e.quantity);
   }
 
-  void removeItem(CartItemData item) {
-    state = state.where((element) => element != item).toList();
-    _saveToHive(state);
-  }
-
   void removeAtIndex(int index) {
     if (index >= 0 && index < state.length) {
       final newState = List<CartItemData>.from(state);
@@ -198,35 +193,7 @@ final checkoutItemsProvider = Provider<List<CartItemData>>((ref) {
   return ref.watch(cartProvider);
 });
 
-final isBuyNowCheckoutProvider = Provider<bool>((ref) {
-  return ref.watch(buyNowItemsProvider) != null;
-});
-
-final cartSubtotalProvider = Provider<int>((ref) {
-  final items = ref.watch(cartProvider);
-  return items.fold(0, (sum, item) => sum + item.subtotal);
-});
-
 final cartTicketCountProvider = Provider<int>((ref) {
   final items = ref.watch(cartProvider);
   return items.fold(0, (sum, item) => sum + item.quantity);
-});
-
-final cartTotalProvider = Provider<int>((ref) {
-  final subtotal = ref.watch(cartSubtotalProvider);
-  return subtotal;
-});
-
-final checkoutSubtotalProvider = Provider<int>((ref) {
-  final items = ref.watch(checkoutItemsProvider);
-  return items.fold(0, (sum, item) => sum + item.subtotal);
-});
-
-final checkoutTicketCountProvider = Provider<int>((ref) {
-  final items = ref.watch(checkoutItemsProvider);
-  return items.fold(0, (sum, item) => sum + item.quantity);
-});
-
-final checkoutTotalProvider = Provider<int>((ref) {
-  return ref.watch(checkoutSubtotalProvider);
 });

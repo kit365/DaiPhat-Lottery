@@ -143,6 +143,16 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                   onTap: () => context.push(AppRoute.profileDetail.path),
                 ),
                 const SizedBox(width: 8),
+                ListenableBuilder(
+                  listenable: widget.notificationViewModel,
+                  builder: (context, _) => AppHeaderActionButton(
+                    icon: Icons.notifications_outlined,
+                    tooltip: 'Thông báo',
+                    badgeCount: widget.notificationViewModel.unreadCount,
+                    onTap: () => context.push(AppRoute.notifications.path),
+                  ),
+                ),
+                const SizedBox(width: 8),
                 AppHeaderActionButton(
                   icon: Icons.chat_bubble_outline_rounded,
                   tooltip: 'Trò chuyện / Hỗ trợ',

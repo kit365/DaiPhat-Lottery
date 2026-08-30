@@ -50,13 +50,6 @@ class RefundDetailViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> reloadBanks() async {
-    try {
-      _myBanks = await _bankAccountService.getMyAccounts();
-      notifyListeners();
-    } catch (_) {}
-  }
-
   /// Trả về null nếu thành công, ngược lại trả về message lỗi.
   Future<String?> attachBankAccount(int bankAccountId) async {
     _isSubmitting = true;

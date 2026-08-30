@@ -68,10 +68,6 @@ String? buildBirthDateIso(String day, String month, String year, [DateTime? now]
   return '$y-${m.toString().padLeft(2, '0')}-${d.toString().padLeft(2, '0')}';
 }
 
-DateTime? parseBuyDrawDate(String? iso) {
-  return _parseCalendarDate(iso);
-}
-
 ({String ticketNumber, String? drawDate}) parseFortuneBuyPath(String buyPath) {
   final uri = Uri.tryParse(buyPath.startsWith('/') ? 'https://local$buyPath' : buyPath);
   if (uri == null) {

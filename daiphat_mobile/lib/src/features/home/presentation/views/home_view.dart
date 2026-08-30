@@ -37,35 +37,6 @@ class HomeView extends ConsumerWidget {
       ),
     );
   }
-
-  static Widget buildSkeleton() => ListView(
-    padding: EdgeInsets.zero,
-    children: [
-      Shimmer.fromColors(
-        baseColor: AppColors.neutral300,
-        highlightColor: AppColors.neutral100,
-        child: Container(height: 120, color: AppColors.surfacePrimary),
-      ),
-      const SizedBox(height: 20),
-      ...List.generate(
-        3,
-        (_) => Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          child: Shimmer.fromColors(
-            baseColor: AppColors.neutral300,
-            highlightColor: AppColors.neutral100,
-            child: Container(
-              height: 100,
-              decoration: BoxDecoration(
-                color: AppColors.surfacePrimary,
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-        ),
-      ),
-    ],
-  );
 }
 
 class _HomeContent extends ConsumerStatefulWidget {

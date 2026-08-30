@@ -22,18 +22,10 @@ class ProfileViewModel extends ChangeNotifier {
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
-  bool _showPhone = false;
-  bool get showPhone => _showPhone;
-
-  void togglePhoneVisibility() {
-    _showPhone = !_showPhone;
-    notifyListeners();
-  }
-
   Future<void> loadUser() async {
     _isLoading = true;
     notifyListeners();
-    
+
     try {
       await _authRepository.fetchCurrentUser();
     } catch (e) {
@@ -99,4 +91,3 @@ class ProfileViewModel extends ChangeNotifier {
     notifyListeners();
   }
 }
-

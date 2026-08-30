@@ -20,8 +20,15 @@ import 'package:daiphat_mobile/src/shared/storage/auth_token_storage.dart';
 class AppDependencies {
   final ApiClient apiClient;
   final GoRouter router;
+  final NotificationViewModel notificationViewModel;
+  final LoginViewModel loginViewModel;
 
-  const AppDependencies({required this.apiClient, required this.router});
+  const AppDependencies({
+    required this.apiClient,
+    required this.router,
+    required this.notificationViewModel,
+    required this.loginViewModel,
+  });
 
   static Future<AppDependencies> create() async {
     final documentsDirectory = await getApplicationDocumentsDirectory();
@@ -72,6 +79,8 @@ class AppDependencies {
         profileViewModel: profileViewModel,
         notificationViewModel: notificationViewModel,
       ),
+      notificationViewModel: notificationViewModel,
+      loginViewModel: loginViewModel,
     );
   }
 }

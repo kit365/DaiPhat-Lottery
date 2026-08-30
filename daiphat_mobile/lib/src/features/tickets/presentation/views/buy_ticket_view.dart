@@ -19,6 +19,7 @@ import 'package:daiphat_mobile/src/shared/widgets/brand_scrollbar.dart';
 import 'package:daiphat_mobile/src/features/cart/models/cart_item_model.dart';
 import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
 import 'package:daiphat_mobile/src/features/chat/presentation/views/chat_screen.dart';
+import 'package:daiphat_mobile/src/features/notifications/presentation/providers/notification_providers.dart';
 import 'package:daiphat_mobile/src/shared/providers/api_providers.dart';
 import '../viewmodels/buy_ticket_viewmodel.dart';
 import '../widgets/ticket_search_filter_sheet.dart';
@@ -1137,14 +1138,15 @@ class _AllTicketsHeader extends StatelessWidget {
           ),
           Consumer(
             builder: (context, ref, _) {
+              final unreadCount = ref.watch(unreadNotificationCountProvider);
               final count = ref.watch(cartTicketCountProvider);
               return Row(
                 children: [
                   AppHeaderActionButton(
-                    icon: Icons.shopping_cart_outlined,
-                    tooltip: 'Giỏ hàng',
-                    badgeCount: count,
-                    onTap: () => context.push(AppRoute.cart.path),
+                    icon: Icons.notifications_outlined,
+                    tooltip: 'Thông báo',
+                    badgeCount: unreadCount,
+                    onTap: () => context.push(AppRoute.notifications.path),
                   ),
                   const SizedBox(width: 8),
                   AppHeaderActionButton(
@@ -1161,6 +1163,13 @@ class _AllTicketsHeader extends StatelessWidget {
                         ),
                       );
                     },
+                  ),
+                  const SizedBox(width: 8),
+                  AppHeaderActionButton(
+                    icon: Icons.shopping_cart_outlined,
+                    tooltip: 'Giỏ hàng',
+                    badgeCount: count,
+                    onTap: () => context.push(AppRoute.cart.path),
                   ),
                 ],
               );
@@ -2199,9 +2208,19 @@ class _BuyTicketHeader extends StatelessWidget {
                       if (!isAuthenticated) {
                         return const SizedBox.shrink();
                       }
+                      final unreadCount =
+                          ref.watch(unreadNotificationCountProvider);
                       final count = ref.watch(cartTicketCountProvider);
                       return Row(
                         children: [
+                          AppHeaderActionButton(
+                            icon: Icons.notifications_outlined,
+                            tooltip: 'Thông báo',
+                            badgeCount: unreadCount,
+                            onTap: () =>
+                                context.push(AppRoute.notifications.path),
+                          ),
+                          const SizedBox(width: 8),
                           AppHeaderActionButton(
                             icon: Icons.chat_bubble_outline_rounded,
                             tooltip: 'Trò chuyện / Hỗ trợ',
