@@ -86,13 +86,11 @@ class HomeTitleDate extends StatelessWidget {
                     ),
                     Text(
                       'KẾT QUẢ XỔ SỐ',
-                      style: AppTypography.display(
-                        const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.primary,
-                          letterSpacing: .6,
-                        ),
+                      style: AppTypography.h6(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.primary,
+                        letterSpacing: .6,
                       ),
                     ),
                   ],
@@ -102,26 +100,19 @@ class HomeTitleDate extends StatelessWidget {
                   _isToday
                       ? 'HÔM NAY'
                       : (_isYesterday ? 'HÔM QUA' : weekday.toUpperCase()),
-                  style: AppTypography.display(
-                    const TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.textMain,
-                      height: 1.15,
-                      letterSpacing: .5,
-                    ),
+                  style: AppTypography.h2(
+                    color: AppColors.textMain,
+                    height: 1.15,
+                    letterSpacing: .5,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   '$weekday, $_dateStr',
-                  style: AppTypography.main(
-                    const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.textMuted,
-                    ),
+                  style: AppTypography.bodySmall(
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textMuted,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -172,7 +163,7 @@ class HomeTitleDate extends StatelessWidget {
                           child: Center(
                             child: Icon(
                               Icons.chevron_left_rounded,
-                              color: Color(0xFF4B5563),
+                              color: AppColors.contentSecondary,
                               size: 20,
                             ),
                           ),
@@ -205,19 +196,17 @@ class HomeTitleDate extends StatelessWidget {
                                 const SizedBox(width: 4),
                                 Text(
                                   _dateStr,
-                                  style: AppTypography.main(
-                                    const TextStyle(
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: Color(0xFF1F2937),
-                                      letterSpacing: -0.2,
-                                    ),
+                                  style: AppTypography.labelMedium(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.contentPrimary,
+                                    letterSpacing: -0.2,
                                   ),
                                 ),
                                 const SizedBox(width: 2),
                                 const Icon(
                                   Icons.expand_more_rounded,
-                                  color: Color(0xFF9CA3AF),
+                                  color: AppColors.contentDisabled,
                                   size: 16,
                                 ),
                               ],
@@ -248,8 +237,8 @@ class HomeTitleDate extends StatelessWidget {
                             child: Icon(
                               Icons.chevron_right_rounded,
                               color: _canGoNext
-                                  ? const Color(0xFF4B5563)
-                                  : const Color(0xFFD1D5DB),
+                                  ? AppColors.contentSecondary
+                                  : AppColors.borderDisabled,
                               size: 20,
                             ),
                           ),

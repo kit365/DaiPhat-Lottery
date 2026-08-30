@@ -249,8 +249,8 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
                     child: OutlinedButton.icon(
                       onPressed: () => _openEditForm(ticket),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF2065D1),
-                        side: const BorderSide(color: Color(0xFF2065D1)),
+                        foregroundColor: AppColors.brandSecondary,
+                        side: const BorderSide(color: AppColors.brandSecondary),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -376,7 +376,7 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFFF9FAFB),
+              color: AppColors.surfaceSlate50,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: AppColors.borderLight),
             ),
@@ -451,7 +451,7 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: const Color(0xFFF0F5FF),
+                color: AppColors.statusInfoSurface,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -465,7 +465,7 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
                       style: AppTypography.mainWith(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
-                        color: const Color(0xFF2065D1),
+                        color: AppColors.brandSecondary,
                       ),
                     ),
                   ),
@@ -474,7 +474,7 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
                     const Icon(
                       Icons.open_in_new_rounded,
                       size: 13,
-                      color: Color(0xFF2065D1),
+                      color: AppColors.brandSecondary,
                     ),
                   ],
                 ],
@@ -518,8 +518,8 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
     switch (ticket.status) {
       case TicketStatus.resolved:
         return _banner(
-          color: const Color(0xFFE4F8ED),
-          iconBg: const Color(0xFF1CD162),
+          color: AppColors.statusSuccessSurface,
+          iconBg: AppColors.statusSuccess,
           icon: Icons.check_rounded,
           title: 'Đã giải quyết',
           subtitle: ticket.resolvedAt != null
@@ -536,8 +536,8 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
         );
       case TicketStatus.rejected:
         return _banner(
-          color: const Color(0xFFFFF0F0),
-          iconBg: const Color(0xFFB71D18),
+          color: AppColors.surfaceDestructiveSoft,
+          iconBg: AppColors.brandPrimaryCrimson,
           icon: Icons.cancel_rounded,
           title: 'Đã từ chối',
           subtitle: _resolveReasonText(ticket),
@@ -604,7 +604,7 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
                   subtitle,
                   style: AppTypography.mainWith(
                     fontSize: 13,
-                    color: const Color(0xFF454F5B),
+                    color: AppColors.contentSlate700,
                     height: 1.5,
                   ),
                 ),
@@ -693,7 +693,9 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isCustomer ? AppColors.primary : AppColors.surfaceNeutral,
+                color: isCustomer
+                    ? AppColors.primary
+                    : AppColors.surfaceNeutral,
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Column(
@@ -704,7 +706,9 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
                       comment.content,
                       style: AppTypography.mainWith(
                         fontSize: 14,
-                        color: isCustomer ? AppColors.surfacePrimary : AppColors.textMain,
+                        color: isCustomer
+                            ? AppColors.surfacePrimary
+                            : AppColors.textMain,
                         height: 1.4,
                       ),
                     ),
@@ -777,7 +781,7 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
         decoration: const BoxDecoration(
           color: AppColors.surfacePrimary,
-          border: Border(top: BorderSide(color: Color(0xFFEEEEEE))),
+          border: Border(top: BorderSide(color: AppColors.borderLight)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -807,6 +811,7 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
                       ),
                     ),
                     IconButton(
+                      tooltip: 'Xóa ảnh đính kèm',
                       icon: const Icon(Icons.close_rounded, size: 18),
                       onPressed: () =>
                           setState(() => _commentAttachment = null),
@@ -818,6 +823,7 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 IconButton(
+                  tooltip: 'Đính kèm ảnh',
                   icon: const Icon(
                     Icons.image_outlined,
                     color: AppColors.textMuted,
@@ -867,6 +873,7 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
                         ),
                       )
                     : IconButton(
+                        tooltip: 'Gửi phản hồi',
                         icon: const Icon(
                           Icons.send_rounded,
                           color: AppColors.primary,
@@ -888,7 +895,7 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
         padding: const EdgeInsets.all(16),
         decoration: const BoxDecoration(
           color: AppColors.surfacePrimary,
-          border: Border(top: BorderSide(color: Color(0xFFEEEEEE))),
+          border: Border(top: BorderSide(color: AppColors.borderLight)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -911,7 +918,7 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
                         ? null
                         : () => _submitFeedback(true),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF00A76F),
+                      backgroundColor: AppColors.statusSuccess,
                       foregroundColor: AppColors.surfacePrimary,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
@@ -966,7 +973,7 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
         padding: const EdgeInsets.all(16),
         decoration: const BoxDecoration(
           color: AppColors.surfacePrimary,
-          border: Border(top: BorderSide(color: Color(0xFFEEEEEE))),
+          border: Border(top: BorderSide(color: AppColors.borderLight)),
         ),
         child: Text(
           text,
@@ -1015,7 +1022,7 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
       decoration: BoxDecoration(
         color: AppColors.surfacePrimary,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEEEEEE)),
+        border: Border.all(color: AppColors.borderLight),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1042,7 +1049,7 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
               ),
             ],
           ),
-          const Divider(height: 24, color: Color(0xFFF0F0F0)),
+          const Divider(height: 24, color: AppColors.borderLight),
           child,
         ],
       ),

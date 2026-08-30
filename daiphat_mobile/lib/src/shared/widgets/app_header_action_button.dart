@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 
 enum AppHeaderActionVariant { light, translucent }
 
@@ -64,6 +65,8 @@ class AppHeaderActionButton extends StatelessWidget {
 
     if (variant == AppHeaderActionVariant.light) {
       button = Container(
+        width: size,
+        height: size,
         decoration: BoxDecoration(
           borderRadius: effectiveBorderRadius,
           boxShadow: [
@@ -78,37 +81,44 @@ class AppHeaderActionButton extends StatelessWidget {
       );
     }
 
-    final buttonWithBadge = Stack(
-      clipBehavior: Clip.none,
-      children: [
-        button,
-        if (badgeCount > 0)
-          Positioned(
-            right: -3,
-            top: -3,
-            child: IgnorePointer(
-              child: Container(
-                constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.goldDark,
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: AppColors.surfacePrimary, width: 1.5),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  badgeCount > 99 ? '99+' : '$badgeCount',
-                  style: const TextStyle(
-                    color: AppColors.surfacePrimary,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    height: 1,
+    final buttonWithBadge = SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          button,
+          if (badgeCount > 0)
+            Positioned(
+              right: -3,
+              top: -3,
+              child: IgnorePointer(
+                child: Container(
+                  constraints:
+                      const BoxConstraints(minWidth: 18, minHeight: 18),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.goldDark,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: AppColors.surfacePrimary,
+                      width: 1.5,
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    badgeCount > 99 ? '99+' : '$badgeCount',
+                    style: AppTypography.overline(
+                      color: AppColors.surfacePrimary,
+                      fontSize: 10,
+                      height: 1,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
 
     if (tooltip != null && tooltip!.isNotEmpty) {

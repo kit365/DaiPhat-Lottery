@@ -264,7 +264,7 @@ class _ComplaintRefPickerSheetState extends State<_ComplaintRefPickerSheet> {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: const Color(0xFFDFE3E8),
+              color: AppColors.borderLight,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -357,7 +357,7 @@ class _ComplaintRefPickerSheetState extends State<_ComplaintRefPickerSheet> {
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: !item.eligible
-                  ? const Color(0xFFF9FAFB)
+                  ? AppColors.surfaceSlate50
                   : selected
                   ? AppColors.statusErrorSurface
                   : AppColors.surfacePrimary,

@@ -169,7 +169,6 @@ GoRouter createAppRouter({
                 name: AppRoute.utilitiesTwo.name,
                 builder: (context, state) => UtilitiesTwoView(
                   isAuthenticated: loginViewModel.isAuthenticated,
-                  onBack: () => context.go(AppRoute.home.path),
                   onOpenNotifications: () =>
                       context.go(AppRoute.notifications.path),
                   onOpenBlog: () => context.push(AppRoute.blog.path),
@@ -203,7 +202,8 @@ GoRouter createAppRouter({
                     path: 'security',
                     name: AppRoute.security.name,
                     parentNavigatorKey: rootNavigatorKey,
-                    builder: (context, state) => const SecurityView(),
+                    builder: (context, state) =>
+                        SecurityView(profileViewModel: profileViewModel),
                   ),
                 ],
               ),
@@ -532,7 +532,7 @@ Widget _buildRoute(
         notificationViewModel: notificationViewModel,
       );
     case AppRoute.security:
-      return const SecurityView();
+      return SecurityView(profileViewModel: profileViewModel);
     case AppRoute.profileEdit:
       return ProfileEditView(viewModel: profileViewModel);
     case AppRoute.profileDetail:
@@ -610,7 +610,6 @@ Widget _buildRoute(
     case AppRoute.utilitiesTwo:
       return UtilitiesTwoView(
         isAuthenticated: loginViewModel.isAuthenticated,
-        onBack: () => context.go(AppRoute.home.path),
         onOpenNotifications: () => context.go(AppRoute.notifications.path),
         onOpenBlog: () => context.push(AppRoute.blog.path),
       );

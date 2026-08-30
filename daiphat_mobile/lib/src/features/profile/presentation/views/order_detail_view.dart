@@ -81,17 +81,17 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
   Color _statusColor(String status) {
     switch (status) {
       case 'PENDING_PAYMENT':
-        return const Color(0xFFF57C00);
+        return AppColors.statusWarningForeground;
       case 'PAID':
-        return const Color(0xFF1565C0);
+        return AppColors.statusInfoForeground;
       case 'PREPARING':
-        return const Color(0xFF6A1B9A);
+        return AppColors.payoutInPersonForeground;
       case 'PENDING_PICKUP':
-        return const Color(0xFF00695C);
+        return AppColors.payoutCompleteForeground;
       case 'COMPLETED':
-        return const Color(0xFF2E7D32);
+        return AppColors.statusSuccessForeground;
       case 'CANCELLED':
-        return const Color(0xFF757575);
+        return AppColors.contentMuted;
       default:
         return AppColors.textMuted;
     }
@@ -153,7 +153,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
       builder: (context, _) {
         final order = _viewModel.order;
         return Scaffold(
-          backgroundColor: AppColors.surfaceCanvas,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           appBar: _buildAppBar(order),
           body: _buildBody(order),
           bottomNavigationBar: _viewModel.isPendingPayment
@@ -166,7 +166,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
 
   AppBar _buildAppBar(OrderResponse? order) {
     return AppBar(
-      backgroundColor: AppColors.surfacePrimary,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       surfaceTintColor: AppColors.transparent,
       elevation: 0,
       leading: IconButton(
@@ -327,7 +327,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                 child: Container(
                   height: 3,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF0F0F0),
+                    color: AppColors.borderLight,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -343,7 +343,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                       (constraints.maxWidth * 0.8) *
                       (current / (_stepLabels.length - 1)),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF00A76F),
+                    color: AppColors.statusSuccessForeground,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -362,7 +362,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                         height: 40,
                         decoration: BoxDecoration(
                           color: done
-                              ? const Color(0xFF00A76F)
+                              ? AppColors.statusSuccessForeground
                               : AppColors.surfaceNeutral,
                           shape: BoxShape.circle,
                           boxShadow: done
@@ -380,7 +380,9 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                         child: Icon(
                           _stepIcons[i],
                           size: 18,
-                          color: done ? AppColors.surfacePrimary : AppColors.textMuted,
+                          color: done
+                              ? AppColors.surfacePrimary
+                              : AppColors.textMuted,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -412,7 +414,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
       decoration: BoxDecoration(
         color: AppColors.statusErrorSurface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFFEBEE)),
+        border: Border.all(color: AppColors.statusErrorSurface),
       ),
       child: Row(
         children: [
@@ -464,10 +466,10 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
     final countdown = _formatCountdown(_viewModel.remainingSeconds);
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFBF0),
+        color: AppColors.surfaceWarning,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0xFFFFB020).withValues(alpha: 0.4),
+          color: AppColors.statusWarningAccent.withValues(alpha: 0.4),
         ),
       ),
       child: Column(
@@ -484,13 +486,13 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                       width: 22,
                       height: 22,
                       decoration: const BoxDecoration(
-                        color: Color(0xFFFFB020),
+                        color: AppColors.statusWarningAccent,
                         shape: BoxShape.circle,
                       ),
-                      child: const Center(
+                      child: Center(
                         child: Text(
                           '!',
-                          style: TextStyle(
+                          style: AppTypography.caption(
                             color: AppColors.surfacePrimary,
                             fontSize: 13,
                             fontWeight: FontWeight.w900,
@@ -504,7 +506,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                       style: AppTypography.mainWith(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
-                        color: const Color(0xFFFFB020),
+                        color: AppColors.statusWarningAccent,
                       ),
                     ),
                   ],
@@ -531,7 +533,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
               color: AppColors.surfacePrimary,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: const Color(0xFFFFB020).withValues(alpha: 0.25),
+                color: AppColors.statusWarningAccent.withValues(alpha: 0.25),
               ),
             ),
             child: Row(
@@ -558,7 +560,9 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                         decoration: BoxDecoration(
                           color: AppColors.statusErrorSurface,
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFFFFEBEE)),
+                          border: Border.all(
+                            color: AppColors.statusErrorSurface,
+                          ),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -635,7 +639,11 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
       children: [
         const Padding(
           padding: EdgeInsets.only(top: 3),
-          child: Icon(Icons.circle, size: 6, color: Color(0xFFFFB020)),
+          child: Icon(
+            Icons.circle,
+            size: 6,
+            color: AppColors.statusWarningAccent,
+          ),
         ),
         const SizedBox(width: 8),
         Expanded(
@@ -643,7 +651,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
             text,
             style: AppTypography.mainWith(
               fontSize: 13,
-              color: const Color(0xFF454F5B),
+              color: AppColors.contentNavy,
             ),
           ),
         ),
@@ -660,8 +668,8 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
         ? 'Tại quầy'
         : '-';
     final orderTypeColor = order.orderType == 'ONLINE'
-        ? const Color(0xFF2065D1)
-        : const Color(0xFFF57C00);
+        ? AppColors.statusInfoForeground
+        : AppColors.statusWarningForeground;
 
     return _card(
       icon: Icons.receipt_long_outlined,
@@ -764,7 +772,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
               padding: const EdgeInsets.symmetric(vertical: 24),
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: const Color(0xFFF9FAFB),
+                color: AppColors.surfaceSoft,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: AppColors.borderLight),
               ),
@@ -804,7 +812,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF9FAFB),
+        color: AppColors.surfaceSoft,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.borderLight),
       ),
@@ -869,7 +877,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
             ),
           ),
 
-          const Divider(height: 1, color: Color(0xFFEEEEEE)),
+          const Divider(height: 1, color: AppColors.borderLight),
 
           Padding(
             padding: const EdgeInsets.all(14),
@@ -981,13 +989,15 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
   }
 
   Color _ticketStatusColor(String ticketStatus, String orderStatus) {
-    if (orderStatus == 'PENDING_PAYMENT') return const Color(0xFFF57C00);
-    if (orderStatus == 'CANCELLED') return const Color(0xFF757575);
+    if (orderStatus == 'PENDING_PAYMENT') {
+      return AppColors.statusWarningForeground;
+    }
+    if (orderStatus == 'CANCELLED') return AppColors.contentMuted;
     switch (ticketStatus) {
       case 'ACTIVE':
-        return const Color(0xFF2E7D32);
+        return AppColors.statusSuccessForeground;
       case 'REFUND_PENDING':
-        return const Color(0xFFF57C00);
+        return AppColors.statusWarningForeground;
       case 'REFUNDED':
         return AppColors.textMuted;
       default:
@@ -1031,7 +1041,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF9FAFB),
+                        color: AppColors.surfaceSoft,
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: AppColors.borderLight),
                       ),
@@ -1044,9 +1054,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                             decoration: BoxDecoration(
                               color: AppColors.surfacePrimary,
                               borderRadius: BorderRadius.circular(6),
-                              border: Border.all(
-                                color: AppColors.borderLight,
-                              ),
+                              border: Border.all(color: AppColors.borderLight),
                             ),
                             child: const Icon(
                               Icons.qr_code_rounded,
@@ -1105,14 +1113,14 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
           ),
 
           const SizedBox(height: 16),
-          const Divider(color: Color(0xFFF0F0F0)),
+          const Divider(color: AppColors.borderLight),
           const SizedBox(height: 16),
 
           // cost breakdown
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: const Color(0xFFF9FAFB),
+              color: AppColors.surfaceSoft,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: AppColors.borderLight),
             ),
@@ -1128,7 +1136,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                 _costRow(
                   'Phí dịch vụ',
                   'Miễn phí',
-                  valueColor: const Color(0xFF00A76F),
+                  valueColor: AppColors.statusSuccessForeground,
                 ),
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 12),
@@ -1206,9 +1214,9 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
   Color _txStatusColor(String? status) {
     switch (status) {
       case 'COMPLETED':
-        return const Color(0xFF2E7D32);
+        return AppColors.statusSuccessForeground;
       case 'PENDING':
-        return const Color(0xFFF57C00);
+        return AppColors.statusWarningForeground;
       case 'FAILED':
       case 'CANCELLED':
         return AppColors.primary;
@@ -1225,7 +1233,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
     final items = [
       (
         Icons.shield_outlined,
-        const Color(0xFF00A76F),
+        AppColors.statusSuccessForeground,
         'Bảo mật thông tin',
         'Cam kết bảo mật tuyệt đối',
       ),
@@ -1312,7 +1320,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: const Color(0xFFF9FAFB),
+          color: AppColors.surfaceSoft,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppColors.borderLight),
         ),
@@ -1364,7 +1372,9 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
         color: low ? AppColors.statusWarningSurface : AppColors.surfaceSoft,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: low ? const Color(0x40FFB020) : AppColors.borderLight,
+          color: low
+              ? AppColors.statusWarningForeground.withValues(alpha: 0.25)
+              : AppColors.borderLight,
         ),
       ),
       child: Column(
@@ -1377,16 +1387,18 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: low ? const Color(0xFFFFF4E5) : AppColors.surfacePrimary,
+                  color: low
+                      ? AppColors.statusAttentionSurface
+                      : AppColors.surfacePrimary,
                   borderRadius: BorderRadius.circular(12),
-                  border: low
-                      ? null
-                      : Border.all(color: AppColors.borderLight),
+                  border: low ? null : Border.all(color: AppColors.borderLight),
                 ),
                 child: Icon(
                   Icons.replay_rounded,
                   size: 18,
-                  color: low ? AppColors.statusWarningForeground : AppColors.textMuted,
+                  color: low
+                      ? AppColors.statusWarningForeground
+                      : AppColors.textMuted,
                 ),
               ),
               const SizedBox(width: 12),
@@ -1462,12 +1474,12 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                 decoration: BoxDecoration(
                   color: low
                       ? AppColors.statusWarningSurface
-                      : const Color(0xFFF0F5FF),
+                      : AppColors.surfaceInfo,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: low
-                        ? const Color(0x66FFB020)
-                        : const Color(0x332065D1),
+                        ? AppColors.statusWarningForeground.withValues(alpha: 0.4)
+                        : AppColors.brandSecondary.withValues(alpha: 0.2),
                   ),
                 ),
                 child: Column(
@@ -1491,7 +1503,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                         fontWeight: FontWeight.w800,
                         color: low
                             ? AppColors.statusWarningForeground
-                            : const Color(0xFF2065D1),
+                            : AppColors.statusInfoForeground,
                       ),
                     ),
                   ],
@@ -1526,7 +1538,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF9FAFB),
+        color: AppColors.surfaceSoft,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.borderLight),
       ),
@@ -1589,7 +1601,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                 ),
               ),
               style: ElevatedButton.styleFrom(
-                disabledBackgroundColor: const Color(0xFFC4CDD5),
+                disabledBackgroundColor: AppColors.contentDisabled,
                 disabledForegroundColor: AppColors.surfacePrimary,
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(
@@ -1624,7 +1636,9 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
       decoration: BoxDecoration(
         color: AppColors.statusWarningSurface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0x40FFB020)),
+        border: Border.all(
+          color: AppColors.statusWarningForeground.withValues(alpha: 0.25),
+        ),
       ),
       child: Row(
         children: [
@@ -1632,7 +1646,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: const Color(0xFFFFF4E5),
+              color: AppColors.statusAttentionSurface,
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
@@ -1678,7 +1692,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
             ),
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.textMain,
-              side: const BorderSide(color: Color(0xFFDFE3E8)),
+              side: const BorderSide(color: AppColors.borderSubtle),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -1704,7 +1718,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
     final result = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surfacePrimary,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
@@ -1732,7 +1746,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
       ),
       decoration: BoxDecoration(
         color: AppColors.surfacePrimary,
-        border: const Border(top: BorderSide(color: Color(0xFFEEEEEE))),
+        border: const Border(top: BorderSide(color: AppColors.borderLight)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.08),
@@ -1863,7 +1877,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
             ],
           ),
           const SizedBox(height: 14),
-          const Divider(height: 1, color: Color(0xFFF4F4F4)),
+          const Divider(height: 1, color: AppColors.borderLight),
           const SizedBox(height: 14),
           child,
         ],

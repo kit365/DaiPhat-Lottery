@@ -137,7 +137,7 @@ class _TicketSearchFilterSheetState extends State<TicketSearchFilterSheet> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: const Color(0xFFD1D5DB),
+                color: AppColors.borderDisabled,
                 borderRadius: BorderRadius.circular(999),
               ),
             ),
@@ -148,12 +148,10 @@ class _TicketSearchFilterSheetState extends State<TicketSearchFilterSheet> {
                   Expanded(
                     child: Text(
                       'Lọc theo khoảng số',
-                      style: AppTypography.main(
-                        const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.ink,
-                        ),
+                      style: AppTypography.h4(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.ink,
                       ),
                     ),
                   ),
@@ -170,12 +168,10 @@ class _TicketSearchFilterSheetState extends State<TicketSearchFilterSheet> {
                 children: [
                   Text(
                     'Chọn khoảng 2 số cuối để lọc vé. Nhiều khoảng: khớp một khoảng là đủ. Kết hợp với loại số: phải thỏa cả hai nhóm.',
-                    style: AppTypography.main(
-                      const TextStyle(
-                        fontSize: 13,
-                        color: AppColors.textMuted,
-                        height: 1.4,
-                      ),
+                    style: AppTypography.bodySmall(
+                      fontSize: 13,
+                      color: AppColors.textMuted,
+                      height: 1.4,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -195,12 +191,10 @@ class _TicketSearchFilterSheetState extends State<TicketSearchFilterSheet> {
                   const SizedBox(height: 20),
                   Text(
                     'Tùy chọn đặc biệt',
-                    style: AppTypography.main(
-                      const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF475569),
-                      ),
+                    style: AppTypography.subtitle2(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.contentSlate600,
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -220,12 +214,10 @@ class _TicketSearchFilterSheetState extends State<TicketSearchFilterSheet> {
                   const SizedBox(height: 20),
                   Text(
                     'Thêm khoảng tùy chỉnh',
-                    style: AppTypography.main(
-                      const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF475569),
-                      ),
+                    style: AppTypography.subtitle2(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.contentSlate600,
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -237,11 +229,11 @@ class _TicketSearchFilterSheetState extends State<TicketSearchFilterSheet> {
                           prefix: 'Từ',
                         ),
                       ),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 8),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
                         child: Text(
                           '–',
-                          style: TextStyle(
+                          style: AppTypography.bodyMedium(
                             fontWeight: FontWeight.w700,
                             color: AppColors.contentSubtle,
                           ),
@@ -266,9 +258,11 @@ class _TicketSearchFilterSheetState extends State<TicketSearchFilterSheet> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          child: const Text(
+                          child: Text(
                             'Thêm',
-                            style: TextStyle(fontWeight: FontWeight.w800),
+                            style: AppTypography.buttonSmall(
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                         ),
                       ),
@@ -277,24 +271,20 @@ class _TicketSearchFilterSheetState extends State<TicketSearchFilterSheet> {
                   const SizedBox(height: 16),
                   Text(
                     'Khoảng đã chọn (${_draftRanges.length})',
-                    style: AppTypography.main(
-                      const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF475569),
-                      ),
+                    style: AppTypography.subtitle2(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.contentSlate600,
                     ),
                   ),
                   const SizedBox(height: 8),
                   if (_draftRanges.isEmpty)
                     Text(
                       'Chưa chọn khoảng nào',
-                      style: AppTypography.main(
-                        const TextStyle(
-                          fontSize: 13,
-                          fontStyle: FontStyle.italic,
-                          color: AppColors.contentSubtle,
-                        ),
+                      style: AppTypography.bodySmall(
+                        fontSize: 13,
+                        fontStyle: FontStyle.italic,
+                        color: AppColors.contentSubtle,
                       ),
                     )
                   else
@@ -312,8 +302,8 @@ class _TicketSearchFilterSheetState extends State<TicketSearchFilterSheet> {
                           },
                           deleteIconColor: AppColors.primary,
                           backgroundColor: AppColors.statusErrorSurface,
-                          side: const BorderSide(color: Color(0xFFFECDD3)),
-                          labelStyle: const TextStyle(
+                          side: const BorderSide(color: AppColors.brandPrimaryBorder),
+                          labelStyle: AppTypography.labelMedium(
                             color: AppColors.primary,
                             fontWeight: FontWeight.w700,
                           ),
@@ -331,16 +321,18 @@ class _TicketSearchFilterSheetState extends State<TicketSearchFilterSheet> {
                     child: OutlinedButton(
                       onPressed: _clear,
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF475569),
-                        side: const BorderSide(color: Color(0xFFCBD5E1)),
+                        foregroundColor: AppColors.contentSlate600,
+                        side: const BorderSide(color: AppColors.borderMuted),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
                       ),
-                      child: const Text(
+                      child: Text(
                         'Xóa bộ lọc',
-                        style: TextStyle(fontWeight: FontWeight.w800),
+                        style: AppTypography.buttonMedium(
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
                   ),
@@ -356,9 +348,11 @@ class _TicketSearchFilterSheetState extends State<TicketSearchFilterSheet> {
                           borderRadius: BorderRadius.circular(14),
                         ),
                       ),
-                      child: const Text(
+                      child: Text(
                         'Áp dụng',
-                        style: TextStyle(fontWeight: FontWeight.w800),
+                        style: AppTypography.buttonMedium(
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
                   ),
@@ -414,12 +408,10 @@ class _ChipButton extends StatelessWidget {
               ],
               Text(
                 label,
-                style: AppTypography.main(
-                  TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: selected ? AppColors.surfacePrimary : const Color(0xFF334155),
-                  ),
+                style: AppTypography.labelMedium(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: selected ? AppColors.surfacePrimary : AppColors.contentSlate700,
                 ),
               ),
             ],
@@ -443,11 +435,14 @@ class _DigitField extends StatelessWidget {
       keyboardType: TextInputType.number,
       maxLength: 2,
       textAlign: TextAlign.center,
-      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+      style: AppTypography.lotteryDigit(
+        fontWeight: FontWeight.w800,
+        fontSize: 15,
+      ),
       decoration: InputDecoration(
         counterText: '',
         prefixText: '$prefix ',
-        prefixStyle: const TextStyle(
+        prefixStyle: AppTypography.bodySmall(
           fontWeight: FontWeight.w500,
           fontSize: 13,
           color: AppColors.contentMuted,

@@ -15,14 +15,19 @@ class BrandScrollbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final platform = Theme.of(context).platform;
+    final isDesktop = platform == TargetPlatform.macOS ||
+        platform == TargetPlatform.windows ||
+        platform == TargetPlatform.linux;
+
     return RawScrollbar(
       controller: controller,
-      thumbVisibility: true,
-      trackVisibility: true,
+      thumbVisibility: isDesktop ? true : null,
+      trackVisibility: isDesktop ? true : false,
       thickness: 4,
       radius: const Radius.circular(999),
       thumbColor: const Color(0x66C90F1D),
-      trackColor: const Color(0x14C90F1D),
+      trackColor: isDesktop ? const Color(0x14C90F1D) : AppColors.transparent,
       trackBorderColor: AppColors.transparent,
       padding: const EdgeInsets.only(right: 2, top: 4, bottom: 4),
       child: child,

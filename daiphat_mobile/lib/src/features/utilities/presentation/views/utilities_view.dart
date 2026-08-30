@@ -6,6 +6,7 @@ import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
 import 'package:daiphat_mobile/src/features/chat/presentation/views/chat_screen.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:daiphat_mobile/src/shared/widgets/app_header_action_button.dart';
 
 class UtilitiesView extends ConsumerWidget {
@@ -143,15 +144,15 @@ class _UtilitiesHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFFBF1A22),
+      color: AppColors.brandPrimaryCrimson,
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
       child: Stack(
         alignment: Alignment.center,
         children: [
-          const Text(
+          Text(
             'Tiện Ích',
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: AppTypography.h3(
               fontSize: 20,
               fontWeight: FontWeight.w900,
               color: AppColors.surfacePrimary,
@@ -198,7 +199,7 @@ class _UtilitiesHero extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFFE9282D), Color(0xFFC90D0D)],
+          colors: [AppColors.brandPrimaryStrong, AppColors.brandPrimaryDarkRed],
         ),
         border: Border.all(color: AppColors.surfacePrimary.withValues(alpha: 0.22)),
         boxShadow: [
@@ -215,18 +216,18 @@ class _UtilitiesHero extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Khám phá ngay',
-                  style: TextStyle(
+                  style: AppTypography.subtitle1(
                     color: AppColors.surfacePrimary,
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'Những tiện ích\nhấp dẫn',
-                  style: TextStyle(
+                  style: AppTypography.h2(
                     color: AppColors.surfacePrimary,
                     fontSize: 28,
                     fontWeight: FontWeight.w900,
@@ -238,7 +239,7 @@ class _UtilitiesHero extends StatelessWidget {
                   onPressed: onTap,
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.transparent,
-                    foregroundColor: const Color(0xFF7A1B12),
+                    foregroundColor: AppColors.brandNavy,
                     shadowColor: AppColors.transparent,
                     padding: EdgeInsets.zero,
                     shape: RoundedRectangleBorder(
@@ -251,15 +252,15 @@ class _UtilitiesHero extends StatelessWidget {
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          Color(0xFFFFF2A3),
-                          Color(0xFFFFD23F),
-                          Color(0xFFFFA81D),
+                          AppColors.fortuneGoldLight,
+                          AppColors.brandAccentYellow,
+                          AppColors.brandAccentGoldAmber,
                         ],
                       ),
                       borderRadius: BorderRadius.circular(999),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFFFFB21D).withValues(alpha: 0.42),
+                          color: AppColors.brandAccentGoldAmber.withValues(alpha: 0.42),
                           blurRadius: 14,
                           offset: const Offset(0, 6),
                         ),
@@ -270,17 +271,19 @@ class _UtilitiesHero extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
                             'Khám phá ngay',
-                            style: TextStyle(fontWeight: FontWeight.w900),
+                            style: AppTypography.buttonMedium(
+                              fontWeight: FontWeight.w900,
+                            ),
                           ),
-                          SizedBox(width: 6),
-                          Icon(Icons.chevron_right_rounded, size: 20),
+                          const SizedBox(width: 6),
+                          const Icon(Icons.chevron_right_rounded, size: 20),
                         ],
                       ),
                     ),
@@ -344,7 +347,7 @@ class _HeroIconTile extends StatelessWidget {
       width: 52,
       height: 52,
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF6EA),
+        color: AppColors.surfaceBrandWarm,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
@@ -384,7 +387,7 @@ class _UtilityCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surfacePrimary,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFFF0E5E3)),
+          border: Border.all(color: AppColors.borderLight),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.035),
@@ -399,7 +402,7 @@ class _UtilityCard extends StatelessWidget {
               width: 64,
               height: 64,
               decoration: const BoxDecoration(
-                color: Color(0xFFFCE7E7),
+                color: AppColors.surfaceBrandWarm,
                 shape: BoxShape.circle,
               ),
               child: Center(
@@ -420,8 +423,8 @@ class _UtilityCard extends StatelessWidget {
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Color(0xFF1B1110),
+              style: AppTypography.h3(
+                color: AppColors.contentHeading,
                 fontSize: 20,
                 fontWeight: FontWeight.w900,
               ),
@@ -432,8 +435,8 @@ class _UtilityCard extends StatelessWidget {
               textAlign: TextAlign.center,
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Color(0xFF3F3A38),
+              style: AppTypography.bodySmall(
+                color: AppColors.contentSecondary,
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
                 height: 1.3,
@@ -444,7 +447,7 @@ class _UtilityCard extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 10),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFF1F1),
+                color: AppColors.surfaceDestructiveSoft,
                 borderRadius: BorderRadius.circular(999),
               ),
               child: Row(
@@ -455,7 +458,7 @@ class _UtilityCard extends StatelessWidget {
                       actionLabel,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: AppTypography.buttonSmall(
                         color: AppColors.primary,
                         fontSize: 13,
                         fontWeight: FontWeight.w900,
@@ -491,9 +494,11 @@ class _SupportBanner extends StatelessWidget {
       child: Ink(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFFCF1),
+          color: AppColors.surfaceWarning,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFFFFF0BC)),
+          border: Border.all(
+            color: AppColors.brandAccentGoldAmber.withValues(alpha: 0.35),
+          ),
         ),
         child: Row(
           children: [
@@ -501,7 +506,7 @@ class _SupportBanner extends StatelessWidget {
               width: 58,
               height: 58,
               decoration: const BoxDecoration(
-                color: Color(0xFFFFF3C4),
+                color: AppColors.surfaceWarningSubtle,
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -511,23 +516,23 @@ class _SupportBanner extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 14),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'Bạn cần hỗ trợ?',
-                    style: TextStyle(
+                    style: AppTypography.h4(
                       color: AppColors.primary,
                       fontSize: 18,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
                     'Đội ngũ CSKH luôn sẵn sàng hỗ trợ bạn 24/7',
-                    style: TextStyle(
-                      color: Color(0xFF6B625F),
+                    style: AppTypography.bodySmall(
+                      color: AppColors.contentSecondary,
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
                     ),
@@ -539,7 +544,7 @@ class _SupportBanner extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: const BoxDecoration(
-                color: Color(0xFFFFD33F),
+                color: AppColors.brandAccentGoldAmber,
                 shape: BoxShape.circle,
               ),
               child: const Icon(

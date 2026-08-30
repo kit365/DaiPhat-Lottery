@@ -201,7 +201,7 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
         color: AppColors.statusWarningSurface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0xFFFFB020).withValues(alpha: 0.4),
+          color: AppColors.statusWarningForeground.withValues(alpha: 0.4),
         ),
       ),
       child: Row(
@@ -211,7 +211,7 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: const Color(0xFFFFB020).withValues(alpha: 0.15),
+              color: AppColors.statusWarningForeground.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -266,9 +266,9 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF5F5),
+        color: AppColors.surfaceDestructiveSoft,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFECACA)),
+        border: Border.all(color: AppColors.borderDestructiveSubtle),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -277,7 +277,7 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
             width: 40,
             height: 40,
             decoration: const BoxDecoration(
-              color: Color(0xFFC62828),
+              color: AppColors.brandPrimaryDarkRed,
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -296,7 +296,7 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
                   style: AppTypography.mainWith(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
-                    color: const Color(0xFFC62828),
+                    color: AppColors.brandPrimaryDarkRed,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -402,7 +402,7 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFFCFCFD),
+        color: AppColors.surfaceSlate50,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.borderLight),
       ),
@@ -656,10 +656,10 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFE4F8ED),
+        color: AppColors.statusSuccessSurface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0xFF1CD162).withValues(alpha: 0.2),
+          color: AppColors.statusSuccess.withValues(alpha: 0.2),
         ),
       ),
       child: Column(
@@ -671,7 +671,7 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
                 width: 40,
                 height: 40,
                 decoration: const BoxDecoration(
-                  color: Color(0xFF1CD162),
+                  color: AppColors.statusSuccess,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.check_rounded, color: AppColors.surfacePrimary),
@@ -772,8 +772,8 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
         color: highlight ? AppColors.statusWarningSurface : AppColors.surfacePrimary,
         borderRadius: BorderRadius.circular(16),
         border: highlight
-            ? Border.all(color: const Color(0xFFFFB020), width: 1.5)
-            : Border.all(color: const Color(0xFFEEEEEE)),
+            ? Border.all(color: AppColors.statusWarningForeground, width: 1.5)
+            : Border.all(color: AppColors.borderLight),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -785,7 +785,7 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
                 height: 36,
                 decoration: BoxDecoration(
                   color: highlight
-                      ? const Color(0xFFFFB020).withValues(alpha: 0.15)
+                      ? AppColors.statusWarningForeground.withValues(alpha: 0.15)
                       : AppColors.statusErrorSurface,
                   shape: BoxShape.circle,
                 ),
@@ -808,7 +808,7 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
               ),
             ],
           ),
-          const Divider(height: 24, color: Color(0xFFF0F0F0)),
+          const Divider(height: 24, color: AppColors.borderLight),
           child,
         ],
       ),

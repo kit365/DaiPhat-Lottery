@@ -89,7 +89,7 @@ class _RefundsViewState extends ConsumerState<RefundsView> {
             children: [
               _buildSearch(),
               _buildStatusTabs(),
-              const Divider(height: 1, color: Color(0xFFEEEEEE)),
+              const Divider(height: 1, color: AppColors.borderLight),
               Expanded(child: _buildBody()),
             ],
           );
@@ -249,7 +249,7 @@ class _RefundsViewState extends ConsumerState<RefundsView> {
                 ),
               ],
             ),
-            const Divider(height: 20, color: Color(0xFFF0F0F0)),
+            const Divider(height: 20, color: AppColors.borderLight),
             Row(
               children: [
                 Expanded(

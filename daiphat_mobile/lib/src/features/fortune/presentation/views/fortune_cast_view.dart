@@ -134,11 +134,11 @@ class _FortuneCastViewState extends ConsumerState<FortuneCastView>
         vm.phase == FortuneAnimPhase.ejecting;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF3D0A0C),
+      backgroundColor: AppColors.fortuneBackgroundDark,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF4A0E10),
+        backgroundColor: AppColors.fortuneBackgroundMedium,
         surfaceTintColor: AppColors.transparent,
-        foregroundColor: const Color(0xFFFDE68A),
+        foregroundColor: AppColors.fortuneGoldLight,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
@@ -148,15 +148,15 @@ class _FortuneCastViewState extends ConsumerState<FortuneCastView>
           children: [
             Text(
               'Mỗi ngày một quẻ · Đón vận may',
-              style: AppTypography.mainWith(
+              style: AppTypography.caption(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xCCFDE68A),
+                color: AppColors.fortuneGoldLight.withValues(alpha: 0.8),
               ),
             ),
             Text(
               'Gieo quẻ tài lộc',
-              style: AppTypography.mainWith(
+              style: AppTypography.h4(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
                 color: AppColors.surfacePrimary,
@@ -171,21 +171,27 @@ class _FortuneCastViewState extends ConsumerState<FortuneCastView>
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF4A0E10), Color(0xFF2A0C0E), Color(0xFF1A0808)],
+            colors: [
+              AppColors.fortuneBackgroundMedium,
+              AppColors.fortuneBackgroundDeep,
+              AppColors.fortuneBackgroundOverlay,
+            ],
           ),
         ),
         child: SafeArea(
           top: false,
           child: vm.loadingToday && vm.phase == FortuneAnimPhase.idle
-              ? const Center(
+              ? Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      CircularProgressIndicator(color: Color(0xFFE8C872)),
-                      SizedBox(height: 12),
+                      const CircularProgressIndicator(color: AppColors.fortuneGold),
+                      const SizedBox(height: 12),
                       Text(
                         'Đang chuẩn bị ống quẻ…',
-                        style: TextStyle(color: Color(0xFFFDE68A)),
+                        style: AppTypography.bodyMedium(
+                          color: AppColors.fortuneGoldLight,
+                        ),
                       ),
                     ],
                   ),
@@ -243,7 +249,7 @@ class _JarPane extends StatelessWidget {
         viewModel.phase == FortuneAnimPhase.ejecting;
 
     return RefreshIndicator(
-      color: const Color(0xFFE8C872),
+      color: AppColors.fortuneGold,
       onRefresh: () => viewModel.loadToday(),
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -259,11 +265,11 @@ class _JarPane extends StatelessWidget {
             Text(
               'CHỌN CÁCH GIEO',
               textAlign: TextAlign.center,
-              style: AppTypography.mainWith(
+              style: AppTypography.overline(
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 1.8,
-                color: const Color(0xCCFDE68A),
+                color: AppColors.fortuneGoldLight.withValues(alpha: 0.8),
               ),
             ),
             const SizedBox(height: 10),
@@ -277,9 +283,9 @@ class _JarPane extends StatelessWidget {
             const SizedBox(height: 10),
             _ModeCard(
               selected: viewModel.castMode == FortuneCastMode.birthdate,
-              icon: Icons.cake_outlined,
-              title: 'Gieo theo ngày sinh',
-              subtitle: 'Luận quẻ đúng bản mệnh của bạn.',
+              icon: Icons.auto_awesome_rounded,
+              title: 'Theo ngày sinh',
+              subtitle: 'Kết hợp Can Chi bản mệnh với ngũ hành ngày.',
               onTap: () => viewModel.selectCastMode(FortuneCastMode.birthdate),
               child: _DobButton(
                 day: viewModel.birthDay,
@@ -288,6 +294,7 @@ class _JarPane extends StatelessWidget {
                 onTap: onPickDob,
               ),
             ),
+            const SizedBox(height: 14),
           ],
           if (viewModel.errorMessage != null) ...[
             const SizedBox(height: 10),
@@ -297,29 +304,29 @@ class _JarPane extends StatelessWidget {
           Text(
             'THẦN TÀI',
             textAlign: TextAlign.center,
-            style: AppTypography.mainWith(
+            style: AppTypography.overline(
               fontSize: 10,
               fontWeight: FontWeight.w800,
               letterSpacing: 2.4,
-              color: const Color(0x99FCA5A5),
+              color: AppColors.borderDestructive.withValues(alpha: 0.6),
             ),
           ),
           Text(
             'Ống quẻ tài lộc',
             textAlign: TextAlign.center,
-            style: AppTypography.mainWith(
+            style: AppTypography.h3(
               fontSize: 20,
               fontWeight: FontWeight.w900,
-              color: const Color(0xFFFFF7ED),
+              color: AppColors.fortuneCream,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             'Lắc ống — số trên que là đuôi may mắn hôm nay.',
             textAlign: TextAlign.center,
-            style: AppTypography.mainWith(
+            style: AppTypography.bodySmall(
               fontSize: 13,
-              color: const Color(0xCCFDE68A),
+              color: AppColors.fortuneGoldLight.withValues(alpha: 0.8),
             ),
           ),
           const SizedBox(height: 8),
@@ -336,9 +343,11 @@ class _JarPane extends StatelessWidget {
               margin: const EdgeInsets.only(top: 8),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xCC2A0C0E),
+                color: AppColors.fortuneBackgroundDeep.withValues(alpha: 0.8),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0x40E8C872)),
+                border: Border.all(
+                  color: AppColors.fortuneGold.withValues(alpha: 0.25),
+                ),
               ),
               child: Column(
                 children: [
@@ -350,7 +359,7 @@ class _JarPane extends StatelessWidget {
                         height: 16,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Color(0xFFE8C872),
+                          color: AppColors.fortuneGold,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -358,7 +367,7 @@ class _JarPane extends StatelessWidget {
                         viewModel.phase == FortuneAnimPhase.shaking
                             ? 'Đang lắc ống quẻ…'
                             : 'Một que đang bay ra…',
-                        style: AppTypography.mainWith(
+                        style: AppTypography.subtitle2(
                           fontWeight: FontWeight.w800,
                           color: AppColors.surfacePrimary,
                         ),
@@ -371,9 +380,9 @@ class _JarPane extends StatelessWidget {
                         ? 'Que xăm đang nhảy trong ống — giữ vững tâm thế.'
                         : 'Que may mắn sắp chạm đất.',
                     textAlign: TextAlign.center,
-                    style: AppTypography.mainWith(
+                    style: AppTypography.bodySmall(
                       fontSize: 13,
-                      color: const Color(0xA6FFF7ED),
+                      color: AppColors.fortuneCream.withValues(alpha: 0.65),
                     ),
                   ),
                 ],
@@ -404,7 +413,7 @@ class _ResultPane extends StatelessWidget {
       children: [
         Expanded(
           child: RefreshIndicator(
-            color: const Color(0xFFE8C872),
+            color: AppColors.fortuneGold,
             onRefresh: () => viewModel.loadToday(),
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -413,18 +422,18 @@ class _ResultPane extends StatelessWidget {
                 Text(
                   'QUẺ XĂM TÀI LỘC HÔM NAY',
                   textAlign: TextAlign.center,
-                  style: AppTypography.mainWith(
+                  style: AppTypography.overline(
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.6,
-                    color: const Color(0xCCE8C872),
+                    color: AppColors.fortuneGold.withValues(alpha: 0.8),
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Thẻ may mắn của bạn',
                   textAlign: TextAlign.center,
-                  style: AppTypography.mainWith(
+                  style: AppTypography.h3(
                     fontSize: 22,
                     fontWeight: FontWeight.w900,
                     color: AppColors.surfacePrimary,
@@ -453,7 +462,7 @@ class _ResultPane extends StatelessWidget {
                 const SizedBox(height: 16),
                 Text(
                   'Lời luận quẻ',
-                  style: AppTypography.mainWith(
+                  style: AppTypography.h4(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
                     color: AppColors.surfacePrimary,
@@ -464,9 +473,11 @@ class _ResultPane extends StatelessWidget {
                   width: double.infinity,
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: const Color(0x991A0808),
+                    color: AppColors.fortuneBackgroundOverlay.withValues(alpha: 0.6),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0x33E8C872)),
+                    border: Border.all(
+                      color: AppColors.fortuneGold.withValues(alpha: 0.2),
+                    ),
                   ),
                   child: FortuneProseText(
                     prose: result.prose,
@@ -479,35 +490,37 @@ class _ResultPane extends StatelessWidget {
                     width: double.infinity,
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: const Color(0x991A0808),
+                      color: AppColors.fortuneBackgroundOverlay.withValues(alpha: 0.6),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0x33E8C872)),
+                      border: Border.all(
+                        color: AppColors.fortuneGold.withValues(alpha: 0.2),
+                      ),
                     ),
                     child: Column(
                       children: [
                         Text(
                           'THỜI GIAN CHỜ GIỮA CÁC LẦN GIEO',
-                          style: AppTypography.mainWith(
+                          style: AppTypography.overline(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 1.1,
-                            color: const Color(0x99FDE68A),
+                            color: AppColors.fortuneGoldLight.withValues(alpha: 0.6),
                           ),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           'Lượt tiếp theo',
-                          style: AppTypography.mainWith(
+                          style: AppTypography.caption(
                             fontSize: 12,
-                            color: const Color(0x99FDE68A),
+                            color: AppColors.fortuneGoldLight.withValues(alpha: 0.6),
                           ),
                         ),
                         Text(
                           formatCountdownHms(viewModel.nextCastCountdown),
-                          style: AppTypography.mainWith(
+                          style: AppTypography.lotteryDigit(
                             fontSize: 32,
                             fontWeight: FontWeight.w900,
-                            color: const Color(0xFFFCD34D),
+                            color: AppColors.fortuneGoldDark,
                           ),
                         ),
                       ],
@@ -520,11 +533,11 @@ class _ResultPane extends StatelessWidget {
                     icon: const Icon(Icons.arrow_back_rounded),
                     label: const Text('Về ống quẻ'),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF6B1012),
-                      backgroundColor: const Color(0xFFFDE68A),
+                      foregroundColor: AppColors.fortuneCrimsonDark,
+                      backgroundColor: AppColors.fortuneGoldLight,
                       side: BorderSide.none,
                       minimumSize: const Size.fromHeight(48),
-                      textStyle: AppTypography.mainWith(
+                      textStyle: AppTypography.buttonLarge(
                         fontWeight: FontWeight.w800,
                         fontSize: 15,
                       ),
@@ -537,25 +550,27 @@ class _ResultPane extends StatelessWidget {
                     width: double.infinity,
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: const Color(0x991A0808),
+                      color: AppColors.fortuneBackgroundOverlay.withValues(alpha: 0.6),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0x33E8C872)),
+                      border: Border.all(
+                        color: AppColors.fortuneGold.withValues(alpha: 0.2),
+                      ),
                     ),
                     child: Column(
                       children: [
                         Text(
                           'QUẺ GẦN NHẤT',
-                          style: AppTypography.mainWith(
+                          style: AppTypography.overline(
                             fontSize: 11,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 1.2,
-                            color: const Color(0x99FDE68A),
+                            color: AppColors.fortuneGoldLight.withValues(alpha: 0.6),
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           'Đuôi may mắn ${result.previousCastSummary!.luckyTail}',
-                          style: AppTypography.mainWith(
+                          style: AppTypography.h5(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
                             color: AppColors.surfacePrimary,
@@ -564,9 +579,9 @@ class _ResultPane extends StatelessWidget {
                         Text(
                           '${formatFortuneDisplayDate(result.previousCastSummary!.castDate)}'
                           '${result.previousCastSummary!.userElement.isNotEmpty ? ' · Mệnh ${fortuneElementLabel(result.previousCastSummary!.userElement)}' : ''}',
-                          style: AppTypography.mainWith(
+                          style: AppTypography.bodySmall(
                             fontSize: 13,
-                            color: const Color(0x99FFF7ED),
+                            color: AppColors.fortuneCream.withValues(alpha: 0.6),
                           ),
                         ),
                       ],
@@ -589,7 +604,7 @@ class _ResultPane extends StatelessWidget {
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: AppColors.surfacePrimary,
-                textStyle: AppTypography.mainWith(
+                textStyle: AppTypography.buttonLarge(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
                 ),
@@ -622,7 +637,9 @@ class _ModeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected ? const Color(0xFF8B1A1C) : const Color(0xB32A0C0E),
+      color: selected
+          ? AppColors.fortuneCrimson
+          : AppColors.fortuneBackgroundDeep.withValues(alpha: 0.7),
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
@@ -634,8 +651,8 @@ class _ModeCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: selected
-                  ? const Color(0xFFE8C872)
-                  : const Color(0x40E8C872),
+                  ? AppColors.fortuneGold
+                  : AppColors.fortuneGold.withValues(alpha: 0.25),
             ),
           ),
           child: Column(
@@ -649,14 +666,14 @@ class _ModeCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: selected
-                          ? const Color(0xFFE8C872)
-                          : const Color(0x33E8C872),
+                          ? AppColors.fortuneGold
+                          : AppColors.fortuneGold.withValues(alpha: 0.2),
                     ),
                     child: Icon(
                       icon,
                       color: selected
-                          ? const Color(0xFF6B1012)
-                          : const Color(0xFFE8C872),
+                          ? AppColors.fortuneCrimsonDark
+                          : AppColors.fortuneGold,
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -666,7 +683,7 @@ class _ModeCard extends StatelessWidget {
                       children: [
                         Text(
                           title,
-                          style: AppTypography.mainWith(
+                          style: AppTypography.subtitle1(
                             fontSize: 14,
                             fontWeight: FontWeight.w800,
                             color: AppColors.surfacePrimary,
@@ -674,9 +691,9 @@ class _ModeCard extends StatelessWidget {
                         ),
                         Text(
                           subtitle,
-                          style: AppTypography.mainWith(
+                          style: AppTypography.bodySmall(
                             fontSize: 12,
-                            color: const Color(0xB3FFF7ED),
+                            color: AppColors.fortuneCream.withValues(alpha: 0.7),
                           ),
                         ),
                       ],
@@ -689,15 +706,15 @@ class _ModeCard extends StatelessWidget {
                         vertical: 3,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE8C872),
+                        color: AppColors.fortuneGold,
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
                         'CHỌN',
-                        style: AppTypography.mainWith(
+                        style: AppTypography.overline(
                           fontSize: 10,
                           fontWeight: FontWeight.w900,
-                          color: const Color(0xFF5A1012),
+                          color: AppColors.fortuneCrimsonDeep,
                         ),
                       ),
                     ),
@@ -738,24 +755,26 @@ class _DobButton extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
-          color: const Color(0xCC1A0808),
+          color: AppColors.fortuneBackgroundOverlay.withValues(alpha: 0.8),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0x59E8C872)),
+          border: Border.all(
+            color: AppColors.fortuneGold.withValues(alpha: 0.35),
+          ),
         ),
         child: Row(
           children: [
-            const Icon(Icons.calendar_month_outlined, color: Color(0xFFE8C872)),
+            const Icon(Icons.calendar_month_outlined, color: AppColors.fortuneGold),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 label,
-                style: AppTypography.mainWith(
+                style: AppTypography.subtitle2(
                   fontWeight: FontWeight.w700,
                   color: AppColors.surfacePrimary,
                 ),
               ),
             ),
-            const Icon(Icons.expand_more_rounded, color: Color(0xFFE8C872)),
+            const Icon(Icons.expand_more_rounded, color: AppColors.fortuneGold),
           ],
         ),
       ),
@@ -774,22 +793,24 @@ class _ElementPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xCC2A0C0E),
+        color: AppColors.fortuneBackgroundDeep.withValues(alpha: 0.8),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0x4DE8C872)),
+        border: Border.all(
+          color: AppColors.fortuneGold.withValues(alpha: 0.3),
+        ),
       ),
       child: Column(
         children: [
           Text(
             title,
-            style: AppTypography.mainWith(
+            style: AppTypography.caption(
               fontSize: 11,
-              color: const Color(0x99FDE68A),
+              color: AppColors.fortuneGoldLight.withValues(alpha: 0.6),
             ),
           ),
           Text(
             value,
-            style: AppTypography.mainWith(
+            style: AppTypography.h5(
               fontSize: 16,
               fontWeight: FontWeight.w800,
               color: AppColors.surfacePrimary,
@@ -821,19 +842,23 @@ class _Banner extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isError ? const Color(0xCC5A1012) : const Color(0xB32A0C0E),
+        color: isError
+            ? AppColors.fortuneCrimsonDeep.withValues(alpha: 0.8)
+            : AppColors.fortuneBackgroundDeep.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0x4DE8C872)),
+        border: Border.all(
+          color: AppColors.fortuneGold.withValues(alpha: 0.3),
+        ),
       ),
       child: Row(
         children: [
           Expanded(
             child: Text(
               text,
-              style: AppTypography.mainWith(
+              style: AppTypography.bodySmall(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFFFDE68A),
+                color: AppColors.fortuneGoldLight,
               ),
             ),
           ),
@@ -842,7 +867,7 @@ class _Banner extends StatelessWidget {
               onPressed: onAction,
               child: Text(
                 actionLabel!,
-                style: AppTypography.mainWith(
+                style: AppTypography.buttonSmall(
                   fontWeight: FontWeight.w800,
                   color: AppColors.surfacePrimary,
                 ),

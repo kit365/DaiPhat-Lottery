@@ -68,7 +68,7 @@ class _ResultsCardState extends State<ResultsCard> {
 
   Widget _buildProvinceHeader(List<String> provinces) {
     return Container(
-      color: const Color(0xFFFCE5DF).withValues(alpha: .3),
+      color: AppColors.surfaceBrandLight.withValues(alpha: .3),
       child: Row(
         children: [
           Container(
@@ -80,12 +80,10 @@ class _ResultsCardState extends State<ResultsCard> {
             ),
             child: Text(
               'Giải',
-              style: AppTypography.main(
-                const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textMuted,
-                ),
+              style: AppTypography.labelSmall(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textMuted,
               ),
             ),
           ),
@@ -106,12 +104,10 @@ class _ResultsCardState extends State<ResultsCard> {
                   textAlign: TextAlign.center,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppTypography.main(
-                    TextStyle(
-                      fontSize: provinces.length > 3 ? 9 : 11,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.primary,
-                    ),
+                  style: AppTypography.labelMedium(
+                    fontSize: provinces.length > 3 ? 9 : 11,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primary,
                   ),
                 ),
               ),
@@ -135,7 +131,7 @@ class _ResultsCardState extends State<ResultsCard> {
       child: Container(
         decoration: BoxDecoration(
           color: isSingle
-              ? const Color(0xFFFCE5DF).withValues(alpha: .3)
+              ? AppColors.surfaceBrandLight.withValues(alpha: .3)
               : AppColors.surfacePrimary,
           border: const Border(
             bottom: BorderSide(color: AppColors.cardBorder, width: .8),
@@ -151,33 +147,33 @@ class _ResultsCardState extends State<ResultsCard> {
                   vertical: 20,
                   horizontal: 8,
                 ),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [Color(0xFF8B0000), AppColors.brandPrimaryStrong],
+                    colors: [AppColors.brandPrimaryDeep, AppColors.brandPrimaryStrong],
                   ),
-                  border: Border(right: BorderSide(color: Color(0x1AFFFFFF))),
+                  border: Border(
+                    right: BorderSide(color: AppColors.white.withValues(alpha: 0.1)),
+                  ),
                 ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Icon(
                       Icons.star_rounded,
-                      color: Color(0xFFFFD54F),
+                      color: AppColors.brandAccentGoldMuted,
                       size: 22,
                     ),
                     const SizedBox(height: 4),
                     Text(
                       'Giải\nĐẶC BIỆT',
                       textAlign: TextAlign.center,
-                      style: AppTypography.display(
-                        const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w900,
-                          color: AppColors.surfacePrimary,
-                          height: 1.3,
-                        ),
+                      style: AppTypography.h6(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.surfacePrimary,
+                        height: 1.3,
                       ),
                     ),
                   ],
@@ -196,12 +192,10 @@ class _ResultsCardState extends State<ResultsCard> {
                 child: Text(
                   'Đặc biệt',
                   textAlign: TextAlign.center,
-                  style: AppTypography.main(
-                    const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
-                    ),
+                  style: AppTypography.labelSmall(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
                   ),
                 ),
               ),
@@ -211,13 +205,11 @@ class _ResultsCardState extends State<ResultsCard> {
                       padding: const EdgeInsets.symmetric(vertical: 22),
                       child: _renderNumber(
                         _specialValue(singleResult),
-                        AppTypography.number(
-                          const TextStyle(
-                            fontSize: 36,
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.primary,
-                            letterSpacing: -1,
-                          ),
+                        AppTypography.lotterySpecial(
+                          fontSize: 36,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.primary,
+                          letterSpacing: -1,
                         ),
                       ),
                     )
@@ -239,12 +231,10 @@ class _ResultsCardState extends State<ResultsCard> {
                             alignment: Alignment.center,
                             child: _renderNumber(
                               _specialValue(result),
-                              AppTypography.number(
-                                TextStyle(
-                                  fontSize: provinces.length > 3 ? 18 : 22,
-                                  fontWeight: FontWeight.w900,
-                                  color: AppColors.primary,
-                                ),
+                              AppTypography.lotteryPrize(
+                                fontSize: provinces.length > 3 ? 18 : 22,
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.primary,
                               ),
                             ),
                           ),
@@ -304,12 +294,10 @@ class _ResultsCardState extends State<ResultsCard> {
                   child: Text(
                     row.label,
                     textAlign: TextAlign.center,
-                    style: AppTypography.main(
-                      TextStyle(
-                        fontSize: isSingle ? 11 : 10,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primary,
-                      ),
+                    style: AppTypography.labelSmall(
+                      fontSize: isSingle ? 11 : 10,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
                     ),
                   ),
                 ),
@@ -326,19 +314,17 @@ class _ResultsCardState extends State<ResultsCard> {
                       ? ['--']
                       : provinceRow.values;
 
-                  final baseStyle = AppTypography.number(
-                    TextStyle(
-                      fontSize: row.highlight
-                          ? (isSingle ? 18 : 14)
-                          : (isSingle ? 15 : 12),
-                      fontWeight: row.highlight
-                          ? FontWeight.w800
-                          : FontWeight.w600,
-                      color: row.highlight
-                          ? AppColors.primary
-                          : AppColors.textMain,
-                      height: 1.6,
-                    ),
+                  final baseStyle = AppTypography.lotteryDigit(
+                    fontSize: row.highlight
+                        ? (isSingle ? 18 : 14)
+                        : (isSingle ? 15 : 12),
+                    fontWeight: row.highlight
+                        ? FontWeight.w800
+                        : FontWeight.w600,
+                    color: row.highlight
+                        ? AppColors.primary
+                        : AppColors.textMain,
+                    height: 1.6,
                   );
 
                   return Expanded(
@@ -414,24 +400,22 @@ class _ResultsCardState extends State<ResultsCard> {
                         height: 28,
                         decoration: BoxDecoration(
                           color: enabled
-                              ? const Color(0xFFFDE047)
+                              ? AppColors.brandAccentYellow
                               : AppColors.surfacePrimary,
                           shape: BoxShape.circle,
                           border: Border.all(
                             color: enabled
-                                ? const Color(0xFFFDE047)
+                                ? AppColors.brandAccentYellow
                                 : AppColors.cardBorder,
                           ),
                         ),
                         alignment: Alignment.center,
                         child: Text(
                           value,
-                          style: AppTypography.main(
-                            const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textMain,
-                            ),
+                          style: AppTypography.buttonSmall(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textMain,
                           ),
                         ),
                       ),
@@ -461,12 +445,10 @@ class _ResultsCardState extends State<ResultsCard> {
           child: Center(
             child: Text(
               value,
-              style: AppTypography.main(
-                TextStyle(
-                  fontSize: 13,
-                  fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
-                  color: selected ? AppColors.primary : AppColors.textMuted,
-                ),
+              style: AppTypography.buttonSmall(
+                fontSize: 13,
+                fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
+                color: selected ? AppColors.primary : AppColors.textMuted,
               ),
             ),
           ),
@@ -534,16 +516,13 @@ class _ResultsCardState extends State<ResultsCard> {
             ),
           TextSpan(
             text: lotoPart,
-            style: AppTypography.number(
-              TextStyle(
-                fontSize: baseStyle.fontSize,
-                backgroundColor: const Color(0xFFFDE047),
-                color: AppColors.brandPrimaryStrong,
-                fontWeight: FontWeight.w900,
-                height: baseStyle.height,
-                letterSpacing: baseStyle.letterSpacing,
-              ),
-            ),
+            style: AppTypography.lotteryDigit(
+              fontSize: baseStyle.fontSize,
+              color: AppColors.brandPrimaryStrong,
+              fontWeight: FontWeight.w900,
+              height: baseStyle.height,
+              letterSpacing: baseStyle.letterSpacing,
+            ).copyWith(backgroundColor: AppColors.brandAccentYellow),
           ),
         ],
       ),

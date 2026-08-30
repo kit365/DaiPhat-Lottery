@@ -75,7 +75,7 @@ class _BankSearchScreenState extends State<BankSearchScreen> {
                 hintText: 'Nhập tên Ngân hàng cần tìm kiếm',
                 hintStyle: AppTypography.mainWith(
                   fontSize: 14,
-                  color: const Color(0xFFC4CDD5),
+                  color: AppColors.contentPlaceholderStrong,
                 ),
                 prefixIcon: const Icon(
                   Icons.search_rounded,
@@ -90,7 +90,7 @@ class _BankSearchScreenState extends State<BankSearchScreen> {
                         },
                         icon: const Icon(
                           Icons.cancel_rounded,
-                          color: Color(0xFFC4CDD5),
+                          color: AppColors.contentPlaceholderStrong,
                           size: 20,
                         ),
                       )

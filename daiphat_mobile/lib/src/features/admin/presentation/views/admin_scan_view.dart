@@ -41,7 +41,7 @@ class _AdminScanViewState extends State<AdminScanView> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           'Kết nối Web Admin',
-          style: AppTypography.mainWith(
+          style: AppTypography.h4(
             fontWeight: FontWeight.bold,
             fontSize: 18,
           ),
@@ -52,7 +52,7 @@ class _AdminScanViewState extends State<AdminScanView> {
           children: [
             Text(
               'Nhập mã kết nối hiển thị trên màn hình Tạo/Nhập lô vé số của Web Admin:',
-              style: AppTypography.mainWith(
+              style: AppTypography.bodySmall(
                 fontSize: 13,
                 color: Colors.grey[700],
               ),
@@ -115,13 +115,13 @@ class _AdminScanViewState extends State<AdminScanView> {
         final isConnected = widget.viewModel.isConnected;
 
         return Scaffold(
-          backgroundColor: const Color(0xFFF9F9FB),
+          backgroundColor: AppColors.surfaceNeutral,
           appBar: AppBar(
             backgroundColor: AppColors.surfacePrimary,
             elevation: 0.5,
             title: Text(
               'Quét vé số OCR (Admin)',
-              style: AppTypography.mainWith(
+              style: AppTypography.h3(
                 color: AppColors.textMain,
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
@@ -133,7 +133,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                 IconButton(
                   icon: const Icon(
                     Icons.link_off_rounded,
-                    color: Colors.redAccent,
+                    color: AppColors.primary,
                   ),
                   tooltip: 'Ngắt kết nối Web',
                   onPressed: () => widget.viewModel.disconnectSession(),
@@ -174,15 +174,15 @@ class _AdminScanViewState extends State<AdminScanView> {
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
           color: isConnected
-              ? Colors.green.shade300
+              ? AppColors.statusSuccess.withValues(alpha: 0.5)
               : (errorMessage != null
-                    ? Colors.red.shade300
+                    ? AppColors.brandPrimaryBorder
                     : AppColors.borderDefault),
         ),
       ),
       color: isConnected
-          ? const Color(0xFFF0FDF4)
-          : (errorMessage != null ? const Color(0xFFFEF2F2) : AppColors.surfacePrimary),
+          ? AppColors.statusSuccessSurface
+          : (errorMessage != null ? AppColors.surfaceDestructiveSoft : AppColors.surfacePrimary),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -224,7 +224,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                             : (isConnecting
                                   ? 'ĐANG CHỜ KẾT NỐI WEB ($countdown s)'
                                   : 'CHƯA KẾT NỐI WEB ADMIN'),
-                        style: AppTypography.mainWith(
+                        style: AppTypography.subtitle2(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
                           color: isConnected
@@ -241,7 +241,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                             : (isConnecting
                                   ? 'Đang tìm kiếm trang Admin Web đang mở để tự động kết nối...'
                                   : 'Mở màn hình "Quét vé bằng Mobile App" trên Web Admin để ghép nối.'),
-                        style: AppTypography.mainWith(
+                        style: AppTypography.caption(
                           fontSize: 12,
                           color: Colors.grey[700],
                         ),
@@ -271,7 +271,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                     Expanded(
                       child: Text(
                         errorMessage,
-                        style: AppTypography.mainWith(
+                        style: AppTypography.caption(
                           fontSize: 12,
                           color: Colors.red[900],
                           fontWeight: FontWeight.w500,
@@ -314,7 +314,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                     isConnecting
                         ? 'Đang kết nối ($countdown s)...'
                         : 'Thử kết nối lại với Web',
-                    style: AppTypography.mainWith(fontWeight: FontWeight.bold),
+                    style: AppTypography.buttonMedium(fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -342,7 +342,7 @@ class _AdminScanViewState extends State<AdminScanView> {
           children: [
             Text(
               'Thao tác Quét vé số OCR',
-              style: AppTypography.mainWith(
+              style: AppTypography.subtitle1(
                 fontWeight: FontWeight.bold,
                 fontSize: 15,
                 color: AppColors.textMain,
@@ -351,7 +351,7 @@ class _AdminScanViewState extends State<AdminScanView> {
             const SizedBox(height: 6),
             Text(
               'Ảnh chụp vé sau khi xử lý OCR sẽ tự động đồng bộ Real-time lên danh sách của phiếu nhập lô vé trên Web Admin.',
-              style: AppTypography.mainWith(
+              style: AppTypography.caption(
                 fontSize: 12,
                 color: Colors.grey[600],
               ),
@@ -388,7 +388,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                         : const Icon(Icons.camera_alt_rounded),
                     label: Text(
                       isScanning ? 'Đang soi vé...' : 'Chụp vé số',
-                      style: AppTypography.mainWith(
+                      style: AppTypography.buttonMedium(
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -417,7 +417,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                     icon: const Icon(Icons.photo_library_rounded),
                     label: Text(
                       'Tải ảnh lên',
-                      style: AppTypography.mainWith(
+                      style: AppTypography.buttonMedium(
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -438,7 +438,7 @@ class _AdminScanViewState extends State<AdminScanView> {
       children: [
         Text(
           'Vé đã quét trong phiên (${tickets.length})',
-          style: AppTypography.mainWith(
+          style: AppTypography.subtitle1(
             fontWeight: FontWeight.bold,
             fontSize: 16,
             color: AppColors.textMain,
@@ -453,7 +453,7 @@ class _AdminScanViewState extends State<AdminScanView> {
             ),
             child: Text(
               'Real-time Synced',
-              style: AppTypography.mainWith(
+              style: AppTypography.caption(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 color: Colors.blue[800],
@@ -515,7 +515,7 @@ class _AdminScanViewState extends State<AdminScanView> {
               ),
               label: Text(
                 '$label ($count)',
-                style: AppTypography.mainWith(
+                style: AppTypography.labelMedium(
                   fontSize: 13,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                   color: isSelected ? AppColors.surfacePrimary : AppColors.textMain,
@@ -551,7 +551,7 @@ class _AdminScanViewState extends State<AdminScanView> {
             const SizedBox(height: 12),
             Text(
               'Chưa có vé nào được quét',
-              style: AppTypography.mainWith(
+              style: AppTypography.subtitle2(
                 fontWeight: FontWeight.w600,
                 color: Colors.grey[700],
               ),
@@ -560,7 +560,7 @@ class _AdminScanViewState extends State<AdminScanView> {
             Text(
               'Bấm nút "Chụp vé số" hoặc "Tải ảnh lên" để bắt đầu nhận diện và đồng bộ với Web Admin.',
               textAlign: TextAlign.center,
-              style: AppTypography.mainWith(
+              style: AppTypography.caption(
                 fontSize: 12,
                 color: Colors.grey[500],
               ),
@@ -613,7 +613,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                         children: [
                           Text(
                             ticket.ticketNumber,
-                            style: AppTypography.mainWith(
+                            style: AppTypography.lotteryDigit(
                               fontWeight: FontWeight.w800,
                               fontSize: 16,
                               color: AppColors.primary,
@@ -631,7 +631,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                             ),
                             child: Text(
                               ticket.status,
-                              style: AppTypography.mainWith(
+                              style: AppTypography.caption(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.green[800],
@@ -643,7 +643,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                       const SizedBox(height: 4),
                       Text(
                         'Đài: ${ticket.stationName} • Ngày: ${ticket.drawDate}',
-                        style: AppTypography.mainWith(
+                        style: AppTypography.caption(
                           fontSize: 12,
                           color: AppColors.textMain,
                           fontWeight: FontWeight.w500,
@@ -652,7 +652,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                       const SizedBox(height: 2),
                       Text(
                         'Độ tin cậy OCR: ${(ticket.confidence * 100).toStringAsFixed(0)}% • Đã gửi Web',
-                        style: AppTypography.mainWith(
+                        style: AppTypography.caption(
                           fontSize: 11,
                           color: Colors.grey[600],
                         ),

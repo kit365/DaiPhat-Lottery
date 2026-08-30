@@ -44,9 +44,9 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surfaceCanvas,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: AppColors.surfacePrimary,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         surfaceTintColor: AppColors.transparent,
         elevation: 0,
         leading: IconButton(
@@ -59,7 +59,7 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
         ),
         title: Text(
           'Tổng quan tài khoản',
-          style: AppTypography.mainWith(
+          style: AppTypography.h4(
             fontSize: 18,
             fontWeight: FontWeight.w700,
             color: AppColors.textMain,
@@ -135,10 +135,10 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
       height: 132,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFFFEEEE)),
+        border: Border.all(color: AppColors.brandPrimaryBorderLight),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x147B1820),
+            color: AppColors.shadowBrandFaint,
             blurRadius: 18,
             offset: Offset(0, 6),
           ),
@@ -153,7 +153,7 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
               fit: BoxFit.cover,
               alignment: Alignment.topLeft,
               errorBuilder: (_, error, stackTrace) =>
-                  Container(color: const Color(0xFFFFF5F5)),
+                  Container(color: AppColors.surfaceDestructiveSoft),
             ),
           ),
           Positioned(
@@ -176,9 +176,9 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                   width: 64,
                   height: 64,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFF6F6),
+                    color: AppColors.surfaceBrandWarm,
                     shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0xFFF5D8DA)),
+                    border: Border.all(color: AppColors.brandPrimaryBorder),
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: avatarUrl != null && avatarUrl.isNotEmpty
@@ -207,10 +207,10 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                         name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: AppTypography.mainWith(
+                        style: AppTypography.subtitle2(
                           fontSize: 14,
                           fontWeight: FontWeight.w800,
-                          color: const Color(0xFF212B36),
+                          color: AppColors.contentHeading,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -218,7 +218,7 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                         email,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: AppTypography.mainWith(
+                        style: AppTypography.bodySmall(
                           fontSize: 12,
                           color: AppColors.contentNeutral,
                         ),
@@ -226,10 +226,10 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                       const SizedBox(height: 2),
                       Text(
                         phone,
-                        style: AppTypography.mainWith(
+                        style: AppTypography.bodySmall(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: const Color(0xFF454F5B),
+                          color: AppColors.contentSlate700,
                         ),
                       ),
                     ],
@@ -253,7 +253,7 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
         border: Border.all(color: AppColors.borderLight),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x08000000),
+            color: AppColors.shadowLight,
             blurRadius: 12,
             offset: Offset(0, 2),
           ),
@@ -263,23 +263,23 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
         children: [
           _buildStatCard(
             icon: Icons.receipt_long_rounded,
-            color: const Color(0xFFFF4842),
-            bg: const Color(0xFFFFF5F5),
+            color: AppColors.primary,
+            bg: AppColors.surfaceDestructiveSoft,
             value: '${_viewModel.totalOrders}',
             label: 'Đơn hàng',
           ),
           const SizedBox(width: 8),
           _buildStatCard(
             icon: Icons.confirmation_number_rounded,
-            color: const Color(0xFF1CD162),
-            bg: const Color(0xFFF4FBFA),
+            color: AppColors.statusSuccess,
+            bg: AppColors.statusSuccessSurface,
             value: '${_viewModel.totalTicketsBought}',
             label: 'Vé đã mua',
           ),
           const SizedBox(width: 8),
           _buildStatCard(
             icon: Icons.emoji_events_rounded,
-            color: const Color(0xFFFFB020),
+            color: AppColors.statusWarningForeground,
             bg: AppColors.statusWarningSurface,
             value: '${stats.wonCount}',
             label: 'Trúng thưởng',
@@ -287,8 +287,8 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
           const SizedBox(width: 8),
           _buildStatCard(
             icon: Icons.star_rounded,
-            color: const Color(0xFF9E5FFF),
-            bg: const Color(0xFFF8F5FF),
+            color: AppColors.brandAccentPurple,
+            bg: AppColors.surfaceAccentPurple,
             value: '${stats.drawnCount}',
             label: 'Đã quay',
             iconRadius: 12,
@@ -327,10 +327,10 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
             const SizedBox(height: 8),
             Text(
               value,
-              style: AppTypography.mainWith(
+              style: AppTypography.h3(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
-                color: const Color(0xFF212B36),
+                color: AppColors.contentHeading,
               ),
             ),
             const SizedBox(height: 2),
@@ -339,7 +339,7 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: AppTypography.mainWith(
+              style: AppTypography.caption(
                 fontSize: 10,
                 color: AppColors.contentNeutral,
               ),
@@ -362,22 +362,22 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
       _QuickAction(
         Icons.account_balance_wallet_outlined,
         'Vé của tôi',
-        const Color(0xFFFFB020),
+        AppColors.statusWarningForeground,
         AppColors.statusWarningSurface,
         () => context.push(AppRoute.myTickets.path),
       ),
       _QuickAction(
         Icons.pie_chart_outline_rounded,
         'Kết quả xổ số',
-        const Color(0xFF1CD162),
-        const Color(0xFFF4FBFA),
+        AppColors.statusSuccess,
+        AppColors.statusSuccessSurface,
         () => context.go(AppRoute.home.path),
       ),
       _QuickAction(
         Icons.headset_mic_outlined,
         'Hỗ trợ',
-        const Color(0xFF9E5FFF),
-        const Color(0xFFF8F5FF),
+        AppColors.brandAccentPurple,
+        AppColors.surfaceAccentPurple,
         () => context.push(AppRoute.complaints.path),
       ),
     ];
@@ -419,10 +419,10 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                         textAlign: TextAlign.center,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: AppTypography.mainWith(
+                        style: AppTypography.bodySmall(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: const Color(0xFF454F5B),
+                          color: AppColors.contentSlate700,
                         ),
                       ),
                     ],
@@ -479,16 +479,16 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                     order.orderCode.isNotEmpty
                         ? order.orderCode
                         : 'DP${order.id}',
-                    style: AppTypography.mainWith(
+                    style: AppTypography.subtitle2(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: const Color(0xFF212B36),
+                      color: AppColors.contentHeading,
                     ),
                   ),
                   const SizedBox(height: 3),
                   Text(
                     createdAt,
-                    style: AppTypography.mainWith(
+                    style: AppTypography.caption(
                       fontSize: 11,
                       color: AppColors.contentNeutral,
                     ),
@@ -501,7 +501,7 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                 padding: const EdgeInsets.only(right: 10),
                 child: Text(
                   '$qty vé',
-                  style: AppTypography.mainWith(
+                  style: AppTypography.bodySmall(
                     fontSize: 12,
                     color: AppColors.contentNeutral,
                   ),
@@ -512,10 +512,10 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
               children: [
                 Text(
                   AppFormatters.formatCurrency(order.totalAmount),
-                  style: AppTypography.mainWith(
+                  style: AppTypography.subtitle2(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFF212B36),
+                    color: AppColors.contentHeading,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -530,7 +530,7 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                   ),
                   child: Text(
                     status.label,
-                    style: AppTypography.mainWith(
+                    style: AppTypography.caption(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                       color: badge.fg,
@@ -549,14 +549,14 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
     switch (status) {
       case OrderStatus.completed:
       case OrderStatus.paid:
-        return (fg: const Color(0xFF1CD162), bg: const Color(0xFFF4FBFA));
+        return (fg: AppColors.statusSuccess, bg: AppColors.statusSuccessSurface);
       case OrderStatus.cancelled:
         return (fg: AppColors.contentNeutral, bg: AppColors.surfaceNeutral);
       case OrderStatus.pendingPayment:
       case OrderStatus.preparing:
       case OrderStatus.pendingPickup:
         return (
-          fg: const Color(0xFFFFB020),
+          fg: AppColors.statusWarningForeground,
           bg: AppColors.statusWarningSurface,
         );
     }
@@ -617,16 +617,16 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                   ticket.stationName ?? 'Vé số',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppTypography.mainWith(
+                  style: AppTypography.subtitle2(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFF212B36),
+                    color: AppColors.contentHeading,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   drawDate,
-                  style: AppTypography.mainWith(
+                  style: AppTypography.caption(
                     fontSize: 11,
                     color: AppColors.contentNeutral,
                   ),
@@ -639,7 +639,7 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
             children: [
               Text(
                 ticket.numbers,
-                style: AppTypography.mainWith(
+                style: AppTypography.lotteryDigit(
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1,
@@ -649,7 +649,7 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
               const SizedBox(height: 2),
               Text(
                 '1 vé - ${AppFormatters.formatCurrency(ticket.price)}',
-                style: AppTypography.mainWith(
+                style: AppTypography.caption(
                   fontSize: 11,
                   color: AppColors.contentNeutral,
                 ),
@@ -683,15 +683,15 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                         children: [
                           Text(
                             AppFormatters.formatCurrency(total),
-                            style: AppTypography.mainWith(
+                            style: AppTypography.priceMedium(
                               fontSize: 15,
                               fontWeight: FontWeight.w900,
-                              color: const Color(0xFF212B36),
+                              color: AppColors.contentHeading,
                             ),
                           ),
                           Text(
                             'Tổng chi tiêu',
-                            style: AppTypography.mainWith(
+                            style: AppTypography.caption(
                               fontSize: 11,
                               color: AppColors.contentNeutral,
                             ),
@@ -724,9 +724,9 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                             slice.label,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: AppTypography.mainWith(
+                            style: AppTypography.bodySmall(
                               fontSize: 13,
-                              color: const Color(0xFF454F5B),
+                              color: AppColors.contentSlate700,
                             ),
                           ),
                         ),
@@ -735,7 +735,7 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                           child: Text(
                             '$pct%',
                             textAlign: TextAlign.right,
-                            style: AppTypography.mainWith(
+                            style: AppTypography.bodySmall(
                               fontSize: 13,
                               color: AppColors.contentNeutral,
                             ),
@@ -746,10 +746,10 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                           child: Text(
                             AppFormatters.formatCurrency(slice.amount),
                             textAlign: TextAlign.right,
-                            style: AppTypography.mainWith(
+                            style: AppTypography.bodySmall(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: const Color(0xFF212B36),
+                              color: AppColors.contentHeading,
                             ),
                           ),
                         ),
@@ -765,10 +765,10 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
   List<_SpendSlice> _buildSpendingSlices() {
     const palette = [
       AppColors.brandPrimaryStrong,
-      Color(0xFFFFB020),
-      Color(0xFF2065D1),
-      Color(0xFF1CD162),
-      Color(0xFF9E5FFF),
+      AppColors.statusWarningForeground,
+      AppColors.brandSecondary,
+      AppColors.statusSuccess,
+      AppColors.brandAccentPurple,
     ];
     final map = <String, int>{};
     for (final ticket in _viewModel.recentTickets) {
@@ -810,9 +810,12 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
         gradient: const LinearGradient(
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
-          colors: [Color(0xFFFFF5F5), Color(0xFFFFECEC)],
+          colors: [
+            AppColors.surfaceDestructiveSoft,
+            AppColors.surfaceBrandWarm,
+          ],
         ),
-        border: Border.all(color: const Color(0xFFFFDADA)),
+        border: Border.all(color: AppColors.brandPrimaryBorderLight),
       ),
       child: Row(
         children: [
@@ -822,16 +825,16 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
               children: [
                 Text(
                   'Bạn cần hỗ trợ?',
-                  style: AppTypography.mainWith(
+                  style: AppTypography.h4(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
-                    color: const Color(0xFF212B36),
+                    color: AppColors.contentHeading,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Đội ngũ CSKH của chúng tôi luôn sẵn sàng!',
-                  style: AppTypography.mainWith(
+                  style: AppTypography.bodySmall(
                     fontSize: 12,
                     color: AppColors.contentNeutral,
                   ),
@@ -840,9 +843,11 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                 OutlinedButton.icon(
                   onPressed: () => context.push(AppRoute.complaints.path),
                   icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
-                  label: const Text(
+                  label: Text(
                     'Liên hệ ngay',
-                    style: TextStyle(fontWeight: FontWeight.w700),
+                    style: AppTypography.buttonMedium(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.primary,
@@ -862,7 +867,7 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
           const Icon(
             Icons.headset_mic_rounded,
             size: 56,
-            color: Color(0xFFFF8A8A),
+            color: AppColors.brandPrimaryBorder,
           ),
         ],
       ),
@@ -875,7 +880,7 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
       child: Center(
         child: Text(
           text,
-          style: AppTypography.mainWith(
+          style: AppTypography.bodySmall(
             fontSize: 13,
             color: AppColors.textMuted,
           ),
@@ -897,7 +902,7 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
         border: Border.all(color: AppColors.borderLight),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x08000000),
+            color: AppColors.shadowLight,
             blurRadius: 12,
             offset: Offset(0, 2),
           ),
@@ -911,10 +916,10 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
               Expanded(
                 child: Text(
                   title,
-                  style: AppTypography.mainWith(
+                  style: AppTypography.subtitle1(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFF212B36),
+                    color: AppColors.contentHeading,
                   ),
                 ),
               ),
@@ -923,7 +928,7 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                   onTap: onSeeAll,
                   child: Text(
                     'Xem tất cả >',
-                    style: AppTypography.mainWith(
+                    style: AppTypography.caption(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: AppColors.primary,

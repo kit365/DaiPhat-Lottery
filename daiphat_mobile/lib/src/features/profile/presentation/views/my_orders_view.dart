@@ -28,6 +28,7 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
   final _scrollController = ScrollController();
   final _searchController = TextEditingController();
   Timer? _searchDebounce;
+  bool _isSearchMode = false;
   final Set<String> _expandedOrderIds = {};
 
   static const _statusFilters = <AppStatusTabItem<String?>>[
@@ -78,23 +79,25 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
-      appBar: _buildMainAppBar(),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: _isSearchMode ? _buildSearchAppBar() : _buildMainAppBar(),
       body: ListenableBuilder(
         listenable: _viewModel,
         builder: (context, _) {
+          if (_isSearchMode) {
+            return _buildSearchScreenContent();
+          }
+
           return Column(
             children: [
-              _buildInlineSearchBar(),
-
-              const Divider(height: 1, color: Color(0xFFEEEEEE)),
-
+              // 1. Status Tabs
               AppStatusTabBar<String?>(
                 items: _statusFilters,
                 selectedValue: _viewModel.selectedStatus,
                 onSelected: (value) => _viewModel.setStatusFilter(value),
               ),
 
+              // 2. Order List
               Expanded(child: _buildBody()),
             ],
           );
@@ -105,7 +108,7 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
 
   AppBar _buildMainAppBar() {
     return AppBar(
-      backgroundColor: AppColors.surfacePrimary,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       surfaceTintColor: AppColors.transparent,
       elevation: 0,
       leading: IconButton(
@@ -118,19 +121,58 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
       ),
       title: Text(
         'Đơn hàng của tôi',
-        style: AppTypography.main(
-          const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textMain,
-          ),
+        style: AppTypography.h4(
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textMain,
         ),
       ),
       centerTitle: true,
       actions: [
+        IconButton(
+          icon: const Icon(
+            Icons.search_rounded,
+            size: 24,
+            color: AppColors.primary,
+          ),
+          tooltip: 'Tìm kiếm đơn hàng',
+          onPressed: () {
+            setState(() {
+              _isSearchMode = true;
+            });
+          },
+        ),
         _buildChatActionButton(),
         const SizedBox(width: 4),
       ],
+    );
+  }
+
+  AppBar _buildSearchAppBar() {
+    return AppBar(
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      surfaceTintColor: AppColors.transparent,
+      elevation: 0,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back, size: 24, color: AppColors.primary),
+        onPressed: () {
+          setState(() {
+            _isSearchMode = false;
+            _searchController.clear();
+            _viewModel.setSearch('');
+          });
+        },
+      ),
+      title: Text(
+        'Tìm kiếm đơn hàng',
+        style: AppTypography.h4(
+          fontSize: 17,
+          fontWeight: FontWeight.w700,
+          color: AppColors.contentNavy,
+        ),
+      ),
+      centerTitle: true,
+      actions: [_buildChatActionButton(), const SizedBox(width: 4)],
     );
   }
 
@@ -154,7 +196,7 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
             width: 7.5,
             height: 7.5,
             decoration: const BoxDecoration(
-              color: Color(0xFFEE4D2D),
+              color: AppColors.primary,
               shape: BoxShape.circle,
             ),
           ),
@@ -163,58 +205,130 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
     );
   }
 
-  Widget _buildInlineSearchBar() {
-    return Container(
-      color: AppColors.surfacePrimary,
-      padding: const EdgeInsets.fromLTRB(14, 6, 14, 12),
-      child: TextField(
-        controller: _searchController,
-        textInputAction: TextInputAction.search,
-        onSubmitted: _viewModel.setSearch,
-        style: AppTypography.main(const TextStyle(fontSize: 14)),
-        decoration: InputDecoration(
-          hintText: 'Mã đơn hàng, đài quay hoặc số vé...',
-          hintStyle: AppTypography.main(
-            const TextStyle(fontSize: 13.5, color: Color(0xFF9CA3AF)),
+  Widget _buildSearchScreenContent() {
+    return Column(
+      children: [
+        Container(
+          color: AppColors.surfacePrimary,
+          padding: const EdgeInsets.fromLTRB(14, 6, 14, 12),
+          child: TextField(
+            controller: _searchController,
+            autofocus: true,
+            textInputAction: TextInputAction.search,
+            onSubmitted: _viewModel.setSearch,
+            style: AppTypography.bodyMedium(fontSize: 14),
+            decoration: InputDecoration(
+              hintText: 'Mã đơn hàng, đài quay hoặc số vé...',
+              hintStyle: AppTypography.bodyMedium(
+                fontSize: 13.5,
+                color: AppColors.contentDisabled,
+              ),
+              prefixIcon: const Icon(
+                Icons.search_rounded,
+                size: 20,
+                color: AppColors.contentPlaceholder,
+              ),
+              suffixIcon: _searchController.text.trim().isEmpty
+                  ? null
+                  : IconButton(
+                      icon: const Icon(
+                        Icons.close_rounded,
+                        size: 18,
+                        color: AppColors.contentPlaceholder,
+                      ),
+                      onPressed: () {
+                        _searchController.clear();
+                        _viewModel.setSearch('');
+                        setState(() {});
+                      },
+                    ),
+              filled: true,
+              fillColor: AppColors.surfaceDisabled,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(6),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 9,
+              ),
+              isDense: true,
+            ),
+            onChanged: (value) {
+              setState(() {});
+              _searchDebounce?.cancel();
+              _searchDebounce = Timer(const Duration(milliseconds: 450), () {
+                _viewModel.setSearch(value);
+              });
+            },
           ),
-          prefixIcon: const Icon(
-            Icons.search_rounded,
-            size: 20,
-            color: Color(0xFF888888),
-          ),
-          suffixIcon: _searchController.text.trim().isEmpty
-              ? null
-              : IconButton(
-                  icon: const Icon(
-                    Icons.close_rounded,
-                    size: 18,
-                    color: Color(0xFF888888),
-                  ),
-                  onPressed: () {
-                    _searchController.clear();
-                    _viewModel.setSearch('');
-                    setState(() {});
-                  },
-                ),
-          filled: true,
-          fillColor: const Color(0xFFF3F4F6),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(6),
-            borderSide: BorderSide.none,
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 9,
-          ),
-          isDense: true,
         ),
-        onChanged: (value) {
-          setState(() {});
-          _searchDebounce?.cancel();
-          _searchDebounce = Timer(const Duration(milliseconds: 450), () {
-            _viewModel.setSearch(value);
-          });
-        },
+
+        const Divider(height: 1, color: AppColors.borderLight),
+
+        Expanded(
+          child: _searchController.text.trim().isEmpty
+              ? _buildSearchEmptyPrompt()
+              : _buildBody(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSearchEmptyPrompt() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Icon(
+                    Icons.receipt_long_rounded,
+                    size: 56,
+                    color: AppColors.primary.withValues(alpha: 0.35),
+                  ),
+                  Positioned(
+                    right: 18,
+                    bottom: 18,
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: const BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.search_rounded,
+                        size: 20,
+                        color: AppColors.surfacePrimary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Bạn có thể tìm kiếm theo mã đơn hàng, đài quay\nhoặc số vé đặt mua',
+              textAlign: TextAlign.center,
+              style: AppTypography.bodyMedium(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppColors.contentSecondary,
+                height: 1.45,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -239,8 +353,9 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
             const SizedBox(height: 12),
             Text(
               'Không thể tải đơn hàng',
-              style: AppTypography.main(
-                const TextStyle(fontSize: 15, color: AppColors.textMuted),
+              style: AppTypography.bodyMedium(
+                fontSize: 15,
+                color: AppColors.textMuted,
               ),
             ),
             const SizedBox(height: 16),
@@ -248,11 +363,9 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
               onPressed: () => _viewModel.fetchOrders(refresh: true),
               child: Text(
                 'Thử lại',
-                style: AppTypography.main(
-                  const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
-                  ),
+                style: AppTypography.buttonMedium(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
                 ),
               ),
             ),
@@ -311,7 +424,7 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
             width: 80,
             height: 80,
             decoration: const BoxDecoration(
-              color: Color(0xFFEAEAEA),
+              color: AppColors.borderLight,
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -323,19 +436,18 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
           const SizedBox(height: 16),
           Text(
             'Chưa có đơn hàng nào',
-            style: AppTypography.main(
-              const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textMain,
-              ),
+            style: AppTypography.h4(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textMain,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             'Hãy mua vé số để tham gia ngay!',
-            style: AppTypography.main(
-              const TextStyle(fontSize: 14, color: AppColors.textMuted),
+            style: AppTypography.bodyMedium(
+              fontSize: 14,
+              color: AppColors.textMuted,
             ),
           ),
         ],
@@ -350,15 +462,16 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
         ? items.fold<int>(0, (sum, i) => sum + i.quantity)
         : 1;
 
-    final receiveLabel =
-        order.receiveType == 'COUNTER_PICKUP'
-            ? 'Nhận tại quầy'
-            : order.receiveType == 'DELIVERY'
-            ? 'Giao tận nơi'
-            : 'Nhận tại quầy';
+    final receiveLabel = order.receiveType == 'COUNTER_PICKUP'
+        ? 'Nhận tại quầy'
+        : order.receiveType == 'DELIVERY'
+        ? 'Giao tận nơi'
+        : 'Nhận tại quầy';
 
     final isExpanded = _expandedOrderIds.contains(order.id);
-    final displayedItems = isExpanded ? items : (items.isNotEmpty ? [items.first] : <OrderDetailItem>[]);
+    final displayedItems = isExpanded
+        ? items
+        : (items.isNotEmpty ? [items.first] : <OrderDetailItem>[]);
     final hasMoreTickets = items.length > 1;
 
     final actionButtons = _buildOrderActionButtons(order);
@@ -393,12 +506,10 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
                 Expanded(
                   child: Text(
                     'Đại Phát Lottery  •  DP${order.orderCode}',
-                    style: AppTypography.main(
-                      const TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.contentPrimary,
-                      ),
+                    style: AppTypography.subtitle2(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.contentPrimary,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -406,12 +517,10 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
                 const SizedBox(width: 8),
                 Text(
                   statusStyle.label,
-                  style: AppTypography.main(
-                    TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: statusStyle.text,
-                    ),
+                  style: AppTypography.caption(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: statusStyle.text,
                   ),
                 ),
               ],
@@ -457,12 +566,10 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
                             isExpanded
                                 ? 'Thu gọn'
                                 : 'Xem thêm (${items.length - 1} vé)',
-                            style: AppTypography.main(
-                              const TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.contentSecondary,
-                              ),
+                            style: AppTypography.caption(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.contentSecondary,
                             ),
                           ),
                           const SizedBox(width: 4),
@@ -493,21 +600,17 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
                   children: [
                     Text(
                       'Tổng số tiền ($totalTickets vé): ',
-                      style: AppTypography.main(
-                        const TextStyle(
-                          fontSize: 13,
-                          color: AppColors.contentSecondary,
-                        ),
+                      style: AppTypography.bodySmall(
+                        fontSize: 13,
+                        color: AppColors.contentSecondary,
                       ),
                     ),
                     Text(
                       AppFormatters.formatCurrency(order.totalAmount),
-                      style: AppTypography.number(
-                        const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.brandPrimary,
-                        ),
+                      style: AppTypography.priceMedium(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.brandPrimary,
                       ),
                     ),
                   ],
@@ -552,8 +655,8 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
     // Tên đài / Vé số
     final title = station != null && station.trim().isNotEmpty
         ? (station.trim().startsWith('Xổ số')
-            ? station.trim()
-            : 'Xổ số ${station.trim()}')
+              ? station.trim()
+              : 'Xổ số ${station.trim()}')
         : ticketType != null && ticketType.trim().isNotEmpty
         ? 'Vé số $ticketType'
         : 'Vé Xổ Số Kiến Thiết';
@@ -572,7 +675,7 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
         border: isLast
             ? null
             : const Border(
-                bottom: BorderSide(color: Color(0xFFF3F4F6), width: 0.8),
+                bottom: BorderSide(color: AppColors.borderLight, width: 0.8),
               ),
       ),
       child: Column(
@@ -584,23 +687,19 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
               Expanded(
                 child: Text(
                   title,
-                  style: AppTypography.main(
-                    const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.contentPrimary,
-                    ),
+                  style: AppTypography.bodyLarge(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.contentPrimary,
                   ),
                 ),
               ),
               const SizedBox(width: 8),
               Text(
                 'x${item.quantity}',
-                style: AppTypography.main(
-                  const TextStyle(
-                    fontSize: 13,
-                    color: AppColors.contentMuted,
-                  ),
+                style: AppTypography.bodySmall(
+                  fontSize: 13,
+                  color: AppColors.contentMuted,
                 ),
               ),
             ],
@@ -611,11 +710,9 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
               Expanded(
                 child: Text(
                   subInfo,
-                  style: AppTypography.main(
-                    const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.contentMuted,
-                    ),
+                  style: AppTypography.caption(
+                    fontSize: 12,
+                    color: AppColors.contentMuted,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -624,12 +721,10 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
               const SizedBox(width: 8),
               Text(
                 AppFormatters.formatCurrency(item.price),
-                style: AppTypography.main(
-                  const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.contentPrimary,
-                  ),
+                style: AppTypography.bodyMedium(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.contentPrimary,
                 ),
               ),
             ],
@@ -663,22 +758,18 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
               Expanded(
                 child: Text(
                   'Vé Xổ Số Đại Phát',
-                  style: AppTypography.main(
-                    const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.contentPrimary,
-                    ),
+                  style: AppTypography.bodyLarge(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.contentPrimary,
                   ),
                 ),
               ),
               Text(
                 'x1',
-                style: AppTypography.main(
-                  const TextStyle(
-                    fontSize: 13,
-                    color: AppColors.contentMuted,
-                  ),
+                style: AppTypography.bodySmall(
+                  fontSize: 13,
+                  color: AppColors.contentMuted,
                 ),
               ),
             ],
@@ -689,22 +780,18 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
               Expanded(
                 child: Text(
                   subInfo,
-                  style: AppTypography.main(
-                    const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.contentMuted,
-                    ),
+                  style: AppTypography.caption(
+                    fontSize: 12,
+                    color: AppColors.contentMuted,
                   ),
                 ),
               ),
               Text(
                 AppFormatters.formatCurrency(order.totalAmount),
-                style: AppTypography.main(
-                  const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.contentPrimary,
-                  ),
+                style: AppTypography.bodyMedium(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.contentPrimary,
                 ),
               ),
             ],
@@ -720,14 +807,13 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
     if (order.status == 'PENDING_PAYMENT') {
       buttons.add(
         ElevatedButton(
-          onPressed:
-              () => context.pushNamed(
-                AppRoute.orderDetail.name,
-                pathParameters: {'id': order.id},
-              ),
+          onPressed: () => context.pushNamed(
+            AppRoute.orderDetail.name,
+            pathParameters: {'id': order.id},
+          ),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.brandPrimary,
-            foregroundColor: Colors.white,
+            foregroundColor: AppColors.surfacePrimary,
             elevation: 0,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             shape: RoundedRectangleBorder(
@@ -738,12 +824,10 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
           ),
           child: Text(
             'Thanh toán ngay',
-            style: AppTypography.main(
-              const TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
+            style: AppTypography.buttonSmall(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: AppColors.surfacePrimary,
             ),
           ),
         ),
@@ -751,11 +835,10 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
     } else if (order.refundEligible == true) {
       buttons.add(
         OutlinedButton(
-          onPressed:
-              () => context.pushNamed(
-                AppRoute.orderDetail.name,
-                pathParameters: {'id': order.id},
-              ),
+          onPressed: () => context.pushNamed(
+            AppRoute.orderDetail.name,
+            pathParameters: {'id': order.id},
+          ),
           style: OutlinedButton.styleFrom(
             foregroundColor: AppColors.contentPrimary,
             side: const BorderSide(color: AppColors.borderDefault),
@@ -768,12 +851,10 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
           ),
           child: Text(
             'Yêu cầu hoàn tiền',
-            style: AppTypography.main(
-              const TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-                color: AppColors.contentPrimary,
-              ),
+            style: AppTypography.buttonSmall(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: AppColors.contentPrimary,
             ),
           ),
         ),
@@ -781,11 +862,10 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
     } else if (order.status == 'CANCELLED') {
       buttons.add(
         OutlinedButton(
-          onPressed:
-              () => context.pushNamed(
-                AppRoute.orderDetail.name,
-                pathParameters: {'id': order.id},
-              ),
+          onPressed: () => context.pushNamed(
+            AppRoute.orderDetail.name,
+            pathParameters: {'id': order.id},
+          ),
           style: OutlinedButton.styleFrom(
             foregroundColor: AppColors.contentPrimary,
             side: const BorderSide(color: AppColors.borderDefault),
@@ -798,12 +878,10 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
           ),
           child: Text(
             'Xem thông tin hoàn tiền',
-            style: AppTypography.main(
-              const TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-                color: AppColors.contentPrimary,
-              ),
+            style: AppTypography.buttonSmall(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: AppColors.contentPrimary,
             ),
           ),
         ),
@@ -835,8 +913,8 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
         );
       case 'PENDING_PICKUP':
         return (
-          surface: const Color(0xFFE6FFFA),
-          text: const Color(0xFF0D9488),
+          surface: AppColors.surfaceSuccess,
+          text: AppColors.statusSuccessForeground,
           label: 'Chờ nhận vé',
         );
       case 'COMPLETED':

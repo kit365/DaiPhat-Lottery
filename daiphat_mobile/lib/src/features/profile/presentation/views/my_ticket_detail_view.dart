@@ -128,7 +128,7 @@ class _TicketDetailBody extends ConsumerWidget {
         ),
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.textMain,
-          backgroundColor: const Color(0xFFF1F5F9),
+          backgroundColor: AppColors.surfaceSlate100,
           side: BorderSide.none,
           padding: const EdgeInsets.symmetric(vertical: 14),
           shape: RoundedRectangleBorder(
@@ -235,17 +235,17 @@ class _TicketDetailBody extends ConsumerWidget {
               gradient: LinearGradient(
                 colors: isWon
                     ? const [
-                        Color(0xFFFBBF24),
+                        AppColors.brandAccentYellow,
                         AppColors.statusWarningAccent,
-                        Color(0xFFEA580C),
+                        AppColors.brandAccentOrange,
                       ]
                     : ticket.drawResultStatus == 'PENDING_DRAW'
                     ? const [
-                        Color(0xFFFBBF24),
-                        Color(0xFFF97316),
+                        AppColors.brandAccentYellow,
+                        AppColors.brandAccentOrangeBright,
                         AppColors.statusWarningAccent,
                       ]
-                    : const [Color(0xFFCBD5E1), AppColors.contentSubtle],
+                    : const [AppColors.borderMuted, AppColors.contentSubtle],
               ),
             ),
           ),
@@ -263,10 +263,19 @@ class _TicketDetailBody extends ConsumerWidget {
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: isWon
-                              ? const [Color(0xFFFBBF24), AppColors.statusWarningAccent]
+                              ? const [
+                                  AppColors.brandAccentYellow,
+                                  AppColors.statusWarningAccent,
+                                ]
                               : ticket.drawResultStatus == 'PENDING_DRAW'
-                              ? const [Color(0xFFFBBF24), Color(0xFFF97316)]
-                              : const [AppColors.borderSubtle, Color(0xFFCBD5E1)],
+                              ? const [
+                                  AppColors.brandAccentYellow,
+                                  AppColors.brandAccentOrangeBright,
+                                ]
+                              : const [
+                                  AppColors.borderSubtle,
+                                  AppColors.borderMuted,
+                                ],
                         ),
                         borderRadius: BorderRadius.circular(14),
                       ),
@@ -394,17 +403,17 @@ class _TicketDetailBody extends ConsumerWidget {
                                           begin: Alignment.topCenter,
                                           end: Alignment.bottomCenter,
                                           colors: [
-                                            Color(0xFFFDE68A),
+                                            AppColors.fortuneGoldLight,
                                             AppColors.statusWarningAccent,
                                           ],
                                         )
                                       : null,
-                                  color: isWon ? null : const Color(0xFFF1F5F9),
+                                  color: isWon ? null : AppColors.surfaceSlate100,
                                   shape: BoxShape.circle,
                                   border: Border.all(
                                     color: isWon
-                                        ? const Color(0xFFFBBF24)
-                                        : const Color(0xFFCBD5E1),
+                                        ? AppColors.brandAccentYellow
+                                        : AppColors.borderMuted,
                                   ),
                                 ),
                                 child: Text(
@@ -413,7 +422,7 @@ class _TicketDetailBody extends ConsumerWidget {
                                     fontSize: 16,
                                     fontWeight: FontWeight.w900,
                                     color: isWon
-                                        ? const Color(0xFF78350F)
+                                        ? AppColors.contentAmberDark
                                         : AppColors.textMain,
                                   ),
                                 ),
@@ -462,8 +471,8 @@ class _TicketDetailBody extends ConsumerWidget {
                     valueColor:
                         ticket.redemptionZone == 'PAST_CUSTOMER_URGENT' ||
                             ticket.redemptionZone == 'PAST_ISSUER_LOCKED'
-                        ? const Color(0xFFBE123C)
-                        : const Color(0xFFB45309),
+                        ? AppColors.brandPrimaryCrimson
+                        : AppColors.brandAccentGoldAmber,
                   ),
                 if (isWon && ticket.payoutState != null)
                   _buildInfoRow(
@@ -479,7 +488,7 @@ class _TicketDetailBody extends ConsumerWidget {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [AppColors.contentNavy, Color(0xFF0F172A)],
+                      colors: [AppColors.contentNavy, AppColors.contentSlate900],
                     ),
                     borderRadius: BorderRadius.circular(16),
                   ),
@@ -514,7 +523,7 @@ class _TicketDetailBody extends ConsumerWidget {
                         style: AppTypography.mainWith(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: const Color(0xFFCBD5E1),
+                          color: AppColors.borderMuted,
                         ),
                       ),
                     ],
@@ -540,10 +549,10 @@ class _TicketDetailBody extends ConsumerWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFFFFFBEB), Color(0xFFFEF3C7)],
+          colors: [AppColors.surfaceWarning, AppColors.surfaceWarningSubtle],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFDE68A)),
+        border: Border.all(color: AppColors.fortuneGoldLight),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -555,7 +564,10 @@ class _TicketDetailBody extends ConsumerWidget {
                 height: 40,
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [Color(0xFFFBBF24), AppColors.statusWarningAccent],
+                    colors: [
+                      AppColors.brandAccentYellow,
+                      AppColors.statusWarningAccent,
+                    ],
                   ),
                   shape: BoxShape.circle,
                 ),
@@ -568,7 +580,7 @@ class _TicketDetailBody extends ConsumerWidget {
                   style: AppTypography.mainWith(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
-                    color: const Color(0xFF78350F),
+                    color: AppColors.contentAmberDark,
                   ),
                 ),
               ),

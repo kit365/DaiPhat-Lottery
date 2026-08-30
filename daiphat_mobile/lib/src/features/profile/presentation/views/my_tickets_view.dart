@@ -92,7 +92,7 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
               _buildSummaryCards(),
               _buildSearchBar(),
               _buildStatusFilter(),
-              const Divider(height: 1, color: Color(0xFFEEEEEE)),
+              const Divider(height: 1, color: AppColors.borderLight),
               Expanded(child: _buildBody()),
             ],
           );
@@ -118,14 +118,14 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
             'Chờ quay',
             '${_viewModel.pendingCountOnPage}',
             Icons.schedule_outlined,
-            const Color(0xFFFBC02D),
+            AppColors.brandAccentYellow,
           ),
           const SizedBox(width: 10),
           _buildMetricCard(
             'Trúng',
             '${_viewModel.wonCountOnPage}',
             Icons.emoji_events_outlined,
-            const Color(0xFFF57F17),
+            AppColors.brandAccentGoldAmber,
           ),
         ],
       ),
@@ -412,7 +412,7 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
                                       begin: Alignment.topCenter,
                                       end: Alignment.bottomCenter,
                                       colors: [
-                                        Color(0xFFFCD34D),
+                                        AppColors.fortuneGoldDark,
                                         AppColors.statusWarningAccent,
                                       ],
                                     )
@@ -423,7 +423,7 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
                               shape: BoxShape.circle,
                               border: Border.all(
                                 color: ticket.drawResultStatus == 'WON'
-                                    ? const Color(0xFFFBBF24)
+                                    ? AppColors.brandAccentYellow
                                     : AppColors.borderSubtle,
                               ),
                             ),
@@ -433,7 +433,7 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
                                 fontSize: 13,
                                 fontWeight: FontWeight.w800,
                                 color: ticket.drawResultStatus == 'WON'
-                                    ? const Color(0xFF78350F)
+                                    ? AppColors.contentAmberDark
                                     : AppColors.textMain,
                               ),
                             ),
@@ -470,14 +470,14 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
                       style: AppTypography.mainWith(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
-                        color: const Color(0xFFB45309),
+                        color: AppColors.brandAccentGoldAmber,
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-          const Divider(height: 1, color: Color(0xFFF0F0F0)),
+          const Divider(height: 1, color: AppColors.borderLight),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
             child: Row(

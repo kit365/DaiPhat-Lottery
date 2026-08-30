@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
-import 'package:intl/intl.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/features/chat/data/models/chat_models.dart';
@@ -188,7 +187,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Text(
                 chatState.errorMessage!,
-                style: AppTypography.mainWith(
+                style: AppTypography.caption(
                   fontSize: 11,
                   color: AppColors.error,
                 ),
@@ -229,10 +228,10 @@ class _StatusBanner extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: const Color(0xFFFFF6F6),
+      color: AppColors.surfaceBrandWarm,
       child: Text(
         text,
-        style: AppTypography.mainWith(
+        style: AppTypography.caption(
           fontSize: 12,
           fontWeight: FontWeight.w600,
           color: AppColors.primary,
@@ -255,7 +254,7 @@ class _ChatHeader extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(8, topInset + 4, 8, 10),
       decoration: const BoxDecoration(
         color: AppColors.surfacePrimary,
-        border: Border(bottom: BorderSide(color: Color(0xFFF0ECEC))),
+        border: Border(bottom: BorderSide(color: AppColors.borderLight)),
       ),
       child: Row(
         children: [
@@ -280,10 +279,10 @@ class _ChatHeader extends StatelessWidget {
                         'Đại Phát Official',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: AppTypography.mainWith(
+                        style: AppTypography.subtitle1(
                           fontSize: 15,
                           fontWeight: FontWeight.w800,
-                          color: const Color(0xFF202124),
+                          color: AppColors.contentHeading,
                         ),
                       ),
                     ),
@@ -297,10 +296,10 @@ class _ChatHeader extends StatelessWidget {
                 ),
                 Text(
                   'Hỗ trợ trực tuyến',
-                  style: AppTypography.mainWith(
+                  style: AppTypography.caption(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
-                    color: const Color(0xFF8A8F98),
+                    color: AppColors.contentNeutral,
                   ),
                 ),
               ],
@@ -330,10 +329,10 @@ class _OfficialProfileCard extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFFFFF6F6), Color(0xFFFFFBFA)],
+          colors: [AppColors.surfaceBrandWarm, AppColors.surfacePrimary],
         ),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFFFE3E5)),
+        border: Border.all(color: AppColors.brandPrimaryBorderLight),
       ),
       child: Row(
         children: [
@@ -345,19 +344,19 @@ class _OfficialProfileCard extends StatelessWidget {
               children: [
                 Text(
                   'Đại Phát Official',
-                  style: AppTypography.mainWith(
+                  style: AppTypography.subtitle2(
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
-                    color: const Color(0xFF202124),
+                    color: AppColors.contentHeading,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   'Hỗ trợ khách hàng 24/7',
-                  style: AppTypography.mainWith(
+                  style: AppTypography.caption(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
-                    color: const Color(0xFF7A8088),
+                    color: AppColors.contentSlate600,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -366,16 +365,16 @@ class _OfficialProfileCard extends StatelessWidget {
                     const Icon(
                       Icons.verified_user_rounded,
                       size: 14,
-                      color: Color(0xFF2E9E4D),
+                      color: AppColors.statusSuccess,
                     ),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
                         'Tài khoản chính thức của Đại Phát',
-                        style: AppTypography.mainWith(
+                        style: AppTypography.caption(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
-                          color: const Color(0xFF2E9E4D),
+                          color: AppColors.statusSuccess,
                         ),
                       ),
                     ),
@@ -397,7 +396,7 @@ class _OfficialProfileCard extends StatelessWidget {
             ),
             child: Text(
               'Thông tin',
-              style: AppTypography.mainWith(
+              style: AppTypography.buttonSmall(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
@@ -410,11 +409,11 @@ class _OfficialProfileCard extends StatelessWidget {
 }
 
 class _BrandAvatar extends StatelessWidget {
-  const _BrandAvatar({required this.size});
-
-  static const _assetPath = 'assets/images/logoApp.png';
+  const _BrandAvatar({this.size = 36});
 
   final double size;
+
+  static const String _assetPath = 'assets/images/login_logo.jpg';
 
   @override
   Widget build(BuildContext context) {
@@ -422,12 +421,14 @@ class _BrandAvatar extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: const Color(0xFFFAF7F2),
+        color: AppColors.surfaceSoft,
         shape: BoxShape.circle,
-        border: Border.all(color: const Color(0xFFE8C9A0)),
+        border: Border.all(
+          color: AppColors.brandAccentGoldAmber.withValues(alpha: 0.4),
+        ),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x14000000),
+            color: AppColors.shadowLight,
             blurRadius: 8,
             offset: Offset(0, 2),
           ),
@@ -442,7 +443,7 @@ class _BrandAvatar extends StatelessWidget {
         errorBuilder: (_, _, _) => Center(
           child: Text(
             'DP',
-            style: AppTypography.mainWith(
+            style: AppTypography.h4(
               fontSize: size * 0.34,
               fontWeight: FontWeight.w900,
               color: AppColors.primary,
@@ -465,15 +466,15 @@ class _SystemNotice extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: const Color(0xFFF5F5F7),
+          color: AppColors.surfaceNeutral,
           borderRadius: BorderRadius.circular(999),
         ),
         child: Text(
           text,
           textAlign: TextAlign.center,
-          style: AppTypography.mainWith(
+          style: AppTypography.caption(
             fontSize: 11,
-            color: const Color(0xFF7A8088),
+            color: AppColors.contentSlate600,
           ),
         ),
       ),
@@ -497,25 +498,25 @@ class _UserBubble extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
           decoration: BoxDecoration(
-            color: const Color(0xFFFFF0F1),
+            color: AppColors.surfaceDestructiveSoft,
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(18),
               topRight: Radius.circular(18),
               bottomLeft: Radius.circular(18),
               bottomRight: Radius.circular(6),
             ),
-            border: Border.all(color: const Color(0xFFFFE0E3)),
+            border: Border.all(color: AppColors.brandPrimaryBorderLight),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
                 message.text,
-                style: AppTypography.mainWith(
+                style: AppTypography.bodyMedium(
                   fontSize: 13,
                   height: 1.45,
                   fontWeight: FontWeight.w500,
-                  color: const Color(0xFF2B2F36),
+                  color: AppColors.contentHeading,
                 ),
               ),
               const SizedBox(height: 4),
@@ -524,9 +525,9 @@ class _UserBubble extends StatelessWidget {
                 children: [
                   Text(
                     message.timeLabel,
-                    style: AppTypography.mainWith(
+                    style: AppTypography.caption(
                       fontSize: 10,
-                      color: const Color(0xFF9AA0A8),
+                      color: AppColors.contentNeutral,
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -572,10 +573,10 @@ class _SupportBubble extends StatelessWidget {
                   bottomRight: Radius.circular(18),
                   bottomLeft: Radius.circular(6),
                 ),
-                border: Border.all(color: const Color(0xFFECECF0)),
+                border: Border.all(color: AppColors.borderLight),
                 boxShadow: const [
                   BoxShadow(
-                    color: Color(0x08000000),
+                    color: AppColors.shadowLight,
                     blurRadius: 10,
                     offset: Offset(0, 2),
                   ),
@@ -589,7 +590,7 @@ class _SupportBubble extends StatelessWidget {
                       padding: const EdgeInsets.only(bottom: 4),
                       child: Text(
                         'Nhân viên Đại Phát',
-                        style: AppTypography.mainWith(
+                        style: AppTypography.caption(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
                           color: AppColors.primary,
@@ -598,19 +599,19 @@ class _SupportBubble extends StatelessWidget {
                     ),
                   Text(
                     message.text,
-                    style: AppTypography.mainWith(
+                    style: AppTypography.bodyMedium(
                       fontSize: 13,
                       height: 1.45,
                       fontWeight: FontWeight.w500,
-                      color: const Color(0xFF2B2F36),
+                      color: AppColors.contentHeading,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     message.timeLabel,
-                    style: AppTypography.mainWith(
+                    style: AppTypography.caption(
                       fontSize: 10,
-                      color: const Color(0xFF9AA0A8),
+                      color: AppColors.contentNeutral,
                     ),
                   ),
                 ],
@@ -638,13 +639,13 @@ class _TypingBubble extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppColors.surfacePrimary,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFFECECF0)),
+            border: Border.all(color: AppColors.borderLight),
           ),
           child: Text(
             'Đại Phát đang soạn tin...',
-            style: AppTypography.mainWith(
+            style: AppTypography.caption(
               fontSize: 12,
-              color: const Color(0xFF7A8088),
+              color: AppColors.contentSlate600,
               fontStyle: FontStyle.italic,
             ),
           ),
@@ -720,14 +721,14 @@ class _TicketSuggestCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surfacePrimary,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFFFE0E3)),
+        border: Border.all(color: AppColors.brandPrimaryBorderLight),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             ticket.numbers,
-            style: AppTypography.mainWith(
+            style: AppTypography.lotteryDigit(
               fontSize: 18,
               fontWeight: FontWeight.w800,
               color: AppColors.primary,
@@ -738,16 +739,16 @@ class _TicketSuggestCard extends StatelessWidget {
             ticket.stationName ?? 'Đài xổ số',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: AppTypography.mainWith(
+            style: AppTypography.caption(
               fontSize: 11,
-              color: const Color(0xFF7A8088),
+              color: AppColors.contentSlate600,
             ),
           ),
           Text(
             _formatDrawDate(),
-            style: AppTypography.mainWith(
+            style: AppTypography.caption(
               fontSize: 11,
-              color: const Color(0xFF7A8088),
+              color: AppColors.contentSlate600,
             ),
           ),
           const Spacer(),
@@ -755,10 +756,10 @@ class _TicketSuggestCard extends StatelessWidget {
             children: [
               Text(
                 _formatPrice(),
-                style: AppTypography.mainWith(
+                style: AppTypography.priceMedium(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: const Color(0xFF2B2F36),
+                  color: AppColors.contentHeading,
                 ),
               ),
               const Spacer(),
@@ -810,12 +811,12 @@ class _QuickReplyChips extends StatelessWidget {
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.primary,
               backgroundColor: AppColors.surfacePrimary,
-              side: const BorderSide(color: Color(0xFFF5CBCD)),
+              side: const BorderSide(color: AppColors.brandPrimaryBorderLight),
               padding: const EdgeInsets.symmetric(horizontal: 12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(999),
               ),
-              textStyle: AppTypography.mainWith(
+              textStyle: AppTypography.buttonSmall(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
@@ -847,7 +848,7 @@ class _ChatInputBar extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(12, 10, 12, 10 + bottomInset),
       decoration: const BoxDecoration(
         color: AppColors.surfacePrimary,
-        border: Border(top: BorderSide(color: Color(0xFFF0ECEC))),
+        border: Border(top: BorderSide(color: AppColors.borderLight)),
       ),
       child: Row(
         children: [
@@ -855,7 +856,7 @@ class _ChatInputBar extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: const Color(0xFFFFF2F3),
+              color: AppColors.surfaceBrandWarm,
               borderRadius: BorderRadius.circular(12),
             ),
             child: IconButton(
@@ -873,12 +874,12 @@ class _ChatInputBar extends StatelessWidget {
               onSubmitted: enabled ? (_) => onSend() : null,
               decoration: InputDecoration(
                 hintText: 'Nhập tin nhắn...',
-                hintStyle: AppTypography.mainWith(
+                hintStyle: AppTypography.bodySmall(
                   fontSize: 13,
-                  color: const Color(0xFFB0B6BE),
+                  color: AppColors.contentPlaceholderStrong,
                 ),
                 filled: true,
-                fillColor: const Color(0xFFF5F5F7),
+                fillColor: AppColors.surfaceNeutral,
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 10,
@@ -888,15 +889,15 @@ class _ChatInputBar extends StatelessWidget {
                   borderSide: BorderSide.none,
                 ),
               ),
-              style: AppTypography.mainWith(
+              style: AppTypography.bodySmall(
                 fontSize: 13,
-                color: const Color(0xFF2B2F36),
+                color: AppColors.contentHeading,
               ),
             ),
           ),
           const SizedBox(width: 10),
           Material(
-            color: enabled ? AppColors.primary : const Color(0xFFE0E0E0),
+            color: enabled ? AppColors.primary : AppColors.borderLight,
             shape: const CircleBorder(),
             child: InkWell(
               customBorder: const CircleBorder(),

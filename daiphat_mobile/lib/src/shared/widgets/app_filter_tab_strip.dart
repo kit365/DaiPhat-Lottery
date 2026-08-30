@@ -128,14 +128,12 @@ class AppFilterChip extends StatelessWidget {
               ],
               Text(
                 label,
-                style: AppTypography.main(
-                  TextStyle(
-                    fontSize: 13,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected
-                        ? AppColors.surfacePrimary
-                        : AppColors.contentPrimary,
-                  ),
+                style: AppTypography.labelMedium(
+                  fontSize: 13,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: isSelected
+                      ? AppColors.surfacePrimary
+                      : AppColors.contentPrimary,
                 ),
               ),
             ],

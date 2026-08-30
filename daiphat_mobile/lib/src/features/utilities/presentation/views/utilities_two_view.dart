@@ -15,13 +15,13 @@ class UtilitiesTwoView extends ConsumerWidget {
   const UtilitiesTwoView({
     super.key,
     required this.isAuthenticated,
-    required this.onBack,
+    this.onBack,
     required this.onOpenNotifications,
     required this.onOpenBlog,
   });
 
   final bool isAuthenticated;
-  final VoidCallback onBack;
+  final VoidCallback? onBack;
   final VoidCallback onOpenNotifications;
   final VoidCallback onOpenBlog;
 
@@ -59,78 +59,96 @@ class UtilitiesTwoView extends ConsumerWidget {
               child: Image.asset('assets/images/home_bg.png', fit: BoxFit.cover),
             ),
           ),
-          Column(
-            children: [
-              _UtilitiesTwoHeader(
-                title: 'Tiện ích',
-                onBack: onBack,
-                onOpenCart: () => context.pushNamed(AppRoute.cart.name),
-                onOpenChat: () => _openChat(context),
-              ),
-              Expanded(
-                child: RefreshIndicator(
-                  color: AppColors.primary,
-                  onRefresh: () async {},
-                  child: ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: EdgeInsets.zero,
-                    children: [
-                      const _UtilitiesTwoShowcase(),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
-                        child: Column(
-                          children: [
-                            GridView.count(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              crossAxisCount: 2,
-                              mainAxisSpacing: 12,
-                              crossAxisSpacing: 12,
-                              childAspectRatio: 0.78,
-                              children: [
-                                _UtilityCard(
-                                  icon: Icons.notifications_active_outlined,
-                                  title: 'Thông báo',
-                                  subtitle:
-                                      'Cập nhật các thông báo mới nhất từ hệ thống',
-                                  actionLabel: 'Xem ngay',
-                                  onTap: onOpenNotifications,
-                                ),
-                                _UtilityCard(
-                                  icon: Icons.auto_awesome_rounded,
-                                  title: 'Gieo quẻ',
-                                  subtitle:
-                                      'Gieo quẻ may mắn nhận lời giải cho bạn',
-                                  actionLabel: 'Gieo ngay',
-                                  onTap: () => context.push(AppRoute.fortune.path),
-                                ),
-                                _UtilityCard(
-                                  icon: Icons.calendar_month_outlined,
-                                  title: 'Lịch mở thưởng',
-                                  subtitle:
-                                      'Theo dõi lịch mở thưởng và kết quả chi tiết',
-                                  actionLabel: 'Xem lịch',
-                                  onTap: () => context.push(AppRoute.schedule.path),
-                                ),
-                                _UtilityCard(
-                                  icon: Icons.article_outlined,
-                                  title: 'Tin tức',
-                                  subtitle:
-                                      'Cập nhật tin tức, sự kiện và khuyến mãi mới nhất',
-                                  actionLabel: 'Đọc ngay',
-                                  onTap: onOpenBlog,
-                                ),
-                              ],
-                            ),
-                          ],
+          Positioned.fill(
+            child: SafeArea(
+              bottom: false,
+              child: Column(
+                children: [
+                  _UtilitiesTwoHeader(
+                    title: 'Tiện ích',
+                    onBack: onBack,
+                    onOpenCart: () => context.pushNamed(AppRoute.cart.name),
+                    onOpenChat: () => _openChat(context),
+                  ),
+                Expanded(
+                  child: RefreshIndicator(
+                    color: AppColors.primary,
+                    onRefresh: () async {},
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: EdgeInsets.zero,
+                      children: [
+                        const _UtilitiesTwoShowcase(),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+                          child: Column(
+                            children: [
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: _UtilityCard(
+                                      icon: Icons.notifications_active_outlined,
+                                      title: 'Thông báo',
+                                      subtitle:
+                                          'Cập nhật các thông báo mới nhất từ hệ thống',
+                                      actionLabel: 'Xem ngay',
+                                      onTap: onOpenNotifications,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _UtilityCard(
+                                      icon: Icons.auto_awesome_rounded,
+                                      title: 'Gieo quẻ',
+                                      subtitle:
+                                          'Gieo quẻ may mắn nhận lời giải cho bạn',
+                                      actionLabel: 'Gieo ngay',
+                                      onTap: () =>
+                                          context.push(AppRoute.fortune.path),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: _UtilityCard(
+                                      icon: Icons.calendar_month_outlined,
+                                      title: 'Lịch mở thưởng',
+                                      subtitle:
+                                          'Theo dõi lịch mở thưởng và kết quả chi tiết',
+                                      actionLabel: 'Xem lịch',
+                                      onTap: () =>
+                                          context.push(AppRoute.schedule.path),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _UtilityCard(
+                                      icon: Icons.article_outlined,
+                                      title: 'Tin tức',
+                                      subtitle:
+                                          'Cập nhật tin tức, sự kiện và khuyến mãi mới nhất',
+                                      actionLabel: 'Đọc ngay',
+                                      onTap: onOpenBlog,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
+        ),
         ],
       ),
     );
@@ -140,13 +158,13 @@ class UtilitiesTwoView extends ConsumerWidget {
 class _UtilitiesTwoHeader extends ConsumerWidget {
   const _UtilitiesTwoHeader({
     required this.title,
-    required this.onBack,
+    this.onBack,
     required this.onOpenCart,
     required this.onOpenChat,
   });
 
   final String title;
-  final VoidCallback onBack;
+  final VoidCallback? onBack;
   final VoidCallback onOpenCart;
   final VoidCallback onOpenChat;
 
@@ -154,52 +172,48 @@ class _UtilitiesTwoHeader extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final count = ref.watch(cartTicketCountProvider);
 
-    return Container(
-      color: const Color(0xFFBF1A22),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Align(
-                alignment: Alignment.centerLeft,
-                child: AppHeaderActionButton(
-                  icon: Icons.arrow_back_ios_new_rounded,
-                  tooltip: 'Quay lại',
-                  onTap: onBack,
-                ),
-              ),
-              Text(
+    return SizedBox(
+      height: 56,
+      child: Container(
+        color: AppColors.brandPrimaryCrimson,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(
+          children: [
+            if (onBack != null)
+              AppHeaderActionButton(
+                icon: Icons.arrow_back_ios_new_rounded,
+                tooltip: 'Quay lại',
+                onTap: onBack!,
+              )
+            else
+              const SizedBox(width: 42),
+            Expanded(
+              child: Text(
                 title,
                 textAlign: TextAlign.center,
                 style: AppTypography.pageTitle().copyWith(
                   color: AppColors.surfacePrimary,
                 ),
               ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    AppHeaderActionButton(
-                      icon: Icons.chat_bubble_outline_rounded,
-                      tooltip: 'Trò chuyện / Hỗ trợ',
-                      onTap: onOpenChat,
-                    ),
-                    const SizedBox(width: 8),
-                    AppHeaderActionButton(
-                      icon: Icons.shopping_cart_outlined,
-                      tooltip: 'Giỏ hàng',
-                      badgeCount: count,
-                      onTap: onOpenCart,
-                    ),
-                  ],
+            ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AppHeaderActionButton(
+                  icon: Icons.chat_bubble_outline_rounded,
+                  tooltip: 'Trò chuyện / Hỗ trợ',
+                  onTap: onOpenChat,
                 ),
-              ),
-            ],
-          ),
+                const SizedBox(width: 8),
+                AppHeaderActionButton(
+                  icon: Icons.shopping_cart_outlined,
+                  tooltip: 'Giỏ hàng',
+                  badgeCount: count,
+                  onTap: onOpenCart,
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -232,9 +246,9 @@ class _UtilitiesTwoShowcase extends StatelessWidget {
                 end: Alignment.bottomCenter,
                 colors: [
                   AppColors.primaryDark,
-                  const Color(0xFFE70F20),
-                  const Color(0xFFF3272E).withValues(alpha: 0.92),
-                  const Color(0xFFF9F9FC),
+                  AppColors.brandPrimaryStrong,
+                  AppColors.primary.withValues(alpha: 0.92),
+                  AppColors.surfaceSlate50,
                 ],
                 stops: const [0, .45, .82, 1],
               ),
@@ -243,7 +257,7 @@ class _UtilitiesTwoShowcase extends StatelessWidget {
               ),
               boxShadow: const [
                 BoxShadow(
-                  color: Color(0x1ACB101D),
+                  color: AppColors.shadowBrandFaint,
                   blurRadius: 18,
                   spreadRadius: -6,
                   offset: Offset(0, 8),
@@ -258,10 +272,13 @@ class _UtilitiesTwoShowcase extends StatelessWidget {
           child: Container(
             width: 190,
             height: 190,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: RadialGradient(
-                colors: [Color(0x45FFB85C), Color(0x00FFB85C)],
+                colors: [
+                  AppColors.brandAccentGoldAmber.withValues(alpha: 0.27),
+                  AppColors.transparent,
+                ],
               ),
             ),
           ),
@@ -361,13 +378,13 @@ class _HeroBannerState extends State<_HeroBanner> {
         borderRadius: BorderRadius.circular(22),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x12000000),
+            color: AppColors.shadowLight,
             blurRadius: 36,
             spreadRadius: -4,
             offset: Offset(0, 14),
           ),
           BoxShadow(
-            color: Color(0x06000000),
+            color: AppColors.shadowLight,
             blurRadius: 10,
             offset: Offset(0, 2),
           ),
@@ -392,9 +409,9 @@ class _HeroBannerState extends State<_HeroBanner> {
                         begin: Alignment.centerLeft,
                         end: Alignment.centerRight,
                         colors: [
-                          const Color(0xFFB40716).withValues(alpha: 0.96),
-                          const Color(0xFFD51C29).withValues(alpha: 0.76),
-                          const Color(0xFFE43732).withValues(alpha: 0.18),
+                          AppColors.brandPrimaryDarkRed.withValues(alpha: 0.96),
+                          AppColors.brandPrimaryStrong.withValues(alpha: 0.76),
+                          AppColors.brandPrimaryCrimson.withValues(alpha: 0.18),
                           AppColors.transparent,
                         ],
                       ),
@@ -408,7 +425,7 @@ class _HeroBannerState extends State<_HeroBanner> {
                       children: [
                         Text(
                           slide.eyebrow,
-                          style: const TextStyle(
+                          style: AppTypography.caption(
                             color: AppColors.surfacePrimary,
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
@@ -419,7 +436,7 @@ class _HeroBannerState extends State<_HeroBanner> {
                           width: 188,
                           child: Text(
                             slide.title,
-                            style: const TextStyle(
+                            style: AppTypography.h3(
                               color: AppColors.surfacePrimary,
                               fontSize: 25,
                               fontWeight: FontWeight.w900,
@@ -438,15 +455,15 @@ class _HeroBannerState extends State<_HeroBanner> {
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                               colors: [
-                                Color(0xFFFFF2A3),
-                                Color(0xFFFFD23F),
-                                Color(0xFFFFA81D),
+                                AppColors.fortuneGoldLight,
+                                AppColors.brandAccentYellow,
+                                AppColors.brandAccentGoldAmber,
                               ],
                             ),
                             borderRadius: BorderRadius.circular(999),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFFFFB21D)
+                                color: AppColors.brandAccentGoldAmber
                                     .withValues(alpha: 0.42),
                                 blurRadius: 14,
                                 offset: const Offset(0, 6),
@@ -463,8 +480,8 @@ class _HeroBannerState extends State<_HeroBanner> {
                             children: [
                               Text(
                                 slide.ctaLabel,
-                                style: const TextStyle(
-                                  color: Color(0xFF811313),
+                                style: AppTypography.buttonSmall(
+                                  color: AppColors.brandNavy,
                                   fontSize: 13,
                                   fontWeight: FontWeight.w900,
                                 ),
@@ -472,7 +489,7 @@ class _HeroBannerState extends State<_HeroBanner> {
                               const SizedBox(width: 8),
                               const Icon(
                                 Icons.arrow_forward_ios_rounded,
-                                color: Color(0xFF811313),
+                                color: AppColors.brandNavy,
                                 size: 13,
                               ),
                             ],
@@ -535,7 +552,7 @@ class _UtilityCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surfacePrimary,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFFF0E5E3)),
+          border: Border.all(color: AppColors.borderLight),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.035),
@@ -550,7 +567,7 @@ class _UtilityCard extends StatelessWidget {
               width: 64,
               height: 64,
               decoration: const BoxDecoration(
-                color: Color(0xFFFCE7E7),
+                color: AppColors.surfaceBrandWarm,
                 shape: BoxShape.circle,
               ),
               child: Center(
@@ -571,8 +588,8 @@ class _UtilityCard extends StatelessWidget {
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Color(0xFF1B1110),
+              style: AppTypography.h4(
+                color: AppColors.contentHeading,
                 fontSize: 19,
                 fontWeight: FontWeight.w900,
               ),
@@ -583,8 +600,8 @@ class _UtilityCard extends StatelessWidget {
               textAlign: TextAlign.center,
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Color(0xFF3F3A38),
+              style: AppTypography.bodySmall(
+                color: AppColors.contentSecondary,
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
                 height: 1.3,
@@ -592,7 +609,7 @@ class _UtilityCard extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             Material(
-              color: const Color(0xFFFFF1F1),
+              color: AppColors.surfaceDestructiveSoft,
               borderRadius: BorderRadius.circular(999),
               child: InkWell(
                 onTap: onTap,
@@ -609,7 +626,7 @@ class _UtilityCard extends StatelessWidget {
                           actionLabel,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: AppTypography.buttonSmall(
                             color: AppColors.primary,
                             fontSize: 13,
                             fontWeight: FontWeight.w900,

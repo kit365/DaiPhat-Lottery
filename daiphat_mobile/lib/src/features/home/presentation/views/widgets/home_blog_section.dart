@@ -63,7 +63,7 @@ class HomeBlogSection extends ConsumerWidget {
                   Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFCE5DF),
+                      color: AppColors.surfaceBrandLight,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(
@@ -75,12 +75,10 @@ class HomeBlogSection extends ConsumerWidget {
                   const SizedBox(width: 8),
                   Text(
                     'TIN TỨC XỔ SỐ',
-                    style: AppTypography.display(
-                      const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textMain,
-                      ),
+                    style: AppTypography.h5(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textMain,
                     ),
                   ),
                   const Spacer(),
@@ -97,12 +95,10 @@ class HomeBlogSection extends ConsumerWidget {
                         children: [
                           Text(
                             'Xem tất cả',
-                            style: AppTypography.main(
-                              const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.primary,
-                              ),
+                            style: AppTypography.buttonSmall(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary,
                             ),
                           ),
                           const SizedBox(width: 4),
@@ -185,11 +181,11 @@ class HomeBlogSection extends ConsumerWidget {
                   post.imageUrl,
                   fit: BoxFit.cover,
                   errorBuilder: (_, _, _) => Container(
-                    color: const Color(0xFFFFF9E6),
+                    color: AppColors.brandAccentLight,
                     child: const Icon(
                       Icons.image_outlined,
                       size: 40,
-                      color: Color(0xFFFFD700),
+                      color: AppColors.brandAccent,
                     ),
                   ),
                 ),
@@ -200,17 +196,15 @@ class HomeBlogSection extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF9ECEE),
+                  color: AppColors.surfaceBrandWarm,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   post.category,
-                  style: AppTypography.main(
-                    const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
-                    ),
+                  style: AppTypography.labelSmall(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
                   ),
                 ),
               ),
@@ -220,13 +214,11 @@ class HomeBlogSection extends ConsumerWidget {
               post.title,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: AppTypography.display(
-                const TextStyle(
-                  fontSize: 14.5,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textMain,
-                  height: 1.35,
-                ),
+              style: AppTypography.h5(
+                fontSize: 14.5,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textMain,
+                height: 1.35,
               ),
             ),
             const SizedBox(height: 6),
@@ -240,12 +232,9 @@ class HomeBlogSection extends ConsumerWidget {
                 const SizedBox(width: 5),
                 Text(
                   post.authorDate.isNotEmpty ? post.authorDate : post.date,
-                  style: AppTypography.main(
-                    const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textMuted,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  style: AppTypography.bodySmall(
+                    color: AppColors.textMuted,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
@@ -274,11 +263,11 @@ class HomeBlogSection extends ConsumerWidget {
                 errorBuilder: (_, _, _) => Container(
                   width: 76,
                   height: 76,
-                  color: const Color(0xFFFFF9E6),
+                  color: AppColors.brandAccentLight,
                   child: const Icon(
                     Icons.image_outlined,
                     size: 28,
-                    color: Color(0xFFFFD700),
+                    color: AppColors.brandAccent,
                   ),
                 ),
               ),
@@ -295,13 +284,11 @@ class HomeBlogSection extends ConsumerWidget {
                       post.title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: AppTypography.display(
-                        const TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textMain,
-                          height: 1.3,
-                        ),
+                      style: AppTypography.h6(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textMain,
+                        height: 1.3,
                       ),
                     ),
                     Row(
@@ -309,18 +296,16 @@ class HomeBlogSection extends ConsumerWidget {
                         if (post.category.isNotEmpty) ...[
                           Text(
                             post.category,
-                            style: AppTypography.main(
-                              const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.primary,
-                              ),
+                            style: AppTypography.labelSmall(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primary,
                             ),
                           ),
                           const SizedBox(width: 8),
-                          const Text(
+                          Text(
                             '•',
-                            style: TextStyle(
+                            style: AppTypography.caption(
                               color: AppColors.textMuted,
                               fontSize: 10,
                             ),
@@ -329,12 +314,10 @@ class HomeBlogSection extends ConsumerWidget {
                         ],
                         Text(
                           post.date,
-                          style: AppTypography.main(
-                            const TextStyle(
-                              fontSize: 11.5,
-                              color: AppColors.textMuted,
-                              fontWeight: FontWeight.w500,
-                            ),
+                          style: AppTypography.caption(
+                            fontSize: 11.5,
+                            color: AppColors.textMuted,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],

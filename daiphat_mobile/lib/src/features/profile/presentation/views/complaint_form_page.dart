@@ -426,7 +426,7 @@ class _ComplaintFormPageState extends ConsumerState<ComplaintFormPage> {
                   style: AppTypography.mainWith(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFF454F5B),
+                    color: AppColors.contentSlate700,
                   ),
                 ),
               ),
@@ -444,7 +444,7 @@ class _ComplaintFormPageState extends ConsumerState<ComplaintFormPage> {
         height: 160,
         width: double.infinity,
         decoration: BoxDecoration(
-          color: const Color(0xFFF9FAFB),
+          color: AppColors.surfaceSlate50,
           border: Border.all(color: AppColors.borderLight),
           borderRadius: BorderRadius.circular(12),
         ),
@@ -573,7 +573,7 @@ class _ComplaintFormPageState extends ConsumerState<ComplaintFormPage> {
     style: AppTypography.mainWith(
       fontSize: 13,
       fontWeight: FontWeight.w700,
-      color: const Color(0xFF454F5B),
+      color: AppColors.contentSlate700,
     ),
   );
 

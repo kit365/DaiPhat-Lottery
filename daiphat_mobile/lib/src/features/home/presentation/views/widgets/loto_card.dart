@@ -67,12 +67,10 @@ class _LotoCardState extends State<LotoCard> {
                     const SizedBox(width: 7),
                     Text(
                       'BẢNG LÔ TÔ',
-                      style: AppTypography.display(
-                        const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textMain,
-                        ),
+                      style: AppTypography.h5(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textMain,
                       ),
                     ),
                   ],
@@ -96,12 +94,10 @@ class _LotoCardState extends State<LotoCard> {
                         size: 18,
                         color: AppColors.textMuted,
                       ),
-                      style: AppTypography.main(
-                        const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textMain,
-                        ),
+                      style: AppTypography.subtitle2(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textMain,
                       ),
                       onChanged: (value) => setState(() => _province = value),
                       items: [
@@ -145,12 +141,10 @@ class _LotoCardState extends State<LotoCard> {
                   child: Text(
                     'CHỤC',
                     textAlign: TextAlign.center,
-                    style: AppTypography.main(
-                      const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textMain,
-                      ),
+                    style: AppTypography.labelSmall(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textMain,
                     ),
                   ),
                 ),
@@ -159,12 +153,10 @@ class _LotoCardState extends State<LotoCard> {
                   child: Text(
                     'SỐ',
                     textAlign: TextAlign.center,
-                    style: AppTypography.main(
-                      const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primary,
-                      ),
+                    style: AppTypography.labelSmall(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
                     ),
                   ),
                 ),
@@ -173,12 +165,10 @@ class _LotoCardState extends State<LotoCard> {
                   child: Text(
                     'ĐƠN VỊ',
                     textAlign: TextAlign.center,
-                    style: AppTypography.main(
-                      const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textMain,
-                      ),
+                    style: AppTypography.labelSmall(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textMain,
                     ),
                   ),
                 ),
@@ -204,12 +194,10 @@ class _LotoCardState extends State<LotoCard> {
                     child: Text(
                       row.focus,
                       textAlign: TextAlign.center,
-                      style: AppTypography.number(
-                        const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.primary,
-                        ),
+                      style: AppTypography.lotteryDigit(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.primary,
                       ),
                     ),
                   ),
@@ -239,12 +227,10 @@ class _LotoCardState extends State<LotoCard> {
         spans.add(
           TextSpan(
             text: split[0],
-            style: AppTypography.main(
-              const TextStyle(
-                color: AppColors.textMain,
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-              ),
+            style: AppTypography.lotteryDigit(
+              color: AppColors.textMain,
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
             ),
           ),
         );
@@ -254,12 +240,10 @@ class _LotoCardState extends State<LotoCard> {
               offset: const Offset(0, -5),
               child: Text(
                 split[1],
-                style: AppTypography.main(
-                  const TextStyle(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 9,
-                  ),
+                style: AppTypography.overline(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 9,
                 ),
               ),
             ),
@@ -269,12 +253,10 @@ class _LotoCardState extends State<LotoCard> {
         spans.add(
           TextSpan(
             text: value,
-            style: AppTypography.main(
-              const TextStyle(
-                color: AppColors.textMain,
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-              ),
+            style: AppTypography.lotteryDigit(
+              color: AppColors.textMain,
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
             ),
           ),
         );
@@ -284,11 +266,9 @@ class _LotoCardState extends State<LotoCard> {
         spans.add(
           TextSpan(
             text: ', ',
-            style: AppTypography.main(
-              const TextStyle(
-                color: AppColors.textMain,
-                fontSize: 13,
-              ),
+            style: AppTypography.lotteryDigit(
+              color: AppColors.textMain,
+              fontSize: 13,
             ),
           ),
         );

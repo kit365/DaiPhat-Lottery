@@ -9,7 +9,6 @@ import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
 import 'package:daiphat_mobile/src/features/cart/models/cart_item_model.dart';
 import '../../models/transaction_type.dart';
-import '../../data/system_config_service.dart';
 import '../providers/checkout_provider.dart';
 import '../widgets/checkout_datetime_picker.dart';
 
@@ -93,6 +92,44 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
     return null;
   }
 
+  List<String> _getMissingRequirements(CheckoutState state) {
+    final missing = <String>[];
+    final name = _nameController.text.trim();
+    final phone = _phoneController.text.trim();
+
+    if (name.isEmpty) {
+      missing.add('họ và tên');
+    } else if (!RegExp(r'^[a-zA-ZÀ-ɏḀ-ỿ\s]+$').hasMatch(name) ||
+        name.length >= 50) {
+      missing.add('họ tên hợp lệ');
+    }
+
+    if (phone.isEmpty) {
+      missing.add('số điện thoại');
+    } else if (!RegExp(r'^\d+$').hasMatch(phone) ||
+        !phone.startsWith('0') ||
+        phone.length > 11) {
+      missing.add('số điện thoại hợp lệ');
+    }
+
+    if (state.expectedPickupAt == null ||
+        state.expectedPickupAt!.trim().isEmpty) {
+      missing.add('thời gian nhận vé');
+    }
+
+    if (state.selectedReceiveType == null ||
+        state.selectedReceiveType!.trim().isEmpty) {
+      missing.add('hình thức nhận vé');
+    }
+
+    if (state.selectedTransactionType == null ||
+        state.selectedTransactionType!.trim().isEmpty) {
+      missing.add('phương thức thanh toán');
+    }
+
+    return missing;
+  }
+
   Future<void> _handleCheckout() async {
     setState(() => _submitted = true);
     final notifier = ref.read(checkoutProvider.notifier);
@@ -161,10 +198,7 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
       child: Scaffold(
         backgroundColor: AppColors.backgroundPrimary,
         appBar: AppBar(
-          title: Text(
-            'Thanh toán',
-            style: AppTypography.pageTitle(),
-          ),
+          title: Text('Thanh toán', style: AppTypography.pageTitle()),
           backgroundColor: AppColors.surfacePrimary,
           foregroundColor: AppColors.contentPrimary,
           elevation: 0,
@@ -231,10 +265,9 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                         );
                       },
                       loading: () => const Center(
-                        child: SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                        child: Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: CircularProgressIndicator(),
                         ),
                       ),
                       error: (e, _) => Column(
@@ -242,7 +275,7 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                         children: [
                           Text(
                             'Không tải được danh mục, dùng mặc định nhận tại quầy.',
-                            style: TextStyle(
+                            style: AppTypography.bodySmall(
                               color: Colors.orange.shade800,
                               fontSize: 13,
                             ),
@@ -299,8 +332,8 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                           effectiveTypes,
                           checkoutState.selectedTransactionType,
                           (val) => ref
-                              .read(checkoutProvider.notifier)
-                              .setSelectedTransactionType(val),
+                                .read(checkoutProvider.notifier)
+                                .setSelectedTransactionType(val),
                         );
                       },
                       loading: () => const Center(
@@ -315,7 +348,7 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                         children: [
                           Text(
                             'Không tải được danh mục, dùng mặc định chuyển khoản.',
-                            style: TextStyle(
+                            style: AppTypography.bodySmall(
                               color: Colors.orange.shade800,
                               fontSize: 13,
                             ),
@@ -363,7 +396,7 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                               Expanded(
                                 child: Text(
                                   checkoutState.errorMessage!,
-                                  style: TextStyle(
+                                  style: AppTypography.bodySmall(
                                     color: Colors.red.shade700,
                                     fontSize: 13,
                                     fontWeight: FontWeight.w500,
@@ -385,6 +418,7 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
               total: cartTotal,
               isSubmitting: checkoutState.isSubmitting,
               canCheckout: checkoutState.isValid && !checkoutState.isSubmitting,
+              missingRequirements: _getMissingRequirements(checkoutState),
               onCheckout: _handleCheckout,
             ),
           ],
@@ -407,7 +441,7 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
             child: Center(
               child: Text(
                 '$number',
-                style: const TextStyle(
+                style: AppTypography.subtitle2(
                   color: AppColors.surfacePrimary,
                   fontWeight: FontWeight.w800,
                   fontSize: 13,
@@ -419,12 +453,10 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
         ],
         Text(
           title,
-          style: AppTypography.main(
-            const TextStyle(
-              color: AppColors.contentPrimary,
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-            ),
+          style: AppTypography.h4(
+            color: AppColors.contentPrimary,
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
           ),
         ),
       ],
@@ -544,26 +576,22 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                               children: [
                                 Text(
                                   type.label,
-                                  style: AppTypography.main(
-                                    TextStyle(
-                                      color: isSelected
-                                          ? AppColors.primary
-                                          : AppColors.contentPrimary,
-                                      fontSize: 15.5,
-                                      fontWeight: FontWeight.w700,
-                                    ),
+                                  style: AppTypography.subtitle1(
+                                    color: isSelected
+                                        ? AppColors.primary
+                                        : AppColors.contentPrimary,
+                                    fontSize: 15.5,
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
                                 if (type.value == 'COUNTER_PICKUP')
                                   Text(
                                     'Đến trực tiếp quầy giao dịch Đại Phát để nhận vé giấy',
-                                    style: AppTypography.main(
-                                      const TextStyle(
-                                        color: AppColors.contentMuted,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w500,
-                                      ),
+                                    style: AppTypography.bodySmall(
+                                      color: AppColors.contentMuted,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
                               ],
@@ -629,14 +657,12 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                               children: [
                                 Text(
                                   type.label,
-                                  style: AppTypography.main(
-                                    TextStyle(
-                                      color: isSelected
-                                          ? AppColors.primary
-                                          : AppColors.contentPrimary,
-                                      fontSize: 15.5,
-                                      fontWeight: FontWeight.w700,
-                                    ),
+                                  style: AppTypography.subtitle1(
+                                    color: isSelected
+                                        ? AppColors.primary
+                                        : AppColors.contentPrimary,
+                                    fontSize: 15.5,
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
@@ -644,12 +670,10 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                                   type.value == 'ONLINE'
                                       ? 'Quét mã QR bằng ứng dụng ngân hàng (24/7)'
                                       : 'Thanh toán bằng tiền mặt khi nhận vé tại quầy',
-                                  style: AppTypography.main(
-                                    const TextStyle(
-                                      color: AppColors.contentMuted,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500,
-                                    ),
+                                  style: AppTypography.bodySmall(
+                                    color: AppColors.contentMuted,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ],
@@ -678,12 +702,10 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
         children: [
           Text(
             'Tóm tắt chi phí',
-            style: AppTypography.main(
-              const TextStyle(
-                color: AppColors.contentPrimary,
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-              ),
+            style: AppTypography.subtitle1(
+              color: AppColors.contentPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 14),
@@ -699,10 +721,11 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
     required int total,
     required bool isSubmitting,
     required bool canCheckout,
+    required List<String> missingRequirements,
     required VoidCallback onCheckout,
   }) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
       decoration: const BoxDecoration(
         color: AppColors.surfacePrimary,
         border: Border(top: BorderSide(color: AppColors.borderLight)),
@@ -713,33 +736,62 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Padding(
-              padding: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.only(bottom: 10),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     'Tổng thanh toán',
-                    style: AppTypography.main(
-                      const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.contentPrimary,
-                      ),
+                    style: AppTypography.subtitle1(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.contentPrimary,
                     ),
                   ),
                   Text(
                     _money(total),
-                    style: AppTypography.number(
-                      const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.primary,
-                      ),
+                    style: AppTypography.priceLarge(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.primary,
                     ),
                   ),
                 ],
               ),
             ),
+            if (!canCheckout &&
+                !isSubmitting &&
+                missingRequirements.isNotEmpty) ...[
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Semantics(
+                  liveRegion: true,
+                  label: 'Còn thiếu: ${missingRequirements.join(", ")}',
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.info_outline_rounded,
+                        size: 16,
+                        color: AppColors.primary,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Vui lòng hoàn tất: ${missingRequirements.join(", ")}',
+                          style: AppTypography.caption(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                            height: 1.3,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -747,8 +799,8 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: AppColors.surfacePrimary,
-                  disabledBackgroundColor: const Color(0xFFF3B5B2),
-                  disabledForegroundColor: Colors.white70,
+                  disabledBackgroundColor: AppColors.brandPrimaryBorder,
+                  disabledForegroundColor: AppColors.white.withValues(alpha: 0.7),
                   minimumSize: const Size.fromHeight(56),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -765,12 +817,10 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                       )
                     : Text(
                         'Chốt đơn ngay',
-                        style: AppTypography.main(
-                          const TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.surfacePrimary,
-                          ),
+                        style: AppTypography.buttonLarge(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.surfacePrimary,
                         ),
                       ),
               ),
@@ -791,33 +841,27 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
       children: [
         Text(
           label,
-          style: AppTypography.main(
-            TextStyle(
-              color: highlight
-                  ? AppColors.contentPrimary
-                  : AppColors.contentSecondary,
-              fontSize: highlight ? 16 : 14,
-              fontWeight: highlight ? FontWeight.w800 : FontWeight.w500,
-            ),
+          style: AppTypography.bodyMedium(
+            color: highlight
+                ? AppColors.contentPrimary
+                : AppColors.contentSecondary,
+            fontSize: highlight ? 16 : 14,
+            fontWeight: highlight ? FontWeight.w800 : FontWeight.w500,
           ),
         ),
         const Spacer(),
         Text(
           value,
           style: highlight
-              ? AppTypography.number(
-                  const TextStyle(
-                    color: AppColors.primary,
-                    fontSize: 19,
-                    fontWeight: FontWeight.w900,
-                  ),
+              ? AppTypography.priceLarge(
+                  color: AppColors.primary,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w900,
                 )
-              : AppTypography.main(
-                  TextStyle(
-                    color: valueColor ?? AppColors.contentPrimary,
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w700,
-                  ),
+              : AppTypography.bodyMedium(
+                  color: valueColor ?? AppColors.contentPrimary,
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w700,
                 ),
         ),
       ],
@@ -850,7 +894,7 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
       border: Border.all(color: AppColors.cardBorder),
       boxShadow: const [
         BoxShadow(
-          color: Color(0x08000000),
+          color: AppColors.shadowLight,
           blurRadius: 10,
           offset: Offset(0, 2),
         ),
@@ -906,12 +950,10 @@ class _CheckoutTextFieldRow extends StatelessWidget {
               textInputAction: textInputAction,
               minLines: minLines,
               maxLines: maxLines,
-              style: AppTypography.main(
-                const TextStyle(
-                  color: AppColors.contentPrimary,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                ),
+              style: AppTypography.bodyLarge(
+                color: AppColors.contentPrimary,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
               ),
               decoration: InputDecoration(
                 labelText: label,
@@ -924,19 +966,15 @@ class _CheckoutTextFieldRow extends StatelessWidget {
                 errorBorder: InputBorder.none,
                 focusedErrorBorder: InputBorder.none,
                 contentPadding: EdgeInsets.zero,
-                labelStyle: AppTypography.main(
-                  const TextStyle(
-                    color: AppColors.contentMuted,
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w600,
-                  ),
+                labelStyle: AppTypography.caption(
+                  color: AppColors.contentMuted,
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w600,
                 ),
-                hintStyle: AppTypography.main(
-                  const TextStyle(
-                    color: AppColors.contentPlaceholder,
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w500,
-                  ),
+                hintStyle: AppTypography.bodyMedium(
+                  color: AppColors.contentPlaceholder,
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ),
@@ -954,12 +992,13 @@ class _CartItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final station = (item.province.trim().isNotEmpty &&
+    final station =
+        (item.province.trim().isNotEmpty &&
             item.province.trim() != 'Đang cập nhật')
         ? item.province.trim()
         : (item.logoText.trim().isNotEmpty
-            ? item.logoText.trim()
-            : 'Đài Miền Nam');
+              ? item.logoText.trim()
+              : 'Đài Miền Nam');
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -969,7 +1008,7 @@ class _CartItemCard extends StatelessWidget {
         border: Border.all(color: AppColors.cardBorder),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x08000000),
+            color: AppColors.shadowLight,
             blurRadius: 8,
             offset: Offset(0, 2),
           ),
@@ -990,12 +1029,10 @@ class _CartItemCard extends StatelessWidget {
                       station,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: AppTypography.main(
-                        const TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.contentMuted,
-                        ),
+                      style: AppTypography.subtitle2(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.contentMuted,
                       ),
                     ),
                     const SizedBox(height: 3),
@@ -1013,12 +1050,10 @@ class _CartItemCard extends StatelessWidget {
                             item.dateLabel,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: AppTypography.main(
-                              const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.contentMuted,
-                              ),
+                            style: AppTypography.caption(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.contentMuted,
                             ),
                           ),
                         ),
@@ -1031,14 +1066,12 @@ class _CartItemCard extends StatelessWidget {
                   item.number,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppTypography.number(
-                    const TextStyle(
-                      color: AppColors.contentPrimary,
-                      fontSize: 25,
-                      height: 1.0,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1.8,
-                    ),
+                  style: AppTypography.lotteryDigit(
+                    color: AppColors.contentPrimary,
+                    fontSize: 25,
+                    height: 1.0,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.8,
                   ),
                 ),
               ],
@@ -1051,23 +1084,19 @@ class _CartItemCard extends StatelessWidget {
             children: [
               Text(
                 'x${item.quantity}',
-                style: AppTypography.main(
-                  const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                    color: AppColors.contentMuted,
-                  ),
+                style: AppTypography.bodySmall(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  color: AppColors.contentMuted,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 AppFormatters.formatCurrency(item.subtotal),
-                style: AppTypography.main(
-                  const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13.5,
-                    color: AppColors.primary,
-                  ),
+                style: AppTypography.priceMedium(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13.5,
+                  color: AppColors.primary,
                 ),
               ),
             ],
@@ -1077,3 +1106,4 @@ class _CartItemCard extends StatelessWidget {
     );
   }
 }
+

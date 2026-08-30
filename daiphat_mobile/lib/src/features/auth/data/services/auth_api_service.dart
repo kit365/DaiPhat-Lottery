@@ -7,6 +7,7 @@ import '../dto/register_request.dart';
 import '../dto/forgot_password_request.dart';
 import '../dto/verify_otp_request.dart';
 import '../dto/reset_password_request.dart';
+import '../dto/change_password_request.dart';
 import 'package:daiphat_mobile/src/features/profile/data/dto/update_profile_request.dart';
 import '../models/auth_token.dart';
 import '../models/password_policy.dart';
@@ -36,7 +37,11 @@ class AuthApiService {
     );
 
     if (!apiResponse.isSuccess) {
-      throw ApiException(apiResponse.message.isNotEmpty ? apiResponse.message : 'Đăng nhập thất bại.');
+      throw ApiException(
+        apiResponse.message.isNotEmpty
+            ? apiResponse.message
+            : 'Đăng nhập thất bại.',
+      );
     }
 
     if (apiResponse.data == null) {
@@ -63,14 +68,18 @@ class AuthApiService {
 
   Future<User> getCurrentUser() async {
     final response = await _apiClient.get('$_baseUsers/me');
-    
+
     final apiResponse = ApiResponse<User>.fromJson(
       response,
       (json) => User.fromJson(json as Map<String, dynamic>),
     );
 
     if (!apiResponse.isSuccess) {
-      throw ApiException(apiResponse.message.isNotEmpty ? apiResponse.message : 'Không thể lấy thông tin người dùng.');
+      throw ApiException(
+        apiResponse.message.isNotEmpty
+            ? apiResponse.message
+            : 'Không thể lấy thông tin người dùng.',
+      );
     }
 
     if (apiResponse.data == null) {
@@ -86,7 +95,9 @@ class AuthApiService {
       data: request.toJson(),
     );
     final apiResponse = ApiResponse.fromJson(response, null);
-    if (!apiResponse.isSuccess) throw ApiException(apiResponse.message);
+    if (!apiResponse.isSuccess) {
+      throw ApiException(apiResponse.message);
+    }
   }
 
   Future<void> forgotPasswordRequest(ForgotPasswordRequest request) async {
@@ -95,7 +106,9 @@ class AuthApiService {
       data: request.toJson(),
     );
     final apiResponse = ApiResponse.fromJson(response, null);
-    if (!apiResponse.isSuccess) throw ApiException(apiResponse.message);
+    if (!apiResponse.isSuccess) {
+      throw ApiException(apiResponse.message);
+    }
   }
 
   Future<String> verifyResetOtp(VerifyOtpRequest request) async {
@@ -103,15 +116,16 @@ class AuthApiService {
       '$_baseAuth/forgot-password/verify',
       data: request.toJson(),
     );
-    
+
     final apiResponse = ApiResponse<String>.fromJson(
       response,
       (json) => (json as Map<String, dynamic>)['resetToken'] as String,
     );
 
     if (!apiResponse.isSuccess) throw ApiException(apiResponse.message);
-    if (apiResponse.data == null) throw const ApiException('Dữ liệu xác thực OTP không hợp lệ.');
-    
+    if (apiResponse.data == null)
+      throw const ApiException('Dữ liệu xác thực OTP không hợp lệ.');
+
     return apiResponse.data!;
   }
 
@@ -122,6 +136,21 @@ class AuthApiService {
     );
     final apiResponse = ApiResponse.fromJson(response, null);
     if (!apiResponse.isSuccess) throw ApiException(apiResponse.message);
+  }
+
+  Future<void> changePassword(ChangePasswordRequest request) async {
+    final response = await _apiClient.post(
+      '$_baseAuth/change-password',
+      data: request.toJson(),
+    );
+    final apiResponse = ApiResponse.fromJson(response, null);
+    if (!apiResponse.isSuccess) {
+      throw ApiException(
+        apiResponse.message.isNotEmpty
+            ? apiResponse.message
+            : 'Không thể cập nhật mật khẩu.',
+      );
+    }
   }
 
   Future<void> updateUser(String id, UpdateProfileRequest request) async {
@@ -142,15 +171,16 @@ class AuthApiService {
       '$_baseUsers/me/avatar',
       data: formData,
     );
-    
+
     final apiResponse = ApiResponse<User>.fromJson(
       response,
       (json) => User.fromJson(json as Map<String, dynamic>),
     );
 
     if (!apiResponse.isSuccess) throw ApiException(apiResponse.message);
-    if (apiResponse.data == null) throw const ApiException('Không thể lấy thông tin người dùng.');
-    
+    if (apiResponse.data == null)
+      throw const ApiException('Không thể lấy thông tin người dùng.');
+
     return apiResponse.data!;
   }
 

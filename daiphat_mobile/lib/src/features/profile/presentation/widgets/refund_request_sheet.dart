@@ -306,7 +306,7 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
               width: 42,
               height: 4,
               decoration: BoxDecoration(
-                color: const Color(0xFFD9D9D9),
+                color: AppColors.borderLight,
                 borderRadius: BorderRadius.circular(99),
               ),
             ),
@@ -373,8 +373,8 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: AppColors.surfacePrimary,
-                disabledBackgroundColor: const Color(0xFFE0E0E0),
-                disabledForegroundColor: const Color(0xFF757575),
+                disabledBackgroundColor: AppColors.borderLight,
+                disabledForegroundColor: AppColors.contentNeutral,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
@@ -394,7 +394,7 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF9FAFB),
+        color: AppColors.surfaceSlate50,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.borderLight),
       ),
@@ -447,7 +447,9 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
         color: isExpired ? AppColors.statusErrorSurface : AppColors.statusWarningSurface,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: isExpired ? const Color(0xFFFFDAD6) : const Color(0xFFFFE0B2),
+          color: isExpired
+              ? AppColors.brandPrimaryBorder
+              : AppColors.brandAccentGoldAmber.withValues(alpha: 0.35),
         ),
       ),
       child: Column(
@@ -459,8 +461,8 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
               fontSize: 14,
               fontWeight: FontWeight.w700,
               color: isExpired
-                  ? const Color(0xFFB3261E)
-                  : const Color(0xFF9A4D00),
+                  ? AppColors.brandPrimaryDarkRed
+                  : AppColors.statusAttentionForeground,
             ),
           ),
           const SizedBox(height: 8),
@@ -468,18 +470,23 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
             Text(
               _formatCountdown(_secondsLeft),
               style: AppTypography.mainWith(
-                fontSize: 24,
-                fontWeight: FontWeight.w800,
-                color: AppColors.primary,
+                fontSize: 28,
+                fontWeight: FontWeight.w900,
+                color: _secondsLeft <= 5 * 60
+                    ? AppColors.primary
+                    : AppColors.statusAttentionForeground,
+                letterSpacing: 1,
               ),
             ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
             message,
             style: AppTypography.mainWith(
               fontSize: 12,
+              color: isExpired
+                  ? AppColors.primary
+                  : AppColors.statusAttentionForeground,
               height: 1.45,
-              color: AppColors.textMuted,
             ),
           ),
         ],
@@ -498,53 +505,84 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Tài khoản nhận hoàn',
-            style: AppTypography.mainWith(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textMain,
-            ),
-          ),
-          const SizedBox(height: 12),
-          if (_bankAccounts.isEmpty)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Bạn chưa có tài khoản ngân hàng. Thêm tài khoản trong '
-                  'mục "Tài khoản ngân hàng" hoặc tạo mới ngay bên dưới.',
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Tài khoản nhận tiền hoàn',
                   style: AppTypography.mainWith(
-                    fontSize: 13,
-                    height: 1.45,
-                    color: AppColors.textMuted,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textMain,
                   ),
                 ),
-                const SizedBox(height: 10),
-                TextButton.icon(
-                  onPressed: _isSubmitting ? null : _handleCreateBankAccount,
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('Thêm tài khoản ngân hàng'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                    padding: EdgeInsets.zero,
-                  ),
-                ),
-              ],
-            )
-          else ...[
-            ..._bankAccounts.map(_buildBankAccountTile),
-            const SizedBox(height: 4),
-            TextButton.icon(
-              onPressed: _isSubmitting ? null : _handleCreateBankAccount,
-              icon: const Icon(Icons.add_card_rounded),
-              label: const Text('Thêm tài khoản mới'),
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                padding: EdgeInsets.zero,
               ),
-            ),
-          ],
+              TextButton.icon(
+                onPressed: _isSubmitting ? null : _handleCreateBankAccount,
+                icon: const Icon(Icons.add_rounded, size: 16),
+                label: Text(
+                  'Thêm mới',
+                  style: AppTypography.mainWith(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
+                  ),
+                ),
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (_isLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              ),
+            )
+          else if (_bankAccounts.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceSlate50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.borderLight),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Bạn chưa có tài khoản ngân hàng nào để nhận tiền hoàn.',
+                    style: AppTypography.mainWith(
+                      fontSize: 13,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: _isSubmitting ? null : _handleCreateBankAccount,
+                    icon: const Icon(Icons.add_rounded, size: 16),
+                    label: Text(
+                      'Thêm tài khoản nhận tiền',
+                      style: AppTypography.mainWith(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      side: const BorderSide(color: AppColors.primary),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            ..._bankAccounts.map(_buildBankAccountTile),
         ],
       ),
     );
@@ -563,7 +601,9 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: selected ? const Color(0xFFFFF5F5) : const Color(0xFFF9FAFB),
+            color: selected
+                ? AppColors.surfaceDestructiveSoft
+                : AppColors.surfaceSlate50,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: selected ? AppColors.primary : AppColors.borderLight,
@@ -609,7 +649,7 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFFFF2F3),
+                              color: AppColors.surfaceBrandWarm,
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -688,7 +728,7 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
                 margin: const EdgeInsets.only(bottom: 10),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF9FAFB),
+                  color: AppColors.surfaceSlate50,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Column(
@@ -756,7 +796,7 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
             decoration: InputDecoration(
               hintText: 'Nhập lý do hủy đơn và hoàn tiền',
               filled: true,
-              fillColor: const Color(0xFFF9FAFB),
+              fillColor: AppColors.surfaceSlate50,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
                 borderSide: const BorderSide(color: AppColors.borderLight),
@@ -777,9 +817,11 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF0F5FF),
+        color: AppColors.statusInfoSurface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0x332065D1)),
+        border: Border.all(
+          color: AppColors.brandSecondary.withValues(alpha: 0.2),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -798,7 +840,7 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
             style: AppTypography.mainWith(
               fontSize: 24,
               fontWeight: FontWeight.w800,
-              color: const Color(0xFF2065D1),
+              color: AppColors.brandSecondary,
             ),
           ),
         ],
@@ -1028,7 +1070,7 @@ class _BankAccountFormDialogState extends State<BankAccountFormDialog> {
                   'Chọn ngân hàng...',
                   style: AppTypography.mainWith(
                     fontSize: 14,
-                    color: const Color(0xFFC4CDD5),
+                    color: AppColors.contentPlaceholderStrong,
                   ),
                 ),
               ),
@@ -1353,7 +1395,7 @@ class _BankAccountFormDialogState extends State<BankAccountFormDialog> {
       hintStyle: AppTypography.mainWith(
         fontSize: 14,
         fontWeight: FontWeight.w400,
-        color: const Color(0xFFC4CDD5),
+        color: AppColors.contentPlaceholderStrong,
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       border: OutlineInputBorder(
@@ -1399,16 +1441,16 @@ class _BankAccountFormDialogState extends State<BankAccountFormDialog> {
   Widget _buildRequiredLabel(String label) {
     return RichText(
       text: TextSpan(
-        style: AppTypography.mainWith(
+        style: AppTypography.caption(
           fontSize: 13,
           fontWeight: FontWeight.w600,
           color: AppColors.textMain,
         ),
         children: [
           TextSpan(text: label),
-          const TextSpan(
+          TextSpan(
             text: ' *',
-            style: TextStyle(color: AppColors.primary),
+            style: AppTypography.caption(color: AppColors.primary),
           ),
         ],
       ),

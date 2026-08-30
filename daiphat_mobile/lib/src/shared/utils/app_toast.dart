@@ -177,7 +177,7 @@ class _CustomToastCard extends StatelessWidget {
                 message,
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
-                style: AppTypography.mainWith(
+                style: AppTypography.subtitle2(
                   fontSize: 13.5,
                   fontWeight: FontWeight.w600,
                   color: AppColors.contentNavy,
@@ -212,7 +212,7 @@ class _CustomToastCard extends StatelessWidget {
                     ),
                     child: Text(
                       actionLabel!,
-                      style: AppTypography.mainWith(
+                      style: AppTypography.buttonSmall(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w700,
                         color: AppColors.surfacePrimary,

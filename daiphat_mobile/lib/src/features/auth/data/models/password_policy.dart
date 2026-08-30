@@ -1,3 +1,15 @@
+class PasswordRequirementResult {
+  final String id;
+  final String description;
+  final bool isMet;
+
+  const PasswordRequirementResult({
+    required this.id,
+    required this.description,
+    required this.isMet,
+  });
+}
+
 class PasswordRequirement {
   final String id;
   final String description;
@@ -39,6 +51,32 @@ class PasswordPolicy {
       minLength: (json['minLength'] as num?)?.toInt() ?? 6,
       maxLength: (json['maxLength'] as num?)?.toInt() ?? 100,
     );
+  }
+
+  List<PasswordRequirementResult> checkPassword(String password) {
+    final results = <PasswordRequirementResult>[];
+    if (minLength > 0) {
+      results.add(
+        PasswordRequirementResult(
+          id: 'min_length',
+          description: 'Ít nhất $minLength ký tự',
+          isMet: password.length >= minLength,
+        ),
+      );
+    }
+    for (final req in requirements) {
+      final isMet = req.regex != null && req.regex!.isNotEmpty
+          ? RegExp(req.regex!).hasMatch(password)
+          : true;
+      results.add(
+        PasswordRequirementResult(
+          id: req.id,
+          description: req.description,
+          isMet: isMet,
+        ),
+      );
+    }
+    return results;
   }
 
   bool isPasswordValid(String password) {
