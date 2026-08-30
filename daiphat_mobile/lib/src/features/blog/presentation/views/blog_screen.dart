@@ -324,7 +324,7 @@ class _CircleIconButton extends StatelessWidget {
       color: AppColors.surfacePrimary,
       shape: const CircleBorder(),
       elevation: 4,
-      shadowColor: Colors.black.withValues(alpha: 0.16),
+      shadowColor: AppColors.shadowMedium,
       child: InkWell(
         onTap: onTap,
         customBorder: const CircleBorder(),
@@ -350,7 +350,7 @@ class _AllBlogCard extends StatelessWidget {
       color: AppColors.surfacePrimary,
       borderRadius: BorderRadius.circular(18),
       elevation: 2.5,
-      shadowColor: Colors.black.withValues(alpha: 0.12),
+      shadowColor: AppColors.shadowSubtle,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
@@ -382,11 +382,11 @@ class _AllBlogCard extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: _primary,
                         borderRadius: BorderRadius.circular(999),
-                        boxShadow: [
+                        boxShadow: const [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.16),
+                            color: AppColors.shadowMedium,
                             blurRadius: 10,
-                            offset: const Offset(0, 3),
+                            offset: Offset(0, 3),
                           ),
                         ],
                       ),
@@ -491,11 +491,11 @@ Widget _buildAppBar(VoidCallback? onBack) {
           decoration: BoxDecoration(
             color: AppColors.surfacePrimary,
             shape: BoxShape.circle,
-            boxShadow: [
+            boxShadow: const [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.10),
+                color: AppColors.shadowLight,
                 blurRadius: 16,
-                offset: const Offset(0, 6),
+                offset: Offset(0, 6),
               ),
             ],
           ),
@@ -544,11 +544,11 @@ Widget _buildAppBar(VoidCallback? onBack) {
             color: AppColors.surfacePrimary,
             borderRadius: BorderRadius.circular(22),
             border: Border.all(color: AppColors.borderLight),
-            boxShadow: [
+            boxShadow: const [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.10),
+                color: AppColors.shadowLight,
                 blurRadius: 16,
-                offset: const Offset(0, 6),
+                offset: Offset(0, 6),
               ),
             ],
           ),
@@ -572,11 +572,11 @@ Widget _buildSearchBar({
         color: _surface,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: AppColors.borderLight),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: AppColors.shadowFaint,
             blurRadius: 10,
-            offset: const Offset(0, 3),
+            offset: Offset(0, 3),
           ),
         ],
       ),
@@ -706,11 +706,11 @@ Widget _buildFeaturedCard(BlogPost post, void Function(BlogPost) onOpenDetail) {
       decoration: BoxDecoration(
         color: _surface,
         borderRadius: BorderRadius.circular(26),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
+            color: AppColors.shadowLight,
             blurRadius: 24,
-            offset: const Offset(0, 10),
+            offset: Offset(0, 10),
           ),
         ],
       ),
@@ -734,9 +734,9 @@ Widget _buildFeaturedCard(BlogPost post, void Function(BlogPost) onOpenDetail) {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withValues(alpha: 0.05),
-                    Colors.black.withValues(alpha: 0.18),
-                    Colors.black.withValues(alpha: 0.74),
+                    AppColors.neutralInk.withValues(alpha: 0.05),
+                    AppColors.neutralInk.withValues(alpha: 0.18),
+                    AppColors.neutralInk.withValues(alpha: 0.74),
                   ],
                   stops: const [0.25, 0.55, 1],
                 ),
@@ -841,11 +841,11 @@ Widget _buildRecentCard(BlogPost post, void Function(BlogPost) onOpenDetail) {
           color: _surface,
           borderRadius: BorderRadius.circular(22),
           border: Border.all(color: _cardBorder),
-          boxShadow: [
+          boxShadow: const [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
+              color: AppColors.shadowFaint,
               blurRadius: 14,
-              offset: const Offset(0, 5),
+              offset: Offset(0, 5),
             ),
           ],
         ),
@@ -946,8 +946,8 @@ class _BlogSkeleton extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: Shimmer.fromColors(
-              baseColor: Colors.grey[300]!,
-              highlightColor: Colors.grey[100]!,
+              baseColor: AppColors.neutral300,
+              highlightColor: AppColors.neutral100,
               child: Container(
                 height: 360,
                 decoration: BoxDecoration(
@@ -963,8 +963,8 @@ class _BlogSkeleton extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: Shimmer.fromColors(
-                baseColor: Colors.grey[300]!,
-                highlightColor: Colors.grey[100]!,
+                baseColor: AppColors.neutral300,
+                highlightColor: AppColors.neutral100,
                 child: Container(
                   height: 120,
                   decoration: BoxDecoration(
@@ -1014,7 +1014,12 @@ class _BlogError extends StatelessWidget {
             FilledButton(
               onPressed: onRetry,
               style: FilledButton.styleFrom(backgroundColor: _primary),
-              child: const Text('Thu lai'),
+              child: Text(
+                'Thử lại',
+                style: AppTypography.buttonMedium(
+                  color: AppColors.surfacePrimary,
+                ),
+              ),
             ),
           ],
         ),

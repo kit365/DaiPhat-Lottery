@@ -276,7 +276,7 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                           Text(
                             'Không tải được danh mục, dùng mặc định nhận tại quầy.',
                             style: AppTypography.bodySmall(
-                              color: Colors.orange.shade800,
+                              color: AppColors.statusWarningForeground,
                               fontSize: 13,
                             ),
                           ),
@@ -349,7 +349,7 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                           Text(
                             'Không tải được danh mục, dùng mặc định chuyển khoản.',
                             style: AppTypography.bodySmall(
-                              color: Colors.orange.shade800,
+                              color: AppColors.statusWarningForeground,
                               fontSize: 13,
                             ),
                           ),
@@ -381,15 +381,17 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                         child: Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.red.shade50,
+                            color: AppColors.surfaceDestructiveSoft,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.red.shade200),
+                            border: Border.all(
+                              color: AppColors.borderDestructiveSubtle,
+                            ),
                           ),
                           child: Row(
                             children: [
-                              Icon(
+                              const Icon(
                                 Icons.error_outline,
-                                color: Colors.red.shade700,
+                                color: AppColors.contentDestructive,
                                 size: 20,
                               ),
                               const SizedBox(width: 8),
@@ -397,7 +399,7 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                                 child: Text(
                                   checkoutState.errorMessage!,
                                   style: AppTypography.bodySmall(
-                                    color: Colors.red.shade700,
+                                    color: AppColors.contentDestructive,
                                     fontSize: 13,
                                     fontWeight: FontWeight.w500,
                                   ),

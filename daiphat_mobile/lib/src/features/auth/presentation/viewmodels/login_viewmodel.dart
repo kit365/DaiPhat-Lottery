@@ -26,12 +26,23 @@ class LoginViewModel extends ChangeNotifier {
   }
 
   Future<bool> login(String username, String password) async {
+    return _authenticate(() => _authRepository.login(username, password));
+  }
+
+  Future<bool> loginWithGoogle() async {
+    return _authenticate(_authRepository.loginWithGoogle);
+  }
+
+  Future<bool> _authenticate(Future<User?> Function() authenticate) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      _user = await _authRepository.login(username, password);
+      _user = await authenticate();
+      if (_user == null) {
+        return false;
+      }
 
       // Save user profile to SharedPreferences for checkout auto-fill
       try {

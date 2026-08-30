@@ -69,11 +69,11 @@ class AppHeaderActionButton extends StatelessWidget {
         height: size,
         decoration: BoxDecoration(
           borderRadius: effectiveBorderRadius,
-          boxShadow: [
+          boxShadow: const [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
+              color: AppColors.shadowLight,
               blurRadius: 10,
-              offset: const Offset(0, 2),
+              offset: Offset(0, 2),
             ),
           ],
         ),

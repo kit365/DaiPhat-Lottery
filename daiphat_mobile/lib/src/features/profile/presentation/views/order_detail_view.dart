@@ -306,11 +306,11 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
       decoration: BoxDecoration(
         color: AppColors.surfacePrimary,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: AppColors.shadowLight,
             blurRadius: 8,
-            offset: const Offset(0, 2),
+            offset: Offset(0, 2),
           ),
         ],
       ),
@@ -368,9 +368,8 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                           boxShadow: done
                               ? [
                                   BoxShadow(
-                                    color: const Color(
-                                      0xFF00A76F,
-                                    ).withValues(alpha: 0.3),
+                                    color: AppColors.statusSuccessForeground
+                                        .withValues(alpha: 0.3),
                                     blurRadius: 8,
                                     spreadRadius: 2,
                                   ),
@@ -1256,11 +1255,11 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
       decoration: BoxDecoration(
         color: AppColors.surfacePrimary,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: AppColors.shadowLight,
             blurRadius: 8,
-            offset: const Offset(0, 2),
+            offset: Offset(0, 2),
           ),
         ],
       ),
@@ -1747,11 +1746,11 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
       decoration: BoxDecoration(
         color: AppColors.surfacePrimary,
         border: const Border(top: BorderSide(color: AppColors.borderLight)),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
+            color: AppColors.shadowLight,
             blurRadius: 16,
-            offset: const Offset(0, -4),
+            offset: Offset(0, -4),
           ),
         ],
       ),
@@ -1843,11 +1842,11 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
       decoration: BoxDecoration(
         color: AppColors.surfacePrimary,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: AppColors.shadowLight,
             blurRadius: 8,
-            offset: const Offset(0, 2),
+            offset: Offset(0, 2),
           ),
         ],
       ),

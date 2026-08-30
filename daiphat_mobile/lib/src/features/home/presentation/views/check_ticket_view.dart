@@ -5,11 +5,18 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import 'package:go_router/go_router.dart';
+import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
+import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
+import 'package:daiphat_mobile/src/features/chat/presentation/views/chat_screen.dart';
 import 'package:daiphat_mobile/src/features/home/data/models/ticket_check_models.dart';
 import 'package:daiphat_mobile/src/features/home/presentation/viewmodels/ticket_check_viewmodel.dart';
+import 'package:daiphat_mobile/src/features/notifications/presentation/providers/notification_providers.dart';
+import 'package:daiphat_mobile/src/shared/providers/api_providers.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
+import 'package:daiphat_mobile/src/shared/widgets/app_header_action_button.dart';
 
 class CheckTicketView extends ConsumerStatefulWidget {
   const CheckTicketView({super.key});
@@ -43,7 +50,10 @@ class _CheckTicketViewState extends ConsumerState<CheckTicketView> {
                 stops: [0.4, 1.0],
               ).createShader(bounds),
               blendMode: BlendMode.dstIn,
-              child: Image.asset('assets/images/home_bg.png', fit: BoxFit.cover),
+              child: Image.asset(
+                'assets/images/home_bg.png',
+                fit: BoxFit.cover,
+              ),
             ),
           ),
           SafeArea(
@@ -172,10 +182,7 @@ class _CheckTicketViewState extends ConsumerState<CheckTicketView> {
 }
 
 class _WinConfettiOverlay extends StatefulWidget {
-  const _WinConfettiOverlay({
-    required this.active,
-    required this.triggerKey,
-  });
+  const _WinConfettiOverlay({required this.active, required this.triggerKey});
 
   final bool active;
   final String triggerKey;
@@ -258,8 +265,8 @@ class _WinConfettiOverlayState extends State<_WinConfettiOverlay>
           size: size,
           color: _palette[random.nextInt(_palette.length)],
           rotation: random.nextDouble() * math.pi,
-          rotationSpeed: (random.nextDouble() * 5 + 2) *
-              (random.nextBool() ? 1 : -1),
+          rotationSpeed:
+              (random.nextDouble() * 5 + 2) * (random.nextBool() ? 1 : -1),
           wobble: random.nextDouble() * math.pi * 2,
           shape: shape,
         ),
@@ -370,9 +377,9 @@ class _ConfettiPainter extends CustomPainter {
     for (final particle in particles) {
       final travelX = particle.velocity.dx * progress;
       final travelY =
-          particle.velocity.dy * progress + particle.gravity * progress * progress;
-      final wobble =
-          math.sin(progress * math.pi * 4 + particle.wobble) * 0.018;
+          particle.velocity.dy * progress +
+          particle.gravity * progress * progress;
+      final wobble = math.sin(progress * math.pi * 4 + particle.wobble) * 0.018;
       final x = (particle.start.dx + travelX + wobble) * size.width;
       final y = (particle.start.dy + travelY) * size.height;
 
@@ -411,39 +418,53 @@ class _ConfettiPainter extends CustomPainter {
   }
 }
 
-class _HeaderBar extends StatelessWidget {
+class _HeaderBar extends ConsumerWidget {
   const _HeaderBar();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isAuthenticated =
+        (ref.watch(apiClientProvider).accessToken ?? '').isNotEmpty;
+    final unreadCount = isAuthenticated
+        ? ref.watch(unreadNotificationCountProvider)
+        : 0;
+    final count = isAuthenticated ? ref.watch(cartTicketCountProvider) : 0;
+
     return Row(
       children: [
-        Text(
-          'Dò vé',
-          style: AppTypography.pageTitle(),
-        ),
+        Text('Dò vé', style: AppTypography.pageTitle()),
         const Spacer(),
-        Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: AppColors.surfacePrimary,
-            shape: BoxShape.circle,
-            border: Border.all(color: AppColors.borderDecorative),
-            boxShadow: const [
-              BoxShadow(
-                color: AppColors.shadowLight,
-                blurRadius: 8,
-                offset: Offset(0, 2),
-              ),
-            ],
+        if (isAuthenticated) ...[
+          AppHeaderActionButton(
+            icon: Icons.notifications_outlined,
+            tooltip: 'Thông báo',
+            badgeCount: unreadCount,
+            onTap: () => context.push(AppRoute.notifications.path),
           ),
-          child: const Icon(
-            Icons.search_rounded,
-            color: AppColors.primary,
-            size: 20,
+          const SizedBox(width: 8),
+          AppHeaderActionButton(
+            icon: Icons.chat_bubble_outline_rounded,
+            tooltip: 'Trò chuyện / Hỗ trợ',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => ChatScreen(
+                    isAuthenticated: true,
+                    isActive: true,
+                    onBack: () => Navigator.of(context).pop(),
+                  ),
+                ),
+              );
+            },
           ),
-        ),
+          const SizedBox(width: 8),
+          AppHeaderActionButton(
+            icon: Icons.shopping_cart_outlined,
+            tooltip: 'Giỏ hàng',
+            badgeCount: count,
+            onTap: () => context.push(AppRoute.cart.path),
+          ),
+        ],
       ],
     );
   }
@@ -592,7 +613,10 @@ class _ErrorState extends StatelessWidget {
         FilledButton(
           onPressed: onRetry,
           style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
-          child: const Text('Thử lại'),
+          child: Text(
+            'Thử lại',
+            style: AppTypography.buttonMedium(color: AppColors.surfacePrimary),
+          ),
         ),
       ],
     );
@@ -615,7 +639,10 @@ class _ResultState extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [AppColors.statusSuccessSurface, AppColors.surfaceSuccess],
+                colors: [
+                  AppColors.statusSuccessSurface,
+                  AppColors.surfaceSuccess,
+                ],
               ),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: AppColors.statusSuccessBorder),
@@ -731,7 +758,12 @@ class _ResultState extends StatelessWidget {
                 borderRadius: BorderRadius.circular(14),
               ),
             ),
-            child: const Text('Dò vé khác'),
+            child: Text(
+              'Dò vé khác',
+              style: AppTypography.buttonMedium(
+                color: AppColors.contentSlate600,
+              ),
+            ),
           ),
         ],
       );
@@ -804,7 +836,10 @@ class _NeutralResult extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
             ),
           ),
-          child: const Text('Dò vé khác'),
+          child: Text(
+            'Dò vé khác',
+            style: AppTypography.buttonMedium(color: AppColors.contentSlate600),
+          ),
         ),
       ],
     );
@@ -857,7 +892,9 @@ class _FormStateState extends State<_FormState> {
         ? 'Chọn ngày quay'
         : DateFormat('dd/MM/yyyy').format(selectedDate);
     final canPickStation =
-        selectedDate != null && !state.isLoadingStations && state.stations.isNotEmpty;
+        selectedDate != null &&
+        !state.isLoadingStations &&
+        state.stations.isNotEmpty;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -879,8 +916,11 @@ class _FormStateState extends State<_FormState> {
               filled: true,
               fillColor: AppColors.surfacePrimary,
               errorText: state.dateError,
-              prefixIcon: const Icon(Icons.calendar_month_outlined,
-                  color: AppColors.primary, size: 18),
+              prefixIcon: const Icon(
+                Icons.calendar_month_outlined,
+                color: AppColors.primary,
+                size: 18,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
                 borderSide: const BorderSide(color: AppColors.borderSubtle),
@@ -893,8 +933,10 @@ class _FormStateState extends State<_FormState> {
                       : AppColors.borderSubtle,
                 ),
               ),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 12,
+              ),
             ),
             child: Text(
               dateLabel,
@@ -924,7 +966,9 @@ class _FormStateState extends State<_FormState> {
           child: InputDecorator(
             decoration: InputDecoration(
               filled: true,
-              fillColor: canPickStation ? AppColors.surfacePrimary : AppColors.surfaceSoft,
+              fillColor: canPickStation
+                  ? AppColors.surfacePrimary
+                  : AppColors.surfaceSoft,
               errorText: state.stationError,
               prefixIcon: Icon(
                 Icons.place_outlined,
@@ -945,15 +989,17 @@ class _FormStateState extends State<_FormState> {
                       : AppColors.borderSubtle,
                 ),
               ),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 12,
+              ),
             ),
             child: Text(
               selectedDate == null
                   ? 'Chọn ngày trước'
                   : state.isLoadingStations
-                      ? 'Đang tải đài...'
-                      : (state.selectedStation?.province ?? 'Chọn đài'),
+                  ? 'Đang tải đài...'
+                  : (state.selectedStation?.province ?? 'Chọn đài'),
               style: AppTypography.bodyMedium(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
@@ -992,8 +1038,11 @@ class _FormStateState extends State<_FormState> {
             helperText: state.numberError == null
                 ? 'Nhập đúng 5 hoặc 6 chữ số trên vé của bạn'
                 : null,
-            prefixIcon: const Icon(Icons.confirmation_number_outlined,
-                color: AppColors.primary, size: 18),
+            prefixIcon: const Icon(
+              Icons.confirmation_number_outlined,
+              color: AppColors.primary,
+              size: 18,
+            ),
             filled: true,
             fillColor: AppColors.surfacePrimary,
             border: OutlineInputBorder(
@@ -1010,8 +1059,10 @@ class _FormStateState extends State<_FormState> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide:
-                  const BorderSide(color: AppColors.primary, width: 1.4),
+              borderSide: const BorderSide(
+                color: AppColors.primary,
+                width: 1.4,
+              ),
             ),
           ),
         ),
@@ -1051,7 +1102,8 @@ class _FormStateState extends State<_FormState> {
             Expanded(
               child: _QuickDateChip(
                 label: 'Hôm nay',
-                selected: state.selectedDate != null &&
+                selected:
+                    state.selectedDate != null &&
                     _isSameDay(state.selectedDate!, DateTime.now()),
                 onTap: () {
                   final now = DateTime.now();
@@ -1063,7 +1115,8 @@ class _FormStateState extends State<_FormState> {
             Expanded(
               child: _QuickDateChip(
                 label: 'Hôm qua',
-                selected: state.selectedDate != null &&
+                selected:
+                    state.selectedDate != null &&
                     _isSameDay(
                       state.selectedDate!,
                       DateTime.now().subtract(const Duration(days: 1)),
@@ -1143,7 +1196,8 @@ class _FormStateState extends State<_FormState> {
                       ),
                       itemBuilder: (context, index) {
                         final station = state.stations[index];
-                        final isSelected = station.id == state.selectedStationId;
+                        final isSelected =
+                            station.id == state.selectedStationId;
                         return InkWell(
                           onTap: () => Navigator.of(context).pop(station),
                           child: Container(
@@ -1183,7 +1237,7 @@ class _FormStateState extends State<_FormState> {
   }
 
   bool _isSameDay(DateTime a, DateTime b) =>
-    a.year == b.year && a.month == b.month && a.day == b.day;
+      a.year == b.year && a.month == b.month && a.day == b.day;
 }
 
 class _QuickDateChip extends StatelessWidget {
@@ -1206,10 +1260,14 @@ class _QuickDateChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: selected ? AppColors.brandPrimarySubtle : AppColors.surfaceSoft,
+          color: selected
+              ? AppColors.brandPrimarySubtle
+              : AppColors.surfaceSoft,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: selected ? AppColors.brandPrimaryBorder : AppColors.borderSubtle,
+            color: selected
+                ? AppColors.brandPrimaryBorder
+                : AppColors.borderSubtle,
           ),
         ),
         alignment: Alignment.center,
@@ -1232,4 +1290,3 @@ class _QuickDateChip extends StatelessWidget {
     );
   }
 }
-

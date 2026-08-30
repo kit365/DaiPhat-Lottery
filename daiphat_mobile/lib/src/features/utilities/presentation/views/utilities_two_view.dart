@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
 import 'package:daiphat_mobile/src/features/chat/presentation/views/chat_screen.dart';
+import 'package:daiphat_mobile/src/features/notifications/presentation/providers/notification_providers.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:daiphat_mobile/src/shared/widgets/app_header_action_button.dart';
@@ -67,6 +68,7 @@ class UtilitiesTwoView extends ConsumerWidget {
                   _UtilitiesTwoHeader(
                     title: 'Tiện ích',
                     onBack: onBack,
+                    onOpenNotifications: onOpenNotifications,
                     onOpenCart: () => context.pushNamed(AppRoute.cart.name),
                     onOpenChat: () => _openChat(context),
                   ),
@@ -159,17 +161,20 @@ class _UtilitiesTwoHeader extends ConsumerWidget {
   const _UtilitiesTwoHeader({
     required this.title,
     this.onBack,
+    required this.onOpenNotifications,
     required this.onOpenCart,
     required this.onOpenChat,
   });
 
   final String title;
   final VoidCallback? onBack;
+  final VoidCallback onOpenNotifications;
   final VoidCallback onOpenCart;
   final VoidCallback onOpenChat;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final unreadCount = ref.watch(unreadNotificationCountProvider);
     final count = ref.watch(cartTicketCountProvider);
 
     return SizedBox(
@@ -199,6 +204,13 @@ class _UtilitiesTwoHeader extends ConsumerWidget {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                AppHeaderActionButton(
+                  icon: Icons.notifications_outlined,
+                  tooltip: 'Thông báo',
+                  badgeCount: unreadCount,
+                  onTap: onOpenNotifications,
+                ),
+                const SizedBox(width: 8),
                 AppHeaderActionButton(
                   icon: Icons.chat_bubble_outline_rounded,
                   tooltip: 'Trò chuyện / Hỗ trợ',
@@ -469,7 +481,7 @@ class _HeroBannerState extends State<_HeroBanner> {
                                 offset: const Offset(0, 6),
                               ),
                               BoxShadow(
-                                color: Colors.white.withValues(alpha: 0.65),
+                                color: AppColors.white.withValues(alpha: 0.65),
                                 blurRadius: 1,
                                 offset: const Offset(0, -1),
                               ),
@@ -514,7 +526,9 @@ class _HeroBannerState extends State<_HeroBanner> {
                   height: 6,
                   margin: const EdgeInsets.only(left: 5),
                   decoration: BoxDecoration(
-                    color: active ? AppColors.surfacePrimary : Colors.white54,
+                    color: active
+                        ? AppColors.surfacePrimary
+                        : AppColors.white.withValues(alpha: 0.54),
                     borderRadius: BorderRadius.circular(999),
                   ),
                 );
@@ -553,11 +567,11 @@ class _UtilityCard extends StatelessWidget {
           color: AppColors.surfacePrimary,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: AppColors.borderLight),
-          boxShadow: [
+          boxShadow: const [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.035),
+              color: AppColors.shadowFaint,
               blurRadius: 16,
-              offset: const Offset(0, 7),
+              offset: Offset(0, 7),
             ),
           ],
         ),

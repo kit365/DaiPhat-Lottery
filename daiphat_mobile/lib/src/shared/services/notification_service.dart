@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
-import 'dart:ui';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:go_router/go_router.dart';
 import 'package:daiphat_mobile/src/app/routing/app_router.dart';
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -142,9 +142,9 @@ class NotificationService {
           channelDescription: 'Thông báo từ hệ thống Đại Phát',
           importance: Importance.max,
           priority: Priority.high,
-          color: const Color(0xFFE90000),
+          color: AppColors.brandPrimary,
           enableLights: true,
-          ledColor: const Color(0xFFE90000),
+          ledColor: AppColors.brandPrimary,
           ledOnMs: 1000,
           ledOffMs: 500,
           styleInformation: BigTextStyleInformation(

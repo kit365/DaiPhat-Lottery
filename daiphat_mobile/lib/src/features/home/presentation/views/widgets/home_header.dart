@@ -42,43 +42,58 @@ class HomeHeader extends StatelessWidget {
           child: Row(
             children: [
               SizedBox(
-                width: 52,
-                height: 52,
+                width: 46,
+                height: 46,
                 child: Transform.scale(
-                  scale: 1.2,
+                  scale: 1.15,
                   child: Image.asset(
                     'assets/images/logoApp.png',
                     fit: BoxFit.contain,
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'ĐẠI PHÁT',
-                    style: AppTypography.h3(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.primaryDark,
-                      height: 1.1,
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'ĐẠI PHÁT',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.h3(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.primaryDark,
+                        height: 1.1,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'XỔ SỐ - MAY MẮN - THỊNH VƯỢNG',
-                    style: AppTypography.overline(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.goldDark,
+                    const SizedBox(height: 2),
+                    Text(
+                      'XỔ SỐ - MAY MẮN - THỊNH VƯỢNG',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.overline(
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.goldDark,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-              const Spacer(),
+              const SizedBox(width: 6),
               if (loginViewModel.isAuthenticated) ...[
+                ListenableBuilder(
+                  listenable: notificationViewModel,
+                  builder: (context, _) => AppHeaderActionButton(
+                    icon: Icons.notifications_outlined,
+                    tooltip: 'Thông báo',
+                    badgeCount: notificationViewModel.unreadCount,
+                    onTap: () => context.pushNamed(AppRoute.notifications.name),
+                  ),
+                ),
                 const SizedBox(width: 8),
                 AppHeaderActionButton(
                   icon: Icons.chat_bubble_outline_rounded,

@@ -44,11 +44,11 @@ class HomeBlogSection extends ConsumerWidget {
           color: AppColors.surfacePrimary,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppColors.cardBorder, width: 1.5),
-          boxShadow: [
+          boxShadow: const [
             BoxShadow(
-              color: Colors.black.withValues(alpha: .03),
+              color: AppColors.shadowFaint,
               blurRadius: 20,
-              offset: const Offset(0, 8),
+              offset: Offset(0, 8),
             ),
           ],
         ),
@@ -338,8 +338,8 @@ class HomeBlogSection extends ConsumerWidget {
       child: Column(
         children: [
           Shimmer.fromColors(
-            baseColor: Colors.grey[300]!,
-            highlightColor: Colors.grey[100]!,
+            baseColor: AppColors.neutral300,
+            highlightColor: AppColors.neutral100,
             child: Container(
               height: 140,
               decoration: BoxDecoration(
@@ -350,8 +350,8 @@ class HomeBlogSection extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           Shimmer.fromColors(
-            baseColor: Colors.grey[300]!,
-            highlightColor: Colors.grey[100]!,
+            baseColor: AppColors.neutral300,
+            highlightColor: AppColors.neutral100,
             child: Container(
               height: 16,
               decoration: BoxDecoration(

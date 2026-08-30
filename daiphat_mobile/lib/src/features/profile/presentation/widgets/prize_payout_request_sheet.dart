@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
-import 'package:intl/intl.dart';
 
 import 'package:daiphat_mobile/src/features/checkout/models/refund_type.dart';
 import 'package:daiphat_mobile/src/features/profile/data/bank_account_service.dart';
@@ -271,7 +270,13 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
             style: AppTypography.mainWith(color: AppColors.textMuted),
           ),
           const SizedBox(height: 12),
-          TextButton(onPressed: _loadPreview, child: const Text('Thử lại')),
+          TextButton(
+            onPressed: _loadPreview,
+            child: Text(
+              'Thử lại',
+              style: AppTypography.buttonSmall(color: AppColors.primary),
+            ),
+          ),
         ],
       );
     }
@@ -414,7 +419,10 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
               const SizedBox(height: 12),
               TextButton(
                 onPressed: _loadBankAccounts,
-                child: const Text('Thử lại'),
+                child: Text(
+                  'Thử lại',
+                  style: AppTypography.buttonSmall(color: AppColors.primary),
+                ),
               ),
             ],
           )

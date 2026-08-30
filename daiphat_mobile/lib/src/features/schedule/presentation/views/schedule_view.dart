@@ -158,11 +158,11 @@ class _ScheduleTable extends StatelessWidget {
             color: AppColors.surfacePrimary,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(color: AppColors.borderDefault),
-            boxShadow: [
+            boxShadow: const [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
+                color: AppColors.shadowLight,
                 blurRadius: 18,
-                offset: const Offset(0, 8),
+                offset: Offset(0, 8),
               ),
             ],
           ),

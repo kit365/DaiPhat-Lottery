@@ -779,7 +779,12 @@ class _TicketSuggestCard extends StatelessWidget {
                       .join('&');
                   context.push('${AppRoute.buyTicket.path}?$query');
                 },
-                child: const Text('Mua ngay'),
+                child: Text(
+                  'Mua ngay',
+                  style: AppTypography.buttonSmall(
+                    color: AppColors.surfacePrimary,
+                  ),
+                ),
               ),
             ],
           ),
@@ -821,7 +826,14 @@ class _QuickReplyChips extends StatelessWidget {
                 fontWeight: FontWeight.w600,
               ),
             ),
-            child: Text(reply.label),
+            child: Text(
+              reply.label,
+              style: AppTypography.buttonSmall(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppColors.primary,
+              ),
+            ),
           );
         },
       ),

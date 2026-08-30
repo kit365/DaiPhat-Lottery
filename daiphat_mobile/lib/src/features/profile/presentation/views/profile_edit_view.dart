@@ -189,18 +189,16 @@ class _ProfileEditViewState extends State<ProfileEditView> {
                                       height: 120,
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
-                                        color: Colors.grey[200],
+                                        color: AppColors.surfaceNeutral,
                                         border: Border.all(
                                           color: AppColors.surfacePrimary,
                                           width: 4,
                                         ),
-                                        boxShadow: [
+                                        boxShadow: const [
                                           BoxShadow(
-                                            color: Colors.black.withValues(
-                                              alpha: 0.1,
-                                            ),
+                                            color: AppColors.shadowLight,
                                             blurRadius: 10,
-                                            offset: const Offset(0, 5),
+                                            offset: Offset(0, 5),
                                           ),
                                         ],
                                       ),
@@ -275,11 +273,11 @@ class _ProfileEditViewState extends State<ProfileEditView> {
                             decoration: BoxDecoration(
                               color: AppColors.surfacePrimary,
                               borderRadius: BorderRadius.circular(20),
-                              boxShadow: [
+                              boxShadow: const [
                                 BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.05),
+                                  color: AppColors.shadowLight,
                                   blurRadius: 20,
-                                  offset: const Offset(0, 8),
+                                  offset: Offset(0, 8),
                                 ),
                               ],
                             ),
@@ -411,7 +409,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
           ),
           decoration: InputDecoration(
             filled: true,
-            fillColor: enabled ? AppColors.surfaceCanvas : Colors.grey[200],
+            fillColor: enabled ? AppColors.surfaceCanvas : AppColors.surfaceDisabled,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: BorderSide.none,
@@ -521,7 +519,15 @@ class _ProfileEditViewState extends State<ProfileEditView> {
             ),
           ),
           items: ['Nam', 'Nữ', 'Khác'].map((String value) {
-            return DropdownMenuItem<String>(value: value, child: Text(value));
+            return DropdownMenuItem<String>(
+              value: value,
+              child: Text(
+                value,
+                style: AppTypography.bodyMedium(
+                  color: AppColors.textMain,
+                ),
+              ),
+            );
           }).toList(),
           onChanged: (newValue) {
             if (newValue != null) {

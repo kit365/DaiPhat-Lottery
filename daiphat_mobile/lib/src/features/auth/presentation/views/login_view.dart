@@ -56,10 +56,21 @@ class _LoginViewState extends State<LoginView> {
     context.go(AppRoute.home.path);
   }
 
+  Future<void> _handleGoogleLogin() async {
+    final success = await widget.viewModel.loginWithGoogle();
+    if (!mounted || !success) {
+      return;
+    }
+
+    AppToast.success('Đăng nhập Google thành công');
+    context.go(AppRoute.home.path);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.brandPrimaryCrimson, // Màu nền đỏ phía dưới nếu cuộn
+      backgroundColor:
+          AppColors.brandPrimaryCrimson, // Màu nền đỏ phía dưới nếu cuộn
       body: Stack(
         children: [
           // Background Image nằm cố định phía trên
@@ -167,7 +178,8 @@ class _LoginViewState extends State<LoginView> {
                                           vertical: 12,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: AppColors.surfaceDestructiveSoft,
+                                          color:
+                                              AppColors.surfaceDestructiveSoft,
                                           border: Border.all(
                                             color: AppColors.brandPrimaryBorder,
                                           ),
@@ -179,7 +191,8 @@ class _LoginViewState extends State<LoginView> {
                                           widget.viewModel.error!,
                                           style: AppTypography.subtitle2(
                                             fontWeight: FontWeight.w600,
-                                            color: AppColors.brandPrimaryDarkRed,
+                                            color:
+                                                AppColors.brandPrimaryDarkRed,
                                           ),
                                           textAlign: TextAlign.center,
                                         ),
@@ -304,7 +317,8 @@ class _LoginViewState extends State<LoginView> {
                                                   const SizedBox(width: 8),
                                                   Text(
                                                     'Đăng nhập',
-                                                    style: AppTypography.buttonLarge(),
+                                                    style:
+                                                        AppTypography.buttonLarge(),
                                                   ),
                                                 ],
                                               ),
@@ -328,8 +342,7 @@ class _LoginViewState extends State<LoginView> {
                                             'hoặc',
                                             style: AppTypography.caption(
                                               fontSize: 13,
-                                              color:
-                                                  AppColors.loginPlaceholder,
+                                              color: AppColors.loginPlaceholder,
                                             ),
                                           ),
                                         ),
@@ -349,15 +362,17 @@ class _LoginViewState extends State<LoginView> {
                                         width: 20,
                                         height: 20,
                                       ),
-                                      text: 'Đăng nhập với Google · Sắp ra mắt',
-                                      onPressed: null,
+                                      text: 'Đăng nhập với Google',
+                                      onPressed: widget.viewModel.isLoading
+                                          ? null
+                                          : _handleGoogleLogin,
                                     ),
                                     const SizedBox(height: 24),
 
                                     // Box Đăng ký (Đơn giản)
                                     Row(
                                       mainAxisAlignment:
-                                        MainAxisAlignment.center,
+                                          MainAxisAlignment.center,
                                       children: [
                                         Text(
                                           'Chưa có tài khoản? ',
@@ -415,14 +430,14 @@ class _LoginViewState extends State<LoginView> {
                       child: Container(
                         width: 40,
                         height: 40,
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           color: AppColors.surfacePrimary,
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.1),
+                              color: AppColors.shadowLight,
                               blurRadius: 8,
-                              offset: const Offset(0, 2),
+                              offset: Offset(0, 2),
                             ),
                           ],
                         ),

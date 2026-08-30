@@ -143,6 +143,16 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                   onTap: () => context.push(AppRoute.profileDetail.path),
                 ),
                 const SizedBox(width: 8),
+                ListenableBuilder(
+                  listenable: widget.notificationViewModel,
+                  builder: (context, _) => AppHeaderActionButton(
+                    icon: Icons.notifications_outlined,
+                    tooltip: 'Thông báo',
+                    badgeCount: widget.notificationViewModel.unreadCount,
+                    onTap: () => context.push(AppRoute.notifications.path),
+                  ),
+                ),
+                const SizedBox(width: 8),
                 AppHeaderActionButton(
                   icon: Icons.chat_bubble_outline_rounded,
                   tooltip: 'Trò chuyện / Hỗ trợ',
@@ -425,8 +435,8 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                 children: [
                   Container(
                     padding: const EdgeInsets.all(8),
-                    decoration: const BoxDecoration(
-                      color: Colors.white24,
+                    decoration: BoxDecoration(
+                      color: AppColors.white.withValues(alpha: 0.24),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
@@ -452,7 +462,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                         Text(
                           'Kết nối Real-time với màn hình Web Admin',
                           style: AppTypography.caption(
-                            color: Colors.white70,
+                            color: AppColors.white.withValues(alpha: 0.70),
                             fontSize: 11,
                           ),
                         ),

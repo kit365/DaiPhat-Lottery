@@ -108,10 +108,18 @@ class BuyTicketState {
   /// Ngày mai luôn mở bán (khớp web: sau 16:15 vẫn mua được vé ngày mai).
   bool get isTomorrowSellClosed => false;
 
-  List<String> get provinces => <String>{
-    'Tất cả đài',
-    ...availableProvinces,
-  }.toList();
+  bool get hasActiveFilters {
+    final defaultDay = SellableDrawDate.isTodayDrawPassed()
+        ? TicketDayFilter.tomorrow
+        : TicketDayFilter.today;
+    return searchQuery.trim().isNotEmpty ||
+        selectedProvince != 'Tất cả đài' ||
+        selectedDay != defaultDay ||
+        !searchFilter.isEmpty;
+  }
+
+  List<String> get provinces =>
+      <String>{'Tất cả đài', ...availableProvinces}.toList();
 
   List<LotteryTicketListItem> get filteredTickets {
     return tickets.where((ticket) {
@@ -295,7 +303,8 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
     TicketSearchFilter? searchFilter,
   }) async {
     final current = state.asData?.value;
-    final filter = searchFilter ?? current?.searchFilter ?? TicketSearchFilter.empty;
+    final filter =
+        searchFilter ?? current?.searchFilter ?? TicketSearchFilter.empty;
     if (current != null) {
       state = AsyncData(
         current.copyWith(
@@ -310,7 +319,8 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
     }
 
     final requestId = ++_listRequestId;
-    final keepStations = current != null &&
+    final keepStations =
+        current != null &&
         current.selectedDay == selectedDay &&
         current.availableProvinces.isNotEmpty;
     try {
@@ -320,8 +330,9 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
         selectedDay: selectedDay,
         searchFilter: filter,
         page: 1,
-        availableProvinces:
-            keepStations ? current.availableProvinces : const [],
+        availableProvinces: keepStations
+            ? current.availableProvinces
+            : const [],
         refreshStations: !keepStations,
       );
       if (requestId != _listRequestId) return;
@@ -420,6 +431,18 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
     );
   }
 
+  Future<void> resetFilters() async {
+    final current = state.asData?.value;
+    if (current == null || !current.hasActiveFilters) return;
+
+    await _reloadList(
+      searchQuery: '',
+      selectedProvince: 'Tất cả đài',
+      selectedDay: _defaultDayFilter(),
+      searchFilter: TicketSearchFilter.empty,
+    );
+  }
+
   Future<void> applyQuery({
     String searchQuery = '',
     String? drawDateIso,
@@ -464,9 +487,7 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
     for (final province in current.provinces) {
       if (province == 'Tất cả đài') continue;
       final lower = province.toLowerCase();
-      if (lower == wanted ||
-          lower.contains(wanted) ||
-          wanted.contains(lower)) {
+      if (lower == wanted || lower.contains(wanted) || wanted.contains(lower)) {
         selectProvince(province);
         return;
       }

@@ -93,7 +93,7 @@ class AppFilterChip extends StatelessWidget {
                 : AppColors.surfacePrimary.withValues(alpha: 0.94),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: isSelected ? AppColors.primary : const Color(0xFFEBE3E1),
+              color: isSelected ? AppColors.primary : AppColors.borderDecorative,
               width: 1,
             ),
             boxShadow: isSelected
@@ -105,10 +105,10 @@ class AppFilterChip extends StatelessWidget {
                     ),
                   ]
                 : [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.03),
+                    const BoxShadow(
+                      color: AppColors.shadowFaint,
                       blurRadius: 4,
-                      offset: const Offset(0, 1.5),
+                      offset: Offset(0, 1.5),
                     ),
                   ],
           ),

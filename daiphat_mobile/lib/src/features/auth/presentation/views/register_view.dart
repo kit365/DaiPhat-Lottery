@@ -195,14 +195,14 @@ class _RegisterViewState extends State<RegisterView> {
               child: Container(
                 width: 40,
                 height: 40,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: AppColors.surfacePrimary,
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
+                      color: AppColors.shadowLight,
                       blurRadius: 8,
-                      offset: const Offset(0, 2),
+                      offset: Offset(0, 2),
                     ),
                   ],
                 ),
@@ -227,7 +227,9 @@ class _RegisterViewState extends State<RegisterView> {
         Container(
           width: 40,
           height: 1,
-          color: _currentStep >= 2 ? AppColors.loginPrimary : Colors.grey[300],
+          color: _currentStep >= 2
+              ? AppColors.loginPrimary
+              : AppColors.neutral300,
         ),
         _buildStepIndicator(2, _currentStep >= 2),
       ],
@@ -239,7 +241,7 @@ class _RegisterViewState extends State<RegisterView> {
       width: 24,
       height: 24,
       decoration: BoxDecoration(
-        color: active ? AppColors.loginPrimary : Colors.grey[300],
+        color: active ? AppColors.loginPrimary : AppColors.neutral300,
         shape: BoxShape.circle,
       ),
       alignment: Alignment.center,

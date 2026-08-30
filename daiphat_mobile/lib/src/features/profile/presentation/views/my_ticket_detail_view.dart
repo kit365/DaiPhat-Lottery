@@ -33,7 +33,12 @@ class MyTicketDetailView extends ConsumerWidget {
             onPressed: () => context.pop(),
           ),
         ),
-        body: const Center(child: Text('Không tìm thấy thông tin vé')),
+        body: Center(
+          child: Text(
+            'Không tìm thấy thông tin vé',
+            style: AppTypography.bodyMedium(color: AppColors.contentSecondary),
+          ),
+        ),
       );
     }
 
@@ -217,11 +222,11 @@ class _TicketDetailBody extends ConsumerWidget {
         color: AppColors.surfacePrimary,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.borderSubtle),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: AppColors.shadowLight,
             blurRadius: 16,
-            offset: const Offset(0, 4),
+            offset: Offset(0, 4),
           ),
         ],
       ),

@@ -89,6 +89,9 @@ Future<void> bootstrap() async {
         notificationSettingServiceProvider.overrideWithValue(
           notificationSettingService,
         ),
+        notificationViewModelProvider.overrideWithValue(
+          dependencies.notificationViewModel,
+        ),
       ],
       child: DaiPhatMobileApp(router: dependencies.router),
     ),

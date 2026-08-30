@@ -281,7 +281,9 @@ class _SecurityViewState extends ConsumerState<SecurityView> {
                               disabledBackgroundColor: AppColors.primary
                                   .withValues(alpha: 0.45),
                               foregroundColor: AppColors.surfacePrimary,
-                              disabledForegroundColor: Colors.white70,
+                              disabledForegroundColor: AppColors.white.withValues(
+                                alpha: 0.70,
+                              ),
                               elevation: 0,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),

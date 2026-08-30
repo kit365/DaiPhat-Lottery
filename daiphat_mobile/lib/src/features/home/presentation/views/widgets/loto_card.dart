@@ -46,11 +46,11 @@ class _LotoCardState extends State<LotoCard> {
         color: AppColors.surfacePrimary,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.cardBorder, width: 1.5),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withValues(alpha: .03),
+            color: AppColors.shadowFaint,
             blurRadius: 20,
-            offset: const Offset(0, 8),
+            offset: Offset(0, 8),
           ),
         ],
       ),
@@ -101,14 +101,28 @@ class _LotoCardState extends State<LotoCard> {
                       ),
                       onChanged: (value) => setState(() => _province = value),
                       items: [
-                        const DropdownMenuItem<String?>(
+                        DropdownMenuItem<String?>(
                           value: null,
-                          child: Text('Tất cả đài'),
+                          child: Text(
+                            'Tất cả đài',
+                            style: AppTypography.subtitle2(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textMain,
+                            ),
+                          ),
                         ),
                         ...widget.provinces.map(
                           (province) => DropdownMenuItem<String?>(
                             value: province,
-                            child: Text('Đài $province'),
+                            child: Text(
+                              'Đài $province',
+                              style: AppTypography.subtitle2(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textMain,
+                              ),
+                            ),
                           ),
                         ),
                       ],

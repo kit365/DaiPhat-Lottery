@@ -11,7 +11,7 @@ class LotteryDatePickerDialog extends StatefulWidget {
   static Future<DateTime?> show(BuildContext context, DateTime initialDate) {
     return showDialog<DateTime>(
       context: context,
-      barrierColor: Colors.black.withValues(alpha: 0.45),
+      barrierColor: AppColors.neutralInk.withValues(alpha: 0.45),
       builder: (_) => LotteryDatePickerDialog(initialDate: initialDate),
     );
   }
@@ -124,11 +124,11 @@ class _LotteryDatePickerDialogState extends State<LotteryDatePickerDialog> {
         decoration: BoxDecoration(
           color: AppColors.surfacePrimary,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: [
+          boxShadow: const [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.12),
+              color: AppColors.shadowElevated,
               blurRadius: 28,
-              offset: const Offset(0, 10),
+              offset: Offset(0, 10),
             ),
           ],
         ),
