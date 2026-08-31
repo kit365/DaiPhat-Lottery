@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 
-enum AppHeaderActionVariant { light, translucent }
+enum AppHeaderActionVariant { light, translucent, bare }
 
 class AppHeaderActionButton extends StatelessWidget {
   const AppHeaderActionButton({
@@ -34,9 +34,13 @@ class AppHeaderActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final effectiveBorderRadius = borderRadius ?? BorderRadius.circular(999);
 
-    final defaultBgColor = variant == AppHeaderActionVariant.translucent
-        ? AppColors.surfacePrimary.withValues(alpha: 0.2)
-        : AppColors.surfacePrimary;
+    final defaultBgColor = switch (variant) {
+      AppHeaderActionVariant.light => AppColors.surfacePrimary,
+      AppHeaderActionVariant.translucent => AppColors.surfacePrimary.withValues(
+        alpha: 0.2,
+      ),
+      AppHeaderActionVariant.bare => AppColors.transparent,
+    };
 
     final effectiveBgColor = backgroundColor ?? defaultBgColor;
 
@@ -94,8 +98,10 @@ class AppHeaderActionButton extends StatelessWidget {
               top: -3,
               child: IgnorePointer(
                 child: Container(
-                  constraints:
-                      const BoxConstraints(minWidth: 18, minHeight: 18),
+                  constraints: const BoxConstraints(
+                    minWidth: 18,
+                    minHeight: 18,
+                  ),
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   decoration: BoxDecoration(
                     color: AppColors.goldDark,

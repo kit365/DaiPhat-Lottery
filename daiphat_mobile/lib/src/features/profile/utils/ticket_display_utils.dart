@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/profile_iconography.dart';
 
 import '../data/models/purchased_ticket.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
@@ -116,7 +117,7 @@ TicketPossessionDisplay? resolveTicketPossessionDisplay(
       hint: 'Chờ hoàn tất đơn hàng',
       color: AppColors.ticketReservedForeground,
       bgColor: AppColors.ticketReservedSurface,
-      icon: Icons.schedule_outlined,
+      icon: ProfileIconography.pendingTicket,
     );
   }
   if (ticket.serialStatus == 'EXPIRED') {
@@ -133,7 +134,7 @@ TicketPossessionDisplay? resolveTicketPossessionDisplay(
     label: _serialStatusLabels[ticket.serialStatus] ?? ticket.serialStatus!,
     color: AppColors.ticketReservedForeground,
     bgColor: AppColors.ticketReservedSurface,
-    icon: Icons.confirmation_number_outlined,
+    icon: ProfileIconography.ticket,
   );
 }
 

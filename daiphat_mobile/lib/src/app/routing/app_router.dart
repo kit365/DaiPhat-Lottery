@@ -169,20 +169,8 @@ GoRouter createAppRouter({
                 builder: (context, state) => UtilitiesTwoView(
                   isAuthenticated: loginViewModel.isAuthenticated,
                   onOpenNotifications: () =>
-                      context.go(AppRoute.notifications.path),
+                      context.push(AppRoute.notifications.path),
                   onOpenBlog: () => context.push(AppRoute.blog.path),
-                ),
-              ),
-            ],
-          ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: AppRoute.notifications.path,
-                name: AppRoute.notifications.name,
-                builder: (context, state) => NotificationView(
-                  viewModel: notificationViewModel,
-                  showBackButton: false,
                 ),
               ),
             ],
@@ -395,6 +383,14 @@ GoRouter createAppRouter({
         notificationViewModel,
       ),
       _route(
+        AppRoute.notifications,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
+      _route(
         AppRoute.notificationSettings,
         loginViewModel,
         registerViewModel,
@@ -565,7 +561,7 @@ Widget _buildRoute(
       final id = state.pathParameters['id'] ?? '';
       return OrderDetailView(orderId: id);
     case AppRoute.profileOverview:
-      return ProfileOverviewView(profileViewModel: profileViewModel);
+      return const ProfileOverviewView();
     case AppRoute.refunds:
       return const RefundsView();
     case AppRoute.refundDetail:
@@ -600,13 +596,13 @@ Widget _buildRoute(
     case AppRoute.utilities:
       return UtilitiesTwoView(
         isAuthenticated: loginViewModel.isAuthenticated,
-        onOpenNotifications: () => context.go(AppRoute.notifications.path),
+        onOpenNotifications: () => context.push(AppRoute.notifications.path),
         onOpenBlog: () => context.push(AppRoute.blog.path),
       );
     case AppRoute.utilitiesTwo:
       return UtilitiesTwoView(
         isAuthenticated: loginViewModel.isAuthenticated,
-        onOpenNotifications: () => context.go(AppRoute.notifications.path),
+        onOpenNotifications: () => context.push(AppRoute.notifications.path),
         onOpenBlog: () => context.push(AppRoute.blog.path),
       );
   }

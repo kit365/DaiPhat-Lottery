@@ -3,20 +3,18 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import 'package:go_router/go_router.dart';
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
-import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
-import 'package:daiphat_mobile/src/features/chat/presentation/views/chat_screen.dart';
 import 'package:daiphat_mobile/src/features/home/data/models/ticket_check_models.dart';
 import 'package:daiphat_mobile/src/features/home/presentation/viewmodels/ticket_check_viewmodel.dart';
-import 'package:daiphat_mobile/src/features/notifications/presentation/providers/notification_providers.dart';
-import 'package:daiphat_mobile/src/shared/providers/api_providers.dart';
+import 'package:daiphat_mobile/src/features/home/presentation/views/widgets/lottery_date_picker_dialog.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/profile_iconography.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
-import 'package:daiphat_mobile/src/shared/widgets/app_header_action_button.dart';
+import 'package:daiphat_mobile/src/shared/widgets/app_picker_field.dart';
 
 class CheckTicketView extends ConsumerStatefulWidget {
   const CheckTicketView({super.key});
@@ -26,6 +24,25 @@ class CheckTicketView extends ConsumerStatefulWidget {
 }
 
 class _CheckTicketViewState extends ConsumerState<CheckTicketView> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final current = ref.read(ticketCheckViewModelProvider);
+      if (current.selectedDate != null) return;
+
+      final now = DateTime.now();
+      // Align with the website: before results are normally available at
+      // 16:40, start from yesterday; otherwise default to today.
+      final useYesterday = now.hour < 16 || (now.hour == 16 && now.minute < 40);
+      final date = useYesterday ? now.subtract(const Duration(days: 1)) : now;
+      ref
+          .read(ticketCheckViewModelProvider.notifier)
+          .loadStations(DateTime(date.year, date.month, date.day));
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(ticketCheckViewModelProvider);
@@ -41,13 +58,13 @@ class _CheckTicketViewState extends ConsumerState<CheckTicketView> {
             top: 0,
             left: 0,
             right: 0,
-            height: 320,
+            height: 380,
             child: ShaderMask(
               shaderCallback: (bounds) => const LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [AppColors.surfacePrimary, AppColors.transparent],
-                stops: [0.4, 1.0],
+                stops: [0.5, 1.0],
               ).createShader(bounds),
               blendMode: BlendMode.dstIn,
               child: Image.asset(
@@ -78,10 +95,10 @@ class _CheckTicketViewState extends ConsumerState<CheckTicketView> {
 
                     // Main Form Card
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
                       child: Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: AppColors.surfacePrimary,
                           borderRadius: BorderRadius.circular(24),
@@ -100,26 +117,6 @@ class _CheckTicketViewState extends ConsumerState<CheckTicketView> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Text(
-                              'TRA CỨU VÉ SỐ',
-                              textAlign: TextAlign.center,
-                              style: AppTypography.h3(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w900,
-                                color: AppColors.primary,
-                                letterSpacing: 0.6,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Nhập thông tin vé để kiểm tra kết quả nhanh chóng',
-                              textAlign: TextAlign.center,
-                              style: AppTypography.bodySmall(
-                                fontSize: 13,
-                                color: AppColors.contentMuted,
-                              ),
-                            ),
-                            const SizedBox(height: 22),
                             if (state.isChecking)
                               const _CheckingState()
                             else if (state.errorMessage != null)
@@ -133,16 +130,20 @@ class _CheckTicketViewState extends ConsumerState<CheckTicketView> {
                                 result: state.checkResult!,
                                 onReset: vm.resetCheck,
                               )
-                            else ...[
+                            else
                               _FormState(state: state, vm: vm),
-                              const SizedBox(height: 22),
-                              const _ImportantNotes(),
-                            ],
                           ],
                         ),
                       ),
                     ),
-                    const SizedBox(height: 12),
+
+                    // Helpful Guide Section
+                    const _CheckTicketGuideSection(),
+
+                    // Draw Schedule & Utilities Section
+                    const _DrawScheduleAndUtilitiesSection(),
+
+                    const SizedBox(height: 16),
                   ],
                 ),
               ),
@@ -418,139 +419,24 @@ class _ConfettiPainter extends CustomPainter {
   }
 }
 
-class _HeaderBar extends ConsumerWidget {
+class _HeaderBar extends StatelessWidget {
   const _HeaderBar();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final isAuthenticated =
-        (ref.watch(apiClientProvider).accessToken ?? '').isNotEmpty;
-    final unreadCount = isAuthenticated
-        ? ref.watch(unreadNotificationCountProvider)
-        : 0;
-    final count = isAuthenticated ? ref.watch(cartTicketCountProvider) : 0;
-
-    return Row(
-      children: [
-        Text('Dò vé', style: AppTypography.pageTitle()),
-        const Spacer(),
-        if (isAuthenticated) ...[
-          AppHeaderActionButton(
-            icon: Icons.notifications_outlined,
-            tooltip: 'Thông báo',
-            badgeCount: unreadCount,
-            onTap: () => context.push(AppRoute.notifications.path),
-          ),
-          const SizedBox(width: 8),
-          AppHeaderActionButton(
-            icon: Icons.chat_bubble_outline_rounded,
-            tooltip: 'Trò chuyện / Hỗ trợ',
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => ChatScreen(
-                    isAuthenticated: true,
-                    isActive: true,
-                    onBack: () => Navigator.of(context).pop(),
-                  ),
-                ),
-              );
-            },
-          ),
-          const SizedBox(width: 8),
-          AppHeaderActionButton(
-            icon: Icons.shopping_cart_outlined,
-            tooltip: 'Giỏ hàng',
-            badgeCount: count,
-            onTap: () => context.push(AppRoute.cart.path),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _ImportantNotes extends StatelessWidget {
-  const _ImportantNotes();
-
-  @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-      decoration: BoxDecoration(
-        color: AppColors.statusDangerSurface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.brandPrimaryBorderLight),
-      ),
+    return Align(
+      alignment: Alignment.centerLeft,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: AppColors.statusErrorSurface,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.verified_user_outlined,
-                  size: 16,
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Lưu ý quan trọng',
-                style: AppTypography.subtitle2(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.brandPrimaryCrimson,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          _noteLine(
-            'Kết quả được cập nhật ngay sau khi có kết quả chính thức từ các đài.',
-          ),
-          const SizedBox(height: 6),
-          _noteLine(
-            'Thông tin vé của bạn được bảo mật và không lưu trữ sau khi tra cứu.',
+          Text('Dò vé', style: AppTypography.pageTitle()),
+          const SizedBox(height: 4),
+          Text(
+            'Tra cứu kết quả xổ số kiến thiết 3 miền nhanh chóng',
+            style: AppTypography.caption(color: AppColors.contentMuted),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _noteLine(String text) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(top: 6),
-          child: Container(
-            width: 5,
-            height: 5,
-            decoration: const BoxDecoration(
-              color: AppColors.primary,
-              shape: BoxShape.circle,
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            text,
-            style: AppTypography.caption(
-              fontSize: 12,
-              height: 1.45,
-              color: AppColors.brandPrimaryCrimson,
-            ),
-          ),
-        ),
-      ],
     );
   }
 }
@@ -569,7 +455,6 @@ class _CheckingState extends StatelessWidget {
           Text(
             'Đang dò kết quả...',
             style: AppTypography.bodyMedium(
-              fontSize: 13,
               fontWeight: FontWeight.w600,
               color: AppColors.contentMuted,
             ),
@@ -604,7 +489,6 @@ class _ErrorState extends StatelessWidget {
           message,
           textAlign: TextAlign.center,
           style: AppTypography.bodyMedium(
-            fontSize: 13,
             fontWeight: FontWeight.w600,
             color: AppColors.brandPrimaryDarkRed,
           ),
@@ -653,17 +537,12 @@ class _ResultState extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   'Chúc mừng bạn đã trúng!',
-                  style: AppTypography.h5(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.statusSuccessDeep,
-                  ),
+                  style: AppTypography.h5(color: AppColors.statusSuccessDeep),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Vé số của bạn trùng khớp với kết quả:',
                   style: AppTypography.bodySmall(
-                    fontSize: 11,
                     color: AppColors.statusSuccessMedium,
                   ),
                 ),
@@ -688,16 +567,14 @@ class _ResultState extends StatelessWidget {
                       children: [
                         Text(
                           prize.prizeDisplayName,
-                          style: AppTypography.subtitle2(
-                            fontSize: 13,
+                          style: AppTypography.labelLarge(
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           'Số trúng: ${prize.winningNumber}',
-                          style: AppTypography.lotteryDigit(
-                            fontSize: 11,
+                          style: AppTypography.labelMedium(
                             color: AppColors.primary,
                             fontWeight: FontWeight.w700,
                           ),
@@ -707,11 +584,7 @@ class _ResultState extends StatelessWidget {
                   ),
                   Text(
                     AppFormatters.formatCurrency(prize.prizeValue),
-                    style: AppTypography.priceMedium(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.primary,
-                    ),
+                    style: AppTypography.priceMedium(color: AppColors.primary),
                   ),
                 ],
               ),
@@ -729,19 +602,14 @@ class _ResultState extends StatelessWidget {
                 children: [
                   Text(
                     'Tổng giải thưởng:',
-                    style: AppTypography.subtitle2(
-                      fontSize: 12,
+                    style: AppTypography.labelMedium(
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   const Spacer(),
                   Text(
                     AppFormatters.formatCurrency(result.totalWinningAmount),
-                    style: AppTypography.priceMedium(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.primary,
-                    ),
+                    style: AppTypography.priceMedium(color: AppColors.primary),
                   ),
                 ],
               ),
@@ -808,22 +676,12 @@ class _NeutralResult extends StatelessWidget {
       children: [
         Text(emoji, style: AppTypography.h1(fontSize: 28)),
         const SizedBox(height: 8),
-        Text(
-          title,
-          style: AppTypography.h5(
-            fontSize: 14,
-            fontWeight: FontWeight.w800,
-            color: AppColors.contentSlate700,
-          ),
-        ),
+        Text(title, style: AppTypography.h5(color: AppColors.contentSlate700)),
         const SizedBox(height: 6),
         Text(
           message,
           textAlign: TextAlign.center,
-          style: AppTypography.bodySmall(
-            fontSize: 12,
-            color: AppColors.contentMuted,
-          ),
+          style: AppTypography.bodySmall(color: AppColors.contentMuted),
         ),
         const SizedBox(height: 16),
         OutlinedButton(
@@ -899,125 +757,51 @@ class _FormStateState extends State<_FormState> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'Chọn ngày',
-          style: AppTypography.subtitle2(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w700,
-            color: AppColors.contentSlate700,
-          ),
-        ),
-        const SizedBox(height: 8),
-        InkWell(
+        AppPickerField(
+          label: 'Chọn ngày',
+          value: selectedDate == null ? null : dateLabel,
+          placeholder: 'Chọn ngày quay',
+          errorText: state.dateError,
+          prefixIcon: Icons.calendar_month_rounded,
           onTap: () => _pickDate(context),
-          borderRadius: BorderRadius.circular(14),
-          child: InputDecorator(
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: AppColors.surfacePrimary,
-              errorText: state.dateError,
-              prefixIcon: const Icon(
-                Icons.calendar_month_outlined,
-                color: AppColors.primary,
-                size: 18,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: AppColors.borderSubtle),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(
-                  color: state.dateError != null
-                      ? AppColors.statusError
-                      : AppColors.borderSubtle,
-                ),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 12,
-              ),
-            ),
-            child: Text(
-              dateLabel,
-              style: AppTypography.bodyMedium(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: selectedDate == null
-                    ? AppColors.contentSubtle
-                    : AppColors.contentSlate900,
-              ),
-            ),
-          ),
+          semanticLabel: selectedDate == null
+              ? 'Chọn ngày quay'
+              : 'Ngày quay: $dateLabel',
+          semanticHint: 'Mở lịch kết quả xổ số',
         ),
-        const SizedBox(height: 14),
-        Text(
-          'Chọn đài',
-          style: AppTypography.subtitle2(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w700,
-            color: AppColors.contentSlate700,
-          ),
+        const SizedBox(height: 16),
+        AppPickerField(
+          label: 'Chọn đài',
+          value: state.selectedStation?.province,
+          placeholder: selectedDate == null
+              ? 'Chọn ngày quay trước'
+              : state.isLoadingStations
+              ? 'Đang tải đài...'
+              : state.stations.isEmpty
+              ? 'Không có đài quay'
+              : 'Chọn đài',
+          errorText: state.stationError,
+          prefixIcon: Icons.location_on_outlined,
+          suffixIcon: canPickStation ? Icons.expand_more_rounded : null,
+          isAvailable: canPickStation,
+          onTap: selectedDate == null
+              ? () => _pickDate(context)
+              : canPickStation
+              ? () => _pickStation(context)
+              : null,
+          semanticLabel: state.selectedStation == null
+              ? 'Chọn đài quay'
+              : 'Đài quay: ${state.selectedStation!.province}',
+          semanticHint: selectedDate == null
+              ? 'Chọn ngày quay trước để tải danh sách đài'
+              : state.isLoadingStations
+              ? 'Đang tải danh sách đài'
+              : null,
         ),
-        const SizedBox(height: 8),
-        InkWell(
-          onTap: canPickStation ? () => _pickStation(context) : null,
-          borderRadius: BorderRadius.circular(14),
-          child: InputDecorator(
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: canPickStation
-                  ? AppColors.surfacePrimary
-                  : AppColors.surfaceSoft,
-              errorText: state.stationError,
-              prefixIcon: Icon(
-                Icons.place_outlined,
-                color: canPickStation
-                    ? AppColors.primary
-                    : AppColors.borderMuted,
-                size: 18,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: AppColors.borderSubtle),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(
-                  color: state.stationError != null
-                      ? AppColors.statusError
-                      : AppColors.borderSubtle,
-                ),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 12,
-              ),
-            ),
-            child: Text(
-              selectedDate == null
-                  ? 'Chọn ngày trước'
-                  : state.isLoadingStations
-                  ? 'Đang tải đài...'
-                  : (state.selectedStation?.province ?? 'Chọn đài'),
-              style: AppTypography.bodyMedium(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: !canPickStation && state.selectedStation == null
-                    ? AppColors.contentSubtle
-                    : AppColors.contentSlate900,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         Text(
           'Nhập dãy số trên vé',
-          style: AppTypography.subtitle2(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w700,
-            color: AppColors.contentSlate700,
-          ),
+          style: AppTypography.labelLarge(color: AppColors.contentSlate700),
         ),
         const SizedBox(height: 8),
         TextField(
@@ -1026,20 +810,20 @@ class _FormStateState extends State<_FormState> {
           maxLength: 6,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           onChanged: vm.setTicketNumber,
-          style: AppTypography.lotteryDigit(
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 2,
-          ),
+          textAlignVertical: TextAlignVertical.center,
+          style: AppTypography.lotteryDigit(letterSpacing: 2),
           decoration: InputDecoration(
             counterText: '',
-            hintText: 'Nhập dãy số (ví dụ: 123456)',
+            hintText: 'Ví dụ: 123456',
+            hintStyle: AppTypography.bodyMedium(
+              color: AppColors.contentPlaceholder,
+            ),
             errorText: state.numberError,
             helperText: state.numberError == null
                 ? 'Nhập đúng 5 hoặc 6 chữ số trên vé của bạn'
                 : null,
             prefixIcon: const Icon(
-              Icons.confirmation_number_outlined,
+              ProfileIconography.ticket,
               color: AppColors.primary,
               size: 18,
             ),
@@ -1064,6 +848,10 @@ class _FormStateState extends State<_FormState> {
                 width: 1.4,
               ),
             ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
+            ),
           ),
         ),
         const SizedBox(height: 16),
@@ -1077,76 +865,16 @@ class _FormStateState extends State<_FormState> {
               borderRadius: BorderRadius.circular(14),
             ),
           ),
-          label: Text(
-            'Tra cứu kết quả',
-            style: AppTypography.buttonMedium(
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ),
-        const SizedBox(height: 18),
-        Text(
-          'HOẶC CHỌN NHANH',
-          textAlign: TextAlign.center,
-          style: AppTypography.overline(
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-            color: AppColors.contentSubtle,
-            letterSpacing: 0.8,
-          ),
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: _QuickDateChip(
-                label: 'Hôm nay',
-                selected:
-                    state.selectedDate != null &&
-                    _isSameDay(state.selectedDate!, DateTime.now()),
-                onTap: () {
-                  final now = DateTime.now();
-                  vm.loadStations(DateTime(now.year, now.month, now.day));
-                },
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _QuickDateChip(
-                label: 'Hôm qua',
-                selected:
-                    state.selectedDate != null &&
-                    _isSameDay(
-                      state.selectedDate!,
-                      DateTime.now().subtract(const Duration(days: 1)),
-                    ),
-                onTap: () {
-                  final d = DateTime.now().subtract(const Duration(days: 1));
-                  vm.loadStations(DateTime(d.year, d.month, d.day));
-                },
-              ),
-            ),
-          ],
+          label: Text('Tra cứu kết quả', style: AppTypography.buttonLarge()),
         ),
       ],
     );
   }
 
   Future<void> _pickDate(BuildContext context) async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: state.selectedDate ?? DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(primary: AppColors.primary),
-          ),
-          child: child!,
-        );
-      },
+    final picked = await LotteryDatePickerDialog.show(
+      context,
+      state.selectedDate ?? DateTime.now(),
     );
     if (picked != null) {
       await vm.loadStations(DateTime(picked.year, picked.month, picked.day));
@@ -1178,11 +906,7 @@ class _FormStateState extends State<_FormState> {
                     child: Text(
                       'Chọn đài vé số',
                       textAlign: TextAlign.center,
-                      style: AppTypography.h4(
-                        fontSize: 21,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.contentHeading,
-                      ),
+                      style: AppTypography.h4(color: AppColors.contentHeading),
                     ),
                   ),
                   const Divider(height: 1, color: AppColors.borderSubtle),
@@ -1210,7 +934,6 @@ class _FormStateState extends State<_FormState> {
                             child: Text(
                               station.province,
                               style: AppTypography.bodyLarge(
-                                fontSize: 18,
                                 fontWeight: isSelected
                                     ? FontWeight.w700
                                     : FontWeight.w500,
@@ -1235,54 +958,331 @@ class _FormStateState extends State<_FormState> {
       vm.selectStation(selected.id);
     }
   }
-
-  bool _isSameDay(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month && a.day == b.day;
 }
 
-class _QuickDateChip extends StatelessWidget {
-  const _QuickDateChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
+class _CheckTicketGuideSection extends StatelessWidget {
+  const _CheckTicketGuideSection();
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? AppColors.primary : AppColors.contentSlate600;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: selected
-              ? AppColors.brandPrimarySubtle
-              : AppColors.surfaceSoft,
-          borderRadius: BorderRadius.circular(14),
+          color: AppColors.surfacePrimary,
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selected
-                ? AppColors.brandPrimaryBorder
-                : AppColors.borderSubtle,
+            color: AppColors.borderDecorative,
+            width: 1.0,
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: AppColors.shadowLight,
+              blurRadius: 12,
+              offset: Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: AppColors.brandPrimarySubtle,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.help_outline_rounded,
+                    size: 16,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Hướng dẫn dò vé',
+                  style: AppTypography.subtitle2(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.contentHeading,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            _buildStepRow(
+              stepNumber: '1',
+              title: 'Chọn ngày quay thưởng',
+              desc: 'Chọn đúng ngày in trên tờ vé số của bạn.',
+            ),
+            const SizedBox(height: 10),
+            _buildStepRow(
+              stepNumber: '2',
+              title: 'Chọn đài / tỉnh phát hành',
+              desc: 'Chọn đài mở thưởng của kỳ vé số cần kiểm tra.',
+            ),
+            const SizedBox(height: 10),
+            _buildStepRow(
+              stepNumber: '3',
+              title: 'Nhập dãy số & Tra cứu',
+              desc: 'Nhập dãy 5 hoặc 6 chữ số và nhấn "Tra cứu kết quả".',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStepRow({
+    required String stepNumber,
+    required String title,
+    required String desc,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 22,
+          height: 22,
+          alignment: Alignment.center,
+          decoration: const BoxDecoration(
+            color: AppColors.brandPrimarySubtle,
+            shape: BoxShape.circle,
+          ),
+          child: Text(
+            stepNumber,
+            style: AppTypography.caption(
+              color: AppColors.primary,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
-        alignment: Alignment.center,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.calendar_today_outlined, size: 14, color: color),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: AppTypography.buttonSmall(
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-                color: color,
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: AppTypography.bodySmall(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.contentHeading,
+                ),
               ),
+              const SizedBox(height: 2),
+              Text(
+                desc,
+                style: AppTypography.caption(
+                  color: AppColors.contentMuted,
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DrawScheduleAndUtilitiesSection extends StatelessWidget {
+  const _DrawScheduleAndUtilitiesSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surfacePrimary,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: AppColors.borderDecorative,
+            width: 1.0,
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: AppColors.shadowLight,
+              blurRadius: 12,
+              offset: Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: AppColors.brandPrimarySubtle,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.access_time_rounded,
+                    size: 16,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Khung giờ mở thưởng 3 miền',
+                  style: AppTypography.subtitle2(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.contentHeading,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildRegionTimeCard(
+                    region: 'Miền Nam',
+                    time: '16:15',
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildRegionTimeCard(
+                    region: 'Miền Trung',
+                    time: '17:15',
+                    color: AppColors.brandSecondary,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildRegionTimeCard(
+                    region: 'Miền Bắc',
+                    time: '18:15',
+                    color: AppColors.goldDark,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            const Divider(height: 1, color: AppColors.borderSubtle),
+            const SizedBox(height: 4),
+            _buildActionTile(
+              context: context,
+              icon: Icons.calendar_month_outlined,
+              title: 'Xem lịch mở thưởng chi tiết',
+              subtitle: 'Tra cứu lịch quay thưởng các tỉnh theo thứ',
+              onTap: () => context.push(AppRoute.schedule.path),
+            ),
+            const Divider(height: 1, color: AppColors.borderSubtle),
+            _buildActionTile(
+              context: context,
+              icon: Icons.confirmation_number_outlined,
+              title: 'Mua vé số may mắn',
+              subtitle: 'Khám phá các bộ số đẹp đang mở bán',
+              onTap: () => context.go(AppRoute.buyTicket.path),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRegionTimeCard({
+    required String region,
+    required String time,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceSoft,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.borderSubtle),
+      ),
+      child: Column(
+        children: [
+          Text(
+            region,
+            style: AppTypography.caption(
+              color: AppColors.contentMuted,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            time,
+            style: AppTypography.subtitle2(
+              color: color,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Hàng ngày',
+            style: AppTypography.overline(
+              color: AppColors.contentDisabled,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionTile({
+    required BuildContext context,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: AppColors.surfaceSoft,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: AppColors.primary, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: AppTypography.bodySmall(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.contentHeading,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: AppTypography.caption(
+                      color: AppColors.contentMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 14,
+              color: AppColors.contentMuted,
             ),
           ],
         ),
@@ -1290,3 +1290,4 @@ class _QuickDateChip extends StatelessWidget {
     );
   }
 }
+

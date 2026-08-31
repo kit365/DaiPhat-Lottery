@@ -10,6 +10,7 @@ import 'package:daiphat_mobile/src/features/chat/presentation/views/chat_screen.
 import 'package:daiphat_mobile/src/features/checkout/models/order_type.dart';
 import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/profile_iconography.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 import 'package:daiphat_mobile/src/shared/widgets/app_status_tab_bar.dart';
@@ -182,11 +183,11 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
       children: [
         IconButton(
           icon: const Icon(
-            Icons.chat_bubble_outline_rounded,
+            ProfileIconography.chat,
             size: 23,
             color: AppColors.primary,
           ),
-          tooltip: 'Hỗ trợ / Trò chuyện',
+          tooltip: 'Chat hỗ trợ',
           onPressed: _openChat,
         ),
         Positioned(
@@ -293,7 +294,7 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
                 alignment: Alignment.center,
                 children: [
                   Icon(
-                    Icons.receipt_long_rounded,
+                    ProfileIconography.order,
                     size: 56,
                     color: AppColors.primary.withValues(alpha: 0.35),
                   ),
@@ -428,7 +429,7 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
               shape: BoxShape.circle,
             ),
             child: const Icon(
-              Icons.receipt_long_outlined,
+              ProfileIconography.order,
               size: 40,
               color: AppColors.textMuted,
             ),

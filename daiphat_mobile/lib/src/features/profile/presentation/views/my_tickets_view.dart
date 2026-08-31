@@ -8,6 +8,7 @@ import 'package:daiphat_mobile/src/features/checkout/presentation/providers/chec
 import 'package:daiphat_mobile/src/features/profile/data/models/purchased_ticket.dart';
 import 'package:daiphat_mobile/src/features/profile/utils/ticket_display_utils.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/profile_iconography.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 import 'package:daiphat_mobile/src/shared/widgets/app_status_tab_bar.dart';
 import 'package:daiphat_mobile/src/shared/widgets/brand_scrollbar.dart';
@@ -109,22 +110,22 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
           _buildMetricCard(
             'Tổng vé',
             '${_viewModel.totalRecords}',
-            Icons.confirmation_number_outlined,
+            ProfileIconography.ticket,
             AppColors.primary,
           ),
           const SizedBox(width: 10),
           _buildMetricCard(
             'Chờ quay',
             '${_viewModel.pendingCountOnPage}',
-            Icons.schedule_outlined,
-            AppColors.brandAccentYellow,
+            ProfileIconography.pendingTicket,
+            AppColors.ticketPendingForeground,
           ),
           const SizedBox(width: 10),
           _buildMetricCard(
             'Trúng',
             '${_viewModel.wonCountOnPage}',
-            Icons.emoji_events_outlined,
-            AppColors.brandAccentGoldAmber,
+            ProfileIconography.prize,
+            ProfileIconTone.prize,
           ),
         ],
       ),
@@ -310,7 +311,7 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
               shape: BoxShape.circle,
             ),
             child: const Icon(
-              Icons.confirmation_number_outlined,
+              ProfileIconography.ticket,
               size: 40,
               color: AppColors.textMuted,
             ),

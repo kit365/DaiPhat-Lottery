@@ -5,9 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
-import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
-import 'package:daiphat_mobile/src/features/chat/presentation/views/chat_screen.dart';
-import 'package:daiphat_mobile/src/features/notifications/presentation/providers/notification_providers.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:daiphat_mobile/src/shared/widgets/app_header_action_button.dart';
@@ -25,18 +22,6 @@ class UtilitiesTwoView extends ConsumerWidget {
   final VoidCallback? onBack;
   final VoidCallback onOpenNotifications;
   final VoidCallback onOpenBlog;
-
-  void _openChat(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => ChatScreen(
-          isAuthenticated: isAuthenticated,
-          isActive: true,
-          onBack: () => Navigator.of(context).pop(),
-        ),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -57,7 +42,10 @@ class UtilitiesTwoView extends ConsumerWidget {
                 stops: [0.4, 1.0],
               ).createShader(bounds),
               blendMode: BlendMode.dstIn,
-              child: Image.asset('assets/images/home_bg.png', fit: BoxFit.cover),
+              child: Image.asset(
+                'assets/images/home_bg.png',
+                fit: BoxFit.cover,
+              ),
             ),
           ),
           Positioned.fill(
@@ -65,118 +53,102 @@ class UtilitiesTwoView extends ConsumerWidget {
               bottom: false,
               child: Column(
                 children: [
-                  _UtilitiesTwoHeader(
-                    title: 'Tiện ích',
-                    onBack: onBack,
-                    onOpenNotifications: onOpenNotifications,
-                    onOpenCart: () => context.pushNamed(AppRoute.cart.name),
-                    onOpenChat: () => _openChat(context),
-                  ),
-                Expanded(
-                  child: RefreshIndicator(
-                    color: AppColors.primary,
-                    onRefresh: () async {},
-                    child: ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: EdgeInsets.zero,
-                      children: [
-                        const _UtilitiesTwoShowcase(),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
-                          child: Column(
-                            children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    child: _UtilityCard(
-                                      icon: Icons.notifications_active_outlined,
-                                      title: 'Thông báo',
-                                      subtitle:
-                                          'Cập nhật các thông báo mới nhất từ hệ thống',
-                                      actionLabel: 'Xem ngay',
-                                      onTap: onOpenNotifications,
+                  _UtilitiesTwoHeader(title: 'Tiện ích', onBack: onBack),
+                  Expanded(
+                    child: RefreshIndicator(
+                      color: AppColors.primary,
+                      onRefresh: () async {},
+                      child: ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: EdgeInsets.zero,
+                        children: [
+                          const _UtilitiesTwoShowcase(),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+                            child: Column(
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: _UtilityCard(
+                                        icon:
+                                            Icons.notifications_active_outlined,
+                                        title: 'Thông báo',
+                                        subtitle:
+                                            'Cập nhật các thông báo mới nhất từ hệ thống',
+                                        actionLabel: 'Xem ngay',
+                                        onTap: onOpenNotifications,
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: _UtilityCard(
-                                      icon: Icons.auto_awesome_rounded,
-                                      title: 'Gieo quẻ',
-                                      subtitle:
-                                          'Gieo quẻ may mắn nhận lời giải cho bạn',
-                                      actionLabel: 'Gieo ngay',
-                                      onTap: () =>
-                                          context.push(AppRoute.fortune.path),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: _UtilityCard(
+                                        icon: Icons.auto_awesome_rounded,
+                                        title: 'Gieo quẻ',
+                                        subtitle:
+                                            'Gieo quẻ may mắn nhận lời giải cho bạn',
+                                        actionLabel: 'Gieo ngay',
+                                        onTap: () =>
+                                            context.push(AppRoute.fortune.path),
+                                      ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    child: _UtilityCard(
-                                      icon: Icons.calendar_month_outlined,
-                                      title: 'Lịch mở thưởng',
-                                      subtitle:
-                                          'Theo dõi lịch mở thưởng và kết quả chi tiết',
-                                      actionLabel: 'Xem lịch',
-                                      onTap: () =>
-                                          context.push(AppRoute.schedule.path),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: _UtilityCard(
+                                        icon: Icons.calendar_month_outlined,
+                                        title: 'Lịch mở thưởng',
+                                        subtitle:
+                                            'Theo dõi lịch mở thưởng và kết quả chi tiết',
+                                        actionLabel: 'Xem lịch',
+                                        onTap: () => context.push(
+                                          AppRoute.schedule.path,
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: _UtilityCard(
-                                      icon: Icons.article_outlined,
-                                      title: 'Tin tức',
-                                      subtitle:
-                                          'Cập nhật tin tức, sự kiện và khuyến mãi mới nhất',
-                                      actionLabel: 'Đọc ngay',
-                                      onTap: onOpenBlog,
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: _UtilityCard(
+                                        icon: Icons.article_outlined,
+                                        title: 'Tin tức',
+                                        subtitle:
+                                            'Cập nhật tin tức, sự kiện và khuyến mãi mới nhất',
+                                        actionLabel: 'Đọc ngay',
+                                        onTap: onOpenBlog,
+                                      ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
         ],
       ),
     );
   }
 }
 
-class _UtilitiesTwoHeader extends ConsumerWidget {
-  const _UtilitiesTwoHeader({
-    required this.title,
-    this.onBack,
-    required this.onOpenNotifications,
-    required this.onOpenCart,
-    required this.onOpenChat,
-  });
+class _UtilitiesTwoHeader extends StatelessWidget {
+  const _UtilitiesTwoHeader({required this.title, this.onBack});
 
   final String title;
   final VoidCallback? onBack;
-  final VoidCallback onOpenNotifications;
-  final VoidCallback onOpenCart;
-  final VoidCallback onOpenChat;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final unreadCount = ref.watch(unreadNotificationCountProvider);
-    final count = ref.watch(cartTicketCountProvider);
-
+  Widget build(BuildContext context) {
     return SizedBox(
       height: 56,
       child: Container(
@@ -188,6 +160,7 @@ class _UtilitiesTwoHeader extends ConsumerWidget {
               AppHeaderActionButton(
                 icon: Icons.arrow_back_ios_new_rounded,
                 tooltip: 'Quay lại',
+                variant: AppHeaderActionVariant.translucent,
                 onTap: onBack!,
               )
             else
@@ -201,30 +174,7 @@ class _UtilitiesTwoHeader extends ConsumerWidget {
                 ),
               ),
             ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AppHeaderActionButton(
-                  icon: Icons.notifications_outlined,
-                  tooltip: 'Thông báo',
-                  badgeCount: unreadCount,
-                  onTap: onOpenNotifications,
-                ),
-                const SizedBox(width: 8),
-                AppHeaderActionButton(
-                  icon: Icons.chat_bubble_outline_rounded,
-                  tooltip: 'Trò chuyện / Hỗ trợ',
-                  onTap: onOpenChat,
-                ),
-                const SizedBox(width: 8),
-                AppHeaderActionButton(
-                  icon: Icons.shopping_cart_outlined,
-                  tooltip: 'Giỏ hàng',
-                  badgeCount: count,
-                  onTap: onOpenCart,
-                ),
-              ],
-            ),
+            const SizedBox(width: 42),
           ],
         ),
       ),
