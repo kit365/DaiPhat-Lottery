@@ -9,6 +9,7 @@ import 'package:daiphat_mobile/src/features/profile/data/models/support_ticket.d
 import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/profile_status_badge.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/profile_iconography.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import 'package:daiphat_mobile/src/shared/widgets/app_status_tab_bar.dart';
 import '../viewmodels/complaints_viewmodel.dart';
@@ -411,7 +412,7 @@ class _ComplaintsViewState extends ConsumerState<ComplaintsView> {
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
-                  Icons.headset_mic_rounded,
+                  ProfileIconography.support,
                   size: 36,
                   color: AppColors.primary,
                 ),

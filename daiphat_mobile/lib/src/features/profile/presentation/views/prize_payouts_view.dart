@@ -9,6 +9,7 @@ import 'package:daiphat_mobile/src/features/profile/data/models/prize_payout_req
 import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/profile_status_badge.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/profile_iconography.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 import 'package:daiphat_mobile/src/shared/widgets/app_status_tab_bar.dart';
 import 'package:daiphat_mobile/src/shared/widgets/brand_scrollbar.dart';
@@ -345,7 +346,7 @@ class _PrizePayoutsViewState extends ConsumerState<PrizePayoutsView> {
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
-                  Icons.emoji_events_rounded,
+                  ProfileIconography.prize,
                   size: 36,
                   color: AppColors.primary,
                 ),

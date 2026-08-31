@@ -8,6 +8,7 @@ import 'package:daiphat_mobile/src/features/checkout/models/refund_type.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/bank_account_form_page.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/profile_iconography.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import 'package:daiphat_mobile/src/shared/widgets/brand_scrollbar.dart';
 import '../viewmodels/bank_accounts_viewmodel.dart';
@@ -300,7 +301,7 @@ class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
                   ),
                 const Spacer(),
                 _buildAction(
-                  icon: Icons.edit_outlined,
+                  icon: ProfileIconography.edit,
                   label: 'Sửa',
                   onTap: () => _openForm(account: account),
                 ),

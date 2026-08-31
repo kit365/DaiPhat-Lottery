@@ -14,6 +14,7 @@ import 'package:daiphat_mobile/src/features/profile/presentation/widgets/prize_p
 import 'package:daiphat_mobile/src/features/profile/utils/ticket_display_utils.dart';
 import 'package:daiphat_mobile/src/features/profile/utils/rebuy_ticket.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/profile_iconography.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 
@@ -286,8 +287,8 @@ class _TicketDetailBody extends ConsumerWidget {
                       ),
                       child: Icon(
                         isWon
-                            ? Icons.emoji_events_outlined
-                            : Icons.confirmation_number_outlined,
+                            ? ProfileIconography.prize
+                            : ProfileIconography.ticket,
                         color:
                             isWon || ticket.drawResultStatus == 'PENDING_DRAW'
                             ? AppColors.surfacePrimary
@@ -413,7 +414,9 @@ class _TicketDetailBody extends ConsumerWidget {
                                           ],
                                         )
                                       : null,
-                                  color: isWon ? null : AppColors.surfaceSlate100,
+                                  color: isWon
+                                      ? null
+                                      : AppColors.surfaceSlate100,
                                   shape: BoxShape.circle,
                                   border: Border.all(
                                     color: isWon
@@ -493,7 +496,10 @@ class _TicketDetailBody extends ConsumerWidget {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [AppColors.contentNavy, AppColors.contentSlate900],
+                      colors: [
+                        AppColors.contentNavy,
+                        AppColors.contentSlate900,
+                      ],
                     ),
                     borderRadius: BorderRadius.circular(16),
                   ),
@@ -576,7 +582,10 @@ class _TicketDetailBody extends ConsumerWidget {
                   ),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.card_giftcard, color: AppColors.surfacePrimary),
+                child: const Icon(
+                  Icons.card_giftcard,
+                  color: AppColors.surfacePrimary,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(

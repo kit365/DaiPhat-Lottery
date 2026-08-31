@@ -9,6 +9,7 @@ import 'package:daiphat_mobile/src/features/profile/data/models/refund_request.d
 import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/profile_status_badge.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/profile_iconography.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import '../viewmodels/refund_detail_viewmodel.dart';
@@ -281,7 +282,7 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
               shape: BoxShape.circle,
             ),
             child: const Icon(
-              Icons.headset_mic_rounded,
+              ProfileIconography.support,
               color: AppColors.surfacePrimary,
               size: 22,
             ),
@@ -318,7 +319,7 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
 
   Widget _buildRequestInfo(RefundRequestResponse refund) {
     return _card(
-      icon: Icons.receipt_long_rounded,
+      icon: ProfileIconography.order,
       title: 'Thông tin yêu cầu',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -674,7 +675,10 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
                   color: AppColors.statusSuccess,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.check_rounded, color: AppColors.surfacePrimary),
+                child: const Icon(
+                  Icons.check_rounded,
+                  color: AppColors.surfacePrimary,
+                ),
               ),
               const SizedBox(width: 12),
               Text(
@@ -769,7 +773,9 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: highlight ? AppColors.statusWarningSurface : AppColors.surfacePrimary,
+        color: highlight
+            ? AppColors.statusWarningSurface
+            : AppColors.surfacePrimary,
         borderRadius: BorderRadius.circular(16),
         border: highlight
             ? Border.all(color: AppColors.statusWarningForeground, width: 1.5)
@@ -785,7 +791,9 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
                 height: 36,
                 decoration: BoxDecoration(
                   color: highlight
-                      ? AppColors.statusWarningForeground.withValues(alpha: 0.15)
+                      ? AppColors.statusWarningForeground.withValues(
+                          alpha: 0.15,
+                        )
                       : AppColors.statusErrorSurface,
                   shape: BoxShape.circle,
                 ),

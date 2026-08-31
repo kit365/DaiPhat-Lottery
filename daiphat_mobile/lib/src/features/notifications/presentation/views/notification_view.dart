@@ -154,8 +154,10 @@ class _NotificationViewState extends State<NotificationView> {
                           onTap: () {
                             if (widget.onBack != null) {
                               widget.onBack!();
-                            } else {
+                            } else if (context.canPop()) {
                               context.pop();
+                            } else {
+                              context.go(AppRoute.home.path);
                             }
                           },
                         ),

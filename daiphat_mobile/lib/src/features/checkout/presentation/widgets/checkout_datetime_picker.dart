@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
+import 'package:daiphat_mobile/src/shared/widgets/app_picker_field.dart';
 import '../../data/system_config_service.dart';
 import '../providers/checkout_provider.dart';
 
@@ -148,77 +149,21 @@ class _CheckoutDateTimePickerState
     final hasError = widget.errorText != null;
 
     if (widget.embedded) {
-      return InkWell(
+      return AppPickerField(
+        label: 'Thời gian đến lấy *',
+        value: hasValue ? _displayText : null,
+        placeholder: 'Chọn ngày và giờ',
+        errorText: widget.errorText,
+        prefixIcon: Icons.calendar_month_outlined,
+        suffixIcon: Icons.chevron_right_rounded,
+        variant: AppPickerFieldVariant.embedded,
         onTap: _openSheet,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const SizedBox(
-                    width: 48,
-                    child: Icon(
-                      Icons.calendar_month_outlined,
-                      color: AppColors.contentPrimary,
-                      size: 26,
-                    ),
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Thời gian đến lấy *',
-                          style: AppTypography.caption(
-                            color: hasError
-                                ? AppColors.primary
-                                : AppColors.contentMuted,
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _displayText,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTypography.bodyLarge(
-                            color: hasValue
-                                ? AppColors.contentPrimary
-                                : AppColors.contentPlaceholder,
-                            fontSize: 15,
-                            fontWeight: hasValue
-                                ? FontWeight.w700
-                                : FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Icon(
-                    Icons.chevron_right_rounded,
-                    color: AppColors.contentPrimary,
-                    size: 28,
-                  ),
-                ],
-              ),
-              if (hasError)
-                Padding(
-                  padding: const EdgeInsets.only(left: 48, top: 6),
-                  child: Text(
-                    widget.errorText!,
-                    style: AppTypography.caption(
-                      color: AppColors.primary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
+        semanticLabel: hasValue
+            ? 'Thời gian đến lấy: $_displayText'
+            : 'Chọn ngày và giờ nhận vé',
+        semanticHint: hasError
+            ? widget.errorText
+            : 'Mở bộ chọn ngày và giờ nhận vé',
       );
     }
 
@@ -266,68 +211,19 @@ class _CheckoutDateTimePickerState
           ],
         ),
         const SizedBox(height: 8),
-        Semantics(
-          button: true,
-          label: hasValue
+        AppPickerField(
+          value: hasValue ? _displayText : null,
+          placeholder: 'Chọn ngày và giờ',
+          errorText: widget.errorText,
+          prefixIcon: Icons.calendar_month_rounded,
+          suffixIcon: Icons.access_time_rounded,
+          onTap: _openSheet,
+          semanticLabel: hasValue
               ? 'Thời gian đến lấy: $_displayText'
               : 'Chọn ngày và giờ nhận vé',
-          hint: hasError ? widget.errorText : 'Mở bộ chọn ngày và giờ nhận vé',
-          onTap: _openSheet,
-          child: ExcludeSemantics(
-            child: InkWell(
-              onTap: _openSheet,
-              borderRadius: BorderRadius.circular(12),
-              child: InputDecorator(
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.calendar_month_rounded),
-                  errorText: widget.errorText,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: hasError ? AppColors.error : AppColors.borderDefault,
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: hasError ? AppColors.error : AppColors.primary,
-                      width: 1.5,
-                    ),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 14,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _displayText,
-                        style: AppTypography.bodyMedium(
-                          fontSize: 14,
-                          fontWeight: hasValue
-                              ? FontWeight.w600
-                              : FontWeight.w400,
-                          color: hasValue
-                              ? AppColors.contentPrimary
-                              : AppColors.loginPlaceholder,
-                        ),
-                      ),
-                    ),
-                    const Icon(
-                      Icons.access_time_rounded,
-                      color: AppColors.primary,
-                      size: 20,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+          semanticHint: hasError
+              ? widget.errorText
+              : 'Mở bộ chọn ngày và giờ nhận vé',
         ),
         const SizedBox(height: 6),
         Text(
@@ -930,9 +826,7 @@ class _DateOptionButton extends StatelessWidget {
               style: AppTypography.caption(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: isSelected
-                    ? AppColors.primary
-                    : AppColors.contentMuted,
+                color: isSelected ? AppColors.primary : AppColors.contentMuted,
               ),
             ),
           ],

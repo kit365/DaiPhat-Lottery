@@ -3,6 +3,7 @@ import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:go_router/go_router.dart';
 import '../viewmodels/profile_viewmodel.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/profile_iconography.dart';
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 
 class ProfileDetailView extends StatelessWidget {
@@ -148,31 +149,38 @@ class ProfileDetailView extends StatelessWidget {
                                         ),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: AppColors.primary
-                                                .withValues(alpha: 0.1),
+                                            color: AppColors.primary.withValues(
+                                              alpha: 0.1,
+                                            ),
                                             blurRadius: 10,
                                             offset: const Offset(0, 4),
                                           ),
                                         ],
                                       ),
                                       child: ClipOval(
-                                        child: user.avatarUrl != null &&
+                                        child:
+                                            user.avatarUrl != null &&
                                                 user.avatarUrl!.isNotEmpty
                                             ? Image.network(
                                                 user.avatarUrl!,
                                                 fit: BoxFit.cover,
                                                 errorBuilder:
-                                                    (context, error, stackTrace) =>
-                                                        const Icon(
-                                                  Icons.person,
-                                                  size: 60,
-                                                  color: AppColors.contentPlaceholder,
-                                                ),
+                                                    (
+                                                      context,
+                                                      error,
+                                                      stackTrace,
+                                                    ) => const Icon(
+                                                      Icons.person,
+                                                      size: 60,
+                                                      color: AppColors
+                                                          .contentPlaceholder,
+                                                    ),
                                               )
                                             : const Icon(
                                                 Icons.person,
                                                 size: 60,
-                                                color: AppColors.contentPlaceholder,
+                                                color: AppColors
+                                                    .contentPlaceholder,
                                               ),
                                       ),
                                     ),
@@ -197,7 +205,7 @@ class ProfileDetailView extends StatelessWidget {
                                 child: Column(
                                   children: [
                                     _buildInfoRow(
-                                      Icons.person_outline,
+                                      ProfileIconography.identity,
                                       'Họ và tên',
                                       (user.fullName != null &&
                                               user.fullName!.isNotEmpty)
@@ -235,8 +243,7 @@ class ProfileDetailView extends StatelessWidget {
                                     _buildInfoRow(
                                       Icons.cake_outlined,
                                       'Ngày sinh',
-                                      (user.dob != null &&
-                                              user.dob!.isNotEmpty)
+                                      (user.dob != null && user.dob!.isNotEmpty)
                                           ? user.dob!
                                           : 'Chưa cập nhật',
                                     ),

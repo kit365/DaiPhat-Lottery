@@ -208,6 +208,7 @@ extension AppRouteDefinition on AppRoute {
       case AppRoute.complaints:
       case AppRoute.complaintDetail:
       case AppRoute.bankAccounts:
+      case AppRoute.notifications:
       case AppRoute.notificationSettings:
       case AppRoute.security:
       case AppRoute.myTickets:
@@ -224,7 +225,6 @@ extension AppRouteDefinition on AppRoute {
       case AppRoute.buyTicket:
       case AppRoute.checkTicket:
       case AppRoute.utilitiesTwo:
-      case AppRoute.notifications:
       case AppRoute.profile:
         return false;
     }

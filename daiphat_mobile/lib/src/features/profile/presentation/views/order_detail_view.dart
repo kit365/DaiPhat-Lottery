@@ -13,6 +13,7 @@ import 'package:daiphat_mobile/src/features/profile/data/models/refund_request.d
 import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/refund_request_sheet.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/profile_iconography.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import '../viewmodels/order_detail_viewmodel.dart';
@@ -671,7 +672,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
         : AppColors.statusWarningForeground;
 
     return _card(
-      icon: Icons.receipt_long_outlined,
+      icon: ProfileIconography.order,
       title: 'Thông tin đơn hàng',
       child: Column(
         children: [
@@ -747,7 +748,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
 
   Widget _buildCustomerCard(OrderResponse order) {
     return _card(
-      icon: Icons.person_outline_rounded,
+      icon: ProfileIconography.identity,
       title: 'Thông tin người đặt',
       child: Column(
         children: [
@@ -764,7 +765,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
   Widget _buildTicketsCard(OrderResponse order) {
     final items = order.orderDetails ?? [];
     return _card(
-      icon: Icons.confirmation_number_outlined,
+      icon: ProfileIconography.ticket,
       title: 'Danh sách vé (${items.length})',
       child: items.isEmpty
           ? Container(
@@ -831,7 +832,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(
-                    Icons.confirmation_number_rounded,
+                    ProfileIconography.ticket,
                     color: AppColors.primary,
                     size: 18,
                   ),
@@ -1237,7 +1238,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
         'Cam kết bảo mật tuyệt đối',
       ),
       (
-        Icons.headset_mic_outlined,
+        ProfileIconography.support,
         AppColors.primary,
         'Hỗ trợ 24/7',
         '1900 636 555',
@@ -1477,7 +1478,9 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: low
-                        ? AppColors.statusWarningForeground.withValues(alpha: 0.4)
+                        ? AppColors.statusWarningForeground.withValues(
+                            alpha: 0.4,
+                          )
                         : AppColors.brandSecondary.withValues(alpha: 0.2),
                   ),
                 ),
