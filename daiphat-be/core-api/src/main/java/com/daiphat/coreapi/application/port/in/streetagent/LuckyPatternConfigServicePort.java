@@ -7,6 +7,8 @@ import java.util.List;
 
 public interface LuckyPatternConfigServicePort {
     List<LuckyPatternConfigResponse> getAll();
+
+    List<LuckyPatternConfigResponse> getActive();
     LuckyPatternConfigResponse create(UpsertLuckyPatternConfigRequest request);
     LuckyPatternConfigResponse update(Long id, UpsertLuckyPatternConfigRequest request);
     void recomputeAll();
