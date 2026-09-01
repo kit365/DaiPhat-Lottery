@@ -76,6 +76,8 @@ class SupportTicketServiceResolutionWorkflowTest {
             return comment;
         });
         when(supportApplicationMapper.toTicketResponse(any(), any())).thenReturn(mockResponse(TicketStatus.REJECTED));
+        when(ticketCategoryRepositoryPort.findById(1L)).thenReturn(Optional.of(
+                TicketCategoryModel.builder().id(1L).priority(2).name("Cat").code("CAT").build()));
 
         supportTicketService.respondByStaff(
                 TICKET_ID,
@@ -98,6 +100,8 @@ class SupportTicketServiceResolutionWorkflowTest {
         when(supportTicketRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(supportTicketCommentRepositoryPort.findByTicketIdOrderByCreatedAtAsc(TICKET_ID)).thenReturn(List.of());
         when(supportApplicationMapper.toTicketResponse(any(), any())).thenReturn(mockResponse(TicketStatus.CLOSED));
+        when(ticketCategoryRepositoryPort.findById(1L)).thenReturn(Optional.of(
+                TicketCategoryModel.builder().id(1L).priority(2).name("Cat").code("CAT").build()));
 
         supportTicketService.submitResolutionFeedback(TICKET_ID, CUSTOMER_ID, new ResolutionFeedbackRequest(true));
 
@@ -140,6 +144,8 @@ class SupportTicketServiceResolutionWorkflowTest {
                 .thenReturn(Optional.empty());
         when(supportTicketRepositoryPort.findResolvedBefore(any())).thenReturn(List.of(expired));
         when(supportTicketRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(ticketCategoryRepositoryPort.findById(1L)).thenReturn(Optional.of(
+                TicketCategoryModel.builder().id(1L).priority(2).name("Cat").code("CAT").build()));
 
         int closed = supportTicketService.autoCloseResolvedTickets();
 

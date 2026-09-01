@@ -352,14 +352,27 @@ class BlogCategoryServiceTest {
     }
 
     @Test
-    void createCategory_slugExisted_throwsSlugExisted() {
+    void createCategory_existingSlug_autoGeneratesUniqueSlug() {
         CreateBlogCategoryRequest request = new CreateBlogCategoryRequest("Existed Slug", "existed-slug", null, null, null, STATUS_ACTIVE, null);
+        // Khi slug gốc tồn tại → trả true
         when(blogCategoryRepositoryPort.existsBySlug("existed-slug")).thenReturn(true);
+        // Slug suffix không tồn tại → trả false
+        when(blogCategoryRepositoryPort.existsBySlug("existed-slug-2")).thenReturn(false);
 
-        assertThatThrownBy(() -> blogCategoryService.createCategory(request))
-                .isInstanceOf(DomainException.class)
-                .extracting("errorCode")
-                .isEqualTo(ErrorCode.SLUG_EXISTED);
+        BlogCategoryModel savedModel = BlogCategoryModel.builder()
+                .id(1L)
+                .name("Existed Slug")
+                .slug("existed-slug-2")
+                .build();
+        when(blogCategoryRepositoryPort.save(any())).thenReturn(savedModel);
+        when(blogCategoryApplicationMapper.toResponse(savedModel)).thenReturn(
+                BlogCategoryResponse.builder().id(1L).name("Existed Slug").slug("existed-slug-2").build());
+
+        BlogCategoryResponse result = blogCategoryService.createCategory(request);
+
+        assertThat(result).isNotNull();
+        assertThat(result.slug()).isEqualTo("existed-slug-2");
+        verify(blogCategoryRepositoryPort).save(any());
     }
 
     @Test

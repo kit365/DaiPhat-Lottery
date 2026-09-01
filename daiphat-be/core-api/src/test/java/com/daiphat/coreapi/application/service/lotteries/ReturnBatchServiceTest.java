@@ -266,6 +266,8 @@ class ReturnBatchServiceTest {
                 ImportBatchLineModel.builder().id(20L).importCost(new BigDecimal("9500.000")).build()
         ));
         when(lotteryTicketSerialRepositoryPort.countByReturnBatchLineId(100L)).thenReturn(1L);
+        when(returnBatchAutoCancelService.cancelIfPastCutoff(any())).thenReturn(false);
+        when(importBatchConfigResolver.resolveReturnBufferMinutes()).thenReturn(60);
 
         returnBatchService.updateLineStatus(10L, 100L, new UpdateReturnBatchLineStatusRequest(ReturnBatchLineStatus.INSPECTED));
 
@@ -285,6 +287,7 @@ class ReturnBatchServiceTest {
                 .drawDate(DRAW_DATE)
                 .supplierSettlementId(50L)
                 .status(ReturnBatchStatus.PENDING_INSPECTION)
+                .returnCutOffTime(java.time.LocalTime.of(18, 0))
                 .build();
         ReturnBatchLineModel line = ReturnBatchLineModel.builder()
                 .id(100L)
@@ -314,6 +317,8 @@ class ReturnBatchServiceTest {
                 ImportBatchLineModel.builder().id(20L).importCost(new BigDecimal("9500.000")).build()
         ));
         when(lotteryTicketSerialRepositoryPort.countByReturnBatchLineId(100L)).thenReturn(1L);
+        when(returnBatchAutoCancelService.cancelIfPastCutoff(any())).thenReturn(false);
+        when(importBatchConfigResolver.resolveReturnBufferMinutes()).thenReturn(60);
 
         returnBatchService.attachSerials(
                 10L,
