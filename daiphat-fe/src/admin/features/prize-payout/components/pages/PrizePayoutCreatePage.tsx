@@ -39,6 +39,7 @@ import { prefixAdmin } from '@/admin/constants/routes';
 import { prizePayoutAdminApi } from "@/admin/features/prize-payout/services/prizePayoutService";
 import { useAuthStore } from '@/stores/useAuthStore';
 import {
+    buildStationOfficeRedemptionMessage,
     formatPrizePayoutCurrency,
     PrizePayoutCustomerSuggestion,
     PrizePayoutLookupItem,
@@ -517,7 +518,9 @@ export const PrizePayoutCreatePage = () => {
                 const autoSelect = res.data.items
                     .filter((i) => {
                         const state = resolveLookupPayoutState(i);
-                        return i.prizeStatus === 'WON' && state === 'NONE';
+                        return i.prizeStatus === 'WON'
+                            && state === 'NONE'
+                            && !i.requiresStationOfficeRedemption;
                     })
                     .map((i) => i.orderDetailId);
                 setSelectedIds(autoSelect);
@@ -540,7 +543,7 @@ export const PrizePayoutCreatePage = () => {
         const lockedByPayout = item.payoutState === 'PAID_OUT'
             || item.payoutState === 'PAYOUT_PENDING'
             || Boolean(item.alreadyRequested);
-        if (item.prizeStatus !== 'WON' || lockedByPayout) return;
+        if (item.prizeStatus !== 'WON' || lockedByPayout || item.requiresStationOfficeRedemption) return;
         setSelectedIds((prev) =>
             prev.includes(item.orderDetailId)
                 ? prev.filter((id) => id !== item.orderDetailId)
@@ -552,10 +555,12 @@ export const PrizePayoutCreatePage = () => {
         () => lookupItems.filter((item) => {
             const payoutState = resolveLookupPayoutState(item);
             const lockedByPayout = payoutState === 'PAYOUT_PENDING' || payoutState === 'PAID_OUT';
-            return item.prizeStatus === 'WON' && !lockedByPayout;
+            return item.prizeStatus === 'WON' && !lockedByPayout && !item.requiresStationOfficeRedemption;
         }),
         [lookupItems]
     );
+
+    const hasStationOfficeOnlySelection = selectedItems.some((item) => item.requiresStationOfficeRedemption);
 
     const allSelected = selectableItems.length > 0 && selectableItems.every((item) => selectedIds.includes(item.orderDetailId));
 
@@ -683,6 +688,7 @@ export const PrizePayoutCreatePage = () => {
 
     const submitDisabled =
         selectedItems.length === 0
+        || hasStationOfficeOnlySelection
         || !hasMatchProof
         || createMutation.isPending
         || !identityDocsReady
@@ -697,6 +703,10 @@ export const PrizePayoutCreatePage = () => {
 
     const submitBlockerHint = (() => {
         if (selectedItems.length === 0) return 'Chọn ít nhất một vé trúng thưởng.';
+        if (hasStationOfficeOnlySelection) {
+            const stationItem = selectedItems.find((item) => item.requiresStationOfficeRedemption);
+            return buildStationOfficeRedemptionMessage(stationItem?.stationName);
+        }
         if (!hasMatchProof) return 'Thiếu đối chiếu số trên vé / KQXS.';
         if (hasLockedRedemption) return 'Vé đã quá hạn lĩnh nhà đài — không thể trả thưởng.';
         if (!identityDocsReady) {
@@ -902,7 +912,8 @@ export const PrizePayoutCreatePage = () => {
                                             {lookupItems.filter((item) => item.prizeStatus === 'WON').map((item) => {
                                                 const payoutState = resolveLookupPayoutState(item);
                                                 const lockedByPayout = payoutState === 'PAYOUT_PENDING' || payoutState === 'PAID_OUT';
-                                                const selectable = item.prizeStatus === 'WON' && !lockedByPayout;
+                                                const stationOfficeOnly = Boolean(item.requiresStationOfficeRedemption);
+                                                const selectable = item.prizeStatus === 'WON' && !lockedByPayout && !stationOfficeOnly;
                                                 const checked = selectedIds.includes(item.orderDetailId);
                                                 const payoutBadge = lookupPayoutStatusBadge(item);
                                                 const isWon = item.prizeStatus === 'WON';
@@ -961,7 +972,14 @@ export const PrizePayoutCreatePage = () => {
                                                             )}
                                                         </TableCell>
                                                         <TableCell>
-                                                            {payoutBadge ? (
+                                                            {stationOfficeOnly ? (
+                                                                <Chip
+                                                                    label="VPĐĐ"
+                                                                    size="small"
+                                                                    color="warning"
+                                                                    sx={{ fontWeight: 700 }}
+                                                                />
+                                                            ) : payoutBadge ? (
                                                                 <AdminStatusBadge
                                                                     label={payoutBadge.label}
                                                                     modifier={payoutBadge.modifier}
@@ -970,7 +988,12 @@ export const PrizePayoutCreatePage = () => {
                                                             ) : (
                                                                 <Typography variant="caption" color="text.disabled">—</Typography>
                                                             )}
-                                                            {(() => {
+                                                            {stationOfficeOnly && (
+                                                                <Typography variant="caption" color="warning.main" sx={{ display: 'block', mt: 0.5 }}>
+                                                                    {buildStationOfficeRedemptionMessage(item.stationName)}
+                                                                </Typography>
+                                                            )}
+                                                            {!stationOfficeOnly && (() => {
                                                                 const urgency = getUrgencyBadge(item);
                                                                 return urgency ? (
                                                                     <Box sx={{ mt: 0.5 }}>
