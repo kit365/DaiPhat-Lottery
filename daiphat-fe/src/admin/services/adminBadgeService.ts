@@ -8,6 +8,7 @@ export type AdminDashboardBadgeCounts = {
     ordersPreparing: number | null;
     chatAttention: number | null;
     notificationUnread: number | null;
+    prizeClaimOutcomePending: number | null;
 };
 
 const EMPTY_BADGES: AdminDashboardBadgeCounts = {
@@ -18,6 +19,7 @@ const EMPTY_BADGES: AdminDashboardBadgeCounts = {
     ordersPreparing: null,
     chatAttention: null,
     notificationUnread: null,
+    prizeClaimOutcomePending: null,
 };
 
 const toCount = (value: unknown): number | null => {
@@ -43,6 +45,7 @@ export const getAdminDashboardBadges = async (): Promise<AdminDashboardBadgeCoun
             ordersPreparing: toCount(data?.ordersPreparing),
             chatAttention: toCount(data?.chatAttention),
             notificationUnread: toCount(data?.notificationUnread),
+            prizeClaimOutcomePending: toCount(data?.prizeClaimOutcomePending),
         };
     } catch {
         return EMPTY_BADGES;

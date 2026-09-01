@@ -65,7 +65,7 @@ public class SupplierSettlementPaymentReminderService {
             if (!settlement.getPeriodFrom().equals(today)) {
                 continue;
             }
-            if (settlement.getStatus() == SupplierSettlementStatus.COMPLETED || settlement.getPaidAt() != null) {
+            if (settlement.getStatus().isCompleted() || settlement.getPaidAt() != null) {
                 continue;
             }
             if (settlement.getLotterySupplierId() == null) {

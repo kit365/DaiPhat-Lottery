@@ -1,13 +1,12 @@
 package com.daiphat.coreapi.application.dto.response.lotteries;
 
-import com.daiphat.coreapi.domain.model.enums.lottery.PrizeClaimSubmissionSettlementStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.PrizeClaimSubmissionStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.ReturnDeliveryMode;
 import lombok.Builder;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
 
 @Builder
@@ -21,27 +20,25 @@ public record PrizeClaimSubmissionResponse(
         Integer totalTicketCount,
         BigDecimal totalGrossPrizeAmount,
         BigDecimal totalNetClaimAmount,
+        BigDecimal totalTaxAmount,
         BigDecimal totalCommissionAmount,
+        BigDecimal actualReceivedAmount,
+        String actualReceivedEvidenceUrl,
         PrizeClaimSubmissionStatus status,
+        ReturnDeliveryMode deliveryMode,
+        String handoverEvidenceUrl,
+        String handoverReceiptUrl,
+        String supplierReference,
+        String handoverNote,
+        LocalDateTime handedOverAt,
+        UUID handedOverBy,
         LocalDateTime submittedAt,
         UUID submittedBy,
-        LocalDateTime confirmedAt,
-        UUID confirmedBy,
-        LocalDateTime completedAt,
-        UUID completedBy,
         LocalDateTime cancelledAt,
         UUID cancelledBy,
-        UUID approvedBy,
-        String confirmationReference,
-        String confirmationEvidenceUrl,
-        LocalDate paymentDeadline,
-        boolean isOverdue,
-        BigDecimal paidAmount,
-        PrizeClaimSubmissionSettlementStatus settlementStatus,
-        BigDecimal settlementDifferenceAmount,
         String cancelReason,
-        List<String> paymentEvidenceUrls,
-        String paymentNote,
+        boolean needsOutcome,
+        int pendingOutcomeCount,
         LocalDateTime createdAt
 ) {
 }

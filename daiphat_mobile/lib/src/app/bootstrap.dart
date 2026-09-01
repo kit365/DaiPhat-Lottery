@@ -7,7 +7,9 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 import 'package:daiphat_mobile/firebase_options.dart';
 import 'package:daiphat_mobile/src/app/app.dart';
+import 'package:daiphat_mobile/src/shared/config/firebase_config.dart';
 import 'package:daiphat_mobile/src/app/dependencies/app_dependencies.dart';
+import 'package:daiphat_mobile/src/shared/network/api_config.dart';
 import 'package:daiphat_mobile/src/shared/providers/api_providers.dart';
 import 'package:daiphat_mobile/src/shared/services/notification_service.dart';
 import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
@@ -27,28 +29,18 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   debugPrint('Handling a background message: ${message.messageId}');
 }
 
-bool _hasFirebaseConfig() {
-  final projectId = dotenv.env['FIREBASE_PROJECT_ID']?.trim() ?? '';
-  final androidAppId = dotenv.env['FIREBASE_ANDROID_APP_ID']?.trim() ?? '';
-  final androidApiKey = dotenv.env['FIREBASE_ANDROID_API_KEY']?.trim() ?? '';
-  return projectId.isNotEmpty &&
-      androidAppId.isNotEmpty &&
-      androidApiKey.isNotEmpty;
-}
-
 Future<void> bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: '.env');
+  debugPrint('API base URL: ${ApiConfig.baseUrl}');
 
-  try {
-    if (_hasFirebaseConfig()) {
+  if (isFirebaseConfigured()) {
+    try {
       await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-    } else {
-      await Firebase.initializeApp();
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    } catch (e) {
+      debugPrint('Firebase init warning/error (running without push notifications): $e');
     }
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-  } catch (e) {
-    debugPrint('Firebase init warning/error (running without push notifications): $e');
   }
 
   try {

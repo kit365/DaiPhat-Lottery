@@ -39,6 +39,7 @@ public record PrizePayoutPreviewResponse(
         String ticketNumbers,
         String winningNumber,
         String matchFrom,
-        Integer matchDigits
+        Integer matchDigits,
+        boolean requiresStationOfficeRedemption
 ) {
 }

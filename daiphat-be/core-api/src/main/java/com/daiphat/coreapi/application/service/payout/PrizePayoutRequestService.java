@@ -172,7 +172,8 @@ public class PrizePayoutRequestService implements PrizePayoutRequestServicePort 
                 ticketNumbers,
                 match.winningNumber(),
                 match.matchFrom(),
-                match.matchDigits());
+                match.matchDigits(),
+                prizePayoutEligibilityService.requiresStationOfficeRedemption(match));
     }
 
     @Override

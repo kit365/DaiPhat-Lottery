@@ -122,6 +122,7 @@ export interface PrizePayoutPreviewResponse {
     winningNumber?: string;
     matchFrom?: string;
     matchDigits?: number;
+    requiresStationOfficeRedemption?: boolean;
 }
 
 export type TicketDrawResultStatus = 'WON' | 'LOST' | 'PENDING_DRAW';
@@ -164,6 +165,7 @@ export interface PrizePayoutLookupItem {
     issuerRedemptionDeadline?: string | null;
     redemptionZone?: PrizeRedemptionZone | null;
     daysRemainingToIssuer?: number | null;
+    requiresStationOfficeRedemption?: boolean;
 }
 
 export type PrizeRedemptionZone =
@@ -469,7 +471,8 @@ export type TicketPayoutDisplayStatus =
     | 'REJECTED'
     | 'MANUAL_RESOLUTION'
     | 'CANCELLED'
-    | 'IN_PERSON_ONLY';
+    | 'IN_PERSON_ONLY'
+    | 'STATION_OFFICE_ONLY';
 
 export const resolveTicketPayoutDisplay = (
     ticket: PurchasedTicket
@@ -530,6 +533,14 @@ export const resolveTicketPayoutDisplay = (
     }
 
     if (ticket.canClaimOnline === false || ticket.claimChannel === 'IN_PERSON') {
+        if (requiresStationOfficeRedemption(ticket)) {
+            return {
+                status: 'STATION_OFFICE_ONLY',
+                label: 'Đổi thưởng tại VPĐĐ',
+                className: 'bg-orange-50 text-orange-700 border-orange-200',
+                icon: 'fa-solid fa-building-columns',
+            };
+        }
         return {
             status: 'IN_PERSON_ONLY',
             label: 'Đổi thưởng tại đại lý',
@@ -546,11 +557,22 @@ export const resolveTicketPayoutDisplay = (
     };
 };
 
+export const buildStationOfficeRedemptionMessage = (stationName?: string | null) => {
+    const name = stationName?.trim() ? stationName.trim() : 'nhà đài phát hành vé';
+    return `Giải Đặc Biệt phải đến Văn phòng Đại diện Đài [${name}] để xác minh, đóng thuế và nhận tiền qua ngân hàng.`;
+};
+
+export const requiresStationOfficeRedemption = (
+    ticket: Pick<PurchasedTicket, 'matchedPrizeCode' | 'requiresStationOfficeRedemption'>
+) => ticket.requiresStationOfficeRedemption === true
+    || (ticket.matchedPrizeCode != null && ticket.matchedPrizeCode.toUpperCase() === 'DB');
+
 export const canRequestPrizePayout = (ticket: PurchasedTicket) => {
     const status = ticket.activePayoutStatus as PrizePayoutRequestStatus | undefined;
     const withinCustomerWindow = ticket.redemptionZone == null
         || ticket.redemptionZone === 'WITHIN_CUSTOMER';
     return ticket.drawResultStatus === 'WON'
+        && !requiresStationOfficeRedemption(ticket)
         && ticket.canClaimOnline === true
         && withinCustomerWindow
         && ticket.serialStatus != null
@@ -595,6 +617,9 @@ export const getPrizePayoutIneligibilityMessage = (ticket: PurchasedTicket): str
         }
         return 'Đã hết hạn đổi thưởng trực tuyến. Vui lòng mang vé đến đại lý nếu còn trong hạn lĩnh nhà đài.';
     }
+    if (requiresStationOfficeRedemption(ticket)) {
+        return buildStationOfficeRedemptionMessage(ticket.stationName);
+    }
     if (ticket.canClaimOnline === false || ticket.claimChannel === 'IN_PERSON') {
         return 'Vé này bắt buộc đổi thưởng trực tiếp tại đại lý.';
     }
@@ -611,30 +636,38 @@ export const getPrizePayoutIneligibilityMessage = (ticket: PurchasedTicket): str
 export const formatPrizePayoutCurrency = (value?: number | null) =>
     value == null ? '—' : `${Number(value).toLocaleString('vi-VN')}đ`;
 
+/** Giải thưởng sau thuế = giải thưởng − thuế TNCN (chưa trừ hoa hồng Nhà cung cấp). */
+export const computeSupplierExpectedAmount = (gross?: number | null, tax?: number | null) =>
+    (gross ?? 0) - (tax ?? 0);
+
 // ─── Partial Payout types ────────────────────────────────────────────────────────
 
 export enum PrizeClaimSubmissionStatus {
     DRAFT = 'DRAFT',
-    SUBMITTED = 'SUBMITTED',
-    CONFIRMED = 'CONFIRMED',
-    PAYMENT_PENDING = 'PAYMENT_PENDING',
-    COMPLETED = 'COMPLETED',
+    INSPECTING = 'INSPECTING',
+    PENDING_HANDOVER = 'PENDING_HANDOVER',
+    HANDED_OVER = 'HANDED_OVER',
+    CLOSED = 'CLOSED',
     CANCELLED = 'CANCELLED',
 }
 
 export enum PrizeClaimSubmissionLineStatus {
-    PENDING = 'PENDING',
-    CONFIRMED = 'CONFIRMED',
+    SELECTED = 'SELECTED',
+    INSPECTED = 'INSPECTED',
+    AWAITING_OUTCOME = 'AWAITING_OUTCOME',
+    HANDED_OVER = 'HANDED_OVER',
     REJECTED_RETRYABLE = 'REJECTED_RETRYABLE',
-    REJECTED_FINAL = 'REJECTED_FINAL',
-    PAID = 'PAID',
-    WITHDRAWN = 'WITHDRAWN',
+    REJECTED_LOSS = 'REJECTED_LOSS',
+    REJECTED_FRAUD = 'REJECTED_FRAUD',
+    LOST = 'LOST',
 }
 
-export enum PrizeClaimSubmissionSettlementStatus {
-    FULL = 'FULL',
-    UNDERPAID = 'UNDERPAID',
-    OVERPAID = 'OVERPAID',
+export enum PrizeClaimLineOutcome {
+    HANDED_OVER = 'HANDED_OVER',
+    REJECTED_RETRYABLE = 'REJECTED_RETRYABLE',
+    REJECTED_LOSS = 'REJECTED_LOSS',
+    REJECTED_FRAUD = 'REJECTED_FRAUD',
+    LOST = 'LOST',
 }
 
 export enum PrizeClaimRejectionReason {
@@ -648,59 +681,92 @@ export enum PrizeClaimRejectionReason {
 
 export const PRIZE_CIM_SUBMISSION_STATUS_LABELS: Record<PrizeClaimSubmissionStatus, string> = {
     [PrizeClaimSubmissionStatus.DRAFT]: 'Nháp',
-    [PrizeClaimSubmissionStatus.SUBMITTED]: 'Đã gửi',
-    [PrizeClaimSubmissionStatus.CONFIRMED]: 'Đã xác nhận',
-    [PrizeClaimSubmissionStatus.PAYMENT_PENDING]: 'Chờ thanh toán',
-    [PrizeClaimSubmissionStatus.COMPLETED]: 'Hoàn thành',
+    [PrizeClaimSubmissionStatus.INSPECTING]: 'Đang kiểm tra',
+    [PrizeClaimSubmissionStatus.PENDING_HANDOVER]: 'Chờ bàn giao',
+    [PrizeClaimSubmissionStatus.HANDED_OVER]: 'Đã bàn giao',
+    [PrizeClaimSubmissionStatus.CLOSED]: 'Đã đóng',
     [PrizeClaimSubmissionStatus.CANCELLED]: 'Đã hủy',
 };
 
 export const LINE_STATUS_LABELS: Record<PrizeClaimSubmissionLineStatus, string> = {
-    [PrizeClaimSubmissionLineStatus.PENDING]: 'Chờ xác nhận',
-    [PrizeClaimSubmissionLineStatus.CONFIRMED]: 'Đã xác nhận',
+    [PrizeClaimSubmissionLineStatus.SELECTED]: 'Đã chọn',
+    [PrizeClaimSubmissionLineStatus.INSPECTED]: 'Đã kiểm',
+    [PrizeClaimSubmissionLineStatus.AWAITING_OUTCOME]: 'Chờ Nhà cung cấp xử lý',
+    [PrizeClaimSubmissionLineStatus.HANDED_OVER]: 'Nhà cung cấp đã nhận',
     [PrizeClaimSubmissionLineStatus.REJECTED_RETRYABLE]: 'Từ chối - có thể nộp lại',
-    [PrizeClaimSubmissionLineStatus.REJECTED_FINAL]: 'Từ chối vĩnh viễn',
-    [PrizeClaimSubmissionLineStatus.PAID]: 'Đã trả',
-    [PrizeClaimSubmissionLineStatus.WITHDRAWN]: 'Đã rút',
+    [PrizeClaimSubmissionLineStatus.REJECTED_LOSS]: 'Từ chối - vé rách/hết hạn',
+    [PrizeClaimSubmissionLineStatus.REJECTED_FRAUD]: 'Nghi ngờ gian lận',
+    [PrizeClaimSubmissionLineStatus.LOST]: 'Thất lạc',
 };
 
-export const SETTLEMENT_STATUS_LABELS: Record<PrizeClaimSubmissionSettlementStatus, string> = {
-    [PrizeClaimSubmissionSettlementStatus.FULL]: 'Đủ',
-    [PrizeClaimSubmissionSettlementStatus.UNDERPAID]: 'Thiếu',
-    [PrizeClaimSubmissionSettlementStatus.OVERPAID]: 'Thừa',
+export const getPrizeClaimLineStatusChipColor = (
+    status?: PrizeClaimSubmissionLineStatus | string | null,
+): 'default' | 'info' | 'warning' | 'success' | 'error' => {
+    switch (status) {
+        case PrizeClaimSubmissionLineStatus.INSPECTED:
+            return 'info';
+        case PrizeClaimSubmissionLineStatus.AWAITING_OUTCOME:
+            return 'warning';
+        case PrizeClaimSubmissionLineStatus.HANDED_OVER:
+            return 'success';
+        case PrizeClaimSubmissionLineStatus.REJECTED_RETRYABLE:
+            return 'warning';
+        case PrizeClaimSubmissionLineStatus.REJECTED_LOSS:
+        case PrizeClaimSubmissionLineStatus.REJECTED_FRAUD:
+        case PrizeClaimSubmissionLineStatus.LOST:
+            return 'error';
+        case PrizeClaimSubmissionLineStatus.SELECTED:
+        default:
+            return 'default';
+    }
+};
+
+export const LINE_OUTCOME_LABELS: Record<PrizeClaimLineOutcome, string> = {
+    [PrizeClaimLineOutcome.HANDED_OVER]: 'Nhà cung cấp đã nhận',
+    [PrizeClaimLineOutcome.REJECTED_RETRYABLE]: 'Từ chối - có thể nộp lại',
+    [PrizeClaimLineOutcome.REJECTED_LOSS]: 'Từ chối - vé rách/hết hạn',
+    [PrizeClaimLineOutcome.REJECTED_FRAUD]: 'Nghi ngờ gian lận',
+    [PrizeClaimLineOutcome.LOST]: 'Thất lạc',
+};
+
+export const REJECTION_REASON_LABELS: Record<PrizeClaimRejectionReason, string> = {
+    [PrizeClaimRejectionReason.PAPER_DAMAGED]: 'Vé rách, không đọc được',
+    [PrizeClaimRejectionReason.WRONG_STATION]: 'Vé không thuộc nhà đài này',
+    [PrizeClaimRejectionReason.FRAUD_SUSPECTED]: 'Nghi ngờ gian lận / vé giả',
+    [PrizeClaimRejectionReason.DUPLICATE_CLAIM]: 'Vé đã được đổi thưởng trước đó',
+    [PrizeClaimRejectionReason.EXPIRED]: 'Vé hết hạn đổi thưởng',
+    [PrizeClaimRejectionReason.OTHER]: 'Lý do khác',
 };
 
 export interface PrizeClaimSubmissionResponse {
     id: number;
     submissionCode: string;
-    supplierId: number;
+    supplierId?: number | null;
     supplierName?: string;
     periodFrom?: string;
     periodTo?: string;
     totalTicketCount?: number;
     totalGrossPrizeAmount?: number;
     totalNetClaimAmount?: number;
+    totalTaxAmount?: number;
     totalCommissionAmount?: number;
+    actualReceivedAmount?: number | null;
+    actualReceivedEvidenceUrl?: string | null;
     status: PrizeClaimSubmissionStatus;
+    deliveryMode?: 'RETAILER_DELIVERS' | 'SUPPLIER_COLLECTS';
+    handoverEvidenceUrl?: string;
+    handoverReceiptUrl?: string;
+    supplierReference?: string;
+    handoverNote?: string;
+    handedOverAt?: string;
+    handedOverBy?: string;
     submittedAt?: string;
     submittedBy?: string;
-    confirmedAt?: string;
-    confirmedBy?: string;
-    completedAt?: string;
-    completedBy?: string;
     cancelledAt?: string;
     cancelledBy?: string;
-    approvedBy?: string;
-    confirmationReference?: string;
-    confirmationEvidenceUrl?: string;
-    paymentDeadline?: string;
-    isOverdue?: boolean;
-    paidAmount?: number;
-    settlementStatus?: PrizeClaimSubmissionSettlementStatus;
-    settlementDifferenceAmount?: number;
     cancelReason?: string;
-    paymentEvidenceUrls?: string[];
-    paymentNote?: string;
+    needsOutcome?: boolean;
+    pendingOutcomeCount?: number;
     createdAt?: string;
 }
 
@@ -711,15 +777,19 @@ export interface PrizeClaimSubmissionLineResponse {
     serialNumber?: string;
     ticketNumbers?: string;
     stationId: number;
+    stationName?: string;
     drawDate?: string;
     prizeCode?: string;
     prizeDisplayName?: string;
     grossPrizeAmount?: number;
     netClaimAmount?: number;
+    taxAmount?: number;
     commissionAmount?: number;
     lineStatus: PrizeClaimSubmissionLineStatus;
     rejectionReason?: PrizeClaimRejectionReason;
     rejectionNote?: string;
+    outcomeEvidenceUrl?: string;
+    retryCount?: number;
 }
 
 export interface PrizeClaimEligibleTicketResponse {
@@ -729,11 +799,13 @@ export interface PrizeClaimEligibleTicketResponse {
     serialNumber: string;
     ticketNumbers?: string;
     stationId: number;
+    stationName?: string;
     drawDate?: string;
     prizeCode?: string;
     prizeDisplayName?: string;
     grossPrizeAmount?: number;
     netClaimAmount?: number;
+    taxAmount?: number;
     commissionAmount?: number;
     payoutCompletedAt?: string;
 }

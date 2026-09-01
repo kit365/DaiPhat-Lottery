@@ -180,6 +180,7 @@ public class GlobalExceptionAdvice {
                 || errorCode == ErrorCode.PRIZE_PAYOUT_NOT_ELIGIBLE
                 || errorCode == ErrorCode.PRIZE_PAYOUT_ALREADY_REQUESTED
                 || errorCode == ErrorCode.PRIZE_PAYOUT_REQUIRES_IN_PERSON
+                || errorCode == ErrorCode.PRIZE_PAYOUT_REQUIRES_STATION_OFFICE
                 || errorCode == ErrorCode.PRIZE_PAYOUT_INVALID_STATUS
                 || errorCode == ErrorCode.LOTTERY_TICKET_INVALID_STATUS
                 || errorCode == ErrorCode.LOTTERY_TICKET_EXPIRED

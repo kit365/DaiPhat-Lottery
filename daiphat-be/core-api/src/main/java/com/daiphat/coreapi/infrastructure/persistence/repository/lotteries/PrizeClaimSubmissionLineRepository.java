@@ -9,26 +9,24 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface PrizeClaimSubmissionLineRepository extends JpaRepository<PrizeClaimSubmissionLineEntity, Long> {
 
     List<PrizeClaimSubmissionLineEntity> findByPrizeClaimSubmissionId(Long submissionId);
 
-    /**
-     * Bulk update line_status → WITHDRAWN khi submission cha bị cancel.
-     * Đây là cơ chế giải phóng serial: WITHDRAWN nằm ngoài unique index.
-     */
+    Optional<PrizeClaimSubmissionLineEntity> findByIdAndPrizeClaimSubmissionId(Long lineId, Long submissionId);
+
+    long countByPrizeClaimSubmissionIdAndLineStatus(
+            Long submissionId,
+            PrizeClaimSubmissionLineStatus lineStatus);
+
+    long countBySerialIdAndLineStatus(Long serialId, PrizeClaimSubmissionLineStatus lineStatus);
+
     @Modifying
-    @Query("""
-            UPDATE PrizeClaimSubmissionLineEntity l
-               SET l.lineStatus = :newStatus,
-                   l.updatedAt = CURRENT_TIMESTAMP
-             WHERE l.prizeClaimSubmission.id = :submissionId
-            """)
-    int updateLineStatusBySubmissionId(
-            @Param("submissionId") Long submissionId,
-            @Param("newStatus") PrizeClaimSubmissionLineStatus newStatus);
+    @Query("DELETE FROM PrizeClaimSubmissionLineEntity l WHERE l.prizeClaimSubmission.id = :submissionId")
+    void deleteByPrizeClaimSubmissionId(@Param("submissionId") Long submissionId);
 
     long countByPrizeClaimSubmissionId(Long submissionId);
 
@@ -39,4 +37,24 @@ public interface PrizeClaimSubmissionLineRepository extends JpaRepository<PrizeC
             ORDER BY l.id ASC
             """)
     List<PrizeClaimSubmissionLineEntity> findBySubmissionIdWithSerial(@Param("submissionId") Long submissionId);
+
+    @Query("""
+            SELECT l.prizeClaimSubmission.id, COUNT(l)
+            FROM PrizeClaimSubmissionLineEntity l
+            WHERE l.prizeClaimSubmission.id IN :submissionIds
+              AND l.lineStatus = :lineStatus
+            GROUP BY l.prizeClaimSubmission.id
+            """)
+    List<Object[]> countBySubmissionIdsAndLineStatus(
+            @Param("submissionIds") List<Long> submissionIds,
+            @Param("lineStatus") PrizeClaimSubmissionLineStatus lineStatus);
+
+    @Query("""
+            SELECT COUNT(DISTINCT s.id)
+            FROM PrizeClaimSubmissionEntity s
+            JOIN s.lines l
+            WHERE s.status = com.daiphat.coreapi.domain.model.enums.lottery.PrizeClaimSubmissionStatus.HANDED_OVER
+              AND l.lineStatus = com.daiphat.coreapi.domain.model.enums.lottery.PrizeClaimSubmissionLineStatus.AWAITING_OUTCOME
+            """)
+    long countSubmissionsWithPendingOutcome();
 }

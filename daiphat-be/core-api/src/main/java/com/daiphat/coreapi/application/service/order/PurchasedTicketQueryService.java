@@ -182,6 +182,7 @@ public class PurchasedTicketQueryService implements PurchasedTicketQueryPort {
 
         PrizePayoutChannel claimChannel = null;
         boolean canClaimOnline = false;
+        boolean requiresStationOfficeRedemption = "DB".equalsIgnoreCase(matchedPrizeCode);
         LocalDate customerRedemptionDeadline = null;
         LocalDate issuerRedemptionDeadline = null;
         PrizeRedemptionZone redemptionZone = null;
@@ -205,6 +206,7 @@ public class PurchasedTicketQueryService implements PurchasedTicketQueryPort {
                     || redemptionZone == PrizeRedemptionZone.WITHIN_CUSTOMER;
             canClaimOnline = claimChannel == PrizePayoutChannel.ONLINE
                     && !onlineLocked
+                    && !requiresStationOfficeRedemption
                     && withinCustomerWindow
                     && (payoutState == SerialPayoutState.NONE)
                     && (latestRequest == null
@@ -241,6 +243,7 @@ public class PurchasedTicketQueryService implements PurchasedTicketQueryPort {
                 .rejectedAt(detail.getRejectedAt())
                 .claimChannel(claimChannel)
                 .canClaimOnline(canClaimOnline)
+                .requiresStationOfficeRedemption(requiresStationOfficeRedemption)
                 .customerRedemptionDeadline(customerRedemptionDeadline)
                 .issuerRedemptionDeadline(issuerRedemptionDeadline)
                 .redemptionZone(redemptionZone)

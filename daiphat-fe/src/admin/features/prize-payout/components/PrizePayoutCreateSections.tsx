@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Avatar, Box, Card, CardContent, CardHeader, Stack, Typography } from '@mui/material';
 import { Icon } from '@/admin/components/ui/AdminIcon';
 import { formatPrizePayoutCurrency } from '@/types/prize-payout.type';
+import { splitLastMatchHighlight } from '../utils/prizePayoutMatchHighlight';
 
 export const SectionCard = ({
     title,
@@ -141,7 +142,6 @@ export function renderHighlightedNumber(
     role: 'ticket' | 'winning' = 'ticket'
 ) {
     if (!value) return '—';
-    const digits = matchDigits != null && matchDigits > 0 ? matchDigits : value.length;
     if (matchFrom === 'EXACT') {
         return (
             <Box component="span" sx={highlightSx}>
@@ -149,23 +149,20 @@ export function renderHighlightedNumber(
             </Box>
         );
     }
-    if (matchFrom === 'LAST' && value.length >= digits) {
-        const head = value.slice(0, value.length - digits);
-        const tail = value.slice(value.length - digits);
+    if (matchFrom === 'LAST') {
+        const segments = splitLastMatchHighlight(value, matchDigits);
         return (
             <>
-                {head}
-                <Box component="span" sx={highlightSx}>
-                    {tail}
-                </Box>
+                {segments.map((segment, index) =>
+                    segment.highlighted ? (
+                        <Box key={index} component="span" sx={highlightSx}>
+                            {segment.text}
+                        </Box>
+                    ) : (
+                        <span key={index}>{segment.text}</span>
+                    )
+                )}
             </>
-        );
-    }
-    if (role === 'winning' && matchFrom === 'LAST') {
-        return (
-            <Box component="span" sx={highlightSx}>
-                {value}
-            </Box>
         );
     }
     return value;

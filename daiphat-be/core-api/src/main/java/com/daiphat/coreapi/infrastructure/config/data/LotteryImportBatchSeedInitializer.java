@@ -25,7 +25,6 @@ import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.Lotte
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotterySupplierRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryTicketRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryTicketSerialRepository;
-import com.daiphat.coreapi.infrastructure.persistence.repository.streetagent.AgentTicketStockRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -116,7 +115,7 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
     private final ImportBatchLineRepository importBatchLineRepository;
     private final LotteryTicketRepository lotteryTicketRepository;
     private final LotteryTicketSerialRepository lotteryTicketSerialRepository;
-    private final AgentTicketStockRepository agentTicketStockRepository;
+    private final LotterySerialSeedCleanup lotterySerialSeedCleanup;
     private final UserRepository userRepository;
     private final Clock clock;
 
@@ -344,11 +343,7 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
         Set<Long> ticketIds = new HashSet<>();
         if (!seedSerials.isEmpty()) {
             List<Long> seedSerialIds = seedSerials.stream().map(LotteryTicketSerialEntity::getId).toList();
-            LotterySerialSeedCleanup.clearDependentsBeforeSerialDelete(
-                    agentTicketStockRepository,
-                    lotteryTicketSerialRepository,
-                    seedSerialIds
-            );
+            lotterySerialSeedCleanup.clearDependentsBeforeSerialDelete(seedSerialIds);
 
             for (LotteryTicketSerialEntity serial : seedSerials) {
                 if (serial.getTicket() != null && serial.getTicket().getId() != null) {

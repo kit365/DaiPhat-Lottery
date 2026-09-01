@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 /**
  * Scheduled job cảnh báo quá hạn:
  * <ul>
- *   <li>PrizeClaimSubmission: PAYMENT_PENDING + paymentDeadline < today
+ *   <li>PrizeClaimSubmission: HANDED_OVER quá 3 ngày vẫn còn vé AWAITING_OUTCOME
  *   <li>PrizePayoutRequest: AWAITING_FUND + commitmentExpiresAt < today
  * </ul>
  * Chạy 8h sáng hằng ngày.
@@ -27,11 +27,11 @@ public class OverdueNotificationScheduler {
             cron = "0 0 8 * * ?",
             zone = "Asia/Ho_Chi_Minh"
     )
-    public void checkOverdueSubmissions() {
-        log.info("Running overdue submissions check...");
-        int count = prizeClaimSubmissionService.markOverdueSubmissions();
+    public void checkStaleSubmissionsNeedingOutcome() {
+        log.info("Running stale prize claim submissions check...");
+        int count = prizeClaimSubmissionService.markStaleSubmissionsNeedingOutcome();
         if (count > 0) {
-            log.info("Marked {} submissions as overdue", count);
+            log.info("Marked {} submissions as needing outcome", count);
         }
     }
 

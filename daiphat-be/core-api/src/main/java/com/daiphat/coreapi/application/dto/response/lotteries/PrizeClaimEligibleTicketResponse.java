@@ -17,11 +17,13 @@ public record PrizeClaimEligibleTicketResponse(
         String serialNumber,
         String ticketNumbers,
         Long stationId,
+        String stationName,
         LocalDate drawDate,
         String prizeCode,
         String prizeDisplayName,
         BigDecimal grossPrizeAmount,
         BigDecimal netClaimAmount,
+        BigDecimal taxAmount,
         BigDecimal commissionAmount,
         LocalDateTime payoutCompletedAt
 ) {

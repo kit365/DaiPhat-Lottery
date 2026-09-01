@@ -16,6 +16,7 @@ import com.daiphat.coreapi.domain.model.enums.support.TicketCommentSenderRole;
 import com.daiphat.coreapi.domain.model.enums.support.TicketStatus;
 import com.daiphat.coreapi.domain.model.support.SupportTicketCommentModel;
 import com.daiphat.coreapi.domain.model.support.SupportTicketModel;
+import com.daiphat.coreapi.domain.model.support.TicketCategoryModel;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -139,6 +140,8 @@ class SupportTicketServiceCommentTest {
         when(supportApplicationMapper.toCommentResponse(any())).thenReturn(
                 new SupportTicketCommentResponse(
                         99L, CUSTOMER_ID, TicketCommentSenderRole.CUSTOMER, "Here is more detail", null, null));
+        when(ticketCategoryRepositoryPort.findById(1L)).thenReturn(Optional.of(
+                TicketCategoryModel.builder().id(1L).priority(2).name("Cat").code("CAT").build()));
 
         supportTicketService.addComment(
                 TICKET_ID, CUSTOMER_ID, false, new CreateSupportTicketCommentRequest("Here is more detail"), null);
@@ -159,6 +162,8 @@ class SupportTicketServiceCommentTest {
         when(supportApplicationMapper.toCommentResponse(any())).thenReturn(
                 new SupportTicketCommentResponse(
                         1L, STAFF_ID, TicketCommentSenderRole.OPERATOR, "We are checking", null, null));
+        when(ticketCategoryRepositoryPort.findById(1L)).thenReturn(Optional.of(
+                TicketCategoryModel.builder().id(1L).priority(2).name("Cat").code("CAT").build()));
 
         supportTicketService.addComment(
                 TICKET_ID, STAFF_ID, true, new CreateSupportTicketCommentRequest("We are checking"), null);

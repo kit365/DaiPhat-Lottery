@@ -47,6 +47,7 @@ public record PurchasedTicketResponse(
         LocalDateTime rejectedAt,
         PrizePayoutChannel claimChannel,
         boolean canClaimOnline,
+        boolean requiresStationOfficeRedemption,
         /** Online / customer-facing redemption deadline. */
         LocalDate customerRedemptionDeadline,
         /** Official station/issuer deadline — last day the ticket can still be redeemed at counter. */

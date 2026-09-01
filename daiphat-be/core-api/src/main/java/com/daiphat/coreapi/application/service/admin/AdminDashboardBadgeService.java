@@ -10,6 +10,7 @@ import com.daiphat.coreapi.application.port.out.payout.PrizePayoutRequestReposit
 import com.daiphat.coreapi.application.port.out.refund.RefundRequestRepositoryPort;
 import com.daiphat.coreapi.application.port.out.support.SupportTicketRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.ReturnBatchRepositoryPort;
+import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.PrizeClaimSubmissionLineRepository;
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
 import com.daiphat.coreapi.domain.model.enums.chat.ConversationStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchStatus;
@@ -54,6 +55,7 @@ public class AdminDashboardBadgeService implements AdminDashboardBadgeServicePor
     private final OrderRepositoryPort orderRepositoryPort;
     private final ConversationServicePort conversationServicePort;
     private final NotificationRepositoryPort notificationRepositoryPort;
+    private final PrizeClaimSubmissionLineRepository prizeClaimSubmissionLineRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -66,6 +68,7 @@ public class AdminDashboardBadgeService implements AdminDashboardBadgeServicePor
                 .ordersPreparing(canViewOrders() ? countPreparingOrders() : null)
                 .chatAttention(canViewChat() ? countChatAttention(userId) : null)
                 .notificationUnread(countNotificationUnread(userId))
+                .prizeClaimOutcomePending(canViewPrizePayout() ? countPrizeClaimOutcomePending() : null)
                 .build();
     }
 
@@ -122,6 +125,10 @@ public class AdminDashboardBadgeService implements AdminDashboardBadgeServicePor
 
     private long countNotificationUnread(UUID userId) {
         return notificationRepositoryPort.countUnreadByUserId(userId);
+    }
+
+    private long countPrizeClaimOutcomePending() {
+        return prizeClaimSubmissionLineRepository.countSubmissionsWithPendingOutcome();
     }
 
     private boolean canViewRefund() {

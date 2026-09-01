@@ -1,29 +1,58 @@
 "use client";
 
-import { Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Grid, Stack, TextField, Typography } from '@mui/material';
-import dayjs from 'dayjs';
-import { useState } from 'react';
+import {
+    Alert,
+    Box,
+    Button,
+    Card,
+    CardContent,
+    Chip,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    FormControl,
+    FormControlLabel,
+    IconButton,
+    Radio,
+    RadioGroup,
+    Stack,
+    TextField,
+    Tooltip,
+    Typography,
+} from '@mui/material';
+import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import { useEffect, useMemo, useState } from 'react';
 import { PageHeader } from '@/admin/components/ui/PageHeader';
 import { ROUTES } from '@/admin/constants/routes';
+import { uploadAdminImage } from '@/admin/shared/services/upload.service';
+import { UploadSingleFile } from '@/admin/components/upload/UploadSingleFile';
 import { useRouteParams } from '@/hooks/useRouteParams';
 import {
+    LINE_OUTCOME_LABELS,
     LINE_STATUS_LABELS,
+    REJECTION_REASON_LABELS,
+    getPrizeClaimLineStatusChipColor,
     PRIZE_CIM_SUBMISSION_STATUS_LABELS,
+    PrizeClaimLineOutcome,
     PrizeClaimSubmissionLineStatus,
     PrizeClaimSubmissionStatus,
     PrizeClaimRejectionReason,
+    computeSupplierExpectedAmount,
     formatPrizePayoutCurrency,
 } from '@/types/prize-payout.type';
 import {
     useCancelPrizeClaim,
-    useCompletePrizeClaim,
-    useConfirmPrizeClaim,
-    useMarkPaymentPending,
+    useConfirmPrizeClaimHandover,
+    useConfirmPrizeClaimInspection,
+    useExportPrizeClaimSubmission,
     usePrizeClaimSubmissionDetail,
     usePrizeClaimSubmissionLines,
-    useRejectPrizeClaimLine,
+    useRecordLineOutcome,
     useRemovePrizeClaimLine,
-    useSubmitPrizeClaim,
+    useStartPrizeClaimInspection,
+    useUpdatePrizeClaimActualReceived,
 } from '../../hooks/usePrizeClaimSubmission';
 import { EligibleTicketsPicker } from '../EligibleTicketsPicker';
 import { SpinnerLoading } from '@/admin/components/ui/SpinnerLoading';
@@ -31,14 +60,31 @@ import { AppToast as toast } from '@/utils/toast.util';
 
 const STATUS_COLORS: Record<PrizeClaimSubmissionStatus, 'default' | 'info' | 'warning' | 'success' | 'error'> = {
     [PrizeClaimSubmissionStatus.DRAFT]: 'default',
-    [PrizeClaimSubmissionStatus.SUBMITTED]: 'info',
-    [PrizeClaimSubmissionStatus.CONFIRMED]: 'info',
-    [PrizeClaimSubmissionStatus.PAYMENT_PENDING]: 'warning',
-    [PrizeClaimSubmissionStatus.COMPLETED]: 'success',
+    [PrizeClaimSubmissionStatus.INSPECTING]: 'warning',
+    [PrizeClaimSubmissionStatus.PENDING_HANDOVER]: 'info',
+    [PrizeClaimSubmissionStatus.HANDED_OVER]: 'info',
+    [PrizeClaimSubmissionStatus.CLOSED]: 'success',
     [PrizeClaimSubmissionStatus.CANCELLED]: 'error',
 };
 
-function InfoRow({ label, value, mono }: { label: string; value?: string | number | null; mono?: boolean }) {
+const formatMoneyInput = (value: string | number | null | undefined) => {
+    if (value == null || value === '') return '';
+    const digits = String(value).replace(/[^\d]/g, '');
+    if (!digits) return '';
+    return new Intl.NumberFormat('vi-VN').format(Number(digits));
+};
+
+function InfoRow({
+    label,
+    value,
+    mono,
+    tooltip,
+}: {
+    label: string;
+    value?: string | number | null;
+    mono?: boolean;
+    tooltip?: string;
+}) {
     return (
         <Stack
             direction="row"
@@ -47,7 +93,16 @@ function InfoRow({ label, value, mono }: { label: string; value?: string | numbe
             spacing={2}
             sx={{ py: 1.25, borderBottom: '1px dashed', borderColor: 'divider' }}
         >
-            <Typography variant="body2" color="text.secondary">{label}</Typography>
+            <Stack direction="row" alignItems="center" spacing={0.5}>
+                <Typography variant="body2" color="text.secondary">{label}</Typography>
+                {tooltip && (
+                    <Tooltip title={tooltip} arrow>
+                        <IconButton size="small" sx={{ p: 0.25 }}>
+                            <InfoOutlinedIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                        </IconButton>
+                    </Tooltip>
+                )}
+            </Stack>
             <Typography
                 variant="body2"
                 sx={{ fontWeight: 600, textAlign: 'right', fontFamily: mono ? 'monospace' : undefined, fontVariantNumeric: 'tabular-nums' }}
@@ -65,85 +120,185 @@ export const PrizeClaimSubmissionDetailPage = () => {
     const { data: subData, isLoading: subLoading } = usePrizeClaimSubmissionDetail(id);
     const { data: linesData, isLoading: linesLoading } = usePrizeClaimSubmissionLines(id);
     const removeLineMutation = useRemovePrizeClaimLine();
-    const rejectMutation = useRejectPrizeClaimLine();
-    const submitMutation = useSubmitPrizeClaim();
-    const confirmMutation = useConfirmPrizeClaim();
-    const markPaymentPendingMutation = useMarkPaymentPending();
-    const completeMutation = useCompletePrizeClaim();
+    const recordOutcomeMutation = useRecordLineOutcome();
+    const startInspectionMutation = useStartPrizeClaimInspection();
+    const confirmInspectionMutation = useConfirmPrizeClaimInspection();
+    const confirmHandoverMutation = useConfirmPrizeClaimHandover();
     const cancelMutation = useCancelPrizeClaim();
+    const exportMutation = useExportPrizeClaimSubmission();
+    const updateActualReceivedMutation = useUpdatePrizeClaimActualReceived();
 
     const submission = subData?.data;
     const lines = linesData?.data ?? [];
 
-    // Dialog states
-    const [rejectOpen, setRejectOpen] = useState(false);
-    const [rejectingLineId, setRejectingLineId] = useState<number | null>(null);
-    const [rejectionType, setRejectionType] = useState<'RETRYABLE' | 'FINAL'>('RETRYABLE');
-    const [rejectionReason, setRejectionReason] = useState<PrizeClaimRejectionReason>(PrizeClaimRejectionReason.PAPER_DAMAGED);
-    const [rejectionNote, setRejectionNote] = useState('');
+    const expectedFromSupplier = useMemo(
+        () => computeSupplierExpectedAmount(submission?.totalGrossPrizeAmount, submission?.totalTaxAmount),
+        [submission?.totalGrossPrizeAmount, submission?.totalTaxAmount],
+    );
 
-    const [confirmOpen, setConfirmOpen] = useState(false);
-    const [confRef, setConfRef] = useState('');
-    const [confEvidence, setConfEvidence] = useState('');
+    const [actualReceivedInput, setActualReceivedInput] = useState('');
+    const [actualReceivedEvidenceUrl, setActualReceivedEvidenceUrl] = useState<string | null>(null);
+    const [isActualReceivedEvidenceUploading, setIsActualReceivedEvidenceUploading] = useState(false);
 
-    const [completeOpen, setCompleteOpen] = useState(false);
-    const [paidAmount, setPaidAmount] = useState('');
-    const [paymentNote, setPaymentNote] = useState('');
+    const [deliveryMode, setDeliveryMode] = useState<'RETAILER_DELIVERS' | 'SUPPLIER_COLLECTS'>('RETAILER_DELIVERS');
+    const [handoverNote, setHandoverNote] = useState('');
+    const [handoverEvidenceFile, setHandoverEvidenceFile] = useState<File | null>(null);
+    const [isHandoverUploading, setIsHandoverUploading] = useState(false);
+
+    const [outcomeOpen, setOutcomeOpen] = useState(false);
+    const [outcomeLineId, setOutcomeLineId] = useState<number | null>(null);
+    const [outcome, setOutcome] = useState<PrizeClaimLineOutcome>(PrizeClaimLineOutcome.HANDED_OVER);
+    const [outcomeReason, setOutcomeReason] = useState<PrizeClaimRejectionReason>(PrizeClaimRejectionReason.PAPER_DAMAGED);
+    const [outcomeNote, setOutcomeNote] = useState('');
+    const [outcomeEvidenceFile, setOutcomeEvidenceFile] = useState<File | null>(null);
+    const [isOutcomeUploading, setIsOutcomeUploading] = useState(false);
 
     const [cancelOpen, setCancelOpen] = useState(false);
     const [cancelReason, setCancelReason] = useState('');
-    const [approverId, setApproverId] = useState('');
+
+    useEffect(() => {
+        if (submission?.actualReceivedAmount != null) {
+            setActualReceivedInput(formatMoneyInput(submission.actualReceivedAmount));
+        } else {
+            setActualReceivedInput('');
+        }
+        setActualReceivedEvidenceUrl(submission?.actualReceivedEvidenceUrl ?? null);
+    }, [submission?.actualReceivedAmount, submission?.actualReceivedEvidenceUrl]);
 
     if (subLoading || linesLoading) {
         return (
-            <Box>
+            <div className="admin-list-page">
                 <PageHeader title="Chi tiết phiếu nộp" breadcrumbItems={[]} />
                 <SpinnerLoading />
-            </Box>
+            </div>
         );
     }
 
     if (!submission) {
         return (
-            <Box>
+            <div className="admin-list-page">
                 <PageHeader title="Chi tiết phiếu nộp" breadcrumbItems={[]} />
                 <Alert severity="error">Không tìm thấy phiếu nộp.</Alert>
-            </Box>
+            </div>
         );
     }
 
     const isDraft = submission.status === PrizeClaimSubmissionStatus.DRAFT;
-    const isSubmitted = submission.status === PrizeClaimSubmissionStatus.SUBMITTED;
-    const isPaymentPending = submission.status === PrizeClaimSubmissionStatus.PAYMENT_PENDING;
+    const isInspecting = submission.status === PrizeClaimSubmissionStatus.INSPECTING;
+    const isPendingHandover = submission.status === PrizeClaimSubmissionStatus.PENDING_HANDOVER;
+    const isHandedOver = submission.status === PrizeClaimSubmissionStatus.HANDED_OVER;
+    const isClosed = submission.status === PrizeClaimSubmissionStatus.CLOSED;
+    const isCancelled = submission.status === PrizeClaimSubmissionStatus.CANCELLED;
+    const canEditLines = isDraft || isInspecting;
+    const canCancel = isDraft || isInspecting || isPendingHandover;
+    const pendingOutcomeCount = submission.pendingOutcomeCount ?? 0;
+    const hasPendingOutcomes = isHandedOver && pendingOutcomeCount > 0;
 
-    const openRejectDialog = (lineId: number) => {
-        setRejectingLineId(lineId);
-        setRejectOpen(true);
-    };
+    const parsedActualReceived = actualReceivedInput.trim() === ''
+        ? null
+        : Number(actualReceivedInput.replace(/[^\d]/g, ''));
+    const canEditActualReceived = isHandedOver || isClosed;
 
-    const handleReject = async () => {
-        if (!rejectingLineId) return;
+    const handleSaveActualReceived = async () => {
+        if (!canEditActualReceived) return;
+        if (parsedActualReceived != null && (Number.isNaN(parsedActualReceived) || parsedActualReceived < 0)) {
+            toast.error('Số tiền thực nhận không hợp lệ');
+            return;
+        }
         try {
-            await rejectMutation.mutateAsync({
+            await updateActualReceivedMutation.mutateAsync({
                 submissionId: id,
-                data: {
-                    lineId: rejectingLineId,
-                    rejectionType,
-                    reason: rejectionReason,
-                    note: rejectionNote || undefined,
-                },
+                actualReceivedAmount: parsedActualReceived,
+                actualReceivedEvidenceUrl,
             });
-            setRejectOpen(false);
         } catch {
-            toast.error('Không thể từ chối vé');
+            // toast handled in hook
         }
     };
 
-    const handleSubmit = async () => {
+    const openOutcomeDialog = (lineId: number) => {
+        setOutcomeLineId(lineId);
+        setOutcome(PrizeClaimLineOutcome.HANDED_OVER);
+        setOutcomeReason(PrizeClaimRejectionReason.PAPER_DAMAGED);
+        setOutcomeNote('');
+        setOutcomeEvidenceFile(null);
+        setOutcomeOpen(true);
+    };
+
+    const handleRecordOutcome = async () => {
+        if (!outcomeLineId) return;
+        if (outcome !== PrizeClaimLineOutcome.HANDED_OVER && !outcomeReason) {
+            toast.error('Vui lòng chọn lý do');
+            return;
+        }
+        if (outcome === PrizeClaimLineOutcome.HANDED_OVER && !outcomeEvidenceFile) {
+            toast.error('Vui lòng tải ảnh chứng từ Nhà cung cấp đã xử lý');
+            return;
+        }
         try {
-            await submitMutation.mutateAsync({ submissionId: id, submittedBy: '' });
+            setIsOutcomeUploading(true);
+            let outcomeEvidenceUrl: string | undefined;
+            if (outcomeEvidenceFile) {
+                outcomeEvidenceUrl = await uploadAdminImage(outcomeEvidenceFile);
+            }
+            await recordOutcomeMutation.mutateAsync({
+                submissionId: id,
+                lineId: outcomeLineId,
+                data: {
+                    outcome,
+                    ...(outcome !== PrizeClaimLineOutcome.HANDED_OVER ? { reason: outcomeReason } : {}),
+                    note: outcomeNote || undefined,
+                    outcomeEvidenceUrl,
+                },
+            });
+            setOutcomeOpen(false);
         } catch {
-            toast.error('Không thể gửi phiếu');
+            toast.error('Không thể ghi nhận kết quả');
+        } finally {
+            setIsOutcomeUploading(false);
+        }
+    };
+
+    const handleStartInspection = async () => {
+        try {
+            await startInspectionMutation.mutateAsync(id);
+        } catch {
+            toast.error('Không thể bắt đầu kiểm tra');
+        }
+    };
+
+    const handleConfirmInspection = async () => {
+        try {
+            await confirmInspectionMutation.mutateAsync({
+                submissionId: id,
+                data: { deliveryMode },
+            });
+        } catch {
+            toast.error('Không thể xác nhận kiểm tra');
+        }
+    };
+
+    const handleConfirmHandover = async () => {
+        if (!handoverEvidenceFile) {
+            toast.error('Vui lòng tải ảnh bằng chứng bàn giao');
+            return;
+        }
+        try {
+            setIsHandoverUploading(true);
+            const handoverEvidenceUrl = await uploadAdminImage(handoverEvidenceFile);
+            await confirmHandoverMutation.mutateAsync({
+                submissionId: id,
+                data: {
+                    handoverEvidenceUrl,
+                    note: handoverNote || undefined,
+                },
+            });
+            setHandoverEvidenceFile(null);
+            setHandoverNote('');
+        } catch {
+            toast.error('Không thể xác nhận bàn giao');
+        } finally {
+            setIsHandoverUploading(false);
         }
     };
 
@@ -155,59 +310,11 @@ export const PrizeClaimSubmissionDetailPage = () => {
         }
     };
 
-    const handleMarkPaymentPending = async () => {
-        try {
-            await markPaymentPendingMutation.mutateAsync(id);
-        } catch {
-            toast.error('Không thể chuyển trạng thái');
-        }
-    };
-
-    const handleConfirm = async () => {
-        if (!confRef || !confEvidence) {
-            toast.error('Vui lòng nhập đầy đủ thông tin');
-            return;
-        }
-        try {
-            await confirmMutation.mutateAsync({
-                submissionId: id,
-                data: { confirmedBy: '', confirmationReference: confRef, confirmationEvidenceUrl: confEvidence },
-            });
-            setConfirmOpen(false);
-        } catch {
-            toast.error('Không thể xác nhận');
-        }
-    };
-
-    const handleComplete = async () => {
-        if (!paidAmount) {
-            toast.error('Vui lòng nhập số tiền thanh toán');
-            return;
-        }
-        try {
-            await completeMutation.mutateAsync({
-                submissionId: id,
-                data: { completedBy: '', paidAmount: Number(paidAmount), paymentEvidenceUrls: [], paymentNote: paymentNote || undefined },
-            });
-            setCompleteOpen(false);
-        } catch {
-            toast.error('Không thể hoàn thành phiếu');
-        }
-    };
-
     const handleCancel = async () => {
-        if (!isDraft && (!cancelReason || !approverId)) {
-            toast.error('Vui lòng nhập đầy đủ thông tin');
-            return;
-        }
         try {
             await cancelMutation.mutateAsync({
                 submissionId: id,
-                data: {
-                    cancelReason: cancelReason || undefined,
-                    cancelledBy: '',
-                    ...(isDraft ? {} : { approvedBy: approverId }),
-                },
+                data: { cancelReason: cancelReason || undefined },
             });
             setCancelOpen(false);
         } catch {
@@ -215,378 +322,492 @@ export const PrizeClaimSubmissionDetailPage = () => {
         }
     };
 
+    const canExport =
+        (isPendingHandover || isHandedOver || isClosed) && lines.length > 0;
+
+    const handleExport = async () => {
+        try {
+            await exportMutation.mutateAsync(id);
+        } catch {
+            // toast handled by mutation
+        }
+    };
+
+    const canConfirmOutcome =
+        outcome !== PrizeClaimLineOutcome.HANDED_OVER || Boolean(outcomeEvidenceFile);
+
     return (
-        <Box>
+        <div className="admin-list-page">
             <PageHeader
+                disableBottomMargin
                 title={`Phiếu nộp ${submission.submissionCode ?? '#' + id}`}
                 breadcrumbItems={[
                     { label: 'Bảng điều khiển', to: ROUTES.ADMIN.ROOT },
                     { label: 'Phiếu nộp', to: ROUTES.ADMIN.PRIZE_CLAIM_SUBMISSIONS.LIST },
                     { label: submission.submissionCode ?? '#' + id },
                 ]}
+                action={
+                    canExport ? (
+                        <Button
+                            variant="outlined"
+                            startIcon={<FileDownloadOutlinedIcon />}
+                            onClick={handleExport}
+                            disabled={exportMutation.isPending}
+                            sx={{
+                                textTransform: 'none',
+                                fontWeight: 700,
+                                borderRadius: '10px',
+                                borderColor: '#cbd5e1',
+                                color: '#475569',
+                                bgcolor: '#ffffff',
+                                '&:hover': { bgcolor: '#f8fafc', borderColor: '#94a3b8' },
+                            }}
+                        >
+                            Xuất phiếu nộp
+                        </Button>
+                    ) : undefined
+                }
             />
 
-            <Grid container spacing={3}>
-                {/* Left: Submission Info + Lines */}
-                <Grid size={{ xs: 12, md: 7 }}>
-                    <Card sx={{ mb: 3 }}>
-                        <CardContent>
-                            <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
-                                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Thông tin phiếu nộp</Typography>
+            {hasPendingOutcomes && (
+                <Alert severity={submission.needsOutcome ? 'error' : 'warning'} sx={{ mb: 2 }}>
+                    {submission.needsOutcome
+                        ? `Phiếu đã bàn giao quá 3 ngày — còn ${pendingOutcomeCount} vé chưa ghi nhận kết quả. Vui lòng cập nhật ngay.`
+                        : `Phiếu đã bàn giao — còn ${pendingOutcomeCount} vé chờ ghi nhận kết quả từ Nhà cung cấp. Nhấn "Ghi nhận kết quả" cho từng vé bên dưới.`}
+                </Alert>
+            )}
+
+            <Card sx={{ width: '100%' }}>
+                <CardContent>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Thông tin phiếu nộp</Typography>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                            {hasPendingOutcomes && (
                                 <Chip
-                                    label={PRIZE_CIM_SUBMISSION_STATUS_LABELS[submission.status] ?? submission.status}
-                                    color={STATUS_COLORS[submission.status]}
+                                    label={`Còn ${pendingOutcomeCount} vé chờ ghi nhận`}
+                                    color={submission.needsOutcome ? 'error' : 'warning'}
+                                    size="small"
                                 />
-                            </Stack>
-                            <InfoRow label="Mã phiếu" value={submission.submissionCode} mono />
-                            <InfoRow label="Nhà đài" value={submission.supplierName ?? 'Nhà đài #' + submission.supplierId} />
-                            <InfoRow label="Số vé" value={submission.totalTicketCount ?? 0} />
-                            <InfoRow label="Tổng giải thưởng (gross)" value={formatPrizePayoutCurrency(submission.totalGrossPrizeAmount)} />
-                            <InfoRow label="Tổng claim (net)" value={formatPrizePayoutCurrency(submission.totalNetClaimAmount)} />
-                            <InfoRow label="Tổng hoa hồng" value={formatPrizePayoutCurrency(submission.totalCommissionAmount)} />
-                            {isPaymentPending && (
-                                <>
-                                    <InfoRow label="Đã thanh toán" value={formatPrizePayoutCurrency(submission.paidAmount)} />
-                                    <InfoRow label="Trạng thái settlement" value={submission.settlementStatus} />
-                                    <InfoRow label="Chênh lệch" value={formatPrizePayoutCurrency(submission.settlementDifferenceAmount)} />
-                                    <InfoRow
-                                        label="Hạn thanh toán"
-                                        value={submission.paymentDeadline ? dayjs(submission.paymentDeadline).format('DD/MM/YYYY') : '—'}
-                                    />
-                                    {submission.isOverdue && <Alert severity="error" sx={{ mt: 2 }}>Phiếu đã quá hạn!</Alert>}
-                                </>
                             )}
-                        </CardContent>
-                    </Card>
-
-                    {/* Lines Table */}
-                    <Card>
-                        <CardContent>
-                            <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2 }}>
-                                Danh sách vé ({lines.length})
+                            <Chip
+                                label={PRIZE_CIM_SUBMISSION_STATUS_LABELS[submission.status] ?? submission.status}
+                                color={STATUS_COLORS[submission.status]}
+                            />
+                        </Stack>
+                    </Stack>
+                    <InfoRow label="Mã phiếu" value={submission.submissionCode} mono />
+                    <InfoRow label="Số vé" value={submission.totalTicketCount ?? 0} />
+                    <InfoRow label="Tổng giải thưởng" value={formatPrizePayoutCurrency(submission.totalGrossPrizeAmount)} />
+                    <InfoRow label="Tổng thuế TNCN" value={formatPrizePayoutCurrency(submission.totalTaxAmount)} />
+                    <InfoRow
+                        label="Giải thưởng sau thuế (chưa trừ hoa hồng Nhà cung cấp)"
+                        value={formatPrizePayoutCurrency(expectedFromSupplier)}
+                        tooltip="Số tiền lý thuyết trước khi Nhà cung cấp trừ hoa hồng của họ — số thực nhận thường thấp hơn con số này."
+                    />
+                    {canEditActualReceived && (
+                        <Stack
+                            spacing={1}
+                            sx={{ py: 1.25, borderBottom: '1px dashed', borderColor: 'divider' }}
+                        >
+                            <Typography variant="body2" color="text.secondary">
+                                Số tiền thực nhận
                             </Typography>
-                            {isDraft && submission.supplierId && (
-                                <EligibleTicketsPicker submissionId={id} supplierId={submission.supplierId} />
-                            )}
-                            <Box sx={{ overflowX: 'auto' }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                                    <thead>
-                                        <tr style={{ background: '#f5f5f5' }}>
-                                            <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>Serial</th>
-                                            <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>Số vé</th>
-                                            <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>Giải</th>
-                                            <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600 }}>Số tiền</th>
-                                            <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600 }}>Trạng thái</th>
-                                            {isSubmitted && <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600 }}>Hành động</th>}
-                                            {isDraft && <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600 }}>Hành động</th>}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {lines.length === 0 ? (
-                                            <tr>
-                                                <td colSpan={isSubmitted || isDraft ? 6 : 5} style={{ padding: 24, textAlign: 'center', color: '#999' }}>
-                                                    Chưa có vé nào
-                                                </td>
-                                            </tr>
-                                        ) : (
-                                            lines.map((line) => (
-                                                <tr key={line.id} style={{ borderBottom: '1px solid #eee' }}>
-                                                    <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '0.85em' }}>
-                                                        {line.serialNumber ?? 'Serial #' + line.serialId}
-                                                    </td>
-                                                    <td style={{ padding: '8px 12px' }}>{line.ticketNumbers ?? '—'}</td>
-                                                    <td style={{ padding: '8px 12px' }}>{line.prizeDisplayName ?? line.prizeCode ?? '—'}</td>
-                                                    <td style={{ padding: '8px 12px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                                                        {formatPrizePayoutCurrency(line.netClaimAmount)}
-                                                    </td>
-                                                    <td style={{ padding: '8px 12px', textAlign: 'center' }}>
-                                                        <Chip
-                                                            label={LINE_STATUS_LABELS[line.lineStatus] ?? line.lineStatus}
-                                                            size="small"
-                                                        />
-                                                    </td>
-                                                    {isSubmitted && (
-                                                        <td style={{ padding: '8px 12px', textAlign: 'center' }}>
-                                                            <Button
-                                                                size="small"
-                                                                color="error"
-                                                                variant="outlined"
-                                                                onClick={() => openRejectDialog(line.id)}
-                                                            >
-                                                                Từ chối
-                                                            </Button>
-                                                        </td>
-                                                    )}
-                                                    {isDraft && (
-                                                        <td style={{ padding: '8px 12px', textAlign: 'center' }}>
-                                                            <Button
-                                                                size="small"
-                                                                color="error"
-                                                                variant="outlined"
-                                                                onClick={() => handleRemoveLine(line.id)}
-                                                                disabled={removeLineMutation.isPending}
-                                                            >
-                                                                Xóa
-                                                            </Button>
-                                                        </td>
-                                                    )}
-                                                </tr>
-                                            ))
-                                        )}
-                                    </tbody>
-                                </table>
+                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }}>
+                                <TextField
+                                    size="small"
+                                    type="text"
+                                    placeholder="Nhập số tiền Nhà cung cấp đã thanh toán"
+                                    value={actualReceivedInput}
+                                    onChange={(e) => setActualReceivedInput(formatMoneyInput(e.target.value))}
+                                    inputProps={{ inputMode: 'numeric' }}
+                                    sx={{ flex: 1 }}
+                                />
+                                <Button
+                                    variant="outlined"
+                                    size="small"
+                                    onClick={handleSaveActualReceived}
+                                    disabled={updateActualReceivedMutation.isPending || isActualReceivedEvidenceUploading}
+                                    sx={{ whiteSpace: 'nowrap' }}
+                                >
+                                    Lưu
+                                </Button>
+                            </Stack>
+                            <Box>
+                                <UploadSingleFile
+                                    value={actualReceivedEvidenceUrl}
+                                    onChange={(url) => {
+                                        setActualReceivedEvidenceUrl(typeof url === 'string' && url ? url : null);
+                                    }}
+                                    label="Ảnh chứng từ thanh toán từ Nhà cung cấp"
+                                    autoUpload
+                                    onUploadingChange={setIsActualReceivedEvidenceUploading}
+                                />
+                                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.75, display: 'block' }}>
+                                    Đính kèm ảnh biên lai/chuyển khoản khi Nhà cung cấp đã thanh toán số tiền thực nhận.
+                                </Typography>
                             </Box>
-                        </CardContent>
-                    </Card>
-                </Grid>
+                        </Stack>
+                    )}
+                    {!canEditActualReceived && submission.actualReceivedAmount != null && (
+                        <InfoRow
+                            label="Số tiền thực nhận"
+                            value={formatPrizePayoutCurrency(submission.actualReceivedAmount)}
+                        />
+                    )}
+                    {!canEditActualReceived && submission.actualReceivedEvidenceUrl && (
+                        <Stack
+                            spacing={1}
+                            sx={{ py: 1.25, borderBottom: '1px dashed', borderColor: 'divider' }}
+                        >
+                            <Typography variant="body2" color="text.secondary">
+                                Ảnh chứng từ thanh toán
+                            </Typography>
+                            <Button
+                                size="small"
+                                variant="outlined"
+                                href={submission.actualReceivedEvidenceUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                sx={{ alignSelf: 'flex-start' }}
+                            >
+                                Xem chứng từ
+                            </Button>
+                        </Stack>
+                    )}
+                    {submission.deliveryMode && (
+                        <InfoRow
+                            label="Hình thức giao"
+                            value={submission.deliveryMode === 'RETAILER_DELIVERS' ? 'Đại lý mang nộp' : 'Nhà cung cấp đến lấy'}
+                        />
+                    )}
+                </CardContent>
+            </Card>
 
-                {/* Right: Actions */}
-                <Grid size={{ xs: 12, md: 5 }}>
-                    <Card>
-                        <CardContent>
-                            <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2 }}>Hành động</Typography>
+            <Card sx={{ width: '100%' }}>
+                <CardContent>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2 }}>
+                        Danh sách vé ({lines.length})
+                    </Typography>
+                    {canEditLines && (
+                        <EligibleTicketsPicker submissionId={id} />
+                    )}
+                    <Box sx={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <thead>
+                                <tr style={{ background: '#f5f5f5' }}>
+                                    <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>Nhà đài</th>
+                                    <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>Serial</th>
+                                    <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>Số vé</th>
+                                    <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>Giải</th>
+                                    <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600 }}>Tiền giải</th>
+                                    <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600 }}>Thuế</th>
+                                    <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600 }}>Sau thuế</th>
+                                    <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600 }}>Trạng thái</th>
+                                    {(isHandedOver || canEditLines) && (
+                                        <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600 }}>Hành động</th>
+                                    )}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {lines.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={isHandedOver || canEditLines ? 9 : 8} style={{ padding: 24, textAlign: 'center', color: '#999' }}>
+                                            Chưa có vé nào
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    lines.map((line) => (
+                                        <tr key={line.id} style={{ borderBottom: '1px solid #eee' }}>
+                                            <td style={{ padding: '8px 12px' }}>
+                                                {line.stationName ?? (line.stationId ? `Đài #${line.stationId}` : '—')}
+                                            </td>
+                                            <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '0.85em' }}>
+                                                {line.serialNumber ?? 'Serial #' + line.serialId}
+                                            </td>
+                                            <td style={{ padding: '8px 12px' }}>{line.ticketNumbers ?? '—'}</td>
+                                            <td style={{ padding: '8px 12px' }}>{line.prizeDisplayName ?? line.prizeCode ?? '—'}</td>
+                                            <td style={{ padding: '8px 12px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                                                {formatPrizePayoutCurrency(line.grossPrizeAmount)}
+                                            </td>
+                                            <td style={{ padding: '8px 12px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                                                {formatPrizePayoutCurrency(line.taxAmount)}
+                                            </td>
+                                            <td style={{ padding: '8px 12px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                                                {formatPrizePayoutCurrency(
+                                                    computeSupplierExpectedAmount(line.grossPrizeAmount, line.taxAmount),
+                                                )}
+                                            </td>
+                                            <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                                                <Chip
+                                                    label={LINE_STATUS_LABELS[line.lineStatus] ?? line.lineStatus}
+                                                    color={getPrizeClaimLineStatusChipColor(line.lineStatus)}
+                                                    size="small"
+                                                />
+                                            </td>
+                                            {isHandedOver && (
+                                                <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                                                    {line.lineStatus === PrizeClaimSubmissionLineStatus.AWAITING_OUTCOME ? (
+                                                        <Button
+                                                            size="small"
+                                                            color="primary"
+                                                            variant="outlined"
+                                                            onClick={() => openOutcomeDialog(line.id)}
+                                                        >
+                                                            Ghi nhận kết quả
+                                                        </Button>
+                                                    ) : line.outcomeEvidenceUrl ? (
+                                                        <Button
+                                                            size="small"
+                                                            href={line.outcomeEvidenceUrl}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                        >
+                                                            Xem chứng từ
+                                                        </Button>
+                                                    ) : (
+                                                        '—'
+                                                    )}
+                                                </td>
+                                            )}
+                                            {canEditLines && (
+                                                <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                                                    <Button
+                                                        size="small"
+                                                        color="error"
+                                                        variant="outlined"
+                                                        onClick={() => handleRemoveLine(line.id)}
+                                                        disabled={removeLineMutation.isPending}
+                                                    >
+                                                        Xóa
+                                                    </Button>
+                                                </td>
+                                            )}
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </Box>
+                </CardContent>
+            </Card>
 
+            <Card sx={{ width: '100%' }}>
+                <CardContent>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2 }}>Hành động</Typography>
+
+                    {(isDraft || isInspecting) && (
+                        <Stack spacing={2}>
+                            <Alert severity="info">
+                                {isDraft
+                                    ? 'Chọn vé đã trả thưởng, bắt đầu kiểm tra và xác nhận danh sách trước khi bàn giao.'
+                                    : 'Đang kiểm tra — xác nhận kiểm xong khi danh sách vé đã chính xác.'}
+                            </Alert>
                             {isDraft && (
-                                <Stack spacing={2}>
-                                    <Alert severity="info">Phiếu đang ở trạng thái nháp. Chọn vé đã trả thưởng rồi gửi nộp.</Alert>
-                                    <Button
-                                        variant="contained"
-                                        color="primary"
-                                        fullWidth
-                                        onClick={handleSubmit}
-                                        disabled={submitMutation.isPending || lines.length === 0}
-                                    >
-                                        Gửi phiếu nộp
-                                    </Button>
-                                    <Button
-                                        variant="outlined"
-                                        color="error"
-                                        fullWidth
-                                        onClick={() => setCancelOpen(true)}
-                                    >
-                                        Hủy phiếu
-                                    </Button>
-                                </Stack>
+                                <Button
+                                    variant="outlined"
+                                    color="primary"
+                                    fullWidth
+                                    onClick={handleStartInspection}
+                                    disabled={startInspectionMutation.isPending || lines.length === 0}
+                                >
+                                    Bắt đầu kiểm tra
+                                </Button>
                             )}
-
-                            {isSubmitted && (
-                                <Stack spacing={2}>
-                                    <Alert severity="info" sx={{ fontSize: '0.8em' }}>
-                                        <strong>Maker-checker:</strong> người xác nhận phải khác người gửi phiếu.
-                                    </Alert>
-                                    <Button
-                                        variant="contained"
-                                        color="primary"
-                                        fullWidth
-                                        onClick={() => setConfirmOpen(true)}
+                            {(isDraft || isInspecting) && (
+                                <FormControl>
+                                    <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>Hình thức giao nộp</Typography>
+                                    <RadioGroup
+                                        value={deliveryMode}
+                                        onChange={(e) => setDeliveryMode(e.target.value as 'RETAILER_DELIVERS' | 'SUPPLIER_COLLECTS')}
                                     >
-                                        Xác nhận từ nhà đài
-                                    </Button>
-                                </Stack>
+                                        <FormControlLabel value="RETAILER_DELIVERS" control={<Radio />} label="Đại lý mang nộp" />
+                                        <FormControlLabel value="SUPPLIER_COLLECTS" control={<Radio />} label="Nhà cung cấp đến lấy" />
+                                    </RadioGroup>
+                                </FormControl>
                             )}
-
-                            {isPaymentPending && (
-                                <Stack spacing={2}>
-                                    <Alert severity="warning" sx={{ fontSize: '0.8em' }}>
-                                        Nhập số tiền nhà đài thực trả. Settlement: FULL / UNDERPAID / OVERPAID tự động.
-                                    </Alert>
-                                    <Button
-                                        variant="contained"
-                                        color="success"
-                                        fullWidth
-                                        onClick={() => setCompleteOpen(true)}
-                                    >
-                                        Hoàn thành thanh toán
-                                    </Button>
-                                </Stack>
+                            {(isDraft || isInspecting) && (
+                                <Button
+                                    variant="contained"
+                                    color="primary"
+                                    fullWidth
+                                    onClick={handleConfirmInspection}
+                                    disabled={confirmInspectionMutation.isPending || lines.length === 0}
+                                >
+                                    Xác nhận kiểm tra xong
+                                </Button>
                             )}
-
-                            {submission.status === PrizeClaimSubmissionStatus.CONFIRMED && (
-                                <Stack spacing={2}>
-                                    <Alert severity="info">Chuyển sang trạng thái chờ thanh toán.</Alert>
-                                    <Button
-                                        variant="contained"
-                                        color="primary"
-                                        fullWidth
-                                        onClick={handleMarkPaymentPending}
-                                        disabled={markPaymentPendingMutation.isPending}
-                                    >
-                                        Chuyển chờ thanh toán
-                                    </Button>
-                                </Stack>
+                            {canCancel && (
+                                <Button
+                                    variant="outlined"
+                                    color="error"
+                                    fullWidth
+                                    onClick={() => setCancelOpen(true)}
+                                >
+                                    Hủy phiếu
+                                </Button>
                             )}
+                        </Stack>
+                    )}
 
-                            {submission.status === PrizeClaimSubmissionStatus.COMPLETED && (
-                                <Alert severity="success">Phiếu đã hoàn thành.</Alert>
-                            )}
-                        </CardContent>
-                    </Card>
-                </Grid>
-            </Grid>
+                    {isPendingHandover && (
+                        <Stack spacing={2}>
+                            <Alert severity="info">
+                                Đã kiểm xong — tải ảnh bằng chứng bàn giao vật lý để xác nhận đã nộp cho Nhà cung cấp.
+                            </Alert>
+                            <TextField
+                                label="Ghi chú bàn giao (tuỳ chọn)"
+                                multiline
+                                rows={2}
+                                fullWidth
+                                size="small"
+                                value={handoverNote}
+                                onChange={(e) => setHandoverNote(e.target.value)}
+                            />
+                            <Box>
+                                <UploadSingleFile
+                                    value={handoverEvidenceFile}
+                                    onChange={(file) => {
+                                        setHandoverEvidenceFile(file instanceof File ? file : null);
+                                    }}
+                                    label="Ảnh bằng chứng bàn giao"
+                                    required
+                                    useRawFile
+                                    onUploadingChange={setIsHandoverUploading}
+                                />
+                                {!handoverEvidenceFile && !isHandoverUploading && (
+                                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.75, display: 'block' }}>
+                                        Bắt buộc chọn ảnh bằng chứng trước khi xác nhận bàn giao.
+                                    </Typography>
+                                )}
+                            </Box>
+                            <Button
+                                variant="contained"
+                                color="success"
+                                fullWidth
+                                onClick={handleConfirmHandover}
+                                disabled={confirmHandoverMutation.isPending || isHandoverUploading || !handoverEvidenceFile}
+                                sx={{ fontWeight: 800 }}
+                            >
+                                Xác nhận bàn giao
+                            </Button>
+                            <Button
+                                variant="outlined"
+                                color="error"
+                                fullWidth
+                                onClick={() => setCancelOpen(true)}
+                            >
+                                Hủy phiếu
+                            </Button>
+                        </Stack>
+                    )}
 
-            {/* Reject Dialog */}
-            <Dialog open={rejectOpen} onClose={() => setRejectOpen(false)} maxWidth="sm" fullWidth>
-                <DialogTitle>Từ chối vé</DialogTitle>
+                    {isHandedOver && (
+                        <Alert severity={hasPendingOutcomes ? 'warning' : 'info'}>
+                            {hasPendingOutcomes
+                                ? `Còn ${pendingOutcomeCount} vé chưa ghi nhận kết quả. Vé được Nhà cung cấp nhận cần đính kèm ảnh chứng từ. Phiếu sẽ tự đóng khi tất cả vé đã có kết quả.`
+                                : 'Ghi nhận kết quả từng vé sau khi Nhà cung cấp xử lý. Vé được nhận cần đính kèm ảnh chứng từ. Phiếu sẽ tự đóng khi tất cả vé đã có kết quả.'}
+                        </Alert>
+                    )}
+
+                    {isClosed && (
+                        <Alert severity="success">Phiếu đã đóng — tất cả vé đã có kết quả.</Alert>
+                    )}
+
+                    {isCancelled && (
+                        <Alert severity="error">
+                            Phiếu đã hủy{submission.cancelReason ? `: ${submission.cancelReason}` : '.'}
+                        </Alert>
+                    )}
+                </CardContent>
+            </Card>
+
+            <Dialog open={outcomeOpen} onClose={() => setOutcomeOpen(false)} maxWidth="sm" fullWidth>
+                <DialogTitle>Ghi nhận kết quả vé</DialogTitle>
                 <DialogContent>
                     <Stack spacing={2} sx={{ mt: 1 }}>
                         <Box>
-                            <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>Loại từ chối</Typography>
-                            {(['RETRYABLE', 'FINAL'] as const).map((opt) => (
+                            <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>Kết quả</Typography>
+                            {Object.values(PrizeClaimLineOutcome).map((opt) => (
                                 <Box key={opt} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
                                     <input
                                         type="radio"
-                                        name="rejectType"
-                                        checked={rejectionType === opt}
-                                        onChange={() => setRejectionType(opt)}
+                                        name="outcome"
+                                        checked={outcome === opt}
+                                        onChange={() => setOutcome(opt)}
                                     />
-                                    <Typography variant="body2">
-                                        {opt === 'RETRYABLE' ? 'Từ chối - có thể nộp lại' : 'Từ chối vĩnh viễn (gian lận)'}
-                                    </Typography>
+                                    <Typography variant="body2">{LINE_OUTCOME_LABELS[opt]}</Typography>
                                 </Box>
                             ))}
                         </Box>
-                        <TextField
-                            select
-                            label="Lý do"
-                            fullWidth
-                            value={rejectionReason}
-                            onChange={(e) => setRejectionReason(e.target.value as PrizeClaimRejectionReason)}
-                            SelectProps={{ native: true }}
-                        >
-                            {Object.values(PrizeClaimRejectionReason).map((r) => (
-                                <option key={r} value={r}>{r}</option>
-                            ))}
-                        </TextField>
+                        {outcome !== PrizeClaimLineOutcome.HANDED_OVER && (
+                            <TextField
+                                select
+                                label="Lý do"
+                                fullWidth
+                                value={outcomeReason}
+                                onChange={(e) => setOutcomeReason(e.target.value as PrizeClaimRejectionReason)}
+                                SelectProps={{ native: true }}
+                                required
+                            >
+                                {Object.values(PrizeClaimRejectionReason).map((r) => (
+                                    <option key={r} value={r}>{REJECTION_REASON_LABELS[r]}</option>
+                                ))}
+                            </TextField>
+                        )}
+                        {outcome === PrizeClaimLineOutcome.HANDED_OVER && (
+                            <UploadSingleFile
+                                value={outcomeEvidenceFile}
+                                onChange={(file) => {
+                                    setOutcomeEvidenceFile(file instanceof File ? file : null);
+                                }}
+                                label="Ảnh chứng từ Nhà cung cấp đã xử lý"
+                                required
+                                useRawFile
+                                onUploadingChange={setIsOutcomeUploading}
+                            />
+                        )}
                         <TextField
                             label="Ghi chú thêm"
                             multiline
                             rows={2}
                             fullWidth
-                            value={rejectionNote}
-                            onChange={(e) => setRejectionNote(e.target.value)}
+                            value={outcomeNote}
+                            onChange={(e) => setOutcomeNote(e.target.value)}
                         />
                     </Stack>
                 </DialogContent>
-                <DialogActions>
-                    <Button variant="outlined" onClick={() => setRejectOpen(false)}>Hủy</Button>
-                    <Button
-                        variant="contained"
-                        color="error"
-                        onClick={handleReject}
-                        disabled={rejectMutation.isPending}
-                    >
-                        Từ chối
+                <DialogActions sx={{ px: 3, pb: 2 }}>
+                    <Button variant="outlined" onClick={() => setOutcomeOpen(false)} sx={{ fontWeight: 700 }}>
+                        Hủy
                     </Button>
-                </DialogActions>
-            </Dialog>
-
-            {/* Confirm Dialog */}
-            <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)} maxWidth="sm" fullWidth>
-                <DialogTitle>Xác nhận từ nhà đài</DialogTitle>
-                <DialogContent>
-                    <Stack spacing={2} sx={{ mt: 1 }}>
-                        <Alert severity="info" sx={{ fontSize: '0.8em' }}>
-                            <strong>Maker-checker:</strong> người xác nhận phải khác người gửi phiếu.
-                        </Alert>
-                        <TextField
-                            label="Số biên bản xác nhận"
-                            fullWidth
-                            value={confRef}
-                            onChange={(e) => setConfRef(e.target.value)}
-                            required
-                        />
-                        <TextField
-                            label="URL ảnh/PDF giấy xác nhận"
-                            fullWidth
-                            value={confEvidence}
-                            onChange={(e) => setConfEvidence(e.target.value)}
-                            required
-                        />
-                    </Stack>
-                </DialogContent>
-                <DialogActions>
-                    <Button variant="outlined" onClick={() => setConfirmOpen(false)}>Hủy</Button>
                     <Button
                         variant="contained"
-                        onClick={handleConfirm}
-                        disabled={confirmMutation.isPending || !confRef || !confEvidence}
+                        color="success"
+                        onClick={handleRecordOutcome}
+                        disabled={recordOutcomeMutation.isPending || isOutcomeUploading || !canConfirmOutcome}
+                        sx={{ fontWeight: 800 }}
                     >
                         Xác nhận
                     </Button>
                 </DialogActions>
             </Dialog>
 
-            {/* Complete Dialog */}
-            <Dialog open={completeOpen} onClose={() => setCompleteOpen(false)} maxWidth="sm" fullWidth>
-                <DialogTitle>Hoàn thành thanh toán</DialogTitle>
-                <DialogContent>
-                    <Stack spacing={2} sx={{ mt: 1 }}>
-                        <Alert severity="info" sx={{ fontSize: '0.8em' }}>
-                            <strong>Maker-checker:</strong> người hoàn thành phải khác người gửi phiếu.
-                        </Alert>
-                        <TextField
-                            label="Số tiền thanh toán (VND)"
-                            type="number"
-                            fullWidth
-                            value={paidAmount}
-                            onChange={(e) => setPaidAmount(e.target.value)}
-                            required
-                        />
-                        <TextField
-                            label="Ghi chú"
-                            multiline
-                            rows={2}
-                            fullWidth
-                            value={paymentNote}
-                            onChange={(e) => setPaymentNote(e.target.value)}
-                        />
-                    </Stack>
-                </DialogContent>
-                <DialogActions>
-                    <Button variant="outlined" onClick={() => setCompleteOpen(false)}>Hủy</Button>
-                    <Button
-                        variant="contained"
-                        color="success"
-                        onClick={handleComplete}
-                        disabled={completeMutation.isPending || !paidAmount}
-                    >
-                        Hoàn thành
-                    </Button>
-                </DialogActions>
-            </Dialog>
-
-            {/* Cancel Dialog */}
             <Dialog open={cancelOpen} onClose={() => setCancelOpen(false)} maxWidth="sm" fullWidth>
                 <DialogTitle>Hủy phiếu nộp</DialogTitle>
                 <DialogContent>
                     <Stack spacing={2} sx={{ mt: 1 }}>
-                        {!isDraft && (
-                            <Alert severity="warning" sx={{ fontSize: '0.8em' }}>
-                                <strong>Maker-checker:</strong> cần người duyệt khác người gửi phiếu.
-                            </Alert>
-                        )}
                         <TextField
-                            label="Lý do hủy"
+                            label="Lý do hủy (tuỳ chọn)"
                             multiline
                             rows={2}
                             fullWidth
                             value={cancelReason}
                             onChange={(e) => setCancelReason(e.target.value)}
-                            required={!isDraft}
                         />
-                        {!isDraft && (
-                            <TextField
-                                label="Mã người duyệt hủy (UUID)"
-                                fullWidth
-                                value={approverId}
-                                onChange={(e) => setApproverId(e.target.value)}
-                                required
-                            />
-                        )}
                     </Stack>
                 </DialogContent>
                 <DialogActions>
-                    <Button variant="outlined" onClick={() => setCancelOpen(false)}>Hủy</Button>
+                    <Button variant="outlined" onClick={() => setCancelOpen(false)}>Đóng</Button>
                     <Button
                         variant="contained"
                         color="error"
@@ -597,6 +818,6 @@ export const PrizeClaimSubmissionDetailPage = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
-        </Box>
+        </div>
     );
 };
