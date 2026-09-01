@@ -17,7 +17,7 @@ import {
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
 import { SpinnerLoading } from '@/admin/components/ui/SpinnerLoading';
-import { formatPrizePayoutCurrency } from '@/types/prize-payout.type';
+import { formatPrizePayoutCurrency, computeSupplierExpectedAmount } from '@/types/prize-payout.type';
 import {
     useAddPrizeClaimLines,
     useEligiblePrizeClaimTickets,
@@ -25,24 +25,22 @@ import {
 
 type Props = {
     submissionId: number;
-    supplierId: number;
 };
 
-export const EligibleTicketsPicker = ({ submissionId, supplierId }: Props) => {
+export const EligibleTicketsPicker = ({ submissionId }: Props) => {
     const [periodFrom, setPeriodFrom] = useState('');
     const [periodTo, setPeriodTo] = useState('');
     const [selected, setSelected] = useState<Set<number>>(new Set());
 
     const queryParams = useMemo(
         () => ({
-            supplierId,
             ...(periodFrom ? { periodFrom } : {}),
             ...(periodTo ? { periodTo } : {}),
         }),
-        [supplierId, periodFrom, periodTo]
+        [periodFrom, periodTo]
     );
 
-    const { data: eligibleRes, isLoading, isFetching } = useEligiblePrizeClaimTickets(queryParams, true);
+    const { data: eligibleRes, isLoading, isFetching, isError } = useEligiblePrizeClaimTickets(queryParams, true);
     const addLinesMutation = useAddPrizeClaimLines();
 
     const tickets = eligibleRes?.data ?? [];
@@ -88,7 +86,7 @@ export const EligibleTicketsPicker = ({ submissionId, supplierId }: Props) => {
                 Vé đã trả thưởng — chọn để thêm vào phiếu
             </Typography>
             <Alert severity="info" sx={{ mb: 2, fontSize: '0.85em' }}>
-                Danh sách vé đã trả thưởng cho khách (COMPLETED / PAID_OUT), thuộc nhà đài này và chưa nằm trong phiếu nộp active.
+                Danh sách vé đã trả thưởng cho khách (COMPLETED / PAID_OUT) từ mọi nhà đài, chưa nằm trong phiếu nộp active.
             </Alert>
 
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mb: 2 }}>
@@ -122,6 +120,8 @@ export const EligibleTicketsPicker = ({ submissionId, supplierId }: Props) => {
 
             {isLoading || isFetching ? (
                 <SpinnerLoading />
+            ) : isError ? (
+                <Alert severity="error">Không tải được danh sách vé. Vui lòng thử lại sau.</Alert>
             ) : tickets.length === 0 ? (
                 <Alert severity="warning">Không có vé đủ điều kiện nộp trong khoảng thời gian này.</Alert>
             ) : (
@@ -136,11 +136,14 @@ export const EligibleTicketsPicker = ({ submissionId, supplierId }: Props) => {
                                         onChange={toggleAll}
                                     />
                                 </TableCell>
+                                <TableCell>Nhà đài</TableCell>
                                 <TableCell>Serial</TableCell>
                                 <TableCell>Số vé</TableCell>
                                 <TableCell>Ngày quay</TableCell>
                                 <TableCell>Giải</TableCell>
-                                <TableCell align="right">Số tiền</TableCell>
+                                <TableCell align="right">Tiền giải</TableCell>
+                                <TableCell align="right">Thuế</TableCell>
+                                <TableCell align="right">Sau thuế</TableCell>
                                 <TableCell>Phiếu trả thưởng</TableCell>
                             </TableRow>
                         </TableHead>
@@ -159,6 +162,7 @@ export const EligibleTicketsPicker = ({ submissionId, supplierId }: Props) => {
                                             onChange={() => toggleOne(ticket.serialId)}
                                         />
                                     </TableCell>
+                                    <TableCell>{ticket.stationName ?? `Đài #${ticket.stationId}`}</TableCell>
                                     <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.85em' }}>
                                         {ticket.serialNumber}
                                     </TableCell>
@@ -168,7 +172,15 @@ export const EligibleTicketsPicker = ({ submissionId, supplierId }: Props) => {
                                     </TableCell>
                                     <TableCell>{ticket.prizeDisplayName ?? ticket.prizeCode ?? '—'}</TableCell>
                                     <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>
-                                        {formatPrizePayoutCurrency(ticket.netClaimAmount)}
+                                        {formatPrizePayoutCurrency(ticket.grossPrizeAmount)}
+                                    </TableCell>
+                                    <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                                        {formatPrizePayoutCurrency(ticket.taxAmount)}
+                                    </TableCell>
+                                    <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                                        {formatPrizePayoutCurrency(
+                                            computeSupplierExpectedAmount(ticket.grossPrizeAmount, ticket.taxAmount),
+                                        )}
                                     </TableCell>
                                     <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.8em' }}>
                                         {ticket.payoutRequestCode}

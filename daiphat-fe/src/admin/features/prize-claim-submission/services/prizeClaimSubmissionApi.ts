@@ -12,10 +12,36 @@ import type {
 
 const PCS_BASE = '/prize-claim-submissions';
 
+export const XLSX_MIME =
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+export const exportPrizeClaimSubmission = async (submissionId: number): Promise<void> => {
+    const response = await apiApp.get(`${PCS_BASE}/${submissionId}/export`, {
+        ...withAuthHeaders(),
+        responseType: 'blob',
+        skipGlobalErrorToast: true,
+    });
+
+    const disposition = String(response.headers?.['content-disposition'] ?? '');
+    const match = disposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+    const fileName = match
+        ? decodeURIComponent(match[1])
+        : `phieu-nop-${submissionId}.xlsx`;
+
+    const url = URL.createObjectURL(new Blob([response.data], { type: XLSX_MIME }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+};
+
 export const prizeClaimSubmissionApi = {
     // ─── List & Detail ────────────────────────────────────────────────────
 
-    list: async (params?: { supplierId?: number; status?: string }) => {
+    list: async (params?: { supplierId?: number; status?: string; search?: string }) => {
         const response = await apiApp.get<ApiResponse<PrizeClaimSubmissionResponse[]>>(
             PCS_BASE,
             { params, ...withAuthHeaders() }
@@ -39,8 +65,7 @@ export const prizeClaimSubmissionApi = {
         return response.data;
     },
 
-    listEligibleTickets: async (params: {
-        supplierId: number;
+    listEligibleTickets: async (params?: {
         periodFrom?: string;
         periodTo?: string;
     }) => {
@@ -53,10 +78,10 @@ export const prizeClaimSubmissionApi = {
 
     // ─── Draft Operations ─────────────────────────────────────────────────
 
-    createDraft: async (supplierId: number) => {
+    createDraft: async () => {
         const response = await apiApp.post<ApiResponse<PrizeClaimSubmissionResponse>>(
             `${PCS_BASE}/drafts`,
-            { supplierId },
+            {},
             { ...withAuthHeaders() }
         );
         return response.data;
@@ -88,64 +113,52 @@ export const prizeClaimSubmissionApi = {
         return response.data;
     },
 
-    rejectLine: async (
+    recordLineOutcome: async (
         submissionId: number,
-        data: { lineId: number; rejectionType: 'RETRYABLE' | 'FINAL'; reason: string; note?: string }
+        lineId: number,
+        body: { outcome: string; reason?: string; note?: string; outcomeEvidenceUrl?: string }
     ) => {
         const response = await apiApp.post<ApiResponse<void>>(
-            `${PCS_BASE}/${submissionId}/reject-line`,
-            data,
+            `${PCS_BASE}/${submissionId}/lines/${lineId}/record-outcome`,
+            body,
             { ...withAuthHeaders() }
         );
         return response.data;
     },
 
-    submit: async (submissionId: number, submittedBy: string) => {
-        const response = await apiApp.post<ApiResponse<void>>(
-            `${PCS_BASE}/${submissionId}/submit`,
-            { submittedBy },
-            { ...withAuthHeaders() }
-        );
-        return response.data;
-    },
-
-    confirm: async (
-        submissionId: number,
-        data: {
-            confirmedBy: string;
-            confirmationReference: string;
-            confirmationEvidenceUrl: string;
-        }
-    ) => {
-        const response = await apiApp.post<ApiResponse<void>>(
-            `${PCS_BASE}/${submissionId}/confirm`,
-            data,
-            { ...withAuthHeaders() }
-        );
-        return response.data;
-    },
-
-    markPaymentPending: async (submissionId: number) => {
-        const response = await apiApp.post<ApiResponse<void>>(
-            `${PCS_BASE}/${submissionId}/mark-payment-pending`,
+    startInspection: async (submissionId: number) => {
+        const response = await apiApp.post<ApiResponse<PrizeClaimSubmissionResponse>>(
+            `${PCS_BASE}/${submissionId}/start-inspection`,
             {},
             { ...withAuthHeaders() }
         );
         return response.data;
     },
 
-    complete: async (
+    confirmInspection: async (
         submissionId: number,
-        data: {
-            completedBy: string;
-            paidAmount: number;
-            paymentEvidenceUrls: string[];
-            paymentNote?: string;
+        body: { deliveryMode: 'RETAILER_DELIVERS' | 'SUPPLIER_COLLECTS' }
+    ) => {
+        const response = await apiApp.post<ApiResponse<PrizeClaimSubmissionResponse>>(
+            `${PCS_BASE}/${submissionId}/confirm-inspection`,
+            body,
+            { ...withAuthHeaders() }
+        );
+        return response.data;
+    },
+
+    confirmHandover: async (
+        submissionId: number,
+        body: {
+            handoverEvidenceUrl: string;
+            handoverReceiptUrl?: string;
+            supplierReference?: string;
+            note?: string;
         }
     ) => {
-        const response = await apiApp.post<ApiResponse<void>>(
-            `${PCS_BASE}/${submissionId}/complete`,
-            data,
+        const response = await apiApp.post<ApiResponse<PrizeClaimSubmissionResponse>>(
+            `${PCS_BASE}/${submissionId}/confirm-handover`,
+            body,
             { ...withAuthHeaders() }
         );
         return response.data;
@@ -153,26 +166,22 @@ export const prizeClaimSubmissionApi = {
 
     cancel: async (
         submissionId: number,
-        data: {
-            cancelReason?: string;
-            cancelledBy: string;
-            approvedBy?: string;
-        }
+        data?: { cancelReason?: string }
     ) => {
         const response = await apiApp.post<ApiResponse<void>>(
             `${PCS_BASE}/${submissionId}/cancel`,
-            data,
+            data ?? {},
             { ...withAuthHeaders() }
         );
         return response.data;
     },
 
-    settleOutstanding: async (
+    updateActualReceivedAmount: async (
         submissionId: number,
-        data: { additionalAmount: number; evidence?: string; settledBy: string }
+        data: { actualReceivedAmount: number | null; actualReceivedEvidenceUrl?: string | null }
     ) => {
-        const response = await apiApp.post<ApiResponse<void>>(
-            `${PCS_BASE}/${submissionId}/settle-outstanding`,
+        const response = await apiApp.patch<ApiResponse<PrizeClaimSubmissionResponse>>(
+            `${PCS_BASE}/${submissionId}/actual-received`,
             data,
             { ...withAuthHeaders() }
         );

@@ -1,6 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import { prizeClaimSubmissionApi, prizePayoutPartialApi } from '../services/prizeClaimSubmissionApi';
+import { prizeClaimSubmissionApi, prizePayoutPartialApi, exportPrizeClaimSubmission } from '../services/prizeClaimSubmissionApi';
+import type { PrizeClaimSubmissionStatus } from '@/types/prize-payout.type';
+import { invalidateAdminBadges } from '@/admin/context/AdminBadgeCountsProvider';
 
 const getErrorMessage = (error: unknown, fallback: string) => {
     const err = error as { response?: { data?: { message?: string } }; message?: string };
@@ -9,11 +12,63 @@ const getErrorMessage = (error: unknown, fallback: string) => {
 
 // ─── PrizeClaimSubmission hooks ────────────────────────────────────────────────
 
-export const usePrizeClaimSubmissions = (params?: { supplierId?: number; status?: string }) => {
+export const usePrizeClaimSubmissions = (
+    params?: { supplierId?: number; status?: string; search?: string },
+    options?: object
+) => {
     return useQuery({
         queryKey: ['prize-claim-submissions', params],
         queryFn: () => prizeClaimSubmissionApi.list(params),
+        ...options,
     });
+};
+
+interface IPrizeClaimSubmissionFilters {
+    search?: string;
+    statuses: PrizeClaimSubmissionStatus[];
+}
+
+export const usePrizeClaimSubmissionList = () => {
+    const [filters, setFilters] = useState<IPrizeClaimSubmissionFilters>({
+        search: '',
+        statuses: [],
+    });
+
+    const queryParams = useMemo(
+        () => ({
+            search: filters.search || undefined,
+            status: filters.statuses.length > 0 ? filters.statuses.join(',') : undefined,
+        }),
+        [filters]
+    );
+
+    const { data, isLoading, error } = usePrizeClaimSubmissions(queryParams, {
+        placeholderData: keepPreviousData,
+    });
+
+    const submissions = data?.data ?? [];
+
+    const setSearchFilter = (search: string) => {
+        setFilters((prev) => ({ ...prev, search }));
+    };
+
+    const setStatusFilter = (statuses: PrizeClaimSubmissionStatus[]) => {
+        setFilters((prev) => ({ ...prev, statuses }));
+    };
+
+    const clearFilters = () => {
+        setFilters({ search: '', statuses: [] });
+    };
+
+    return {
+        submissions,
+        isLoading,
+        error,
+        filters,
+        setSearchFilter,
+        setStatusFilter,
+        clearFilters,
+    };
 };
 
 export const usePrizeClaimSubmissionDetail = (id: number) => {
@@ -33,21 +88,20 @@ export const usePrizeClaimSubmissionLines = (submissionId: number) => {
 };
 
 export const useEligiblePrizeClaimTickets = (
-    params: { supplierId: number; periodFrom?: string; periodTo?: string },
+    params: { periodFrom?: string; periodTo?: string },
     enabled: boolean
 ) => {
     return useQuery({
         queryKey: ['prize-claim-eligible-tickets', params],
         queryFn: () => prizeClaimSubmissionApi.listEligibleTickets(params),
-        enabled: enabled && !!params.supplierId,
+        enabled,
     });
 };
 
 export const useCreatePrizeClaimDraft = () => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: ({ supplierId }: { supplierId: number }) =>
-            prizeClaimSubmissionApi.createDraft(supplierId),
+        mutationFn: () => prizeClaimSubmissionApi.createDraft(),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['prize-claim-submissions'] });
             toast.success('Đã tạo phiếu nộp mới');
@@ -102,39 +156,41 @@ export const useRemovePrizeClaimLine = () => {
     });
 };
 
-export const useRejectPrizeClaimLine = () => {
+export const useRecordLineOutcome = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: ({
             submissionId,
+            lineId,
             data,
         }: {
             submissionId: number;
-            data: { lineId: number; rejectionType: 'RETRYABLE' | 'FINAL'; reason: string; note?: string };
-        }) => prizeClaimSubmissionApi.rejectLine(submissionId, data),
-        // note: rejectionType điều khiển RETRYABLE vs FINAL logic; reason là PrizeClaimRejectionReason enum
+            lineId: number;
+            data: { outcome: string; reason?: string; note?: string; outcomeEvidenceUrl?: string };
+        }) => prizeClaimSubmissionApi.recordLineOutcome(submissionId, lineId, data),
         onSuccess: (_, vars) => {
             queryClient.invalidateQueries({ queryKey: ['prize-claim-submission-lines', vars.submissionId] });
-            toast.success('Đã từ chối vé');
+            queryClient.invalidateQueries({ queryKey: ['prize-claim-submissions', vars.submissionId] });
+            invalidateAdminBadges(queryClient);
+            toast.success('Đã ghi nhận kết quả vé');
         },
-        onError: (error) => toast.error(getErrorMessage(error, 'Không thể từ chối vé')),
+        onError: (error) => toast.error(getErrorMessage(error, 'Không thể ghi nhận kết quả')),
     });
 };
 
-export const useSubmitPrizeClaim = () => {
+export const useStartPrizeClaimInspection = () => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: ({ submissionId, submittedBy }: { submissionId: number; submittedBy: string }) =>
-            prizeClaimSubmissionApi.submit(submissionId, submittedBy),
-        onSuccess: (_, vars) => {
-            queryClient.invalidateQueries({ queryKey: ['prize-claim-submissions', vars.submissionId] });
-            toast.success('Đã gửi phiếu nộp');
+        mutationFn: (submissionId: number) => prizeClaimSubmissionApi.startInspection(submissionId),
+        onSuccess: (_, submissionId) => {
+            queryClient.invalidateQueries({ queryKey: ['prize-claim-submissions', submissionId] });
+            toast.success('Đã bắt đầu kiểm tra');
         },
-        onError: (error) => toast.error(getErrorMessage(error, 'Lỗi kết nối')),
+        onError: (error) => toast.error(getErrorMessage(error, 'Không thể bắt đầu kiểm tra')),
     });
 };
 
-export const useConfirmPrizeClaim = () => {
+export const useConfirmPrizeClaimInspection = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: ({
@@ -142,29 +198,18 @@ export const useConfirmPrizeClaim = () => {
             data,
         }: {
             submissionId: number;
-            data: { confirmedBy: string; confirmationReference: string; confirmationEvidenceUrl: string };
-        }) => prizeClaimSubmissionApi.confirm(submissionId, data),
+            data: { deliveryMode: 'RETAILER_DELIVERS' | 'SUPPLIER_COLLECTS' };
+        }) => prizeClaimSubmissionApi.confirmInspection(submissionId, data),
         onSuccess: (_, vars) => {
+            queryClient.invalidateQueries({ queryKey: ['prize-claim-submission-lines', vars.submissionId] });
             queryClient.invalidateQueries({ queryKey: ['prize-claim-submissions', vars.submissionId] });
-            toast.success('Đã xác nhận từ nhà đài');
+            toast.success('Đã xác nhận kiểm tra xong');
         },
-        onError: (error) => toast.error(getErrorMessage(error, 'Lỗi kết nối')),
+        onError: (error) => toast.error(getErrorMessage(error, 'Không thể xác nhận kiểm tra')),
     });
 };
 
-export const useMarkPaymentPending = () => {
-    const queryClient = useQueryClient();
-    return useMutation({
-        mutationFn: (submissionId: number) => prizeClaimSubmissionApi.markPaymentPending(submissionId),
-        onSuccess: (_, submissionId) => {
-            queryClient.invalidateQueries({ queryKey: ['prize-claim-submissions', submissionId] });
-            toast.success('Đã chuyển sang chờ thanh toán');
-        },
-        onError: (error) => toast.error(getErrorMessage(error, 'Lỗi kết nối')),
-    });
-};
-
-export const useCompletePrizeClaim = () => {
+export const useConfirmPrizeClaimHandover = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: ({
@@ -173,17 +218,19 @@ export const useCompletePrizeClaim = () => {
         }: {
             submissionId: number;
             data: {
-                completedBy: string;
-                paidAmount: number;
-                paymentEvidenceUrls: string[];
-                paymentNote?: string;
+                handoverEvidenceUrl: string;
+                handoverReceiptUrl?: string;
+                supplierReference?: string;
+                note?: string;
             };
-        }) => prizeClaimSubmissionApi.complete(submissionId, data),
+        }) => prizeClaimSubmissionApi.confirmHandover(submissionId, data),
         onSuccess: (_, vars) => {
+            queryClient.invalidateQueries({ queryKey: ['prize-claim-submission-lines', vars.submissionId] });
             queryClient.invalidateQueries({ queryKey: ['prize-claim-submissions', vars.submissionId] });
-            toast.success('Đã hoàn thành phiếu nộp');
+            invalidateAdminBadges(queryClient);
+            toast.success('Đã xác nhận bàn giao');
         },
-        onError: (error) => toast.error(getErrorMessage(error, 'Lỗi kết nối')),
+        onError: (error) => toast.error(getErrorMessage(error, 'Không thể xác nhận bàn giao')),
     });
 };
 
@@ -195,7 +242,7 @@ export const useCancelPrizeClaim = () => {
             data,
         }: {
             submissionId: number;
-            data: { cancelReason?: string; cancelledBy: string; approvedBy?: string };
+            data?: { cancelReason?: string };
         }) => prizeClaimSubmissionApi.cancel(submissionId, data),
         onSuccess: (_, vars) => {
             queryClient.invalidateQueries({ queryKey: ['prize-claim-submissions', vars.submissionId] });
@@ -205,21 +252,34 @@ export const useCancelPrizeClaim = () => {
     });
 };
 
-export const useSettleOutstanding = () => {
+export const useUpdatePrizeClaimActualReceived = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: ({
             submissionId,
-            data,
+            actualReceivedAmount,
+            actualReceivedEvidenceUrl,
         }: {
             submissionId: number;
-            data: { additionalAmount: number; evidence?: string; settledBy: string };
-        }) => prizeClaimSubmissionApi.settleOutstanding(submissionId, data),
+            actualReceivedAmount: number | null;
+            actualReceivedEvidenceUrl?: string | null;
+        }) => prizeClaimSubmissionApi.updateActualReceivedAmount(submissionId, {
+            actualReceivedAmount,
+            actualReceivedEvidenceUrl,
+        }),
         onSuccess: (_, vars) => {
             queryClient.invalidateQueries({ queryKey: ['prize-claim-submissions', vars.submissionId] });
-            toast.success('Đã ghi nhận thanh toán công nợ');
+            toast.success('Đã lưu số tiền thực nhận');
         },
-        onError: (error) => toast.error(getErrorMessage(error, 'Lỗi kết nối')),
+        onError: (error) => toast.error(getErrorMessage(error, 'Không thể lưu số tiền thực nhận')),
+    });
+};
+
+export const useExportPrizeClaimSubmission = () => {
+    return useMutation({
+        mutationFn: (submissionId: number) => exportPrizeClaimSubmission(submissionId),
+        onSuccess: () => toast.success('Xuất phiếu nộp thành công'),
+        onError: (error) => toast.error(getErrorMessage(error, 'Không thể xuất phiếu nộp')),
     });
 };
 
