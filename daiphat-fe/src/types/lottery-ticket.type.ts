@@ -98,6 +98,7 @@ export interface PurchasedTicket {
     rejectedAt?: string | null;
     claimChannel?: 'ONLINE' | 'IN_PERSON';
     canClaimOnline?: boolean;
+    requiresStationOfficeRedemption?: boolean;
     customerRedemptionDeadline?: string | null;
     /** Official station/issuer deadline — last day redeemable at counter. */
     issuerRedemptionDeadline?: string | null;
