@@ -7,12 +7,15 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.AiModelMe
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.AiModelRegistryEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.TrainingDatasetExportEntity;
 import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 
 @Mapper(componentModel = "spring")
 public interface AiModelPersistenceMapper {
 
+    @Mapping(target = "isDefault", expression = "java(model.isDefault())")
     AiModelRegistryEntity toEntity(AiModelRegistryModel model);
 
+    @Mapping(target = "isDefault", expression = "java(entity.isDefault())")
     AiModelRegistryModel toDomain(AiModelRegistryEntity entity);
 
     AiModelMetricEntity toEntity(AiModelMetricModel model);
