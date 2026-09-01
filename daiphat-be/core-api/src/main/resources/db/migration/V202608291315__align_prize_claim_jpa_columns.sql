@@ -15,10 +15,7 @@ ALTER TABLE agency_funds
     ADD COLUMN IF NOT EXISTS last_modified_by VARCHAR(100),
     ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
 
-ALTER TABLE supplier_settlement_receivables
-    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    ADD COLUMN IF NOT EXISTS last_modified_by VARCHAR(100),
-    ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
+-- supplier_settlement_receivables dropped in V202608301000; skip column alignment here.
 
 ALTER TABLE prize_payout_installments
     ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
