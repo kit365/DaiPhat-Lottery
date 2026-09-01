@@ -1,7 +1,7 @@
 package com.daiphat.coreapi.infrastructure.persistence.entity.lotteries;
 
-import com.daiphat.coreapi.domain.model.enums.lottery.PrizeClaimSubmissionSettlementStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.PrizeClaimSubmissionStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.ReturnDeliveryMode;
 import com.daiphat.coreapi.infrastructure.persistence.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -21,8 +21,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -32,9 +30,8 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Phiếu nộp vé trúng thưởng cho nhà đài.
- * Luồng: DRAFT → SUBMITTED → CONFIRMED → PAYMENT_PENDING → COMPLETED.
- * Bất kỳ trạng thái nào (trừ COMPLETED) đều có thể CANCELLED (DRAFT tự do; SUBMITTED+ cần maker-checker).
+ * Phiếu nộp vé trúng thưởng (gom chung mọi nhà đài hoặc theo nhà đài cũ).
+ * Luồng: DRAFT → INSPECTING → PENDING_HANDOVER → HANDED_OVER → CLOSED (hoặc CANCELLED trước bàn giao).
  */
 @Entity
 @Table(name = "prize_claim_submissions")
@@ -53,7 +50,7 @@ public class PrizeClaimSubmissionEntity extends BaseEntity {
     private String submissionCode;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "lottery_supplier_id", nullable = false)
+    @JoinColumn(name = "lottery_supplier_id")
     private LotteryStationEntity lotterySupplier;
 
     @Column(name = "period_from")
@@ -74,9 +71,21 @@ public class PrizeClaimSubmissionEntity extends BaseEntity {
     @Builder.Default
     private BigDecimal totalNetClaimAmount = BigDecimal.ZERO;
 
+    @Column(name = "total_tax_amount", precision = 19, scale = 2)
+    @Builder.Default
+    private BigDecimal totalTaxAmount = BigDecimal.ZERO;
+
     @Column(name = "total_commission_amount", precision = 19, scale = 2)
     @Builder.Default
     private BigDecimal totalCommissionAmount = BigDecimal.ZERO;
+
+    /** Số tiền thực tế nhận từ Nhà cung cấp (nhập tay để đối soát). */
+    @Column(name = "actual_received_amount", precision = 19, scale = 2)
+    private BigDecimal actualReceivedAmount;
+
+    /** Ảnh chứng từ số tiền Nhà cung cấp đã thanh toán. */
+    @Column(name = "actual_received_evidence_url", length = 500)
+    private String actualReceivedEvidenceUrl;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
@@ -89,17 +98,27 @@ public class PrizeClaimSubmissionEntity extends BaseEntity {
     @Column(name = "submitted_by")
     private UUID submittedBy;
 
-    @Column(name = "confirmed_at")
-    private LocalDateTime confirmedAt;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "delivery_mode", length = 32)
+    private ReturnDeliveryMode deliveryMode;
 
-    @Column(name = "confirmed_by")
-    private UUID confirmedBy;
+    @Column(name = "handover_evidence_url", length = 500)
+    private String handoverEvidenceUrl;
 
-    @Column(name = "completed_at")
-    private LocalDateTime completedAt;
+    @Column(name = "handover_receipt_url", length = 500)
+    private String handoverReceiptUrl;
 
-    @Column(name = "completed_by")
-    private UUID completedBy;
+    @Column(name = "supplier_reference", length = 200)
+    private String supplierReference;
+
+    @Column(name = "handover_note", columnDefinition = "TEXT")
+    private String handoverNote;
+
+    @Column(name = "handed_over_at")
+    private LocalDateTime handedOverAt;
+
+    @Column(name = "handed_over_by")
+    private UUID handedOverBy;
 
     @Column(name = "cancelled_at")
     private LocalDateTime cancelledAt;
@@ -107,45 +126,13 @@ public class PrizeClaimSubmissionEntity extends BaseEntity {
     @Column(name = "cancelled_by")
     private UUID cancelledBy;
 
-    /** Người duyệt hủy — maker-checker */
-    @Column(name = "approved_by")
-    private UUID approvedBy;
-
-    @Column(name = "confirmation_reference", length = 200)
-    private String confirmationReference;
-
-    @Column(name = "confirmation_evidence_url", length = 500)
-    private String confirmationEvidenceUrl;
-
-    @Column(name = "payment_deadline")
-    private LocalDate paymentDeadline;
-
-    @Column(name = "is_overdue", nullable = false)
-    @Builder.Default
-    private boolean overdue = false;
-
-    @Column(name = "paid_amount", precision = 19, scale = 2)
-    @Builder.Default
-    private BigDecimal paidAmount = BigDecimal.ZERO;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "settlement_status", length = 30)
-    private PrizeClaimSubmissionSettlementStatus settlementStatus;
-
-    @Column(name = "settlement_difference_amount", precision = 19, scale = 2)
-    @Builder.Default
-    private BigDecimal settlementDifferenceAmount = BigDecimal.ZERO;
-
     @Column(name = "cancel_reason", columnDefinition = "TEXT")
     private String cancelReason;
 
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "payment_evidence_urls", columnDefinition = "jsonb")
+    /** Cảnh báo: phiếu HANDED_OVER quá 3 ngày vẫn còn vé AWAITING_OUTCOME. */
+    @Column(name = "needs_outcome", nullable = false)
     @Builder.Default
-    private List<String> paymentEvidenceUrls = new ArrayList<>();
-
-    @Column(name = "payment_note", columnDefinition = "TEXT")
-    private String paymentNote;
+    private boolean needsOutcome = false;
 
     @OneToMany(mappedBy = "prizeClaimSubmission", fetch = FetchType.LAZY)
     @Builder.Default

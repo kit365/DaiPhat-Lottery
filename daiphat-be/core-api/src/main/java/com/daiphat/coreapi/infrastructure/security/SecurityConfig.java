@@ -77,6 +77,7 @@ public class SecurityConfig {
                                 AUTH + "/password-policy",
                                 ApiConstants.API_V1_PUBLIC + "/system-configs",
                                 ApiConstants.API_V1_PUBLIC + "/system-configs/**",
+                                ApiConstants.API_V1_PUBLIC + "/lucky-pattern-configs",
                                 ApiConstants.API_V1 + "/blogs/public",
                                 ApiConstants.API_V1 + "/blogs/public/**",
                                 ApiConstants.API_V1 + "/blogs/categories/public",

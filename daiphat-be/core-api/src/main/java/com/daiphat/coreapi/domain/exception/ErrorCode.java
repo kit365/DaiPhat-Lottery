@@ -164,6 +164,18 @@ public enum ErrorCode {
             "ORD_055",
             "Quỹ đại lý không đủ để thực hiện thanh toán.",
             HttpStatus.BAD_REQUEST),
+    PRIZE_PAYOUT_REQUIRES_STATION_OFFICE(
+            "ORD_056",
+            "Giải Đặc Biệt phải đến Văn phòng Đại diện Đài để xác minh, đóng thuế và nhận tiền qua ngân hàng.",
+            HttpStatus.BAD_REQUEST),
+    PRIZE_CLAIM_EXPORT_NOT_READY(
+            "ORD_057",
+            "Phiếu nộp chưa sẵn sàng xuất. Vui lòng xác nhận kiểm tra trước khi xuất phiếu.",
+            HttpStatus.BAD_REQUEST),
+    PRIZE_CLAIM_EXPORT_EMPTY(
+            "ORD_058",
+            "Phiếu nộp chưa có vé nào — không thể xuất tệp.",
+            HttpStatus.BAD_REQUEST),
 
     // Lottery Errors
     // Lottery Product Errors

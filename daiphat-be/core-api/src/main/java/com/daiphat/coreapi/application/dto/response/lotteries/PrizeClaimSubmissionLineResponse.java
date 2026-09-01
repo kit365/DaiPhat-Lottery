@@ -15,14 +15,18 @@ public record PrizeClaimSubmissionLineResponse(
         String serialNumber,
         String ticketNumbers,
         Long stationId,
+        String stationName,
         LocalDate drawDate,
         String prizeCode,
         String prizeDisplayName,
         BigDecimal grossPrizeAmount,
         BigDecimal netClaimAmount,
+        BigDecimal taxAmount,
         BigDecimal commissionAmount,
         PrizeClaimSubmissionLineStatus lineStatus,
         PrizeClaimRejectionReason rejectionReason,
-        String rejectionNote
+        String rejectionNote,
+        String outcomeEvidenceUrl,
+        long retryCount
 ) {
 }

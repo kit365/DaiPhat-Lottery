@@ -75,6 +75,10 @@ public class PrizeClaimSubmissionLineEntity extends BaseEntity {
     @Builder.Default
     private BigDecimal netClaimAmount = BigDecimal.ZERO;
 
+    @Column(name = "tax_amount", precision = 19, scale = 2)
+    @Builder.Default
+    private BigDecimal taxAmount = BigDecimal.ZERO;
+
     @Column(name = "commission_amount", precision = 19, scale = 2)
     @Builder.Default
     private BigDecimal commissionAmount = BigDecimal.ZERO;
@@ -88,7 +92,7 @@ public class PrizeClaimSubmissionLineEntity extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "line_status", nullable = false, length = 30)
     @Builder.Default
-    private PrizeClaimSubmissionLineStatus lineStatus = PrizeClaimSubmissionLineStatus.PENDING;
+    private PrizeClaimSubmissionLineStatus lineStatus = PrizeClaimSubmissionLineStatus.SELECTED;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "rejection_reason", length = 50)
@@ -96,6 +100,9 @@ public class PrizeClaimSubmissionLineEntity extends BaseEntity {
 
     @Column(columnDefinition = "TEXT")
     private String rejectionNote;
+
+    @Column(name = "outcome_evidence_url", length = 500)
+    private String outcomeEvidenceUrl;
 
     @Column(name = "submitted_at")
     private LocalDateTime submittedAt;
