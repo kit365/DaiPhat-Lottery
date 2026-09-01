@@ -59,9 +59,9 @@ class AppPickerField extends StatelessWidget {
         if (label != null) ...[
           Text(
             label!,
-            style: AppTypography.labelLarge(color: AppColors.contentSlate700),
+            style: AppTypography.labelMedium(color: AppColors.contentSlate700),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
         ],
         Semantics(
           button: isInteractive,
@@ -76,14 +76,15 @@ class AppPickerField extends StatelessWidget {
           child: ExcludeSemantics(
             child: Material(
               color: AppColors.transparent,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(12),
               child: InkWell(
                 onTap: onTap,
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(12),
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: 56),
+                  constraints: const BoxConstraints(minHeight: 48),
                   child: InputDecorator(
                     decoration: InputDecoration(
+                      isDense: true,
                       filled: true,
                       fillColor: isAvailable
                           ? AppColors.surfacePrimary
@@ -92,9 +93,9 @@ class AppPickerField extends StatelessWidget {
                       prefixIcon: Icon(
                         prefixIcon,
                         color: isAvailable
-                            ? AppColors.primary
+                            ? AppColors.contentMuted
                             : AppColors.borderMuted,
-                        size: 18,
+                        size: 20,
                       ),
                       suffixIcon: suffixIcon == null
                           ? null
@@ -106,13 +107,13 @@ class AppPickerField extends StatelessWidget {
                               size: 20,
                             ),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(12),
                         borderSide: const BorderSide(
                           color: AppColors.borderSubtle,
                         ),
                       ),
                       enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide(
                           color: hasError
                               ? AppColors.statusError
@@ -120,7 +121,7 @@ class AppPickerField extends StatelessWidget {
                         ),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide(
                           color: hasError
                               ? AppColors.statusError
@@ -130,7 +131,7 @@ class AppPickerField extends StatelessWidget {
                       ),
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 12,
-                        vertical: 14,
+                        vertical: 10,
                       ),
                     ),
                     child: Text(
@@ -139,7 +140,7 @@ class AppPickerField extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: AppTypography.bodyMedium(
                         fontWeight: hasValue
-                            ? FontWeight.w600
+                            ? FontWeight.w500
                             : FontWeight.w400,
                         color: hasValue && isAvailable
                             ? AppColors.contentSlate900

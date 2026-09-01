@@ -10,8 +10,9 @@ import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/features/home/data/models/ticket_check_models.dart';
 import 'package:daiphat_mobile/src/features/home/presentation/viewmodels/ticket_check_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/home/presentation/views/widgets/lottery_date_picker_dialog.dart';
+import 'package:daiphat_mobile/src/features/schedule/data/models/lottery_station_schedule.dart';
+import 'package:daiphat_mobile/src/features/schedule/presentation/providers/schedule_providers.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
-import 'package:daiphat_mobile/src/features/profile/presentation/profile_iconography.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 import 'package:daiphat_mobile/src/shared/widgets/app_picker_field.dart';
@@ -46,9 +47,14 @@ class _CheckTicketViewState extends ConsumerState<CheckTicketView> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(ticketCheckViewModelProvider);
+    final schedule = ref.watch(lotteryScheduleProvider);
     final vm = ref.read(ticketCheckViewModelProvider.notifier);
     final winEffectKey = _winEffectKey(state);
     final animationsDisabled = MediaQuery.of(context).disableAnimations;
+    final showSupport =
+        !state.isChecking &&
+        state.errorMessage == null &&
+        (!state.hasChecked || state.checkResult == null);
 
     return Scaffold(
       backgroundColor: AppColors.pageBg,
@@ -101,16 +107,16 @@ class _CheckTicketViewState extends ConsumerState<CheckTicketView> {
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: AppColors.surfacePrimary,
-                          borderRadius: BorderRadius.circular(24),
+                          borderRadius: BorderRadius.circular(20),
                           border: Border.all(
                             color: AppColors.borderDecorative,
                             width: 1.0,
                           ),
                           boxShadow: const [
                             BoxShadow(
-                              color: AppColors.shadowLight,
-                              blurRadius: 16,
-                              offset: Offset(0, 4),
+                              color: AppColors.shadowFaint,
+                              blurRadius: 12,
+                              offset: Offset(0, 2),
                             ),
                           ],
                         ),
@@ -137,11 +143,8 @@ class _CheckTicketViewState extends ConsumerState<CheckTicketView> {
                       ),
                     ),
 
-                    // Helpful Guide Section
-                    const _CheckTicketGuideSection(),
-
-                    // Draw Schedule & Utilities Section
-                    const _DrawScheduleAndUtilitiesSection(),
+                    if (showSupport)
+                      _CheckTicketSupportSection(schedule: schedule),
 
                     const SizedBox(height: 16),
                   ],
@@ -426,17 +429,7 @@ class _HeaderBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Align(
       alignment: Alignment.centerLeft,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Dò vé', style: AppTypography.pageTitle()),
-          const SizedBox(height: 4),
-          Text(
-            'Tra cứu kết quả xổ số kiến thiết 3 miền nhanh chóng',
-            style: AppTypography.caption(color: AppColors.contentMuted),
-          ),
-        ],
-      ),
+      child: Text('Dò vé', style: AppTypography.pageTitle()),
     );
   }
 }
@@ -683,7 +676,7 @@ class _NeutralResult extends StatelessWidget {
           textAlign: TextAlign.center,
           style: AppTypography.bodySmall(color: AppColors.contentMuted),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
         OutlinedButton(
           onPressed: onReset,
           style: OutlinedButton.styleFrom(
@@ -762,7 +755,7 @@ class _FormStateState extends State<_FormState> {
           value: selectedDate == null ? null : dateLabel,
           placeholder: 'Chọn ngày quay',
           errorText: state.dateError,
-          prefixIcon: Icons.calendar_month_rounded,
+          prefixIcon: Icons.calendar_month_outlined,
           onTap: () => _pickDate(context),
           semanticLabel: selectedDate == null
               ? 'Chọn ngày quay'
@@ -781,7 +774,7 @@ class _FormStateState extends State<_FormState> {
               ? 'Không có đài quay'
               : 'Chọn đài',
           errorText: state.stationError,
-          prefixIcon: Icons.location_on_outlined,
+          prefixIcon: Icons.place_outlined,
           suffixIcon: canPickStation ? Icons.expand_more_rounded : null,
           isAvailable: canPickStation,
           onTap: selectedDate == null
@@ -798,59 +791,71 @@ class _FormStateState extends State<_FormState> {
               ? 'Đang tải danh sách đài'
               : null,
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
         Text(
           'Nhập dãy số trên vé',
-          style: AppTypography.labelLarge(color: AppColors.contentSlate700),
+          style: AppTypography.labelMedium(color: AppColors.contentSlate700),
         ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _numberController,
-          keyboardType: TextInputType.number,
-          maxLength: 6,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          onChanged: vm.setTicketNumber,
-          textAlignVertical: TextAlignVertical.center,
-          style: AppTypography.lotteryDigit(letterSpacing: 2),
-          decoration: InputDecoration(
-            counterText: '',
-            hintText: 'Ví dụ: 123456',
-            hintStyle: AppTypography.bodyMedium(
-              color: AppColors.contentPlaceholder,
-            ),
-            errorText: state.numberError,
-            helperText: state.numberError == null
-                ? 'Nhập đúng 5 hoặc 6 chữ số trên vé của bạn'
-                : null,
-            prefixIcon: const Icon(
-              ProfileIconography.ticket,
-              color: AppColors.primary,
-              size: 18,
-            ),
-            filled: true,
-            fillColor: AppColors.surfacePrimary,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: AppColors.borderSubtle),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(
-                color: state.numberError != null
-                    ? AppColors.statusError
-                    : AppColors.borderSubtle,
+        const SizedBox(height: 6),
+        Semantics(
+          textField: true,
+          label: 'Dãy số trên vé',
+          hint: 'Nhập 5 hoặc 6 chữ số để tra cứu',
+          child: TextField(
+            controller: _numberController,
+            keyboardType: TextInputType.number,
+            textInputAction: TextInputAction.done,
+            maxLength: 6,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            onChanged: vm.setTicketNumber,
+            onSubmitted: (_) => vm.check(),
+            textAlignVertical: TextAlignVertical.center,
+            style: AppTypography.lotteryDigit(letterSpacing: 3),
+            decoration: InputDecoration(
+              isDense: true,
+              constraints: const BoxConstraints(minHeight: 48),
+              counterText: '',
+              hintText: 'Ví dụ: 123456',
+              hintStyle: AppTypography.bodyMedium(
+                color: AppColors.contentPlaceholder,
               ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(
-                color: AppColors.primary,
-                width: 1.4,
+              errorText: state.numberError,
+              helperText: state.numberError == null
+                  ? 'Nhập đúng 5 hoặc 6 chữ số trên vé của bạn'
+                  : null,
+              helperStyle: AppTypography.bodySmall(
+                color: AppColors.contentMuted,
               ),
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 12,
+              prefixIcon: const Icon(
+                Icons.confirmation_number_outlined,
+                color: AppColors.contentMuted,
+                size: 20,
+              ),
+              filled: true,
+              fillColor: AppColors.surfacePrimary,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.borderSubtle),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: state.numberError != null
+                      ? AppColors.statusError
+                      : AppColors.borderSubtle,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(
+                  color: AppColors.primary,
+                  width: 1.4,
+                ),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
             ),
           ),
         ),
@@ -860,9 +865,9 @@ class _FormStateState extends State<_FormState> {
           icon: const Icon(Icons.search_rounded, size: 20),
           style: FilledButton.styleFrom(
             backgroundColor: AppColors.primary,
-            minimumSize: const Size.fromHeight(50),
+            minimumSize: const Size.fromHeight(48),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(12),
             ),
           ),
           label: Text('Tra cứu kết quả', style: AppTypography.buttonLarge()),
@@ -960,334 +965,199 @@ class _FormStateState extends State<_FormState> {
   }
 }
 
-class _CheckTicketGuideSection extends StatelessWidget {
-  const _CheckTicketGuideSection();
+class _CheckTicketSupportSection extends StatelessWidget {
+  const _CheckTicketSupportSection({required this.schedule});
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.surfacePrimary,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: AppColors.borderDecorative,
-            width: 1.0,
-          ),
-          boxShadow: const [
-            BoxShadow(
-              color: AppColors.shadowLight,
-              blurRadius: 12,
-              offset: Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: AppColors.brandPrimarySubtle,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.help_outline_rounded,
-                    size: 16,
-                    color: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Hướng dẫn dò vé',
-                  style: AppTypography.subtitle2(
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.contentHeading,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            _buildStepRow(
-              stepNumber: '1',
-              title: 'Chọn ngày quay thưởng',
-              desc: 'Chọn đúng ngày in trên tờ vé số của bạn.',
-            ),
-            const SizedBox(height: 10),
-            _buildStepRow(
-              stepNumber: '2',
-              title: 'Chọn đài / tỉnh phát hành',
-              desc: 'Chọn đài mở thưởng của kỳ vé số cần kiểm tra.',
-            ),
-            const SizedBox(height: 10),
-            _buildStepRow(
-              stepNumber: '3',
-              title: 'Nhập dãy số & Tra cứu',
-              desc: 'Nhập dãy 5 hoặc 6 chữ số và nhấn "Tra cứu kết quả".',
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStepRow({
-    required String stepNumber,
-    required String title,
-    required String desc,
-  }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 22,
-          height: 22,
-          alignment: Alignment.center,
-          decoration: const BoxDecoration(
-            color: AppColors.brandPrimarySubtle,
-            shape: BoxShape.circle,
-          ),
-          child: Text(
-            stepNumber,
-            style: AppTypography.caption(
-              color: AppColors.primary,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: AppTypography.bodySmall(
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.contentHeading,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                desc,
-                style: AppTypography.caption(
-                  color: AppColors.contentMuted,
-                  height: 1.35,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _DrawScheduleAndUtilitiesSection extends StatelessWidget {
-  const _DrawScheduleAndUtilitiesSection();
+  final AsyncValue<List<LotteryStationSchedule>> schedule;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.surfacePrimary,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: AppColors.borderDecorative,
-            width: 1.0,
-          ),
-          boxShadow: const [
-            BoxShadow(
-              color: AppColors.shadowLight,
-              blurRadius: 12,
-              offset: Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: AppColors.brandPrimarySubtle,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.access_time_rounded,
-                    size: 16,
-                    color: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Khung giờ mở thưởng 3 miền',
-                  style: AppTypography.subtitle2(
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.contentHeading,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildRegionTimeCard(
-                    region: 'Miền Nam',
-                    time: '16:15',
-                    color: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildRegionTimeCard(
-                    region: 'Miền Trung',
-                    time: '17:15',
-                    color: AppColors.brandSecondary,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildRegionTimeCard(
-                    region: 'Miền Bắc',
-                    time: '18:15',
-                    color: AppColors.goldDark,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            const Divider(height: 1, color: AppColors.borderSubtle),
-            const SizedBox(height: 4),
-            _buildActionTile(
-              context: context,
-              icon: Icons.calendar_month_outlined,
-              title: 'Xem lịch mở thưởng chi tiết',
-              subtitle: 'Tra cứu lịch quay thưởng các tỉnh theo thứ',
-              onTap: () => context.push(AppRoute.schedule.path),
-            ),
-            const Divider(height: 1, color: AppColors.borderSubtle),
-            _buildActionTile(
-              context: context,
-              icon: Icons.confirmation_number_outlined,
-              title: 'Mua vé số may mắn',
-              subtitle: 'Khám phá các bộ số đẹp đang mở bán',
-              onTap: () => context.go(AppRoute.buyTicket.path),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRegionTimeCard({
-    required String region,
-    required String time,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceSoft,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.borderSubtle),
-      ),
-      child: Column(
-        children: [
-          Text(
-            region,
-            style: AppTypography.caption(
-              color: AppColors.contentMuted,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            time,
-            style: AppTypography.subtitle2(
-              color: color,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            'Hàng ngày',
-            style: AppTypography.overline(
-              color: AppColors.contentDisabled,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionTile({
-    required BuildContext context,
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
+      child: Semantics(
+        button: true,
+        label: 'Xem lịch mở thưởng',
+        hint: 'Mở lịch quay thưởng theo đài',
+        child: Material(
+          color: AppColors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            onTap: () => context.push(AppRoute.schedule.path),
+            borderRadius: BorderRadius.circular(16),
+            child: Ink(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
               decoration: BoxDecoration(
                 color: AppColors.surfaceSoft,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.borderSubtle),
               ),
-              child: Icon(icon, color: AppColors.primary, size: 20),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: AppTypography.bodySmall(
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.contentHeading,
-                    ),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.calendar_month_outlined,
+                        color: AppColors.primary,
+                        size: 22,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Lịch mở thưởng',
+                          style: AppTypography.labelLarge(
+                            color: AppColors.contentHeading,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: AppColors.contentMuted,
+                        size: 24,
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: AppTypography.caption(
-                      color: AppColors.contentMuted,
-                    ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 10),
+                    child: Divider(height: 1, color: AppColors.borderSubtle),
                   ),
+                  _ScheduleRegionSummary(schedule: schedule),
                 ],
               ),
             ),
-            const Icon(
-              Icons.arrow_forward_ios_rounded,
-              size: 14,
-              color: AppColors.contentMuted,
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
+class _ScheduleRegionSummary extends StatelessWidget {
+  const _ScheduleRegionSummary({required this.schedule});
+
+  final AsyncValue<List<LotteryStationSchedule>> schedule;
+
+  @override
+  Widget build(BuildContext context) {
+    return schedule.when(
+      loading: () => _buildStatus('Đang cập nhật lịch mở thưởng...'),
+      error: (_, _) => _buildStatus('Xem lịch chi tiết theo khu vực'),
+      data: (stations) {
+        final regions = availableScheduleRegions(stations);
+        if (regions.isEmpty) {
+          return _buildStatus('Chưa có dữ liệu lịch mở thưởng');
+        }
+
+        final drawTimes = scheduleRegionDrawTimes(stations, regions);
+        if (regions.length == 1) {
+          final region = regions.first;
+          return _DrawTimeSummary(
+            region: scheduleRegionLabels[region] ?? region,
+            time: _displayDrawTime(drawTimes[region]),
+            color: _regionColor(region),
+            expanded: true,
+          );
+        }
+
+        return Row(
+          children: [
+            for (final region in regions)
+              Expanded(
+                child: _DrawTimeSummary(
+                  region: scheduleRegionLabels[region] ?? region,
+                  time: _displayDrawTime(drawTimes[region]),
+                  color: _regionColor(region),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildStatus(String message) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Text(
+        message,
+        style: AppTypography.bodySmall(color: AppColors.contentMuted),
+      ),
+    );
+  }
+
+  String _displayDrawTime(String? time) {
+    if (time == null || time.isEmpty || time == '--:--') {
+      return 'Chưa cập nhật';
+    }
+    return time;
+  }
+
+  Color _regionColor(String region) {
+    switch (region) {
+      case 'MIEN_TRUNG':
+        return AppColors.brandSecondary;
+      case 'MIEN_BAC':
+        return AppColors.goldDark;
+      default:
+        return AppColors.primary;
+    }
+  }
+}
+
+class _DrawTimeSummary extends StatelessWidget {
+  const _DrawTimeSummary({
+    required this.region,
+    required this.time,
+    required this.color,
+    this.expanded = false,
+  });
+
+  final String region;
+  final String time;
+  final Color color;
+  final bool expanded;
+
+  @override
+  Widget build(BuildContext context) {
+    final regionStyle = AppTypography.caption(
+      color: AppColors.contentMuted,
+      fontWeight: FontWeight.w600,
+    );
+    final timeStyle = AppTypography.labelLarge(
+      color: color,
+      fontWeight: FontWeight.w700,
+    );
+
+    if (expanded) {
+      return Row(
+        children: [
+          Expanded(
+            child: Text(
+              region,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: regionStyle,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(time, style: timeStyle),
+        ],
+      );
+    }
+
+    return Column(
+      children: [
+        Text(
+          region,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: regionStyle,
+        ),
+        const SizedBox(height: 2),
+        Text(time, style: timeStyle),
+      ],
+    );
+  }
+}

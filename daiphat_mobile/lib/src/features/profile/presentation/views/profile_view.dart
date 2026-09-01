@@ -6,7 +6,6 @@ import 'package:daiphat_mobile/src/shared/widgets/app_header_action_button.dart'
 import 'package:go_router/go_router.dart';
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
-import 'package:daiphat_mobile/src/features/chat/presentation/views/chat_screen.dart';
 import 'package:daiphat_mobile/src/features/notifications/presentation/viewmodels/notification_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/profile_iconography.dart';
 import '../viewmodels/profile_viewmodel.dart';
@@ -46,18 +45,6 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
   ProfileViewModel get viewModel => widget.viewModel;
   NotificationViewModel get notificationViewModel =>
       widget.notificationViewModel;
-
-  void _openSupportChat(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => ChatScreen(
-          isAuthenticated: true,
-          isActive: true,
-          onBack: () => Navigator.of(context).pop(),
-        ),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -167,7 +154,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                   icon: ProfileIconography.chat,
                   tooltip: 'Chat hỗ trợ',
                   variant: AppHeaderActionVariant.bare,
-                  onTap: () => _openSupportChat(context),
+                  onTap: () => context.push(AppRoute.chat.path),
                 ),
               ],
             ),
@@ -608,7 +595,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
           ),
           _buildListItem(
             ProfileIconography.spending,
-            'Hoạt động vé số',
+            'Tổng quan vé số',
             onTap: () => context.push(AppRoute.profileOverview.path),
           ),
           _buildListItem(
