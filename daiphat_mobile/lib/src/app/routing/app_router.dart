@@ -22,6 +22,7 @@ import 'package:daiphat_mobile/src/features/profile/presentation/views/profile_d
 import 'package:daiphat_mobile/src/features/notifications/presentation/views/notification_view.dart';
 import 'package:daiphat_mobile/src/features/notifications/presentation/views/notification_settings_view.dart';
 import 'package:daiphat_mobile/src/features/notifications/presentation/viewmodels/notification_viewmodel.dart';
+import 'package:daiphat_mobile/src/features/chat/presentation/views/chat_screen.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/views/bank_accounts_view.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/views/my_orders_view.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/views/my_tickets_view.dart';
@@ -106,6 +107,7 @@ GoRouter createAppRouter({
           (path == AppRoute.cart.path ||
               path == AppRoute.checkout.path ||
               path == AppRoute.notifications.path ||
+              path == AppRoute.chat.path ||
               path == AppRoute.profile.path) &&
           !loginViewModel.isAuthenticated) {
         return Uri(
@@ -391,6 +393,14 @@ GoRouter createAppRouter({
         notificationViewModel,
       ),
       _route(
+        AppRoute.chat,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
+      _route(
         AppRoute.notificationSettings,
         loginViewModel,
         registerViewModel,
@@ -546,6 +556,12 @@ Widget _buildRoute(
       );
     case AppRoute.notifications:
       return NotificationView(viewModel: notificationViewModel);
+    case AppRoute.chat:
+      return ChatScreen(
+        isAuthenticated: loginViewModel.isAuthenticated,
+        isActive: true,
+        onBack: () => context.pop(),
+      );
     case AppRoute.notificationSettings:
       return const NotificationSettingsView();
     case AppRoute.bankAccounts:

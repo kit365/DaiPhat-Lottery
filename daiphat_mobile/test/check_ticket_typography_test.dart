@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:daiphat_mobile/src/features/home/presentation/viewmodels/ticket_check_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/home/presentation/views/check_ticket_view.dart';
+import 'package:daiphat_mobile/src/features/schedule/data/models/lottery_station_schedule.dart';
+import 'package:daiphat_mobile/src/features/schedule/presentation/providers/schedule_providers.dart';
 import 'package:daiphat_mobile/src/features/checkout/data/system_config_service.dart';
 import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
 import 'package:daiphat_mobile/src/features/checkout/presentation/widgets/checkout_datetime_picker.dart';
@@ -46,6 +48,18 @@ void main() {
           ticketCheckViewModelProvider.overrideWith(
             _FakeTicketCheckViewModel.new,
           ),
+          lotteryScheduleProvider.overrideWith(
+            (ref) async => const [
+              LotteryStationSchedule(
+                stationId: 1,
+                stationName: 'Đài mẫu',
+                region: 'MIEN_NAM',
+                drawDays: ['MONDAY'],
+                drawDaysDisplay: ['Thứ 2'],
+                drawTime: '16:15',
+              ),
+            ],
+          ),
         ],
         child: MaterialApp(
           theme: AppTheme.lightTheme,
@@ -77,7 +91,7 @@ void main() {
     );
     expect(find.text('Lưu ý quan trọng'), findsNothing);
     expect(fieldLabel.style?.fontFamily, AppTypography.mainFamily);
-    expect(fieldLabel.style?.fontSize, 14);
+    expect(fieldLabel.style?.fontSize, 12);
     expect(numberField.style?.fontFamily, AppTypography.displayFamily);
     expect(numberField.style?.fontSize, 18);
     expect(numberField.textAlignVertical, TextAlignVertical.center);
@@ -93,6 +107,14 @@ void main() {
     expect(tester.getSize(stationField).height, greaterThanOrEqualTo(48));
     expect(find.text('Chọn nhanh'), findsNothing);
     expect(find.bySemanticsLabel('Chọn ngày Hôm nay'), findsNothing);
+    expect(find.text('Hướng dẫn dò vé'), findsNothing);
+    expect(find.text('Khung giờ mở thưởng 3 miền'), findsNothing);
+    expect(find.text('Mua vé số may mắn'), findsNothing);
+    expect(find.text('Lịch mở thưởng'), findsOneWidget);
+    expect(find.text('Miền Nam'), findsOneWidget);
+    expect(find.text('16:15'), findsOneWidget);
+    expect(find.text('Miền Trung'), findsNothing);
+    expect(find.text('Miền Bắc'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -110,6 +132,14 @@ void main() {
     expect(source, contains('AppPickerField('));
     expect(source, contains('LotteryDatePickerDialog.show('));
     expect(source, contains('final useYesterday ='));
+    expect(source, contains('textInputAction: TextInputAction.done'));
+    expect(source, contains('letterSpacing: 3'));
+    expect(source, contains('class _CheckTicketSupportSection'));
+    expect(source, contains("'Lịch mở thưởng'"));
+    expect(source, contains('availableScheduleRegions('));
+    expect(source, contains('scheduleRegionDrawTimes('));
+    expect(source, isNot(contains('Miền Trung 17:15')));
+    expect(source, isNot(contains('Miền Bắc 18:15')));
     expect(source, isNot(contains('class _QuickDateChip')));
     expect(source, contains('AppFormatters.formatCurrency('));
     expect(RegExp(r'fontSize:\s*\d+\.\d+').hasMatch(source), isFalse);
@@ -119,6 +149,42 @@ void main() {
       'lib/src/features/checkout/presentation/widgets/checkout_datetime_picker.dart',
     ).readAsStringSync();
     expect(checkoutSource, contains('AppPickerField('));
+  });
+
+  testWidgets('Dò vé does not fabricate regions when schedule data is empty', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          apiClientProvider.overrideWithValue(
+            ApiClient(
+              dio: Dio(BaseOptions(baseUrl: 'https://example.invalid')),
+            ),
+          ),
+          ticketCheckViewModelProvider.overrideWith(
+            _FakeTicketCheckViewModel.new,
+          ),
+          lotteryScheduleProvider.overrideWith(
+            (ref) async => const <LotteryStationSchedule>[],
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: const CheckTicketView(),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Chưa có dữ liệu lịch mở thưởng'), findsOneWidget);
+    expect(find.text('Miền Nam'), findsNothing);
+    expect(find.text('Miền Trung'), findsNothing);
+    expect(find.text('Miền Bắc'), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('Checkout embedded date field uses the shared picker shell', (

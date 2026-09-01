@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
-import 'package:daiphat_mobile/src/features/chat/presentation/views/chat_screen.dart';
 import 'package:daiphat_mobile/src/features/checkout/models/order_type.dart';
 import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
@@ -63,18 +62,6 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
     _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
-  }
-
-  void _openChat() {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => ChatScreen(
-          isAuthenticated: true,
-          isActive: true,
-          onBack: () => Navigator.of(context).pop(),
-        ),
-      ),
-    );
   }
 
   @override
@@ -188,7 +175,7 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
             color: AppColors.primary,
           ),
           tooltip: 'Chat hỗ trợ',
-          onPressed: _openChat,
+          onPressed: () => context.push(AppRoute.chat.path),
         ),
         Positioned(
           top: 10,

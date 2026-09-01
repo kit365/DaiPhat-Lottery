@@ -149,6 +149,16 @@ class _UtilitiesTwoHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (onBack == null) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(title, style: AppTypography.pageTitle()),
+        ),
+      );
+    }
+
     return SizedBox(
       height: 56,
       child: Container(

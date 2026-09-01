@@ -100,6 +100,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _scrollToBottom();
   }
 
+  void _showOfficialProfile() {
+    showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      backgroundColor: AppColors.transparent,
+      builder: (_) => const _OfficialProfileSheet(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final chatState = ref.watch(chatViewModelProvider);
@@ -122,7 +131,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       backgroundColor: AppColors.surfacePrimary,
       body: Column(
         children: [
-          _ChatHeader(onBack: widget.onBack),
+          _ChatHeader(
+            onBack: widget.onBack,
+            onOpenOfficialProfile: _showOfficialProfile,
+          ),
           if (chatState.statusBanner != null)
             _StatusBanner(text: chatState.statusBanner!),
           if (chatState.isLoading && chatState.visibleMessages.isEmpty)
@@ -143,16 +155,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     parent: BouncingScrollPhysics(),
                   ),
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                  itemCount: chatState.visibleMessages.length + 1,
+                  itemCount: chatState.visibleMessages.length,
                   itemBuilder: (context, index) {
-                    if (index == 0) {
-                      return const Padding(
-                        padding: EdgeInsets.only(bottom: 16),
-                        child: _OfficialProfileCard(),
-                      );
-                    }
-
-                    final message = chatState.visibleMessages[index - 1];
+                    final message = chatState.visibleMessages[index];
                     if (message.variant == ChatMessageVariant.divider) {
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -242,9 +247,10 @@ class _StatusBanner extends StatelessWidget {
 }
 
 class _ChatHeader extends StatelessWidget {
-  const _ChatHeader({this.onBack});
+  const _ChatHeader({this.onBack, required this.onOpenOfficialProfile});
 
   final VoidCallback? onBack;
+  final VoidCallback onOpenOfficialProfile;
 
   @override
   Widget build(BuildContext context) {
@@ -266,7 +272,19 @@ class _ChatHeader extends StatelessWidget {
               size: 20,
             ),
           ),
-          const _BrandAvatar(size: 40),
+          Semantics(
+            button: true,
+            label: 'Xem thông tin Đại Phát Official',
+            child: InkResponse(
+              onTap: onOpenOfficialProfile,
+              radius: 24,
+              child: const SizedBox(
+                width: 48,
+                height: 48,
+                child: Center(child: _BrandAvatar(size: 40)),
+              ),
+            ),
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -305,13 +323,36 @@ class _ChatHeader extends StatelessWidget {
               ],
             ),
           ),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(
-              Icons.more_horiz_rounded,
-              color: AppColors.primary,
+        ],
+      ),
+    );
+  }
+}
+
+class _OfficialProfileSheet extends StatelessWidget {
+  const _OfficialProfileSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+      decoration: const BoxDecoration(
+        color: AppColors.surfacePrimary,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 36,
+            height: 4,
+            decoration: BoxDecoration(
+              color: AppColors.borderMuted,
+              borderRadius: BorderRadius.circular(999),
             ),
           ),
+          const SizedBox(height: 20),
+          const _OfficialProfileCard(),
         ],
       ),
     );
@@ -381,25 +422,6 @@ class _OfficialProfileCard extends StatelessWidget {
                   ],
                 ),
               ],
-            ),
-          ),
-          OutlinedButton(
-            onPressed: () {},
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size(0, 32),
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              side: const BorderSide(color: AppColors.primary),
-              foregroundColor: AppColors.primary,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(999),
-              ),
-            ),
-            child: Text(
-              'Thông tin',
-              style: AppTypography.buttonSmall(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
             ),
           ),
         ],
@@ -917,7 +939,11 @@ class _ChatInputBar extends StatelessWidget {
               child: const SizedBox(
                 width: 40,
                 height: 40,
-                child: Icon(Icons.send_rounded, color: AppColors.surfacePrimary, size: 20),
+                child: Icon(
+                  Icons.send_rounded,
+                  color: AppColors.surfacePrimary,
+                  size: 20,
+                ),
               ),
             ),
           ),

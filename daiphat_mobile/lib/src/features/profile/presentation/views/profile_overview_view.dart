@@ -55,7 +55,7 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
           onPressed: () => context.pop(),
         ),
         title: Text(
-          'Hoạt động vé số',
+          'Tổng quan vé số',
           style: AppTypography.h4(
             fontSize: 18,
             fontWeight: FontWeight.w700,
