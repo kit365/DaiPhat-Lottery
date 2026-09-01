@@ -67,6 +67,8 @@ public class PrizePayoutEligibilityService {
             LotteryTicketSerialStatus.EXPIRED,
             LotteryTicketSerialStatus.SOLD);
 
+    private static final String SPECIAL_PRIZE_CODE = "DB";
+
     private final OrderDetailRepository orderDetailRepository;
     private final LotteryTicketSerialRepositoryPort lotteryTicketSerialRepositoryPort;
     private final LotteryResultRepositoryPort lotteryResultRepositoryPort;
@@ -299,6 +301,7 @@ public class PrizePayoutEligibilityService {
         ensureOnlineClaimNotLocked(serial.getId());
         PrizeMatchContext match = resolvePrizeMatch(detail, serial);
         ensureWonWithAmount(match);
+        ensureAgentPayoutAllowed(match, serial);
 
         PrizePayoutChannel channel = resolveClaimChannel(detail, serial, match.prizeAmount());
         if (channel != PrizePayoutChannel.ONLINE) {
@@ -385,7 +388,39 @@ public class PrizePayoutEligibilityService {
         }
         PrizeMatchContext match = resolvePrizeMatch(detail, serial);
         ensureWonWithAmount(match);
+        ensureAgentPayoutAllowed(match, serial);
         enforceStaffRedemptionWindow(detail, serial, acknowledgeLateRedemption);
+    }
+
+    public boolean requiresStationOfficeRedemption(PrizeMatchContext match) {
+        return match != null && SPECIAL_PRIZE_CODE.equalsIgnoreCase(match.prizeCode());
+    }
+
+    public String buildStationOfficeRedemptionMessage(String stationName) {
+        String name = stationName != null && !stationName.isBlank() ? stationName : "nhà đài phát hành vé";
+        return "Giải Đặc Biệt phải đến Văn phòng Đại diện Đài ["
+                + name
+                + "] để xác minh, đóng thuế và nhận tiền qua ngân hàng.";
+    }
+
+    private void ensureAgentPayoutAllowed(PrizeMatchContext match, LotteryTicketSerialEntity serial) {
+        if (!requiresStationOfficeRedemption(match)) {
+            return;
+        }
+        throw new DomainException(
+                ErrorCode.PRIZE_PAYOUT_REQUIRES_STATION_OFFICE,
+                buildStationOfficeRedemptionMessage(resolveStationName(serial)));
+    }
+
+    private String resolveStationName(LotteryTicketSerialEntity serial) {
+        if (serial == null) {
+            return null;
+        }
+        LotteryTicketEntity ticket = serial.getTicket();
+        if (ticket != null && ticket.getStation() != null) {
+            return ticket.getStation().getName();
+        }
+        return null;
     }
 
     public PrizeRedemptionDeadlineService.RedemptionDeadlines resolveRedemptionDeadlines(

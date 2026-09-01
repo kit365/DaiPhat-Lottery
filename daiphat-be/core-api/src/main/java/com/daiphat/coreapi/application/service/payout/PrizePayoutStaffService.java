@@ -940,7 +940,8 @@ public class PrizePayoutStaffService implements PrizePayoutStaffServicePort {
                 customerDeadline,
                 issuerDeadline,
                 redemptionZone,
-                daysRemainingToIssuer);
+                daysRemainingToIssuer,
+                prizePayoutEligibilityService.requiresStationOfficeRedemption(match));
     }
 
     private PrizePayoutPreviewResponse toPreviewFromLookup(PrizePayoutLookupItem item) {
@@ -986,7 +987,8 @@ public class PrizePayoutStaffService implements PrizePayoutStaffServicePort {
                 item.ticketNumbers(),
                 item.winningNumber(),
                 item.matchFrom(),
-                item.matchDigits());
+                item.matchDigits(),
+                item.requiresStationOfficeRedemption());
     }
 
     private static boolean isBlank(String value) {

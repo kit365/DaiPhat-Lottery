@@ -53,7 +53,7 @@ public interface PrizePayoutRequestRepository extends JpaRepository<PrizePayoutR
     BigDecimal sumGrossAmountByStatus(@Param("status") PrizePayoutRequestStatus status);
 
     /**
-     * Vé đã trả thưởng (COMPLETED + PAID_OUT), đúng nhà đài, chưa nằm trong phiếu nộp active.
+     * Vé đã trả thưởng (COMPLETED + PAID_OUT), không có line active, dưới 2 lần REJECTED_RETRYABLE.
      */
     @Query("""
             SELECT ppr FROM PrizePayoutRequestEntity ppr
@@ -61,21 +61,25 @@ public interface PrizePayoutRequestRepository extends JpaRepository<PrizePayoutR
             LEFT JOIN FETCH s.ticket t
             WHERE ppr.status = :completedStatus
               AND s.payoutState = :paidOutState
-              AND s.stationId = :supplierId
-              AND (:periodFrom IS NULL OR s.drawDate >= :periodFrom)
-              AND (:periodTo IS NULL OR s.drawDate <= :periodTo)
+              AND s.drawDate >= :periodFrom
+              AND s.drawDate <= :periodTo
               AND NOT EXISTS (
                   SELECT 1 FROM PrizeClaimSubmissionLineEntity line
                    WHERE line.serial.id = s.id
-                     AND line.lineStatus NOT IN :inactiveLineStatuses
+                     AND line.lineStatus IN :activeLineStatuses
               )
-            ORDER BY s.drawDate DESC, ppr.completedAt DESC
+              AND (
+                  SELECT COUNT(line2) FROM PrizeClaimSubmissionLineEntity line2
+                   WHERE line2.serial.id = s.id
+                     AND line2.lineStatus = :retryableStatus
+              ) < 2
+            ORDER BY s.drawDate DESC, s.stationId ASC, ppr.completedAt DESC
             """)
     List<PrizePayoutRequestEntity> findEligibleForPrizeClaimSubmission(
-            @Param("supplierId") Long supplierId,
             @Param("periodFrom") LocalDate periodFrom,
             @Param("periodTo") LocalDate periodTo,
             @Param("completedStatus") PrizePayoutRequestStatus completedStatus,
             @Param("paidOutState") SerialPayoutState paidOutState,
-            @Param("inactiveLineStatuses") Collection<PrizeClaimSubmissionLineStatus> inactiveLineStatuses);
+            @Param("activeLineStatuses") List<PrizeClaimSubmissionLineStatus> activeLineStatuses,
+            @Param("retryableStatus") PrizeClaimSubmissionLineStatus retryableStatus);
 }
