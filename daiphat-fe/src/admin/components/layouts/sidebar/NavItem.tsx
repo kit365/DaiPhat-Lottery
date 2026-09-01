@@ -62,6 +62,7 @@ const SubNavItem = ({
     const showSupportOpenBadge = child.badge === 'support-open';
     const showReturnBatchBadge = child.badge === 'return-batch-pending';
     const showSupplierSettlementBadge = child.badge === 'supplier-settlement-attention';
+    const showPrizeClaimOutcomeBadge = child.badge === 'prize-claim-outcome-pending';
     const showOnlinePreparingBadge = child.badge === 'orders-online-preparing';
     const showDirectPreparingBadge = child.badge === 'orders-direct-preparing';
 
@@ -91,6 +92,11 @@ const SubNavItem = ({
                 {showSupplierSettlementBadge && (
                     <span className="ml-2 shrink-0 inline-flex items-center">
                         <SupplierSettlementAttentionBadgeLabel />
+                    </span>
+                )}
+                {showPrizeClaimOutcomeBadge && (
+                    <span className="ml-2 shrink-0 inline-flex items-center">
+                        <PrizeClaimOutcomePendingBadgeLabel />
                     </span>
                 )}
                 {showOnlinePreparingBadge && (
@@ -262,11 +268,12 @@ const SupplierSettlementAttentionBadgeIcon = ({ children }: { children: ReactNod
     );
 };
 
-/** Combined badge for parent Nhà cung cấp group (return batches + supplier settlements). */
+/** Combined badge for parent Nhà cung cấp group (return batches + supplier settlements + prize claim outcomes). */
 const SupplierManagementGroupBadgeLabel = () => {
     const { pendingCount } = useReturnBatchPendingCount();
     const { attentionCount } = useSupplierSettlementAttentionCount();
-    const total = (pendingCount || 0) + (attentionCount || 0);
+    const prizeClaimOutcomePending = useSidebarBadgeCount((counts) => counts.prizeClaimOutcomePending);
+    const total = (pendingCount || 0) + (attentionCount || 0) + (prizeClaimOutcomePending || 0);
     if (total <= 0) return null;
     return (
         <Badge
@@ -279,7 +286,8 @@ const SupplierManagementGroupBadgeLabel = () => {
 const SupplierManagementGroupBadgeIcon = ({ children }: { children: ReactNode }) => {
     const { pendingCount } = useReturnBatchPendingCount();
     const { attentionCount } = useSupplierSettlementAttentionCount();
-    const total = (pendingCount || 0) + (attentionCount || 0);
+    const prizeClaimOutcomePending = useSidebarBadgeCount((counts) => counts.prizeClaimOutcomePending);
+    const total = (pendingCount || 0) + (attentionCount || 0) + (prizeClaimOutcomePending || 0);
     return (
         <Badge
             badgeContent={total > 99 ? '99+' : total}
@@ -288,6 +296,17 @@ const SupplierManagementGroupBadgeIcon = ({ children }: { children: ReactNode })
         >
             {children}
         </Badge>
+    );
+};
+
+const PrizeClaimOutcomePendingBadgeLabel = () => {
+    const pendingCount = useSidebarBadgeCount((counts) => counts.prizeClaimOutcomePending);
+    if (pendingCount <= 0) return null;
+    return (
+        <Badge
+            badgeContent={pendingCount > 99 ? '99+' : pendingCount}
+            sx={{ '& .MuiBadge-badge': sidebarBadgeSx }}
+        />
     );
 };
 

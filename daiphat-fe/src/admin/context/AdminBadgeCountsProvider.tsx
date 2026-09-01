@@ -22,6 +22,7 @@ const DEFAULT_COUNTS: AdminDashboardBadgeCounts = {
     ordersPreparing: null,
     chatAttention: null,
     notificationUnread: null,
+    prizeClaimOutcomePending: null,
 };
 
 type AdminBadgeCountsContextValue = {

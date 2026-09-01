@@ -115,7 +115,7 @@ export const menuManagementData = [
             { id: "supplier", label: "Danh sách", path: ROUTES.ADMIN.SUPPLIER.LIST, permission: PERMISSIONS.SUPPLIER.VIEW },
             { id: "supplier-settlement", label: "Đối soát", path: ROUTES.ADMIN.SUPPLIER_SETTLEMENT.LIST, permission: PERMISSIONS.IMPORT_BATCH.VIEW, badge: 'supplier-settlement-attention' },
             { id: "return-batch", label: "Trả vé", path: ROUTES.ADMIN.RETURN_BATCH.LIST, permission: PERMISSIONS.IMPORT_BATCH.VIEW, badge: 'return-batch-pending' },
-            { id: "prize-claim-submissions", label: "Nộp vé trúng", path: ROUTES.ADMIN.PRIZE_CLAIM_SUBMISSIONS.LIST, permission: PERMISSIONS.PRIZE_PAYOUT.VIEW },
+            { id: "prize-claim-submissions", label: "Nộp vé trúng", path: ROUTES.ADMIN.PRIZE_CLAIM_SUBMISSIONS.LIST, permission: PERMISSIONS.PRIZE_PAYOUT.VIEW, badge: 'prize-claim-outcome-pending' },
         ],
     },
     {
