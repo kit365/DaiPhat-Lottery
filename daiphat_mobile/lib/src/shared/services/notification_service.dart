@@ -5,6 +5,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:go_router/go_router.dart';
 import 'package:daiphat_mobile/src/app/routing/app_router.dart';
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
+import 'package:daiphat_mobile/src/shared/config/firebase_config.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 
 class NotificationService {
@@ -13,6 +14,7 @@ class NotificationService {
   NotificationService._internal();
 
   FirebaseMessaging? get _firebaseMessaging {
+    if (!isFirebaseInitialized) return null;
     try {
       return FirebaseMessaging.instance;
     } catch (_) {
@@ -24,7 +26,6 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
 
   Future<void> requestPermission() async {
-    // 1. Request Permission for FCM
     try {
       await _firebaseMessaging?.requestPermission(
         alert: true,
@@ -33,7 +34,6 @@ class NotificationService {
       );
     } catch (_) {}
 
-    // Request permission for local notifications (Android 13+)
     try {
       await _localNotificationsPlugin
           .resolvePlatformSpecificImplementation<
@@ -44,7 +44,6 @@ class NotificationService {
   }
 
   Future<void> init() async {
-    // 2. Initialize Local Notifications (For Foreground popup)
     const AndroidInitializationSettings androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
     const DarwinInitializationSettings iosSettings =
@@ -69,13 +68,20 @@ class NotificationService {
       );
     } catch (_) {}
 
-    // 3. Get FCM Token
+    final messaging = _firebaseMessaging;
+    if (messaging == null) {
+      developer.log(
+        'Firebase chưa bật — chỉ khởi tạo local notifications.',
+        name: 'NotificationService',
+      );
+      return;
+    }
+
     try {
-      final token = await _firebaseMessaging?.getToken();
+      final token = await messaging.getToken();
       if (token != null) {
         developer.log('FCM Token: $token', name: 'NotificationService');
       }
-      // TODO: Send this token to backend when user is logged in
     } catch (e) {
       developer.log(
         'Failed to get FCM token (APNS not ready on iOS or offline): $e',
@@ -83,7 +89,6 @@ class NotificationService {
       );
     }
 
-    // 4. Handle Messages
     try {
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
         developer.log(
@@ -96,14 +101,12 @@ class NotificationService {
         }
       });
 
-      // 5. Handle Background/Terminated Tap
       FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
         _handleNotificationTap(jsonEncode(message.data));
       });
 
-      final initialMessage = await _firebaseMessaging?.getInitialMessage();
+      final initialMessage = await messaging.getInitialMessage();
       if (initialMessage != null) {
-        // Delay slightly to ensure router is ready
         Future.delayed(const Duration(milliseconds: 500), () {
           _handleNotificationTap(jsonEncode(initialMessage.data));
         });
@@ -121,7 +124,6 @@ class NotificationService {
       if (context != null && context.mounted) {
         if (referenceType == 'BLOG_POST' && referenceId != null) {
           // Future: navigate to blog detail
-          // context.push('/blogs/detail/$referenceId');
         } else {
           context.go(AppRoute.notifications.path);
         }

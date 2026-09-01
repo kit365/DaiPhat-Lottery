@@ -6,6 +6,11 @@ class ApiConfig {
   const ApiConfig._();
 
   static String get baseUrl {
+    final mobileOverride = dotenv.env['MOBILE_API_BASE_URL']?.trim();
+    if (mobileOverride != null && mobileOverride.isNotEmpty) {
+      return mobileOverride;
+    }
+
     final url = dotenv.env['VITE_API_BASE_URL']?.trim().isNotEmpty == true
         ? dotenv.env['VITE_API_BASE_URL']!.trim()
         : dotenv.get('API_BASE_URL', fallback: 'http://localhost:8080');
