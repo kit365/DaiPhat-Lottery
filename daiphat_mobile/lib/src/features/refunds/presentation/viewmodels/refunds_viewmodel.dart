@@ -1,12 +1,12 @@
 import 'package:flutter/foundation.dart';
 
-import 'package:daiphat_mobile/src/features/profile/data/models/refund_request.dart';
-import 'package:daiphat_mobile/src/features/profile/data/refund_service.dart';
+import 'package:daiphat_mobile/src/features/refunds/domain/entities/refund_request.dart';
+import 'package:daiphat_mobile/src/features/refunds/domain/usecases/refund_usecases.dart';
 
 class RefundsViewModel extends ChangeNotifier {
-  final RefundService _service;
+  final GetMyRefunds _getMyRefunds;
 
-  RefundsViewModel(this._service) {
+  RefundsViewModel(this._getMyRefunds) {
     fetch(refresh: true);
   }
 
@@ -51,7 +51,7 @@ class RefundsViewModel extends ChangeNotifier {
     }
 
     try {
-      final result = await _service.getMyRefunds(
+      final result = await _getMyRefunds(
         page: _page,
         limit: 10,
         status: _statusFilter,

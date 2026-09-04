@@ -1,4 +1,4 @@
-import 'package:daiphat_mobile/src/features/checkout/models/refund_type.dart';
+import 'package:daiphat_mobile/src/features/refunds/domain/entities/refund_request.dart';
 import 'package:daiphat_mobile/src/features/checkout/models/transaction_type.dart';
 import 'package:daiphat_mobile/src/features/orders/data/datasources/order_remote_data_source.dart';
 import 'package:daiphat_mobile/src/features/orders/domain/entities/order.dart';

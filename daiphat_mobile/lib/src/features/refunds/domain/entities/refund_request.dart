@@ -1,5 +1,5 @@
-import 'package:daiphat_mobile/src/features/orders/domain/entities/order.dart';
-import 'package:daiphat_mobile/src/features/checkout/models/refund_type.dart';
+import 'package:daiphat_mobile/src/features/bank_accounts/domain/entities/bank_account.dart';
+import 'package:daiphat_mobile/src/shared/domain/entities/pagination_meta.dart';
 
 /// Trạng thái xử lý của một yêu cầu hoàn tiền (đồng bộ với BE / FE web).
 enum RefundRequestStatus {
@@ -229,4 +229,162 @@ int _parseInt(dynamic value) {
   if (value is int) return value;
   if (value is double) return value.toInt();
   return int.tryParse(value.toString()) ?? 0;
+}
+
+class CreateOrderRefundRequest {
+  final String refundReason;
+  final int bankAccountId;
+
+  const CreateOrderRefundRequest({
+    required this.refundReason,
+    required this.bankAccountId,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'refundReason': refundReason,
+    'bankAccountId': bankAccountId,
+  };
+}
+
+class RefundEligibleTicketItem {
+  final int? orderDetailId;
+  final String? numbers;
+  final String? stationName;
+  final String? drawDate;
+  final int quantity;
+  final int unitPrice;
+  final int subtotalAmount;
+
+  const RefundEligibleTicketItem({
+    this.orderDetailId,
+    this.numbers,
+    this.stationName,
+    this.drawDate,
+    required this.quantity,
+    required this.unitPrice,
+    required this.subtotalAmount,
+  });
+
+  factory RefundEligibleTicketItem.fromJson(Map<String, dynamic> json) {
+    return RefundEligibleTicketItem(
+      orderDetailId: json['orderDetailId'] as int?,
+      numbers: json['numbers']?.toString(),
+      stationName: json['stationName']?.toString(),
+      drawDate: json['drawDate']?.toString(),
+      quantity: json['quantity'] as int? ?? 0,
+      unitPrice: json['unitPrice'] as int? ?? 0,
+      subtotalAmount: json['subtotalAmount'] as int? ?? 0,
+    );
+  }
+}
+
+class OrderRefundEligibilityResponse {
+  final bool eligible;
+  final String? reason;
+  final int? remainingSeconds;
+  final int graceMinutes;
+  final String? refundDeadlineAt;
+  final String? paymentSuccessAt;
+  final String? orderId;
+  final String? orderCode;
+  final String? orderStatus;
+  final int? orderTotalAmount;
+  final String? orderCreatedAt;
+  final List<RefundEligibleTicketItem> refundTickets;
+  final int? totalRefundAmount;
+  final int? maxRefundRequestsPerDay;
+  final int? refundRequestsSubmittedToday;
+  final bool dailyLimitReached;
+
+  const OrderRefundEligibilityResponse({
+    required this.eligible,
+    required this.graceMinutes,
+    required this.refundTickets,
+    this.reason,
+    this.remainingSeconds,
+    this.refundDeadlineAt,
+    this.paymentSuccessAt,
+    this.orderId,
+    this.orderCode,
+    this.orderStatus,
+    this.orderTotalAmount,
+    this.orderCreatedAt,
+    this.totalRefundAmount,
+    this.maxRefundRequestsPerDay,
+    this.refundRequestsSubmittedToday,
+    this.dailyLimitReached = false,
+  });
+
+  factory OrderRefundEligibilityResponse.fromJson(Map<String, dynamic> json) {
+    final tickets = json['refundTickets'] as List<dynamic>? ?? const [];
+    return OrderRefundEligibilityResponse(
+      eligible: json['eligible'] as bool? ?? false,
+      reason: json['reason']?.toString(),
+      remainingSeconds: (json['remainingSeconds'] as num?)?.toInt(),
+      graceMinutes: (json['graceMinutes'] as num?)?.toInt() ?? 0,
+      refundDeadlineAt: json['refundDeadlineAt']?.toString(),
+      paymentSuccessAt: json['paymentSuccessAt']?.toString(),
+      orderId: json['orderId']?.toString(),
+      orderCode: json['orderCode']?.toString(),
+      orderStatus: json['orderStatus']?.toString(),
+      orderTotalAmount: (json['orderTotalAmount'] as num?)?.toInt(),
+      orderCreatedAt: json['orderCreatedAt']?.toString(),
+      refundTickets: tickets
+          .map((e) => RefundEligibleTicketItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      totalRefundAmount: (json['totalRefundAmount'] as num?)?.toInt(),
+      maxRefundRequestsPerDay: (json['maxRefundRequestsPerDay'] as num?)?.toInt(),
+      refundRequestsSubmittedToday:
+          (json['refundRequestsSubmittedToday'] as num?)?.toInt(),
+      dailyLimitReached: json['dailyLimitReached'] as bool? ?? false,
+    );
+  }
+}
+
+String formatRefundCountdown(int totalSeconds) {
+  final seconds = totalSeconds < 0 ? 0 : totalSeconds;
+  final minutes = seconds ~/ 60;
+  final secs = seconds % 60;
+  return '${minutes.toString().padLeft(2, '0')} phút ${secs.toString().padLeft(2, '0')} giây';
+}
+
+int computeRefundSecondsLeft({
+  String? refundDeadlineAt,
+  String? paymentSuccessAt,
+  int? graceMinutes,
+  int? fallbackRemainingSeconds,
+}) {
+  final now = DateTime.now().millisecondsSinceEpoch;
+  if (refundDeadlineAt != null && refundDeadlineAt.isNotEmpty) {
+    final deadline = DateTime.tryParse(refundDeadlineAt)?.millisecondsSinceEpoch;
+    if (deadline != null) {
+      return ((deadline - now) / 1000).floor().clamp(0, 1 << 31);
+    }
+  }
+  if (paymentSuccessAt != null &&
+      paymentSuccessAt.isNotEmpty &&
+      graceMinutes != null &&
+      graceMinutes > 0) {
+    final paidAt = DateTime.tryParse(paymentSuccessAt)?.millisecondsSinceEpoch;
+    if (paidAt != null) {
+      final deadline = paidAt + Duration(minutes: graceMinutes).inMilliseconds;
+      return ((deadline - now) / 1000).floor().clamp(0, 1 << 31);
+    }
+  }
+  return (fallbackRemainingSeconds ?? 0).clamp(0, 1 << 31);
+}
+
+bool isRefundWindowOpen({
+  String? refundDeadlineAt,
+  String? paymentSuccessAt,
+  int? graceMinutes,
+  int? remainingSeconds,
+}) {
+  return computeRefundSecondsLeft(
+        refundDeadlineAt: refundDeadlineAt,
+        paymentSuccessAt: paymentSuccessAt,
+        graceMinutes: graceMinutes,
+        fallbackRemainingSeconds: remainingSeconds,
+      ) >
+      0;
 }

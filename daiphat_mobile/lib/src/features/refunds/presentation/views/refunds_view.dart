@@ -5,9 +5,9 @@ import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:intl/intl.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
-import 'package:daiphat_mobile/src/features/profile/data/models/refund_request.dart';
-import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
-import 'package:daiphat_mobile/src/features/profile/presentation/widgets/profile_status_badge.dart';
+import 'package:daiphat_mobile/src/features/refunds/domain/entities/refund_request.dart';
+import 'package:daiphat_mobile/src/features/refunds/presentation/providers/refunds_providers.dart';
+import 'package:daiphat_mobile/src/features/refunds/presentation/widgets/refund_status_badge.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 import 'package:daiphat_mobile/src/shared/widgets/app_status_tab_bar.dart';
@@ -37,7 +37,7 @@ class _RefundsViewState extends ConsumerState<RefundsView> {
   @override
   void initState() {
     super.initState();
-    _viewModel = RefundsViewModel(ref.read(refundServiceProvider));
+    _viewModel = RefundsViewModel(ref.read(getMyRefundsProvider));
     _scrollController.addListener(_onScroll);
   }
 

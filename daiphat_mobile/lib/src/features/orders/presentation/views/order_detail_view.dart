@@ -9,10 +9,10 @@ import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/features/orders/domain/entities/order.dart';
 import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
 import 'package:daiphat_mobile/src/features/orders/presentation/providers/orders_providers.dart';
-import 'package:daiphat_mobile/src/features/checkout/models/refund_type.dart';
-import 'package:daiphat_mobile/src/features/profile/data/models/refund_request.dart';
-import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
-import 'package:daiphat_mobile/src/features/profile/presentation/widgets/refund_request_sheet.dart';
+import 'package:daiphat_mobile/src/features/refunds/domain/entities/refund_request.dart';
+import 'package:daiphat_mobile/src/features/refunds/presentation/providers/refunds_providers.dart';
+import 'package:daiphat_mobile/src/features/refunds/presentation/widgets/refund_request_sheet.dart';
+import 'package:daiphat_mobile/src/features/bank_accounts/presentation/providers/bank_accounts_providers.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/profile_iconography.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
@@ -56,7 +56,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
       ),
       requestOrderRefund: ref.read(requestOrderRefundProvider),
       transactionService: ref.read(transactionServiceProvider),
-      refundService: ref.read(refundServiceProvider),
+      getMyRefunds: ref.read(getMyRefundsProvider),
       orderId: widget.orderId,
     );
   }
@@ -1731,8 +1731,11 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
       ),
       builder: (_) => RefundRequestSheet(
         order: order,
-        orderService: ref.read(orderServiceProvider),
-        bankAccountService: ref.read(bankAccountServiceProvider),
+        getOrderRefundEligibility: ref.read(getOrderRefundEligibilityProvider),
+        getMyBankAccounts: ref.read(getMyBankAccountsProvider),
+        getBanks: ref.read(getBanksProvider),
+        createBankAccount: ref.read(createBankAccountProvider),
+        updateBankAccount: ref.read(updateBankAccountProvider),
         onSubmit: _viewModel.requestRefund,
       ),
     );

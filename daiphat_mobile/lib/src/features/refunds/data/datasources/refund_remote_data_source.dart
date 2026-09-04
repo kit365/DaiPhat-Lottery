@@ -1,13 +1,13 @@
-import 'package:daiphat_mobile/src/features/profile/data/models/refund_request.dart';
+import 'package:daiphat_mobile/src/features/refunds/domain/entities/refund_request.dart';
 import 'package:daiphat_mobile/src/shared/network/api_client.dart';
 import 'package:daiphat_mobile/src/shared/network/api_exception.dart';
 
-class RefundService {
+class RefundRemoteDataSource {
   static const _baseRefundRequests = '/refund-requests';
 
   final ApiClient _apiClient;
 
-  RefundService(this._apiClient);
+  RefundRemoteDataSource(this._apiClient);
 
   Future<RefundPageResult> getMyRefunds({
     int page = 1,

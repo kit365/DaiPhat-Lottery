@@ -4,10 +4,11 @@ import 'package:go_router/go_router.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:intl/intl.dart';
 
-import 'package:daiphat_mobile/src/features/checkout/models/refund_type.dart';
-import 'package:daiphat_mobile/src/features/profile/data/models/refund_request.dart';
-import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
-import 'package:daiphat_mobile/src/features/profile/presentation/widgets/profile_status_badge.dart';
+import 'package:daiphat_mobile/src/features/bank_accounts/domain/entities/bank_account.dart';
+import 'package:daiphat_mobile/src/features/bank_accounts/presentation/providers/bank_accounts_providers.dart';
+import 'package:daiphat_mobile/src/features/refunds/domain/entities/refund_request.dart';
+import 'package:daiphat_mobile/src/features/refunds/presentation/providers/refunds_providers.dart';
+import 'package:daiphat_mobile/src/features/refunds/presentation/widgets/refund_status_badge.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/profile_iconography.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
@@ -30,8 +31,9 @@ class _RefundDetailViewState extends ConsumerState<RefundDetailView> {
   void initState() {
     super.initState();
     _viewModel = RefundDetailViewModel(
-      ref.read(refundServiceProvider),
-      ref.read(bankAccountServiceProvider),
+      ref.read(getRefundDetailProvider),
+      ref.read(attachRefundBankAccountProvider),
+      ref.read(getMyBankAccountsProvider),
       widget.refundId,
     );
   }

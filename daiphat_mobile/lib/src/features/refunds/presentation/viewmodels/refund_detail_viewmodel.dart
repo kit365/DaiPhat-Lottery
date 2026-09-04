@@ -1,18 +1,20 @@
 import 'package:flutter/foundation.dart';
 
-import 'package:daiphat_mobile/src/features/checkout/models/refund_type.dart';
-import 'package:daiphat_mobile/src/features/profile/data/bank_account_service.dart';
-import 'package:daiphat_mobile/src/features/profile/data/models/refund_request.dart';
-import 'package:daiphat_mobile/src/features/profile/data/refund_service.dart';
+import 'package:daiphat_mobile/src/features/bank_accounts/domain/entities/bank_account.dart';
+import 'package:daiphat_mobile/src/features/bank_accounts/domain/usecases/bank_account_usecases.dart';
+import 'package:daiphat_mobile/src/features/refunds/domain/entities/refund_request.dart';
+import 'package:daiphat_mobile/src/features/refunds/domain/usecases/refund_usecases.dart';
 
 class RefundDetailViewModel extends ChangeNotifier {
-  final RefundService _service;
-  final BankAccountService _bankAccountService;
+  final GetRefundDetail _getRefundDetail;
+  final AttachRefundBankAccount _attachRefundBankAccount;
+  final GetMyBankAccounts _getMyBankAccounts;
   final int refundId;
 
   RefundDetailViewModel(
-    this._service,
-    this._bankAccountService,
+    this._getRefundDetail,
+    this._attachRefundBankAccount,
+    this._getMyBankAccounts,
     this.refundId,
   ) {
     load();
@@ -38,9 +40,9 @@ class RefundDetailViewModel extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      _refund = await _service.getRefundDetail(refundId);
+      _refund = await _getRefundDetail(refundId);
       if (_refund?.status == RefundRequestStatus.waitingForInfo) {
-        _myBanks = await _bankAccountService.getMyAccounts();
+        _myBanks = await _getMyBankAccounts();
       }
     } catch (e) {
       _error = e.toString().replaceFirst('Exception: ', '');
@@ -55,7 +57,7 @@ class RefundDetailViewModel extends ChangeNotifier {
     _isSubmitting = true;
     notifyListeners();
     try {
-      _refund = await _service.attachBankAccount(
+      _refund = await _attachRefundBankAccount(
         id: refundId,
         bankAccountId: bankAccountId,
       );

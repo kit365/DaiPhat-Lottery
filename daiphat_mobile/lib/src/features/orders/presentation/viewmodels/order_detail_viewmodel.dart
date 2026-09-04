@@ -4,13 +4,12 @@ import 'package:flutter/material.dart';
 
 import 'package:daiphat_mobile/src/features/checkout/data/transaction_service.dart';
 import 'package:daiphat_mobile/src/features/orders/domain/entities/order.dart';
-import 'package:daiphat_mobile/src/features/checkout/models/refund_type.dart';
+import 'package:daiphat_mobile/src/features/refunds/domain/entities/refund_request.dart';
 import 'package:daiphat_mobile/src/features/checkout/models/transaction_type.dart';
 import 'package:daiphat_mobile/src/features/orders/domain/usecases/get_my_order_detail.dart';
 import 'package:daiphat_mobile/src/features/orders/domain/usecases/get_order_refund_eligibility.dart';
 import 'package:daiphat_mobile/src/features/orders/domain/usecases/request_order_refund.dart';
-import 'package:daiphat_mobile/src/features/profile/data/models/refund_request.dart';
-import 'package:daiphat_mobile/src/features/profile/data/refund_service.dart';
+import 'package:daiphat_mobile/src/features/refunds/domain/usecases/refund_usecases.dart';
 
 /// Chi tiết đơn — luồng hủy/hoàn tiền khớp web `OrderDetailTab`.
 class OrderDetailViewModel extends ChangeNotifier {
@@ -24,7 +23,7 @@ class OrderDetailViewModel extends ChangeNotifier {
   final GetOrderRefundEligibility _getOrderRefundEligibility;
   final RequestOrderRefund _requestOrderRefund;
   final TransactionService _transactionService;
-  final RefundService _refundService;
+  final GetMyRefunds _getMyRefunds;
   final String orderId;
 
   OrderResponse? _order;
@@ -47,13 +46,13 @@ class OrderDetailViewModel extends ChangeNotifier {
     required GetOrderRefundEligibility getOrderRefundEligibility,
     required RequestOrderRefund requestOrderRefund,
     required TransactionService transactionService,
-    required RefundService refundService,
+    required GetMyRefunds getMyRefunds,
     required this.orderId,
   })  : _getMyOrderDetail = getMyOrderDetail,
         _getOrderRefundEligibility = getOrderRefundEligibility,
         _requestOrderRefund = requestOrderRefund,
         _transactionService = transactionService,
-        _refundService = refundService {
+        _getMyRefunds = getMyRefunds {
     fetchOrderDetail();
   }
 
@@ -121,7 +120,7 @@ class OrderDetailViewModel extends ChangeNotifier {
     _refundSecondsLeft = 0;
 
     try {
-      final page = await _refundService.getMyRefunds(
+      final page = await _getMyRefunds(
         page: 1,
         limit: 50,
         orderId: order.id,
