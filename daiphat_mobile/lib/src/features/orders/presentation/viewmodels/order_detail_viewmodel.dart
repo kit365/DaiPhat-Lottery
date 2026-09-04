@@ -2,11 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import 'package:daiphat_mobile/src/features/checkout/data/order_service.dart';
 import 'package:daiphat_mobile/src/features/checkout/data/transaction_service.dart';
-import 'package:daiphat_mobile/src/features/checkout/models/order_type.dart';
+import 'package:daiphat_mobile/src/features/orders/domain/entities/order.dart';
 import 'package:daiphat_mobile/src/features/checkout/models/refund_type.dart';
 import 'package:daiphat_mobile/src/features/checkout/models/transaction_type.dart';
+import 'package:daiphat_mobile/src/features/orders/domain/usecases/get_my_order_detail.dart';
+import 'package:daiphat_mobile/src/features/orders/domain/usecases/get_order_refund_eligibility.dart';
+import 'package:daiphat_mobile/src/features/orders/domain/usecases/request_order_refund.dart';
 import 'package:daiphat_mobile/src/features/profile/data/models/refund_request.dart';
 import 'package:daiphat_mobile/src/features/profile/data/refund_service.dart';
 
@@ -18,7 +20,9 @@ class OrderDetailViewModel extends ChangeNotifier {
     'PENDING_PICKUP',
   };
 
-  final OrderService _orderService;
+  final GetMyOrderDetail _getMyOrderDetail;
+  final GetOrderRefundEligibility _getOrderRefundEligibility;
+  final RequestOrderRefund _requestOrderRefund;
   final TransactionService _transactionService;
   final RefundService _refundService;
   final String orderId;
@@ -39,11 +43,15 @@ class OrderDetailViewModel extends ChangeNotifier {
   RefundRequestResponse? _pendingFullOrderRefund;
 
   OrderDetailViewModel({
-    required OrderService orderService,
+    required GetMyOrderDetail getMyOrderDetail,
+    required GetOrderRefundEligibility getOrderRefundEligibility,
+    required RequestOrderRefund requestOrderRefund,
     required TransactionService transactionService,
     required RefundService refundService,
     required this.orderId,
-  })  : _orderService = orderService,
+  })  : _getMyOrderDetail = getMyOrderDetail,
+        _getOrderRefundEligibility = getOrderRefundEligibility,
+        _requestOrderRefund = requestOrderRefund,
         _transactionService = transactionService,
         _refundService = refundService {
     fetchOrderDetail();
@@ -92,7 +100,7 @@ class OrderDetailViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _order = await _orderService.getMyOrderDetail(orderId);
+      _order = await _getMyOrderDetail(orderId);
       _initPaymentCountdown();
       await _loadRefundContext();
     } catch (e) {
@@ -131,7 +139,7 @@ class OrderDetailViewModel extends ChangeNotifier {
     _isLoadingEligibility = true;
     notifyListeners();
     try {
-      _eligibility = await _orderService.getRefundEligibility(order.id);
+      _eligibility = await _getOrderRefundEligibility(order.id);
       _startRefundCountdown();
     } catch (_) {
       _eligibility = null;
@@ -212,7 +220,7 @@ class OrderDetailViewModel extends ChangeNotifier {
     _isRefunding = true;
     notifyListeners();
     try {
-      await _orderService.requestOrderRefund(_order!.id, request);
+      await _requestOrderRefund(_order!.id, request);
       await fetchOrderDetail();
       return true;
     } finally {

@@ -1,4 +1,4 @@
-import 'package:daiphat_mobile/src/features/checkout/models/order_type.dart';
+import 'package:daiphat_mobile/src/features/orders/domain/entities/order.dart';
 import 'package:daiphat_mobile/src/features/checkout/models/refund_type.dart';
 
 /// Trạng thái xử lý của một yêu cầu hoàn tiền (đồng bộ với BE / FE web).

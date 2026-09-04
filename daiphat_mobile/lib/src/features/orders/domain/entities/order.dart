@@ -211,8 +211,10 @@ class OrderResponse {
   });
 
   factory OrderResponse.fromJson(Map<String, dynamic> json) {
+    final id = json['id']?.toString().trim();
+    final orderId = json['orderId']?.toString().trim();
     return OrderResponse(
-      id: json['id']?.toString() ?? '',
+      id: id?.isNotEmpty == true ? id! : orderId ?? '',
       orderCode: json['orderCode']?.toString() ?? '',
       totalAmount: json['totalAmount'] as int? ?? 0,
       status: json['status']?.toString() ?? '',

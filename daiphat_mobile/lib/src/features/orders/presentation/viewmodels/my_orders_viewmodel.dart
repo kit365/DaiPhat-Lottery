@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
-import 'package:daiphat_mobile/src/features/checkout/data/order_service.dart';
-import 'package:daiphat_mobile/src/features/checkout/models/order_type.dart';
+import 'package:daiphat_mobile/src/features/orders/domain/entities/order.dart';
+import 'package:daiphat_mobile/src/features/orders/domain/usecases/get_my_orders.dart';
 
 class MyOrdersViewModel extends ChangeNotifier {
-  final OrderService _orderService;
+  final GetMyOrders _getMyOrders;
 
   List<OrderResponse> _orders = [];
   List<OrderResponse> get orders => _orders;
@@ -33,7 +33,7 @@ class MyOrdersViewModel extends ChangeNotifier {
   String _direction = 'desc';
   String get direction => _direction;
 
-  MyOrdersViewModel(this._orderService) {
+  MyOrdersViewModel(this._getMyOrders) {
     fetchOrders(refresh: true);
   }
 
@@ -52,7 +52,7 @@ class MyOrdersViewModel extends ChangeNotifier {
     }
 
     try {
-      final result = await _orderService.getMyOrders(
+      final result = await _getMyOrders(
         page: _page,
         size: 10,
         status: _selectedStatus,

@@ -6,8 +6,9 @@ import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:intl/intl.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
-import 'package:daiphat_mobile/src/features/checkout/models/order_type.dart';
+import 'package:daiphat_mobile/src/features/orders/domain/entities/order.dart';
 import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
+import 'package:daiphat_mobile/src/features/orders/presentation/providers/orders_providers.dart';
 import 'package:daiphat_mobile/src/features/checkout/models/refund_type.dart';
 import 'package:daiphat_mobile/src/features/profile/data/models/refund_request.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
@@ -49,7 +50,11 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
   void initState() {
     super.initState();
     _viewModel = OrderDetailViewModel(
-      orderService: ref.read(orderServiceProvider),
+      getMyOrderDetail: ref.read(getMyOrderDetailProvider),
+      getOrderRefundEligibility: ref.read(
+        getOrderRefundEligibilityProvider,
+      ),
+      requestOrderRefund: ref.read(requestOrderRefundProvider),
       transactionService: ref.read(transactionServiceProvider),
       refundService: ref.read(refundServiceProvider),
       orderId: widget.orderId,

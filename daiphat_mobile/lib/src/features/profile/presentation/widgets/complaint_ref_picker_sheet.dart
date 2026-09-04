@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 
-import 'package:daiphat_mobile/src/features/checkout/data/order_service.dart';
-import 'package:daiphat_mobile/src/features/checkout/models/order_type.dart';
+import 'package:daiphat_mobile/src/features/orders/data/datasources/order_remote_data_source.dart';
+import 'package:daiphat_mobile/src/features/orders/domain/entities/order.dart';
 import 'package:daiphat_mobile/src/features/profile/data/models/prize_payout_request.dart';
 import 'package:daiphat_mobile/src/features/profile/data/models/refund_request.dart';
 import 'package:daiphat_mobile/src/features/profile/data/models/support_ticket.dart';

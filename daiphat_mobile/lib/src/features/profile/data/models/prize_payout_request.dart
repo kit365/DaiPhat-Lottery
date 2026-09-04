@@ -1,4 +1,4 @@
-import 'package:daiphat_mobile/src/features/checkout/models/order_type.dart';
+import 'package:daiphat_mobile/src/features/orders/domain/entities/order.dart';
 
 /// Trạng thái của yêu cầu trả thưởng (đồng bộ BE / FE web).
 enum PrizePayoutRequestStatus {

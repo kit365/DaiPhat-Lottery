@@ -1,8 +1,8 @@
-import '../../models/order_type.dart';
-import '../repositories/order_repository.dart';
+import 'package:daiphat_mobile/src/features/orders/domain/entities/order.dart';
+import 'package:daiphat_mobile/src/features/orders/domain/repositories/orders_repository.dart';
 
 class CreateOnlineOrder {
-  final OrderRepository _repository;
+  final OrdersRepository _repository;
 
   const CreateOnlineOrder(this._repository);
 

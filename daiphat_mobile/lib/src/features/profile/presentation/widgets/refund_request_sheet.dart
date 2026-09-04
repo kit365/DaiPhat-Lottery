@@ -4,8 +4,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 
-import 'package:daiphat_mobile/src/features/checkout/data/order_service.dart';
-import 'package:daiphat_mobile/src/features/checkout/models/order_type.dart';
+import 'package:daiphat_mobile/src/features/orders/data/datasources/order_remote_data_source.dart';
+import 'package:daiphat_mobile/src/features/orders/domain/entities/order.dart';
 import 'package:daiphat_mobile/src/features/checkout/models/refund_type.dart';
 import 'package:daiphat_mobile/src/features/profile/data/bank_account_service.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/bank_account_form_page.dart';

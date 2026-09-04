@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:image_picker/image_picker.dart';
 
-import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
+import 'package:daiphat_mobile/src/features/orders/presentation/providers/orders_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/data/models/support_ticket.dart';
 import 'package:daiphat_mobile/src/features/profile/data/support_ticket_service.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';

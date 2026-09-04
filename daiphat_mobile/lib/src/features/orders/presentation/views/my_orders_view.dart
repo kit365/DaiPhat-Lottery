@@ -6,8 +6,8 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
-import 'package:daiphat_mobile/src/features/checkout/models/order_type.dart';
-import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
+import 'package:daiphat_mobile/src/features/orders/domain/entities/order.dart';
+import 'package:daiphat_mobile/src/features/orders/presentation/providers/orders_providers.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/profile_iconography.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
@@ -44,7 +44,7 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
   @override
   void initState() {
     super.initState();
-    _viewModel = MyOrdersViewModel(ref.read(orderServiceProvider));
+    _viewModel = MyOrdersViewModel(ref.read(getMyOrdersProvider));
     _scrollController.addListener(_onScroll);
   }
 
