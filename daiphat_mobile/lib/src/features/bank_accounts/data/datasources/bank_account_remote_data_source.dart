@@ -1,12 +1,12 @@
-import 'package:daiphat_mobile/src/features/checkout/models/refund_type.dart';
+import 'package:daiphat_mobile/src/features/bank_accounts/domain/entities/bank_account.dart';
 import 'package:daiphat_mobile/src/shared/network/api_client.dart';
 
-class BankAccountService {
+class BankAccountRemoteDataSource {
   static const _baseBankAccounts = '/users/me/bank-accounts';
 
   final ApiClient _apiClient;
 
-  BankAccountService(this._apiClient);
+  BankAccountRemoteDataSource(this._apiClient);
 
   Future<List<UserBankAccountResponse>> getMyAccounts() async {
     final response = await _apiClient.get(_baseBankAccounts);

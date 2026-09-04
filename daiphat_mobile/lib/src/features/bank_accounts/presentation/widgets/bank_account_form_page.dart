@@ -3,21 +3,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 
-import 'package:daiphat_mobile/src/features/checkout/models/refund_type.dart';
-import 'package:daiphat_mobile/src/features/profile/data/bank_account_service.dart';
+import 'package:daiphat_mobile/src/features/bank_accounts/domain/entities/bank_account.dart';
+import 'package:daiphat_mobile/src/features/bank_accounts/domain/usecases/bank_account_usecases.dart';
 import 'package:daiphat_mobile/src/shared/network/api_exception.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import 'bank_search_screen.dart';
 
 class BankAccountFormPage extends StatefulWidget {
-  final BankAccountService service;
+  final CreateBankAccount createBankAccount;
+  final UpdateBankAccount updateBankAccount;
   final List<VietQrBankResponse> banks;
   final UserBankAccountResponse? account;
 
   const BankAccountFormPage({
     super.key,
-    required this.service,
+    required this.createBankAccount,
+    required this.updateBankAccount,
     required this.banks,
     this.account,
   });
@@ -103,8 +105,8 @@ class _BankAccountFormPageState extends State<BankAccountFormPage> {
 
     try {
       final result = widget.isEditing
-          ? await widget.service.updateAccount(widget.account!.id, request)
-          : await widget.service.createAccount(request);
+          ? await widget.updateBankAccount(widget.account!.id, request)
+          : await widget.createBankAccount(request);
       if (!mounted) return;
       Navigator.of(context).pop(result);
     } on ApiException catch (e) {

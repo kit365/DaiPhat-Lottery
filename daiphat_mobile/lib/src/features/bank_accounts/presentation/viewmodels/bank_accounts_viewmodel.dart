@@ -1,11 +1,14 @@
 import 'package:flutter/foundation.dart';
 
-import 'package:daiphat_mobile/src/features/checkout/models/refund_type.dart';
-import 'package:daiphat_mobile/src/features/profile/data/bank_account_service.dart';
+import 'package:daiphat_mobile/src/features/bank_accounts/domain/entities/bank_account.dart';
+import 'package:daiphat_mobile/src/features/bank_accounts/domain/usecases/bank_account_usecases.dart';
 import 'package:daiphat_mobile/src/shared/network/api_exception.dart';
 
 class BankAccountsViewModel extends ChangeNotifier {
-  final BankAccountService _service;
+  final GetMyBankAccounts _getMyBankAccounts;
+  final GetBanks _getBanks;
+  final SetDefaultBankAccount _setDefaultBankAccount;
+  final DeleteBankAccount _deleteBankAccount;
 
   List<UserBankAccountResponse> _accounts = const [];
   List<UserBankAccountResponse> get accounts => _accounts;
@@ -22,7 +25,12 @@ class BankAccountsViewModel extends ChangeNotifier {
   int? _mutatingId;
   int? get mutatingId => _mutatingId;
 
-  BankAccountsViewModel(this._service) {
+  BankAccountsViewModel(
+    this._getMyBankAccounts,
+    this._getBanks,
+    this._setDefaultBankAccount,
+    this._deleteBankAccount,
+  ) {
     load();
   }
 
@@ -34,9 +42,9 @@ class BankAccountsViewModel extends ChangeNotifier {
     }
 
     try {
-      _accounts = await _service.getMyAccounts();
+      _accounts = await _getMyBankAccounts();
       if (_banks.isEmpty) {
-        _banks = await _service.getBanks();
+        _banks = await _getBanks();
       }
       _error = null;
     } on ApiException catch (e) {
@@ -54,7 +62,7 @@ class BankAccountsViewModel extends ChangeNotifier {
     _mutatingId = id;
     notifyListeners();
     try {
-      await _service.setDefaultAccount(id);
+      await _setDefaultBankAccount(id);
       await load(silent: true);
       return null;
     } on ApiException catch (e) {
@@ -72,7 +80,7 @@ class BankAccountsViewModel extends ChangeNotifier {
     _mutatingId = id;
     notifyListeners();
     try {
-      await _service.deleteAccount(id);
+      await _deleteBankAccount(id);
       await load(silent: true);
       return null;
     } on ApiException catch (e) {

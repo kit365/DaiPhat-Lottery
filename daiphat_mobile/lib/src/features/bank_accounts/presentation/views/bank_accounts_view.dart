@@ -4,9 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 
-import 'package:daiphat_mobile/src/features/checkout/models/refund_type.dart';
-import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
-import 'package:daiphat_mobile/src/features/profile/presentation/widgets/bank_account_form_page.dart';
+import 'package:daiphat_mobile/src/features/bank_accounts/domain/entities/bank_account.dart';
+import 'package:daiphat_mobile/src/features/bank_accounts/presentation/providers/bank_accounts_providers.dart';
+import 'package:daiphat_mobile/src/features/bank_accounts/presentation/widgets/bank_account_form_page.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/profile_iconography.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
@@ -27,7 +27,12 @@ class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
   @override
   void initState() {
     super.initState();
-    _viewModel = BankAccountsViewModel(ref.read(bankAccountServiceProvider));
+    _viewModel = BankAccountsViewModel(
+      ref.read(getMyBankAccountsProvider),
+      ref.read(getBanksProvider),
+      ref.read(setDefaultBankAccountProvider),
+      ref.read(deleteBankAccountProvider),
+    );
   }
 
   @override
@@ -42,7 +47,8 @@ class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
         .push<UserBankAccountResponse>(
           MaterialPageRoute(
             builder: (_) => BankAccountFormPage(
-              service: ref.read(bankAccountServiceProvider),
+              createBankAccount: ref.read(createBankAccountProvider),
+              updateBankAccount: ref.read(updateBankAccountProvider),
               banks: _viewModel.banks,
               account: account,
             ),

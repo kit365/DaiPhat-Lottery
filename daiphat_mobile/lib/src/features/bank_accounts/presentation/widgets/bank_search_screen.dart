@@ -2,7 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 
-import 'package:daiphat_mobile/src/features/checkout/models/refund_type.dart';
+import 'package:daiphat_mobile/src/features/bank_accounts/domain/entities/bank_account.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 
 class BankSearchScreen extends StatefulWidget {
