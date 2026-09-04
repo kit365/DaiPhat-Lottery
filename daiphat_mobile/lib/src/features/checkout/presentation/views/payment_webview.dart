@@ -92,7 +92,7 @@ class _PaymentWebViewState extends ConsumerState<PaymentWebView> {
   Future<void> _fetchAndStartCountdown() async {
     if (widget.orderId == null) return;
     try {
-      final service = ref.read(transactionServiceProvider);
+      final service = ref.read(transactionRepositoryProvider);
       final result =
           await service.getPendingPaymentCountdown(widget.orderId!);
       if (!mounted) return;
