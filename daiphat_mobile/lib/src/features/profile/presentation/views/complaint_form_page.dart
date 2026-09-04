@@ -5,10 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:image_picker/image_picker.dart';
 
-import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
+import 'package:daiphat_mobile/src/features/orders/presentation/providers/orders_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/data/models/support_ticket.dart';
 import 'package:daiphat_mobile/src/features/profile/data/support_ticket_service.dart';
-import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
+import 'package:daiphat_mobile/src/features/prize_payouts/presentation/providers/prize_payouts_providers.dart';
+import 'package:daiphat_mobile/src/features/refunds/presentation/providers/refunds_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/complaint_ref_picker_sheet.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
@@ -134,9 +135,9 @@ class _ComplaintFormPageState extends ConsumerState<ComplaintFormPage> {
     final result = await showComplaintRefPicker(
       context: context,
       refType: refType,
-      orderService: ref.read(orderServiceProvider),
-      refundService: ref.read(refundServiceProvider),
-      prizePayoutService: ref.read(prizePayoutServiceProvider),
+      getMyOrders: ref.read(getMyOrdersProvider),
+      getMyRefunds: ref.read(getMyRefundsProvider),
+      getMyPrizePayouts: ref.read(getMyPrizePayoutsProvider),
       selectedId: _selectedRefId,
     );
     if (result != null && mounted) {

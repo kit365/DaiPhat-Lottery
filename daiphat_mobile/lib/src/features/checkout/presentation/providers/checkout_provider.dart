@@ -1,22 +1,33 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../data/order_service.dart';
-import '../../data/transaction_service.dart';
 import '../../data/system_config_service.dart';
-import '../../models/order_type.dart';
+import '../../data/transaction_service.dart';
+import '../../domain/repositories/transaction_repository.dart';
+import '../../domain/usecases/create_online_order.dart';
+import '../../domain/usecases/process_payment.dart';
 import '../../models/transaction_type.dart';
 import '../../../cart/providers/cart_provider.dart';
+import 'package:daiphat_mobile/src/features/orders/domain/entities/order.dart';
+import 'package:daiphat_mobile/src/features/orders/presentation/providers/orders_providers.dart';
 import 'package:daiphat_mobile/src/shared/providers/api_providers.dart';
 import 'package:daiphat_mobile/src/shared/utils/api_error_message.dart';
 
 // ─── Dependencies ───────────────────────────────────────────────────────────
 
-final orderServiceProvider = Provider<OrderService>((ref) {
+final transactionServiceProvider = Provider<TransactionService>((ref) {
   throw UnimplementedError('Must be overridden in main');
 });
 
-final transactionServiceProvider = Provider<TransactionService>((ref) {
+final transactionRepositoryProvider = Provider<TransactionRepository>((ref) {
   throw UnimplementedError('Must be overridden in main');
+});
+
+final createOnlineOrderProvider = Provider<CreateOnlineOrder>((ref) {
+  return CreateOnlineOrder(ref.watch(ordersRepositoryProvider));
+});
+
+final processPaymentProvider = Provider<ProcessPayment>((ref) {
+  return ProcessPayment(ref.watch(transactionRepositoryProvider));
 });
 
 final systemConfigServiceProvider = Provider<SystemConfigService>((ref) {
@@ -46,7 +57,8 @@ final receiveTypesProvider = FutureProvider.autoDispose<List<EnumOption>>((
   ref,
 ) async {
   try {
-    final types = await ref.watch(orderServiceProvider).getOrderReceiveTypes();
+    final types =
+        await ref.watch(ordersRepositoryProvider).getOrderReceiveTypes();
     if (types.isNotEmpty) return types;
   } catch (_) {
     // Fallback để không khóa màn thanh toán khi API/session lỗi tạm thời.
@@ -59,7 +71,7 @@ final transactionTypesProvider = FutureProvider.autoDispose<List<EnumOption>>((
 ) async {
   try {
     final types =
-        await ref.watch(transactionServiceProvider).getTransactionTypes();
+        await ref.watch(transactionRepositoryProvider).getTransactionTypes();
     if (types.isNotEmpty) return types;
   } catch (_) {
     // Fallback: mobile chỉ dùng ONLINE.
@@ -80,6 +92,7 @@ class CheckoutState {
   final String? errorMessage;
   final String? checkoutUrl;
   final String? orderId;
+  final String? orderCode;
 
   const CheckoutState({
     this.name = '',
@@ -92,6 +105,7 @@ class CheckoutState {
     this.errorMessage,
     this.checkoutUrl,
     this.orderId,
+    this.orderCode,
   });
 
   CheckoutState copyWith({
@@ -106,6 +120,8 @@ class CheckoutState {
     String? errorMessage,
     String? checkoutUrl,
     String? orderId,
+    String? orderCode,
+    bool clearCheckoutResult = false,
   }) {
     return CheckoutState(
       name: name ?? this.name,
@@ -118,8 +134,10 @@ class CheckoutState {
           selectedTransactionType ?? this.selectedTransactionType,
       isSubmitting: isSubmitting ?? this.isSubmitting,
       errorMessage: errorMessage,
-      checkoutUrl: checkoutUrl ?? this.checkoutUrl,
-      orderId: orderId ?? this.orderId,
+      checkoutUrl:
+          clearCheckoutResult ? null : (checkoutUrl ?? this.checkoutUrl),
+      orderId: clearCheckoutResult ? null : (orderId ?? this.orderId),
+      orderCode: clearCheckoutResult ? null : (orderCode ?? this.orderCode),
     );
   }
 
@@ -184,7 +202,11 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
       return false;
     }
 
-    state = state.copyWith(isSubmitting: true, errorMessage: null);
+    state = state.copyWith(
+      isSubmitting: true,
+      errorMessage: null,
+      clearCheckoutResult: true,
+    );
 
     try {
       final items = ref.read(checkoutItemsProvider);
@@ -196,8 +218,8 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
         return false;
       }
 
-      final orderService = ref.read(orderServiceProvider);
-      final transactionService = ref.read(transactionServiceProvider);
+      final createOnlineOrder = ref.read(createOnlineOrderProvider);
+      final processPayment = ref.read(processPaymentProvider);
 
       // 1. Create order
       final request = CreateOnlineOrderRequest(
@@ -216,14 +238,14 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
         note: state.note.isNotEmpty ? state.note.trim() : null,
       );
 
-      final orderResponse = await orderService.createOnlineOrder(request);
+      final orderResponse = await createOnlineOrder(request);
 
       // 2. Check if online payment
       final transactionId = orderResponse.transactions?.firstOrNull?.id;
 
       if (state.selectedTransactionType == 'ONLINE' && transactionId != null) {
         // Process payment → get PayOS checkout URL
-        final paymentResult = await transactionService.processPayment(
+        final paymentResult = await processPayment(
           orderId: orderResponse.id,
           request: ProcessPaymentRequest(
             transactionId: transactionId,
@@ -237,6 +259,7 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
           state = state.copyWith(
             checkoutUrl: paymentResult.checkoutUrl,
             orderId: orderResponse.id,
+            orderCode: orderResponse.orderCode,
             isSubmitting: false,
           );
           return true;
@@ -250,7 +273,11 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
       } else {
         // Offline / cash payment – cập nhật giỏ ngay
         _finalizePurchasedItems();
-        state = state.copyWith(isSubmitting: false);
+        state = state.copyWith(
+          orderId: orderResponse.id,
+          orderCode: orderResponse.orderCode,
+          isSubmitting: false,
+        );
         return true;
       }
     } catch (e) {

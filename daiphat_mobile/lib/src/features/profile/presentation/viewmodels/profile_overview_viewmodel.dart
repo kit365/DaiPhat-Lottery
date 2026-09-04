@@ -1,13 +1,21 @@
 import 'package:flutter/foundation.dart';
 
-import 'package:daiphat_mobile/src/features/checkout/data/order_service.dart';
-import 'package:daiphat_mobile/src/features/checkout/models/order_type.dart';
-import 'package:daiphat_mobile/src/features/profile/data/models/purchased_ticket.dart';
+import 'package:daiphat_mobile/src/features/orders/domain/entities/order.dart';
+import 'package:daiphat_mobile/src/features/orders/domain/usecases/get_my_orders.dart';
+import 'package:daiphat_mobile/src/features/tickets/domain/entities/purchased_ticket.dart';
+import 'package:daiphat_mobile/src/features/tickets/domain/usecases/get_my_tickets.dart';
+import 'package:daiphat_mobile/src/features/tickets/domain/usecases/get_my_tickets_summary.dart';
 
 class ProfileOverviewViewModel extends ChangeNotifier {
-  final OrderService _orderService;
+  final GetMyOrders _getMyOrders;
+  final GetMyTickets _getMyTickets;
+  final GetMyTicketsSummary _getMyTicketsSummary;
 
-  ProfileOverviewViewModel(this._orderService) {
+  ProfileOverviewViewModel(
+    this._getMyOrders,
+    this._getMyTickets,
+    this._getMyTicketsSummary,
+  ) {
     load();
   }
 
@@ -38,9 +46,9 @@ class ProfileOverviewViewModel extends ChangeNotifier {
     notifyListeners();
     try {
       final results = await Future.wait([
-        _orderService.getMyOrders(page: 1, size: 5),
-        _orderService.getMyTicketsSummary(),
-        _orderService.getMyTickets(page: 1, size: 5),
+        _getMyOrders(page: 1, size: 5),
+        _getMyTicketsSummary(),
+        _getMyTickets(page: 1, size: 5),
       ]);
 
       final ordersPage = results[0] as OrdersPageResponse;

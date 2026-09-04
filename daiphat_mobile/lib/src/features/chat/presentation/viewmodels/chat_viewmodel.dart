@@ -83,16 +83,21 @@ class ChatState {
       isSending: isSending ?? this.isSending,
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
       isAiEnabled: isAiEnabled ?? this.isAiEnabled,
-      conversationId: clearConversation ? null : conversationId ?? this.conversationId,
-      conversationStatus:
-          clearConversation ? null : conversationStatus ?? this.conversationStatus,
+      conversationId: clearConversation
+          ? null
+          : conversationId ?? this.conversationId,
+      conversationStatus: clearConversation
+          ? null
+          : conversationStatus ?? this.conversationStatus,
       assignedOperatorName: clearConversation
           ? null
           : assignedOperatorName ?? this.assignedOperatorName,
       timelineMessages: timelineMessages ?? this.timelineMessages,
       overlayMessages: overlayMessages ?? this.overlayMessages,
       quickReplies: quickReplies ?? this.quickReplies,
-      statusBanner: clearStatusBanner ? null : statusBanner ?? this.statusBanner,
+      statusBanner: clearStatusBanner
+          ? null
+          : statusBanner ?? this.statusBanner,
       hasMoreTimeline: hasMoreTimeline ?? this.hasMoreTimeline,
       errorMessage: clearError ? null : errorMessage ?? this.errorMessage,
       showWelcome: showWelcome ?? this.showWelcome,
@@ -135,6 +140,7 @@ class ChatViewModel extends Notifier<ChatState> {
   int? _subscribedConversationId;
   String? _lastReadAckKey;
   bool _timelineRefreshInFlight = false;
+  int _sessionEpoch = 0;
 
   @override
   ChatState build() {
@@ -144,21 +150,28 @@ class ChatViewModel extends Notifier<ChatState> {
 
   Future<void> bootstrap({required bool isAuthenticated}) async {
     if (!isAuthenticated) {
-      _bootstrapped = false;
-      state = state.copyWith(isAuthenticated: false);
+      await _resetSession();
       return;
     }
 
     if (_bootstrapped) return;
     _bootstrapped = true;
+    final sessionEpoch = ++_sessionEpoch;
 
-    state = state.copyWith(isLoading: true, isAuthenticated: true, clearError: true);
+    state = state.copyWith(
+      isLoading: true,
+      isAuthenticated: true,
+      clearError: true,
+    );
     try {
       final isAiEnabled = await _repository.getAiStatus();
+      if (!_isCurrentSession(sessionEpoch)) return;
       state = state.copyWith(isAiEnabled: isAiEnabled);
 
       ConversationDetailModel? detail = await _repository.getOpenConversation();
+      if (!_isCurrentSession(sessionEpoch)) return;
       detail ??= await _loadStoredConversation();
+      if (!_isCurrentSession(sessionEpoch)) return;
 
       if (detail != null) {
         _applyConversation(detail.conversation);
@@ -166,14 +179,20 @@ class ChatViewModel extends Notifier<ChatState> {
       }
 
       await _loadTimeline(reset: true);
+      if (!_isCurrentSession(sessionEpoch)) return;
       await _connectAndSubscribe();
+      if (!_isCurrentSession(sessionEpoch)) return;
       _startAiStatusPolling();
       _refreshQuickReplies();
       await _markReadIfNeeded();
     } catch (error) {
-      state = state.copyWith(errorMessage: error.toString());
+      if (_isCurrentSession(sessionEpoch)) {
+        state = state.copyWith(errorMessage: error.toString());
+      }
     } finally {
-      state = state.copyWith(isLoading: false);
+      if (_isCurrentSession(sessionEpoch)) {
+        state = state.copyWith(isLoading: false);
+      }
     }
   }
 
@@ -337,7 +356,9 @@ class ChatViewModel extends Notifier<ChatState> {
       final page = await _repository.getTimeline();
       final mapped = mapTimelineItems(page.items);
       state = state.copyWith(
-        timelineMessages: reset ? mapped : [...mapped, ...state.timelineMessages],
+        timelineMessages: reset
+            ? mapped
+            : [...mapped, ...state.timelineMessages],
         hasMoreTimeline: page.hasMore,
         overlayMessages: reset ? _pruneOverlay(mapped) : state.overlayMessages,
         showWelcome: mapped.isEmpty,
@@ -412,7 +433,9 @@ class ChatViewModel extends Notifier<ChatState> {
     unawaited(_markReadIfNeeded());
   }
 
-  Future<void> _handleConversationEvent(ChatConversationSocketEvent event) async {
+  Future<void> _handleConversationEvent(
+    ChatConversationSocketEvent event,
+  ) async {
     if (!ref.mounted) return;
     if (state.conversationId != null &&
         event.conversationId != state.conversationId) {
@@ -451,7 +474,9 @@ class ChatViewModel extends Notifier<ChatState> {
     } else if (event.eventType == 'CONVERSATION_STAFF_REQUEST_CANCELLED' ||
         event.eventType == 'CONVERSATION_TAKEN' ||
         event.eventType == 'CONVERSATION_ASSIGNED') {
-      final detail = await _repository.getConversationDetail(event.conversationId);
+      final detail = await _repository.getConversationDetail(
+        event.conversationId,
+      );
       if (!ref.mounted) return;
       if (detail != null) _applyConversation(detail.conversation);
       await _loadTimeline(reset: true);
@@ -466,10 +491,8 @@ class ChatViewModel extends Notifier<ChatState> {
     return switch (eventType) {
       'CONVERSATION_ESCALATED' => 'Đang chờ nhân viên hỗ trợ...',
       'CONVERSATION_TAKEN' ||
-      'CONVERSATION_ASSIGNED' =>
-        'Nhân viên Đại Phát đang hỗ trợ bạn.',
-      'CONVERSATION_STAFF_REQUEST_CANCELLED' =>
-        'Đã huỷ yêu cầu gặp nhân viên.',
+      'CONVERSATION_ASSIGNED' => 'Nhân viên Đại Phát đang hỗ trợ bạn.',
+      'CONVERSATION_STAFF_REQUEST_CANCELLED' => 'Đã huỷ yêu cầu gặp nhân viên.',
       'CONVERSATION_CLOSED' => 'Phiên chat đã kết thúc.',
       _ => state.statusBanner,
     };
@@ -505,13 +528,16 @@ class ChatViewModel extends Notifier<ChatState> {
       state = state.copyWith(
         quickReplies: [
           ...chips,
-          ...ticketSuggestFollowUpChips(collectSuggestedTicketIds(state.visibleMessages)),
+          ...ticketSuggestFollowUpChips(
+            collectSuggestedTicketIds(state.visibleMessages),
+          ),
         ],
       );
       return;
     }
 
-    final canShow = isOpenBotThread(state.conversationStatus) &&
+    final canShow =
+        isOpenBotThread(state.conversationStatus) &&
         state.conversationStatus != ConversationStatus.waitingForOperator &&
         !state.isSending;
     state = state.copyWith(quickReplies: canShow ? chips : const []);
@@ -608,7 +634,28 @@ class ChatViewModel extends Notifier<ChatState> {
     unawaited(_repository.disconnectWebSocket());
   }
 
-  bool _customerMessagesMatch(UiChatMessage timeline, UiChatMessage optimistic) {
+  bool _isCurrentSession(int epoch) {
+    return state.isAuthenticated && epoch == _sessionEpoch;
+  }
+
+  Future<void> _resetSession() async {
+    _sessionEpoch++;
+    _bootstrapped = false;
+    _timelineCursor = null;
+    _timelineRefreshInFlight = false;
+    _typingTimer?.cancel();
+    _aiStatusTimer?.cancel();
+    _lastReadAckKey = null;
+    _subscribedConversationId = null;
+    await _repository.disconnectWebSocket();
+    await _repository.clearLastConversationId();
+    state = const ChatState();
+  }
+
+  bool _customerMessagesMatch(
+    UiChatMessage timeline,
+    UiChatMessage optimistic,
+  ) {
     final timelineKey = timeline.sentContent ?? timeline.text;
     final optimisticKey = optimistic.sentContent ?? optimistic.text;
     return timelineKey.trim() == optimisticKey.trim();

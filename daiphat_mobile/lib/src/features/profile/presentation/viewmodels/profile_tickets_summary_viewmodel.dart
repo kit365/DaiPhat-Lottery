@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
-import 'package:daiphat_mobile/src/features/checkout/data/order_service.dart';
-import 'package:daiphat_mobile/src/features/profile/data/models/purchased_ticket.dart';
+import 'package:daiphat_mobile/src/features/tickets/domain/entities/purchased_ticket.dart';
+import 'package:daiphat_mobile/src/features/tickets/domain/usecases/get_my_tickets_summary.dart';
 
 class ProfileTicketsSummaryViewModel extends ChangeNotifier {
-  final OrderService _orderService;
+  final GetMyTicketsSummary _getMyTicketsSummary;
 
   TicketSummaryStats _stats = TicketSummaryStats.empty;
   TicketSummaryStats get stats => _stats;
@@ -11,7 +11,7 @@ class ProfileTicketsSummaryViewModel extends ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
-  ProfileTicketsSummaryViewModel(this._orderService) {
+  ProfileTicketsSummaryViewModel(this._getMyTicketsSummary) {
     loadSummary();
   }
 
@@ -20,7 +20,7 @@ class ProfileTicketsSummaryViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _stats = await _orderService.getMyTicketsSummary();
+      _stats = await _getMyTicketsSummary();
     } catch (e) {
       debugPrint('ProfileTicketsSummaryViewModel error: $e');
     } finally {
