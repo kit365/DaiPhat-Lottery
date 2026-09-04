@@ -4,9 +4,9 @@ import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
-import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
-import 'package:daiphat_mobile/src/features/profile/data/models/purchased_ticket.dart';
-import 'package:daiphat_mobile/src/features/profile/utils/ticket_display_utils.dart';
+import 'package:daiphat_mobile/src/features/tickets/domain/entities/purchased_ticket.dart';
+import 'package:daiphat_mobile/src/features/tickets/presentation/providers/purchased_tickets_providers.dart';
+import 'package:daiphat_mobile/src/features/tickets/presentation/utils/ticket_display_utils.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/profile_iconography.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
@@ -36,7 +36,7 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
   @override
   void initState() {
     super.initState();
-    _viewModel = MyTicketsViewModel(ref.read(orderServiceProvider));
+    _viewModel = MyTicketsViewModel(ref.read(getMyTicketsProvider));
     _scrollController.addListener(_onScroll);
     _searchController.addListener(() {
       _viewModel.setSearchQuery(_searchController.text);

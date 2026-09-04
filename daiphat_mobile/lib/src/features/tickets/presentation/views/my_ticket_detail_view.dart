@@ -8,11 +8,11 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/features/home/presentation/providers/lottery_results_lookup_provider.dart';
-import 'package:daiphat_mobile/src/features/profile/data/models/purchased_ticket.dart';
+import 'package:daiphat_mobile/src/features/tickets/domain/entities/purchased_ticket.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/prize_payout_request_sheet.dart';
-import 'package:daiphat_mobile/src/features/profile/utils/ticket_display_utils.dart';
-import 'package:daiphat_mobile/src/features/profile/utils/rebuy_ticket.dart';
+import 'package:daiphat_mobile/src/features/tickets/presentation/utils/ticket_display_utils.dart';
+import 'package:daiphat_mobile/src/features/tickets/presentation/utils/rebuy_ticket.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/profile_iconography.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';

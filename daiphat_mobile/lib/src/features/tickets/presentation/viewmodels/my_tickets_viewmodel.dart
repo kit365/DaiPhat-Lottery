@@ -1,11 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:daiphat_mobile/src/features/checkout/data/order_service.dart';
-import 'package:daiphat_mobile/src/features/profile/data/models/purchased_ticket.dart';
+import 'package:daiphat_mobile/src/features/tickets/domain/entities/purchased_ticket.dart';
+import 'package:daiphat_mobile/src/features/tickets/domain/usecases/get_my_tickets.dart';
 
 class MyTicketsViewModel extends ChangeNotifier {
-  final OrderService _orderService;
+  final GetMyTickets _getMyTickets;
 
   List<PurchasedTicket> _tickets = [];
   List<PurchasedTicket> get tickets => _tickets;
@@ -34,7 +34,7 @@ class MyTicketsViewModel extends ChangeNotifier {
 
   Timer? _searchDebounce;
 
-  MyTicketsViewModel(this._orderService) {
+  MyTicketsViewModel(this._getMyTickets) {
     fetchTickets(refresh: true);
   }
 
@@ -59,7 +59,7 @@ class MyTicketsViewModel extends ChangeNotifier {
     }
 
     try {
-      final result = await _orderService.getMyTickets(
+      final result = await _getMyTickets(
         page: _page,
         size: 10,
         status: _selectedStatus,

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
-import 'package:daiphat_mobile/src/features/profile/data/models/purchased_ticket.dart';
+import 'package:daiphat_mobile/src/features/tickets/domain/entities/purchased_ticket.dart';
 
 void openRebuyTicket(BuildContext context, PurchasedTicket ticket) {
   final digits = ticket.numbers.replaceAll(RegExp(r'\D'), '');

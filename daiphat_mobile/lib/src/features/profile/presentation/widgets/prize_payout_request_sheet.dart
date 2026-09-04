@@ -3,7 +3,7 @@ import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 
 import 'package:daiphat_mobile/src/features/checkout/models/refund_type.dart';
 import 'package:daiphat_mobile/src/features/profile/data/bank_account_service.dart';
-import 'package:daiphat_mobile/src/features/profile/data/models/purchased_ticket.dart';
+import 'package:daiphat_mobile/src/features/tickets/domain/entities/purchased_ticket.dart';
 import 'package:daiphat_mobile/src/features/profile/data/prize_payout_service.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/refund_request_sheet.dart';
 import 'package:daiphat_mobile/src/shared/network/api_exception.dart';
