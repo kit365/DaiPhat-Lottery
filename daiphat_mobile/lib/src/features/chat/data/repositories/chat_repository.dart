@@ -11,9 +11,9 @@ class ChatRepository {
     required ChatApiService apiService,
     required ChatWebSocketService webSocketService,
     required Future<String?> Function() readAccessToken,
-  })  : _apiService = apiService,
-        _webSocketService = webSocketService,
-        _readAccessToken = readAccessToken;
+  }) : _apiService = apiService,
+       _webSocketService = webSocketService,
+       _readAccessToken = readAccessToken;
 
   final ChatApiService _apiService;
   final ChatWebSocketService _webSocketService;
@@ -31,12 +31,11 @@ class ChatRepository {
     String? title,
     String? content,
     bool requestStaff = false,
-  }) =>
-      _apiService.initConversation(
-        title: title,
-        content: content,
-        requestStaff: requestStaff,
-      );
+  }) => _apiService.initConversation(
+    title: title,
+    content: content,
+    requestStaff: requestStaff,
+  );
 
   Future<ConversationDetailModel?> escalateConversation(int id) =>
       _apiService.escalateConversation(id);
@@ -53,12 +52,11 @@ class ChatRepository {
     int limit = 30,
     String? beforeCreatedAt,
     int? beforeId,
-  }) =>
-      _apiService.getMyTimeline(
-        limit: limit,
-        beforeCreatedAt: beforeCreatedAt,
-        beforeId: beforeId,
-      );
+  }) => _apiService.getMyTimeline(
+    limit: limit,
+    beforeCreatedAt: beforeCreatedAt,
+    beforeId: beforeId,
+  );
 
   Future<void> connectWebSocket() async {
     final token = await _readAccessToken();
@@ -73,11 +71,10 @@ class ChatRepository {
   Future<void> sendRealtimeMessage({
     required int conversationId,
     required String content,
-  }) =>
-      _webSocketService.sendMessage(
-        conversationId: conversationId,
-        content: content,
-      );
+  }) => _webSocketService.sendMessage(
+    conversationId: conversationId,
+    content: content,
+  );
 
   void subscribeInbox({
     required ChatSocketMessageHandler onMessage,
@@ -112,6 +109,11 @@ class ChatRepository {
   Future<int?> readLastConversationId() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getInt(chatLastConversationKey);
+  }
+
+  Future<void> clearLastConversationId() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(chatLastConversationKey);
   }
 }
 

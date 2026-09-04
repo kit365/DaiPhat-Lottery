@@ -56,6 +56,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (widget.isAuthenticated && !oldWidget.isAuthenticated) {
       _ensureBootstrap();
     }
+    if (!widget.isAuthenticated && oldWidget.isAuthenticated) {
+      ref
+          .read(chatViewModelProvider.notifier)
+          .bootstrap(isAuthenticated: false);
+    }
   }
 
   void _ensureBootstrap() {

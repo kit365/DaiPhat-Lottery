@@ -9,6 +9,7 @@ import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import '../providers/checkout_provider.dart';
+import '../../utils/payment_navigation_policy.dart';
 
 /// In-app WebView for PayOS payment.
 ///
@@ -43,6 +44,8 @@ class _PaymentWebViewState extends ConsumerState<PaymentWebView> {
   late final WebViewController _controller;
   bool _isNavigatedToResult = false;
   int _loadingProgress = 0;
+  late final PaymentNavigationPolicy _navigationPolicy;
+  bool _hasInvalidCheckoutUrl = false;
 
   // Countdown
   int _remainingSeconds = 15 * 60; // default 15 min, synced from API
@@ -55,6 +58,12 @@ class _PaymentWebViewState extends ConsumerState<PaymentWebView> {
   @override
   void initState() {
     super.initState();
+    _navigationPolicy = PaymentNavigationPolicy(
+      callbackBaseUrl: widget.callbackBaseUrl,
+    );
+    _hasInvalidCheckoutUrl = !_navigationPolicy.isTrustedCheckoutUrl(
+      widget.checkoutUrl,
+    );
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(
@@ -66,15 +75,21 @@ class _PaymentWebViewState extends ConsumerState<PaymentWebView> {
           onPageFinished: (_) {},
           onNavigationRequest: (request) {
             final url = request.url;
-            if (_isPayOSCallbackUrl(url)) {
+            if (_navigationPolicy.isCallbackUrl(url)) {
               _navigateToResult(url);
               return NavigationDecision.prevent;
             }
-            return NavigationDecision.navigate;
+            return _navigationPolicy.isAllowedNavigation(url)
+                ? NavigationDecision.navigate
+                : NavigationDecision.prevent;
           },
         ),
       )
-      ..loadRequest(Uri.parse(widget.checkoutUrl));
+      ..loadRequest(
+        _hasInvalidCheckoutUrl
+            ? Uri.parse('about:blank')
+            : Uri.parse(widget.checkoutUrl),
+      );
 
     if (widget.orderId != null) {
       // Defer to post-frame so mounted = true before starting timer/setState
@@ -95,8 +110,7 @@ class _PaymentWebViewState extends ConsumerState<PaymentWebView> {
     if (widget.orderId == null) return;
     try {
       final service = ref.read(transactionRepositoryProvider);
-      final result =
-          await service.getPendingPaymentCountdown(widget.orderId!);
+      final result = await service.getPendingPaymentCountdown(widget.orderId!);
       if (!mounted) return;
       _startCountdown(result.remainingSeconds, alreadyExpired: result.expired);
     } catch (_) {
@@ -147,29 +161,6 @@ class _PaymentWebViewState extends ConsumerState<PaymentWebView> {
     final m = (seconds ~/ 60).toString().padLeft(2, '0');
     final s = (seconds % 60).toString().padLeft(2, '0');
     return '$m:$s';
-  }
-
-  /// Check if the URL is the PayOS callback/return URL.
-  bool _isPayOSCallbackUrl(String url) {
-    final uri = Uri.tryParse(url);
-    if (uri == null) return false;
-
-    // Deep link scheme (daiphat:// or https://daiphat.vn)
-    if (uri.scheme == 'daiphat' ||
-        uri.host.contains('daiphat') ||
-        uri.host.contains('dai-phat')) {
-      return true;
-    }
-
-    // Payment result query parameters
-    final hasCode = uri.queryParameters.containsKey('code');
-    final hasOrderCode = uri.queryParameters.containsKey('orderCode');
-    final hasStatus = uri.queryParameters.containsKey('status');
-    if (hasCode && (hasOrderCode || hasStatus)) {
-      return true;
-    }
-
-    return false;
   }
 
   void _navigateToResult(String url) {
@@ -245,6 +236,16 @@ class _PaymentWebViewState extends ConsumerState<PaymentWebView> {
         ),
         body: Column(
           children: [
+            if (_hasInvalidCheckoutUrl)
+              MaterialBanner(
+                content: const Text('Liên kết thanh toán không hợp lệ.'),
+                actions: [
+                  TextButton(
+                    onPressed: _handleCancel,
+                    child: const Text('Đóng'),
+                  ),
+                ],
+              ),
             if (_loadingProgress < 100)
               LinearProgressIndicator(
                 value: _loadingProgress / 100,
