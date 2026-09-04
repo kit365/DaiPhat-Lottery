@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:daiphat_mobile/src/features/orders/domain/entities/order.dart';
+import 'package:daiphat_mobile/src/shared/domain/entities/pagination_meta.dart';
 import 'package:daiphat_mobile/src/features/tickets/domain/entities/purchased_ticket.dart';
 import 'package:daiphat_mobile/src/features/tickets/domain/repositories/purchased_tickets_repository.dart';
 import 'package:daiphat_mobile/src/features/tickets/domain/usecases/get_my_tickets.dart';

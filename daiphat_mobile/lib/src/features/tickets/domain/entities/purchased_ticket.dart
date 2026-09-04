@@ -1,4 +1,4 @@
-import 'package:daiphat_mobile/src/features/orders/domain/entities/order.dart';
+import 'package:daiphat_mobile/src/shared/domain/entities/pagination_meta.dart';
 
 class PurchasedTicket {
   final String orderId;
