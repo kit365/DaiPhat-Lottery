@@ -21,9 +21,15 @@ import 'package:daiphat_mobile/src/features/orders/presentation/providers/orders
 import 'package:daiphat_mobile/src/features/tickets/data/datasources/purchased_tickets_remote_data_source.dart';
 import 'package:daiphat_mobile/src/features/tickets/data/repositories/purchased_tickets_repository_impl.dart';
 import 'package:daiphat_mobile/src/features/tickets/presentation/providers/purchased_tickets_providers.dart';
-import 'package:daiphat_mobile/src/features/profile/data/bank_account_service.dart';
-import 'package:daiphat_mobile/src/features/profile/data/prize_payout_service.dart';
-import 'package:daiphat_mobile/src/features/profile/data/refund_service.dart';
+import 'package:daiphat_mobile/src/features/bank_accounts/data/datasources/bank_account_remote_data_source.dart';
+import 'package:daiphat_mobile/src/features/bank_accounts/data/repositories/bank_accounts_repository_impl.dart';
+import 'package:daiphat_mobile/src/features/bank_accounts/presentation/providers/bank_accounts_providers.dart';
+import 'package:daiphat_mobile/src/features/prize_payouts/data/datasources/prize_payout_remote_data_source.dart';
+import 'package:daiphat_mobile/src/features/prize_payouts/data/repositories/prize_payouts_repository_impl.dart';
+import 'package:daiphat_mobile/src/features/prize_payouts/presentation/providers/prize_payouts_providers.dart';
+import 'package:daiphat_mobile/src/features/refunds/data/datasources/refund_remote_data_source.dart';
+import 'package:daiphat_mobile/src/features/refunds/data/repositories/refunds_repository_impl.dart';
+import 'package:daiphat_mobile/src/features/refunds/presentation/providers/refunds_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/data/support_ticket_service.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
 import 'package:daiphat_mobile/src/features/notifications/data/services/notification_setting_service.dart';
@@ -74,9 +80,15 @@ Future<void> bootstrap() async {
     purchasedTicketsDataSource,
   );
   final transactionRepository = TransactionRepositoryImpl(transactionService);
-  final prizePayoutService = PrizePayoutService(dependencies.apiClient);
-  final bankAccountService = BankAccountService(dependencies.apiClient);
-  final refundService = RefundService(dependencies.apiClient);
+  final prizePayoutsRepository = PrizePayoutsRepositoryImpl(
+    PrizePayoutRemoteDataSource(dependencies.apiClient),
+  );
+  final bankAccountsRepository = BankAccountsRepositoryImpl(
+    BankAccountRemoteDataSource(dependencies.apiClient),
+  );
+  final refundsRepository = RefundsRepositoryImpl(
+    RefundRemoteDataSource(dependencies.apiClient),
+  );
   final supportTicketService = SupportTicketService(dependencies.apiClient);
   final notificationSettingService = NotificationSettingService(
     dependencies.apiClient,
@@ -93,9 +105,9 @@ Future<void> bootstrap() async {
           purchasedTicketsRepository,
         ),
         transactionRepositoryProvider.overrideWithValue(transactionRepository),
-        prizePayoutServiceProvider.overrideWithValue(prizePayoutService),
-        bankAccountServiceProvider.overrideWithValue(bankAccountService),
-        refundServiceProvider.overrideWithValue(refundService),
+        prizePayoutsRepositoryProvider.overrideWithValue(prizePayoutsRepository),
+        bankAccountsRepositoryProvider.overrideWithValue(bankAccountsRepository),
+        refundsRepositoryProvider.overrideWithValue(refundsRepository),
         supportTicketServiceProvider.overrideWithValue(supportTicketService),
         notificationSettingServiceProvider.overrideWithValue(
           notificationSettingService,

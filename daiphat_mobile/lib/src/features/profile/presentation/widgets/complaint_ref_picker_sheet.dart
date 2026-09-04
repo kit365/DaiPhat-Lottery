@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 
-import 'package:daiphat_mobile/src/features/orders/data/datasources/order_remote_data_source.dart';
 import 'package:daiphat_mobile/src/features/orders/domain/entities/order.dart';
-import 'package:daiphat_mobile/src/features/profile/data/models/prize_payout_request.dart';
-import 'package:daiphat_mobile/src/features/profile/data/models/refund_request.dart';
+import 'package:daiphat_mobile/src/features/orders/domain/usecases/get_my_orders.dart';
+import 'package:daiphat_mobile/src/features/prize_payouts/domain/entities/prize_payout_request.dart';
+import 'package:daiphat_mobile/src/features/prize_payouts/domain/usecases/prize_payout_usecases.dart';
+import 'package:daiphat_mobile/src/features/refunds/domain/entities/refund_request.dart';
+import 'package:daiphat_mobile/src/features/refunds/domain/usecases/refund_usecases.dart';
 import 'package:daiphat_mobile/src/features/profile/data/models/support_ticket.dart';
-import 'package:daiphat_mobile/src/features/profile/data/prize_payout_service.dart';
-import 'package:daiphat_mobile/src/features/profile/data/refund_service.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 
@@ -22,9 +22,9 @@ class ComplaintRefSelection {
 Future<ComplaintRefSelection?> showComplaintRefPicker({
   required BuildContext context,
   required TicketRefType refType,
-  required OrderService orderService,
-  required RefundService refundService,
-  required PrizePayoutService prizePayoutService,
+  required GetMyOrders getMyOrders,
+  required GetMyRefunds getMyRefunds,
+  required GetMyPrizePayouts getMyPrizePayouts,
   String? selectedId,
 }) {
   return showModalBottomSheet<ComplaintRefSelection>(
@@ -36,9 +36,9 @@ Future<ComplaintRefSelection?> showComplaintRefPicker({
     ),
     builder: (_) => _ComplaintRefPickerSheet(
       refType: refType,
-      orderService: orderService,
-      refundService: refundService,
-      prizePayoutService: prizePayoutService,
+      getMyOrders: getMyOrders,
+      getMyRefunds: getMyRefunds,
+      getMyPrizePayouts: getMyPrizePayouts,
       selectedId: selectedId,
     ),
   );
@@ -46,16 +46,16 @@ Future<ComplaintRefSelection?> showComplaintRefPicker({
 
 class _ComplaintRefPickerSheet extends StatefulWidget {
   final TicketRefType refType;
-  final OrderService orderService;
-  final RefundService refundService;
-  final PrizePayoutService prizePayoutService;
+  final GetMyOrders getMyOrders;
+  final GetMyRefunds getMyRefunds;
+  final GetMyPrizePayouts getMyPrizePayouts;
   final String? selectedId;
 
   const _ComplaintRefPickerSheet({
     required this.refType,
-    required this.orderService,
-    required this.refundService,
-    required this.prizePayoutService,
+    required this.getMyOrders,
+    required this.getMyRefunds,
+    required this.getMyPrizePayouts,
     this.selectedId,
   });
 
@@ -85,21 +85,21 @@ class _ComplaintRefPickerSheetState extends State<_ComplaintRefPickerSheet> {
     try {
       switch (widget.refType) {
         case TicketRefType.order:
-          final page = await widget.orderService.getMyOrders(
+          final page = await widget.getMyOrders(
             page: 1,
             size: 100,
           );
           _items = page.records.map(_mapOrder).toList();
           break;
         case TicketRefType.refundRequest:
-          final page = await widget.refundService.getMyRefunds(
+          final page = await widget.getMyRefunds(
             page: 1,
             limit: 100,
           );
           _items = page.records.map(_mapRefund).toList();
           break;
         case TicketRefType.prizeClaim:
-          final page = await widget.prizePayoutService.getMyRequests(
+          final page = await widget.getMyPrizePayouts(
             page: 1,
             limit: 100,
           );
