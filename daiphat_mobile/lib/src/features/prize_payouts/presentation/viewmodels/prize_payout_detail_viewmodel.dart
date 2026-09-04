@@ -1,13 +1,18 @@
 import 'package:flutter/foundation.dart';
 
-import 'package:daiphat_mobile/src/features/profile/data/models/prize_payout_request.dart';
-import 'package:daiphat_mobile/src/features/profile/data/prize_payout_service.dart';
+import 'package:daiphat_mobile/src/features/prize_payouts/domain/entities/prize_payout_request.dart';
+import 'package:daiphat_mobile/src/features/prize_payouts/domain/usecases/prize_payout_usecases.dart';
 
 class PrizePayoutDetailViewModel extends ChangeNotifier {
-  final PrizePayoutService _service;
+  final GetPrizePayoutDetail _getPrizePayoutDetail;
+  final CancelPrizePayout _cancelPrizePayout;
   final int requestId;
 
-  PrizePayoutDetailViewModel(this._service, this.requestId) {
+  PrizePayoutDetailViewModel(
+    this._getPrizePayoutDetail,
+    this._cancelPrizePayout,
+    this.requestId,
+  ) {
     load();
   }
 
@@ -28,7 +33,7 @@ class PrizePayoutDetailViewModel extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      _payout = await _service.getById(requestId);
+      _payout = await _getPrizePayoutDetail(requestId);
     } catch (e) {
       _error = e.toString().replaceFirst('Exception: ', '');
     } finally {
@@ -42,7 +47,7 @@ class PrizePayoutDetailViewModel extends ChangeNotifier {
     _isCancelling = true;
     notifyListeners();
     try {
-      _payout = await _service.cancel(requestId);
+      _payout = await _cancelPrizePayout(requestId);
       return null;
     } catch (e) {
       return e.toString().replaceFirst('Exception: ', '');

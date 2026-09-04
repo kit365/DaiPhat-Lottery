@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 
-import 'package:daiphat_mobile/src/features/checkout/models/refund_type.dart';
-import 'package:daiphat_mobile/src/features/profile/data/bank_account_service.dart';
+import 'package:daiphat_mobile/src/features/bank_accounts/domain/entities/bank_account.dart';
+import 'package:daiphat_mobile/src/features/bank_accounts/domain/usecases/bank_account_usecases.dart';
 import 'package:daiphat_mobile/src/features/tickets/domain/entities/purchased_ticket.dart';
-import 'package:daiphat_mobile/src/features/profile/data/prize_payout_service.dart';
-import 'package:daiphat_mobile/src/features/profile/presentation/widgets/refund_request_sheet.dart';
+import 'package:daiphat_mobile/src/features/prize_payouts/domain/entities/prize_payout_request.dart';
+import 'package:daiphat_mobile/src/features/prize_payouts/domain/usecases/prize_payout_usecases.dart';
+import 'package:daiphat_mobile/src/features/bank_accounts/presentation/widgets/bank_account_form_dialog.dart';
 import 'package:daiphat_mobile/src/shared/network/api_exception.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
@@ -13,14 +14,20 @@ import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 
 class PrizePayoutRequestSheet extends StatefulWidget {
   final PurchasedTicket ticket;
-  final PrizePayoutService prizePayoutService;
-  final BankAccountService bankAccountService;
+  final PreviewPrizePayout previewPrizePayout;
+  final CreatePrizePayout createPrizePayout;
+  final GetMyBankAccounts getMyBankAccounts;
+  final GetBanks getBanks;
+  final CreateBankAccount createBankAccount;
 
   const PrizePayoutRequestSheet({
     super.key,
     required this.ticket,
-    required this.prizePayoutService,
-    required this.bankAccountService,
+    required this.previewPrizePayout,
+    required this.createPrizePayout,
+    required this.getMyBankAccounts,
+    required this.getBanks,
+    required this.createBankAccount,
   });
 
   @override
@@ -51,7 +58,7 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
     });
 
     try {
-      final preview = await widget.prizePayoutService.preview(
+      final preview = await widget.previewPrizePayout(
         orderDetailId: widget.ticket.orderDetailId,
         serialId: widget.ticket.serialId,
       );
@@ -83,7 +90,7 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
     });
 
     try {
-      final bankAccounts = await widget.bankAccountService.getMyAccounts();
+      final bankAccounts = await widget.getMyBankAccounts();
       UserBankAccountResponse? defaultAccount;
       for (final account in bankAccounts) {
         if (account.isDefault) {
@@ -120,7 +127,10 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
       context: context,
       useRootNavigator: true,
       builder: (context) =>
-          BankAccountFormDialog(service: widget.bankAccountService),
+          BankAccountFormDialog(
+            getBanks: widget.getBanks,
+            createBankAccount: widget.createBankAccount,
+          ),
     );
     if (created == null || !mounted) return;
     await _loadBankAccounts();
@@ -133,7 +143,7 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
 
     setState(() => _isSubmitting = true);
     try {
-      await widget.prizePayoutService.create(
+      await widget.createPrizePayout(
         orderDetailId: widget.ticket.orderDetailId,
         serialId: widget.ticket.serialId,
         bankAccountId: _selectedBankAccountId!,

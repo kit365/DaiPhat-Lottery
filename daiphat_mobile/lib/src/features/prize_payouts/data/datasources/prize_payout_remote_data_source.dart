@@ -1,76 +1,14 @@
-import 'package:daiphat_mobile/src/features/profile/data/models/prize_payout_request.dart';
+import 'package:daiphat_mobile/src/features/prize_payouts/domain/entities/prize_payout_request.dart';
 import 'package:daiphat_mobile/src/shared/network/api_client.dart';
 import 'package:daiphat_mobile/src/shared/network/api_exception.dart';
 import 'package:daiphat_mobile/src/shared/network/api_response.dart';
 
-class PrizePayoutPreview {
-  final int orderDetailId;
-  final int serialId;
-  final String? prizeDisplayName;
-  final int grossAmount;
-  final int taxAmount;
-  final int commissionAmount;
-  final int netAmount;
-  final bool canClaimOnline;
-
-  const PrizePayoutPreview({
-    required this.orderDetailId,
-    required this.serialId,
-    this.prizeDisplayName,
-    required this.grossAmount,
-    required this.taxAmount,
-    required this.commissionAmount,
-    required this.netAmount,
-    required this.canClaimOnline,
-  });
-
-  factory PrizePayoutPreview.fromJson(Map<String, dynamic> json) {
-    return PrizePayoutPreview(
-      orderDetailId: json['orderDetailId'] as int? ?? 0,
-      serialId: json['serialId'] as int? ?? 0,
-      prizeDisplayName: json['prizeDisplayName']?.toString(),
-      grossAmount: _parseInt(json['grossAmount']),
-      taxAmount: _parseInt(json['taxAmount']),
-      commissionAmount: _parseInt(json['commissionAmount']),
-      netAmount: _parseInt(json['netAmount']),
-      canClaimOnline: json['canClaimOnline'] as bool? ?? false,
-    );
-  }
-
-  static int _parseInt(dynamic value) {
-    if (value == null) return 0;
-    if (value is int) return value;
-    if (value is double) return value.toInt();
-    return int.tryParse(value.toString()) ?? 0;
-  }
-}
-
-class PrizePayoutRequestResult {
-  final int id;
-  final String requestCode;
-  final String status;
-
-  const PrizePayoutRequestResult({
-    required this.id,
-    required this.requestCode,
-    required this.status,
-  });
-
-  factory PrizePayoutRequestResult.fromJson(Map<String, dynamic> json) {
-    return PrizePayoutRequestResult(
-      id: json['id'] as int? ?? 0,
-      requestCode: json['requestCode']?.toString() ?? '',
-      status: json['status']?.toString() ?? '',
-    );
-  }
-}
-
-class PrizePayoutService {
+class PrizePayoutRemoteDataSource {
   static const _basePrizePayoutRequests = '/prize-payout-requests';
 
   final ApiClient _apiClient;
 
-  PrizePayoutService(this._apiClient);
+  PrizePayoutRemoteDataSource(this._apiClient);
 
   Future<PrizePayoutPreview> preview({
     int? orderDetailId,

@@ -4,9 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
-import 'package:daiphat_mobile/src/features/profile/data/models/prize_payout_request.dart';
-import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
-import 'package:daiphat_mobile/src/features/profile/presentation/widgets/profile_status_badge.dart';
+import 'package:daiphat_mobile/src/features/prize_payouts/domain/entities/prize_payout_request.dart';
+import 'package:daiphat_mobile/src/features/prize_payouts/presentation/providers/prize_payouts_providers.dart';
+import 'package:daiphat_mobile/src/features/prize_payouts/presentation/widgets/prize_payout_status_badge.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
@@ -28,7 +28,8 @@ class _PrizePayoutDetailViewState extends ConsumerState<PrizePayoutDetailView> {
   void initState() {
     super.initState();
     _viewModel = PrizePayoutDetailViewModel(
-      ref.read(prizePayoutServiceProvider),
+      ref.read(getPrizePayoutDetailProvider),
+      ref.read(cancelPrizePayoutProvider),
       widget.requestId,
     );
   }

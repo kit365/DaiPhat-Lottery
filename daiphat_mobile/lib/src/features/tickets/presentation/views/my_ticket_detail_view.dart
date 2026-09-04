@@ -9,8 +9,9 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/features/home/presentation/providers/lottery_results_lookup_provider.dart';
 import 'package:daiphat_mobile/src/features/tickets/domain/entities/purchased_ticket.dart';
-import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
-import 'package:daiphat_mobile/src/features/profile/presentation/widgets/prize_payout_request_sheet.dart';
+import 'package:daiphat_mobile/src/features/bank_accounts/presentation/providers/bank_accounts_providers.dart';
+import 'package:daiphat_mobile/src/features/prize_payouts/presentation/providers/prize_payouts_providers.dart';
+import 'package:daiphat_mobile/src/features/prize_payouts/presentation/widgets/prize_payout_request_sheet.dart';
 import 'package:daiphat_mobile/src/features/tickets/presentation/utils/ticket_display_utils.dart';
 import 'package:daiphat_mobile/src/features/tickets/presentation/utils/rebuy_ticket.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
@@ -663,8 +664,11 @@ class _TicketDetailBody extends ConsumerWidget {
       backgroundColor: AppColors.transparent,
       builder: (context) => PrizePayoutRequestSheet(
         ticket: ticket,
-        prizePayoutService: ref.read(prizePayoutServiceProvider),
-        bankAccountService: ref.read(bankAccountServiceProvider),
+        previewPrizePayout: ref.read(previewPrizePayoutProvider),
+        createPrizePayout: ref.read(createPrizePayoutProvider),
+        getMyBankAccounts: ref.read(getMyBankAccountsProvider),
+        getBanks: ref.read(getBanksProvider),
+        createBankAccount: ref.read(createBankAccountProvider),
       ),
     );
   }

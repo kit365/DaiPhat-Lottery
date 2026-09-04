@@ -5,9 +5,9 @@ import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:intl/intl.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
-import 'package:daiphat_mobile/src/features/profile/data/models/prize_payout_request.dart';
-import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
-import 'package:daiphat_mobile/src/features/profile/presentation/widgets/profile_status_badge.dart';
+import 'package:daiphat_mobile/src/features/prize_payouts/domain/entities/prize_payout_request.dart';
+import 'package:daiphat_mobile/src/features/prize_payouts/presentation/providers/prize_payouts_providers.dart';
+import 'package:daiphat_mobile/src/features/prize_payouts/presentation/widgets/prize_payout_status_badge.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/profile_iconography.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
@@ -40,7 +40,7 @@ class _PrizePayoutsViewState extends ConsumerState<PrizePayoutsView> {
   @override
   void initState() {
     super.initState();
-    _viewModel = PrizePayoutsViewModel(ref.read(prizePayoutServiceProvider));
+    _viewModel = PrizePayoutsViewModel(ref.read(getMyPrizePayoutsProvider));
     _scrollController.addListener(_onScroll);
   }
 

@@ -1,12 +1,12 @@
 import 'package:flutter/foundation.dart';
 
-import 'package:daiphat_mobile/src/features/profile/data/models/prize_payout_request.dart';
-import 'package:daiphat_mobile/src/features/profile/data/prize_payout_service.dart';
+import 'package:daiphat_mobile/src/features/prize_payouts/domain/entities/prize_payout_request.dart';
+import 'package:daiphat_mobile/src/features/prize_payouts/domain/usecases/prize_payout_usecases.dart';
 
 class PrizePayoutsViewModel extends ChangeNotifier {
-  final PrizePayoutService _service;
+  final GetMyPrizePayouts _getMyPrizePayouts;
 
-  PrizePayoutsViewModel(this._service) {
+  PrizePayoutsViewModel(this._getMyPrizePayouts) {
     fetch(refresh: true);
   }
 
@@ -50,7 +50,7 @@ class PrizePayoutsViewModel extends ChangeNotifier {
     }
 
     try {
-      final result = await _service.getMyRequests(
+      final result = await _getMyPrizePayouts(
         page: _page,
         limit: 10,
         status: _statusFilter,
