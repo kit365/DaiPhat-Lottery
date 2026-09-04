@@ -24,10 +24,10 @@ import 'package:daiphat_mobile/src/features/notifications/presentation/views/not
 import 'package:daiphat_mobile/src/features/notifications/presentation/viewmodels/notification_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/chat/presentation/views/chat_screen.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/views/bank_accounts_view.dart';
-import 'package:daiphat_mobile/src/features/profile/presentation/views/my_orders_view.dart';
-import 'package:daiphat_mobile/src/features/profile/presentation/views/my_tickets_view.dart';
-import 'package:daiphat_mobile/src/features/profile/presentation/views/my_ticket_detail_view.dart';
-import 'package:daiphat_mobile/src/features/profile/presentation/views/order_detail_view.dart';
+import 'package:daiphat_mobile/src/features/orders/presentation/views/my_orders_view.dart';
+import 'package:daiphat_mobile/src/features/tickets/presentation/views/my_tickets_view.dart';
+import 'package:daiphat_mobile/src/features/tickets/presentation/views/my_ticket_detail_view.dart';
+import 'package:daiphat_mobile/src/features/orders/presentation/views/order_detail_view.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/views/profile_overview_view.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/views/refunds_view.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/views/refund_detail_view.dart';
@@ -73,6 +73,7 @@ GoRouter createAppRouter({
               'orderCode': queryParams['orderCode']!,
             if (queryParams.containsKey('internalCode'))
               'internalCode': queryParams['internalCode']!,
+            if (queryParams.containsKey('orderId')) 'orderId': queryParams['orderId']!,
             if (queryParams.containsKey('status'))
               'status': queryParams['status']!,
             if (queryParams.containsKey('cancel'))
@@ -94,6 +95,7 @@ GoRouter createAppRouter({
               'orderCode': queryParams['orderCode']!,
             if (queryParams.containsKey('internalCode'))
               'internalCode': queryParams['internalCode']!,
+            if (queryParams.containsKey('orderId')) 'orderId': queryParams['orderId']!,
             if (queryParams.containsKey('status'))
               'status': queryParams['status']!,
             if (queryParams.containsKey('cancel'))
@@ -523,10 +525,12 @@ Widget _buildRoute(
       final checkoutUrl = state.uri.queryParameters['checkoutUrl'] ?? '';
       final callbackBaseUrl = state.uri.queryParameters['callbackBaseUrl'];
       final orderId = state.uri.queryParameters['orderId'];
+      final internalCode = state.uri.queryParameters['internalCode'];
       return PaymentWebView(
         checkoutUrl: checkoutUrl,
         callbackBaseUrl: callbackBaseUrl,
         orderId: orderId,
+        internalCode: internalCode,
       );
     case AppRoute.profile:
       return ProfileView(
@@ -547,12 +551,14 @@ Widget _buildRoute(
       final internalCode = state.uri.queryParameters['internalCode'];
       final status = state.uri.queryParameters['status'];
       final cancel = state.uri.queryParameters['cancel'];
+      final orderId = state.uri.queryParameters['orderId'];
       return CheckoutResultView(
         code: code,
         orderCode: orderCode,
         internalCode: internalCode,
         status: status,
         cancel: cancel,
+        orderId: orderId,
       );
     case AppRoute.notifications:
       return NotificationView(viewModel: notificationViewModel);

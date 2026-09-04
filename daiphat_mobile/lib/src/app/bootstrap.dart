@@ -13,10 +13,14 @@ import 'package:daiphat_mobile/src/shared/network/api_config.dart';
 import 'package:daiphat_mobile/src/shared/providers/api_providers.dart';
 import 'package:daiphat_mobile/src/shared/services/notification_service.dart';
 import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
-import 'package:daiphat_mobile/src/features/checkout/data/order_service.dart';
 import 'package:daiphat_mobile/src/features/checkout/data/transaction_service.dart';
-import 'package:daiphat_mobile/src/features/checkout/data/repositories/order_repository_impl.dart';
 import 'package:daiphat_mobile/src/features/checkout/data/repositories/transaction_repository_impl.dart';
+import 'package:daiphat_mobile/src/features/orders/data/datasources/order_remote_data_source.dart';
+import 'package:daiphat_mobile/src/features/orders/data/repositories/orders_repository_impl.dart';
+import 'package:daiphat_mobile/src/features/orders/presentation/providers/orders_providers.dart';
+import 'package:daiphat_mobile/src/features/tickets/data/datasources/purchased_tickets_remote_data_source.dart';
+import 'package:daiphat_mobile/src/features/tickets/data/repositories/purchased_tickets_repository_impl.dart';
+import 'package:daiphat_mobile/src/features/tickets/presentation/providers/purchased_tickets_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/data/bank_account_service.dart';
 import 'package:daiphat_mobile/src/features/profile/data/prize_payout_service.dart';
 import 'package:daiphat_mobile/src/features/profile/data/refund_service.dart';
@@ -62,7 +66,13 @@ Future<void> bootstrap() async {
 
   final orderService = OrderService(dependencies.apiClient);
   final transactionService = TransactionService(dependencies.apiClient);
-  final orderRepository = OrderRepositoryImpl(orderService);
+  final ordersRepository = OrdersRepositoryImpl(orderService);
+  final purchasedTicketsDataSource = PurchasedTicketsRemoteDataSource(
+    dependencies.apiClient,
+  );
+  final purchasedTicketsRepository = PurchasedTicketsRepositoryImpl(
+    purchasedTicketsDataSource,
+  );
   final transactionRepository = TransactionRepositoryImpl(transactionService);
   final prizePayoutService = PrizePayoutService(dependencies.apiClient);
   final bankAccountService = BankAccountService(dependencies.apiClient);
@@ -78,7 +88,10 @@ Future<void> bootstrap() async {
         apiClientProvider.overrideWithValue(dependencies.apiClient),
         orderServiceProvider.overrideWithValue(orderService),
         transactionServiceProvider.overrideWithValue(transactionService),
-        orderRepositoryProvider.overrideWithValue(orderRepository),
+        ordersRepositoryProvider.overrideWithValue(ordersRepository),
+        purchasedTicketsRepositoryProvider.overrideWithValue(
+          purchasedTicketsRepository,
+        ),
         transactionRepositoryProvider.overrideWithValue(transactionRepository),
         prizePayoutServiceProvider.overrideWithValue(prizePayoutService),
         bankAccountServiceProvider.overrideWithValue(bankAccountService),

@@ -150,13 +150,20 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
         queryParameters: {
           'checkoutUrl': checkoutState.checkoutUrl!,
           if (checkoutState.orderId != null) 'orderId': checkoutState.orderId!,
+          if (checkoutState.orderCode != null)
+            'internalCode': checkoutState.orderCode!,
         },
       );
     } else if (success) {
       // Offline payment success
       context.pushNamed(
         AppRoute.checkoutResult.name,
-        queryParameters: {'code': '00', 'orderCode': ''},
+        queryParameters: {
+          'code': '00',
+          if (checkoutState.orderId != null) 'orderId': checkoutState.orderId!,
+          if (checkoutState.orderCode != null)
+            'internalCode': checkoutState.orderCode!,
+        },
       );
     }
     // If failed, error is already set in state - UI will show it

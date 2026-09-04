@@ -25,12 +25,14 @@ class PaymentWebView extends ConsumerStatefulWidget {
   final String checkoutUrl;
   final String? callbackBaseUrl;
   final String? orderId;
+  final String? internalCode;
 
   const PaymentWebView({
     super.key,
     required this.checkoutUrl,
     this.callbackBaseUrl,
     this.orderId,
+    this.internalCode,
   });
 
   @override
@@ -176,6 +178,8 @@ class _PaymentWebViewState extends ConsumerState<PaymentWebView> {
 
     final uri = Uri.parse(url);
     final queryParams = uri.queryParameters;
+    final internalCode =
+        queryParams['internalCode'] ?? widget.internalCode ?? '';
 
     if (!mounted) return;
 
@@ -184,7 +188,7 @@ class _PaymentWebViewState extends ConsumerState<PaymentWebView> {
       queryParameters: {
         'code': queryParams['code'] ?? '',
         'orderCode': queryParams['orderCode'] ?? '',
-        'internalCode': queryParams['internalCode'] ?? '',
+        'internalCode': internalCode,
         'status': queryParams['status'] ?? '',
         'cancel': queryParams['cancel'] ?? '',
         if (widget.orderId != null) 'orderId': widget.orderId!,
@@ -202,6 +206,7 @@ class _PaymentWebViewState extends ConsumerState<PaymentWebView> {
         'code': '',
         'cancel': 'true',
         'status': 'cancelled',
+        if (widget.internalCode != null) 'internalCode': widget.internalCode!,
         if (widget.orderId != null) 'orderId': widget.orderId!,
       },
     );

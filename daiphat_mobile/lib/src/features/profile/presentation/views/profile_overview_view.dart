@@ -7,9 +7,10 @@ import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:intl/intl.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
-import 'package:daiphat_mobile/src/features/checkout/models/order_type.dart';
-import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
-import 'package:daiphat_mobile/src/features/profile/data/models/purchased_ticket.dart';
+import 'package:daiphat_mobile/src/features/orders/domain/entities/order.dart';
+import 'package:daiphat_mobile/src/features/orders/presentation/providers/orders_providers.dart';
+import 'package:daiphat_mobile/src/features/tickets/domain/entities/purchased_ticket.dart';
+import 'package:daiphat_mobile/src/features/tickets/presentation/providers/purchased_tickets_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/profile_iconography.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
@@ -29,7 +30,11 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
   @override
   void initState() {
     super.initState();
-    _viewModel = ProfileOverviewViewModel(ref.read(orderServiceProvider));
+    _viewModel = ProfileOverviewViewModel(
+      ref.read(getMyOrdersProvider),
+      ref.read(getMyTicketsProvider),
+      ref.read(getMyTicketsSummaryProvider),
+    );
   }
 
   @override
