@@ -60,6 +60,73 @@ public class CoreApiApplication {
             System.out.println("[env] Loaded " + envFile.toAbsolutePath().normalize());
         }
         mirrorAuthJwtSystemProperties();
+        applyLocalProfileAuthCookieDefaults();
+        applyLocalProfileAccessTokenTtlDefaults();
+    }
+
+    /**
+     * Repo-root {@code .env} may set {@code AUTH_JWT_ACCESS_TOKEN_TTL_SECONDS=5} for refresh-token
+     * experiments. That value is bridged onto {@code daiphat.auth.jwt.access-token-ttl-seconds}
+     * and overrides YAML, so every admin API (including OCR template image upload) starts
+     * returning 401 after a few seconds. Cap a sane minimum unless explicitly opted in.
+     */
+    private static void applyLocalProfileAccessTokenTtlDefaults() {
+        String allowShort = firstNonBlank(
+                System.getProperty("DAIPHAT_ALLOW_SHORT_ACCESS_TTL"),
+                System.getenv("DAIPHAT_ALLOW_SHORT_ACCESS_TTL"));
+        if ("true".equalsIgnoreCase(allowShort)) {
+            return;
+        }
+
+        String raw = firstNonBlank(
+                System.getProperty("daiphat.auth.jwt.access-token-ttl-seconds"),
+                System.getProperty("AUTH_JWT_ACCESS_TOKEN_TTL_SECONDS"),
+                System.getenv("AUTH_JWT_ACCESS_TOKEN_TTL_SECONDS"));
+        long ttlSeconds = 900L;
+        if (raw != null) {
+            try {
+                ttlSeconds = Long.parseLong(raw.trim());
+            } catch (NumberFormatException ignored) {
+                ttlSeconds = 900L;
+            }
+        }
+        if (ttlSeconds >= 60L) {
+            return;
+        }
+
+        System.setProperty("AUTH_JWT_ACCESS_TOKEN_TTL_SECONDS", "900");
+        System.setProperty("daiphat.auth.jwt.access-token-ttl-seconds", "900");
+        System.out.println(
+                "[env] AUTH_JWT_ACCESS_TOKEN_TTL_SECONDS=" + raw
+                        + " is too short for interactive use; forcing 900s"
+                        + " (set DAIPHAT_ALLOW_SHORT_ACCESS_TTL=true to keep short TTL)"
+        );
+    }
+
+    /**
+     * Team {@code .env} may carry production cookie names ({@code __Secure-*}) while
+     * {@code secure=false} for HTTP localhost. That fails {@link com.daiphat.coreapi.infrastructure.security.AuthCookieConfigurationValidator}.
+     * When {@code local} is active, force the same safe values as {@code application-local.yml}.
+     */
+    private static void applyLocalProfileAuthCookieDefaults() {
+        String profiles = firstNonBlank(
+                System.getProperty("spring.profiles.active"),
+                System.getenv("SPRING_PROFILES_ACTIVE"));
+        if (profiles == null || !profiles.contains("local")) {
+            return;
+        }
+
+        System.setProperty("AUTH_REFRESH_COOKIE_NAME", "refresh_token");
+        System.setProperty("AUTH_REFRESH_COOKIE_SECURE", "false");
+        System.setProperty("AUTH_REFRESH_COOKIE_SAME_SITE", "Lax");
+        // Path=/ — not /api/v1/auth. Narrow path + FE proxy rewrite to Path=/ left
+        // duplicate cookies; Spring @CookieValue then often reads the stale one → 401 logout.
+        System.setProperty("AUTH_REFRESH_COOKIE_PATH", "/");
+        System.setProperty("daiphat.auth.cookie.name", "refresh_token");
+        System.setProperty("daiphat.auth.cookie.secure", "false");
+        System.setProperty("daiphat.auth.cookie.same-site", "Lax");
+        System.setProperty("daiphat.auth.cookie.path", "/");
+        System.out.println("[env] local profile: using HTTP-safe refresh cookie settings (refresh_token, Path=/, Secure=false)");
     }
 
     private static List<Path> resolveLocalEnvFiles(Path cwd, Path repoRoot) {

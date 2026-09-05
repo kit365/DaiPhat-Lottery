@@ -3,10 +3,15 @@
 import { useEffect } from "react";
 import { STORAGE_KEYS } from "../../constants/storage.constants";
 import { useAuthStore } from "../../stores/useAuthStore";
-import { msUntilAccessRefresh, restoreAccessSessionIfNeeded } from "../../api/sessionBoot";
+import {
+    msUntilAccessRefresh,
+    restoreAccessSessionIfNeeded,
+} from "../../api/sessionBoot";
+import { resolveAccessToken } from "../../api/authHeaders";
 
 export const AuthInitializer = () => {
     const { isHydrated, token, user, isProfileSetupModalOpen, openProfileSetupModal } = useAuthStore();
+    const isLoggedIn = !!token;
 
     useEffect(() => {
         if (!isHydrated) return;
@@ -14,18 +19,23 @@ export const AuthInitializer = () => {
     }, [isHydrated]);
 
     useEffect(() => {
-        if (!isHydrated || !token) return;
+        if (!isHydrated || !isLoggedIn) return;
 
         let cancelled = false;
         let timer: ReturnType<typeof setTimeout> | undefined;
 
         const schedule = () => {
+            if (!resolveAccessToken()) {
+                return;
+            }
             const delay = msUntilAccessRefresh();
             if (delay == null) return;
             timer = setTimeout(() => {
                 if (cancelled) return;
                 void restoreAccessSessionIfNeeded().then(() => {
-                    if (!cancelled) schedule();
+                    if (!cancelled && resolveAccessToken()) {
+                        schedule();
+                    }
                 });
             }, delay);
         };
@@ -33,7 +43,7 @@ export const AuthInitializer = () => {
         schedule();
 
         const onVisible = () => {
-            if (document.visibilityState === "visible") {
+            if (document.visibilityState === "visible" && resolveAccessToken()) {
                 void restoreAccessSessionIfNeeded();
             }
         };
@@ -44,7 +54,7 @@ export const AuthInitializer = () => {
             if (timer) clearTimeout(timer);
             document.removeEventListener("visibilitychange", onVisible);
         };
-    }, [isHydrated, token]);
+    }, [isHydrated, isLoggedIn]);
 
     useEffect(() => {
         if (!user || !isHydrated || isProfileSetupModalOpen) {

@@ -1,0 +1,766 @@
+-- LOCAL ONLY: not part of Flyway. Apply manually when you need phu123 win-seed data.
+-- Example: psql $DATABASE_URL -f scripts/local-seed/seed_50_winning_tickets_phu123.sql
+-- Repair: V202608181900 may have skipped silently when supplier code was MINHCHINH but DB has MINH_CHINH.
+-- Re-runs the PHU123 WIN50 seed (idempotent).
+-- Version renumbered from V202608181800 to avoid clash with cleanup_proxy_holding migration.
+CREATE OR REPLACE FUNCTION phu123_digit_block(p_seed text, p_len int, p_salt int)
+RETURNS text
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    n bigint;
+BEGIN
+    n := ('x' || substr(md5(p_seed || ':' || p_salt::text), 1, 15))::bit(60)::bigint;
+    n := abs(n) % power(10, p_len)::bigint;
+    RETURN lpad(n::text, p_len, '0');
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION phu123_nudge(p_tail text, p_forbidden text)
+RETURNS text
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF p_tail IS DISTINCT FROM p_forbidden THEN
+        RETURN p_tail;
+    END IF;
+    RETURN overlay(
+        p_tail
+        PLACING ((right(p_tail, 1)::int + 1) % 10)::text
+        FROM length(p_tail)
+        FOR 1
+    );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION phu123_pad_win(p_code text, p_win text)
+RETURNS text
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF p_code IN ('G5', 'G6') THEN
+        RETURN right(lpad(p_win, 4, '0'), 4);
+    ELSIF p_code = 'G7' THEN
+        RETURN right(lpad(p_win, 3, '0'), 3);
+    ELSIF p_code = 'G8' THEN
+        RETURN right(lpad(p_win, 2, '0'), 2);
+    END IF;
+    RETURN right(lpad(p_win, 6, '0'), 6);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION phu123_matches(p_ticket text, p_win text, p_prize text)
+RETURNS boolean
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    digits int;
+    diff_count int := 0;
+    i int;
+BEGIN
+    IF p_prize = 'DB' THEN
+        RETURN p_ticket = p_win;
+    ELSIF p_prize = 'DB_PHU' THEN
+        RETURN length(p_ticket) = length(p_win)
+            AND length(p_win) >= 2
+            AND left(p_ticket, 1) <> left(p_win, 1)
+            AND substr(p_ticket, 2) = substr(p_win, 2);
+    ELSIF p_prize = 'KK' THEN
+        IF length(p_ticket) <> length(p_win) OR length(p_win) < 2 OR left(p_ticket, 1) <> left(p_win, 1) THEN
+            RETURN FALSE;
+        END IF;
+        FOR i IN 2..length(p_win) LOOP
+            IF substr(p_ticket, i, 1) <> substr(p_win, i, 1) THEN
+                diff_count := diff_count + 1;
+            END IF;
+        END LOOP;
+        RETURN diff_count = 1;
+    END IF;
+
+    digits := CASE p_prize
+        WHEN 'G1' THEN 5 WHEN 'G2' THEN 5 WHEN 'G3' THEN 5 WHEN 'G4' THEN 5
+        WHEN 'G5' THEN 4 WHEN 'G6' THEN 4 WHEN 'G7' THEN 3 WHEN 'G8' THEN 2
+        ELSE 0
+    END;
+    IF digits = 0 THEN
+        RETURN FALSE;
+    END IF;
+    RETURN right(p_ticket, digits) = right(phu123_pad_win(p_prize, p_win), digits);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION phu123_first_prize(p_ticket text, p_results jsonb)
+RETURNS text
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    prizes text[] := ARRAY['DB', 'G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8', 'DB_PHU', 'KK'];
+    p text;
+    win text;
+BEGIN
+    FOREACH p IN ARRAY prizes LOOP
+        win := CASE WHEN p IN ('DB_PHU', 'KK') THEN p_results->>'DB' ELSE p_results->>p END;
+        IF phu123_matches(p_ticket, win, p) THEN
+            RETURN p;
+        END IF;
+    END LOOP;
+    RETURN NULL;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION phu123_craft_ticket(p_prize text, p_win text, p_variant int)
+RETURNS text
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    first_d text;
+    pos int;
+    old int;
+    new_d int;
+    digits int;
+    tail text;
+    pref_len int;
+    salt int;
+BEGIN
+    IF p_prize = 'DB' THEN
+        RETURN p_win;
+    ELSIF p_prize = 'DB_PHU' THEN
+        first_d := ((left(p_win, 1)::int + 1 + p_variant) % 10)::text;
+        IF first_d = left(p_win, 1) THEN
+            first_d := ((left(p_win, 1)::int + 3) % 10)::text;
+        END IF;
+        RETURN first_d || substr(p_win, 2);
+    ELSIF p_prize = 'KK' THEN
+        pos := 2 + (p_variant % 5);
+        old := substr(p_win, pos, 1)::int;
+        new_d := (old + 1 + p_variant) % 10;
+        IF new_d::text = substr(p_win, pos, 1) THEN
+            new_d := (old + 3) % 10;
+        END IF;
+        RETURN overlay(p_win PLACING new_d::text FROM pos FOR 1);
+    END IF;
+
+    digits := CASE p_prize
+        WHEN 'G1' THEN 5 WHEN 'G2' THEN 5 WHEN 'G3' THEN 5 WHEN 'G4' THEN 5
+        WHEN 'G5' THEN 4 WHEN 'G6' THEN 4 WHEN 'G7' THEN 3 WHEN 'G8' THEN 2
+        ELSE 0
+    END;
+    tail := right(phu123_pad_win(p_prize, p_win), digits);
+    pref_len := 6 - digits;
+    salt := p_variant * 97 + 17;
+    IF pref_len <= 0 THEN
+        RETURN tail;
+    END IF;
+    RETURN lpad((salt % power(10, pref_len)::int)::text, pref_len, '0') || tail;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION phu123_build_results(p_station_id bigint, p_draw date)
+RETURNS jsonb
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    seed text := p_station_id::text || ':' || p_draw::text;
+    db text;
+    g1 text;
+    g2 text;
+    g3 text;
+    g4 text;
+    g5 text;
+    g6 text;
+    g7 text;
+    g8 text;
+BEGIN
+    db := phu123_digit_block(seed, 6, 1);
+    g1 := phu123_nudge(right(phu123_digit_block(seed, 6, 11), 5), right(db, 5));
+    g2 := phu123_nudge(right(phu123_digit_block(seed, 6, 12), 5), right(db, 5));
+    g3 := phu123_nudge(right(phu123_digit_block(seed, 6, 13), 5), right(db, 5));
+    g4 := phu123_nudge(right(phu123_digit_block(seed, 6, 14), 5), right(db, 5));
+    g5 := phu123_nudge(right(phu123_digit_block(seed, 6, 15), 4), right(db, 4));
+    g6 := phu123_nudge(right(phu123_digit_block(seed, 6, 16), 4), right(db, 4));
+    g7 := phu123_nudge(right(phu123_digit_block(seed, 6, 17), 3), right(db, 3));
+    g8 := phu123_nudge(right(phu123_digit_block(seed, 6, 18), 2), right(db, 2));
+    RETURN jsonb_build_object(
+        'DB', db,
+        'G1', phu123_digit_block(seed, 1, 21) || g1,
+        'G2', phu123_digit_block(seed, 1, 22) || g2,
+        'G3', phu123_digit_block(seed, 1, 23) || g3,
+        'G4', phu123_digit_block(seed, 1, 24) || g4,
+        'G5', g5,
+        'G6', g6,
+        'G7', g7,
+        'G8', g8
+    );
+END;
+$$;
+
+DO $$
+DECLARE
+    v_tz            CONSTANT text := 'Asia/Ho_Chi_Minh';
+    v_marker        CONSTANT text := 'WIN50_PHU123_SEED';
+    v_username      CONSTANT text := 'phu123';
+    v_email         CONSTANT text := 'phujason1992@gmail.com';
+    v_password_hash CONSTANT text := '$2b$10$iJUHOXhHfRuMv1IgOXUx1.2YkmjFcd8Mxmwi8rv.bBVSRfRp7e1Pq'; -- Phu123456
+    v_supplier_code CONSTANT text := 'MINHCHINH';
+    v_price         CONSTANT numeric := 10000;
+    v_import_cost   CONSTANT numeric(18, 3) := 9500.000;
+    v_order_prefix  CONSTANT text := 'ORD-WIN50-PHU123-';
+    v_batch_prefix  CONSTANT text := 'WIN50-PHU123-';
+    v_prizes        text[] := ARRAY['DB', 'G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8', 'DB_PHU', 'KK'];
+    -- 20 large-prize (handed over) + 30 online-claimable (PROXY_HOLDING)
+    v_counts        int[] := ARRAY[5, 5, 5, 5, 5, 5, 4, 4, 4, 5, 3];
+    v_online        text[] := ARRAY['G3', 'G4', 'G5', 'G6', 'G7', 'G8', 'KK'];
+    v_detail_codes  text[] := ARRAY['DB', 'G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8'];
+
+    v_now           timestamp;
+    v_today         date;
+    v_actor_id      uuid;
+    v_customer_id   uuid;
+    v_member_role   uuid;
+    v_supplier_id   bigint;
+    v_day_offset    int;
+    v_draw_date     date;
+    v_day_name      text;
+    v_compact       text;
+    v_station_id    bigint;
+    v_station_code  text;
+    v_results       jsonb;
+    v_prize         text;
+    v_variant       int;
+    v_attempt       int;
+    v_day_i         int := 0;
+    v_candidate     text;
+    v_base          text;
+    v_placed        boolean;
+    v_idx           int := 0;
+    v_serial        text;
+    v_line_code     text;
+    v_batch_code    text;
+    v_ss_code       text;
+    v_batch_id      bigint;
+    v_line_id       bigint;
+    v_settlement_id bigint;
+    v_ticket_id     bigint;
+    v_ps_id         bigint;
+    v_wn            text;
+    v_qty           int;
+    v_station_count int;
+    v_imported_at   timestamp;
+    v_order_id      uuid;
+    v_order_code    text;
+    v_order_n       int;
+    v_item_count    int;
+    v_paid_at       timestamp;
+    v_pickup_at     timestamp;
+    v_min_draw      date;
+    v_online_count  int;
+    rec             record;
+    rec_st          record;
+    rec_ord         record;
+BEGIN
+    v_now := (CURRENT_TIMESTAMP AT TIME ZONE v_tz);
+    v_today := v_now::date;
+
+    SELECT id INTO v_member_role FROM roles WHERE code = 'ROLE_MEMBER' AND deleted_at IS NULL LIMIT 1;
+    IF v_member_role IS NULL THEN
+        RAISE NOTICE 'PHU123_WIN50: ROLE_MEMBER missing. Skipping.';
+        RETURN;
+    END IF;
+
+    SELECT id INTO v_customer_id
+    FROM users
+    WHERE deleted_at IS NULL
+      AND (username = v_username OR email = v_email)
+    LIMIT 1;
+
+    IF v_customer_id IS NULL THEN
+        v_customer_id := gen_random_uuid();
+        INSERT INTO users (
+            id, role_id, username, email, phone,
+            first_name, last_name, status,
+            is_email_verified, is_two_factor_enabled, agreed_to_terms, has_password,
+            password, failed_login_attempts, auth_version,
+            created_at, updated_at, created_by, last_modified_by
+        ) VALUES (
+            v_customer_id, v_member_role, v_username, v_email, '0918234567',
+            'Phú', 'Jason', 'ACTIVE',
+            TRUE, FALSE, TRUE, TRUE,
+            v_password_hash, 0, 0,
+            v_now, v_now, v_marker, v_marker
+        );
+        RAISE NOTICE 'PHU123_WIN50: created user % (%) default password Phu123456', v_username, v_email;
+    END IF;
+
+    SELECT id INTO v_actor_id
+    FROM users
+    WHERE deleted_at IS NULL
+    ORDER BY created_at NULLS LAST, id
+    LIMIT 1;
+    IF v_actor_id IS NULL THEN
+        RAISE NOTICE 'PHU123_WIN50: actor not found. Skipping.';
+        RETURN;
+    END IF;
+
+    SELECT id INTO v_supplier_id
+    FROM lottery_suppliers
+    WHERE deleted_at IS NULL
+      AND code IN ('MINH_CHINH', 'MINHCHINH')
+    ORDER BY CASE code WHEN 'MINH_CHINH' THEN 0 ELSE 1 END
+    LIMIT 1;
+    IF v_supplier_id IS NULL THEN
+        RAISE NOTICE 'PHU123_WIN50: supplier MINH_CHINH/MINHCHINH not found. Skipping.';
+        RETURN;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM lottery_stations WHERE deleted_at IS NULL AND is_active) THEN
+        RAISE NOTICE 'PHU123_WIN50: no active lottery_stations. Skipping.';
+        RETURN;
+    END IF;
+
+    IF (SELECT COUNT(*) FROM prize_structures WHERE deleted_at IS NULL AND prize_code = ANY (v_prizes)) < 11 THEN
+        RAISE NOTICE 'PHU123_WIN50: missing prize_structures. Skipping.';
+        RETURN;
+    END IF;
+
+    -- Cleanup previous PHU123 WIN50 seed (re-runnable).
+    UPDATE transactions t
+    SET prize_payout_request_id = NULL
+    FROM prize_payout_requests ppr
+    JOIN order_details od ON od.id = ppr.order_detail_id
+    JOIN orders o ON o.id = od.order_id
+    WHERE t.prize_payout_request_id = ppr.id
+      AND o.order_code LIKE v_order_prefix || '%';
+
+    DELETE FROM prize_payout_requests ppr
+    USING order_details od
+    JOIN orders o ON o.id = od.order_id
+    WHERE ppr.order_detail_id = od.id
+      AND o.order_code LIKE v_order_prefix || '%';
+
+    DELETE FROM order_details od
+    USING orders o
+    WHERE od.order_id = o.id AND o.order_code LIKE v_order_prefix || '%';
+
+    DELETE FROM transactions t
+    USING orders o
+    WHERE t.order_id = o.id AND o.order_code LIKE v_order_prefix || '%';
+
+    DELETE FROM orders WHERE order_code LIKE v_order_prefix || '%';
+
+    DELETE FROM lottery_ticket_serials WHERE created_by = v_marker;
+    DELETE FROM lottery_tickets WHERE created_by = v_marker;
+    DELETE FROM import_batch_lines WHERE created_by = v_marker;
+    UPDATE import_batches SET supplier_settlement_id = NULL
+    WHERE created_by = v_marker OR batch_code LIKE v_batch_prefix || '%';
+    DELETE FROM import_batches WHERE created_by = v_marker OR batch_code LIKE v_batch_prefix || '%';
+    DELETE FROM supplier_settlements
+    WHERE created_by = v_marker OR supplier_settlement_code LIKE 'SS-WIN50-PHU123-%';
+
+    CREATE TEMP TABLE phu123_draw_results (
+        station_id bigint NOT NULL,
+        draw_date date NOT NULL,
+        station_code text NOT NULL,
+        results jsonb NOT NULL,
+        PRIMARY KEY (station_id, draw_date)
+    ) ON COMMIT DROP;
+
+    CREATE TEMP TABLE phu123_winners (
+        idx int PRIMARY KEY,
+        station_id bigint NOT NULL,
+        station_code text NOT NULL,
+        draw_date date NOT NULL,
+        numbers text NOT NULL,
+        prize text NOT NULL,
+        serial text NOT NULL
+    ) ON COMMIT DROP;
+
+    CREATE TEMP TABLE phu123_order_plan (
+        order_n int PRIMARY KEY,
+        slots int NOT NULL,
+        cum_start int NOT NULL,
+        cum_end int NOT NULL
+    ) ON COMMIT DROP;
+
+    INSERT INTO phu123_order_plan (order_n, slots, cum_start, cum_end) VALUES
+        (1, 6, 0, 6),
+        (2, 5, 6, 11),
+        (3, 5, 11, 16),
+        (4, 4, 16, 20),
+        (5, 4, 20, 24),
+        (6, 4, 24, 28),
+        (7, 3, 28, 31),
+        (8, 3, 31, 34),
+        (9, 3, 34, 37),
+        (10, 3, 37, 40),
+        (11, 5, 40, 45),
+        (12, 5, 45, 50);
+
+    FOR v_day_offset IN 1..5 LOOP
+        v_draw_date := v_today - v_day_offset;
+        v_day_name := CASE EXTRACT(ISODOW FROM v_draw_date)::int
+            WHEN 1 THEN 'MONDAY'
+            WHEN 2 THEN 'TUESDAY'
+            WHEN 3 THEN 'WEDNESDAY'
+            WHEN 4 THEN 'THURSDAY'
+            WHEN 5 THEN 'FRIDAY'
+            WHEN 6 THEN 'SATURDAY'
+            ELSE 'SUNDAY'
+        END;
+
+        INSERT INTO phu123_draw_results (station_id, draw_date, station_code, results)
+        SELECT s.id,
+               v_draw_date,
+               COALESCE(s.code, 'S' || s.id::text),
+               phu123_build_results(s.id, v_draw_date)
+        FROM lottery_stations s
+        WHERE s.deleted_at IS NULL
+          AND s.is_active = TRUE
+          AND s.draw_days @> to_jsonb(v_day_name);
+
+        IF NOT EXISTS (SELECT 1 FROM phu123_draw_results WHERE draw_date = v_draw_date) THEN
+            RAISE EXCEPTION 'PHU123_WIN50: no stations draw on % (%).', v_draw_date, v_day_name;
+        END IF;
+    END LOOP;
+
+    FOR v_prize, v_variant IN
+        SELECT p.prize, v.n
+        FROM unnest(v_prizes) WITH ORDINALITY AS p(prize, ord)
+        JOIN LATERAL generate_series(0, v_counts[p.ord] - 1) AS v(n) ON TRUE
+        ORDER BY p.ord, v.n
+    LOOP
+        v_placed := FALSE;
+        FOR v_attempt IN 0..399 LOOP
+            SELECT dr.draw_date, dr.station_id, dr.station_code, dr.results
+            INTO v_draw_date, v_station_id, v_station_code, v_results
+            FROM phu123_draw_results dr
+            ORDER BY dr.draw_date, dr.station_id
+            OFFSET ((v_day_i + v_attempt) % (SELECT COUNT(*) FROM phu123_draw_results))
+            LIMIT 1;
+
+            IF v_prize = 'DB' THEN
+                v_candidate := v_results->>'DB';
+                IF EXISTS (
+                    SELECT 1 FROM phu123_winners w
+                    WHERE w.prize = 'DB'
+                      AND w.station_id = v_station_id
+                      AND w.draw_date = v_draw_date
+                ) THEN
+                    CONTINUE;
+                END IF;
+            ELSE
+                v_base := CASE WHEN v_prize IN ('DB_PHU', 'KK') THEN v_results->>'DB' ELSE v_results->>v_prize END;
+                v_candidate := phu123_craft_ticket(v_prize, v_base, v_variant * 11 + v_attempt * 7 + v_day_i + 3);
+            END IF;
+
+            IF phu123_first_prize(v_candidate, v_results) IS DISTINCT FROM v_prize THEN
+                CONTINUE;
+            END IF;
+            IF EXISTS (
+                SELECT 1 FROM phu123_winners w
+                WHERE w.station_id = v_station_id
+                  AND w.draw_date = v_draw_date
+                  AND w.numbers = v_candidate
+            ) THEN
+                CONTINUE;
+            END IF;
+            IF EXISTS (
+                SELECT 1 FROM lottery_tickets t
+                WHERE t.station_id = v_station_id
+                  AND t.draw_date = v_draw_date
+                  AND t.numbers = v_candidate
+                  AND t.deleted_at IS NULL
+            ) THEN
+                CONTINUE;
+            END IF;
+
+            v_idx := v_idx + 1;
+            v_serial := regexp_replace(
+                lower(
+                    'p123' || to_char(v_draw_date, 'YYMMDD') || v_station_code
+                    || lpad(v_idx::text, 2, '0')
+                    || substr(md5(v_station_code || ':' || v_draw_date::text || ':' || v_candidate || ':' || v_idx::text), 1, 6)
+                ),
+                '[^a-z0-9]',
+                '',
+                'g'
+            );
+            INSERT INTO phu123_winners (idx, station_id, station_code, draw_date, numbers, prize, serial)
+            VALUES (v_idx, v_station_id, v_station_code, v_draw_date, v_candidate, v_prize, v_serial);
+            v_placed := TRUE;
+            v_day_i := v_day_i + 1;
+            EXIT;
+        END LOOP;
+
+        IF NOT v_placed THEN
+            RAISE EXCEPTION 'PHU123_WIN50: could not place winner % variant=%', v_prize, v_variant;
+        END IF;
+    END LOOP;
+
+    IF v_idx <> 50 THEN
+        RAISE EXCEPTION 'PHU123_WIN50: expected 50 winners, got %', v_idx;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM (
+            SELECT prize, COUNT(*) AS c FROM phu123_winners GROUP BY prize
+        ) x WHERE x.c < 3
+    ) THEN
+        RAISE EXCEPTION 'PHU123_WIN50: each prize must have at least 3 winners.';
+    END IF;
+
+    SELECT COUNT(*) INTO v_online_count
+    FROM phu123_winners w
+    WHERE w.prize = ANY (v_online);
+    IF v_online_count <> 30 THEN
+        RAISE EXCEPTION 'PHU123_WIN50: expected 30 online-claimable tickets, got %', v_online_count;
+    END IF;
+
+    -- Import batches + lottery results + tickets (same flow as WIN50 phuoc seed).
+    FOR rec IN
+        SELECT DISTINCT draw_date FROM phu123_winners ORDER BY draw_date
+    LOOP
+        v_draw_date := rec.draw_date;
+        v_compact := to_char(v_draw_date, 'YYYYMMDD');
+        v_imported_at := v_draw_date::timestamp + time '09:00';
+        v_batch_code := v_batch_prefix || v_compact;
+        v_ss_code := 'SS-WIN50-PHU123-' || v_compact;
+
+        SELECT COUNT(DISTINCT station_id), COUNT(*)
+        INTO v_station_count, v_qty
+        FROM phu123_winners
+        WHERE draw_date = v_draw_date;
+
+        INSERT INTO supplier_settlements (
+            lottery_supplier_id, period_from, period_to, supplier_settlement_code,
+            total_import_value, total_return_value, total_paid_amount, remaining_amount,
+            status, reconciliation_phase, is_return_expired, expired_return_value,
+            original_ticket_unit_price, reconciled_ticket_unit_price,
+            discrepancy_types, discrepancy_items, payment_evidence_urls,
+            station_commission_snapshots,
+            created_at, updated_at, created_by, last_modified_by
+        ) VALUES (
+            v_supplier_id, v_draw_date, v_draw_date, v_ss_code,
+            0, 0, 0, 0,
+            'COMPLETED', 'COMPLETED', TRUE, 0,
+            v_import_cost, v_import_cost,
+            '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, '[]'::jsonb,
+            v_now, v_now, v_marker, v_marker
+        )
+        ON CONFLICT ON CONSTRAINT uq_supplier_settlements_supplier_period_from DO NOTHING;
+
+        SELECT id INTO v_settlement_id
+        FROM supplier_settlements
+        WHERE lottery_supplier_id = v_supplier_id
+          AND period_from = v_draw_date
+          AND deleted_at IS NULL;
+
+        INSERT INTO import_batches (
+            batch_code, draw_date, supplier_id, supplier_settlement_id, import_mode,
+            invoice_evidence_url, ticket_list_image_urls,
+            imported_by, imported_at, status,
+            line_count, total_declare_quantity, total_declared_cost_value,
+            total_imported_quantity, total_imported_cost_value,
+            submitted_at, completed_at, note,
+            created_at, updated_at, created_by, last_modified_by
+        ) VALUES (
+            v_batch_code, v_draw_date, v_supplier_id, v_settlement_id, 'IN_DAY',
+            'https://seed.local/phu123-win50/invoice.png',
+            '["https://seed.local/phu123-win50/ticket-list.png"]'::jsonb,
+            v_actor_id, v_imported_at, 'IMPORTED',
+            v_station_count, v_qty, ROUND(v_import_cost * v_qty, 3),
+            v_qty, ROUND(v_import_cost * v_qty, 3),
+            v_imported_at, v_imported_at + interval '30 minutes',
+            'PHU123 WIN50 import batch',
+            v_now, v_now, v_marker, v_marker
+        )
+        RETURNING id INTO v_batch_id;
+
+        FOR rec_st IN
+            SELECT w.station_id, w.station_code, COUNT(*) AS qty
+            FROM phu123_winners w
+            WHERE w.draw_date = v_draw_date
+            GROUP BY w.station_id, w.station_code
+            ORDER BY w.station_id
+        LOOP
+            SELECT results INTO v_results
+            FROM phu123_draw_results
+            WHERE station_id = rec_st.station_id AND draw_date = v_draw_date;
+
+            INSERT INTO lottery_results (
+                station_id, draw_date, source, is_official, status, published_at,
+                created_at, updated_at, created_by, last_modified_by
+            ) VALUES (
+                rec_st.station_id, v_draw_date, 'MANUAL', TRUE, 'COMPLETED',
+                v_draw_date::timestamp + time '16:35',
+                v_now, v_now, v_marker, v_marker
+            )
+            ON CONFLICT (station_id, draw_date) DO UPDATE SET
+                status = 'COMPLETED',
+                is_official = TRUE,
+                published_at = EXCLUDED.published_at,
+                deleted_at = NULL,
+                updated_at = v_now,
+                last_modified_by = v_marker;
+
+            DELETE FROM lottery_result_details d
+            USING lottery_results r
+            WHERE d.lottery_result_id = r.id
+              AND r.station_id = rec_st.station_id
+              AND r.draw_date = v_draw_date
+              AND r.deleted_at IS NULL;
+
+            FOREACH v_prize IN ARRAY v_detail_codes LOOP
+                SELECT id INTO v_ps_id
+                FROM prize_structures
+                WHERE prize_code = v_prize AND deleted_at IS NULL
+                LIMIT 1;
+                v_wn := phu123_pad_win(v_prize, v_results->>v_prize);
+                INSERT INTO lottery_result_details (
+                    lottery_result_id, prize_structure_id, winning_number, created_by, last_modified_by
+                )
+                SELECT r.id, v_ps_id, v_wn, v_marker, v_marker
+                FROM lottery_results r
+                WHERE r.station_id = rec_st.station_id
+                  AND r.draw_date = v_draw_date
+                  AND r.deleted_at IS NULL;
+            END LOOP;
+
+            FOREACH v_prize IN ARRAY ARRAY['DB_PHU', 'KK'] LOOP
+                SELECT id INTO v_ps_id
+                FROM prize_structures
+                WHERE prize_code = v_prize AND deleted_at IS NULL
+                LIMIT 1;
+                INSERT INTO lottery_result_details (
+                    lottery_result_id, prize_structure_id, winning_number, created_by, last_modified_by
+                )
+                SELECT r.id, v_ps_id, v_results->>'DB', v_marker, v_marker
+                FROM lottery_results r
+                WHERE r.station_id = rec_st.station_id
+                  AND r.draw_date = v_draw_date
+                  AND r.deleted_at IS NULL;
+            END LOOP;
+
+            v_line_code := 'LO-PHU123-' || v_compact || '-' || rec_st.station_code || '-NEW';
+            INSERT INTO import_batch_lines (
+                import_batch_id, lottery_station_id, batch_type, batch_code,
+                declare_quantity, declared_cost_value, total_quantity,
+                import_cost, total_cost_value, status, imported_at,
+                created_at, updated_at, created_by, last_modified_by
+            ) VALUES (
+                v_batch_id, rec_st.station_id, 'NEW', v_line_code,
+                rec_st.qty, ROUND(v_import_cost * rec_st.qty, 3), rec_st.qty,
+                v_import_cost, ROUND(v_import_cost * rec_st.qty, 3), 'IMPORTED',
+                v_imported_at + interval '30 minutes',
+                v_now, v_now, v_marker, v_marker
+            )
+            RETURNING id INTO v_line_id;
+
+            FOR rec IN
+                SELECT * FROM phu123_winners
+                WHERE draw_date = v_draw_date AND station_id = rec_st.station_id
+                ORDER BY idx
+            LOOP
+                INSERT INTO lottery_tickets (
+                    station_id, numbers, draw_date, price_snapshot, status, is_active, batch_code,
+                    created_at, updated_at, created_by, last_modified_by
+                ) VALUES (
+                    rec.station_id, rec.numbers, rec.draw_date, v_price, 'SOLD_OUT', FALSE,
+                    v_line_code, v_imported_at, v_now, v_marker, v_marker
+                )
+                RETURNING id INTO v_ticket_id;
+
+                INSERT INTO lottery_ticket_serials (
+                    ticket_id, import_batch_id, import_batch_line_id,
+                    serial_number, status, ticket_condition, payout_state, input_source,
+                    station_id, draw_date, imported_by, imported_at, is_verified,
+                    created_at, updated_at, created_by, last_modified_by
+                ) VALUES (
+                    v_ticket_id, v_batch_id, v_line_id,
+                    rec.serial, 'SOLD', 'GOOD', 'NONE', 'MANUAL',
+                    rec.station_id, rec.draw_date, v_actor_id, v_imported_at, TRUE,
+                    v_now, v_now, v_marker, v_marker
+                );
+            END LOOP;
+        END LOOP;
+
+        UPDATE supplier_settlements SET
+            total_import_value = COALESCE(total_import_value, 0) + ROUND(v_import_cost * v_qty, 3),
+            system_import_quantity = COALESCE(system_import_quantity, 0) + v_qty,
+            system_import_value = COALESCE(system_import_value, 0) + ROUND(v_import_cost * v_qty, 3),
+            updated_at = v_now
+        WHERE supplier_settlement_code = v_ss_code
+          AND created_by = v_marker;
+    END LOOP;
+
+    -- 12 COMPLETED online orders with varied ticket counts for phu123.
+    FOR rec_ord IN
+        SELECT order_n, slots, cum_start, cum_end FROM phu123_order_plan ORDER BY order_n
+    LOOP
+        v_order_n := rec_ord.order_n;
+        v_item_count := rec_ord.slots;
+
+        SELECT MIN(draw_date) INTO v_min_draw
+        FROM phu123_winners w
+        JOIN phu123_order_plan p
+          ON w.idx > p.cum_start AND w.idx <= p.cum_end
+        WHERE p.order_n = v_order_n;
+
+        v_order_id := gen_random_uuid();
+        v_order_code := v_order_prefix || lpad(v_order_n::text, 3, '0');
+        v_paid_at := v_min_draw::timestamp + time '09:45' + make_interval(mins => (v_order_n - 1) * 17);
+        v_pickup_at := v_min_draw::timestamp + time '18:10' + make_interval(mins => (v_order_n - 1) * 9);
+
+        INSERT INTO orders (
+            id, user_id, name, phone, email, order_code, order_type, receive_type, total_amount, status,
+            expected_pickup_at, actual_picked_up_at, picked_up_by,
+            created_at, updated_at, created_by, last_modified_by
+        ) VALUES (
+            v_order_id, v_customer_id, 'Phú Jason', '0918234567', v_email, v_order_code,
+            'ONLINE', 'COUNTER_PICKUP', v_item_count * v_price, 'COMPLETED',
+            v_paid_at + interval '7 hours', v_pickup_at, v_actor_id,
+            v_paid_at, v_now, v_marker, v_marker
+        );
+
+        INSERT INTO transactions (
+            order_id, amount, gateway, status, paid_at, type,
+            created_at, updated_at, created_by, last_modified_by
+        ) VALUES (
+            v_order_id, v_item_count * v_price, 'PAYOS', 'COMPLETED', v_paid_at, 'ONLINE',
+            v_paid_at, v_now, v_marker, v_marker
+        );
+
+        INSERT INTO order_details (
+            order_id, lottery_ticket_id, lottery_ticket_serial_id, quantity, price, status,
+            handed_over_at, handed_over_by,
+            created_at, updated_at, created_by, last_modified_by
+        )
+        SELECT v_order_id, lt.id, lts.id, 1, v_price,
+               CASE WHEN w.prize = ANY (v_online) THEN 'PROXY_HOLDING' ELSE 'HANDED_OVER' END,
+               CASE WHEN w.prize = ANY (v_online) THEN NULL ELSE v_pickup_at END,
+               CASE WHEN w.prize = ANY (v_online) THEN NULL ELSE v_actor_id END,
+               v_paid_at, v_now, v_marker, v_marker
+        FROM phu123_winners w
+        JOIN phu123_order_plan p
+          ON w.idx > p.cum_start AND w.idx <= p.cum_end AND p.order_n = v_order_n
+        JOIN lottery_tickets lt
+          ON lt.station_id = w.station_id
+         AND lt.numbers = w.numbers
+         AND lt.draw_date = w.draw_date
+         AND lt.created_by = v_marker
+         AND lt.deleted_at IS NULL
+        JOIN lottery_ticket_serials lts
+          ON lts.ticket_id = lt.id
+         AND lts.serial_number = w.serial
+         AND lts.deleted_at IS NULL;
+    END LOOP;
+
+    RAISE NOTICE 'PHU123_WIN50: 50 winners (30 online) for % across 12 orders.', v_email;
+END $$;
+
+DROP FUNCTION IF EXISTS phu123_build_results(bigint, date);
+DROP FUNCTION IF EXISTS phu123_craft_ticket(text, text, int);
+DROP FUNCTION IF EXISTS phu123_first_prize(text, jsonb);
+DROP FUNCTION IF EXISTS phu123_matches(text, text, text);
+DROP FUNCTION IF EXISTS phu123_pad_win(text, text);
+DROP FUNCTION IF EXISTS phu123_nudge(text, text);
+DROP FUNCTION IF EXISTS phu123_digit_block(text, int, int);

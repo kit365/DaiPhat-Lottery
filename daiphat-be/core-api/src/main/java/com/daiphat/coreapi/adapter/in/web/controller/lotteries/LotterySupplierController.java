@@ -32,19 +32,19 @@ public class LotterySupplierController {
     private final LotterySupplierServicePort lotterySupplierServicePort;
 
     @PostMapping
-    @PreAuthorize("hasAuthority('supplier:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'supplier:create')")
     public ApiResponse<LotterySupplierResponse> create(@Valid @RequestBody CreateLotterySupplierRequest request) {
         return ApiResponse.success("Tạo nhà cung cấp thành công.", lotterySupplierServicePort.create(request));
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('supplier:view')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'supplier:view')")
     public ApiResponse<LotterySupplierResponse> getById(@PathVariable Long id) {
         return ApiResponse.success(null, lotterySupplierServicePort.getById(id));
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('supplier:view')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'supplier:view')")
     public ApiResponse<PageResponse<LotterySupplierResponse>> getAll(
             @RequestParam(defaultValue = DEFAULT_PAGE) int page,
             @RequestParam(defaultValue = DEFAULT_LIMIT) int size,
@@ -65,7 +65,7 @@ public class LotterySupplierController {
      * accepted alongside supplier:edit. Timing rules are not reachable here.
      */
     @PutMapping("/profile")
-    @PreAuthorize("hasAnyAuthority('supplier:edit', 'importBatch:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'supplier:edit', 'importBatch:create')")
     public ApiResponse<LotterySupplierResponse> updateProfile(
             @Valid @RequestBody UpdateLotterySupplierProfileRequest request) {
         return ApiResponse.success(
@@ -80,7 +80,7 @@ public class LotterySupplierController {
      * are.
      */
     @PutMapping("/{id}/default-import-cost")
-    @PreAuthorize("hasAnyAuthority('supplier:edit', 'importBatch:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'supplier:edit', 'importBatch:create')")
     public ApiResponse<LotterySupplierResponse> updateDefaultImportCost(
             @PathVariable Long id,
             @Valid @RequestBody UpdateLotterySupplierDefaultImportCostRequest request
@@ -91,7 +91,7 @@ public class LotterySupplierController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('supplier:edit')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'supplier:edit')")
     public ApiResponse<LotterySupplierResponse> update(
             @PathVariable Long id,
             @Valid @RequestBody UpdateLotterySupplierRequest request

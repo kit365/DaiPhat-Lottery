@@ -21,7 +21,8 @@ const backendOrigin = (() => {
 const nextConfig: NextConfig = {
   output: 'standalone',
   compress: true,
-  experimental: {    // No App Router client cache — pages are SSR or CSR via React Query.
+  experimental: {
+    // No App Router client cache — pages are SSR or CSR via React Query.
     staleTimes: {
       dynamic: 0,
       static: 0,
@@ -64,13 +65,10 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // Browser gọi /api, /uploads trên origin FE → Next rewrite sang Spring.
+  // /api/v1/* is proxied by App Router routes (see src/app/api/v1/) so multipart bodies
+  // are not truncated (~1MB limit on next.config rewrites in standalone mode).
   async rewrites() {
     return [
-      {
-        source: '/api/:path*',
-        destination: `${backendOrigin}/api/:path*`,
-      },
       {
         source: '/uploads/:path*',
         destination: `${backendOrigin}/uploads/:path*`,

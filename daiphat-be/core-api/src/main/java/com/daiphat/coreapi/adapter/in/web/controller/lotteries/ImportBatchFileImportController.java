@@ -63,7 +63,7 @@ public class ImportBatchFileImportController {
     private final ImportBatchFileImportServicePort importBatchFileImportServicePort;
 
     @PostMapping(value = "/inspect", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:create')")
     public ApiResponse<ImportBatchFileInspectResponse> inspect(
             @RequestPart("file") MultipartFile file,
             @RequestParam(required = false) Long supplierId) {
@@ -74,7 +74,7 @@ public class ImportBatchFileImportController {
     }
 
     @PostMapping(value = "/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:create')")
     public ApiResponse<ImportBatchFilePreviewResponse> preview(
             @RequestPart("file") MultipartFile file,
             @RequestPart("request") @Valid ImportBatchFilePreviewRequest request,
@@ -91,7 +91,7 @@ public class ImportBatchFileImportController {
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:create')")
     public ApiResponse<ImportBatchFileImportResultResponse> commit(
             @RequestPart("file") MultipartFile file,
             @RequestPart("request") @Valid ImportBatchFileImportCommitRequest request,
@@ -116,7 +116,7 @@ public class ImportBatchFileImportController {
      * edited in Excel and uploaded straight back.
      */
     @GetMapping("/export/{importBatchId:\\d+}")
-    @PreAuthorize("hasAnyAuthority('importBatch:view', 'importBatch:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:view', 'importBatch:create')")
     public ResponseEntity<byte[]> export(@PathVariable Long importBatchId) {
         ImportBatchFileExportResponse export = importBatchFileImportServicePort.export(importBatchId);
 
@@ -130,14 +130,14 @@ public class ImportBatchFileImportController {
 
     /** Shows the operator what rules the importer will apply before they upload. */
     @GetMapping("/config")
-    @PreAuthorize("hasAnyAuthority('importBatch:view', 'importBatch:create', 'supplier:view', 'supplier:edit')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:view', 'importBatch:create', 'supplier:view', 'supplier:edit')")
     public ApiResponse<ImportBatchFileConfigResponse> getConfig() {
         return ApiResponse.success(null, importBatchFileImportServicePort.getConfig());
     }
 
     /** Updates shared auto-detect aliases / limits (N suppliers → 1 config). */
     @PutMapping("/config")
-    @PreAuthorize("hasAnyAuthority('importBatch:create', 'settings:edit', 'supplier:edit')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:create', 'settings:edit', 'supplier:edit')")
     public ApiResponse<ImportBatchFileConfigResponse> updateConfig(
             @Valid @RequestBody UpdateImportBatchFileConfigRequest request) {
         return ApiResponse.success(
@@ -147,7 +147,7 @@ public class ImportBatchFileImportController {
 
     /** History of file-import runs, newest first. */
     @GetMapping("/jobs")
-    @PreAuthorize("hasAnyAuthority('importBatch:view', 'importBatch:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:view', 'importBatch:create')")
     public ApiResponse<PageResponse<ImportBatchFileJobResponse>> getJobs(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -158,7 +158,7 @@ public class ImportBatchFileImportController {
 
     /** Column mappings remembered per supplier and file layout. */
     @GetMapping("/mapping-profiles")
-    @PreAuthorize("hasAnyAuthority('importBatch:view', 'importBatch:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:view', 'importBatch:create')")
     public ApiResponse<List<ImportBatchFileMappingProfileResponse>> getMappingProfiles(
             @RequestParam(required = false) Long supplierId) {
         return ApiResponse.success(
@@ -166,14 +166,14 @@ public class ImportBatchFileImportController {
     }
 
     @DeleteMapping("/mapping-profiles/{id:\\d+}")
-    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:create')")
     public ApiResponse<Void> deleteMappingProfile(@PathVariable Long id) {
         importBatchFileImportServicePort.deleteMappingProfile(id);
         return ApiResponse.success("Đã xóa cấu hình cột đã lưu.", null);
     }
 
     @PostMapping("/mapping-profiles")
-    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:create')")
     public ApiResponse<Void> saveMappingProfile(
             @Valid @RequestBody SaveImportBatchFileMappingProfileRequest request) {
         importBatchFileImportServicePort.saveMappingProfile(request);
@@ -181,7 +181,7 @@ public class ImportBatchFileImportController {
     }
 
     @PostMapping("/station-aliases")
-    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:create')")
     public ApiResponse<Void> saveStationAlias(@Valid @RequestBody SaveLotteryStationAliasRequest request) {
         importBatchFileImportServicePort.saveStationAlias(request);
         return ApiResponse.success("Đã ghi nhớ cách viết tên nhà đài này.", null);

@@ -20,13 +20,14 @@ import com.daiphat.coreapi.application.dto.response.auth.VerifyOtpResponse;
 import com.daiphat.coreapi.application.port.in.auth.AuthServicePort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
-import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -37,6 +38,10 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
@@ -64,6 +69,8 @@ public class AuthController {
     private static final String LEGACY_REFRESH_COOKIE_NAME = "refreshToken";
     private static final String ACCESS_COOKIE_NAME = "token";
     private static final String ROOT_PATH = "/";
+    /** Former local default; browsers may still hold a stale cookie on this path. */
+    private static final String LEGACY_AUTH_COOKIE_PATH = "/api/v1/auth";
 
     private final AuthServicePort authServicePort;
 
@@ -187,47 +194,91 @@ public class AuthController {
 
     @PostMapping("/refresh-token")
     public ApiResponse<AuthResponse> refresh(
-            @CookieValue(name = REFRESH_COOKIE_NAME, required = false) String refreshToken,
+            HttpServletRequest httpRequest,
             HttpServletResponse httpResponse
     ) {
-        // Guard before @Valid/@NotBlank on AuthService — missing cookie must be 401, not 500
-        if (refreshToken == null || refreshToken.isBlank()) {
+        // Prefer every same-name cookie value (Path=/ vs Path=/api/v1/auth duplicates).
+        // @CookieValue alone picks one arbitrarily — often the stale rotated token → 401.
+        List<String> candidates = extractRefreshTokenCandidates(httpRequest);
+        if (candidates.isEmpty()) {
             throw new DomainException(ErrorCode.REFRESH_TOKEN_EXPIRED);
         }
-        AuthResponse response = authServicePort.refreshToken(new RefreshTokenRequest(refreshToken));
-        writeRefreshCookie(httpResponse, response);
-        return ApiResponse.success(MSG_REFRESH_TOKEN_SUCCESS, response);
+        DomainException lastFailure = null;
+        for (String refreshToken : candidates) {
+            try {
+                AuthResponse response = authServicePort.refreshToken(new RefreshTokenRequest(refreshToken));
+                writeRefreshCookie(httpResponse, response);
+                return ApiResponse.success(MSG_REFRESH_TOKEN_SUCCESS, response);
+            } catch (DomainException ex) {
+                lastFailure = ex;
+            }
+        }
+        throw lastFailure != null ? lastFailure : new DomainException(ErrorCode.REFRESH_TOKEN_EXPIRED);
     }
 
     @PostMapping("/logout")
     public ApiResponse<Void> logout(
-            @CookieValue(name = REFRESH_COOKIE_NAME, required = false) String refreshToken,
+            HttpServletRequest httpRequest,
             HttpServletResponse httpResponse
     ) {
+        List<String> candidates = extractRefreshTokenCandidates(httpRequest);
+        String refreshToken = candidates.isEmpty() ? null : candidates.get(0);
         authServicePort.logout(new LogoutRequest(refreshToken));
         clearAllAuthCookies(httpResponse);
         return ApiResponse.success(MSG_LOGOUT_SUCCESS);
     }
 
+    private List<String> extractRefreshTokenCandidates(HttpServletRequest httpRequest) {
+        Set<String> unique = new LinkedHashSet<>();
+        Cookie[] cookies = httpRequest.getCookies();
+        if (cookies != null) {
+            for (Cookie cookie : cookies) {
+                if (refreshCookieName.equals(cookie.getName())) {
+                    String value = cookie.getValue();
+                    if (value != null && !value.isBlank()) {
+                        unique.add(value);
+                    }
+                }
+            }
+        }
+        return new ArrayList<>(unique);
+    }
+
     private void writeRefreshCookie(HttpServletResponse httpResponse, AuthResponse response) {
         httpResponse.setHeader(HttpHeaders.CACHE_CONTROL, "no-store");
         httpResponse.setHeader(HttpHeaders.PRAGMA, "no-cache");
+        // Expire every known path first so the browser drops stale duplicates.
+        clearRefreshCookieOnAllPaths(httpResponse);
         httpResponse.addHeader(HttpHeaders.SET_COOKIE, refreshCookie(response).toString());
     }
 
-    private void clearRefreshCookie(HttpServletResponse httpResponse) {
-        addExpiredCookie(httpResponse, refreshCookieName, refreshCookiePath, true);
+    private void clearRefreshCookieOnAllPaths(HttpServletResponse httpResponse) {
+        for (String path : refreshCookiePathsToClear()) {
+            addExpiredCookie(httpResponse, refreshCookieName, path, true);
+        }
+    }
+
+    private List<String> refreshCookiePathsToClear() {
+        Set<String> paths = new LinkedHashSet<>();
+        paths.add(ROOT_PATH);
+        paths.add(LEGACY_AUTH_COOKIE_PATH);
+        if (refreshCookiePath != null && !refreshCookiePath.isBlank()) {
+            paths.add(refreshCookiePath);
+        }
+        return new ArrayList<>(paths);
     }
 
     private void clearLegacyAuthCookies(HttpServletResponse httpResponse) {
         addExpiredCookie(httpResponse, LEGACY_REFRESH_COOKIE_NAME, ROOT_PATH, false);
         if (!"refresh_token".equals(refreshCookieName)) {
-            addExpiredCookie(httpResponse, "refresh_token", refreshCookiePath, true);
+            for (String path : refreshCookiePathsToClear()) {
+                addExpiredCookie(httpResponse, "refresh_token", path, true);
+            }
         }
     }
 
     private void clearAllAuthCookies(HttpServletResponse httpResponse) {
-        clearRefreshCookie(httpResponse);
+        clearRefreshCookieOnAllPaths(httpResponse);
         clearLegacyAuthCookies(httpResponse);
         addExpiredCookie(httpResponse, ACCESS_COOKIE_NAME, ROOT_PATH, false);
         httpResponse.setHeader(HttpHeaders.CACHE_CONTROL, "no-store");

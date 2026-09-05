@@ -9,12 +9,15 @@ import com.daiphat.coreapi.application.dto.request.lotteries.scan.OcrConfirmImpo
 import com.daiphat.coreapi.application.dto.response.lotteries.scan.OcrConfirmImportResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.scan.OcrScanResultFieldResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.scan.OcrScanResultResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.scan.OcrServiceReadyResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.scan.ScanBatchImportResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.scan.TicketScanResponse;
 import com.daiphat.coreapi.application.port.in.lotteries.OcrScanResultServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.TicketScanImportServicePort;
+import com.daiphat.coreapi.application.port.out.vision.TicketVisionPort;
 import com.daiphat.coreapi.application.service.lotteries.OcrConfirmImportService;
 import com.daiphat.coreapi.application.service.lotteries.OcrScanResultFieldService;
+import com.daiphat.coreapi.domain.exception.ErrorCode;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -52,9 +55,23 @@ public class LotteryTicketScanController {
     private final OcrScanResultServicePort ocrScanResultServicePort;
     private final OcrConfirmImportService ocrConfirmImportService;
     private final OcrScanResultFieldService ocrScanResultFieldService;
+    private final TicketVisionPort ticketVisionPort;
+
+    @GetMapping("/ocr-service-ready")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:create', 'ticket:create', 'ticket:view')")
+    public ApiResponse<OcrServiceReadyResponse> ocrServiceReady() {
+        boolean ready = ticketVisionPort.isHealthy();
+        String message = ready
+                ? "Dịch vụ quét vé OCR đang sẵn sàng."
+                : ErrorCode.TICKET_SCAN_SERVICE_UNAVAILABLE.getMessage();
+        return ApiResponse.success(
+                message,
+                new OcrServiceReadyResponse(ready, message)
+        );
+    }
 
     @PostMapping(value = "/scan", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyAuthority('ticket:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:create', 'ticket:create')")
     public ApiResponse<TicketScanResponse> scan(
             @RequestParam(required = false) Long importBatchLineId,
             @RequestPart("file") MultipartFile file,
@@ -69,7 +86,7 @@ public class LotteryTicketScanController {
     }
 
     @PostMapping("/batch-import")
-    @PreAuthorize("hasAnyAuthority('ticket:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:create', 'ticket:create')")
     public ApiResponse<ScanBatchImportResponse> batchImport(
             @Valid @RequestBody BatchImportScannedTicketsRequest request,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal
@@ -83,7 +100,7 @@ public class LotteryTicketScanController {
     }
 
     @PostMapping("/ocr-confirm-import")
-    @PreAuthorize("hasAnyAuthority('ticket:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:create', 'ticket:create')")
     public ApiResponse<OcrConfirmImportResponse> ocrConfirmImport(
             @Valid @RequestBody OcrConfirmImportRequest request,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal
@@ -99,7 +116,7 @@ public class LotteryTicketScanController {
     }
 
     @GetMapping("/ocr-scan-results")
-    @PreAuthorize("hasAnyAuthority('ticket:view', 'ticket:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:create', 'ticket:view', 'ticket:create')")
     public ApiResponse<List<OcrScanResultResponse>> listOcrScanResults(
             @RequestParam(required = false) String scanId,
             @RequestParam(required = false) Long importBatchLineId
@@ -111,7 +128,7 @@ public class LotteryTicketScanController {
     }
 
     @GetMapping("/ocr-scan-results/{id}/fields")
-    @PreAuthorize("hasAnyAuthority('ticket:view', 'ticket:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:create', 'ticket:view', 'ticket:create')")
     public ApiResponse<List<OcrScanResultFieldResponse>> listOcrScanResultFields(@PathVariable Long id) {
         return ApiResponse.success(
                 "Lấy chi tiết trường OCR thành công.",
@@ -120,7 +137,7 @@ public class LotteryTicketScanController {
     }
 
     @PatchMapping("/ocr-scan-results/{id}/fields")
-    @PreAuthorize("hasAnyAuthority('ticket:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:create', 'ticket:create')")
     public ApiResponse<List<OcrScanResultFieldResponse>> correctOcrScanResultFields(
             @PathVariable Long id,
             @Valid @RequestBody CorrectOcrScanResultFieldsRequest request,

@@ -124,7 +124,7 @@ public class OcrTicketTemplateService implements OcrTicketTemplateServicePort {
     @Transactional
     public OcrTicketTemplateResponse uploadSampleImage(Long id, UploadRequest request) {
         OcrTicketTemplateModel model = getTemplateOrThrow(id);
-        StorageUtils.validateImageUpload(request);
+        StorageUtils.validateOcrTemplateSampleImage(request);
 
         StorageResult result = storagePort.upload(new UploadRequest(
                 request.data(),

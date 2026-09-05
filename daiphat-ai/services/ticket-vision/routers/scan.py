@@ -76,6 +76,52 @@ def _soft_unreadable_scan_response(warning: str) -> ScanResponse:
     )
 
 
+def _user_message_for_vision_error(exc: VisionClientError) -> str:
+    """Map provider errors to Admin-facing copy (avoid blaming a clean photo)."""
+    status = getattr(exc, "status_code", None)
+    detail = str(exc).lower()
+    if status == 429 or "rate limit" in detail:
+        return (
+            "Dịch vụ AI đọc vé đang quá tải (giới hạn tốc độ Groq). "
+            "Vui lòng đợi khoảng 15–30 giây rồi quét lại ảnh."
+        )
+    if (
+        status == 413
+        or "too large" in detail
+        or "itpm" in detail
+        or "token budget" in detail
+    ):
+        return (
+            "Ảnh quét quá nặng so với hạn mức token của dịch vụ AI. "
+            "Vui lòng chụp gần hơn / một vé mỗi ảnh, hoặc thử lại sau vài giây."
+        )
+    if "too many images" in detail or "at most 3 images" in detail:
+        return (
+            "Yêu cầu OCR gửi quá nhiều ảnh phụ tới AI. "
+            "Hệ thống đã giới hạn crop; vui lòng thử quét lại."
+        )
+    if status in (401, 403) or "authentication" in detail:
+        return (
+            "Không xác thực được dịch vụ AI đọc vé (GROQ_API_KEY). "
+            "Vui lòng kiểm tra cấu hình rồi thử lại."
+        )
+    if "model" in detail and ("unavailable" in detail or "not_found" in detail):
+        return (
+            "Model AI đọc vé hiện không khả dụng. "
+            "Vui lòng kiểm tra GROQ_VISION_MODEL rồi thử lại."
+        )
+    if "timed out" in detail or "timeout" in detail:
+        return (
+            "Dịch vụ AI đọc vé phản hồi quá chậm (timeout). "
+            "Vui lòng thử lại với ảnh nhỏ hơn hoặc đợi giây lát."
+        )
+    return (
+        "Không thể đọc rõ thông tin vé từ ảnh này. "
+        "Một số thông tin trên vé bị che hoặc không đủ rõ để nhận diện. "
+        "Vui lòng kiểm tra lại ảnh hoặc nhập thông tin thủ công."
+    )
+
+
 @router.post("/scan", response_model=APIResponse)
 async def scan_tickets(
     file: UploadFile = File(..., description="Ảnh chụp một hoặc nhiều vé số"),
@@ -124,13 +170,9 @@ async def scan_tickets(
             message=f"Cấu hình dịch vụ quét vé ({engine}) chưa sẵn sàng."
         )
     except VisionClientError as exc:
-        # Blurry / empty / parse / API recognition soft-fail → structured ok.
+        # Provider/API soft-fail → structured ok with an accurate warning.
         logger.warning("%s ticket scan soft-failed: %s", engine, exc)
-        result = _soft_unreadable_scan_response(
-            "Không thể đọc rõ thông tin vé từ ảnh này. "
-            "Một số thông tin trên vé bị che hoặc không đủ rõ để nhận diện. "
-            "Vui lòng kiểm tra lại ảnh hoặc nhập thông tin thủ công."
-        )
+        result = _soft_unreadable_scan_response(_user_message_for_vision_error(exc))
         return APIResponse.ok(data=result.model_dump(), message=result.warnings[0])
     except Exception:  # noqa: BLE001 -- never leak a stack trace to the client
         logger.exception("Unexpected error while scanning ticket image — soft unreadable")

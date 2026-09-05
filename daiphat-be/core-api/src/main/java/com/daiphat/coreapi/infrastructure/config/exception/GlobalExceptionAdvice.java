@@ -14,6 +14,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
 
 import jakarta.validation.ConstraintViolationException;
 import java.util.List;
@@ -89,6 +91,24 @@ public class GlobalExceptionAdvice {
     public ResponseEntity<ApiResponse<?>> handleMethodArgumentTypeMismatch(MethodArgumentTypeMismatchException exception) {
         log.warn("Invalid request parameter: {}", exception.getMessage());
         return ResponseEntity.badRequest().body(ApiResponse.error("Tham số yêu cầu không hợp lệ."));
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<?>> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException exception) {
+        long maxBytes = exception.getMaxUploadSize();
+        int maxMb = maxBytes > 0 ? (int) Math.max(1, maxBytes / (1024 * 1024)) : 50;
+        String message = String.format(ErrorCode.IMAGE_FILE_TOO_LARGE.getMessage(), maxMb);
+        log.warn("Upload rejected (max {} bytes): {}", maxBytes, exception.getMessage());
+        return ResponseEntity.status(ErrorCode.IMAGE_FILE_TOO_LARGE.getStatus()).body(ApiResponse.error(message));
+    }
+
+    @ExceptionHandler(MultipartException.class)
+    public ResponseEntity<ApiResponse<?>> handleMultipartException(MultipartException exception) {
+        if (exception.getCause() instanceof MaxUploadSizeExceededException sizeExceeded) {
+            return handleMaxUploadSizeExceeded(sizeExceeded);
+        }
+        log.warn("Multipart request failed: {}", exception.getMessage());
+        return ResponseEntity.badRequest().body(ApiResponse.error("Không đọc được tệp tải lên. Vui lòng thử lại với ảnh hợp lệ."));
     }
 
     @ExceptionHandler(Exception.class)
@@ -201,8 +221,7 @@ public class GlobalExceptionAdvice {
                 || errorCode == ErrorCode.REFUND_DAILY_LIMIT_EXCEEDED
                 || errorCode == ErrorCode.ORDER_INVALID_STATUS
                 || errorCode == ErrorCode.ORDER_NOT_FOUND
-                || errorCode == ErrorCode.LOTTERY_TICKET_SERIALS_INCIDENT_INCOMPLETE
-                || errorCode == ErrorCode.TICKET_SCAN_SERVICE_UNAVAILABLE) {
+                || errorCode == ErrorCode.LOTTERY_TICKET_SERIALS_INCIDENT_INCOMPLETE) {
             return exception.getInternalMessage();
         }
 

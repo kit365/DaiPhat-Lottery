@@ -13,6 +13,11 @@ import numpy as np
 from domain.enums.ticket_status import REQUIRED_FIELDS
 from domain.preprocessing import pipeline as image_pipeline
 from domain.scanning.status_resolver import resolve_status
+from domain.scanning.yolo_llm_guidance import (
+    build_yolo_llm_guidance,
+    limit_vision_extra_images,
+    merge_yolo_and_template_guidance,
+)
 from domain.stations.default_aliases import DEFAULT_STATIONS
 from domain.stations.matcher import StationMatcher
 from domain.stations.models import StationRef
@@ -395,6 +400,8 @@ class LlmTicketScanService:
             }
             for s in metadata.activeStations
         ]
+        # YOLO (best.pt) → Template/Layout fills gaps (Rule A) → Groq crops.
+        yolo_guidance = build_yolo_llm_guidance(image, max_tickets=max_tickets)
         layout_hint, layout_crops, ordered_layouts = _build_layout_guidance(
             metadata, image, image_width, image_height
         )
@@ -405,17 +412,23 @@ class LlmTicketScanService:
                 len(metadata.fieldLayouts or []),
                 len(layout_crops),
             )
+        merged_hint, merged_crops = merge_yolo_and_template_guidance(
+            yolo_guidance,
+            layout_hint,
+            layout_crops,
+        )
+        merged_crops = limit_vision_extra_images(merged_crops)
         prompt = build_ticket_extraction_prompt(
             json.dumps(stations_payload, ensure_ascii=False),
             max_tickets,
             image_width,
             image_height,
-            field_layouts_hint=layout_hint,
+            field_layouts_hint=merged_hint,
         )
         extraction = self._vision_client.analyze_ticket_image(
             vision_image_bytes,
             prompt,
-            extra_images=layout_crops or None,
+            extra_images=merged_crops or None,
         )
 
         # One bundled retry for weak fields using alternate priority crops.
@@ -572,7 +585,7 @@ class LlmTicketScanService:
             retry = self._vision_client.analyze_ticket_image(
                 vision_image_bytes,
                 retry_prompt,
-                extra_images=retry_crops,
+                extra_images=limit_vision_extra_images(retry_crops) or None,
             )
         except Exception:  # noqa: BLE001
             logger.exception("Alternate-layout OCR retry failed; keeping first pass")

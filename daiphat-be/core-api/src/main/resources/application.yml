@@ -21,8 +21,8 @@ spring:
       enabled: true
   servlet:
     multipart:
-      max-file-size: ${CORE_MULTIPART_MAX_FILE_SIZE:5MB}
-      max-request-size: ${CORE_MULTIPART_MAX_REQUEST_SIZE:5MB}
+      max-file-size: ${CORE_MULTIPART_MAX_FILE_SIZE:50MB}
+      max-request-size: ${CORE_MULTIPART_MAX_REQUEST_SIZE:50MB}
   google:
     client-id: ${GOOGLE_WEB_CLIENT_ID:${GOOGLE_CLIENT_ID:}}
     client-secret: ${GOOGLE_CLIENT_SECRET:}
@@ -57,6 +57,9 @@ daiphat:
   return-batch:
     auto-create-rate-ms: 60000
     auto-cancel-rate-ms: 60000
+  supplier-settlement:
+    receipt-overdue-rate-ms: 60000
+    payment-reminder-rate-ms: 60000
   refund:
     expire-rate-ms: 3600000
   payment:
@@ -83,12 +86,20 @@ daiphat:
         connect-timeout-ms: 3000
         read-timeout-ms: 5000
   ticket-vision:
+    recognition-engine: ${DAIPHAT_TICKET_VISION_RECOGNITION_ENGINE:groq}
     service:
-      base-url: ${DAIPHAT_TICKET_VISION_BASE_URL:http://localhost:8000}
-      # OCR on a multi-ticket photo takes 3-10s (doc: "Implementation Considerations & Risks");
-      # longer read timeout than the chat/fortune AI calls above.
-      connect-timeout-ms: 5000
-      read-timeout-ms: 15000
+      # Local ticket-vision listens on 8090 (chat-bot is 8000). Docker Compose
+      # local stack runs both inside the `ai` container — override via
+      # DAIPHAT_TICKET_VISION_BASE_URL=http://ai:8090.
+      base-url: ${DAIPHAT_TICKET_VISION_BASE_URL:http://localhost:8090}
+      # OCR on a multi-ticket photo takes 3-10s (doc: "Implementation
+      # Considerations & Risks") -- longer read timeout than the chat/fortune
+      # AI calls above. Grok vision may take longer; default 60s in Docker.
+      connect-timeout-ms: ${DAIPHAT_TICKET_VISION_CONNECT_TIMEOUT_MS:5000}
+      read-timeout-ms: ${DAIPHAT_TICKET_VISION_READ_TIMEOUT_MS:60000}
+  ocr:
+    training-export-dir: ${DAIPHAT_OCR_TRAINING_EXPORT_DIR:./data/ocr-training-exports}
+    ai-model-metric-cron: ${DAIPHAT_OCR_AI_MODEL_METRIC_CRON:0 15 2 * * *}
   chat:
     ai:
       confidence-threshold: 0.7
@@ -117,6 +128,10 @@ daiphat:
       repeat-cooldown-hours: 24
   lottery:
     seed:
+      # Local profile sets true. Enable explicitly in other profiles when seeding import/return/settlement.
+      enabled: ${LOTTERY_SEED_ENABLED:false}
+      tickets-per-batch: 150
+      serials-per-ticket: 4
       southern-stations:
         # Upsert 21 đài Miền Nam + lịch quay (Thứ 2–CN) mỗi lần startup
         enabled: ${LOTTERY_SEED_SOUTHERN_STATIONS_ENABLED:true}

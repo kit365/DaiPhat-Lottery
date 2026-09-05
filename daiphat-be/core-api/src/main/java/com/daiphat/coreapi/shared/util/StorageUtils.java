@@ -4,9 +4,18 @@ import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import org.springframework.web.multipart.MultipartFile;
+
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 
 public final class StorageUtils {
+
+    /** OCR field boxes need a readable ticket photo — reject 1×1 / placeholder PNGs. */
+    public static final int OCR_SAMPLE_MIN_WIDTH = 200;
+    public static final int OCR_SAMPLE_MIN_HEIGHT = 200;
+    private static final int OCR_SAMPLE_MIN_BYTES = 2_048;
 
     private StorageUtils() {}
 
@@ -29,6 +38,39 @@ public final class StorageUtils {
         }
         if (request.contentType() == null || !request.contentType().startsWith("image/")) {
             throw new DomainException(ErrorCode.IMAGE_INVALID_TYPE);
+        }
+    }
+
+    /**
+     * OCR ticket templates must be real photographs. Tiny/debug images (e.g. 1×1 PNG)
+     * still upload to Cloudinary and replace {@code sample_image_url}, which looks like
+     * a solid color block in the annotator after reload.
+     */
+    public static void validateOcrTemplateSampleImage(UploadRequest request) {
+        validateImageUpload(request);
+        if (request.data().length < OCR_SAMPLE_MIN_BYTES) {
+            throw new DomainException(
+                    ErrorCode.IMAGE_DIMENSIONS_TOO_SMALL,
+                    null,
+                    OCR_SAMPLE_MIN_WIDTH,
+                    OCR_SAMPLE_MIN_HEIGHT
+            );
+        }
+        try {
+            BufferedImage image = ImageIO.read(new ByteArrayInputStream(request.data()));
+            if (image == null) {
+                throw new DomainException(ErrorCode.IMAGE_INVALID_TYPE);
+            }
+            if (image.getWidth() < OCR_SAMPLE_MIN_WIDTH || image.getHeight() < OCR_SAMPLE_MIN_HEIGHT) {
+                throw new DomainException(
+                        ErrorCode.IMAGE_DIMENSIONS_TOO_SMALL,
+                        null,
+                        OCR_SAMPLE_MIN_WIDTH,
+                        OCR_SAMPLE_MIN_HEIGHT
+                );
+            }
+        } catch (IOException e) {
+            throw new DomainException(ErrorCode.IMAGE_INVALID_TYPE, e);
         }
     }
 

@@ -61,13 +61,27 @@ public class TicketVisionAdapter implements TicketVisionPort {
     }
 
     @Override
+    public boolean isHealthy() {
+        if (baseUrl == null || baseUrl.isBlank()) {
+            return false;
+        }
+        try {
+            ResponseEntity<String> response = restTemplate.getForEntity(
+                    baseUrl + TicketVisionApiConstants.HEALTH_PATH,
+                    String.class
+            );
+            return response.getStatusCode().is2xxSuccessful();
+        } catch (Exception e) {
+            log.debug("ticket-vision health check failed at {}: {}", baseUrl, e.toString());
+            return false;
+        }
+    }
+
+    @Override
     public RemoteTicketScanResult scan(byte[] imageBytes, String fileName, RemoteScanMetadata metadata) {
         if (baseUrl == null || baseUrl.isBlank()) {
             log.warn("ticket-vision base URL is unconfigured or empty");
-            throw new DomainException(
-                    ErrorCode.TICKET_SCAN_SERVICE_UNAVAILABLE,
-                    "ticket-vision service is not configured"
-            );
+            throw new DomainException(ErrorCode.TICKET_SCAN_SERVICE_UNAVAILABLE);
         }
         String url = baseUrl + TicketVisionApiConstants.SCAN_PATH;
         try {
@@ -92,6 +106,7 @@ public class TicketVisionAdapter implements TicketVisionPort {
             return normalize(body.getData());
         } catch (ResourceAccessException e) {
             log.error("ticket-vision unreachable at {}", url, e);
+            // Do not pass I/O exception text to clients — ErrorCode message is user-facing.
             throw new DomainException(ErrorCode.TICKET_SCAN_SERVICE_UNAVAILABLE, e);
         } catch (RestClientException e) {
             // Includes many conversion failures — soft-degrade so one bad OCR payload

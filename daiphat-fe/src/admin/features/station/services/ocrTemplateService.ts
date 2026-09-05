@@ -90,10 +90,12 @@ export const uploadOcrTemplateSampleImage = async (
 ): Promise<ApiResponse<OcrTicketTemplate>> => {
     const formData = new FormData();
     formData.append('file', file);
+    // Do not set Content-Type manually — apiApp interceptor strips it so the
+    // browser can attach multipart boundary (required for @RequestPart).
+    // Longer timeout: Cloudinary + large ticket photos often exceed the default 15s.
     const response = await apiApp.post(`${BASE_URL}/${id}/sample-image`, formData, {
-        headers: {
-            'Content-Type': 'multipart/form-data',
-        },
+        timeout: 120_000,
+        skipGlobalErrorToast: true,
     });
     return response.data;
 };
