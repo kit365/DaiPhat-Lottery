@@ -82,10 +82,7 @@ class ApiClient {
             final newToken = await _refreshAccessToken();
             if (newToken != null && newToken.isNotEmpty) {
               final retryOptions = requestOptions.copyWith(
-                extra: {
-                  ...requestOptions.extra,
-                  'isRetry': true,
-                },
+                extra: {...requestOptions.extra, 'isRetry': true},
                 headers: {
                   ...requestOptions.headers,
                   'Authorization': 'Bearer $newToken',
@@ -272,37 +269,38 @@ class ApiClient {
     }
 
     _isRefreshing = true;
-    _refreshCompleter = Completer<String?>();
+    final completer = Completer<String?>();
+    _refreshCompleter = completer;
 
+    unawaited(_performAccessTokenRefresh(completer));
+    return completer.future;
+  }
+
+  Future<void> _performAccessTokenRefresh(Completer<String?> completer) async {
     try {
       final response = await _dio.post<Map<String, dynamic>>(
         '/auth/refresh-token',
-        options: Options(
-          extra: {
-            'includeAuth': false,
-            'isRetry': true,
-          },
-        ),
+        options: Options(extra: {'includeAuth': false, 'isRetry': true}),
       );
 
       final newToken = _readAccessToken(response.data?['data']);
       if (newToken != null && newToken.isNotEmpty) {
         setAccessToken(newToken);
         await onAccessTokenRefreshed?.call(newToken);
-        _refreshCompleter?.complete(newToken);
-        return newToken;
+        completer.complete(newToken);
+        return;
       }
 
-      _refreshCompleter?.complete(null);
-      return null;
-    } catch (_) {
-      if (!(_refreshCompleter?.isCompleted ?? true)) {
-        _refreshCompleter?.complete(null);
+      completer.complete(null);
+    } catch (error, stackTrace) {
+      if (!completer.isCompleted) {
+        completer.completeError(error, stackTrace);
       }
-      return null;
     } finally {
       _isRefreshing = false;
-      _refreshCompleter = null;
+      if (identical(_refreshCompleter, completer)) {
+        _refreshCompleter = null;
+      }
     }
   }
 
@@ -380,10 +378,7 @@ class ApiClient {
       );
     }
 
-    return ApiException(
-      'Đã có lỗi xảy ra từ máy chủ!',
-      statusCode: statusCode,
-    );
+    return ApiException('Đã có lỗi xảy ra từ máy chủ!', statusCode: statusCode);
   }
 
   static String? _readAccessToken(dynamic payload) {

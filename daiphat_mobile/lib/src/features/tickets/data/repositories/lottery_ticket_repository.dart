@@ -32,6 +32,7 @@ class LotteryTicketRepository {
     String? search,
     List<String>? tailRanges,
     List<String>? numberTypes,
+    int? stationId,
   }) async {
     final response = await _apiService.getPublicLotteryTickets(
       page: page,
@@ -41,11 +42,11 @@ class LotteryTicketRepository {
       searchMode: 'CONTAINS',
       tailRanges: tailRanges,
       numberTypes: numberTypes,
+      stationId: stationId,
     );
 
     // Ưu tiên cờ isLast từ API; fallback theo totalRecords.
-    final hasMore =
-        !response.isLast || (page * size) < response.totalElements;
+    final hasMore = !response.isLast || (page * size) < response.totalElements;
 
     return OpenTicketsResult(
       items: response.items.where((ticket) => ticket.quantity > 0).toList(),
@@ -60,7 +61,7 @@ class LotteryTicketRepository {
     return _apiService.getLotteryTicketDetail(id);
   }
 
-  Future<List<String>> fetchStationNamesForDrawDate(String drawDate) {
-    return _apiService.getStationNamesForDrawDate(drawDate);
+  Future<List<TicketStationOption>> fetchStationsForDrawDate(String drawDate) {
+    return _apiService.getStationsForDrawDate(drawDate);
   }
 }

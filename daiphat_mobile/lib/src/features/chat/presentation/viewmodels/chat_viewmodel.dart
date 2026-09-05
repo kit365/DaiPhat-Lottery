@@ -141,10 +141,12 @@ class ChatViewModel extends Notifier<ChatState> {
   String? _lastReadAckKey;
   bool _timelineRefreshInFlight = false;
   int _sessionEpoch = 0;
+  String? _activeAccessToken;
 
   @override
   ChatState build() {
-    ref.onDispose(_disposeTimers);
+    final repository = ref.read(chatRepositoryProvider);
+    ref.onDispose(() => _disposeTimers(repository));
     return const ChatState();
   }
 
@@ -154,8 +156,17 @@ class ChatViewModel extends Notifier<ChatState> {
       return;
     }
 
-    if (_bootstrapped) return;
+    final accessToken = await _repository.readAccessToken();
+    if (accessToken == null || accessToken.isEmpty) {
+      await _resetSession();
+      return;
+    }
+    if (_bootstrapped && _activeAccessToken == accessToken) return;
+    if (_activeAccessToken != null && _activeAccessToken != accessToken) {
+      await _resetSession();
+    }
     _bootstrapped = true;
+    _activeAccessToken = accessToken;
     final sessionEpoch = ++_sessionEpoch;
 
     state = state.copyWith(
@@ -626,12 +637,12 @@ class ChatViewModel extends Notifier<ChatState> {
     });
   }
 
-  void _disposeTimers() {
+  void _disposeTimers(ChatRepository repository) {
     _typingTimer?.cancel();
     _aiStatusTimer?.cancel();
     _lastReadAckKey = null;
     _subscribedConversationId = null;
-    unawaited(_repository.disconnectWebSocket());
+    unawaited(repository.disconnectWebSocket());
   }
 
   bool _isCurrentSession(int epoch) {
@@ -647,6 +658,7 @@ class ChatViewModel extends Notifier<ChatState> {
     _aiStatusTimer?.cancel();
     _lastReadAckKey = null;
     _subscribedConversationId = null;
+    _activeAccessToken = null;
     await _repository.disconnectWebSocket();
     await _repository.clearLastConversationId();
     state = const ChatState();

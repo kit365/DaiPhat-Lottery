@@ -1,5 +1,6 @@
 import 'package:daiphat_mobile/src/shared/network/api_client.dart';
 import '../models/transaction_type.dart';
+import 'package:daiphat_mobile/src/features/orders/domain/entities/order.dart';
 
 class TransactionService {
   static const _baseTransactions = '/transactions';
@@ -39,5 +40,13 @@ class TransactionService {
     );
     final data = response['data'] as Map<String, dynamic>;
     return PendingPaymentCountdownResult.fromJson(data);
+  }
+
+  Future<OrderResponse> syncOnlinePayment(String orderId) async {
+    final response = await _apiClient.post(
+      '$_baseTransactions/$orderId/payment/sync',
+    );
+    final data = response['data'] as Map<String, dynamic>;
+    return OrderResponse.fromJson(data);
   }
 }

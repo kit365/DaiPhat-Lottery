@@ -84,6 +84,7 @@ class BuyTicketState {
     required this.tickets,
     this.searchFilter = TicketSearchFilter.empty,
     this.availableProvinces = const [],
+    this.stationIdsByName = const {},
     this.isListLoading = false,
     this.isLoadingMore = false,
     this.hasMore = false,
@@ -97,6 +98,7 @@ class BuyTicketState {
   final TicketSearchFilter searchFilter;
   final List<LotteryTicketListItem> tickets;
   final List<String> availableProvinces;
+  final Map<String, int> stationIdsByName;
   final bool isListLoading;
   final bool isLoadingMore;
   final bool hasMore;
@@ -141,6 +143,7 @@ class BuyTicketState {
     TicketSearchFilter? searchFilter,
     List<LotteryTicketListItem>? tickets,
     List<String>? availableProvinces,
+    Map<String, int>? stationIdsByName,
     bool? isListLoading,
     bool? isLoadingMore,
     bool? hasMore,
@@ -154,6 +157,7 @@ class BuyTicketState {
       searchFilter: searchFilter ?? this.searchFilter,
       tickets: tickets ?? this.tickets,
       availableProvinces: availableProvinces ?? this.availableProvinces,
+      stationIdsByName: stationIdsByName ?? this.stationIdsByName,
       isListLoading: isListLoading ?? this.isListLoading,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       hasMore: hasMore ?? this.hasMore,
@@ -229,6 +233,7 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
     List<LotteryTicketListItem> existingTickets = const [],
     bool append = false,
     List<String> availableProvinces = const [],
+    Map<String, int> stationIdsByName = const {},
     bool refreshStations = true,
   }) async {
     // Sau 16:15 không còn bán vé hôm nay → chuyển sang ngày mai.
@@ -239,38 +244,16 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
 
     final trimmedSearch = searchQuery.trim();
     final drawDate = _drawDateIsoFor(day);
-    final ticketsFuture = _repository.fetchOpenTickets(
-      page: page,
-      size: LotteryTicketRepository.defaultPageSize,
-      drawDate: drawDate,
-      search: trimmedSearch.length >= 2 ? trimmedSearch : null,
-      tailRanges: searchFilter.tailRanges.isEmpty
-          ? null
-          : searchFilter.tailRanges,
-      numberTypes: searchFilter.numberTypes.isEmpty
-          ? null
-          : searchFilter.numberTypes,
-    );
-
     var stationNames = List<String>.from(availableProvinces);
+    var stationIds = Map<String, int>.from(stationIdsByName);
     if (!append && (refreshStations || stationNames.isEmpty)) {
       try {
-        stationNames = await _repository.fetchStationNamesForDrawDate(drawDate);
+        final stations = await _repository.fetchStationsForDrawDate(drawDate);
+        stationNames = stations.map((station) => station.name).toList();
+        stationIds = {for (final station in stations) station.name: station.id};
       } catch (_) {
         // Giữ danh sách đài cũ nếu API lịch lỗi.
       }
-    }
-
-    final result = await ticketsFuture;
-    final mapped = result.items.map(mapLotteryTicketToListItem).toList();
-    final tickets = append ? [...existingTickets, ...mapped] : mapped;
-
-    if (stationNames.isEmpty) {
-      stationNames = tickets
-          .map((ticket) => ticket.stationDisplayText)
-          .where((name) => name.trim().isNotEmpty)
-          .toSet()
-          .toList();
     }
 
     var province = selectedProvince;
@@ -281,6 +264,36 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
       province = 'Tất cả đài';
     }
 
+    final result = await _repository.fetchOpenTickets(
+      page: page,
+      size: LotteryTicketRepository.defaultPageSize,
+      drawDate: drawDate,
+      stationId: province == 'Tất cả đài' ? null : stationIds[province],
+      search: trimmedSearch.length >= 2 ? trimmedSearch : null,
+      tailRanges: searchFilter.tailRanges.isEmpty
+          ? null
+          : searchFilter.tailRanges,
+      numberTypes: searchFilter.numberTypes.isEmpty
+          ? null
+          : searchFilter.numberTypes,
+    );
+
+    final mapped = result.items.map(mapLotteryTicketToListItem).toList();
+    final tickets = append ? [...existingTickets, ...mapped] : mapped;
+
+    if (stationNames.isEmpty) {
+      stationNames = tickets
+          .map((ticket) => ticket.stationDisplayText)
+          .where((name) => name.trim().isNotEmpty)
+          .toSet()
+          .toList();
+      stationIds = {
+        for (final ticket in result.items)
+          if (ticket.stationId != null && ticket.stationName.trim().isNotEmpty)
+            ticket.stationName.trim(): ticket.stationId!,
+      };
+    }
+
     return BuyTicketState(
       searchQuery: searchQuery,
       selectedProvince: province,
@@ -288,6 +301,7 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
       searchFilter: searchFilter,
       tickets: tickets,
       availableProvinces: stationNames,
+      stationIdsByName: stationIds,
       isListLoading: false,
       isLoadingMore: false,
       hasMore: result.hasMore,
@@ -333,6 +347,7 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
         availableProvinces: keepStations
             ? current.availableProvinces
             : const [],
+        stationIdsByName: keepStations ? current.stationIdsByName : const {},
         refreshStations: !keepStations,
       );
       if (requestId != _listRequestId) return;
@@ -368,10 +383,15 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
     );
   }
 
-  void selectProvince(String province) {
+  Future<void> selectProvince(String province) async {
     final current = state.asData?.value;
     if (current == null) return;
-    state = AsyncData(current.copyWith(selectedProvince: province));
+    if (current.selectedProvince == province) return;
+    await _reloadList(
+      searchQuery: current.searchQuery,
+      selectedProvince: province,
+      selectedDay: current.selectedDay,
+    );
   }
 
   Future<void> selectDay(TicketDayFilter day) async {
@@ -409,6 +429,7 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
         existingTickets: current.tickets,
         append: true,
         availableProvinces: current.availableProvinces,
+        stationIdsByName: current.stationIdsByName,
         refreshStations: false,
       );
       if (requestId != _listRequestId) return;

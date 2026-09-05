@@ -52,7 +52,6 @@ class AppDependencies {
     );
     apiClient.resolveAccessToken = tokenStorage.getAccessToken;
     apiClient.onAccessTokenRefreshed = tokenStorage.saveAccessToken;
-    apiClient.onSessionExpired = authRepository.logout;
     await authRepository.restoreSession();
 
     if (authRepository.isAuthenticated) {
@@ -67,6 +66,10 @@ class AppDependencies {
     }
 
     final loginViewModel = LoginViewModel(authRepository);
+    apiClient.onSessionExpired = () async {
+      await authRepository.logout();
+      loginViewModel.onLoggedOut();
+    };
     final registerViewModel = RegisterViewModel(authRepository);
     final forgotPasswordViewModel = ForgotPasswordViewModel(authRepository);
     final profileViewModel = ProfileViewModel(authRepository, loginViewModel);

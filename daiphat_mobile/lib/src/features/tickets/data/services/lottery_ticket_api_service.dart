@@ -4,6 +4,13 @@ import 'package:daiphat_mobile/src/shared/network/api_response.dart';
 import 'package:daiphat_mobile/src/shared/network/page_response.dart';
 import '../models/lottery_ticket.dart';
 
+class TicketStationOption {
+  const TicketStationOption({required this.id, required this.name});
+
+  final int id;
+  final String name;
+}
+
 class LotteryTicketApiService {
   static const _baseLotteryTickets = '/lottery-tickets';
 
@@ -25,10 +32,7 @@ class LotteryTicketApiService {
     String? sortBy,
     String? direction,
   }) async {
-    final queryParameters = <String, dynamic>{
-      'page': page,
-      'size': size,
-    };
+    final queryParameters = <String, dynamic>{'page': page, 'size': size};
 
     if (stationId != null) queryParameters['stationId'] = stationId;
     if (stationIds != null && stationIds.isNotEmpty) {
@@ -102,28 +106,34 @@ class LotteryTicketApiService {
   }
 
   /// Đài mở bán theo ngày — không phụ thuộc kết quả search vé.
-  Future<List<String>> getStationNamesForDrawDate(String drawDate) async {
+  Future<List<TicketStationOption>> getStationsForDrawDate(
+    String drawDate,
+  ) async {
     final response = await _apiClient.get(
       '/lottery-stations/schedule',
       queryParameters: <String, dynamic>{'drawDate': drawDate},
     );
 
-    final apiResponse = ApiResponse<List<String>>.fromJson(
+    final apiResponse = ApiResponse<List<TicketStationOption>>.fromJson(
       response,
       (json) {
         final list = json as List<dynamic>? ?? const [];
-        final names = <String>{};
+        final stations = <String, TicketStationOption>{};
         for (final item in list) {
           if (item is! Map<String, dynamic>) continue;
+          final id =
+              (item['stationId'] as num?)?.toInt() ??
+              (item['id'] as num?)?.toInt() ??
+              int.tryParse((item['stationId'] ?? item['id'] ?? '').toString());
           final name =
               (item['name'] ?? item['province'] ?? item['stationName'] ?? '')
                   .toString()
                   .trim();
-          if (name.isNotEmpty) {
-            names.add(name);
+          if (id != null && id > 0 && name.isNotEmpty) {
+            stations[name] = TicketStationOption(id: id, name: name);
           }
         }
-        return names.toList();
+        return stations.values.toList();
       },
     );
 
