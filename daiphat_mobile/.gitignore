@@ -49,6 +49,7 @@ app.*.map.json
 
 # Environment and API keys
 .env
+/android/key.properties
 google-services.json
 GoogleService-Info.plist
 
