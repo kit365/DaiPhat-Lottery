@@ -7,6 +7,9 @@ spring:
   application:
 
     name: daiphat
+  # Local Maven/IDE runs use the local datasource unless deployment overrides it.
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
   flyway:
     create-schemas: true
     schemas:
