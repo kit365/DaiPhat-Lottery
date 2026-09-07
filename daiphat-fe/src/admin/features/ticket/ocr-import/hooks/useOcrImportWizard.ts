@@ -29,14 +29,18 @@ import { OCR_IMPORT_DRAFT_KEY } from '../types/ticketOcr.type';
 import {
     canConfirmReviewRow,
     collectOcrBatchOptions,
+    createFailedReviewRow,
     createPrefillLineOption,
     findOcrLineOption,
     mapScannedTicketToReviewRow,
-    createFailedReviewRow,
     type OcrBatchOption,
     type OcrLineOption,
     type OcrRowValidationContext,
 } from '../utils/ocrImportHelpers';
+import {
+    normalizeOcrScanErrorMessage,
+    normalizeOcrWarningList,
+} from '../utils/ocrScanErrorMessage';
 
 export type OcrWizardStep = 'upload' | 'review' | 'importMode' | 'result';
 export type OcrDraftIntent = 'USE_EXISTING' | 'CREATE_NEW';
@@ -380,10 +384,11 @@ export const useOcrImportWizard = ({
                 };
                 const tickets = data.tickets ?? [];
                 if (tickets.length === 0) {
-                    const reason =
+                    const reason = normalizeOcrScanErrorMessage(
                         data.warnings?.[0] ||
-                        response.message ||
-                        'Không thể đọc rõ thông tin vé từ ảnh này.';
+                            response.message ||
+                            'Không thể đọc rõ thông tin vé từ ảnh này.'
+                    );
                     nextRows.push(
                         createFailedReviewRow(
                             image.id,
@@ -407,8 +412,9 @@ export const useOcrImportWizard = ({
                         );
                     }
                 }
-                if ((data.warnings?.length ?? 0) > 0) {
-                    toast.warning(data.warnings!.join(' · '));
+                const friendlyWarnings = normalizeOcrWarningList(data.warnings);
+                if (friendlyWarnings.length > 0) {
+                    toast.warning(friendlyWarnings.join(' · '));
                 }
             } catch (error: unknown) {
                 const axiosData = (
@@ -421,10 +427,7 @@ export const useOcrImportWizard = ({
                     axiosData?.message ||
                     (error as { message?: string })?.message ||
                     'Không thể đọc rõ thông tin vé từ ảnh này.';
-                // Prefer Vietnamese soft-fail copy over raw "Request failed with status code 500".
-                const displayMessage = /status code \d+/i.test(message)
-                    ? 'Không thể đọc rõ thông tin vé từ ảnh này. Vui lòng kiểm tra lại ảnh hoặc nhập thông tin thủ công.'
-                    : message;
+                const displayMessage = normalizeOcrScanErrorMessage(message);
                 nextImages[index] = {
                     ...nextImages[index],
                     status: 'error',
@@ -438,7 +441,7 @@ export const useOcrImportWizard = ({
                         displayMessage
                     )
                 );
-                toast.warning(`${image.file.name}: ${displayMessage}`);
+                toast.error(`${image.file.name}: ${displayMessage}`);
             }
             setImages([...nextImages]);
         }

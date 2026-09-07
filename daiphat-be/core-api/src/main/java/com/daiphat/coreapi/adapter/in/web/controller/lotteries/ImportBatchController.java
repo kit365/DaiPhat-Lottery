@@ -51,7 +51,7 @@ public class ImportBatchController {
     private final ImportBatchServicePort importBatchServicePort;
 
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:create')")
     public ApiResponse<ImportBatchResponse> create(
             @Valid @RequestBody CreateImportBatchRequest request,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
@@ -62,7 +62,7 @@ public class ImportBatchController {
     }
 
     @PutMapping("/{id:\\d+}")
-    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:create')")
     public ApiResponse<ImportBatchResponse> update(
             @PathVariable Long id,
             @Valid @RequestBody UpdateImportBatchRequest request) {
@@ -73,7 +73,7 @@ public class ImportBatchController {
     }
 
     @PostMapping("/{id:\\d+}/invoice-evidence")
-    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:create')")
     public ApiResponse<ImportBatchResponse> attachInvoiceEvidence(
             @PathVariable Long id,
             @Valid @RequestBody UpdateImportBatchInvoiceEvidenceRequest request) {
@@ -84,7 +84,7 @@ public class ImportBatchController {
     }
 
     @PostMapping(value = "/invoice-evidence/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:create')")
     public ApiResponse<StorageResult> uploadInvoiceEvidence(@RequestPart("file") MultipartFile file) {
         return ApiResponse.success(
                 "Tải tệp biên lai phiếu nhập thành công.",
@@ -93,7 +93,7 @@ public class ImportBatchController {
     }
 
     @PostMapping(value = "/ticket-list-images/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:create')")
     public ApiResponse<StorageResult> uploadTicketListImage(@RequestPart("file") MultipartFile file) {
         return ApiResponse.success(
                 "Tải tệp danh sách vé nhập thành công.",
@@ -102,7 +102,7 @@ public class ImportBatchController {
     }
 
     @PostMapping("/{id:\\d+}/ticket-list-images")
-    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:create')")
     public ApiResponse<ImportBatchResponse> attachTicketListImages(
             @PathVariable Long id,
             @RequestBody UpdateImportBatchTicketListImagesRequest request) {
@@ -129,13 +129,13 @@ public class ImportBatchController {
     }
 
     @GetMapping("/incomplete")
-    @PreAuthorize("hasAnyAuthority('importBatch:view', 'ticket:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:view', 'ticket:create')")
     public ApiResponse<List<ImportBatchResponse>> getIncompleteBatches() {
         return ApiResponse.success(null, importBatchServicePort.getIncompleteBatches());
     }
 
     @PostMapping("/{batchId:\\d+}/cancel")
-    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:create')")
     public ApiResponse<ImportBatchResponse> cancelDraft(
             @PathVariable Long batchId,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal
@@ -150,13 +150,13 @@ public class ImportBatchController {
     }
 
     @GetMapping("/without-lines")
-    @PreAuthorize("hasAnyAuthority('importBatch:view', 'ticket:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:view', 'ticket:create')")
     public ApiResponse<List<ImportBatchResponse>> getBatchesWithoutLines() {
         return ApiResponse.success(null, importBatchServicePort.getBatchesWithoutLines());
     }
 
     @PostMapping("/{batchId:\\d+}/lines/{lineId:\\d+}/pause")
-    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:create')")
     public ApiResponse<ImportBatchResponse> pauseLine(
             @PathVariable Long batchId,
             @PathVariable Long lineId) {
@@ -167,7 +167,7 @@ public class ImportBatchController {
     }
 
     @PostMapping("/{batchId:\\d+}/lines/{lineId:\\d+}/resume")
-    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:create')")
     public ApiResponse<ImportBatchResponse> resumeLine(
             @PathVariable Long batchId,
             @PathVariable Long lineId) {
@@ -178,7 +178,7 @@ public class ImportBatchController {
     }
 
     @DeleteMapping("/{batchId:\\d+}/lines/{lineId:\\d+}")
-    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:create')")
     public ApiResponse<ImportBatchResponse> deleteLine(
             @PathVariable Long batchId,
             @PathVariable Long lineId) {
@@ -189,13 +189,13 @@ public class ImportBatchController {
     }
 
     @GetMapping("/{id:\\d+}")
-    @PreAuthorize("hasAnyAuthority('importBatch:view', 'importBatch:create', 'ticket:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:view', 'importBatch:create', 'ticket:create')")
     public ApiResponse<ImportBatchResponse> getById(@PathVariable Long id) {
         return ApiResponse.success(null, importBatchServicePort.getById(id));
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('importBatch:view')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:view')")
     public ApiResponse<PageResponse<ImportBatchResponse>> getAll(
             @RequestParam(defaultValue = DEFAULT_PAGE) int page,
             @RequestParam(defaultValue = DEFAULT_LIMIT) int size,
@@ -213,13 +213,13 @@ public class ImportBatchController {
     }
 
     @GetMapping("/{id:\\d+}/reduction-tickets")
-    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:create')")
     public ApiResponse<ImportBatchReductionTicketsResponse> getReductionTickets(@PathVariable Long id) {
         return ApiResponse.success(null, importBatchServicePort.getReductionTickets(id));
     }
 
     @GetMapping("/{batchId:\\d+}/lines/{lineId:\\d+}/entry-tickets")
-    @PreAuthorize("hasAnyAuthority('importBatch:view', 'importBatch:create', 'ticket:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:view', 'importBatch:create', 'ticket:create')")
     public ApiResponse<ImportBatchLineEntryTicketsResponse> getLineEntryTickets(
             @PathVariable Long batchId,
             @PathVariable Long lineId) {
@@ -227,19 +227,19 @@ public class ImportBatchController {
     }
 
     @GetMapping("/batch-types")
-    @PreAuthorize("hasAnyAuthority('importBatch:view')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:view')")
     public ApiResponse<List<EnumOptionResponse>> getBatchTypes() {
         return ApiResponse.success(null, importBatchServicePort.getBatchTypeOptions());
     }
 
     @GetMapping("/time-policy")
-    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:view', 'importBatch:create')")
     public ApiResponse<ImportBatchTimePolicyResponse> getTimePolicy() {
         return ApiResponse.success(null, importBatchServicePort.getTimePolicy());
     }
 
     @GetMapping("/eligible-stations")
-    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:create')")
     public ApiResponse<ImportBatchEligibleStationsResponse> getEligibleStations(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate drawDate,
             @RequestParam ImportBatchImportMode importMode,
@@ -251,7 +251,7 @@ public class ImportBatchController {
     }
 
     @GetMapping("/classify-preview")
-    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:create')")
     public ApiResponse<ImportBatchClassificationPreviewResponse> previewClassification(
             @RequestParam Long lotteryStationId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate drawDate,
