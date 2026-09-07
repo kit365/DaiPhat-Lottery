@@ -635,9 +635,19 @@ public class TicketScanImportService implements TicketScanImportServicePort {
         errors.add("Vui lòng kiểm tra lại ảnh hoặc nhập thông tin thủ công.");
         if (visionWarnings != null) {
             for (String warning : visionWarnings) {
-                if (warning != null && !warning.isBlank() && !errors.contains(warning)) {
-                    errors.add(warning.trim());
+                if (warning == null || warning.isBlank() || errors.contains(warning.trim())) {
+                    continue;
                 }
+                String trimmed = warning.trim();
+                // Never surface Spring/RestTemplate I/O stack text to Admin UI.
+                if (looksLikeTechnicalVisionError(trimmed)) {
+                    String friendly = ErrorCode.TICKET_SCAN_SERVICE_UNAVAILABLE.getMessage();
+                    if (!errors.contains(friendly)) {
+                        errors.add(friendly);
+                    }
+                    continue;
+                }
+                errors.add(trimmed);
             }
         }
 
@@ -900,5 +910,15 @@ public class TicketScanImportService implements TicketScanImportServicePort {
     private ImportBatchModel getImportBatchOrThrow(Long importBatchId) {
         return importBatchRepositoryPort.findById(importBatchId)
                 .orElseThrow(() -> new DomainException(ErrorCode.IMPORT_BATCH_NOT_FOUND));
+    }
+
+    private static boolean looksLikeTechnicalVisionError(String message) {
+        String lower = message.toLowerCase();
+        return lower.contains("i/o error")
+                || lower.contains("connection refused")
+                || lower.contains("connect to http")
+                || lower.contains("resourceaccessexception")
+                || lower.contains("localhost:8090")
+                || lower.contains("getsockopt");
     }
 }

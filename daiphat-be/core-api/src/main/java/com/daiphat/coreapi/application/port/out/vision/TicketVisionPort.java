@@ -11,6 +11,12 @@ import com.daiphat.coreapi.infrastructure.dto.response.vision.RemoteTicketScanRe
 public interface TicketVisionPort {
 
     /**
+     * Lightweight readiness probe (GET /health). Used by Admin OCR import
+     * modal so operators see a clear message before uploading images.
+     */
+    boolean isHealthy();
+
+    /**
      * @throws com.daiphat.coreapi.domain.exception.DomainException
      *         (TICKET_SCAN_SERVICE_UNAVAILABLE) if the service can't be
      *         reached or returns an unsuccessful/malformed response --
