@@ -86,12 +86,12 @@ void main() {
     expect(find.text('first: 1'), findsOneWidget);
   });
 
-  test('router uses six persistent branches, including utilities', () {
+  test('router uses five persistent branches, including utilities', () {
     final router = _readSource('lib/src/app/routing/app_router.dart');
 
     expect(router, contains('StatefulShellRoute.indexedStack('));
     final branches = router.substring(router.indexOf('branches: ['));
-    expect(RegExp(r'StatefulShellBranch\(').allMatches(branches).length, 6);
+    expect(RegExp(r'StatefulShellBranch\(').allMatches(branches).length, 5);
     expect(
       branches.indexOf('AppRoute.buyTicket') <
               branches.indexOf('AppRoute.checkTicket') &&
@@ -100,12 +100,9 @@ void main() {
           branches.indexOf('AppRoute.home') <
               branches.indexOf('AppRoute.utilitiesTwo') &&
           branches.indexOf('AppRoute.utilitiesTwo') <
-              branches.indexOf('AppRoute.notifications') &&
-          branches.indexOf('AppRoute.notifications') <
               branches.indexOf('AppRoute.profile'),
       isTrue,
     );
-    expect(router, contains('showBackButton: false'));
     expect(router, contains('UtilitiesTwoView('));
     expect(router, contains('path == AppRoute.profile.path'));
   });
@@ -138,7 +135,7 @@ void main() {
     expect(layout, isNot(contains('PageController')));
   });
 
-  test('all notification entry points select the canonical tab', () {
+  test('all notification entry points open the protected notification route', () {
     final service = _readSource(
       'lib/src/shared/services/notification_service.dart',
     );
@@ -150,7 +147,7 @@ void main() {
     );
 
     expect(service, contains('context.go(AppRoute.notifications.path);'));
-    expect(profile, contains('context.go(AppRoute.notifications.path),'));
+    expect(profile, contains('context.push(AppRoute.notifications.path),'));
     expect(view, contains('final bool showBackButton;'));
     expect(view, contains('automaticallyImplyLeading: false'));
   });

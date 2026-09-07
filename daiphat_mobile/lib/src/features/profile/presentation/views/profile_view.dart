@@ -5,7 +5,7 @@ import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/widgets/app_header_action_button.dart';
 import 'package:go_router/go_router.dart';
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
-import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
+import 'package:daiphat_mobile/src/features/tickets/presentation/providers/purchased_tickets_providers.dart';
 import 'package:daiphat_mobile/src/features/notifications/presentation/viewmodels/notification_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/profile_iconography.dart';
 import '../viewmodels/profile_viewmodel.dart';
@@ -32,7 +32,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
   void initState() {
     super.initState();
     _ticketsSummaryViewModel = ProfileTicketsSummaryViewModel(
-      ref.read(orderServiceProvider),
+      ref.read(getMyTicketsSummaryProvider),
     );
   }
 

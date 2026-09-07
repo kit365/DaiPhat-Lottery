@@ -11,9 +11,9 @@ class ChatRepository {
     required ChatApiService apiService,
     required ChatWebSocketService webSocketService,
     required Future<String?> Function() readAccessToken,
-  })  : _apiService = apiService,
-        _webSocketService = webSocketService,
-        _readAccessToken = readAccessToken;
+  }) : _apiService = apiService,
+       _webSocketService = webSocketService,
+       _readAccessToken = readAccessToken;
 
   final ChatApiService _apiService;
   final ChatWebSocketService _webSocketService;
@@ -31,12 +31,11 @@ class ChatRepository {
     String? title,
     String? content,
     bool requestStaff = false,
-  }) =>
-      _apiService.initConversation(
-        title: title,
-        content: content,
-        requestStaff: requestStaff,
-      );
+  }) => _apiService.initConversation(
+    title: title,
+    content: content,
+    requestStaff: requestStaff,
+  );
 
   Future<ConversationDetailModel?> escalateConversation(int id) =>
       _apiService.escalateConversation(id);
@@ -53,31 +52,31 @@ class ChatRepository {
     int limit = 30,
     String? beforeCreatedAt,
     int? beforeId,
-  }) =>
-      _apiService.getMyTimeline(
-        limit: limit,
-        beforeCreatedAt: beforeCreatedAt,
-        beforeId: beforeId,
-      );
+  }) => _apiService.getMyTimeline(
+    limit: limit,
+    beforeCreatedAt: beforeCreatedAt,
+    beforeId: beforeId,
+  );
 
   Future<void> connectWebSocket() async {
-    final token = await _readAccessToken();
+    final token = await readAccessToken();
     if (token == null || token.isEmpty) {
       throw Exception('Thiếu access token để kết nối chat.');
     }
     await _webSocketService.connect(token);
   }
 
+  Future<String?> readAccessToken() => _readAccessToken();
+
   Future<void> disconnectWebSocket() => _webSocketService.disconnect();
 
   Future<void> sendRealtimeMessage({
     required int conversationId,
     required String content,
-  }) =>
-      _webSocketService.sendMessage(
-        conversationId: conversationId,
-        content: content,
-      );
+  }) => _webSocketService.sendMessage(
+    conversationId: conversationId,
+    content: content,
+  );
 
   void subscribeInbox({
     required ChatSocketMessageHandler onMessage,
@@ -106,12 +105,30 @@ class ChatRepository {
 
   Future<void> saveLastConversationId(int id) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(chatLastConversationKey, id);
+    final key = _conversationStorageKey(prefs);
+    if (key == null) return;
+    await prefs.setInt(key, id);
+    await prefs.remove(chatLastConversationKey);
   }
 
   Future<int?> readLastConversationId() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt(chatLastConversationKey);
+    final key = _conversationStorageKey(prefs);
+    await prefs.remove(chatLastConversationKey);
+    return key == null ? null : prefs.getInt(key);
+  }
+
+  Future<void> clearLastConversationId() async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = _conversationStorageKey(prefs);
+    if (key != null) await prefs.remove(key);
+    await prefs.remove(chatLastConversationKey);
+  }
+
+  String? _conversationStorageKey(SharedPreferences preferences) {
+    final userId = preferences.getString('checkout.user_id')?.trim() ?? '';
+    if (userId.isEmpty) return null;
+    return '$chatLastConversationKey.$userId';
   }
 }
 

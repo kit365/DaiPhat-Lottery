@@ -38,6 +38,7 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final notifier = ref.read(checkoutProvider.notifier);
+      notifier.beginCheckout();
       notifier.clearExpectedPickupAt();
       // Mặc định ngay để nút chốt đơn không bị khóa khi API enum lỗi.
       notifier.setSelectedReceiveType('COUNTER_PICKUP');
@@ -140,23 +141,27 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
     }
 
     final checkoutState = ref.read(checkoutProvider);
-    if (checkoutState.checkoutUrl != null) {
+    if (success && checkoutState.checkoutUrl != null) {
       // Open PayOS in-app WebView for payment
-      // Finalize AFTER navigation so prices don't flash to 0
-      notifier.finalizeAfterOnlinePayment();
-      if (!mounted) return;
       context.pushNamed(
         AppRoute.paymentWebView.name,
         queryParameters: {
           'checkoutUrl': checkoutState.checkoutUrl!,
           if (checkoutState.orderId != null) 'orderId': checkoutState.orderId!,
+          if (checkoutState.orderCode != null)
+            'internalCode': checkoutState.orderCode!,
         },
       );
     } else if (success) {
       // Offline payment success
       context.pushNamed(
         AppRoute.checkoutResult.name,
-        queryParameters: {'code': '00', 'orderCode': ''},
+        queryParameters: {
+          'code': '00',
+          if (checkoutState.orderId != null) 'orderId': checkoutState.orderId!,
+          if (checkoutState.orderCode != null)
+            'internalCode': checkoutState.orderCode!,
+        },
       );
     }
     // If failed, error is already set in state - UI will show it
@@ -332,8 +337,8 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                           effectiveTypes,
                           checkoutState.selectedTransactionType,
                           (val) => ref
-                                .read(checkoutProvider.notifier)
-                                .setSelectedTransactionType(val),
+                              .read(checkoutProvider.notifier)
+                              .setSelectedTransactionType(val),
                         );
                       },
                       loading: () => const Center(
@@ -802,7 +807,9 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                   backgroundColor: AppColors.primary,
                   foregroundColor: AppColors.surfacePrimary,
                   disabledBackgroundColor: AppColors.brandPrimaryBorder,
-                  disabledForegroundColor: AppColors.white.withValues(alpha: 0.7),
+                  disabledForegroundColor: AppColors.white.withValues(
+                    alpha: 0.7,
+                  ),
                   minimumSize: const Size.fromHeight(56),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -1108,4 +1115,3 @@ class _CartItemCard extends StatelessWidget {
     );
   }
 }
-

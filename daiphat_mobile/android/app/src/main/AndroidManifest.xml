@@ -6,6 +6,8 @@
     <application
         android:label="Đại Phát"
         android:name="${applicationName}"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
         android:icon="@mipmap/launcher_icon">
         <activity
             android:name=".MainActivity"

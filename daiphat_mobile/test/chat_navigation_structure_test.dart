@@ -30,7 +30,7 @@ void main() {
       'lib/src/features/profile/presentation/views/profile_view.dart',
     );
     final orders = _readSource(
-      'lib/src/features/profile/presentation/views/my_orders_view.dart',
+      'lib/src/features/orders/presentation/views/my_orders_view.dart',
     );
 
     expect(profile, contains('context.push(AppRoute.chat.path)'));

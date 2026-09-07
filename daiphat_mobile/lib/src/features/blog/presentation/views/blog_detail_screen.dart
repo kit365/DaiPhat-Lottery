@@ -331,8 +331,6 @@ class BlogDetailScreen extends ConsumerWidget {
                   _metaIconText(Icons.calendar_month_outlined, post.date),
                   _metaDot(),
                   _metaIconText(Icons.visibility_outlined, _formatViews(post.viewCount)),
-                  _metaDot(),
-                  _metaIconText(Icons.schedule_rounded, _estimateReadTime(post)),
                 ],
               ),
             ],
@@ -662,19 +660,6 @@ class BlogDetailScreen extends ConsumerWidget {
       return '${text}k';
     }
     return '$count';
-  }
-
-  String _estimateReadTime(BlogPost post) {
-    final content = [
-      post.title,
-      post.excerpt,
-      post.htmlContent,
-      ...post.bodyParagraphs,
-    ].join(' ');
-
-    final wordCount = RegExp(r'\S+').allMatches(content).length;
-    final minutes = (wordCount / 220).ceil().clamp(1, 30);
-    return '$minutes phút đọc';
   }
 }
 
