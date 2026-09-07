@@ -62,7 +62,7 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
   });
 
-  testWidgets('Google login is visibly unavailable and back has a label', (
+  testWidgets('Google login is available and back has a label', (
     tester,
   ) async {
     final prefs = await SharedPreferences.getInstance();
@@ -82,10 +82,10 @@ void main() {
 
     final googleButton = find.widgetWithText(
       OutlinedButton,
-      'Đăng nhập với Google · Sắp ra mắt',
+      'Đăng nhập với Google',
     );
     expect(googleButton, findsOneWidget);
-    expect(tester.widget<OutlinedButton>(googleButton).onPressed, isNull);
+    expect(tester.widget<OutlinedButton>(googleButton).onPressed, isNotNull);
     expect(find.bySemanticsLabel('Quay lại trang trước'), findsOneWidget);
   });
 

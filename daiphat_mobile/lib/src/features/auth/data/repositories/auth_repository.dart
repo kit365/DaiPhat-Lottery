@@ -1,6 +1,7 @@
 import 'package:daiphat_mobile/src/shared/network/api_client.dart';
 import 'package:daiphat_mobile/src/shared/network/api_exception.dart';
 import 'package:daiphat_mobile/src/shared/storage/auth_token_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../dto/register_request.dart';
 import '../dto/forgot_password_request.dart';
 import '../dto/verify_otp_request.dart';
@@ -11,6 +12,9 @@ import '../services/auth_api_service.dart';
 import '../services/google_auth_service.dart';
 
 class AuthRepository {
+  static const _checkoutUserIdKey = 'checkout.user_id';
+  static const _checkoutUserNameKey = 'user_name';
+  static const _checkoutUserPhoneKey = 'user_phone';
   final AuthApiService _apiService;
   final ApiClient _apiClient;
   final AuthTokenStorage _tokenStorage;
@@ -50,6 +54,7 @@ class AuthRepository {
       _currentUser = user.copyWith(
         accessToken: _tokenStorage.getAccessToken() ?? '',
       );
+      await _saveCheckoutProfile(_currentUser!);
     } on ApiException catch (error) {
       if (error.statusCode == 401 || error.statusCode == 403) {
         await logout();
@@ -81,6 +86,7 @@ class AuthRepository {
     final user = await _apiService.getCurrentUser();
     final authenticatedUser = user.copyWith(accessToken: accessToken);
     _currentUser = authenticatedUser;
+    await _saveCheckoutProfile(authenticatedUser);
     return authenticatedUser;
   }
 
@@ -99,6 +105,7 @@ class AuthRepository {
       await _apiClient.clearCookies();
     }
     await _tokenStorage.clear();
+    await _clearCheckoutProfile();
     _currentUser = null;
     await _googleAuthService.signOut();
   }
@@ -113,6 +120,7 @@ class AuthRepository {
           accessToken: _tokenStorage.getAccessToken() ?? '',
         );
       }
+      await _saveCheckoutProfile(_currentUser!);
       return _currentUser!;
     } on ApiException catch (e) {
       if (e.statusCode == 401 || e.statusCode == 403) {
@@ -149,6 +157,7 @@ class AuthRepository {
     } else {
       _currentUser = updatedUser;
     }
+    await _saveCheckoutProfile(_currentUser!);
   }
 
   Future<void> uploadAvatar(String filePath) async {
@@ -160,9 +169,37 @@ class AuthRepository {
     } else {
       _currentUser = updatedUser;
     }
+    await _saveCheckoutProfile(_currentUser!);
   }
 
   Future<void> updateFcmToken(String token) {
     return _apiService.updateFcmToken(token);
+  }
+
+  Future<void> _saveCheckoutProfile(User user) async {
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setString(_checkoutUserIdKey, user.id);
+    await _writeOrRemove(preferences, _checkoutUserNameKey, user.fullName);
+    await _writeOrRemove(preferences, _checkoutUserPhoneKey, user.phone);
+  }
+
+  Future<void> _clearCheckoutProfile() async {
+    final preferences = await SharedPreferences.getInstance();
+    await Future.wait([
+      preferences.remove(_checkoutUserIdKey),
+      preferences.remove(_checkoutUserNameKey),
+      preferences.remove(_checkoutUserPhoneKey),
+    ]);
+  }
+
+  Future<void> _writeOrRemove(
+    SharedPreferences preferences,
+    String key,
+    String? value,
+  ) {
+    final normalized = value?.trim() ?? '';
+    return normalized.isEmpty
+        ? preferences.remove(key)
+        : preferences.setString(key, normalized);
   }
 }
