@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import base64
+import re
+import time
 from typing import Any
 
 import httpx
@@ -20,6 +22,13 @@ from infra.vision_extraction import (
 # Groq base64 image payloads are capped (docs: ~4MB). Ticket-vision already
 # resizes uploads, but reject oversized payloads early with a clear error.
 _MAX_BASE64_IMAGE_BYTES = 4 * 1024 * 1024
+# Ticket JSON rarely needs 4k tokens; lower reservation reduces OTPM 429s.
+_MAX_COMPLETION_TOKENS = 2048
+_RATE_LIMIT_RETRIES = 2
+_RETRY_AFTER_PATTERN = re.compile(r"try again in ([0-9]+(?:\.[0-9]+)?)s", re.IGNORECASE)
+# qwen/qwen3.6-27b: "This model supports up to 3 images"
+_MAX_IMAGES_PER_REQUEST = 3
+_MAX_EXTRA_IMAGES = _MAX_IMAGES_PER_REQUEST - 1
 
 
 class GroqVisionClient:
@@ -63,6 +72,44 @@ class GroqVisionClient:
                 f"Image exceeds Groq base64 size limit ({_MAX_BASE64_IMAGE_BYTES} bytes)."
             )
 
+        extras = list(extra_images or [])
+        if len(extras) > _MAX_EXTRA_IMAGES:
+            logger.warning(
+                "Truncating Groq extra images from %s to %s (model max total=%s)",
+                len(extras),
+                _MAX_EXTRA_IMAGES,
+                _MAX_IMAGES_PER_REQUEST,
+            )
+            extras = extras[:_MAX_EXTRA_IMAGES]
+
+        # Shrink payload on ITPM / request-too-large (common on free tier).
+        attempt_extras = [extras, extras[:1], []]
+        last_error: VisionApiError | None = None
+        seen: set[int] = set()
+        for candidate in attempt_extras:
+            key = len(candidate)
+            if key in seen:
+                continue
+            seen.add(key)
+            try:
+                return self._analyze_once(image_bytes, prompt, candidate)
+            except VisionApiError as exc:
+                last_error = exc
+                if not _is_request_too_large(exc):
+                    raise
+                logger.warning(
+                    "Groq request too large with %s extra image(s); retrying smaller payload",
+                    key,
+                )
+        assert last_error is not None
+        raise last_error
+
+    def _analyze_once(
+        self,
+        image_bytes: bytes,
+        prompt: str,
+        extras: list[tuple[str, bytes]],
+    ) -> ScanExtractionResult:
         mime = guess_image_mime_type(image_bytes)
         encoded = base64.b64encode(image_bytes).decode("ascii")
         image_url = f"data:{mime};base64,{encoded}"
@@ -71,12 +118,14 @@ class GroqVisionClient:
             {"type": "text", "text": prompt},
             {"type": "image_url", "image_url": {"url": image_url}},
         ]
-        for label, crop_bytes in extra_images or []:
+        for label, crop_bytes in extras:
             if not crop_bytes or len(crop_bytes) > _MAX_BASE64_IMAGE_BYTES:
                 continue
             crop_mime = guess_image_mime_type(crop_bytes)
             crop_b64 = base64.b64encode(crop_bytes).decode("ascii")
-            content.append({"type": "text", "text": f"Crop for {label}:"})
+            # Keep crop label short — long labels waste ITPM on free tier.
+            short_label = label.split(":", 1)[-1][:40]
+            content.append({"type": "text", "text": f"Crop ({short_label}):"})
             content.append(
                 {
                     "type": "image_url",
@@ -97,7 +146,7 @@ class GroqVisionClient:
             ],
             "temperature": 0,
             "response_format": {"type": "json_object"},
-            "max_completion_tokens": 4096,
+            "max_completion_tokens": _MAX_COMPLETION_TOKENS,
             "reasoning_format": "hidden",
             "reasoning_effort": "none",
         }
@@ -109,31 +158,61 @@ class GroqVisionClient:
         }
 
         logger.info(
-            "Groq vision request model=%s mime=%s image_bytes=%s",
+            "Groq vision request model=%s mime=%s image_bytes=%s extras=%s",
             self._model,
             mime,
             len(image_bytes),
+            len(extras),
         )
 
-        try:
-            with httpx.Client(timeout=self._timeout) as client:
-                response = client.post(url, headers=headers, json=payload)
-        except httpx.TimeoutException as exc:
-            raise VisionApiError("Groq vision request timed out") from exc
-        except httpx.HTTPError as exc:
-            raise VisionApiError(f"Groq vision request failed: {exc}") from exc
+        response = self._post_with_rate_limit_retry(url, headers, payload)
+        return self._parse_success_response(response)
+    def _post_with_rate_limit_retry(
+        self,
+        url: str,
+        headers: dict[str, str],
+        payload: dict[str, Any],
+    ) -> httpx.Response:
+        last_429_body = ""
+        for attempt in range(_RATE_LIMIT_RETRIES + 1):
+            try:
+                with httpx.Client(timeout=self._timeout) as client:
+                    response = client.post(url, headers=headers, json=payload)
+            except httpx.TimeoutException as exc:
+                raise VisionApiError("Groq vision request timed out") from exc
+            except httpx.HTTPError as exc:
+                raise VisionApiError(f"Groq vision request failed: {exc}") from exc
 
+            if response.status_code != 429:
+                self._raise_for_http_error(response)
+                return response
+
+            last_429_body = response.text[:500]
+            logger.warning(
+                "Groq API rate limit (attempt %s/%s): %s",
+                attempt + 1,
+                _RATE_LIMIT_RETRIES + 1,
+                last_429_body,
+            )
+            if attempt >= _RATE_LIMIT_RETRIES:
+                break
+            wait_seconds = _parse_retry_after_seconds(last_429_body) or (5.0 * (attempt + 1))
+            # Cap wait so Admin UI does not hang for minutes on OTPM limits.
+            wait_seconds = min(max(wait_seconds, 1.0), 20.0)
+            logger.info("Waiting %.1fs before Groq retry", wait_seconds)
+            time.sleep(wait_seconds)
+
+        raise VisionApiError(
+            "Groq API rate limit exceeded (HTTP 429)",
+            status_code=429,
+        )
+
+    def _raise_for_http_error(self, response: httpx.Response) -> None:
         if response.status_code in (401, 403):
             logger.warning("Groq API auth error %s: %s", response.status_code, response.text[:500])
             raise VisionApiError(
                 f"Groq API authentication failed (HTTP {response.status_code})",
                 status_code=response.status_code,
-            )
-        if response.status_code == 429:
-            logger.warning("Groq API rate limit: %s", response.text[:500])
-            raise VisionApiError(
-                "Groq API rate limit exceeded (HTTP 429)",
-                status_code=429,
             )
         if response.status_code >= 400:
             logger.warning(
@@ -142,8 +221,26 @@ class GroqVisionClient:
                 response.status_code,
                 response.text[:500],
             )
-            detail = response.text[:200]
-            if response.status_code == 404 or "model_not_found" in detail:
+            detail = response.text[:400]
+            detail_lower = detail.lower()
+            if "too many images" in detail_lower:
+                raise VisionApiError(
+                    "Groq vision model accepts at most 3 images per request "
+                    "(full ticket + up to 2 crops).",
+                    status_code=response.status_code,
+                )
+            if (
+                response.status_code == 413
+                or "request too large" in detail_lower
+                or "tokens" in detail_lower
+                and "requested" in detail_lower
+            ):
+                raise VisionApiError(
+                    "Groq request too large for input token budget (ITPM). "
+                    "Reduce image size or crop count.",
+                    status_code=response.status_code,
+                )
+            if response.status_code == 404 or "model_not_found" in detail_lower:
                 raise VisionApiError(
                     f"Groq vision model '{self._model}' is unavailable. "
                     "Set GROQ_VISION_MODEL to a current vision model "
@@ -154,7 +251,7 @@ class GroqVisionClient:
                 f"Groq API returned HTTP {response.status_code}",
                 status_code=response.status_code,
             )
-
+    def _parse_success_response(self, response: httpx.Response) -> ScanExtractionResult:
         try:
             body = response.json()
             message = body["choices"][0]["message"]
@@ -173,3 +270,19 @@ class GroqVisionClient:
             len(content),
         )
         return parse_scan_extraction_json(content)
+
+
+def _parse_retry_after_seconds(error_body: str) -> float | None:
+    match = _RETRY_AFTER_PATTERN.search(error_body or "")
+    if not match:
+        return None
+    try:
+        return float(match.group(1))
+    except ValueError:
+        return None
+
+
+def _is_request_too_large(exc: VisionApiError) -> bool:
+    detail = str(exc).lower()
+    status = getattr(exc, "status_code", None)
+    return status == 413 or "too large" in detail or "itpm" in detail
