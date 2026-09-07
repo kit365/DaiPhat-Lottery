@@ -24,10 +24,15 @@ spring:
     # Incomplete IntelliJ classpath must not treat disk migrations as missing.
     ignore-migration-patterns: "*:missing"
     # repair-on-migrate was removed in Spring Boot 3.4; LocalFlywayConfig repairs only after migrate failure.
+    # After docker volume wipe / schema cleanup, leftover sequences can leave
+    # public non-empty without flyway_schema_history. Baseline lets migrate proceed.
+    baseline-on-migrate: true
+    baseline-version: 0
   servlet:
     multipart:
-      max-file-size: 15MB
-      max-request-size: 15MB
+      # Match application.yml (50MB). Phone ticket photos often exceed 15MB.
+      max-file-size: ${CORE_MULTIPART_MAX_FILE_SIZE:50MB}
+      max-request-size: ${CORE_MULTIPART_MAX_REQUEST_SIZE:50MB}
   data:
     redis:
       host: ${CORE_REDIS_HOST:localhost}
@@ -68,6 +73,10 @@ daiphat:
   # STORAGE_PROVIDER=local only when filesystem storage is intentionally needed.
   storage:
     provider: ${STORAGE_PROVIDER:cloudinary}
+  ticket-vision:
+    service:
+      # ticket-vision Uvicorn default (see daiphat-ai/scripts/run_ticket_vision.sh)
+      base-url: ${DAIPHAT_TICKET_VISION_BASE_URL:http://localhost:8090}
   vendor:
     test-seed:
       enabled: ${VENDOR_TEST_SEED_ENABLED:true}
@@ -77,16 +86,19 @@ daiphat:
     jwt:
       issuer: ${AUTH_JWT_ISSUER:daiphat-core-api}
       secret: ${AUTH_JWT_SECRET:daiphat_super_secret_jwt_key_for_local_development_environment_32bytes}
-      # Hardcoded for local: ignore AUTH_JWT_ACCESS_TOKEN_TTL_SECONDS=5 (refresh-test value)
-      # which floods admin layout polls with 401s once the access token dies.
+      # Local default 900s. Repo-root .env AUTH_JWT_ACCESS_TOKEN_TTL_SECONDS overrides this
+      # (CoreApiApplication maps it onto daiphat.auth.jwt.access-token-ttl-seconds) — never leave
+      # that env at 5 outside intentional refresh tests or admin OCR/API calls get constant 401s.
       access-token-ttl-seconds: 900
       refresh-token-ttl-seconds: ${AUTH_JWT_REFRESH_TOKEN_TTL_SECONDS:604800}
     cookie:
       # Literal name for HTTP localhost — __Secure-* cookies are rejected without HTTPS.
+      # Path=/ so the FE same-origin proxy and /api/v1/* share one cookie (avoids dual
+      # Path=/ vs Path=/api/v1/auth cookies that make Spring pick a stale refresh token).
       name: refresh_token
       secure: false
       same-site: Lax
-      path: /api/v1/auth
+      path: /
     cors:
       allowed-origins:
         - http://localhost:5173

@@ -3,7 +3,7 @@
  * BE should already return ErrorCode messages; this covers older responses and soft warnings.
  */
 export const OCR_SERVICE_UNAVAILABLE_MESSAGE =
-    'Dịch vụ quét vé OCR hiện không khả dụng. Vui lòng khởi động ticket-vision (cổng 8090), rồi thử lại.';
+    'Hệ thống đang bảo trì tính năng đọc vé. Vui lòng thử lại sau ít phút.';
 
 export const OCR_RATE_LIMIT_MESSAGE =
     'Dịch vụ AI đọc vé đang quá tải (giới hạn tốc độ Groq). Vui lòng đợi khoảng 15–30 giây rồi quét lại ảnh.';
