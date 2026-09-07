@@ -62,6 +62,7 @@ export const OcrFieldLayoutAnnotator = ({
 }: Props) => {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const [drag, setDrag] = useState<DragState | null>(null);
+    const [imageIssue, setImageIssue] = useState<'load-failed' | 'too-small' | null>(null);
 
     const toNormalized = useCallback(
         (clientX: number, clientY: number): { x: number; y: number } | null => {
@@ -192,16 +193,35 @@ export const OcrFieldLayoutAnnotator = ({
             >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
+                    key={sampleImageUrl}
                     src={sampleImageUrl}
                     alt="Ảnh mẫu vé OCR"
                     draggable={false}
+                    onError={() => setImageIssue('load-failed')}
+                    onLoad={(e) => {
+                        const img = e.currentTarget;
+                        if (img.naturalWidth < 200 || img.naturalHeight < 200) {
+                            setImageIssue('too-small');
+                        } else {
+                            setImageIssue(null);
+                        }
+                    }}
                     style={{
-                        display: 'block',
+                        display: imageIssue ? 'none' : 'block',
                         width: '100%',
                         height: 'auto',
                         pointerEvents: 'none',
                     }}
                 />
+                {imageIssue && (
+                    <Box sx={{ p: 2 }}>
+                        <Typography variant="body2" color="error">
+                            {imageIssue === 'too-small'
+                                ? 'Ảnh mẫu đã lưu quá nhỏ hoặc không phải ảnh vé thật. Hãy tải lại ảnh mẫu vé.'
+                                : 'Không tải được ảnh mẫu từ máy chủ lưu trữ. Kiểm tra URL hoặc tải lại ảnh.'}
+                        </Typography>
+                    </Box>
+                )}
 
                 {layouts.map((layout) => {
                     const color = colorForField(layout.fieldName);
