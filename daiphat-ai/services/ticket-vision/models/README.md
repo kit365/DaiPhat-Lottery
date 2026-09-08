@@ -35,6 +35,31 @@ Turn the per-field crops on with:
 TICKET_VISION_LAYOUT_STRATEGY=yolo_field
 ```
 
+### LLM / Groq path (YOLO + OCR Template)
+
+Default Groq/Gemini/Grok scans also use `best.pt` when present
+(`TICKET_VISION_LLM_YOLO_GUIDANCE=true`):
+
+1. YOLO detects `Lottery-ticket` + field classes on the resized photo
+2. OCR Template/Layout crops from BE fill fields YOLO missed (Rule A)
+3. Merged crops + hint text go to Groq as `extra_images`
+
+Disable with `TICKET_VISION_LLM_YOLO_GUIDANCE=false`. Missing weights soft-skip
+to template/full-image only (no scan failure).
+
+**Local docker (`ai` container):** drop `best.pt` here; compose mounts this
+directory into the unified `ai` service. Rebuild/restart:
+
+```bash
+docker compose up -d --build ai
+```
+
+**Local (file only)** — copy from Downloads:
+
+```bash
+copy %USERPROFILE%\Downloads\best.pt daiphat-ai\services\ticket-vision\models\best.pt
+```
+
 ### Measured recall (this model version)
 
 On the sample photo in `daiphat-be/core-api/data/uploads/lottery-tickets/`

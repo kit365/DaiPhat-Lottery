@@ -31,13 +31,13 @@ public class AiModelPlatformController {
     private final AiModelPlatformService aiModelPlatformService;
 
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('ticket:view', 'station:view')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ticket:view', 'station:view')")
     public ApiResponse<List<AiModelRegistryResponse>> listModels() {
         return ApiResponse.success(null, aiModelPlatformService.listModels());
     }
 
     @GetMapping("/{modelId}/metrics")
-    @PreAuthorize("hasAnyAuthority('ticket:view', 'station:view')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ticket:view', 'station:view')")
     public ApiResponse<List<AiModelMetricResponse>> listMetrics(
             @PathVariable Long modelId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
@@ -47,7 +47,7 @@ public class AiModelPlatformController {
     }
 
     @PostMapping("/metrics/aggregate")
-    @PreAuthorize("hasAnyAuthority('ticket:create', 'station:update')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ticket:create', 'station:edit', 'station:update')")
     public ApiResponse<Map<String, Object>> aggregateMetrics(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate metricDate
     ) {
@@ -59,7 +59,7 @@ public class AiModelPlatformController {
     }
 
     @PostMapping("/exports")
-    @PreAuthorize("hasAnyAuthority('ticket:create', 'station:update')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ticket:create', 'station:edit', 'station:update')")
     public ApiResponse<TrainingDatasetExportResponse> createExport(
             @Valid @RequestBody CreateTrainingDatasetExportRequest request
     ) {
@@ -70,13 +70,13 @@ public class AiModelPlatformController {
     }
 
     @GetMapping("/exports")
-    @PreAuthorize("hasAnyAuthority('ticket:view', 'station:view')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ticket:view', 'station:view')")
     public ApiResponse<List<TrainingDatasetExportResponse>> listExports() {
         return ApiResponse.success(null, aiModelPlatformService.listExports());
     }
 
     @GetMapping("/exports/{id}")
-    @PreAuthorize("hasAnyAuthority('ticket:view', 'station:view')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ticket:view', 'station:view')")
     public ApiResponse<TrainingDatasetExportResponse> getExport(@PathVariable Long id) {
         return ApiResponse.success(null, aiModelPlatformService.getExport(id));
     }

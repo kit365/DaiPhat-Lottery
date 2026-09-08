@@ -72,6 +72,11 @@ public enum ErrorCode {
     IMAGE_FILE_REQUIRED("SYS_007", "Vui lòng chọn một tệp hình ảnh.", HttpStatus.BAD_REQUEST),
     IMAGE_INVALID_TYPE("SYS_008", "Chỉ hỗ trợ tải lên các tệp định dạng hình ảnh.", HttpStatus.BAD_REQUEST),
     IMAGE_UPLOAD_FAILED("SYS_009", "Không thể tải ảnh lên. Vui lòng kiểm tra cấu hình lưu trữ hoặc thử lại.", HttpStatus.BAD_GATEWAY),
+    IMAGE_FILE_TOO_LARGE("SYS_016", "Ảnh vượt quá dung lượng cho phép (%d MB).", HttpStatus.BAD_REQUEST),
+    IMAGE_DIMENSIONS_TOO_SMALL(
+            "SYS_017",
+            "Ảnh quá nhỏ để làm mẫu OCR (tối thiểu %d×%d px). Vui lòng tải ảnh vé thật.",
+            HttpStatus.BAD_REQUEST),
     CONTRACT_TEMPLATE_NOT_FOUND("SYS_010", "Chưa cấu hình mẫu hợp đồng mặc định. Vào Cài đặt → Hợp đồng để tạo hoặc đặt mặc định.", HttpStatus.NOT_FOUND),
     CONTRACT_NOT_FOUND("SYS_011", "Hợp đồng không tồn tại.", HttpStatus.NOT_FOUND),
     CONTRACT_DEFAULT_REQUIRED("SYS_012", "Không thể xóa hợp đồng đang là mặc định. Hãy đặt mặc định cho bản khác trước.", HttpStatus.BAD_REQUEST),
@@ -794,7 +799,7 @@ public enum ErrorCode {
     TICKET_SCAN_IMAGE_REQUIRED("LT_121", "Ảnh quét vé không được để trống.", HttpStatus.BAD_REQUEST),
     TICKET_SCAN_SERVICE_UNAVAILABLE(
             "LT_122",
-            "Dịch vụ quét vé số hiện không khả dụng, vui lòng thử lại sau.",
+            "Dịch vụ quét vé OCR hiện không khả dụng. Vui lòng khởi động ticket-vision (cổng 8090), rồi thử lại.",
             HttpStatus.SERVICE_UNAVAILABLE),
     TICKET_SCAN_BATCH_CODE_MISMATCH(
             "LT_123",

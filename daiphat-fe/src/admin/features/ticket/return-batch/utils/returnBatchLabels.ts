@@ -68,6 +68,124 @@ export const getReturnBatchStatusChipColor = (
     return 'default';
 };
 
+export interface ReturnBatchStatusColorTheme {
+    main: string;
+    bg: string;
+    border: string;
+    text: string;
+    label: string;
+}
+
+/**
+ * Returns color theme matching the tone of KPI cards:
+ * - PENDING_INSPECTION: amber (#f59e0b) - Chờ kiểm tra vé
+ * - INSPECTING: blue/cyan (#0284c7) - Đang kiểm tra
+ * - PENDING_HANDOVER: orange (#ea580c) - Chờ bàn giao
+ * - HANDED_OVER: green (#22c55e) - Đã bàn giao
+ * - CANCELLED: red (#ef4444) - Đã hủy
+ */
+export const getReturnBatchStatusColorTheme = (
+    status?: ReturnBatchStatus | null
+): ReturnBatchStatusColorTheme => {
+    switch (status) {
+        case 'PENDING_INSPECTION':
+            return {
+                main: '#f59e0b',
+                bg: '#fef3c7',
+                border: '#fde68a',
+                text: '#b45309',
+                label: 'Chờ kiểm tra vé',
+            };
+        case 'INSPECTING':
+            return {
+                main: '#0284c7',
+                bg: '#e0f2fe',
+                border: '#bae6fd',
+                text: '#0369a1',
+                label: 'Đang kiểm tra vé',
+            };
+        case 'PENDING_HANDOVER':
+            return {
+                main: '#ea580c',
+                bg: '#ffedd5',
+                border: '#fed7aa',
+                text: '#c2410c',
+                label: 'Chờ bàn giao NCC',
+            };
+        case 'HANDED_OVER':
+            return {
+                main: '#22c55e',
+                bg: '#dcfce7',
+                border: '#86efac',
+                text: '#15803d',
+                label: 'Đã bàn giao',
+            };
+        case 'CANCELLED':
+            return {
+                main: '#ef4444',
+                bg: '#fee2e2',
+                border: '#fca5a5',
+                text: '#b91c1c',
+                label: 'Đã hủy',
+            };
+        default:
+            return {
+                main: '#94a3b8',
+                bg: '#f1f5f9',
+                border: '#e2e8f0',
+                text: '#475569',
+                label: '—',
+            };
+    }
+};
+
+export const getReturnBatchLineStatusColorTheme = (
+    status?: ReturnBatchLineStatus | null
+): ReturnBatchStatusColorTheme => {
+    switch (status) {
+        case 'PENDING':
+            return {
+                main: '#f59e0b',
+                bg: '#fef3c7',
+                border: '#fde68a',
+                text: '#b45309',
+                label: 'Chờ kiểm tra',
+            };
+        case 'INSPECTING':
+            return {
+                main: '#0284c7',
+                bg: '#e0f2fe',
+                border: '#bae6fd',
+                text: '#0369a1',
+                label: 'Đang kiểm tra',
+            };
+        case 'INSPECTED':
+            return {
+                main: '#22c55e',
+                bg: '#dcfce7',
+                border: '#86efac',
+                text: '#15803d',
+                label: 'Đã kiểm tra',
+            };
+        case 'CANCELLED':
+            return {
+                main: '#ef4444',
+                bg: '#fee2e2',
+                border: '#fca5a5',
+                text: '#b91c1c',
+                label: 'Đã hủy',
+            };
+        default:
+            return {
+                main: '#94a3b8',
+                bg: '#f1f5f9',
+                border: '#e2e8f0',
+                text: '#475569',
+                label: '—',
+            };
+    }
+};
+
 /** Show the primary "Inspect Tickets" CTA (starts inspection). */
 export const canStartInspection = (status?: ReturnBatchStatus | string | null) =>
     status === 'PENDING_INSPECTION';

@@ -5,12 +5,11 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
-type AuthCtx = { params: Promise<{ auth: string[] }> };
+type ApiCtx = { params: Promise<{ path: string[] }> };
 
-const handle = async (req: NextRequest, ctx: AuthCtx) => {
-    const { auth } = await ctx.params;
-    const path = ["auth", ...(auth ?? []).filter(Boolean)].join("/");
-    return proxyToBackend(req, path, { rewriteCookiePathToRoot: true });
+const handle = async (req: NextRequest, ctx: ApiCtx) => {
+    const { path } = await ctx.params;
+    return proxyToBackend(req, (path ?? []).join("/"));
 };
 
 export const GET = handle;

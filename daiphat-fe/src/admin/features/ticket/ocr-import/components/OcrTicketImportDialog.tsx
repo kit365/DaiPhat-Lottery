@@ -57,9 +57,14 @@ import {
     buildReviewImageGroups,
     getImportOutcomeLabel,
 } from '../utils/ocrImportHelpers';
+import {
+    normalizeOcrScanErrorMessage,
+    OCR_SERVICE_UNAVAILABLE_MESSAGE,
+} from '../utils/ocrScanErrorMessage';
 import OcrReviewImagePane, { type OcrFieldSelection } from './OcrReviewImagePane';
 import OcrReviewResultCards from './OcrReviewResultCards';
 import { getOcrTemplateDefaultReady } from '../../../station/services/ocrTemplateService';
+import { getOcrServiceReady } from '../services/ticketOcrService';
 
 const IMPORT_EVIDENCE_ACCEPT: Accept = {
     'image/*': ['.jpg', '.jpeg', '.png', '.webp', '.gif'],
@@ -116,6 +121,9 @@ export const OcrTicketImportDialog = ({
     const [ticketListUploading, setTicketListUploading] = useState(false);
     const [ocrReady, setOcrReady] = useState<boolean | null>(null);
     const [ocrReadyLoading, setOcrReadyLoading] = useState(false);
+    const [ocrServiceReady, setOcrServiceReady] = useState<boolean | null>(null);
+    const [ocrServiceMessage, setOcrServiceMessage] = useState<string | null>(null);
+    const [ocrServiceLoading, setOcrServiceLoading] = useState(false);
     const { data: activeSuppliers = [] } = useActiveSuppliers(open);
     const { data: stationsRes } = useStations({ limit: 1000 });
     const stations = useMemo(() => {
@@ -130,10 +138,13 @@ export const OcrTicketImportDialog = ({
     useEffect(() => {
         if (!open) {
             setOcrReady(null);
+            setOcrServiceReady(null);
+            setOcrServiceMessage(null);
             return;
         }
         let cancelled = false;
         setOcrReadyLoading(true);
+        setOcrServiceLoading(true);
         getOcrTemplateDefaultReady()
             .then((ready) => {
                 if (!cancelled) {
@@ -148,6 +159,28 @@ export const OcrTicketImportDialog = ({
             .finally(() => {
                 if (!cancelled) {
                     setOcrReadyLoading(false);
+                }
+            });
+        getOcrServiceReady()
+            .then((status) => {
+                if (!cancelled) {
+                    setOcrServiceReady(Boolean(status?.ready));
+                    setOcrServiceMessage(
+                        status?.ready
+                            ? null
+                            : normalizeOcrScanErrorMessage(status?.message) || OCR_SERVICE_UNAVAILABLE_MESSAGE
+                    );
+                }
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setOcrServiceReady(false);
+                    setOcrServiceMessage(OCR_SERVICE_UNAVAILABLE_MESSAGE);
+                }
+            })
+            .finally(() => {
+                if (!cancelled) {
+                    setOcrServiceLoading(false);
                 }
             });
         return () => {
@@ -236,6 +269,14 @@ export const OcrTicketImportDialog = ({
             <DialogContent dividers sx={{ minHeight: 420 }}>
                 {wizard.step === 'upload' && (
                     <Stack spacing={2}>
+                        {ocrServiceLoading && (
+                            <Alert severity="info">Đang kiểm tra dịch vụ quét vé OCR…</Alert>
+                        )}
+                        {ocrServiceReady === false && (
+                            <Alert severity="error">
+                                {ocrServiceMessage || OCR_SERVICE_UNAVAILABLE_MESSAGE}
+                            </Alert>
+                        )}
                         {ocrReady === false && (
                             <Alert severity="error">
                                 Chưa cấu hình mẫu vé OCR mặc định. Vui lòng tạo/gán template mặc định
@@ -268,6 +309,7 @@ export const OcrTicketImportDialog = ({
                             accept="image/*"
                             multiple
                             hidden
+                            disabled={ocrReady === false || ocrServiceReady === false}
                             onChange={(event) => {
                                 if (event.target.files) {
                                     wizard.addImages(event.target.files);
@@ -276,17 +318,8 @@ export const OcrTicketImportDialog = ({
                             }}
                         />
 
-                        <Stack direction="row" spacing={1} flexWrap="wrap">
-                            <Button
-                                variant="outlined"
-                                startIcon={<CloudUploadOutlinedIcon />}
-                                onClick={() => fileInputRef.current?.click()}
-                                disabled={wizard.scanning || ocrReady === false || ocrReadyLoading}
-                                sx={{ textTransform: 'none', fontWeight: 700 }}
-                            >
-                                Chọn ảnh vé
-                            </Button>
-                            {wizard.images.length > 0 && (
+                        {wizard.images.length > 0 && (
+                            <Stack direction="row" spacing={1} flexWrap="wrap">
                                 <Button
                                     color="inherit"
                                     onClick={wizard.clearImages}
@@ -295,20 +328,33 @@ export const OcrTicketImportDialog = ({
                                 >
                                     Xóa tất cả
                                 </Button>
-                            )}
-                        </Stack>
+                            </Stack>
+                        )}
 
                         {wizard.images.length === 0 ? (
                             <Box
-                                onClick={() => fileInputRef.current?.click()}
+                                onClick={() => {
+                                    if (ocrReady !== false && ocrServiceReady !== false) {
+                                        fileInputRef.current?.click();
+                                    }
+                                }}
                                 sx={{
                                     border: '1px dashed #cbd5e1',
                                     borderRadius: 2,
                                     p: 4,
                                     textAlign: 'center',
-                                    cursor: 'pointer',
+                                    cursor:
+                                        ocrReady === false || ocrServiceReady === false
+                                            ? 'not-allowed'
+                                            : 'pointer',
                                     bgcolor: '#f8fafc',
-                                    '&:hover': { bgcolor: '#f1f5f9' },
+                                    opacity: ocrReady === false || ocrServiceReady === false ? 0.6 : 1,
+                                    '&:hover': {
+                                        bgcolor:
+                                            ocrReady === false || ocrServiceReady === false
+                                                ? '#f8fafc'
+                                                : '#f1f5f9',
+                                    },
                                 }}
                             >
                                 <CloudUploadOutlinedIcon sx={{ fontSize: 40, color: '#94a3b8' }} />
@@ -1061,6 +1107,8 @@ export const OcrTicketImportDialog = ({
                                 || wizard.images.length === 0
                                 || ocrReady === false
                                 || ocrReadyLoading
+                                || ocrServiceReady === false
+                                || ocrServiceLoading
                             }
                             onClick={() => void wizard.runScan()}
                             sx={{ textTransform: 'none', fontWeight: 700 }}

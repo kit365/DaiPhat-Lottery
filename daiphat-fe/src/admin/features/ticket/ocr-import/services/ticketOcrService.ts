@@ -29,6 +29,20 @@ export const scanTicketImage = async (
     return response.data;
 };
 
+export type OcrServiceReady = {
+    ready: boolean;
+    message?: string | null;
+};
+
+/** Probe ticket-vision via BE — used when opening the OCR import modal. */
+export const getOcrServiceReady = async (): Promise<OcrServiceReady> => {
+    const response = await apiApp.get(`${BASE_URL}/ocr-service-ready`, {
+        skipGlobalErrorToast: true,
+        timeout: 8_000,
+    });
+    return response.data?.data ?? { ready: false, message: response.data?.message };
+};
+
 export const batchImportScannedTickets = async (
     payload: BatchImportScannedTicketsPayload
 ): Promise<ApiResponse<ScanBatchImportResponse>> => {
