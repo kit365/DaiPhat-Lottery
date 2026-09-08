@@ -139,6 +139,8 @@ daiphat:
         enabled: true
       southern-stations:
         enabled: true
+      win50-phu123:
+        enabled: true
   fortune:
     daily-limit-enabled: true
   order:
