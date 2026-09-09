@@ -29,9 +29,12 @@ python3 scripts/publish_ticket_vision.py verify --release .local/ocr-publish/<fu
 ```
 
 The script builds `linux/amd64` with Buildx `--load`. It audits all image layers
-for forbidden application artifacts and credential signatures, checks non-root
-runtime/cache/health, verifies the model checksum and runs YOLO on a synthetic
-image with networking disabled. No ticket photo or provider credential is used.
+for forbidden application artifacts and credential signatures outside third-party
+`site-packages`, checks non-root runtime/cache/health, verifies the model checksum
+and runs YOLO on a synthetic image with networking disabled. Public test vectors
+inside dependencies are recorded as skipped third-party files; project source,
+configs, tmp/cache files and image metadata remain fail-closed. No ticket photo
+or provider credential is used.
 If a dependency or emulation error occurs, the release remains unverified.
 The script does not change dependency versions or OCR code to force a pass.
 

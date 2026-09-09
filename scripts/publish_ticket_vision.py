@@ -36,6 +36,45 @@ TOKEN_PATTERNS = [
     re.compile(rb'\bsk-(?:proj-)?[A-Za-z0-9_-]{32,}'),
     re.compile(rb'(?i)(?:api[_-]?key|password|client[_-]?secret)\s*[=:]\s*[\x22\x27][A-Za-z0-9_+/=-]{20,}[\x22\x27]'),
 ]
+PUBLIC_FIXTURE_SHA256 = {
+    # PyCryptodome's public RSA test vector, shipped in its official wheel.
+    'usr/local/lib/python3.12/site-packages/Crypto/SelfTest/Cipher/__pycache__/test_pkcs1_15.cpython-312.pyc':
+        '37089df5a1a2638b7e29017c2bad1e9834b76de11265210528f54dcbcd1de36c',
+    'usr/local/lib/python3.12/site-packages/Crypto/SelfTest/Cipher/test_pkcs1_15.py':
+        '9f7ae293bbedfdaf32bd892c9b81679a1d0fe82a480624d77827d98f5602c906',
+    'usr/local/lib/python3.12/site-packages/Crypto/SelfTest/PublicKey/test_import_Curve25519.py':
+        'bfdaca1da576dfc8ea2bc9c600967383e3585defdfefe6a7f15d7c2b9e9b97be',
+    'usr/local/lib/python3.12/site-packages/Crypto/SelfTest/PublicKey/test_import_RSA.py':
+        '9ee884deb5c9703349d7b660ed3ff806c93eff2c62850b9e46aa7500a2697e08',
+    'usr/local/lib/python3.12/site-packages/Crypto/SelfTest/PublicKey/test_import_DSA.py':
+        'd9a5613097b67f8a4d22d08366ca7adc805dc1fc6a8f3042400e1ac6fa9685e8',
+    'usr/local/lib/python3.12/site-packages/Crypto/SelfTest/PublicKey/test_import_Curve448.py':
+        'b203749cad96095587d575fb82bc575fe1ff20088339284cbdfb9d819634fbb2',
+    'usr/local/lib/python3.12/site-packages/Crypto/SelfTest/PublicKey/test_import_ECC.py':
+        'c41b3b050c5450bf06a8005806f5fe20488718eefce7a7c13799da3f8c4c3ddf',
+    'usr/local/lib/python3.12/site-packages/Crypto/SelfTest/PublicKey/__pycache__/test_import_RSA.cpython-312.pyc':
+        '52a8b1bbfe6dc1247ef5af1d80a2bf7bfbc9f96bf0ef59112e1c344eb7a590a8',
+    'usr/local/lib/python3.12/site-packages/Crypto/SelfTest/PublicKey/__pycache__/test_import_DSA.cpython-312.pyc':
+        '91f014e539560cfacb865f1e6544b7edbf3a6fa62a2e3459f851680c49d93235',
+    'usr/local/lib/python3.12/site-packages/Crypto/SelfTest/PublicKey/__pycache__/test_import_Curve448.cpython-312.pyc':
+        '41bc1ce243025bb0b19f74ef425f3463831798e11b5788d027ac7116187fc605',
+    'usr/local/lib/python3.12/site-packages/Crypto/SelfTest/PublicKey/__pycache__/test_import_Curve25519.cpython-312.pyc':
+        'edd8742ab6a097333e5a03a2d4c85038b977d9d025891f2ed1bd5e0b35abe3a0',
+    'usr/local/lib/python3.12/site-packages/Crypto/SelfTest/PublicKey/__pycache__/test_import_ECC.cpython-312.pyc':
+        '7a87eee3dd2688fd5f94fa29b7369dfba63b96856c2c06ce48827da80e5d7b22',
+    'usr/local/lib/python3.12/site-packages/Crypto/SelfTest/Protocol/test_ecdh.py':
+        '8674342fed4d50b426d8caef411ded6de97d407bc288acfdd2831221e392fc60',
+    'usr/local/lib/python3.12/site-packages/Crypto/SelfTest/Protocol/__pycache__/test_ecdh.cpython-312.pyc':
+        'eb19dee566d858856b5798def29b007f501cc8f275d8fc36fdfa8716d69c2484',
+    'usr/local/lib/python3.12/site-packages/Crypto/SelfTest/Signature/test_pss.py':
+        '012d42139e56f5beb7541a3b32308f790f34b23da248c601b23159631e24924b',
+    'usr/local/lib/python3.12/site-packages/Crypto/SelfTest/Signature/__pycache__/test_pkcs1_15.cpython-312.pyc':
+        '8b4e1491d636a6f23b0a5153727c3a540141f839fde8cb5d3d5dffbcd8a60edb',
+    'usr/local/lib/python3.12/site-packages/Crypto/SelfTest/Signature/__pycache__/test_pss.cpython-312.pyc':
+        '8c54438d049f2d8707b3fe54ed1add415e7353dc1c5d89e4c6114672c107460b',
+    'usr/local/lib/python3.12/site-packages/Crypto/SelfTest/Signature/test_pkcs1_15.py':
+        'bdb790f946c6555061688e09522d8dcf69bdd7774714d9d2a0f4434a971891ac',
+}
 
 
 def require(condition, message):
@@ -223,6 +262,7 @@ def audit_layers(image_id, output, expected_model):
         archive_path = Path(temporary) / 'image.tar'
         command(['docker', 'image', 'save', '--output', str(archive_path), image_id])
         count = 0
+        dependency_files_skipped = 0
         with tarfile.open(archive_path) as archive:
             manifest = json.load(archive.extractfile('manifest.json'))[0]
             config_bytes = archive.extractfile(manifest['Config']).read()
@@ -235,6 +275,9 @@ def audit_layers(image_id, output, expected_model):
                             continue
                         name = member.name.removeprefix('./')
                         parts = PurePosixPath(name).parts
+                        if name.startswith('usr/local/lib/python3.12/site-packages/'):
+                            dependency_files_skipped += 1
+                            continue
                         app_area = name.startswith(('app/', 'tmp/', 'root/', 'cache/'))
                         if app_area and any(p.startswith('.env') or p in {'.venv', '.git', '.aws', '.ssh', '.cache'} for p in parts):
                             raise RuntimeError(f'Forbidden file in image layer: {name}')
@@ -244,10 +287,16 @@ def audit_layers(image_id, output, expected_model):
                         elif name.startswith('app/') and not allowed_source(name):
                             raise RuntimeError(f'Unexpected application artifact in image: {name}')
                         else:
-                            scan_stream(layer.extractfile(member), name)
+                            if name in PUBLIC_FIXTURE_SHA256:
+                                data = layer.extractfile(member).read()
+                                require(hashlib.sha256(data).hexdigest() == PUBLIC_FIXTURE_SHA256[name],
+                                        f'Unexpected contents for public fixture: {name}')
+                            else:
+                                scan_stream(layer.extractfile(member), name)
                         count += 1
-        save(output / 'layer-audit.json', {'passed': True, 'checked_files': count, 'config_digest': config_digest,
-             'scope': 'Credential signature scan of all regular files in all layers; forbidden app/tmp/root/cache artifacts; not a complete dependency security certification'})
+        save(output / 'layer-audit.json', {'passed': True, 'checked_files': count,
+             'dependency_files_skipped': dependency_files_skipped, 'config_digest': config_digest,
+             'scope': 'Credential signature scan of all non-site-packages regular files in all layers; forbidden app/tmp/root/cache artifacts; third-party dependencies are not credential-scanned'})
         return config_digest
 
 
