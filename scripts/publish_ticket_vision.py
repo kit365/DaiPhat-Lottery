@@ -28,13 +28,27 @@ SERVICE = 'services/ticket-vision'
 DEFAULT_REPOSITORY = 'docker.io/kitops365/daiphat-ticket-vision'
 SOURCE_ROOTS = ('contracts', 'infra', 'libs', SERVICE)
 TOKEN_PATTERNS = [
-    re.compile(rb'-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----'),
+    re.compile(rb'-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----\s+[A-Za-z0-9+/]{40,}'),
     re.compile(rb'\bgsk_[A-Za-z0-9]{24,}'),
     re.compile(rb'\bgh[pousr]_[A-Za-z0-9]{30,}'),
     re.compile(rb'\bAKIA[A-Z0-9]{16}\b'),
+    re.compile(rb'\bdckr_pat_[A-Za-z0-9_-]{20,}'),
     re.compile(rb'\bsk-(?:proj-)?[A-Za-z0-9_-]{32,}'),
     re.compile(rb'(?i)(?:api[_-]?key|password|client[_-]?secret)\s*[=:]\s*[\x22\x27][A-Za-z0-9_+/=-]{20,}[\x22\x27]'),
 ]
+
+
+def require(condition, message):
+    if not condition:
+        raise RuntimeError(message)
+
+
+def validate_identity(state):
+    require(bool(re.fullmatch('[a-f0-9]{40}', state.get('commit', ''))), 'Invalid commit identity')
+    require(bool(re.fullmatch(r'docker\.io/[a-z0-9_-]+/daiphat-ticket-vision', state.get('repository', ''))), 'Invalid repository identity')
+    require(state.get('tag') == 'candidate-' + state['commit'], 'Invalid candidate tag identity')
+    require(state.get('image') == state['repository'] + ':' + state['tag'], 'Invalid image identity')
+    require(state.get('platform') == 'linux/amd64', 'Invalid platform identity')
 
 
 def command(args, *, log=None, timeout=7200):
@@ -105,6 +119,14 @@ def check_bytes(data, location):
         raise RuntimeError(f'Credential signature found in {location}; value intentionally not printed')
 
 
+def scan_stream(stream, location):
+    tail = b''
+    while chunk := stream.read(1024 * 1024):
+        data = tail + chunk
+        check_bytes(data, location)
+        tail = data[-2048:]
+
+
 def allowed_source(name):
     path = PurePosixPath(name)
     if any(part.startswith('.env') or part in {'.git', '.venv', '__pycache__', '.pytest_cache',
@@ -165,6 +187,7 @@ def release(args):
     if path.parent != OUTPUT.resolve() or not re.fullmatch('[a-f0-9]{40}', path.name):
         raise RuntimeError('Release directory must be a prepared commit inside .local/ocr-publish')
     state = json.loads((path / 'release.json').read_text())
+    validate_identity(state)
     if state['commit'] != path.name or state['tag'] != 'candidate-' + state['commit']:
         raise RuntimeError('Invalid release identity')
     return path, state
@@ -211,21 +234,20 @@ def audit_layers(image_id, output, expected_model):
                         if not member.isfile():
                             continue
                         name = member.name.removeprefix('./')
-                        if not name.startswith(('app/', 'tmp/', 'root/', 'cache/')):
-                            continue
                         parts = PurePosixPath(name).parts
-                        if any(p.startswith('.env') or p in {'.venv', '.git', '.aws', '.ssh', '.cache'} for p in parts):
+                        app_area = name.startswith(('app/', 'tmp/', 'root/', 'cache/'))
+                        if app_area and any(p.startswith('.env') or p in {'.venv', '.git', '.aws', '.ssh', '.cache'} for p in parts):
                             raise RuntimeError(f'Forbidden file in image layer: {name}')
                         if name == 'app/services/ticket-vision/models/best.pt':
                             if hashlib.file_digest(layer.extractfile(member), 'sha256').hexdigest() != expected_model:
                                 raise RuntimeError('Unexpected model in image layer')
                         elif name.startswith('app/') and not allowed_source(name):
                             raise RuntimeError(f'Unexpected application artifact in image: {name}')
-                        elif member.size < 4 * 1024**2:
-                            check_bytes(layer.extractfile(member).read(), name)
+                        else:
+                            scan_stream(layer.extractfile(member), name)
                         count += 1
         save(output / 'layer-audit.json', {'passed': True, 'checked_files': count, 'config_digest': config_digest,
-             'scope': 'All layer metadata and application/tmp/root/cache files; dependency binaries are not a security certification'})
+             'scope': 'Credential signature scan of all regular files in all layers; forbidden app/tmp/root/cache artifacts; not a complete dependency security certification'})
         return config_digest
 
 
@@ -236,16 +258,18 @@ def verify(args):
     save(output / 'release.json', state)
     image_id = state['image_id']
     info = json.loads(command(['docker', 'image', 'inspect', image_id]))[0]
-    assert (info['Os'], info['Architecture']) == ('linux', 'amd64'), 'Wrong image platform'
-    assert info['Config']['User'] == 'daiphat', 'Expected unprivileged user'
-    assert '--reload' not in info['Config']['Cmd'], 'Reload must be disabled'
-    assert info['Config']['Cmd'][-2:] == ['--workers', '1'], 'Expected one worker'
+    require((info['Os'], info['Architecture']) == ('linux', 'amd64'), 'Wrong image platform')
+    require(info['Config']['User'] == 'daiphat', 'Expected unprivileged user')
+    require('--reload' not in info['Config']['Cmd'], 'Reload must be disabled')
+    require(info['Config']['Cmd'][-2:] == ['--workers', '1'], 'Expected one worker')
     config_digest = audit_layers(image_id, output, state['model_sha256'])
     name = 'daiphat-ocr-verify-' + uuid.uuid4().hex[:12]
+    created = False
     try:
         command(['docker', 'run', '-d', '--name', name, '--platform', 'linux/amd64', '--network', 'none',
                  '--memory', '4g', '--cpus', '2', '-e', 'OMP_NUM_THREADS=2', '-e', 'MKL_NUM_THREADS=2', image_id])
-        health = "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:8090/health',timeout=5)); assert d['success']; print(json.dumps(d['data']))"
+        created = True
+        health = "import json,urllib.request,sys; d=json.load(urllib.request.urlopen('http://127.0.0.1:8090/health',timeout=5)); sys.exit(0 if d.get('success') and d.get('data',{}).get('status')=='up' else 1)"
         for attempt in range(30):
             try:
                 command(['docker', 'exec', name, 'python', '-c', health], timeout=10)
@@ -256,16 +280,21 @@ def verify(args):
                 time.sleep(2)
         probe = (
             "import os,hashlib,json,numpy as np; from pathlib import Path; from ultralytics import YOLO; "
-            "assert os.getuid()!=0; "
+            "check=lambda ok,msg: None if ok else (_ for _ in ()).throw(RuntimeError(msg)); "
+            "check(os.getuid()!=0,'root process'); "
             "p=Path('/cache/.publish-probe'); p.write_text('ok'); p.unlink(); "
             "w=Path('/app/services/ticket-vision/models/best.pt'); "
-            f"assert hashlib.sha256(w.read_bytes()).hexdigest()=='{state['model_sha256']}'; "
+            f"check(hashlib.sha256(w.read_bytes()).hexdigest()=='{state['model_sha256']}','model checksum'); "
             "r=YOLO(str(w)).predict(np.zeros((640,640,3),dtype=np.uint8),device='cpu',verbose=False); "
-            "assert len(r)==1 and r[0].obb is not None; print('AMD64 model inference and cache: PASS')")
+            "check(len(r)==1 and r[0].obb is not None,'OBB inference failed'); print('AMD64 model inference and cache: PASS')")
         command(['docker', 'exec', name, 'python', '-c', probe], log=output / 'runtime.log', timeout=300)
         command(['docker', 'exec', name, 'python', '-m', 'pip', 'freeze'], log=output / 'packages.txt')
     finally:
-        command(['docker', 'rm', '-f', name], timeout=30)
+        if created:
+            try:
+                command(['docker', 'rm', '-f', name], timeout=30)
+            except (RuntimeError, subprocess.SubprocessError):
+                print(f'Cleanup incomplete: remove only container {name}', file=sys.stderr)
     state.update(phase='verified', verified_image_id=image_id, verified_config_digest=config_digest)
     save(output / 'release.json', state)
     print(f'Verified {image_id}. Cloud OCR and Paddle compatibility are not certified.')
@@ -280,6 +309,17 @@ def push(args):
     if local_id != state['verified_image_id']:
         raise RuntimeError('Local tag changed after verification')
     command(['docker', 'push', state['image']], log=output / 'push.log')
+    state['phase'] = 'uploaded'
+    save(output / 'release.json', state)
+    confirm(args)
+
+
+def confirm(args):
+    # Recoverable read/pull-only post-push check; never uploads or overwrites tags.
+    output, state = release(args)
+    require(state.get('verified_image_id') == state.get('image_id') and state.get('verified_config_digest'),
+            'Confirmation requires an image previously verified locally')
+    check_public(state['repository'])
     manifest, digest = registry_manifest(state['repository'], state['tag'])
     if 'manifests' in manifest:
         match = [m for m in manifest['manifests'] if m.get('platform', {}).get('architecture') == 'amd64'
@@ -305,7 +345,7 @@ def push(args):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=['prepare', 'build', 'verify', 'push'])
+    parser.add_argument('action', choices=['prepare', 'build', 'verify', 'push', 'confirm'])
     parser.add_argument('--repository', default=DEFAULT_REPOSITORY)
     parser.add_argument('--ref', default='HEAD')
     parser.add_argument('--model', type=Path, default=ROOT / 'daiphat-ai' / SERVICE / 'models/best.pt')

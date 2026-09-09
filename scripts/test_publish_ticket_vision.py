@@ -27,6 +27,41 @@ class PublishSafetyTests(unittest.TestCase):
         self.assertNotIn(secret.decode(), str(error.exception))
         publish.check_bytes(b'API_KEY: str = ""', 'infra/config.py')
 
+    def test_docker_hub_pat_is_detected_without_printing_it(self):
+        secret = b'dckr_pat_' + b'A' * 30
+        with self.assertRaises(RuntimeError) as error:
+            publish.check_bytes(secret, 'image config/history')
+        self.assertNotIn(secret.decode(), str(error.exception))
+
+    def test_require_raises_an_explicit_runtime_error(self):
+        publish.require(True, 'must pass')
+        with self.assertRaisesRegex(RuntimeError, 'must fail'):
+            publish.require(False, 'must fail')
+
+    def test_release_identity_rejects_tampering(self):
+        sha = 'a' * 40
+        valid = {
+            'commit': sha,
+            'repository': publish.DEFAULT_REPOSITORY,
+            'tag': 'candidate-' + sha,
+            'image': publish.DEFAULT_REPOSITORY + ':candidate-' + sha,
+            'platform': 'linux/amd64',
+        }
+        publish.validate_identity(valid)
+        invalid_values = {
+            'commit': 'short',
+            'repository': 'docker.io/kitops365/other-image',
+            'tag': 'candidate-' + ('b' * 40),
+            'image': publish.DEFAULT_REPOSITORY + ':latest',
+            'platform': 'linux/arm64',
+        }
+        for field, value in invalid_values.items():
+            with self.subTest(field=field):
+                tampered = dict(valid)
+                tampered[field] = value
+                with self.assertRaises(RuntimeError):
+                    publish.validate_identity(tampered)
+
     def test_existing_tag_blocks_publication(self):
         with patch.object(publish, 'check_public'), patch.object(publish, 'registry_manifest', return_value=({}, 'sha256:abc')):
             with self.assertRaisesRegex(RuntimeError, 'already exists'):

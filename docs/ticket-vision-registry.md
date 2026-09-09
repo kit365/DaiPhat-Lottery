@@ -52,8 +52,12 @@ an atomic registry lock: do not run another publisher for the same tag concurren
 After pushing, the script verifies the manifest/config ID and performs a public
 pull by digest using a temporary empty Docker client configuration. It does not
 log out or replace the user's Docker credentials. `release.json` records the digest.
-If publication succeeds but post-push verification fails, inspect the reports;
-do not blindly rerun push because the candidate tag now exists.
+If publication succeeds but post-push verification fails, use the read/pull-only
+confirmation command; it never re-uploads the image or overwrites the tag:
+
+```sh
+python3 scripts/publish_ticket_vision.py confirm --release .local/ocr-publish/<full-commit-sha>
+```
 
 Known limits: dependencies remain large and unpinned as requested; repeated
 builds are not guaranteed byte-identical. The candidate proves packaging and
