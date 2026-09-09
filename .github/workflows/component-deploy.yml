@@ -281,7 +281,7 @@ jobs:
               rm -f "$VPS_DEPLOY_PATH/.incoming/$DEPLOY_ARCHIVE"
               cd "$VPS_DEPLOY_PATH"
               chmod 700 scripts/deploy-component.sh scripts/vps-preflight.sh
-              scripts/vps-preflight.sh "$VPS_DEPLOY_PATH"
+              scripts/vps-preflight.sh "$VPS_DEPLOY_PATH" "$COMPONENT"
               scripts/deploy-component.sh "$COMPONENT" "$image" "$SOURCE_SHA"
             '; then
               rm -f "$VPS_DEPLOY_PATH/.incoming/$DEPLOY_ARCHIVE"

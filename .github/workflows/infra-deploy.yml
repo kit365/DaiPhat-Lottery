@@ -66,6 +66,7 @@ jobs:
             printf 'BACKEND_IMAGE=docker.io/%s/daiphat-be:prod\n' "$DOCKER_USERNAME"
             printf 'FRONTEND_IMAGE=docker.io/%s/daiphat-fe:prod\n' "$DOCKER_USERNAME"
             printf 'AI_IMAGE=docker.io/%s/daiphat-ai:prod\n' "$DOCKER_USERNAME"
+            printf 'TICKET_VISION_IMAGE=docker.io/%s/daiphat-ticket-vision:prod\n' "$DOCKER_USERNAME"
             printf 'DEPLOY_SHA=infra-%s\n' "$source_sha"
           } > .deploy.bootstrap.env
           chmod 755 .dozzle

@@ -2,8 +2,9 @@
 set -euo pipefail
 
 deploy_path=${1:-}
+component=${2:-}
 if [[ -z "$deploy_path" ]]; then
-    echo "Usage: $0 <absolute-vps-deploy-path>" >&2
+    echo "Usage: $0 <absolute-vps-deploy-path> [component]" >&2
     exit 2
 fi
 
@@ -31,6 +32,19 @@ echo "Available disk near deploy path: ${available_mb} MB"
     echo "At least 10 GB free disk is required." >&2
     exit 1
 }
+
+if [[ "$component" == "ticket-vision" ]]; then
+    # Existing production limits total roughly 3.9 GiB before OCR. The image
+    # itself is also large, so fail before a 4 GiB VPS pulls and OOMs it.
+    (( memory_mb >= 5500 )) || {
+        echo "Ticket Vision requires at least 5.5 GB RAM alongside the current production stack." >&2
+        exit 1
+    }
+    (( available_mb >= 25600 )) || {
+        echo "Ticket Vision requires at least 25 GB free disk for its image, cache and rollback headroom." >&2
+        exit 1
+    }
+fi
 
 if ss -ltn | awk '{print $4}' | grep -Eq '(^|:)(80|443)$'; then
     echo "WARNING: port 80 or 443 is already in use; confirm it belongs to the DaiPhat stack." >&2

@@ -9,8 +9,9 @@ case "$component" in
     backend) image_var=BACKEND_IMAGE ;;
     frontend) image_var=FRONTEND_IMAGE ;;
     ai) image_var=AI_IMAGE ;;
+    ticket-vision) image_var=TICKET_VISION_IMAGE ;;
     *)
-        echo "Usage: $0 <backend|frontend|ai> <immutable-image> <deploy-sha>" >&2
+        echo "Usage: $0 <backend|frontend|ai|ticket-vision> <immutable-image> <deploy-sha>" >&2
         exit 1
         ;;
 esac
@@ -136,6 +137,7 @@ case "$component" in
         compose restart backend
         wait_for_health backend 360
         ;;
+    ticket-vision) wait_for_health ticket-vision 300 ;;
 esac
 
 cp .deploy.env .last-successful.env
