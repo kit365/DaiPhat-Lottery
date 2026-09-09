@@ -486,7 +486,8 @@ public class Phu123Win50SeedInitializer implements ApplicationRunner {
                         .build());
             }
 
-            batch.setLines(lines);
+            batch.getLines().clear();
+            batch.getLines().addAll(lines);
             batch = importBatchRepository.save(batch);
             Map<Long, ImportBatchLineEntity> lineByStationId = batch.getLines().stream()
                     .collect(Collectors.toMap(
