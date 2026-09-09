@@ -50,7 +50,9 @@ python3 scripts/publish_ticket_vision.py push --release .local/ocr-publish/<full
 ```
 
 Tag: `candidate-<full-commit-sha>`. Existing candidate tags are never intentionally
-overwritten, and `latest`/`prod` are untouched. This is a client-side check, not
+overwritten, and `latest`/`prod` are untouched. Only the verified `linux/amd64`
+runtime manifest is pushed; local provenance/attestation wrappers are not published.
+This is a client-side check, not
 an atomic registry lock: do not run another publisher for the same tag concurrently.
 After pushing, the script verifies the manifest/config ID and performs a public
 pull by digest using a temporary empty Docker client configuration. It does not

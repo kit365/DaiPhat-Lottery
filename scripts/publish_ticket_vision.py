@@ -361,7 +361,11 @@ def push(args):
     local_id = command(['docker', 'image', 'inspect', state['image'], '--format', '{{.Id}}'])
     if local_id != state['verified_image_id']:
         raise RuntimeError('Local tag changed after verification')
-    command(['docker', 'push', state['image']], log=output / 'push.log')
+    # Publish the verified runtime platform only. Docker 29's containerd image
+    # store may otherwise try to push a local index/attestation wrapper and
+    # stall before creating the remote tag.
+    command(['docker', 'image', 'push', '--platform', state['platform'], state['image']],
+            log=output / 'push.log')
     state['phase'] = 'uploaded'
     save(output / 'release.json', state)
     confirm(args)
