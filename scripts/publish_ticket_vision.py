@@ -260,6 +260,9 @@ def verify(args):
     info = json.loads(command(['docker', 'image', 'inspect', image_id]))[0]
     require((info['Os'], info['Architecture']) == ('linux', 'amd64'), 'Wrong image platform')
     require(info['Config']['User'] == 'daiphat', 'Expected unprivileged user')
+    labels = info['Config'].get('Labels') or {}
+    require(labels.get('org.opencontainers.image.revision') == state['commit'], 'Image source label changed')
+    require(labels.get('com.daiphat.yolo.sha256') == state['model_sha256'], 'Image model label changed')
     require('--reload' not in info['Config']['Cmd'], 'Reload must be disabled')
     require(info['Config']['Cmd'][-2:] == ['--workers', '1'], 'Expected one worker')
     config_digest = audit_layers(image_id, output, state['model_sha256'])
@@ -296,6 +299,7 @@ def verify(args):
             except (RuntimeError, subprocess.SubprocessError):
                 print(f'Cleanup incomplete: remove only container {name}', file=sys.stderr)
     state.update(phase='verified', verified_image_id=image_id, verified_config_digest=config_digest)
+    state['verification_tool_sha256'] = digest_file(__file__)
     save(output / 'release.json', state)
     print(f'Verified {image_id}. Cloud OCR and Paddle compatibility are not certified.')
 
