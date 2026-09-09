@@ -130,3 +130,4 @@ __pycache__/
 .coverage
 htmlcov/
 .tox/
+.local/ocr-publish/

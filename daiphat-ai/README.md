@@ -130,6 +130,27 @@ From the repository root, the standard local stack builds and starts both AI ser
 docker compose up -d --build
 ```
 
+The services remain separate containers in the same `daiphat-local` network.
+The backend calls `http://ai:8000` and `http://ticket-vision:8090`; OCR port
+8090 is also bound to localhost for direct testing. Start, rebuild, restart,
+or stop either AI service independently:
+
+```bash
+docker compose up -d ai ticket-vision
+docker compose up -d --build ticket-vision
+docker compose restart ticket-vision
+docker compose stop ticket-vision
+```
+
+Ticket Vision runs as the unprivileged `daiphat` user with one Uvicorn worker,
+2 CPUs and 4 GB RAM by default. Override the latter two with
+`LOCAL_TICKET_VISION_CPUS` and `LOCAL_TICKET_VISION_MEMORY`. OCR model downloads
+persist in the `ticket_vision_model_cache` volume, while the local
+`services/ticket-vision/models/` directory is mounted read-only so replacing
+`best.pt` only requires restarting `ticket-vision`. The Docker stack does not
+use `scripts/start_all_ai.sh`; that file is retained only as a manual
+compatibility helper.
+
 Production publishes each service as an immutable image tagged with the same commit SHA as FE and BE, reachable only on the internal Docker network — neither is exposed publicly on the VPS:
 
 | Service | Image | Internal URL | Workflow |
