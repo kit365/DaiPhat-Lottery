@@ -34,7 +34,7 @@ jobs:
     outputs:
       source_sha: ${{ steps.source.outputs.sha }}
       channel: ${{ steps.source.outputs.channel }}
-      image: ${{ steps.image.outputs.image }}
+      image_digest: ${{ steps.image.outputs.digest }}
     steps:
       - name: Validate component
         env:
@@ -195,16 +195,14 @@ jobs:
           BUILT_DIGEST: ${{ steps.build-backend.outputs.digest || steps.build-frontend.outputs.digest || steps.build-chatbot.outputs.digest || steps.build-ocr.outputs.digest }}
         run: |
           set -euo pipefail
-          repository="${IMAGE%:*}"
           if [[ -n "$EXISTING_IMAGE" ]]; then
-            [[ "$EXISTING_IMAGE" == "$repository"@sha256:* ]]
             [[ "${EXISTING_IMAGE##*@sha256:}" =~ ^[a-f0-9]{64}$ ]]
-            resolved="$EXISTING_IMAGE"
+            resolved="sha256:${EXISTING_IMAGE##*@sha256:}"
           else
             [[ "$BUILT_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
-            resolved="$repository@$BUILT_DIGEST"
+            resolved="$BUILT_DIGEST"
           fi
-          echo "image=$resolved" >> "$GITHUB_OUTPUT"
+          echo "digest=$resolved" >> "$GITHUB_OUTPUT"
 
   deploy:
     runs-on: ubuntu-latest
@@ -304,7 +302,8 @@ jobs:
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           IMAGE_CHANNEL: ${{ needs.build-and-push.outputs.channel }}
           SOURCE_SHA: ${{ needs.build-and-push.outputs.source_sha }}
-          RESOLVED_IMAGE: ${{ needs.build-and-push.outputs.image }}
+          IMAGE_DIGEST: ${{ needs.build-and-push.outputs.image_digest }}
+          EXISTING_IMAGE: ${{ inputs.existing_image }}
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH }}
@@ -316,7 +315,12 @@ jobs:
             ai) repository=daiphat-ai ;;
             ticket-vision) repository=daiphat-ticket-vision ;;
           esac
-          image="$RESOLVED_IMAGE"
+          if [[ -n "$EXISTING_IMAGE" ]]; then
+            image="$EXISTING_IMAGE"
+          else
+            [[ "$IMAGE_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+            image="docker.io/$DOCKER_USERNAME/$repository@$IMAGE_DIGEST"
+          fi
           printf '%s' "$DOCKER_PASSWORD" | ssh -i "$HOME/.ssh/daiphat_vps_deploy" -o BatchMode=yes -o ConnectTimeout=10 "$VPS_USER@$VPS_HOST" \
             "docker login docker.io -u '$DOCKER_USERNAME' --password-stdin"
           # Values below intentionally expand on the trusted runner before the script is sent.
@@ -366,7 +370,8 @@ jobs:
           COMPONENT: ${{ inputs.component }}
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           SOURCE_SHA: ${{ needs.build-and-push.outputs.source_sha }}
-          RESOLVED_IMAGE: ${{ needs.build-and-push.outputs.image }}
+          IMAGE_DIGEST: ${{ needs.build-and-push.outputs.image_digest }}
+          EXISTING_IMAGE: ${{ inputs.existing_image }}
           IMAGE_CHANNEL: ${{ needs.build-and-push.outputs.channel }}
         run: |
           set -euo pipefail
@@ -376,5 +381,10 @@ jobs:
             ai) repository=daiphat-ai ;;
             ticket-vision) repository=daiphat-ticket-vision ;;
           esac
-          image="$RESOLVED_IMAGE"
+          if [[ -n "$EXISTING_IMAGE" ]]; then
+            image="$EXISTING_IMAGE"
+          else
+            [[ "$IMAGE_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+            image="docker.io/$DOCKER_USERNAME/$repository@$IMAGE_DIGEST"
+          fi
           docker buildx imagetools create -t "docker.io/$DOCKER_USERNAME/$repository:prod" "$image"
