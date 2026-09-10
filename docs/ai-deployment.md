@@ -4,8 +4,11 @@
 **Chatbot** as separate jobs, deploying OCR first when both are selected.
 Application tests, benchmarks and smoke-test jobs are not part of this CD flow.
 Container health and route rollback remain runtime operations.
-The script also refuses to start an overlapping slot when available RAM is
-insufficient; OCR retains the 5500 MiB host RAM / 25 GiB free Docker disk floor.
+The script refuses to start an overlapping slot unless available RAM covers
+the candidate's memory limit plus 640 MiB reserve (1664 MiB for a 1 GiB OCR
+slot). There is no minimum installed-RAM gate; a 4 GiB host can qualify.
+OCR requires 10 GiB free on Docker's data filesystem for image pull/unpacking
+and cache. This is an admission budget, not a measured runtime guarantee.
 
 ## Configuration
 
