@@ -155,12 +155,20 @@ Production publishes each service as an immutable image tagged with the same com
 
 | Service | Image | Internal URL | Workflow |
 |---------|-------|--------------|----------|
-| chat-bot | `daiphat-ai` | `http://ai:8000` | `ai-deploy.yml` |
-| ticket-vision | `daiphat-ticket-vision` | `http://ticket-vision:8090` | `ticket-vision-deploy.yml` |
+| chat-bot | `daiphat-ai` | `http://ai-gateway:8000` after bootstrap | `ai-deploy.yml`, target `chatbot` |
+| ticket-vision | `daiphat-ticket-vision` | `http://ticket-vision:8090` | `ai-deploy.yml`, target `ocr` |
 
-They deploy independently: `ticket-vision`'s image carries torch/paddlepaddle/easyocr and is far slower to build, so `ai-deploy.yml` excludes its subtree rather than rebuilding it on every chat-bot change.
+One AI CD workflow selects the changed component; shared runtime changes select both.
+OCR and chatbot remain separate images, with independent blue/green slots and internal
+gateways. Manual dispatch also supports `both` and deploying an existing digest.
+The currently running chatbot stays at `ai:8000` until its gateway bootstrap and
+the separate backend URL migration are complete. See [AI deployment](../docs/ai-deployment.md).
 
-**Model weights in CI.** `models/best.pt` is gitignored, so a CI checkout has none and the image ships without YOLO — `TicketDetectorFactory` and `LayoutStrategyFactory` fall back to the contour detector and the generic layout on their own. To bake the weights in, set the `TICKET_VISION_WEIGHTS_URL` repository secret to a downloadable `best.pt`; the build validates size and file type so a bad URL fails the build instead of shipping an HTML error page as "weights". Production defaults to `contour`/`generic` regardless — flip `TICKET_VISION_DETECTOR_STRATEGY` / `TICKET_VISION_LAYOUT_STRATEGY` only after benchmarking.
+**Model weights in CD builds.** `models/best.pt` is gitignored. New OCR builds require
+the `TICKET_VISION_WEIGHTS_URL` repository secret and `TICKET_VISION_WEIGHTS_SHA256`
+Actions variable. Builds stop when the artifact is missing or does not match its
+checksum. Existing-image deployments reuse the weights inside that image.
+Groq uses YOLO guidance independently of the legacy `contour`/`generic` strategies.
 
 
 ## License

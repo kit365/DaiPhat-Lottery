@@ -25,6 +25,11 @@ script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 deploy_root=$(cd "$script_dir/.." && pwd)
 cd "$deploy_root"
 
+# Unified AI deployment owns slot state and must never take the legacy recreate path.
+if [[ "$component" == ai || "$component" == ticket-vision ]]; then
+    exec bash "$script_dir/deploy-ai.sh" "$component" "$image" "$deploy_sha"
+fi
+
 for required_file in docker-compose.prod.yml .env.prod .deploy.env .dozzle/users.yml; do
     [[ -s "$required_file" ]] || {
         echo "Missing required deployment file: $required_file" >&2
@@ -105,9 +110,6 @@ rollback() {
     chmod 600 .deploy.env
     compose pull "$component"
     compose up -d --no-deps "$component"
-    if [[ "$component" == "ai" ]]; then
-        compose restart backend
-    fi
     echo "$component image rolled back. Database migrations were not rolled back." >&2
     rm -f "$previous_env"
     exit "$status"
@@ -132,12 +134,6 @@ compose up -d --no-deps "$component"
 case "$component" in
     backend) wait_for_health backend 360 ;;
     frontend) wait_for_health frontend 180 ;;
-    ai)
-        wait_for_health ai 180
-        compose restart backend
-        wait_for_health backend 360
-        ;;
-    ticket-vision) wait_for_health ticket-vision 300 ;;
 esac
 
 cp .deploy.env .last-successful.env

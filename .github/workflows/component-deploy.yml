@@ -12,6 +12,15 @@ on:
         required: true
         type: string
 
+      release_channel:
+        description: Optional channel when source_ref is an immutable SHA
+        type: string
+        default: ''
+      existing_image:
+        description: Optional repository@sha256 image; skip building
+        type: string
+        default: ''
+
 concurrency:
   group: daiphat-production-${{ inputs.component }}
   cancel-in-progress: false
@@ -25,6 +34,7 @@ jobs:
     outputs:
       source_sha: ${{ steps.source.outputs.sha }}
       channel: ${{ steps.source.outputs.channel }}
+      image: ${{ steps.image.outputs.image }}
     steps:
       - name: Validate component
         env:
@@ -44,10 +54,14 @@ jobs:
           COMPONENT: ${{ inputs.component }}
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           SOURCE_REF: ${{ inputs.source_ref }}
+          RELEASE_CHANNEL: ${{ inputs.release_channel }}
         run: |
           set -euo pipefail
           sha=$(git rev-parse HEAD)
-          if [[ "$SOURCE_REF" == "main" ]]; then
+          if [[ -n "$RELEASE_CHANNEL" ]]; then
+            [[ "$RELEASE_CHANNEL" =~ ^(prod|candidate)$ ]]
+            channel="$RELEASE_CHANNEL"
+          elif [[ "$SOURCE_REF" == "main" ]]; then
             channel=prod
           else
             channel=candidate
@@ -72,7 +86,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Prepare frontend build environment
-        if: ${{ inputs.component == 'frontend' }}
+        if: ${{ inputs.existing_image == '' && inputs.component == 'frontend' }}
         env:
           ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
         run: |
@@ -89,7 +103,8 @@ jobs:
           printf 'VITE_ENV_HASH=%s\n' "$(sha256sum /tmp/daiphat-fe.env | awk '{print $1}')" >> "$GITHUB_ENV"
 
       - name: Build and push backend
-        if: ${{ inputs.component == 'backend' }}
+        id: build-backend
+        if: ${{ inputs.existing_image == '' && inputs.component == 'backend' }}
         uses: docker/build-push-action@v7
         with:
           context: ./daiphat-be/core-api
@@ -97,11 +112,13 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ env.IMAGE }}
+          labels: org.opencontainers.image.revision=${{ steps.source.outputs.sha }}
           cache-from: type=registry,ref=docker.io/${{ secrets.DOCKER_USERNAME }}/daiphat-be:buildcache
           cache-to: type=registry,ref=docker.io/${{ secrets.DOCKER_USERNAME }}/daiphat-be:buildcache,mode=max
 
       - name: Build and push frontend
-        if: ${{ inputs.component == 'frontend' }}
+        id: build-frontend
+        if: ${{ inputs.existing_image == '' && inputs.component == 'frontend' }}
         uses: docker/build-push-action@v7
         with:
           context: ./daiphat-fe
@@ -109,6 +126,7 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ env.IMAGE }}
+          labels: org.opencontainers.image.revision=${{ steps.source.outputs.sha }}
           build-args: |
             VITE_ENV_HASH=${{ env.VITE_ENV_HASH }}
           secret-files: |
@@ -117,7 +135,8 @@ jobs:
           cache-to: type=registry,ref=docker.io/${{ secrets.DOCKER_USERNAME }}/daiphat-fe:buildcache,mode=max
 
       - name: Build and push AI
-        if: ${{ inputs.component == 'ai' }}
+        id: build-chatbot
+        if: ${{ inputs.existing_image == '' && inputs.component == 'ai' }}
         uses: docker/build-push-action@v7
         with:
           context: ./daiphat-ai
@@ -125,28 +144,22 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ env.IMAGE }}
+          labels: org.opencontainers.image.revision=${{ steps.source.outputs.sha }}
           cache-from: type=registry,ref=docker.io/${{ secrets.DOCKER_USERNAME }}/daiphat-ai:buildcache
           cache-to: type=registry,ref=docker.io/${{ secrets.DOCKER_USERNAME }}/daiphat-ai:buildcache,mode=max
 
       - name: Fetch ticket-vision model weights
-        if: ${{ inputs.component == 'ticket-vision' }}
+        if: ${{ inputs.existing_image == '' && inputs.component == 'ticket-vision' }}
         env:
           WEIGHTS_URL: ${{ secrets.TICKET_VISION_WEIGHTS_URL }}
+          WEIGHTS_SHA256: ${{ vars.TICKET_VISION_WEIGHTS_SHA256 }}
         run: |
           set -euo pipefail
-          # models/best.pt is gitignored (a ~6MB binary doesn't belong in the
-          # repo), so this checkout has no weights. Without them the image
-          # still builds and runs -- TicketDetectorFactory/LayoutStrategyFactory
-          # fall back to the OpenCV contour detector and the generic layout --
-          # but the YOLO strategies stay unavailable. Set the
-          # TICKET_VISION_WEIGHTS_URL secret to a downloadable best.pt to bake
-          # them in.
-          if [[ -z "${WEIGHTS_URL:-}" ]]; then
-            echo "::warning::TICKET_VISION_WEIGHTS_URL is not set; building without YOLO weights (contour/generic strategies only)."
-            exit 0
-          fi
+          test -n "$WEIGHTS_URL" || { echo "TICKET_VISION_WEIGHTS_URL is required for OCR builds." >&2; exit 1; }
           mkdir -p daiphat-ai/services/ticket-vision/models
           curl -fsSL "$WEIGHTS_URL" -o daiphat-ai/services/ticket-vision/models/best.pt
+          test -n "$WEIGHTS_SHA256" || { echo "TICKET_VISION_WEIGHTS_SHA256 is required." >&2; exit 1; }
+          printf '%s  %s\n' "$WEIGHTS_SHA256" daiphat-ai/services/ticket-vision/models/best.pt | sha256sum --check --status
           # A wrong URL that returns an HTML error page would otherwise be
           # baked in as "weights" and only fail at first scan.
           python - <<'PY'
@@ -162,7 +175,8 @@ jobs:
           PY
 
       - name: Build and push ticket-vision
-        if: ${{ inputs.component == 'ticket-vision' }}
+        id: build-ocr
+        if: ${{ inputs.existing_image == '' && inputs.component == 'ticket-vision' }}
         uses: docker/build-push-action@v7
         with:
           context: ./daiphat-ai
@@ -170,8 +184,27 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ env.IMAGE }}
+          labels: org.opencontainers.image.revision=${{ steps.source.outputs.sha }}
           cache-from: type=registry,ref=docker.io/${{ secrets.DOCKER_USERNAME }}/daiphat-ticket-vision:buildcache
           cache-to: type=registry,ref=docker.io/${{ secrets.DOCKER_USERNAME }}/daiphat-ticket-vision:buildcache,mode=max
+
+      - name: Resolve deployment digest
+        id: image
+        env:
+          EXISTING_IMAGE: ${{ inputs.existing_image }}
+          BUILT_DIGEST: ${{ steps.build-backend.outputs.digest || steps.build-frontend.outputs.digest || steps.build-chatbot.outputs.digest || steps.build-ocr.outputs.digest }}
+        run: |
+          set -euo pipefail
+          repository="${IMAGE%:*}"
+          if [[ -n "$EXISTING_IMAGE" ]]; then
+            [[ "$EXISTING_IMAGE" == "$repository"@sha256:* ]]
+            [[ "${EXISTING_IMAGE##*@sha256:}" =~ ^[a-f0-9]{64}$ ]]
+            resolved="$EXISTING_IMAGE"
+          else
+            [[ "$BUILT_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+            resolved="$repository@$BUILT_DIGEST"
+          fi
+          echo "image=$resolved" >> "$GITHUB_OUTPUT"
 
   deploy:
     runs-on: ubuntu-latest
@@ -180,15 +213,24 @@ jobs:
       - name: Checkout deployment files
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.source_ref }}
+          ref: ${{ needs.build-and-push.outputs.source_sha }}
 
       - name: Prepare protected runtime files
         env:
           ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
+          COMPONENT: ${{ inputs.component }}
         run: |
           set -euo pipefail
           umask 077
           test -n "$ENV_FILE_CONTENT"
+          if [[ "$COMPONENT" == ai || "$COMPONENT" == ticket-vision ]]; then
+            if [[ "$COMPONENT" == ai ]]; then
+              printf '%s\n' "$ENV_FILE_CONTENT" | awk '/^AI_[A-Z0-9_]*=/' > .ai-runtime.env
+            else
+              printf '%s\n' "$ENV_FILE_CONTENT" | awk '/^(GROQ_|GEMINI_|GROK_|TICKET_VISION_|AI_)[A-Z0-9_]*=|^OCR_AI_PROVIDER=/' > .ai-runtime.env
+            fi
+            exit 0
+          fi
           mkdir -p .dozzle
           dozzle_username=$(printf '%s\n' "$ENV_FILE_CONTENT" | awk -F= '$1 == "DOZZLE_AUTH_USERNAME" { value=substr($0, length($1)+2) } END { print value }')
           dozzle_password_hash=$(printf '%s\n' "$ENV_FILE_CONTENT" | awk -F= '$1 == "DOZZLE_AUTH_PASSWORD_HASH" { value=substr($0, length($1)+2) } END { print value }')
@@ -205,8 +247,8 @@ jobs:
             printf '    filter:\n'
             printf '    roles: none\n'
           } > .dozzle/users.yml
-          chmod 755 .dozzle
-          chmod 644 .env.prod .dozzle/users.yml
+          chmod 700 .dozzle
+          chmod 600 .env.prod .dozzle/users.yml
 
       - name: Configure and validate VPS SSH key
         env:
@@ -241,21 +283,28 @@ jobs:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH }}
+          COMPONENT: ${{ inputs.component }}
         run: |
           set -euo pipefail
           archive_name="component-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.tar.gz"
           echo "DEPLOY_ARCHIVE=$archive_name" >> "$GITHUB_ENV"
-          tar -czf - docker-compose.prod.yml daiphat-be/infra/backup scripts/deploy-component.sh scripts/vps-preflight.sh .env.prod .dozzle/users.yml \
+          if [[ "$COMPONENT" == ai || "$COMPONENT" == ticket-vision ]]; then
+            files=(docker-compose.ai.yml scripts/deploy-ai.sh .ai-runtime.env)
+          else
+            files=(docker-compose.prod.yml daiphat-be/infra/backup scripts/deploy-component.sh scripts/vps-preflight.sh .env.prod .dozzle/users.yml)
+          fi
+          tar -czf - "${files[@]}" \
             | ssh -i "$HOME/.ssh/daiphat_vps_deploy" -o BatchMode=yes -o ConnectTimeout=10 "$VPS_USER@$VPS_HOST" \
               "install -d -m 700 '$VPS_DEPLOY_PATH' '$VPS_DEPLOY_PATH/.incoming' && cat > '$VPS_DEPLOY_PATH/.incoming/$archive_name'"
 
-      - name: Deploy and verify component on VPS
+      - name: Deploy component with health gate and rollback
         env:
           COMPONENT: ${{ inputs.component }}
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           IMAGE_CHANNEL: ${{ needs.build-and-push.outputs.channel }}
           SOURCE_SHA: ${{ needs.build-and-push.outputs.source_sha }}
+          RESOLVED_IMAGE: ${{ needs.build-and-push.outputs.image }}
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH }}
@@ -267,7 +316,7 @@ jobs:
             ai) repository=daiphat-ai ;;
             ticket-vision) repository=daiphat-ticket-vision ;;
           esac
-          image="docker.io/$DOCKER_USERNAME/$repository:$IMAGE_CHANNEL-$SOURCE_SHA"
+          image="$RESOLVED_IMAGE"
           printf '%s' "$DOCKER_PASSWORD" | ssh -i "$HOME/.ssh/daiphat_vps_deploy" -o BatchMode=yes -o ConnectTimeout=10 "$VPS_USER@$VPS_HOST" \
             "docker login docker.io -u '$DOCKER_USERNAME' --password-stdin"
           # Values below intentionally expand on the trusted runner before the script is sent.
@@ -280,9 +329,14 @@ jobs:
               tar -xzf "$VPS_DEPLOY_PATH/.incoming/$DEPLOY_ARCHIVE" -C "$VPS_DEPLOY_PATH"
               rm -f "$VPS_DEPLOY_PATH/.incoming/$DEPLOY_ARCHIVE"
               cd "$VPS_DEPLOY_PATH"
-              chmod 700 scripts/deploy-component.sh scripts/vps-preflight.sh
-              scripts/vps-preflight.sh "$VPS_DEPLOY_PATH" "$COMPONENT"
-              scripts/deploy-component.sh "$COMPONENT" "$image" "$SOURCE_SHA"
+              if [ "$COMPONENT" = ai ] || [ "$COMPONENT" = ticket-vision ]; then
+                chmod 700 scripts/deploy-ai.sh
+                scripts/deploy-ai.sh "$COMPONENT" "$image" "$SOURCE_SHA"
+              else
+                chmod 700 scripts/deploy-component.sh scripts/vps-preflight.sh
+                scripts/vps-preflight.sh "$VPS_DEPLOY_PATH" "$COMPONENT"
+                scripts/deploy-component.sh "$COMPONENT" "$image" "$SOURCE_SHA"
+              fi
             '; then
               rm -f "$VPS_DEPLOY_PATH/.incoming/$DEPLOY_ARCHIVE"
               exit 1
@@ -294,7 +348,7 @@ jobs:
         run: rm -f "$HOME/.ssh/daiphat_vps_deploy"
 
   promote-main:
-    if: ${{ inputs.source_ref == 'main' }}
+    if: ${{ needs.build-and-push.outputs.channel == 'prod' }}
     runs-on: ubuntu-latest
     needs: [build-and-push, deploy]
     steps:
@@ -312,6 +366,7 @@ jobs:
           COMPONENT: ${{ inputs.component }}
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           SOURCE_SHA: ${{ needs.build-and-push.outputs.source_sha }}
+          RESOLVED_IMAGE: ${{ needs.build-and-push.outputs.image }}
           IMAGE_CHANNEL: ${{ needs.build-and-push.outputs.channel }}
         run: |
           set -euo pipefail
@@ -321,5 +376,5 @@ jobs:
             ai) repository=daiphat-ai ;;
             ticket-vision) repository=daiphat-ticket-vision ;;
           esac
-          image="docker.io/$DOCKER_USERNAME/$repository:$IMAGE_CHANNEL-$SOURCE_SHA"
+          image="$RESOLVED_IMAGE"
           docker buildx imagetools create -t "docker.io/$DOCKER_USERNAME/$repository:prod" "$image"
