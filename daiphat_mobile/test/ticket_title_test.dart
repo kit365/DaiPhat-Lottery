@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:daiphat_mobile/src/features/tickets/data/models/lottery_ticket.dart';
 import 'package:daiphat_mobile/src/features/tickets/presentation/viewmodels/buy_ticket_viewmodel.dart';
 
 void main() {
@@ -11,17 +10,29 @@ void main() {
       expect(buildProductTitle('Tiền Giang'), equals('Vé số Tiền Giang'));
     });
 
-    test('province name starting with "Đài " formats as "Vé số <Province>"', () {
-      expect(buildProductTitle('Đài Long An'), equals('Vé số Long An'));
-      expect(buildProductTitle('Đài Bạc Liêu'), equals('Vé số Bạc Liêu'));
-      expect(buildProductTitle('đài Tiền Giang'), equals('Vé số Tiền Giang'));
-    });
+    test(
+      'province name starting with "Đài " formats as "Vé số <Province>"',
+      () {
+        expect(buildProductTitle('Đài Long An'), equals('Vé số Long An'));
+        expect(buildProductTitle('Đài Bạc Liêu'), equals('Vé số Bạc Liêu'));
+        expect(buildProductTitle('đài Tiền Giang'), equals('Vé số Tiền Giang'));
+      },
+    );
 
-    test('already formatted "Vé số ..." keeps existing prefix without duplication', () {
-      expect(buildProductTitle('Vé số TP.HCM'), equals('Vé số TP.HCM'));
-      expect(buildProductTitle('vé số Bình Dương'), equals('vé số Bình Dương'));
-      expect(buildProductTitle('Vé số Kiến thiết Long An'), equals('Vé số Kiến thiết Long An'));
-    });
+    test(
+      'already formatted "Vé số ..." keeps existing prefix without duplication',
+      () {
+        expect(buildProductTitle('Vé số TP.HCM'), equals('Vé số TP.HCM'));
+        expect(
+          buildProductTitle('vé số Bình Dương'),
+          equals('vé số Bình Dương'),
+        );
+        expect(
+          buildProductTitle('Vé số Kiến thiết Long An'),
+          equals('Vé số Kiến thiết Long An'),
+        );
+      },
+    );
 
     test('empty or null or placeholder fallback to "Vé số kiến thiết"', () {
       expect(buildProductTitle(null), equals('Vé số kiến thiết'));
@@ -51,28 +62,31 @@ void main() {
       expect(item.stationDisplayText, equals('Long An'));
     });
 
-    test('mapLotteryTicketToListItem properly sets displayName with product title', () {
-      final ticket = LotteryTicket(
-        id: 101,
-        stationId: 1,
-        stationName: 'Long An',
-        ticketImg: null,
-        serialNumber: 'SN-001',
-        numbers: '854921',
-        drawDate: DateTime(2026, 8, 29),
-        quantity: 5,
-        batchCode: 'BATCH-01',
-        status: 'IN_STOCK',
-        statusDisplayName: 'Đang mở bán',
-        verified: true,
-        priceSnapshot: 10000,
-      );
+    test(
+      'mapLotteryTicketToListItem properly sets displayName with product title',
+      () {
+        final ticket = LotteryTicket(
+          id: 101,
+          stationId: 1,
+          stationName: 'Long An',
+          ticketImg: null,
+          serialNumber: 'SN-001',
+          numbers: '854921',
+          drawDate: DateTime(2026, 8, 29),
+          quantity: 5,
+          batchCode: 'BATCH-01',
+          status: 'IN_STOCK',
+          statusDisplayName: 'Đang mở bán',
+          verified: true,
+          priceSnapshot: 10000,
+        );
 
-      final item = mapLotteryTicketToListItem(ticket);
-      expect(item.displayName, equals('Vé số Long An'));
-      expect(item.productTitle, equals('Vé số Long An'));
-      expect(item.titleText, equals('Vé số Long An'));
-      expect(item.stationDisplayText, equals('Long An'));
-    });
+        final item = mapLotteryTicketToListItem(ticket);
+        expect(item.displayName, equals('Vé số Long An'));
+        expect(item.productTitle, equals('Vé số Long An'));
+        expect(item.titleText, equals('Vé số Long An'));
+        expect(item.stationDisplayText, equals('Long An'));
+      },
+    );
   });
 }

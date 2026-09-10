@@ -58,7 +58,7 @@ class LotteryTicket {
     return LotteryTicket(
       id: (json['id'] as num?)?.toInt() ?? 0,
       stationId: (json['stationId'] as num?)?.toInt(),
-      stationName: json['stationName']?.toString() ?? '',
+      stationName: _parseStationName(json),
       ticketImg: json['ticketImg']?.toString(),
       serialNumber: json['serialNumber']?.toString() ?? '',
       numbers: json['numbers']?.toString() ?? '',
@@ -81,6 +81,28 @@ class LotteryTicket {
       createdBy: json['createdBy']?.toString(),
       lastModifiedBy: json['lastModifiedBy']?.toString(),
     );
+  }
+
+  static String _parseStationName(Map<String, dynamic> json) {
+    final raw = json['stationName'] ??
+        json['station_name'] ??
+        json['province'] ??
+        json['provinceName'] ??
+        json['stationDisplayText'];
+    if (raw != null && raw.toString().trim().isNotEmpty) {
+      return raw.toString().trim();
+    }
+    if (json['station'] is Map) {
+      final s = json['station'] as Map;
+      final name = s['name'] ?? s['stationName'] ?? s['displayName'];
+      if (name != null && name.toString().trim().isNotEmpty) {
+        return name.toString().trim();
+      }
+    }
+    if (json['station'] is String && (json['station'] as String).trim().isNotEmpty) {
+      return (json['station'] as String).trim();
+    }
+    return '';
   }
 
   static DateTime? _parseDateTime(dynamic value) {

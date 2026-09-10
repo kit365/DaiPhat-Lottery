@@ -144,6 +144,30 @@ public class PrizePayoutRequestEntity {
     @Column(name = "confirmation_contract_url", length = 500)
     private String confirmationContractUrl;
 
+    // ─── Partial Payout fields ───────────────────────────────────────────────
+
+    /** Tổng tiền thưởng gốc — lưu tại thời điểm tạo, không đổi. */
+    @Column(name = "total_prize_amount", precision = 19, scale = 2)
+    @Builder.Default
+    private BigDecimal totalPrizeAmount = BigDecimal.ZERO;
+
+    /** Tổng đã trả đến hiện tại (sum of installments). */
+    @Column(name = "paid_amount_to_date", precision = 19, scale = 2)
+    @Builder.Default
+    private BigDecimal paidAmountToDate = BigDecimal.ZERO;
+
+    /** Ghi chú lý do chờ ứng quỹ. */
+    @Column(name = "fund_advance_note", columnDefinition = "TEXT")
+    private String fundAdvanceNote;
+
+    /** Mã phiếu cam kết chi trả (PCK-YYYYMMDD-XXXXXX). */
+    @Column(name = "commitment_voucher_code", length = 50)
+    private String commitmentVoucherCode;
+
+    /** Hạn cam kết trả nốt. */
+    @Column(name = "commitment_expires_at")
+    private LocalDateTime commitmentExpiresAt;
+
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 

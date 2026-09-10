@@ -3,13 +3,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
-import 'package:intl/intl.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
+import 'package:daiphat_mobile/src/shared/widgets/app_header_action_button.dart';
 import '../../models/cart_item_model.dart';
 import '../../providers/cart_provider.dart';
 import '../../../tickets/presentation/viewmodels/buy_ticket_viewmodel.dart';
@@ -41,26 +42,37 @@ class _CartViewState extends ConsumerState<CartView> {
   }
 
   void _openDetail(BuildContext context, CartItemData item) {
+    final drawDate =
+        DateTime.tryParse(item.drawDateIso ?? '') ?? DateTime.now();
+    final station =
+        (item.province.trim().isNotEmpty && item.province != 'Đang cập nhật')
+        ? item.province.trim()
+        : (item.logoText.trim().isNotEmpty
+              ? item.logoText.trim()
+              : 'Đài Miền Nam');
+
     final listItem = LotteryTicketListItem(
       id: item.lotteryTicketId,
-      displayName: item.province,
+      displayName: 'Vé số $station',
       code: item.number,
-      shortName: item.logoText,
+      shortName: item.logoText.isNotEmpty ? item.logoText : 'VS',
       dateLabel: item.dateLabel,
       dayFilter: item.dateLabel.contains('nay')
           ? TicketDayFilter.today
           : TicketDayFilter.tomorrow,
-      drawDate: DateTime.tryParse(item.drawDateIso ?? '') ?? DateTime.now(),
-      status: 'reserved',
-      statusDisplayName: 'Đang giữ vé',
-      stationName: item.kyHieu,
+      drawDate: drawDate,
+      status: 'IN_STOCK',
+      statusDisplayName: 'Còn vé',
+      stationName: station,
       imageUrl: item.ticketImageUrl,
+      price: item.unitPrice,
+      quantity: item.maxStock > 0 ? item.maxStock : 1,
     );
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       useRootNavigator: true,
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppColors.transparent,
       builder: (_) => TicketDetailModalSheet(ticket: listItem),
     );
   }
@@ -163,13 +175,13 @@ class _CartViewState extends ConsumerState<CartView> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
+        title: Text(
           'Xóa vé hết hạn',
-          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+          style: AppTypography.h4(fontWeight: FontWeight.w800, fontSize: 18),
         ),
         content: Text(
           'Bạn có muốn xóa ${expiredIndexes.length} vé đã hết hạn mua khỏi giỏ hàng không?',
-          style: const TextStyle(
+          style: AppTypography.bodyMedium(
             fontSize: 14,
             height: 1.4,
             color: AppColors.textSecondary,
@@ -178,10 +190,10 @@ class _CartViewState extends ConsumerState<CartView> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text(
+            child: Text(
               'Hủy',
-              style: TextStyle(
-                color: Color(0xFF64748B),
+              style: AppTypography.buttonMedium(
+                color: AppColors.contentMuted,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -190,15 +202,15 @@ class _CartViewState extends ConsumerState<CartView> {
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
+              foregroundColor: AppColors.surfacePrimary,
               elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
-            child: const Text(
+            child: Text(
               'Xóa',
-              style: TextStyle(fontWeight: FontWeight.w700),
+              style: AppTypography.buttonMedium(fontWeight: FontWeight.w700),
             ),
           ),
         ],
@@ -236,15 +248,15 @@ class _CartViewState extends ConsumerState<CartView> {
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
+        title: Text(
           'Xóa sản phẩm',
           textAlign: TextAlign.center,
-          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+          style: AppTypography.h4(fontWeight: FontWeight.w800, fontSize: 18),
         ),
         content: Text(
           'Bạn có muốn bỏ $count sản phẩm khỏi giỏ hàng không?',
           textAlign: TextAlign.center,
-          style: const TextStyle(
+          style: AppTypography.bodyMedium(
             color: AppColors.textSecondary,
             fontSize: 15,
             fontWeight: FontWeight.w500,
@@ -261,15 +273,15 @@ class _CartViewState extends ConsumerState<CartView> {
                   onPressed: () => Navigator.pop(ctx, false),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.textSecondary,
-                    side: const BorderSide(color: Color(0xFFE5E7EB)),
+                    side: const BorderSide(color: AppColors.borderDefault),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Hủy',
-                    style: TextStyle(fontWeight: FontWeight.w700),
+                    style: AppTypography.buttonMedium(fontWeight: FontWeight.w700),
                   ),
                 ),
               ),
@@ -279,15 +291,15 @@ class _CartViewState extends ConsumerState<CartView> {
                   onPressed: () => Navigator.pop(ctx, true),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
+                    foregroundColor: AppColors.surfacePrimary,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Xóa',
-                    style: TextStyle(fontWeight: FontWeight.w800),
+                    style: AppTypography.buttonMedium(fontWeight: FontWeight.w800),
                   ),
                 ),
               ),
@@ -314,13 +326,13 @@ class _CartViewState extends ConsumerState<CartView> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
+        title: Text(
           'Xác nhận xóa vé',
-          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+          style: AppTypography.h4(fontWeight: FontWeight.w800, fontSize: 18),
         ),
         content: Text(
           'Bạn có chắc muốn xóa vé số ${item.number} (${item.province}) khỏi giỏ hàng?',
-          style: const TextStyle(
+          style: AppTypography.bodyMedium(
             fontSize: 14,
             height: 1.4,
             color: AppColors.textSecondary,
@@ -329,10 +341,10 @@ class _CartViewState extends ConsumerState<CartView> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text(
+            child: Text(
               'Hủy',
-              style: TextStyle(
-                color: Color(0xFF64748B),
+              style: AppTypography.buttonMedium(
+                color: AppColors.contentMuted,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -341,15 +353,15 @@ class _CartViewState extends ConsumerState<CartView> {
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
+              foregroundColor: AppColors.surfacePrimary,
               elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
-            child: const Text(
+            child: Text(
               'Xóa',
-              style: TextStyle(fontWeight: FontWeight.w700),
+              style: AppTypography.buttonMedium(fontWeight: FontWeight.w700),
             ),
           ),
         ],
@@ -406,148 +418,195 @@ class _CartViewState extends ConsumerState<CartView> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: true,
-        title: Text(
-          items.isNotEmpty ? 'Giỏ hàng ($ticketCount)' : 'Giỏ hàng',
-          style: const TextStyle(
-            color: AppColors.ink,
-            fontWeight: FontWeight.w700,
-            fontSize: 20,
-          ),
-        ),
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new_rounded,
-            size: 20,
-            color: AppColors.primary,
-          ),
-          onPressed: () {
-            if (_isSelectionMode) {
-              _toggleSelectionMode();
-              return;
-            }
-            if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            } else {
-              context.go(AppRoute.buyTicket.path);
-            }
-          },
-        ),
-        actions: [
-          if (items.isNotEmpty)
-            IconButton(
-              onPressed: _toggleSelectionMode,
-              icon: Icon(
-                _isSelectionMode
-                    ? Icons.close_rounded
-                    : Icons.delete_outline_rounded,
-                color: AppColors.primary,
-                size: 26,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: Stack(
+        children: [
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 320,
+            child: ShaderMask(
+              shaderCallback: (bounds) => LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Theme.of(context).colorScheme.surface,
+                  AppColors.transparent,
+                ],
+                stops: const [0.4, 1.0],
+              ).createShader(bounds),
+              blendMode: BlendMode.dstIn,
+              child: Image.asset(
+                'assets/images/home_bg.png',
+                fit: BoxFit.cover,
               ),
             ),
+          ),
+          SafeArea(
+            child: Column(
+              children: [
+                _buildAppBar(context, items, ticketCount),
+                Expanded(
+                  child: items.isEmpty
+                      ? const _EmptyCartView()
+                      : RefreshIndicator(
+                          color: AppColors.primary,
+                          onRefresh: () async {
+                            ref.invalidate(cartProvider);
+                          },
+                          child: ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                            children: [
+                              if (hasExpiredItems) ...[
+                                _ExpiredCartNotice(
+                                  expiredCount: expiredCount,
+                                  onDeleteAllExpired:
+                                      _confirmRemoveExpiredItems,
+                                ),
+                                const SizedBox(height: 12),
+                              ],
+                              ...items.asMap().entries.map((entry) {
+                                final index = entry.key;
+                                final item = entry.value;
+                                final card = _CartTicketCard(
+                                  item: item,
+                                  isExpired: _isPurchaseExpired(item),
+                                  isSelectionMode: _isSelectionMode,
+                                  isSelected: _selectedIndexes.contains(index),
+                                  isCheckoutSelected: _checkoutSelectedIndexes
+                                      .contains(index),
+                                  onTap: () {
+                                    if (_isSelectionMode) {
+                                      _toggleItemSelection(index);
+                                    } else {
+                                      _openDetail(context, item);
+                                    }
+                                  },
+                                  onToggleSelect: () =>
+                                      _toggleItemSelection(index),
+                                  onToggleCheckout: () =>
+                                      _toggleCheckoutSelection(index),
+                                  onQuantityChanged: (qty) {
+                                    ref
+                                        .read(cartProvider.notifier)
+                                        .updateQuantityAtIndex(index, qty);
+                                  },
+                                  onDelete: () =>
+                                      _confirmRemoveItem(item, index),
+                                );
+                                return Padding(
+                                  key: ValueKey(
+                                    '${item.lotteryTicketId}_${item.number}_$index',
+                                  ),
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: _isSelectionMode
+                                      ? card
+                                      : Dismissible(
+                                          key: ValueKey(
+                                            'dismiss_${item.lotteryTicketId}_$index',
+                                          ),
+                                          direction:
+                                              DismissDirection.endToStart,
+                                          background:
+                                              const _DeleteSwipeBackground(),
+                                          onDismissed: (_) =>
+                                              _removeItem(item, index),
+                                          child: card,
+                                        ),
+                                );
+                              }),
+                            ],
+                          ),
+                        ),
+                ),
+                if (items.isNotEmpty)
+                  _isSelectionMode
+                      ? _SelectionBottomBar(
+                          allSelected: _selectedIndexes.length == items.length,
+                          selectedCount: _selectedIndexes.length,
+                          onToggleSelectAll: () =>
+                              _toggleSelectAll(items.length),
+                          onDelete: _confirmDeleteSelected,
+                        )
+                      : _CartBottomBar(
+                          selectedTicketCount: selectedTicketCount,
+                          totalTicketCount: ticketCount,
+                          subtotal: selectedSubtotal,
+                          total: selectedSubtotal,
+                          enabled: canCheckout,
+                          disabledReason: selectedCheckoutItems.isEmpty
+                              ? 'Chọn ít nhất một vé để thanh toán'
+                              : hasSelectedExpiredItems
+                              ? 'Bỏ chọn hoặc xóa $selectedExpiredCount vé hết hạn để tiếp tục thanh toán'
+                              : null,
+                          onCheckout: () {
+                            ref
+                                .read(buyNowItemsProvider.notifier)
+                                .start(selectedCheckoutItems);
+                            context.pushNamed(AppRoute.checkout.name);
+                          },
+                        ),
+              ],
+            ),
+          ),
         ],
       ),
-      body: Column(
+    );
+  }
+
+  Widget _buildAppBar(
+    BuildContext context,
+    List<CartItemData> items,
+    int ticketCount,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+      child: Stack(
+        alignment: Alignment.center,
         children: [
-          Expanded(
-            child: items.isEmpty
-                ? const _EmptyCartView()
-                : RefreshIndicator(
-                    color: AppColors.primary,
-                    onRefresh: () async {
-                      ref.invalidate(cartProvider);
-                    },
-                    child: ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                      children: [
-                        if (hasExpiredItems) ...[
-                          _ExpiredCartNotice(
-                            expiredCount: expiredCount,
-                            onDeleteAllExpired: _confirmRemoveExpiredItems,
-                          ),
-                          const SizedBox(height: 12),
-                        ],
-                        ...items.asMap().entries.map((entry) {
-                          final index = entry.key;
-                          final item = entry.value;
-                          final card = _CartTicketCard(
-                            item: item,
-                            isExpired: _isPurchaseExpired(item),
-                            isSelectionMode: _isSelectionMode,
-                            isSelected: _selectedIndexes.contains(index),
-                            isCheckoutSelected: _checkoutSelectedIndexes
-                                .contains(index),
-                            onTap: () {
-                              if (_isSelectionMode) {
-                                _toggleItemSelection(index);
-                              } else {
-                                _openDetail(context, item);
-                              }
-                            },
-                            onToggleSelect: () => _toggleItemSelection(index),
-                            onToggleCheckout: () =>
-                                _toggleCheckoutSelection(index),
-                            onQuantityChanged: (qty) {
-                              ref
-                                  .read(cartProvider.notifier)
-                                  .updateQuantityAtIndex(index, qty);
-                            },
-                            onDelete: () => _confirmRemoveItem(item, index),
-                          );
-                          return Padding(
-                            key: ValueKey(
-                              '${item.lotteryTicketId}_${item.number}_$index',
-                            ),
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: _isSelectionMode
-                                ? card
-                                : Dismissible(
-                                    key: ValueKey(
-                                      'dismiss_${item.lotteryTicketId}_$index',
-                                    ),
-                                    direction: DismissDirection.endToStart,
-                                    background: const _DeleteSwipeBackground(),
-                                    onDismissed: (_) =>
-                                        _removeItem(item, index),
-                                    child: card,
-                                  ),
-                          );
-                        }),
-                      ],
-                    ),
-                  ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: AppHeaderActionButton(
+              icon: Icons.arrow_back_ios_new_rounded,
+              tooltip: 'Quay lại',
+              onTap: () {
+                if (_isSelectionMode) {
+                  _toggleSelectionMode();
+                  return;
+                }
+                if (Navigator.of(context).canPop()) {
+                  Navigator.of(context).pop();
+                } else {
+                  context.go(AppRoute.buyTicket.path);
+                }
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 64),
+            child: Center(
+              child: Text(
+                items.isNotEmpty ? 'Giỏ hàng ($ticketCount)' : 'Giỏ hàng',
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.pageTitle(),
+              ),
+            ),
           ),
           if (items.isNotEmpty)
-            _isSelectionMode
-                ? _SelectionBottomBar(
-                    allSelected: _selectedIndexes.length == items.length,
-                    selectedCount: _selectedIndexes.length,
-                    onToggleSelectAll: () => _toggleSelectAll(items.length),
-                    onDelete: _confirmDeleteSelected,
-                  )
-                : _CartBottomBar(
-                    ticketCount: selectedTicketCount,
-                    subtotal: selectedSubtotal,
-                    total: selectedSubtotal,
-                    enabled: canCheckout,
-                    disabledReason: selectedCheckoutItems.isEmpty
-                        ? 'Chọn ít nhất một vé để thanh toán'
-                        : hasSelectedExpiredItems
-                        ? 'Bỏ chọn hoặc xóa $selectedExpiredCount vé hết hạn để tiếp tục thanh toán'
-                        : null,
-                    onCheckout: () {
-                      ref
-                          .read(buyNowItemsProvider.notifier)
-                          .start(selectedCheckoutItems);
-                      context.pushNamed(AppRoute.checkout.name);
-                    },
-                  ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: AppHeaderActionButton(
+                icon: _isSelectionMode
+                    ? Icons.close_rounded
+                    : Icons.delete_outline_rounded,
+                tooltip: _isSelectionMode ? 'Đóng chọn' : 'Xóa nhiều',
+                onTap: _toggleSelectionMode,
+              ),
+            ),
         ],
       ),
     );
@@ -571,18 +630,25 @@ class _ExpiredCartNotice extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFF2F1),
+          color: AppColors.surfaceDestructiveMuted,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFFECACA), width: 1.2),
+          border: Border.all(
+            color: AppColors.borderDestructiveSubtle,
+            width: 1.2,
+          ),
         ),
         child: Row(
           children: [
-            const Icon(Icons.warning_amber_rounded, color: AppColors.primary, size: 20),
+            const Icon(
+              Icons.warning_amber_rounded,
+              color: AppColors.primary,
+              size: 20,
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 '$expiredCount vé đã hết hạn mua. Hãy xóa để thanh toán.',
-                style: const TextStyle(
+                style: AppTypography.bodyMedium(
                   color: AppColors.ink,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -592,7 +658,7 @@ class _ExpiredCartNotice extends StatelessWidget {
             if (onDeleteAllExpired != null) ...[
               const SizedBox(width: 8),
               Material(
-                color: Colors.transparent,
+                color: AppColors.transparent,
                 child: InkWell(
                   onTap: onDeleteAllExpired,
                   borderRadius: BorderRadius.circular(8),
@@ -602,16 +668,16 @@ class _ExpiredCartNotice extends StatelessWidget {
                       vertical: 5,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFEE2E2),
+                      color: AppColors.surfaceDestructiveSubtle,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: const Color(0xFFFCA5A5),
+                        color: AppColors.borderDestructive,
                         width: 0.8,
                       ),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Xóa hết',
-                      style: TextStyle(
+                      style: AppTypography.buttonSmall(
                         color: AppColors.primary,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
@@ -655,31 +721,124 @@ class _CartTicketCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final stationLabel =
+        (item.province.trim().isNotEmpty &&
+            item.province.trim() != 'Đang cập nhật')
+        ? item.province.trim()
+        : (item.logoText.trim().isNotEmpty
+              ? item.logoText.trim()
+              : 'Đài Miền Nam');
+
+    Widget buildExpiredLabel() {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceDestructiveSubtle,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: AppColors.borderDestructive, width: 0.8),
+        ),
+        child: Text(
+          'HẾT HẠN',
+          style: AppTypography.overline(
+            fontSize: 9.5,
+            fontWeight: FontWeight.w800,
+            color: AppColors.contentDestructive,
+            letterSpacing: 0.3,
+          ),
+        ),
+      );
+    }
+
+    Widget buildStationTitle() {
+      return Text(
+        stationLabel,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: AppTypography.subtitle2(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w600,
+          color: isExpired
+              ? AppColors.contentPlaceholder
+              : AppColors.contentMuted,
+        ),
+      );
+    }
+
+    Widget buildDateMeta() {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.calendar_month_outlined,
+            size: 12,
+            color: isExpired
+                ? AppColors.contentPlaceholder
+                : AppColors.contentMuted,
+          ),
+          const SizedBox(width: 3.5),
+          Flexible(
+            child: Text(
+              item.dateLabel,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.caption(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: isExpired
+                    ? AppColors.contentPlaceholder
+                    : AppColors.contentMuted,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    Widget buildMetadata() {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              if (isExpired) ...[buildExpiredLabel(), const SizedBox(width: 6)],
+              Flexible(child: buildStationTitle()),
+            ],
+          ),
+          const SizedBox(height: 3),
+          buildDateMeta(),
+        ],
+      );
+    }
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: isExpired ? const Color(0xFFF9FAFB) : Colors.white,
+          color: isExpired
+              ? AppColors.backgroundPrimary
+              : AppColors.surfacePrimary,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: (isSelectionMode ? isSelected : isCheckoutSelected)
-                ? AppColors.primary.withValues(alpha: 0.35)
-                : (isExpired ? const Color(0xFFE5E7EB) : const Color(0xFFF1E3E0)),
-            width: isExpired ? 1.2 : 1.0,
+                ? AppColors.primary
+                : (isExpired ? AppColors.borderDefault : AppColors.cardBorder),
+            width: (isSelectionMode ? isSelected : isCheckoutSelected)
+                ? 1.4
+                : 1.0,
           ),
           boxShadow: isExpired
               ? const [
                   BoxShadow(
-                    color: Color(0x04000000),
+                    color: AppColors.shadowFaint,
                     blurRadius: 4,
                     offset: Offset(0, 2),
                   ),
                 ]
               : const [
                   BoxShadow(
-                    color: Color(0x0A000000),
-                    blurRadius: 10,
-                    offset: Offset(0, 4),
+                    color: AppColors.shadowLight,
+                    blurRadius: 8,
+                    offset: Offset(0, 2),
                   ),
                 ],
         ),
@@ -721,107 +880,20 @@ class _CartTicketCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Row(
-                      children: [
-                        if (isExpired) ...[
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFEE2E2),
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(
-                                color: const Color(0xFFFCA5A5),
-                                width: 0.8,
-                              ),
-                            ),
-                            child: Text(
-                              'HẾT HẠN',
-                              style: AppTypography.main(
-                                const TextStyle(
-                                  fontSize: 9.5,
-                                  fontWeight: FontWeight.w800,
-                                  color: Color(0xFFDC2626),
-                                  letterSpacing: 0.3,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                        ],
-                        Flexible(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 7,
-                              vertical: 2.5,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isExpired
-                                  ? const Color(0xFFF3F4F6)
-                                  : const Color(0xFFFDE8E5),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              item.province,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppTypography.main(
-                                TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: isExpired
-                                      ? const Color(0xFF6B7280)
-                                      : AppColors.primary,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.calendar_month_outlined,
-                              size: 12,
-                              color: isExpired
-                                  ? const Color(0xFF9CA3AF)
-                                  : const Color(0xFF8A6D68),
-                            ),
-                            const SizedBox(width: 3),
-                            Text(
-                              item.dateLabel,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                                color: isExpired
-                                    ? const Color(0xFF9CA3AF)
-                                    : const Color(0xFF755E59),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
+                    buildMetadata(),
+                    const SizedBox(height: 6),
                     Text(
                       item.number,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: AppTypography.number(
-                        TextStyle(
-                          color: isExpired
-                              ? const Color(0xFF9CA3AF)
-                              : const Color(0xFFC90F1D),
-                          fontSize: 28,
-                          height: 1,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 2.0,
-                        ),
+                      style: AppTypography.lotteryDigit(
+                        color: isExpired
+                            ? AppColors.contentPlaceholder
+                            : AppColors.contentPrimary,
+                        fontSize: 25,
+                        height: 1.0,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.8,
                       ),
                     ),
                   ],
@@ -836,23 +908,23 @@ class _CartTicketCard extends StatelessWidget {
                 children: [
                   Text(
                     _money(item.unitPrice),
-                    style: AppTypography.main(
-                      TextStyle(
-                        fontSize: 14,
-                        color: isExpired
-                            ? const Color(0xFF9CA3AF)
-                            : const Color(0xFF312624),
-                        fontWeight: FontWeight.w800,
-                        decoration:
-                            isExpired ? TextDecoration.lineThrough : null,
-                        decorationColor: const Color(0xFF9CA3AF),
-                      ),
+                    style: AppTypography.priceMedium(
+                      fontSize: 13.5,
+                      color: isExpired
+                          ? AppColors.contentPlaceholder
+                          : AppColors.primary,
+                      fontWeight: FontWeight.w800,
+                    ).copyWith(
+                      decoration: isExpired
+                          ? TextDecoration.lineThrough
+                          : null,
+                      decorationColor: AppColors.contentPlaceholder,
                     ),
                   ),
                   const SizedBox(height: 8),
                   if (isExpired) ...[
                     Material(
-                      color: Colors.transparent,
+                      color: AppColors.transparent,
                       child: InkWell(
                         onTap: onDelete,
                         borderRadius: BorderRadius.circular(8),
@@ -862,28 +934,28 @@ class _CartTicketCard extends StatelessWidget {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFEE2E2),
+                            color: AppColors.surfaceDestructiveSubtle,
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                              color: const Color(0xFFFECACA),
+                              color: AppColors.borderDestructiveSubtle,
                               width: 1,
                             ),
                           ),
-                          child: const Row(
+                          child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(
+                              const Icon(
                                 Icons.delete_outline_rounded,
                                 size: 15,
-                                color: Color(0xFFDC2626),
+                                color: AppColors.contentDestructive,
                               ),
-                              SizedBox(width: 4),
+                              const SizedBox(width: 4),
                               Text(
                                 'Xóa',
-                                style: TextStyle(
+                                style: AppTypography.buttonSmall(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
-                                  color: Color(0xFFDC2626),
+                                  color: AppColors.contentDestructive,
                                 ),
                               ),
                             ],
@@ -998,13 +1070,13 @@ class _CartQuantityStepperState extends State<_CartQuantityStepper> {
                   duration: const Duration(milliseconds: 180),
                   decoration: BoxDecoration(
                     color: _showDelete
-                        ? const Color(0xFFFFF1F0)
-                        : const Color(0xFFF8FAFC),
+                        ? AppColors.surfaceDestructiveSoft
+                        : AppColors.surfaceSoft,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                       color: _showDelete
-                          ? const Color(0xFFFCA5A5)
-                          : const Color(0xFFCBD5E1),
+                          ? AppColors.borderDestructive
+                          : AppColors.borderSubtle,
                     ),
                   ),
                 ),
@@ -1018,7 +1090,7 @@ class _CartQuantityStepperState extends State<_CartQuantityStepper> {
                         : Icons.remove_rounded,
                     iconColor: _showDelete
                         ? AppColors.primary
-                        : const Color(0xFF1E293B),
+                        : AppColors.contentNavy,
                     disabled: !widget.enabled,
                     onTap: _onMinusTap,
                   ),
@@ -1028,7 +1100,7 @@ class _CartQuantityStepperState extends State<_CartQuantityStepper> {
                     alignment: Alignment.center,
                     child: Text(
                       '${widget.quantity}',
-                      style: TextStyle(
+                      style: AppTypography.lotteryDigit(
                         color: _showDelete ? AppColors.primary : AppColors.ink,
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
@@ -1039,7 +1111,7 @@ class _CartQuantityStepperState extends State<_CartQuantityStepper> {
                     icon: Icons.add_rounded,
                     disabled:
                         !widget.enabled || widget.quantity >= effectiveMax,
-                    iconColor: const Color(0xFF1E293B),
+                    iconColor: AppColors.contentNavy,
                     onTap: (widget.enabled && widget.quantity < effectiveMax)
                         ? () {
                             _resetDelete();
@@ -1092,7 +1164,7 @@ class _CartStepBtn extends StatelessWidget {
       onTap: disabled ? null : onTap,
       child: ExcludeSemantics(
         child: Material(
-          color: Colors.transparent,
+          color: AppColors.transparent,
           child: InkWell(
             onTap: disabled ? onDisabledTap : onTap,
             borderRadius: BorderRadius.circular(6),
@@ -1107,8 +1179,8 @@ class _CartStepBtn extends StatelessWidget {
                     icon,
                     size: 15,
                     color: disabled
-                        ? const Color(0xFF94A3B8)
-                        : (iconColor ?? const Color(0xFF1E293B)),
+                        ? AppColors.contentSubtle
+                        : (iconColor ?? AppColors.contentNavy),
                   ),
                 ),
               ),
@@ -1121,10 +1193,7 @@ class _CartStepBtn extends StatelessWidget {
 }
 
 class _SelectionCheckbox extends StatelessWidget {
-  const _SelectionCheckbox({
-    required this.checked,
-    this.disabled = false,
-  });
+  const _SelectionCheckbox({required this.checked, this.disabled = false});
 
   final bool checked;
   final bool disabled;
@@ -1137,16 +1206,13 @@ class _SelectionCheckbox extends StatelessWidget {
         height: 26,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: const Color(0xFFF3F4F6),
-          border: Border.all(
-            color: const Color(0xFFD1D5DB),
-            width: 1.5,
-          ),
+          color: AppColors.surfaceDisabled,
+          border: Border.all(color: AppColors.borderDisabled, width: 1.5),
         ),
         child: const Icon(
           Icons.block_rounded,
           size: 13,
-          color: Color(0xFF9CA3AF),
+          color: AppColors.contentDisabled,
         ),
       );
     }
@@ -1157,14 +1223,18 @@ class _SelectionCheckbox extends StatelessWidget {
       height: 26,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: checked ? AppColors.primary : Colors.white,
+        color: checked ? AppColors.primary : AppColors.surfacePrimary,
         border: Border.all(
-          color: checked ? AppColors.primary : const Color(0xFFD1D5DB),
+          color: checked ? AppColors.primary : AppColors.borderDisabled,
           width: 2,
         ),
       ),
       child: checked
-          ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
+          ? const Icon(
+              Icons.check_rounded,
+              size: 16,
+              color: AppColors.surfacePrimary,
+            )
           : null,
     );
   }
@@ -1182,16 +1252,20 @@ class _DeleteSwipeBackground extends StatelessWidget {
       ),
       padding: const EdgeInsets.symmetric(horizontal: 20),
       alignment: Alignment.centerRight,
-      child: const Column(
+      child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Icon(Icons.delete_outline_rounded, color: Colors.white, size: 28),
-          SizedBox(height: 6),
+          const Icon(
+            Icons.delete_outline_rounded,
+            color: AppColors.surfacePrimary,
+            size: 28,
+          ),
+          const SizedBox(height: 6),
           Text(
             'Xóa',
-            style: TextStyle(
-              color: Colors.white,
+            style: AppTypography.buttonSmall(
+              color: AppColors.surfacePrimary,
               fontSize: 14,
               fontWeight: FontWeight.w700,
             ),
@@ -1204,7 +1278,8 @@ class _DeleteSwipeBackground extends StatelessWidget {
 
 class _CartBottomBar extends StatelessWidget {
   const _CartBottomBar({
-    required this.ticketCount,
+    required this.selectedTicketCount,
+    required this.totalTicketCount,
     required this.subtotal,
     required this.total,
     required this.enabled,
@@ -1212,7 +1287,8 @@ class _CartBottomBar extends StatelessWidget {
     this.disabledReason,
   });
 
-  final int ticketCount;
+  final int selectedTicketCount;
+  final int totalTicketCount;
   final int subtotal;
   final int total;
   final bool enabled;
@@ -1221,138 +1297,113 @@ class _CartBottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x14000000),
-            blurRadius: 18,
-            offset: Offset(0, -4),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Tạm tính ($ticketCount vé)',
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  _money(subtotal),
-                  style: const TextStyle(
-                    color: AppColors.ink,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
+    return Semantics(
+      label:
+          'Đã chọn $selectedTicketCount trên $totalTicketCount vé, tổng cộng ${_money(total)}',
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+        decoration: const BoxDecoration(
+          color: AppColors.surfacePrimary,
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.shadowElevated,
+              blurRadius: 18,
+              offset: Offset(0, -4),
             ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Row(
-                  children: [
-                    Text(
-                      'Phí dịch vụ',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
+          ],
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Đã chọn $selectedTicketCount/$totalTicketCount vé',
+                    style: AppTypography.subtitle2(
+                      color: AppColors.textSecondary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
                     ),
-                    SizedBox(width: 4),
-                    Icon(
-                      Icons.info_outline_rounded,
-                      size: 14,
-                      color: Color(0xFF94A3B8),
+                  ),
+                  Text(
+                    _money(subtotal),
+                    style: AppTypography.priceMedium(
+                      color: AppColors.ink,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
                     ),
-                  ],
-                ),
-                Text(
-                  _money(0),
-                  style: const TextStyle(
-                    color: AppColors.ink,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            CustomPaint(
-              painter: _DashedLinePainter(color: const Color(0xFFE5E7EB)),
-              child: const SizedBox(width: double.infinity, height: 1),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Tổng cộng',
-                  style: TextStyle(
-                    color: AppColors.ink,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 16,
+                ],
+              ),
+              const SizedBox(height: 12),
+              CustomPaint(
+                painter: _DashedLinePainter(color: AppColors.borderDefault),
+                child: const SizedBox(width: double.infinity, height: 1),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Tổng cộng',
+                    style: AppTypography.subtitle1(
+                      color: AppColors.ink,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                    ),
                   ),
-                ),
-                Text(
-                  _money(total),
-                  style: AppTypography.number(
-                    const TextStyle(
+                  Text(
+                    _money(total),
+                    style: AppTypography.priceLarge(
                       color: AppColors.primary,
                       fontWeight: FontWeight.w900,
                       fontSize: 24,
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            if (disabledReason != null) ...[
-              Text(
-                disabledReason!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppColors.primary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
+                ],
               ),
-              const SizedBox(height: 8),
-            ],
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: enabled ? onCheckout : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: const Color(0xFFF3B5B2),
-                  minimumSize: const Size.fromHeight(54),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+              const SizedBox(height: 14),
+              if (disabledReason != null) ...[
+                Text(
+                  disabledReason!,
+                  textAlign: TextAlign.center,
+                  style: AppTypography.caption(
+                    color: AppColors.primary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                child: const Text(
-                  'Tiến hành thanh toán',
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+                const SizedBox(height: 8),
+              ],
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: enabled ? onCheckout : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.surfacePrimary,
+                    disabledBackgroundColor: AppColors.borderDestructive,
+                    minimumSize: const Size.fromHeight(54),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: Text(
+                    selectedTicketCount > 0
+                        ? 'Tiến hành thanh toán ($selectedTicketCount)'
+                        : 'Tiến hành thanh toán',
+                    style: AppTypography.buttonLarge(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1377,10 +1428,10 @@ class _SelectionBottomBar extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surfacePrimary,
         boxShadow: [
           BoxShadow(
-            color: Color(0x14000000),
+            color: AppColors.shadowElevated,
             blurRadius: 18,
             offset: Offset(0, -4),
           ),
@@ -1397,9 +1448,9 @@ class _SelectionBottomBar extends StatelessWidget {
                 children: [
                   _SelectionCheckbox(checked: allSelected),
                   const SizedBox(width: 10),
-                  const Text(
+                  Text(
                     'Chọn tất cả',
-                    style: TextStyle(
+                    style: AppTypography.subtitle2(
                       color: AppColors.ink,
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
@@ -1414,12 +1465,12 @@ class _SelectionBottomBar extends StatelessWidget {
               icon: const Icon(Icons.delete_outline_rounded, size: 20),
               label: Text(
                 selectedCount > 0 ? 'Xóa ($selectedCount)' : 'Xóa',
-                style: const TextStyle(fontWeight: FontWeight.w800),
+                style: AppTypography.buttonMedium(fontWeight: FontWeight.w800),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: const Color(0xFFF3B5B2),
+                foregroundColor: AppColors.surfacePrimary,
+                disabledBackgroundColor: AppColors.borderDestructive,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 18,
                   vertical: 14,
@@ -1473,9 +1524,9 @@ class _EmptyCartView extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(28),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.surfacePrimary,
             borderRadius: BorderRadius.circular(26),
-            border: Border.all(color: const Color(0xFFF1E3E0)),
+            border: Border.all(color: AppColors.borderWarm),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1484,7 +1535,7 @@ class _EmptyCartView extends StatelessWidget {
                 width: 72,
                 height: 72,
                 decoration: const BoxDecoration(
-                  color: Color(0xFFFFF1EF),
+                  color: AppColors.surfaceEmptyState,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -1494,19 +1545,19 @@ class _EmptyCartView extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 18),
-              const Text(
+              Text(
                 'Giỏ hàng đang trống',
-                style: TextStyle(
+                style: AppTypography.h3(
                   color: AppColors.ink,
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Hãy quay lại danh sách vé để chọn thêm những số đẹp bạn muốn mua.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: AppTypography.bodyMedium(
                   color: AppColors.textMuted,
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
@@ -1525,9 +1576,9 @@ class _EmptyCartView extends StatelessWidget {
                       borderRadius: BorderRadius.circular(18),
                     ),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Quay lại mua vé',
-                    style: TextStyle(fontWeight: FontWeight.w700),
+                    style: AppTypography.buttonMedium(fontWeight: FontWeight.w700),
                   ),
                 ),
               ),
@@ -1539,11 +1590,4 @@ class _EmptyCartView extends StatelessWidget {
   }
 }
 
-String _money(int amount) {
-  final formatter = NumberFormat.currency(
-    locale: 'vi_VN',
-    symbol: 'đ',
-    decimalDigits: 0,
-  );
-  return formatter.format(amount);
-}
+String _money(int amount) => AppFormatters.formatCurrency(amount);

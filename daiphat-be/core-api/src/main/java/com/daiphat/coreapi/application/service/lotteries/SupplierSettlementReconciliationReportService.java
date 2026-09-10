@@ -130,7 +130,7 @@ public class SupplierSettlementReconciliationReportService
                 + " — "
                 + dash(formatDate(settlement.periodTo()));
         String settlementCode = firstNonBlank(settlement.supplierSettlementCode(), "#" + settlement.id());
-        boolean paid = settlement.status() == SupplierSettlementStatus.COMPLETED;
+        boolean paid = settlement.status().isCompleted();
         String paymentStatusLabel = paid ? "Đã thanh toán" : "Chưa thanh toán";
         List<String> evidenceUrls = settlement.paymentEvidenceUrls() == null
                 ? List.of()

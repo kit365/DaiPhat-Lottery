@@ -86,13 +86,11 @@ class HomeTitleDate extends StatelessWidget {
                     ),
                     Text(
                       'KẾT QUẢ XỔ SỐ',
-                      style: AppTypography.display(
-                        const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.primary,
-                          letterSpacing: .6,
-                        ),
+                      style: AppTypography.h6(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.primary,
+                        letterSpacing: .6,
                       ),
                     ),
                   ],
@@ -102,26 +100,19 @@ class HomeTitleDate extends StatelessWidget {
                   _isToday
                       ? 'HÔM NAY'
                       : (_isYesterday ? 'HÔM QUA' : weekday.toUpperCase()),
-                  style: AppTypography.display(
-                    const TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.textMain,
-                      height: 1.15,
-                      letterSpacing: .5,
-                    ),
+                  style: AppTypography.h2(
+                    color: AppColors.textMain,
+                    height: 1.15,
+                    letterSpacing: .5,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   '$weekday, $_dateStr',
-                  style: AppTypography.main(
-                    const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.textMuted,
-                    ),
+                  style: AppTypography.bodySmall(
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textMuted,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -137,17 +128,17 @@ class HomeTitleDate extends StatelessWidget {
             height: 44,
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.surfacePrimary,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: const Color(0xFFE5E7EB),
+                  color: AppColors.borderDefault,
                   width: 1.2,
                 ),
-                boxShadow: [
+                boxShadow: const [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: .03),
+                    color: AppColors.shadowFaint,
                     blurRadius: 8,
-                    offset: const Offset(0, 2),
+                    offset: Offset(0, 2),
                   ),
                 ],
               ),
@@ -160,7 +151,7 @@ class HomeTitleDate extends StatelessWidget {
                     label: 'Xem kết quả ngày trước',
                     onTap: onPreviousDay,
                     child: Material(
-                      color: Colors.transparent,
+                      color: AppColors.transparent,
                       child: InkWell(
                         onTap: onPreviousDay,
                         borderRadius: const BorderRadius.horizontal(
@@ -172,7 +163,7 @@ class HomeTitleDate extends StatelessWidget {
                           child: Center(
                             child: Icon(
                               Icons.chevron_left_rounded,
-                              color: Color(0xFF4B5563),
+                              color: AppColors.contentSecondary,
                               size: 20,
                             ),
                           ),
@@ -187,7 +178,7 @@ class HomeTitleDate extends StatelessWidget {
                     label: 'Chọn ngày $_dateStr',
                     onTap: onPickDate,
                     child: Material(
-                      color: Colors.transparent,
+                      color: AppColors.transparent,
                       child: InkWell(
                         onTap: onPickDate,
                         child: Padding(
@@ -205,19 +196,17 @@ class HomeTitleDate extends StatelessWidget {
                                 const SizedBox(width: 4),
                                 Text(
                                   _dateStr,
-                                  style: AppTypography.main(
-                                    const TextStyle(
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: Color(0xFF1F2937),
-                                      letterSpacing: -0.2,
-                                    ),
+                                  style: AppTypography.labelMedium(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.contentPrimary,
+                                    letterSpacing: -0.2,
                                   ),
                                 ),
                                 const SizedBox(width: 2),
                                 const Icon(
                                   Icons.expand_more_rounded,
-                                  color: Color(0xFF9CA3AF),
+                                  color: AppColors.contentDisabled,
                                   size: 16,
                                 ),
                               ],
@@ -235,7 +224,7 @@ class HomeTitleDate extends StatelessWidget {
                     label: 'Xem kết quả ngày tiếp theo',
                     onTap: _canGoNext ? onNextDay : null,
                     child: Material(
-                      color: Colors.transparent,
+                      color: AppColors.transparent,
                       child: InkWell(
                         onTap: _canGoNext ? onNextDay : null,
                         borderRadius: const BorderRadius.horizontal(
@@ -248,8 +237,8 @@ class HomeTitleDate extends StatelessWidget {
                             child: Icon(
                               Icons.chevron_right_rounded,
                               color: _canGoNext
-                                  ? const Color(0xFF4B5563)
-                                  : const Color(0xFFD1D5DB),
+                                  ? AppColors.contentSecondary
+                                  : AppColors.borderDisabled,
                               size: 20,
                             ),
                           ),

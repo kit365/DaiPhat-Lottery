@@ -68,7 +68,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFC61111),
+      backgroundColor: AppColors.brandPrimaryCrimson,
       body: Stack(
         children: [
           Positioned(
@@ -99,7 +99,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
                                 margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                                 padding: const EdgeInsets.all(24),
                                 decoration: BoxDecoration(
-                                  color: Colors.white,
+                                  color: AppColors.surfacePrimary,
                                   borderRadius: BorderRadius.circular(24),
                                   boxShadow: const [BoxShadow(color: Color.fromRGBO(0, 0, 0, 0.15), blurRadius: 30, offset: Offset(0, 12))],
                                 ),
@@ -132,7 +132,17 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
               },
               child: Container(
                 width: 40, height: 40,
-                decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 2))]),
+                decoration: const BoxDecoration(
+                  color: AppColors.surfacePrimary,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.shadowLight,
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
                 child: const Icon(Icons.arrow_back_rounded, color: AppColors.loginPrimary, size: 22),
               ),
             ),
@@ -161,7 +171,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
         children: [
           _buildHeader('Quên mật khẩu'),
           const SizedBox(height: 12),
-          Text('Vui lòng nhập email đã đăng ký để nhận mã OTP.', textAlign: TextAlign.center, style: AppTypography.main(const TextStyle(fontSize: 14, color: AppColors.textMuted))),
+          Text('Vui lòng nhập email đã đăng ký để nhận mã OTP.', textAlign: TextAlign.center, style: AppTypography.bodyMedium(color: AppColors.contentMuted)),
           const SizedBox(height: 24),
           _buildLabel('Email *'),
           const SizedBox(height: 8),
@@ -185,7 +195,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
         children: [
           _buildHeader('Xác thực OTP'),
           const SizedBox(height: 12),
-          Text('Nhập mã OTP gồm 6 chữ số được gửi đến email ${widget.viewModel.email}', textAlign: TextAlign.center, style: AppTypography.main(const TextStyle(fontSize: 14, color: AppColors.textMuted))),
+          Text('Nhập mã OTP gồm 6 chữ số được gửi đến email ${widget.viewModel.email}', textAlign: TextAlign.center, style: AppTypography.bodyMedium(color: AppColors.contentMuted)),
           const SizedBox(height: 24),
           _buildLabel('Mã OTP *'),
           const SizedBox(height: 8),
@@ -253,17 +263,17 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text('~', style: AppTypography.display(const TextStyle(color: AppColors.loginGold, fontSize: 24, fontWeight: FontWeight.bold))),
+        Text('~', style: AppTypography.h2(color: AppColors.loginGold, fontSize: 24)),
         const SizedBox(width: 8),
-        Text(title, style: AppTypography.display(const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.loginTitle))),
+        Text(title, style: AppTypography.h2(color: AppColors.loginTitle, fontSize: 24)),
         const SizedBox(width: 8),
-        Text('~', style: AppTypography.display(const TextStyle(color: AppColors.loginGold, fontSize: 24, fontWeight: FontWeight.bold))),
+        Text('~', style: AppTypography.h2(color: AppColors.loginGold, fontSize: 24)),
       ],
     );
   }
 
   Widget _buildLabel(String text) {
-    return Text(text, style: AppTypography.main(const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.loginLabel)));
+    return Text(text, style: AppTypography.labelLarge(color: AppColors.loginLabel, fontWeight: FontWeight.w700));
   }
 
   Widget _buildSubmitButton(String text, VoidCallback onPressed) {
@@ -271,14 +281,14 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
       onPressed: widget.viewModel.isLoading ? null : onPressed,
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.loginPrimary,
-        foregroundColor: Colors.white,
+        foregroundColor: AppColors.surfacePrimary,
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         padding: const EdgeInsets.symmetric(vertical: 16),
       ),
       child: widget.viewModel.isLoading
-          ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-          : Text(text, style: AppTypography.main(const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.5))),
+          ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: AppColors.surfacePrimary, strokeWidth: 2.5))
+          : Text(text, style: AppTypography.buttonLarge(letterSpacing: 0.5)),
     );
   }
 
@@ -296,14 +306,14 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
       obscureText: obscureText,
       keyboardType: keyboardType,
       validator: validator,
-      style: AppTypography.main(const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.loginTitle)),
+      style: AppTypography.bodyLarge(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.loginTitle),
       decoration: InputDecoration(
         hintText: hintText,
-        hintStyle: AppTypography.main(const TextStyle(fontSize: 15, color: AppColors.loginPlaceholder)),
+        hintStyle: AppTypography.bodyMedium(fontSize: 15, color: AppColors.loginPlaceholder),
         prefixIcon: Icon(prefixIcon, color: AppColors.loginPlaceholder, size: 20),
         suffixIcon: suffixIcon,
         filled: true,
-        fillColor: Colors.white,
+        fillColor: AppColors.surfacePrimary,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppColors.loginBorder)),
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppColors.loginPrimary, width: 1.4)),

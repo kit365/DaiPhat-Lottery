@@ -1,161 +1,424 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/features/home/data/models/ticket_check_models.dart';
 import 'package:daiphat_mobile/src/features/home/presentation/viewmodels/ticket_check_viewmodel.dart';
+import 'package:daiphat_mobile/src/features/home/presentation/views/widgets/lottery_date_picker_dialog.dart';
+import 'package:daiphat_mobile/src/features/schedule/data/models/lottery_station_schedule.dart';
+import 'package:daiphat_mobile/src/features/schedule/presentation/providers/schedule_providers.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
+import 'package:daiphat_mobile/src/shared/widgets/app_picker_field.dart';
 
-class CheckTicketView extends ConsumerWidget {
+class CheckTicketView extends ConsumerStatefulWidget {
   const CheckTicketView({super.key});
 
-  /// Chiều cao vùng đỏ phía sau (không gồm safe-area).
-  static const double _heroBodyHeight = 148;
+  @override
+  ConsumerState<CheckTicketView> createState() => _CheckTicketViewState();
+}
 
-  /// Card trắng kéo lên chồng lên hero.
-  static const double _cardOverlap = 52;
+class _CheckTicketViewState extends ConsumerState<CheckTicketView> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final current = ref.read(ticketCheckViewModelProvider);
+      if (current.selectedDate != null) return;
+
+      final now = DateTime.now();
+      // Align with the website: before results are normally available at
+      // 16:40, start from yesterday; otherwise default to today.
+      final useYesterday = now.hour < 16 || (now.hour == 16 && now.minute < 40);
+      final date = useYesterday ? now.subtract(const Duration(days: 1)) : now;
+      ref
+          .read(ticketCheckViewModelProvider.notifier)
+          .loadStations(DateTime(date.year, date.month, date.day));
+    });
+  }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final state = ref.watch(ticketCheckViewModelProvider);
+    final schedule = ref.watch(lotteryScheduleProvider);
     final vm = ref.read(ticketCheckViewModelProvider.notifier);
-    final topInset = MediaQuery.paddingOf(context).top;
+    final winEffectKey = _winEffectKey(state);
+    final animationsDisabled = MediaQuery.of(context).disableAnimations;
+    final showSupport =
+        !state.isChecking &&
+        state.errorMessage == null &&
+        (!state.hasChecked || state.checkResult == null);
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: RefreshIndicator(
-        color: AppColors.primary,
-        onRefresh: () async {
-          final date = state.selectedDate;
-          if (date != null) {
-            await vm.loadStations(date);
-          }
-        },
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Column(
-            children: [
-              // Hero + card chồng lên — cùng cuộn (non-sticky).
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  // Nền đỏ + đồ trang trí phía sau
-                  SizedBox(
-                    height: topInset + _heroBodyHeight,
-                    width: double.infinity,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        const DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                AppColors.primary,
-                                Color(0xFFE70F20),
-                                AppColors.primaryDark,
-                              ],
-                              stops: [0, 0.55, 1],
-                            ),
-                            borderRadius: BorderRadius.vertical(
-                              bottom: Radius.circular(36),
-                            ),
-                          ),
-                        ),
-                        const _HeroDecorations(),
-                        // Header nằm trên hero, cuộn theo nội dung
-                        Positioned(
-                          top: topInset + 10,
-                          left: 18,
-                          right: 18,
-                          child: const _HeaderBar(),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Card trắng chồng lên nửa dưới hero
-                  Padding(
-                    padding: EdgeInsets.only(
-                      top: topInset + _heroBodyHeight - _cardOverlap,
-                    ),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.fromLTRB(20, 28, 20, 28),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.vertical(
-                          top: Radius.circular(28),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Color(0x14000000),
-                            blurRadius: 20,
-                            offset: Offset(0, -4),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Text(
-                            'TRA CỨU VÉ SỐ',
-                            textAlign: TextAlign.center,
-                            style: AppTypography.display(
-                              const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w900,
-                                color: AppColors.primary,
-                                letterSpacing: 0.6,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Nhập thông tin vé để kiểm tra kết quả nhanh chóng',
-                            textAlign: TextAlign.center,
-                            style: AppTypography.main(
-                              const TextStyle(
-                                fontSize: 13,
-                                color: Color(0xFF64748B),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 22),
-                          if (state.isChecking)
-                            const _CheckingState()
-                          else if (state.errorMessage != null)
-                            _ErrorState(
-                              message: state.errorMessage!,
-                              onRetry: vm.clearErrorMessage,
-                            )
-                          else if (state.hasChecked &&
-                              state.checkResult != null)
-                            _ResultState(
-                              result: state.checkResult!,
-                              onReset: vm.resetCheck,
-                            )
-                          else ...[
-                            _FormState(state: state, vm: vm),
-                            const SizedBox(height: 22),
-                            const _ImportantNotes(),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+      backgroundColor: AppColors.pageBg,
+      body: Stack(
+        children: [
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 380,
+            child: ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [AppColors.surfacePrimary, AppColors.transparent],
+                stops: [0.5, 1.0],
+              ).createShader(bounds),
+              blendMode: BlendMode.dstIn,
+              child: Image.asset(
+                'assets/images/home_bg.png',
+                fit: BoxFit.cover,
               ),
-              // Chừa khoảng dưới để không sát bottom nav khi cuộn hết.
-              const SizedBox(height: 12),
-            ],
+            ),
           ),
+          SafeArea(
+            bottom: false,
+            child: RefreshIndicator(
+              color: AppColors.primary,
+              onRefresh: () async {
+                final date = state.selectedDate;
+                if (date != null) {
+                  await vm.loadStations(date);
+                }
+              },
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  children: [
+                    // Header Bar on top of background
+                    const Padding(
+                      padding: EdgeInsets.fromLTRB(16, 8, 16, 12),
+                      child: _HeaderBar(),
+                    ),
+
+                    // Main Form Card
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfacePrimary,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: AppColors.borderDecorative,
+                            width: 1.0,
+                          ),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: AppColors.shadowFaint,
+                              blurRadius: 12,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            if (state.isChecking)
+                              const _CheckingState()
+                            else if (state.errorMessage != null)
+                              _ErrorState(
+                                message: state.errorMessage!,
+                                onRetry: vm.clearErrorMessage,
+                              )
+                            else if (state.hasChecked &&
+                                state.checkResult != null)
+                              _ResultState(
+                                result: state.checkResult!,
+                                onReset: vm.resetCheck,
+                              )
+                            else
+                              _FormState(state: state, vm: vm),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    if (showSupport)
+                      _CheckTicketSupportSection(schedule: schedule),
+
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (winEffectKey != null)
+            _WinConfettiOverlay(
+              active: !animationsDisabled,
+              triggerKey: winEffectKey,
+            ),
+        ],
+      ),
+    );
+  }
+
+  String? _winEffectKey(TicketCheckState state) {
+    final result = state.checkResult;
+    if (!state.hasChecked || result == null || !result.winning) {
+      return null;
+    }
+
+    final prizeKey = result.matchedPrizes
+        .map(
+          (prize) =>
+              '${prize.prizeDisplayName}:${prize.winningNumber}:${prize.prizeValue}',
+        )
+        .join('|');
+    final dateKey = state.selectedDate?.toIso8601String() ?? '';
+
+    return [
+      state.selectedStationId,
+      dateKey,
+      result.ticketNumber,
+      prizeKey,
+    ].join('|');
+  }
+}
+
+class _WinConfettiOverlay extends StatefulWidget {
+  const _WinConfettiOverlay({required this.active, required this.triggerKey});
+
+  final bool active;
+  final String triggerKey;
+
+  @override
+  State<_WinConfettiOverlay> createState() => _WinConfettiOverlayState();
+}
+
+class _WinConfettiOverlayState extends State<_WinConfettiOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  List<_ConfettiParticle> _particles = const [];
+
+  static const List<Color> _palette = [
+    AppColors.primary,
+    AppColors.statusWarning,
+    AppColors.statusSuccess,
+    AppColors.brandSecondary,
+    AppColors.surfacePrimary,
+    AppColors.brandPrimaryCrimson,
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3400),
+    );
+
+    if (widget.active) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _restart();
+        }
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _WinConfettiOverlay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.active) {
+      _controller.stop();
+      return;
+    }
+
+    if (oldWidget.triggerKey != widget.triggerKey || !oldWidget.active) {
+      _restart();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _restart() {
+    _particles = _buildParticles(math.Random(widget.triggerKey.hashCode));
+    HapticFeedback.mediumImpact();
+    _controller.forward(from: 0);
+  }
+
+  List<_ConfettiParticle> _buildParticles(math.Random random) {
+    final particles = <_ConfettiParticle>[];
+
+    void addParticle({
+      required Offset start,
+      required Offset velocity,
+      required double gravity,
+      required double size,
+      required _ConfettiShape shape,
+    }) {
+      particles.add(
+        _ConfettiParticle(
+          start: start,
+          velocity: velocity,
+          gravity: gravity,
+          size: size,
+          color: _palette[random.nextInt(_palette.length)],
+          rotation: random.nextDouble() * math.pi,
+          rotationSpeed:
+              (random.nextDouble() * 5 + 2) * (random.nextBool() ? 1 : -1),
+          wobble: random.nextDouble() * math.pi * 2,
+          shape: shape,
+        ),
+      );
+    }
+
+    for (var i = 0; i < 92; i++) {
+      final fromLeft = i.isEven;
+      final angle = (fromLeft ? -52 : -128) + random.nextDouble() * 34;
+      final radians = angle * math.pi / 180;
+      final speed = 0.58 + random.nextDouble() * 0.55;
+
+      addParticle(
+        start: Offset(
+          fromLeft ? -0.04 : 1.04,
+          0.78 + random.nextDouble() * 0.1,
+        ),
+        velocity: Offset(math.cos(radians) * speed, math.sin(radians) * speed),
+        gravity: 0.72 + random.nextDouble() * 0.32,
+        size: 6 + random.nextDouble() * 7,
+        shape: i % 5 == 0 ? _ConfettiShape.circle : _ConfettiShape.rectangle,
+      );
+    }
+
+    for (var i = 0; i < 80; i++) {
+      addParticle(
+        start: Offset(random.nextDouble(), -0.12 - random.nextDouble() * 0.12),
+        velocity: Offset(
+          (random.nextDouble() - 0.5) * 0.24,
+          0.28 + random.nextDouble() * 0.3,
+        ),
+        gravity: 0.2 + random.nextDouble() * 0.22,
+        size: 5 + random.nextDouble() * 6,
+        shape: i % 4 == 0 ? _ConfettiShape.circle : _ConfettiShape.rectangle,
+      );
+    }
+
+    return particles;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.active) {
+      return const SizedBox.shrink();
+    }
+
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) {
+            return CustomPaint(
+              painter: _ConfettiPainter(
+                particles: _particles,
+                progress: Curves.easeOutCubic.transform(_controller.value),
+                rawProgress: _controller.value,
+              ),
+            );
+          },
         ),
       ),
     );
+  }
+}
+
+enum _ConfettiShape { circle, rectangle }
+
+class _ConfettiParticle {
+  const _ConfettiParticle({
+    required this.start,
+    required this.velocity,
+    required this.gravity,
+    required this.size,
+    required this.color,
+    required this.rotation,
+    required this.rotationSpeed,
+    required this.wobble,
+    required this.shape,
+  });
+
+  final Offset start;
+  final Offset velocity;
+  final double gravity;
+  final double size;
+  final Color color;
+  final double rotation;
+  final double rotationSpeed;
+  final double wobble;
+  final _ConfettiShape shape;
+}
+
+class _ConfettiPainter extends CustomPainter {
+  const _ConfettiPainter({
+    required this.particles,
+    required this.progress,
+    required this.rawProgress,
+  });
+
+  final List<_ConfettiParticle> particles;
+  final double progress;
+  final double rawProgress;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final fade = (1 - ((rawProgress - 0.74) / 0.26).clamp(0.0, 1.0));
+    final paint = Paint()..style = PaintingStyle.fill;
+
+    for (final particle in particles) {
+      final travelX = particle.velocity.dx * progress;
+      final travelY =
+          particle.velocity.dy * progress +
+          particle.gravity * progress * progress;
+      final wobble = math.sin(progress * math.pi * 4 + particle.wobble) * 0.018;
+      final x = (particle.start.dx + travelX + wobble) * size.width;
+      final y = (particle.start.dy + travelY) * size.height;
+
+      if (y > size.height + 32 || x < -32 || x > size.width + 32) {
+        continue;
+      }
+
+      paint.color = particle.color.withValues(alpha: fade);
+      canvas.save();
+      canvas.translate(x, y);
+      canvas.rotate(particle.rotation + progress * particle.rotationSpeed);
+
+      if (particle.shape == _ConfettiShape.circle) {
+        canvas.drawCircle(Offset.zero, particle.size * 0.42, paint);
+      } else {
+        final rect = Rect.fromCenter(
+          center: Offset.zero,
+          width: particle.size * 0.72,
+          height: particle.size * 1.28,
+        );
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(rect, Radius.circular(particle.size * 0.18)),
+          paint,
+        );
+      }
+
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ConfettiPainter oldDelegate) {
+    return oldDelegate.progress != progress ||
+        oldDelegate.rawProgress != rawProgress ||
+        oldDelegate.particles != particles;
   }
 }
 
@@ -164,261 +427,9 @@ class _HeaderBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Icon(
-            Icons.qr_code_scanner_rounded,
-            color: Colors.white,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            'Dò vé số',
-            style: AppTypography.display(
-              const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: Colors.white,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// Đồ trang trí bên phải hero (vé + kính lúp + xu + bóng số).
-class _HeroDecorations extends StatelessWidget {
-  const _HeroDecorations();
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Stack(
-        children: [
-          Positioned(
-            right: -28,
-            top: 18,
-            child: Container(
-              width: 160,
-              height: 160,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [Color(0x55FFB85C), Color(0x00FFB85C)],
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            right: 28,
-            top: 46,
-            child: Transform.rotate(
-              angle: -0.18,
-              child: Container(
-                width: 72,
-                height: 88,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.95),
-                  borderRadius: BorderRadius.circular(10),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x33000000),
-                      blurRadius: 12,
-                      offset: Offset(0, 6),
-                    ),
-                  ],
-                ),
-                padding: const EdgeInsets.all(8),
-                child: Column(
-                  children: [
-                    Container(
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFE4E4),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    ...List.generate(
-                      4,
-                      (_) => Padding(
-                        padding: const EdgeInsets.only(bottom: 5),
-                        child: Container(
-                          height: 6,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE2E8F0),
-                            borderRadius: BorderRadius.circular(3),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            right: 18,
-            top: 38,
-            child: Icon(
-              Icons.search_rounded,
-              size: 54,
-              color: Colors.white.withValues(alpha: 0.92),
-              shadows: const [
-                Shadow(
-                  color: Color(0x44000000),
-                  blurRadius: 8,
-                  offset: Offset(0, 3),
-                ),
-              ],
-            ),
-          ),
-          Positioned(
-            right: 88,
-            top: 108,
-            child: Container(
-              width: 28,
-              height: 28,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: [Color(0xFFFFD54F), Color(0xFFF9A826)],
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Color(0x44000000),
-                    blurRadius: 6,
-                    offset: Offset(0, 2),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Positioned(
-            right: 58,
-            top: 118,
-            child: Container(
-              width: 22,
-              height: 22,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.primaryDark,
-                border: Border.all(color: Colors.white, width: 2),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                '23',
-                style: AppTypography.main(
-                  const TextStyle(
-                    fontSize: 8,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ImportantNotes extends StatelessWidget {
-  const _ImportantNotes();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF5F5),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFFE0E0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFE4E4),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.verified_user_outlined,
-                  size: 16,
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Lưu ý quan trọng',
-                style: AppTypography.main(
-                  const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF7F1D1D),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          _noteLine(
-            'Kết quả được cập nhật ngay sau khi có kết quả chính thức từ các đài.',
-          ),
-          const SizedBox(height: 6),
-          _noteLine(
-            'Thông tin vé của bạn được bảo mật và không lưu trữ sau khi tra cứu.',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _noteLine(String text) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(top: 6),
-          child: Container(
-            width: 5,
-            height: 5,
-            decoration: const BoxDecoration(
-              color: AppColors.primary,
-              shape: BoxShape.circle,
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            text,
-            style: AppTypography.main(
-              const TextStyle(
-                fontSize: 12,
-                height: 1.45,
-                color: Color(0xFF7F1D1D),
-              ),
-            ),
-          ),
-        ),
-      ],
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Text('Dò vé', style: AppTypography.pageTitle()),
     );
   }
 }
@@ -428,18 +439,17 @@ class _CheckingState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 40),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 40),
       child: Column(
         children: [
-          CircularProgressIndicator(color: AppColors.primary),
-          SizedBox(height: 14),
+          const CircularProgressIndicator(color: AppColors.primary),
+          const SizedBox(height: 14),
           Text(
             'Đang dò kết quả...',
-            style: TextStyle(
-              fontSize: 13,
+            style: AppTypography.bodyMedium(
               fontWeight: FontWeight.w600,
-              color: Color(0xFF64748B),
+              color: AppColors.contentMuted,
             ),
           ),
         ],
@@ -462,7 +472,7 @@ class _ErrorState extends StatelessWidget {
           width: 48,
           height: 48,
           decoration: const BoxDecoration(
-            color: Color(0xFFFFE4E4),
+            color: AppColors.statusErrorSurface,
             shape: BoxShape.circle,
           ),
           child: const Icon(Icons.error_outline, color: AppColors.primary),
@@ -471,19 +481,19 @@ class _ErrorState extends StatelessWidget {
         Text(
           message,
           textAlign: TextAlign.center,
-          style: AppTypography.main(
-            const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFFB91C1C),
-            ),
+          style: AppTypography.bodyMedium(
+            fontWeight: FontWeight.w600,
+            color: AppColors.brandPrimaryDarkRed,
           ),
         ),
         const SizedBox(height: 14),
         FilledButton(
           onPressed: onRetry,
           style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
-          child: const Text('Thử lại'),
+          child: Text(
+            'Thử lại',
+            style: AppTypography.buttonMedium(color: AppColors.surfacePrimary),
+          ),
         ),
       ],
     );
@@ -506,33 +516,27 @@ class _ResultState extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFFECFDF5), Color(0xFFF0FDFA)],
+                colors: [
+                  AppColors.statusSuccessSurface,
+                  AppColors.surfaceSuccess,
+                ],
               ),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFA7F3D0)),
+              border: Border.all(color: AppColors.statusSuccessBorder),
             ),
             child: Column(
               children: [
-                const Text('🎉', style: TextStyle(fontSize: 28)),
+                Text('🎉', style: AppTypography.h1(fontSize: 28)),
                 const SizedBox(height: 6),
                 Text(
                   'Chúc mừng bạn đã trúng!',
-                  style: AppTypography.display(
-                    const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF065F46),
-                    ),
-                  ),
+                  style: AppTypography.h5(color: AppColors.statusSuccessDeep),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Vé số của bạn trùng khớp với kết quả:',
-                  style: AppTypography.main(
-                    const TextStyle(
-                      fontSize: 11,
-                      color: Color(0xFF059669),
-                    ),
+                  style: AppTypography.bodySmall(
+                    color: AppColors.statusSuccessMedium,
                   ),
                 ),
               ],
@@ -544,9 +548,9 @@ class _ResultState extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
+                color: AppColors.surfaceSoft,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                border: Border.all(color: AppColors.borderSubtle),
               ),
               child: Row(
                 children: [
@@ -556,36 +560,24 @@ class _ResultState extends StatelessWidget {
                       children: [
                         Text(
                           prize.prizeDisplayName,
-                          style: AppTypography.main(
-                            const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                            ),
+                          style: AppTypography.labelLarge(
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           'Số trúng: ${prize.winningNumber}',
-                          style: AppTypography.main(
-                            const TextStyle(
-                              fontSize: 11,
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w700,
-                            ),
+                          style: AppTypography.labelMedium(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ],
                     ),
                   ),
                   Text(
-                    '${NumberFormat.decimalPattern('vi_VN').format(prize.prizeValue)}đ',
-                    style: AppTypography.main(
-                      const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.primary,
-                      ),
-                    ),
+                    AppFormatters.formatCurrency(prize.prizeValue),
+                    style: AppTypography.priceMedium(color: AppColors.primary),
                   ),
                 ],
               ),
@@ -596,30 +588,21 @@ class _ResultState extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFF1F1),
+                color: AppColors.brandPrimarySubtle,
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Row(
                 children: [
                   Text(
                     'Tổng giải thưởng:',
-                    style: AppTypography.main(
-                      const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    style: AppTypography.labelMedium(
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                   const Spacer(),
                   Text(
-                    '${NumberFormat.decimalPattern('vi_VN').format(result.totalWinningAmount)}đ',
-                    style: AppTypography.number(
-                      const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.primary,
-                      ),
-                    ),
+                    AppFormatters.formatCurrency(result.totalWinningAmount),
+                    style: AppTypography.priceMedium(color: AppColors.primary),
                   ),
                 ],
               ),
@@ -629,14 +612,19 @@ class _ResultState extends StatelessWidget {
           OutlinedButton(
             onPressed: onReset,
             style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF475569),
-              side: const BorderSide(color: Color(0xFFE2E8F0)),
+              foregroundColor: AppColors.contentSlate600,
+              side: const BorderSide(color: AppColors.borderSubtle),
               minimumSize: const Size.fromHeight(44),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
               ),
             ),
-            child: const Text('Dò vé khác'),
+            child: Text(
+              'Dò vé khác',
+              style: AppTypography.buttonMedium(
+                color: AppColors.contentSlate600,
+              ),
+            ),
           ),
         ],
       );
@@ -679,41 +667,30 @@ class _NeutralResult extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(emoji, style: const TextStyle(fontSize: 28)),
+        Text(emoji, style: AppTypography.h1(fontSize: 28)),
         const SizedBox(height: 8),
-        Text(
-          title,
-          style: AppTypography.display(
-            const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF334155),
-            ),
-          ),
-        ),
+        Text(title, style: AppTypography.h5(color: AppColors.contentSlate700)),
         const SizedBox(height: 6),
         Text(
           message,
           textAlign: TextAlign.center,
-          style: AppTypography.main(
-            const TextStyle(
-              fontSize: 12,
-              color: Color(0xFF64748B),
-            ),
-          ),
+          style: AppTypography.bodySmall(color: AppColors.contentMuted),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
         OutlinedButton(
           onPressed: onReset,
           style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFF475569),
-            side: const BorderSide(color: Color(0xFFE2E8F0)),
+            foregroundColor: AppColors.contentSlate600,
+            side: const BorderSide(color: AppColors.borderSubtle),
             minimumSize: const Size.fromHeight(44),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
             ),
           ),
-          child: const Text('Dò vé khác'),
+          child: Text(
+            'Dò vé khác',
+            style: AppTypography.buttonMedium(color: AppColors.contentSlate600),
+          ),
         ),
       ],
     );
@@ -766,173 +743,119 @@ class _FormStateState extends State<_FormState> {
         ? 'Chọn ngày quay'
         : DateFormat('dd/MM/yyyy').format(selectedDate);
     final canPickStation =
-        selectedDate != null && !state.isLoadingStations && state.stations.isNotEmpty;
+        selectedDate != null &&
+        !state.isLoadingStations &&
+        state.stations.isNotEmpty;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'Chọn ngày',
-          style: AppTypography.main(
-            const TextStyle(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF334155),
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        InkWell(
+        AppPickerField(
+          label: 'Chọn ngày',
+          value: selectedDate == null ? null : dateLabel,
+          placeholder: 'Chọn ngày quay',
+          errorText: state.dateError,
+          prefixIcon: Icons.calendar_month_outlined,
           onTap: () => _pickDate(context),
-          borderRadius: BorderRadius.circular(14),
-          child: InputDecorator(
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: Colors.white,
-              errorText: state.dateError,
-              prefixIcon: const Icon(Icons.calendar_month_outlined,
-                  color: AppColors.primary, size: 18),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(
-                  color: state.dateError != null
-                      ? const Color(0xFFF87171)
-                      : const Color(0xFFE2E8F0),
-                ),
-              ),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            ),
-            child: Text(
-              dateLabel,
-              style: AppTypography.main(
-                TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: selectedDate == null
-                      ? const Color(0xFF94A3B8)
-                      : const Color(0xFF0F172A),
-                ),
-              ),
-            ),
-          ),
+          semanticLabel: selectedDate == null
+              ? 'Chọn ngày quay'
+              : 'Ngày quay: $dateLabel',
+          semanticHint: 'Mở lịch kết quả xổ số',
         ),
-        const SizedBox(height: 14),
-        Text(
-          'Chọn đài',
-          style: AppTypography.main(
-            const TextStyle(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF334155),
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        InkWell(
-          onTap: canPickStation ? () => _pickStation(context) : null,
-          borderRadius: BorderRadius.circular(14),
-          child: InputDecorator(
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: canPickStation ? Colors.white : const Color(0xFFF8FAFC),
-              errorText: state.stationError,
-              prefixIcon: Icon(
-                Icons.place_outlined,
-                color: canPickStation
-                    ? AppColors.primary
-                    : const Color(0xFFCBD5E1),
-                size: 18,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(
-                  color: state.stationError != null
-                      ? const Color(0xFFF87171)
-                      : const Color(0xFFE2E8F0),
-                ),
-              ),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            ),
-            child: Text(
-              selectedDate == null
-                  ? 'Chọn ngày trước'
-                  : state.isLoadingStations
-                      ? 'Đang tải đài...'
-                      : (state.selectedStation?.province ?? 'Chọn đài'),
-              style: AppTypography.main(
-                TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: !canPickStation && state.selectedStation == null
-                      ? const Color(0xFF94A3B8)
-                      : const Color(0xFF0F172A),
-                ),
-              ),
-            ),
-          ),
+        const SizedBox(height: 16),
+        AppPickerField(
+          label: 'Chọn đài',
+          value: state.selectedStation?.province,
+          placeholder: selectedDate == null
+              ? 'Chọn ngày quay trước'
+              : state.isLoadingStations
+              ? 'Đang tải đài...'
+              : state.stations.isEmpty
+              ? 'Không có đài quay'
+              : 'Chọn đài',
+          errorText: state.stationError,
+          prefixIcon: Icons.place_outlined,
+          suffixIcon: canPickStation ? Icons.expand_more_rounded : null,
+          isAvailable: canPickStation,
+          onTap: selectedDate == null
+              ? () => _pickDate(context)
+              : canPickStation
+              ? () => _pickStation(context)
+              : null,
+          semanticLabel: state.selectedStation == null
+              ? 'Chọn đài quay'
+              : 'Đài quay: ${state.selectedStation!.province}',
+          semanticHint: selectedDate == null
+              ? 'Chọn ngày quay trước để tải danh sách đài'
+              : state.isLoadingStations
+              ? 'Đang tải danh sách đài'
+              : null,
         ),
         const SizedBox(height: 14),
         Text(
           'Nhập dãy số trên vé',
-          style: AppTypography.main(
-            const TextStyle(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF334155),
-            ),
-          ),
+          style: AppTypography.labelMedium(color: AppColors.contentSlate700),
         ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _numberController,
-          keyboardType: TextInputType.number,
-          maxLength: 6,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          onChanged: vm.setTicketNumber,
-          style: AppTypography.number(
-            const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 2,
-            ),
-          ),
-          decoration: InputDecoration(
-            counterText: '',
-            hintText: 'Nhập dãy số (ví dụ: 123456)',
-            errorText: state.numberError,
-            helperText: state.numberError == null
-                ? 'Nhập đúng 5 hoặc 6 chữ số trên vé của bạn'
-                : null,
-            prefixIcon: const Icon(Icons.confirmation_number_outlined,
-                color: AppColors.primary, size: 18),
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(
-                color: state.numberError != null
-                    ? const Color(0xFFF87171)
-                    : const Color(0xFFE2E8F0),
+        const SizedBox(height: 6),
+        Semantics(
+          textField: true,
+          label: 'Dãy số trên vé',
+          hint: 'Nhập 5 hoặc 6 chữ số để tra cứu',
+          child: TextField(
+            controller: _numberController,
+            keyboardType: TextInputType.number,
+            textInputAction: TextInputAction.done,
+            maxLength: 6,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            onChanged: vm.setTicketNumber,
+            onSubmitted: (_) => vm.check(),
+            textAlignVertical: TextAlignVertical.center,
+            style: AppTypography.lotteryDigit(letterSpacing: 3),
+            decoration: InputDecoration(
+              isDense: true,
+              constraints: const BoxConstraints(minHeight: 48),
+              counterText: '',
+              hintText: 'Ví dụ: 123456',
+              hintStyle: AppTypography.bodyMedium(
+                color: AppColors.contentPlaceholder,
               ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide:
-                  const BorderSide(color: AppColors.primary, width: 1.4),
+              errorText: state.numberError,
+              helperText: state.numberError == null
+                  ? 'Nhập đúng 5 hoặc 6 chữ số trên vé của bạn'
+                  : null,
+              helperStyle: AppTypography.bodySmall(
+                color: AppColors.contentMuted,
+              ),
+              prefixIcon: const Icon(
+                Icons.confirmation_number_outlined,
+                color: AppColors.contentMuted,
+                size: 20,
+              ),
+              filled: true,
+              fillColor: AppColors.surfacePrimary,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.borderSubtle),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: state.numberError != null
+                      ? AppColors.statusError
+                      : AppColors.borderSubtle,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(
+                  color: AppColors.primary,
+                  width: 1.4,
+                ),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
             ),
           ),
         ),
@@ -942,83 +865,21 @@ class _FormStateState extends State<_FormState> {
           icon: const Icon(Icons.search_rounded, size: 20),
           style: FilledButton.styleFrom(
             backgroundColor: AppColors.primary,
-            minimumSize: const Size.fromHeight(50),
+            minimumSize: const Size.fromHeight(48),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(12),
             ),
           ),
-          label: Text(
-            'Tra cứu kết quả',
-            style: AppTypography.main(
-              const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 18),
-        Text(
-          'HOẶC CHỌN NHANH',
-          textAlign: TextAlign.center,
-          style: AppTypography.main(
-            const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF94A3B8),
-              letterSpacing: 0.8,
-            ),
-          ),
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: _QuickDateChip(
-                label: 'Hôm nay',
-                selected: state.selectedDate != null &&
-                    _isSameDay(state.selectedDate!, DateTime.now()),
-                onTap: () {
-                  final now = DateTime.now();
-                  vm.loadStations(DateTime(now.year, now.month, now.day));
-                },
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _QuickDateChip(
-                label: 'Hôm qua',
-                selected: state.selectedDate != null &&
-                    _isSameDay(
-                      state.selectedDate!,
-                      DateTime.now().subtract(const Duration(days: 1)),
-                    ),
-                onTap: () {
-                  final d = DateTime.now().subtract(const Duration(days: 1));
-                  vm.loadStations(DateTime(d.year, d.month, d.day));
-                },
-              ),
-            ),
-          ],
+          label: Text('Tra cứu kết quả', style: AppTypography.buttonLarge()),
         ),
       ],
     );
   }
 
   Future<void> _pickDate(BuildContext context) async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: state.selectedDate ?? DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(primary: AppColors.primary),
-          ),
-          child: child!,
-        );
-      },
+    final picked = await LotteryDatePickerDialog.show(
+      context,
+      state.selectedDate ?? DateTime.now(),
     );
     if (picked != null) {
       await vm.loadStations(DateTime(picked.year, picked.month, picked.day));
@@ -1030,36 +891,70 @@ class _FormStateState extends State<_FormState> {
     final selected = await showModalBottomSheet<LotteryStationDraw>(
       context: context,
       showDragHandle: true,
+      backgroundColor: AppColors.surfacePrimary,
       builder: (context) {
-        return SafeArea(
-          child: ListView.separated(
-            shrinkWrap: true,
-            itemCount: state.stations.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final station = state.stations[index];
-              final isSelected = station.id == state.selectedStationId;
-              return ListTile(
-                leading: Icon(
-                  Icons.place_outlined,
-                  color:
-                      isSelected ? AppColors.primary : const Color(0xFF94A3B8),
-                ),
-                title: Text(
-                  station.province,
-                  style: AppTypography.main(
-                    TextStyle(
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                      color: isSelected ? AppColors.primary : null,
+        return Theme(
+          data: Theme.of(context).copyWith(
+            bottomSheetTheme: const BottomSheetThemeData(
+              backgroundColor: AppColors.surfacePrimary,
+              modalBackgroundColor: AppColors.surfacePrimary,
+            ),
+          ),
+          child: SafeArea(
+            child: ColoredBox(
+              color: AppColors.surfacePrimary,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 10, 24, 22),
+                    child: Text(
+                      'Chọn đài vé số',
+                      textAlign: TextAlign.center,
+                      style: AppTypography.h4(color: AppColors.contentHeading),
                     ),
                   ),
-                ),
-                trailing: isSelected
-                    ? const Icon(Icons.check, color: AppColors.primary)
-                    : null,
-                onTap: () => Navigator.of(context).pop(station),
-              );
-            },
+                  const Divider(height: 1, color: AppColors.borderSubtle),
+                  Flexible(
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: state.stations.length,
+                      separatorBuilder: (_, _) => const Divider(
+                        height: 1,
+                        color: AppColors.borderSubtle,
+                      ),
+                      itemBuilder: (context, index) {
+                        final station = state.stations[index];
+                        final isSelected =
+                            station.id == state.selectedStationId;
+                        return InkWell(
+                          onTap: () => Navigator.of(context).pop(station),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 20,
+                            ),
+                            color: AppColors.surfacePrimary,
+                            child: Text(
+                              station.province,
+                              style: AppTypography.bodyLarge(
+                                fontWeight: isSelected
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : AppColors.contentHeading,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         );
       },
@@ -1068,56 +963,201 @@ class _FormStateState extends State<_FormState> {
       vm.selectStation(selected.id);
     }
   }
-
-  bool _isSameDay(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month && a.day == b.day;
 }
 
-class _QuickDateChip extends StatelessWidget {
-  const _QuickDateChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
+class _CheckTicketSupportSection extends StatelessWidget {
+  const _CheckTicketSupportSection({required this.schedule});
 
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
+  final AsyncValue<List<LotteryStationSchedule>> schedule;
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? AppColors.primary : const Color(0xFF475569);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: selected ? const Color(0xFFFFF1F1) : const Color(0xFFF8FAFC),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: selected ? const Color(0xFFFECACA) : const Color(0xFFE2E8F0),
-          ),
-        ),
-        alignment: Alignment.center,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.calendar_today_outlined, size: 14, color: color),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: AppTypography.main(
-                TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: color,
-                ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Semantics(
+        button: true,
+        label: 'Xem lịch mở thưởng',
+        hint: 'Mở lịch quay thưởng theo đài',
+        child: Material(
+          color: AppColors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            onTap: () => context.push(AppRoute.schedule.path),
+            borderRadius: BorderRadius.circular(16),
+            child: Ink(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceSoft,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.borderSubtle),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.calendar_month_outlined,
+                        color: AppColors.primary,
+                        size: 22,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Lịch mở thưởng',
+                          style: AppTypography.labelLarge(
+                            color: AppColors.contentHeading,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: AppColors.contentMuted,
+                        size: 24,
+                      ),
+                    ],
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 10),
+                    child: Divider(height: 1, color: AppColors.borderSubtle),
+                  ),
+                  _ScheduleRegionSummary(schedule: schedule),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
+    );
+  }
+}
+
+class _ScheduleRegionSummary extends StatelessWidget {
+  const _ScheduleRegionSummary({required this.schedule});
+
+  final AsyncValue<List<LotteryStationSchedule>> schedule;
+
+  @override
+  Widget build(BuildContext context) {
+    return schedule.when(
+      loading: () => _buildStatus('Đang cập nhật lịch mở thưởng...'),
+      error: (_, _) => _buildStatus('Xem lịch chi tiết theo khu vực'),
+      data: (stations) {
+        final regions = availableScheduleRegions(stations);
+        if (regions.isEmpty) {
+          return _buildStatus('Chưa có dữ liệu lịch mở thưởng');
+        }
+
+        final drawTimes = scheduleRegionDrawTimes(stations, regions);
+        if (regions.length == 1) {
+          final region = regions.first;
+          return _DrawTimeSummary(
+            region: scheduleRegionLabels[region] ?? region,
+            time: _displayDrawTime(drawTimes[region]),
+            color: _regionColor(region),
+            expanded: true,
+          );
+        }
+
+        return Row(
+          children: [
+            for (final region in regions)
+              Expanded(
+                child: _DrawTimeSummary(
+                  region: scheduleRegionLabels[region] ?? region,
+                  time: _displayDrawTime(drawTimes[region]),
+                  color: _regionColor(region),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildStatus(String message) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Text(
+        message,
+        style: AppTypography.bodySmall(color: AppColors.contentMuted),
+      ),
+    );
+  }
+
+  String _displayDrawTime(String? time) {
+    if (time == null || time.isEmpty || time == '--:--') {
+      return 'Chưa cập nhật';
+    }
+    return time;
+  }
+
+  Color _regionColor(String region) {
+    switch (region) {
+      case 'MIEN_TRUNG':
+        return AppColors.brandSecondary;
+      case 'MIEN_BAC':
+        return AppColors.goldDark;
+      default:
+        return AppColors.primary;
+    }
+  }
+}
+
+class _DrawTimeSummary extends StatelessWidget {
+  const _DrawTimeSummary({
+    required this.region,
+    required this.time,
+    required this.color,
+    this.expanded = false,
+  });
+
+  final String region;
+  final String time;
+  final Color color;
+  final bool expanded;
+
+  @override
+  Widget build(BuildContext context) {
+    final regionStyle = AppTypography.caption(
+      color: AppColors.contentMuted,
+      fontWeight: FontWeight.w600,
+    );
+    final timeStyle = AppTypography.labelLarge(
+      color: color,
+      fontWeight: FontWeight.w700,
+    );
+
+    if (expanded) {
+      return Row(
+        children: [
+          Expanded(
+            child: Text(
+              region,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: regionStyle,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(time, style: timeStyle),
+        ],
+      );
+    }
+
+    return Column(
+      children: [
+        Text(
+          region,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: regionStyle,
+        ),
+        const SizedBox(height: 2),
+        Text(time, style: timeStyle),
+      ],
     );
   }
 }

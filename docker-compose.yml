@@ -56,8 +56,42 @@ services:
       context: ./daiphat-ai
       dockerfile: services/ticket-vision/Dockerfile
     restart: unless-stopped
+    environment:
+      HOME: /cache
+      EASYOCR_MODULE_PATH: /cache/easyocr
+      PADDLE_PDX_CACHE_HOME: /cache/paddlex
+      HF_HOME: /cache/huggingface
+      TORCH_HOME: /cache/torch
+      YOLO_CONFIG_DIR: /cache/ultralytics
+      TICKET_VISION_YOLO_DEVICE: cpu
+      TICKET_VISION_RECOGNITION_ENGINE: ${TICKET_VISION_RECOGNITION_ENGINE:-groq}
+      OCR_AI_PROVIDER: ${OCR_AI_PROVIDER:-}
+      GROQ_API_BASE_URL: ${GROQ_API_BASE_URL:-https://api.groq.com/openai/v1}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_VISION_MODEL: ${GROQ_VISION_MODEL:-qwen/qwen3.6-27b}
+      GROQ_READ_TIMEOUT_SECONDS: ${GROQ_READ_TIMEOUT_SECONDS:-60}
+      GEMINI_API_BASE_URL: ${GEMINI_API_BASE_URL:-https://generativelanguage.googleapis.com/v1beta}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_VISION_MODEL: ${GEMINI_VISION_MODEL:-gemini-3.6-flash}
+      GEMINI_READ_TIMEOUT_SECONDS: ${GEMINI_READ_TIMEOUT_SECONDS:-60}
+      GROK_API_BASE_URL: ${GROK_API_BASE_URL:-https://api.x.ai/v1}
+      GROK_API_KEY: ${GROK_API_KEY:-}
+      GROK_VISION_MODEL: ${GROK_VISION_MODEL:-grok-vision-beta}
+      GROK_READ_TIMEOUT_SECONDS: ${GROK_READ_TIMEOUT_SECONDS:-60}
+      OMP_NUM_THREADS: "${LOCAL_TICKET_VISION_CPU_THREADS:-2}"
+      OPENBLAS_NUM_THREADS: "${LOCAL_TICKET_VISION_CPU_THREADS:-2}"
+      MKL_NUM_THREADS: "${LOCAL_TICKET_VISION_CPU_THREADS:-2}"
+      NUMEXPR_NUM_THREADS: "${LOCAL_TICKET_VISION_CPU_THREADS:-2}"
     ports:
-      - "${LOCAL_TICKET_VISION_PORT:-8090}:8090"
+      - "127.0.0.1:${LOCAL_TICKET_VISION_PORT:-8090}:8090"
+    volumes:
+      - ticket_vision_model_cache:/cache
+      - type: bind
+        source: ./daiphat-ai/services/ticket-vision/models
+        target: /app/services/ticket-vision/models
+        read_only: true
+        bind:
+          create_host_path: false
     healthcheck:
       test:
         [
@@ -70,6 +104,8 @@ services:
       timeout: 5s
       start_period: 30s
       retries: 6
+    mem_limit: ${LOCAL_TICKET_VISION_MEMORY:-4g}
+    cpus: ${LOCAL_TICKET_VISION_CPUS:-2}
 
   backend:
     build:
@@ -87,6 +123,8 @@ services:
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
       DAIPHAT_AI_BASE_URL: http://ai:8000
+      DAIPHAT_TICKET_VISION_BASE_URL: http://ticket-vision:8090
+      DAIPHAT_TICKET_VISION_RECOGNITION_ENGINE: ${TICKET_VISION_RECOGNITION_ENGINE:-groq}
     ports:
       - "${LOCAL_BACKEND_PORT:-8080}:8080"
     depends_on:
@@ -96,6 +134,8 @@ services:
         condition: service_healthy
       ai:
         condition: service_healthy
+      ticket-vision:
+        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/actuator/health/readiness"]
       interval: 10s
@@ -131,3 +171,4 @@ secrets:
 volumes:
   postgres_data:
   redis_data:
+  ticket_vision_model_cache:

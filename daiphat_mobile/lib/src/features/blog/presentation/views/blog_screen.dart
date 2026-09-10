@@ -4,22 +4,19 @@ import 'package:shimmer/shimmer.dart';
 
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
+import 'package:daiphat_mobile/src/shared/widgets/app_filter_tab_strip.dart';
 import '../models/blog_post.dart';
 import '../viewmodels/blog_viewmodel.dart';
 import 'blog_detail_screen.dart';
 
-const _primary = Color(0xFFEE1314);
-const _gold = Color(0xFFFFD700);
-const _goldLight = Color(0xFFFFF9E6);
-const _ink = Color(0xFF17191F);
-const _secondary = Color(0xFF6B5A57);
-// const _surface = Colors.white;// ban dau
-const _surface = Colors.white;
-
-// const _pageBg = Color(0xFFF7F7FB); // ban dau
-const _pageBg = Colors.white;
-
-const _cardBorder = Color(0xFFE6E6EC);
+const _primary = AppColors.brandPrimaryStrong;
+const _gold = AppColors.brandAccentYellow;
+const _goldLight = AppColors.surfaceWarning;
+const _ink = AppColors.contentHeading;
+const _secondary = AppColors.contentSecondary;
+const _surface = AppColors.surfacePrimary;
+const _pageBg = AppColors.surfacePrimary;
+const _cardBorder = AppColors.borderLight;
 
 class BlogScreen extends ConsumerStatefulWidget {
   const BlogScreen({super.key, this.onBack});
@@ -31,6 +28,15 @@ class BlogScreen extends ConsumerStatefulWidget {
 }
 
 class _BlogScreenState extends ConsumerState<BlogScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      if (!mounted) return;
+      ref.read(blogViewModelProvider.notifier).resetFilters();
+    });
+  }
+
   void _openDetail(BlogPost post) {
     final slug = post.slug;
     if (slug == null || slug.isEmpty) return;
@@ -40,12 +46,12 @@ class _BlogScreenState extends ConsumerState<BlogScreen> {
     ).push(MaterialPageRoute(builder: (_) => BlogDetailScreen(slug: slug)));
   }
 
-  void _openAllPosts() {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => const _BlogAllScreen(),
-      ),
-    );
+  Future<void> _openAllPosts() async {
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const _BlogAllScreen()));
+    if (!mounted) return;
+    await ref.read(blogViewModelProvider.notifier).resetFilters();
   }
 
   @override
@@ -125,7 +131,7 @@ class _BlogContent extends StatelessWidget {
               child: Center(
                 child: Text(
                   'Không tìm thấy bài viết nào.',
-                  style: AppTypography.main(const TextStyle(color: _secondary)),
+                  style: AppTypography.bodyMedium(color: _secondary),
                 ),
               ),
             ),
@@ -169,9 +175,7 @@ class _BlogAllScreenState extends ConsumerState<_BlogAllScreen> {
     final slug = post.slug;
     if (slug == null || slug.isEmpty) return;
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => BlogDetailScreen(slug: slug),
-      ),
+      MaterialPageRoute<void>(builder: (_) => BlogDetailScreen(slug: slug)),
     );
   }
 
@@ -184,7 +188,23 @@ class _BlogAllScreenState extends ConsumerState<_BlogAllScreen> {
       body: SafeArea(
         child: blogState.when(
           data: (data) {
-            final categories = data.categories.map((c) => c.name).toList();
+            final categoryTabs = data.categories.indexed
+                .where((entry) {
+                  final category = entry.$2;
+                  final name = category.name.trim().toLowerCase();
+                  final slug = category.slug.trim().toLowerCase();
+                  return category.id != 0 &&
+                      slug != 'all' &&
+                      name != 'tất cả' &&
+                      name != 'tất cả bài viết';
+                })
+                .map(
+                  (entry) => AppFilterTabItem<int>(
+                    value: entry.$1 + 1,
+                    label: entry.$2.name,
+                  ),
+                )
+                .toList();
             final posts = <BlogPost>[
               if (data.featured != null) data.featured!,
               ...data.popular,
@@ -214,10 +234,11 @@ class _BlogAllScreenState extends ConsumerState<_BlogAllScreen> {
                   const SliverToBoxAdapter(child: SizedBox(height: 18)),
                   SliverToBoxAdapter(
                     child: _buildCategoryChips(
-                      categories: categories,
+                      categoryTabs: categoryTabs,
                       selectedIndex: data.selectedCategoryIndex,
-                      onSelected: (i) =>
-                          ref.read(blogViewModelProvider.notifier).selectCategory(i),
+                      onSelected: (i) => ref
+                          .read(blogViewModelProvider.notifier)
+                          .selectCategory(i),
                     ),
                   ),
                   const SliverToBoxAdapter(child: SizedBox(height: 22)),
@@ -227,9 +248,7 @@ class _BlogAllScreenState extends ConsumerState<_BlogAllScreen> {
                       child: Center(
                         child: Text(
                           'Không tìm thấy bài viết nào.',
-                          style: AppTypography.main(
-                            const TextStyle(color: _secondary),
-                          ),
+                          style: AppTypography.bodyMedium(color: _secondary),
                         ),
                       ),
                     )
@@ -240,11 +259,11 @@ class _BlogAllScreenState extends ConsumerState<_BlogAllScreen> {
                         itemCount: uniquePosts.length,
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          mainAxisSpacing: 14,
-                          crossAxisSpacing: 14,
-                          childAspectRatio: 0.66,
-                        ),
+                              crossAxisCount: 2,
+                              mainAxisSpacing: 14,
+                              crossAxisSpacing: 14,
+                              childAspectRatio: 0.66,
+                            ),
                         itemBuilder: (_, index) => _AllBlogCard(
                           post: uniquePosts[index],
                           onTap: () => _openDetail(uniquePosts[index]),
@@ -255,9 +274,8 @@ class _BlogAllScreenState extends ConsumerState<_BlogAllScreen> {
               ),
             );
           },
-          loading: () => const Center(
-            child: CircularProgressIndicator(color: _primary),
-          ),
+          loading: () =>
+              const Center(child: CircularProgressIndicator(color: _primary)),
           error: (e, _) => _BlogError(
             message: e.toString(),
             onRetry: () => ref.invalidate(blogViewModelProvider),
@@ -281,19 +299,14 @@ Widget _buildAllPostsAppBar(BuildContext context) {
           child: Text(
             'Tin tức',
             textAlign: TextAlign.center,
-            style: AppTypography.display(
-              const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w800,
-                color: _primary,
-              ),
+            style: AppTypography.h3(
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              color: _primary,
             ),
           ),
         ),
-        _CircleIconButton(
-          icon: Icons.search_rounded,
-          onTap: () {},
-        ),
+        _CircleIconButton(icon: Icons.search_rounded, onTap: () {}),
       ],
     ),
   );
@@ -308,10 +321,10 @@ class _CircleIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: AppColors.surfacePrimary,
       shape: const CircleBorder(),
       elevation: 4,
-      shadowColor: Colors.black.withValues(alpha: 0.16),
+      shadowColor: AppColors.shadowMedium,
       child: InkWell(
         onTap: onTap,
         customBorder: const CircleBorder(),
@@ -334,10 +347,10 @@ class _AllBlogCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: AppColors.surfacePrimary,
       borderRadius: BorderRadius.circular(18),
       elevation: 2.5,
-      shadowColor: Colors.black.withValues(alpha: 0.12),
+      shadowColor: AppColors.shadowSubtle,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
@@ -355,10 +368,7 @@ class _AllBlogCard extends StatelessWidget {
                     fit: BoxFit.cover,
                     errorBuilder: (_, _, _) => Container(
                       color: _goldLight,
-                      child: const Icon(
-                        Icons.image_outlined,
-                        color: _gold,
-                      ),
+                      child: const Icon(Icons.image_outlined, color: _gold),
                     ),
                   ),
                   Positioned(
@@ -372,22 +382,20 @@ class _AllBlogCard extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: _primary,
                         borderRadius: BorderRadius.circular(999),
-                        boxShadow: [
+                        boxShadow: const [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.16),
+                            color: AppColors.shadowMedium,
                             blurRadius: 10,
-                            offset: const Offset(0, 3),
+                            offset: Offset(0, 3),
                           ),
                         ],
                       ),
                       child: Text(
                         post.category.isNotEmpty ? post.category : 'Tin tức',
-                        style: AppTypography.main(
-                          const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
+                        style: AppTypography.caption(
+                          color: AppColors.surfacePrimary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
@@ -405,13 +413,11 @@ class _AllBlogCard extends StatelessWidget {
                       post.title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: AppTypography.display(
-                        const TextStyle(
-                          fontSize: 14,
-                          height: 1.25,
-                          fontWeight: FontWeight.w800,
-                          color: _ink,
-                        ),
+                      style: AppTypography.subtitle1(
+                        fontSize: 14,
+                        height: 1.25,
+                        fontWeight: FontWeight.w800,
+                        color: _ink,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -419,12 +425,10 @@ class _AllBlogCard extends StatelessWidget {
                       post.excerpt,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: AppTypography.main(
-                        const TextStyle(
-                          fontSize: 12,
-                          height: 1.45,
-                          color: _secondary,
-                        ),
+                      style: AppTypography.bodySmall(
+                        fontSize: 12,
+                        height: 1.45,
+                        color: _secondary,
                       ),
                     ),
                     const Spacer(),
@@ -441,23 +445,19 @@ class _AllBlogCard extends StatelessWidget {
                             post.date,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: AppTypography.main(
-                              const TextStyle(
-                                fontSize: 11,
-                                color: _secondary,
-                                fontWeight: FontWeight.w600,
-                              ),
+                            style: AppTypography.caption(
+                              fontSize: 11,
+                              color: _secondary,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
                         Text(
                           'Đọc tiếp',
-                          style: AppTypography.main(
-                            const TextStyle(
-                              fontSize: 11,
-                              color: _primary,
-                              fontWeight: FontWeight.w800,
-                            ),
+                          style: AppTypography.caption(
+                            fontSize: 11,
+                            color: _primary,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                         const SizedBox(width: 3),
@@ -489,13 +489,13 @@ Widget _buildAppBar(VoidCallback? onBack) {
           width: 44,
           height: 44,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.surfacePrimary,
             shape: BoxShape.circle,
-            boxShadow: [
+            boxShadow: const [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.10),
+                color: AppColors.shadowLight,
                 blurRadius: 16,
-                offset: const Offset(0, 6),
+                offset: Offset(0, 6),
               ),
             ],
           ),
@@ -516,26 +516,22 @@ Widget _buildAppBar(VoidCallback? onBack) {
             children: [
               Text(
                 'Dai Phat Lottery',
-                style: AppTypography.display(
-                  const TextStyle(
-                    fontSize: 21,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.primaryDark,
-                    height: 1.1,
-                  ),
+                style: AppTypography.h3(
+                  fontSize: 21,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primaryDark,
+                  height: 1.1,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 'XỔ SỐ - MAY MẮN - THỊNH VƯỢNG',
                 textAlign: TextAlign.center,
-                style: AppTypography.main(
-                  const TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: 0.9,
-                    color: Color.fromARGB(255, 87, 91, 61),
-                  ),
+                style: AppTypography.caption(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 0.9,
+                  color: AppColors.contentSecondary,
                 ),
               ),
             ],
@@ -545,22 +541,19 @@ Widget _buildAppBar(VoidCallback? onBack) {
           width: 44,
           height: 44,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.surfacePrimary,
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: const Color(0xFFE8E8EE)),
-            boxShadow: [
+            border: Border.all(color: AppColors.borderLight),
+            boxShadow: const [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.10),
+                color: AppColors.shadowLight,
                 blurRadius: 16,
-                offset: const Offset(0, 6),
+                offset: Offset(0, 6),
               ),
             ],
           ),
           clipBehavior: Clip.antiAlias,
-          child: Image.asset(
-            'assets/images/login_logo.jpg',
-            fit: BoxFit.cover,
-          ),
+          child: Image.asset('assets/images/login_logo.jpg', fit: BoxFit.cover),
         ),
       ],
     ),
@@ -578,12 +571,12 @@ Widget _buildSearchBar({
       decoration: BoxDecoration(
         color: _surface,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFD9DAE2)),
-        boxShadow: [
+        border: Border.all(color: AppColors.borderLight),
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: AppColors.shadowFaint,
             blurRadius: 10,
-            offset: const Offset(0, 3),
+            offset: Offset(0, 3),
           ),
         ],
       ),
@@ -591,14 +584,12 @@ Widget _buildSearchBar({
         controller: controller,
         textInputAction: TextInputAction.search,
         onSubmitted: onSubmitted,
-        style: AppTypography.main(const TextStyle(fontSize: 14, color: _ink)),
+        style: AppTypography.bodyMedium(fontSize: 14, color: _ink),
         decoration: InputDecoration(
           hintText: 'Tìm kiếm ...',
-          hintStyle: AppTypography.main(
-            TextStyle(
-              fontSize: 14,
-              color: _secondary.withValues(alpha: 0.75),
-            ),
+          hintStyle: AppTypography.bodyMedium(
+            fontSize: 14,
+            color: _secondary.withValues(alpha: 0.75),
           ),
           prefixIcon: const Icon(
             Icons.search_rounded,
@@ -614,52 +605,18 @@ Widget _buildSearchBar({
 }
 
 Widget _buildCategoryChips({
-  required List<String> categories,
+  required List<AppFilterTabItem<int>> categoryTabs,
   required int selectedIndex,
   required void Function(int) onSelected,
 }) {
-  return SingleChildScrollView(
-    scrollDirection: Axis.horizontal,
-    padding: const EdgeInsets.symmetric(horizontal: 16),
-    child: Row(
-      children: List.generate(categories.length, (i) {
-        final selected = i == selectedIndex;
-        return GestureDetector(
-          onTap: () => onSelected(i),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            margin: EdgeInsets.only(right: i < categories.length - 1 ? 12 : 0),
-            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
-            decoration: BoxDecoration(
-              color: selected ? _primary : _surface,
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(
-                color: selected ? _primary : const Color(0xFFD8DAE2),
-              ),
-              boxShadow: selected
-                  ? [
-                      BoxShadow(
-                        color: _primary.withValues(alpha: 0.25),
-                        blurRadius: 14,
-                        offset: const Offset(0, 5),
-                      ),
-                    ]
-                  : [],
-            ),
-            child: Text(
-              categories[i],
-              style: AppTypography.main(
-                TextStyle(
-                  fontSize: 13,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                  color: selected ? Colors.white : _ink,
-                ),
-              ),
-            ),
-          ),
-        );
-      }),
-    ),
+  return AppFilterTabStrip<int>(
+    items: [
+      const AppFilterTabItem<int>(value: 0, label: 'Tất cả'),
+      ...categoryTabs,
+    ],
+    selectedValue: selectedIndex,
+    onSelected: onSelected,
+    height: 44,
   );
 }
 
@@ -686,15 +643,13 @@ class _SectionHeader extends StatelessWidget {
                   borderRadius: BorderRadius.circular(99),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               Text(
                 title,
-                style: AppTypography.display(
-                  const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: _ink,
-                  ),
+                style: AppTypography.h4(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: _ink,
                 ),
               ),
             ],
@@ -706,12 +661,10 @@ class _SectionHeader extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               child: Text(
                 'Xem tất cả',
-                style: AppTypography.main(
-                  const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: _primary,
-                  ),
+                style: AppTypography.buttonMedium(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: _primary,
                 ),
               ),
             ),
@@ -753,11 +706,11 @@ Widget _buildFeaturedCard(BlogPost post, void Function(BlogPost) onOpenDetail) {
       decoration: BoxDecoration(
         color: _surface,
         borderRadius: BorderRadius.circular(26),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
+            color: AppColors.shadowLight,
             blurRadius: 24,
-            offset: const Offset(0, 10),
+            offset: Offset(0, 10),
           ),
         ],
       ),
@@ -781,9 +734,9 @@ Widget _buildFeaturedCard(BlogPost post, void Function(BlogPost) onOpenDetail) {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withValues(alpha: 0.05),
-                    Colors.black.withValues(alpha: 0.18),
-                    Colors.black.withValues(alpha: 0.74),
+                    AppColors.neutralInk.withValues(alpha: 0.05),
+                    AppColors.neutralInk.withValues(alpha: 0.18),
+                    AppColors.neutralInk.withValues(alpha: 0.74),
                   ],
                   stops: const [0.25, 0.55, 1],
                 ),
@@ -799,13 +752,11 @@ Widget _buildFeaturedCard(BlogPost post, void Function(BlogPost) onOpenDetail) {
               children: [
                 Text(
                   post.title,
-                  style: AppTypography.display(
-                    const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                      height: 1.35,
-                    ),
+                  style: AppTypography.h4(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.surfacePrimary,
+                    height: 1.35,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -814,13 +765,11 @@ Widget _buildFeaturedCard(BlogPost post, void Function(BlogPost) onOpenDetail) {
                   const SizedBox(height: 8),
                   Text(
                     post.excerpt,
-                    style: AppTypography.main(
-                      TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w400,
-                        color: Colors.white.withValues(alpha: 0.84),
-                        height: 1.45,
-                      ),
+                    style: AppTypography.bodySmall(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w400,
+                      color: AppColors.surfacePrimary.withValues(alpha: 0.84),
+                      height: 1.45,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -839,12 +788,10 @@ Widget _buildFeaturedCard(BlogPost post, void Function(BlogPost) onOpenDetail) {
                       alignment: Alignment.center,
                       child: Text(
                         'DP',
-                        style: AppTypography.display(
-                          const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                          ),
+                        style: AppTypography.caption(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.surfacePrimary,
                         ),
                       ),
                     ),
@@ -853,13 +800,11 @@ Widget _buildFeaturedCard(BlogPost post, void Function(BlogPost) onOpenDetail) {
                       child: Text(
                         (post.author.isEmpty ? 'Dai Phat' : post.author)
                             .toUpperCase(),
-                        style: AppTypography.main(
-                          const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                            letterSpacing: 0.3,
-                          ),
+                        style: AppTypography.caption(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.surfacePrimary,
+                          letterSpacing: 0.3,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -867,11 +812,11 @@ Widget _buildFeaturedCard(BlogPost post, void Function(BlogPost) onOpenDetail) {
                     ),
                     Text(
                       post.authorDate.isNotEmpty ? post.authorDate : post.date,
-                      style: AppTypography.main(
-                        TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.white.withValues(alpha: 0.78),
+                      style: AppTypography.caption(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.surfacePrimary.withValues(
+                          alpha: 0.78,
                         ),
                       ),
                     ),
@@ -896,11 +841,11 @@ Widget _buildRecentCard(BlogPost post, void Function(BlogPost) onOpenDetail) {
           color: _surface,
           borderRadius: BorderRadius.circular(22),
           border: Border.all(color: _cardBorder),
-          boxShadow: [
+          boxShadow: const [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
+              color: AppColors.shadowFaint,
               blurRadius: 14,
-              offset: const Offset(0, 5),
+              offset: Offset(0, 5),
             ),
           ],
         ),
@@ -936,13 +881,11 @@ Widget _buildRecentCard(BlogPost post, void Function(BlogPost) onOpenDetail) {
                   children: [
                     Text(
                       post.title,
-                      style: AppTypography.display(
-                        const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: _ink,
-                          height: 1.3,
-                        ),
+                      style: AppTypography.subtitle1(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: _ink,
+                        height: 1.3,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -950,12 +893,10 @@ Widget _buildRecentCard(BlogPost post, void Function(BlogPost) onOpenDetail) {
                     const SizedBox(height: 6),
                     Text(
                       post.excerpt,
-                      style: AppTypography.main(
-                        const TextStyle(
-                          fontSize: 13,
-                          color: _secondary,
-                          height: 1.45,
-                        ),
+                      style: AppTypography.bodySmall(
+                        fontSize: 13,
+                        color: _secondary,
+                        height: 1.45,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -971,12 +912,10 @@ Widget _buildRecentCard(BlogPost post, void Function(BlogPost) onOpenDetail) {
                         const SizedBox(width: 6),
                         Text(
                           post.date,
-                          style: AppTypography.main(
-                            const TextStyle(
-                              fontSize: 12,
-                              color: _secondary,
-                              fontWeight: FontWeight.w500,
-                            ),
+                          style: AppTypography.caption(
+                            fontSize: 12,
+                            color: _secondary,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
@@ -1007,12 +946,12 @@ class _BlogSkeleton extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: Shimmer.fromColors(
-              baseColor: Colors.grey[300]!,
-              highlightColor: Colors.grey[100]!,
+              baseColor: AppColors.neutral300,
+              highlightColor: AppColors.neutral100,
               child: Container(
                 height: 360,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.surfacePrimary,
                   borderRadius: BorderRadius.circular(26),
                 ),
               ),
@@ -1024,12 +963,12 @@ class _BlogSkeleton extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: Shimmer.fromColors(
-                baseColor: Colors.grey[300]!,
-                highlightColor: Colors.grey[100]!,
+                baseColor: AppColors.neutral300,
+                highlightColor: AppColors.neutral100,
                 child: Container(
                   height: 120,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.surfacePrimary,
                     borderRadius: BorderRadius.circular(22),
                   ),
                 ),
@@ -1060,24 +999,27 @@ class _BlogError extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               'Không thể tải danh sách blog',
-              style: AppTypography.display(
-                const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
+              style: AppTypography.h4(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(height: 8),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: AppTypography.main(const TextStyle(color: _secondary)),
+              style: AppTypography.bodyMedium(color: _secondary),
             ),
             const SizedBox(height: 24),
             FilledButton(
               onPressed: onRetry,
               style: FilledButton.styleFrom(backgroundColor: _primary),
-              child: const Text('Thu lai'),
+              child: Text(
+                'Thử lại',
+                style: AppTypography.buttonMedium(
+                  color: AppColors.surfacePrimary,
+                ),
+              ),
             ),
           ],
         ),

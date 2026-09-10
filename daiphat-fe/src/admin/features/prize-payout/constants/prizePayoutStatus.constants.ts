@@ -53,6 +53,13 @@ export const PRIZE_PAYOUT_STATUS_BADGE: Record<PrizePayoutRequestStatus, PrizePa
         activeColor: 'var(--palette-common-white)',
         activeBg: 'var(--palette-grey-600)',
     },
+    [PrizePayoutRequestStatus.AWAITING_FUND]: {
+        label: 'Chờ quỹ',
+        color: 'var(--palette-warning-dark)',
+        bg: 'var(--palette-warning-lighter)',
+        activeColor: 'var(--palette-warning-contrastText)',
+        activeBg: 'var(--palette-warning-main)',
+    },
 };
 
 export const PRIZE_PAYOUT_ALL_TAB: PrizePayoutStatusTab = {

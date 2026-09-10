@@ -86,12 +86,12 @@ void main() {
     expect(find.text('first: 1'), findsOneWidget);
   });
 
-  test('router uses six persistent branches, including utilities', () {
+  test('router uses five persistent branches, including utilities', () {
     final router = _readSource('lib/src/app/routing/app_router.dart');
 
     expect(router, contains('StatefulShellRoute.indexedStack('));
     final branches = router.substring(router.indexOf('branches: ['));
-    expect(RegExp(r'StatefulShellBranch\(').allMatches(branches).length, 6);
+    expect(RegExp(r'StatefulShellBranch\(').allMatches(branches).length, 5);
     expect(
       branches.indexOf('AppRoute.buyTicket') <
               branches.indexOf('AppRoute.checkTicket') &&
@@ -100,14 +100,25 @@ void main() {
           branches.indexOf('AppRoute.home') <
               branches.indexOf('AppRoute.utilitiesTwo') &&
           branches.indexOf('AppRoute.utilitiesTwo') <
-              branches.indexOf('AppRoute.notifications') &&
-          branches.indexOf('AppRoute.notifications') <
               branches.indexOf('AppRoute.profile'),
       isTrue,
     );
-    expect(router, contains('showBackButton: false'));
     expect(router, contains('UtilitiesTwoView('));
     expect(router, contains('path == AppRoute.profile.path'));
+  });
+
+  test('legacy utilities route redirects to the canonical tab', () {
+    final router = _readSource('lib/src/app/routing/app_router.dart');
+    final legacyView = File(
+      'lib/src/features/utilities/presentation/views/utilities_view.dart',
+    );
+
+    expect(
+      router,
+      contains('redirect: (context, state) => AppRoute.utilitiesTwo.path'),
+    );
+    expect(router, isNot(contains('utilities_view.dart')));
+    expect(legacyView.existsSync(), isFalse);
   });
 
   test('main layout selects branches without a PageView side channel', () {
@@ -117,14 +128,14 @@ void main() {
 
     expect(layout, contains('final StatefulNavigationShell navigationShell;'));
     expect(layout, contains('body: navigationShell'));
-    expect(layout, contains('navigationShell.goBranch(index);'));
+    expect(layout, contains('navigationShell.goBranch(branchIndex);'));
     expect(layout, contains('canPop: navigationShell.currentIndex == 2'));
     expect(layout, contains('navigationShell.goBranch(2);'));
     expect(layout, isNot(contains('PageView(')));
     expect(layout, isNot(contains('PageController')));
   });
 
-  test('all notification entry points select the canonical tab', () {
+  test('all notification entry points open the protected notification route', () {
     final service = _readSource(
       'lib/src/shared/services/notification_service.dart',
     );
@@ -136,7 +147,7 @@ void main() {
     );
 
     expect(service, contains('context.go(AppRoute.notifications.path);'));
-    expect(profile, contains('context.go(AppRoute.notifications.path),'));
+    expect(profile, contains('context.push(AppRoute.notifications.path),'));
     expect(view, contains('final bool showBackButton;'));
     expect(view, contains('automaticallyImplyLeading: false'));
   });

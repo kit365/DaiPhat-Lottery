@@ -30,7 +30,14 @@ public final class SupplierSettlementSpecification {
                 predicates.add(cb.equal(root.get("lotterySupplier").get("id"), lotterySupplierId));
             }
             if (status != null) {
-                predicates.add(cb.equal(root.get("status"), status));
+                if (status == SupplierSettlementStatus.COMPLETED) {
+                    predicates.add(root.get("status").in(
+                            SupplierSettlementStatus.COMPLETED,
+                            SupplierSettlementStatus.CLOSED
+                    ));
+                } else {
+                    predicates.add(cb.equal(root.get("status"), status));
+                }
             }
             if (periodFrom != null) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("periodFrom"), periodFrom));

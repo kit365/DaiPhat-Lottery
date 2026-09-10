@@ -4,10 +4,11 @@ import 'package:go_router/go_router.dart';
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
+import 'package:daiphat_mobile/src/shared/widgets/app_header_action_button.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/login_viewmodel.dart';
-import 'package:daiphat_mobile/src/features/chat/presentation/views/chat_screen.dart';
 import 'package:daiphat_mobile/src/features/notifications/presentation/viewmodels/notification_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/profile_iconography.dart';
 
 class HomeHeader extends StatelessWidget {
   final LoginViewModel loginViewModel;
@@ -19,18 +20,6 @@ class HomeHeader extends StatelessWidget {
     required this.notificationViewModel,
   });
 
-  void _openChat(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => ChatScreen(
-          isAuthenticated: loginViewModel.isAuthenticated,
-          isActive: true,
-          onBack: () => Navigator.of(context).pop(),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -41,90 +30,69 @@ class HomeHeader extends StatelessWidget {
           child: Row(
             children: [
               SizedBox(
-                width: 52,
-                height: 52,
+                width: 46,
+                height: 46,
                 child: Transform.scale(
-                  scale: 1.2,
+                  scale: 1.15,
                   child: Image.asset(
                     'assets/images/logoApp.png',
                     fit: BoxFit.contain,
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'ĐẠI PHÁT',
-                    style: AppTypography.display(
-                      const TextStyle(
-                        fontSize: 20,
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'ĐẠI PHÁT',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.h3(
+                        fontSize: 19,
                         fontWeight: FontWeight.w900,
                         color: AppColors.primaryDark,
                         height: 1.1,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'XỔ SỐ - MAY MẮN - THỊNH VƯỢNG',
-                    style: AppTypography.main(
-                      const TextStyle(
-                        fontSize: 9,
+                    const SizedBox(height: 2),
+                    Text(
+                      'XỔ SỐ - MAY MẮN - THỊNH VƯỢNG',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.overline(
+                        fontSize: 8.5,
                         fontWeight: FontWeight.w800,
                         color: AppColors.goldDark,
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-              const Spacer(),
+              const SizedBox(width: 6),
               if (loginViewModel.isAuthenticated) ...[
-                const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: () => _openChat(context),
-                  child: _iconBtn(Icons.chat_bubble_outline_rounded),
+                ListenableBuilder(
+                  listenable: notificationViewModel,
+                  builder: (context, _) => AppHeaderActionButton(
+                    icon: ProfileIconography.notifications,
+                    tooltip: 'Thông báo',
+                    badgeCount: notificationViewModel.unreadCount,
+                    variant: AppHeaderActionVariant.bare,
+                    onTap: () => context.pushNamed(AppRoute.notifications.name),
+                  ),
                 ),
                 const SizedBox(width: 8),
                 Consumer(
                   builder: (context, ref, child) {
                     final cartItemCount = ref.watch(cartTicketCountProvider);
-                    return GestureDetector(
+                    return AppHeaderActionButton(
+                      icon: Icons.shopping_cart_outlined,
+                      tooltip: 'Giỏ hàng',
+                      badgeCount: cartItemCount,
+                      variant: AppHeaderActionVariant.bare,
                       onTap: () => context.pushNamed(AppRoute.cart.name),
-                      child: Stack(
-                        children: [
-                          _iconBtn(Icons.shopping_cart_outlined),
-                          if (cartItemCount > 0)
-                            Positioned(
-                              right: 2,
-                              top: 2,
-                              child: Container(
-                                constraints: const BoxConstraints(
-                                  minWidth: 18,
-                                  minHeight: 18,
-                                ),
-                                padding: const EdgeInsets.symmetric(horizontal: 4),
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary,
-                                  borderRadius: BorderRadius.circular(999),
-                                  border: Border.all(color: Colors.white, width: 1.5),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    '$cartItemCount',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
                     );
                   },
                 ),
@@ -133,25 +101,6 @@ class HomeHeader extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-
-  Widget _iconBtn(IconData icon) {
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: .9),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: .04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Icon(icon, color: AppColors.primary, size: 22),
     );
   }
 }

@@ -1,4 +1,4 @@
-export type SupplierSettlementStatus = 'OPEN' | 'RECEIPT_OVERDUE' | 'COMPLETED';
+export type SupplierSettlementStatus = 'OPEN' | 'RECEIPT_OVERDUE' | 'CLOSED' | 'COMPLETED';
 
 export type SupplierSettlementReconciliationPhase =
     | 'MATCHING'

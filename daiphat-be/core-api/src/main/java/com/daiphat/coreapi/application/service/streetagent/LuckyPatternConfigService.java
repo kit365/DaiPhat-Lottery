@@ -32,6 +32,14 @@ public class LuckyPatternConfigService implements LuckyPatternConfigServicePort 
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<LuckyPatternConfigResponse> getActive() {
+        return luckyPatternConfigRepositoryPort.findActiveByPriorityDesc().stream()
+                .map(this::response)
+                .toList();
+    }
+
+    @Override
     @Transactional
     public LuckyPatternConfigResponse create(UpsertLuckyPatternConfigRequest request) {
         LuckyPatternConfigModel entity = LuckyPatternConfigModel.builder().build();

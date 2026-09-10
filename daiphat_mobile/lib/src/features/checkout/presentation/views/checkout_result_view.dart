@@ -1,11 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
+import '../providers/checkout_provider.dart';
 
-class CheckoutResultView extends StatelessWidget {
+enum _PaymentVerification { checking, success, failed, pending }
+
+bool isConfirmedPaidOrderStatus(String status) => const {
+  'PAID',
+  'PREPARING',
+  'PENDING_PICKUP',
+  'COMPLETED',
+}.contains(status.toUpperCase());
+
+class CheckoutResultView extends ConsumerStatefulWidget {
   final String? code;
   final String? orderCode;
   final String? internalCode;
@@ -25,31 +37,115 @@ class CheckoutResultView extends StatelessWidget {
     this.orderId,
   });
 
-  bool get isSuccess {
-    // From PayOS: code === '00' && cancel !== 'true'
-    // From offline: code === '00' means success
-    return code == '00' && cancel != 'true';
+  @override
+  ConsumerState<CheckoutResultView> createState() => _CheckoutResultViewState();
+}
+
+class _CheckoutResultViewState extends ConsumerState<CheckoutResultView> {
+  late _PaymentVerification _verification;
+
+  bool get _callbackReportsSuccess =>
+      widget.code == '00' && widget.cancel != 'true';
+
+  bool get isSuccess => _verification == _PaymentVerification.success;
+
+  bool get _isChecking => _verification == _PaymentVerification.checking;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!_callbackReportsSuccess) {
+      _verification = _PaymentVerification.failed;
+      return;
+    }
+    if (widget.orderId == null || widget.orderId!.isEmpty) {
+      _verification = _PaymentVerification.pending;
+      return;
+    }
+    _verification = _PaymentVerification.checking;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _verifyPayment());
   }
 
+  Future<void> _verifyPayment() async {
+    final orderId = widget.orderId;
+    if (orderId == null || orderId.isEmpty) return;
+
+    for (var attempt = 0; attempt < 3; attempt++) {
+      try {
+        final order = await ref
+            .read(transactionRepositoryProvider)
+            .syncOnlinePayment(orderId);
+        if (!mounted) return;
+        if (isConfirmedPaidOrderStatus(order.status)) {
+          ref
+              .read(checkoutProvider.notifier)
+              .finalizeAfterConfirmedPayment(orderId);
+          setState(() => _verification = _PaymentVerification.success);
+          return;
+        }
+        if (_isFailedOrderStatus(order.status)) {
+          setState(() => _verification = _PaymentVerification.failed);
+          return;
+        }
+      } catch (_) {
+        if (!mounted) return;
+      }
+      if (attempt < 2) {
+        await Future<void>.delayed(const Duration(seconds: 1));
+        if (!mounted) return;
+      }
+    }
+    if (mounted) {
+      setState(() => _verification = _PaymentVerification.pending);
+    }
+  }
+
+  bool _isFailedOrderStatus(String status) => const {
+    'CANCELLED',
+    'FAILED',
+    'PAYMENT_FAILED',
+  }.contains(status.toUpperCase());
+
+  String get _title => switch (_verification) {
+    _PaymentVerification.checking => 'Đang xác nhận thanh toán',
+    _PaymentVerification.success => 'Thanh toán thành công!',
+    _PaymentVerification.pending => 'Thanh toán đang xử lý',
+    _PaymentVerification.failed => 'Thanh toán thất bại',
+  };
+
+  String get _message => switch (_verification) {
+    _PaymentVerification.checking =>
+      'Đại Phát đang kiểm tra trạng thái giao dịch với PayOS.',
+    _PaymentVerification.success => 'Cảm ơn bạn đã đặt vé tại Đại Phát.',
+    _PaymentVerification.pending =>
+      'Chưa thể xác nhận giao dịch. Vui lòng kiểm tra lại trong chi tiết đơn hàng.',
+    _PaymentVerification.failed =>
+      'Rất tiếc, quá trình thanh toán không thành công hoặc đã bị hủy.',
+  };
+
   String get displayCode {
-    if (internalCode != null && internalCode!.isNotEmpty) return internalCode!;
-    if (orderCode != null && orderCode!.isNotEmpty) return 'DP$orderCode';
+    if (widget.internalCode != null && widget.internalCode!.isNotEmpty) {
+      return widget.internalCode!;
+    }
+    if (widget.orderCode != null && widget.orderCode!.isNotEmpty) {
+      return 'DP${widget.orderCode}';
+    }
     return '';
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFBF8),
+      backgroundColor: AppColors.backgroundPrimary,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
+        backgroundColor: AppColors.surfacePrimary,
+        surfaceTintColor: AppColors.transparent,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(
             Icons.arrow_back_ios_new_rounded,
             size: 20,
-            color: AppColors.primary,
+            color: AppColors.contentPrimary,
           ),
           onPressed: () {
             // Go back to home
@@ -69,8 +165,10 @@ class CheckoutResultView extends StatelessWidget {
                 width: 80,
                 decoration: BoxDecoration(
                   color: isSuccess
-                      ? const Color(0xFF00A76F)
-                      : Colors.red.shade500,
+                      ? AppColors.statusSuccess
+                      : _isChecking
+                      ? AppColors.statusWarning
+                      : AppColors.primary,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -83,53 +181,66 @@ class CheckoutResultView extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: isSuccess
-                      ? const Color(0xFFE8F5E9)
-                      : Colors.red.shade50,
+                      ? AppColors.statusSuccessSurface
+                      : _isChecking
+                      ? AppColors.statusWarningSurface
+                      : AppColors.surfaceEmptyState,
                   border: Border.all(
                     color: isSuccess
-                        ? const Color(0xFFE8F5E9)
-                        : Colors.red.shade200,
+                        ? AppColors.statusSuccessSurface
+                        : _isChecking
+                        ? AppColors.statusWarning
+                        : AppColors.borderWarm,
                     width: 3,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: (isSuccess ? const Color(0xFF00A76F) : Colors.red)
-                          .withValues(alpha: 0.15),
+                      color:
+                          (isSuccess
+                                  ? AppColors.statusSuccess
+                                  : AppColors.primary)
+                              .withValues(alpha: 0.15),
                       blurRadius: 20,
                       offset: const Offset(0, 6),
                     ),
                   ],
                 ),
                 child: Icon(
-                  isSuccess ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                  isSuccess
+                      ? Icons.check_circle_rounded
+                      : _isChecking
+                      ? Icons.hourglass_top_rounded
+                      : Icons.cancel_rounded,
                   size: 56,
                   color: isSuccess
-                      ? const Color(0xFF00A76F)
-                      : Colors.red.shade500,
+                      ? AppColors.statusSuccess
+                      : _isChecking
+                      ? AppColors.statusWarning
+                      : AppColors.primary,
                 ),
               ),
               const SizedBox(height: 24),
 
               // Title
               Text(
-                isSuccess ? 'Thanh toán thành công!' : 'Thanh toán thất bại',
-                style: TextStyle(
-                  fontSize: 26,
+                _title,
+                style: AppTypography.h3(
+                  fontSize: 24,
                   fontWeight: FontWeight.w900,
                   color: isSuccess
-                      ? const Color(0xFF00A76F)
-                      : Colors.red.shade500,
+                      ? AppColors.statusSuccess
+                      : _isChecking
+                      ? AppColors.statusWarning
+                      : AppColors.primary,
                 ),
               ),
               const SizedBox(height: 8),
 
               Text(
-                isSuccess
-                    ? 'Cảm ơn bạn đã đặt vé tại Đại Phát.'
-                    : 'Rất tiếc, quá trình thanh toán không thành công hoặc đã bị hủy.',
+                _message,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFF6B7280),
+                style: AppTypography.bodyLarge(
+                  color: AppColors.contentMuted,
                   fontSize: 15,
                   fontWeight: FontWeight.w500,
                 ),
@@ -142,9 +253,16 @@ class CheckoutResultView extends StatelessWidget {
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFAFBFC),
+                    color: AppColors.surfacePrimary,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFF4F6F8)),
+                    border: Border.all(color: AppColors.cardBorder),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: AppColors.shadowLight,
+                        blurRadius: 10,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
                   ),
                   child: Column(
                     children: [
@@ -153,27 +271,21 @@ class CheckoutResultView extends StatelessWidget {
                           Container(
                             width: 36,
                             height: 36,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
+                            decoration: const BoxDecoration(
+                              color: AppColors.backgroundPrimary,
                               shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.05),
-                                  blurRadius: 6,
-                                ),
-                              ],
                             ),
                             child: const Icon(
                               Icons.tag_rounded,
                               size: 18,
-                              color: Color(0xFF6B7280),
+                              color: AppColors.contentMuted,
                             ),
                           ),
                           const SizedBox(width: 12),
-                          const Text(
+                          Text(
                             'Mã đơn hàng',
-                            style: TextStyle(
-                              color: Color(0xFF15213B),
+                            style: AppTypography.subtitle2(
+                              color: AppColors.contentPrimary,
                               fontWeight: FontWeight.w600,
                               fontSize: 15,
                             ),
@@ -185,7 +297,7 @@ class CheckoutResultView extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               textAlign: TextAlign.end,
-                              style: const TextStyle(
+                              style: AppTypography.monoCode(
                                 color: AppColors.primary,
                                 fontWeight: FontWeight.w900,
                                 fontSize: 15,
@@ -195,47 +307,39 @@ class CheckoutResultView extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      const Divider(height: 1, color: Color(0xFFE5E8EB)),
+                      const Divider(height: 1, color: AppColors.borderLight),
                       const SizedBox(height: 16),
                       Row(
                         children: [
                           Container(
                             width: 36,
                             height: 36,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
+                            decoration: const BoxDecoration(
+                              color: AppColors.backgroundPrimary,
                               shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.05),
-                                  blurRadius: 6,
-                                ),
-                              ],
                             ),
                             child: const Icon(
                               Icons.calendar_month_rounded,
                               size: 18,
-                              color: Color(0xFF6B7280),
+                              color: AppColors.contentMuted,
                             ),
                           ),
                           const SizedBox(width: 12),
-                          const Text(
+                          Text(
                             'Thời gian đặt',
-                            style: TextStyle(
-                              color: Color(0xFF15213B),
+                            style: AppTypography.subtitle2(
+                              color: AppColors.contentPrimary,
                               fontWeight: FontWeight.w600,
                               fontSize: 15,
                             ),
                           ),
                           const Spacer(),
                           Text(
-                            DateFormat(
-                              'dd/MM/yyyy - HH:mm',
-                            ).format(DateTime.now()),
-                            style: const TextStyle(
-                              color: Color(0xFF15213B),
+                            AppFormatters.formatDateTime(DateTime.now()),
+                            style: AppTypography.bodyMedium(
+                              color: AppColors.contentPrimary,
                               fontWeight: FontWeight.w800,
-                              fontSize: 15,
+                              fontSize: 14.5,
                             ),
                           ),
                         ],
@@ -253,18 +357,19 @@ class CheckoutResultView extends StatelessWidget {
                     child: OutlinedButton(
                       onPressed: () => context.go(AppRoute.home.path),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        side: const BorderSide(color: AppColors.primary),
+                        foregroundColor: AppColors.contentPrimary,
+                        side: const BorderSide(color: AppColors.borderDefault),
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
                       ),
-                      child: const Text(
+                      child: Text(
                         'Về trang chủ',
-                        style: TextStyle(
+                        style: AppTypography.buttonMedium(
                           fontWeight: FontWeight.w800,
                           fontSize: 15,
+                          color: AppColors.contentPrimary,
                         ),
                       ),
                     ),
@@ -273,10 +378,11 @@ class CheckoutResultView extends StatelessWidget {
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
-                        if (orderId != null && orderId!.isNotEmpty) {
+                        if (widget.orderId != null &&
+                            widget.orderId!.isNotEmpty) {
                           context.pushNamed(
                             AppRoute.orderDetail.name,
-                            pathParameters: {'id': orderId!},
+                            pathParameters: {'id': widget.orderId!},
                           );
                         } else {
                           context.go(AppRoute.myOrders.path);
@@ -284,18 +390,19 @@ class CheckoutResultView extends StatelessWidget {
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
+                        foregroundColor: AppColors.surfacePrimary,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
-                        elevation: 2,
+                        elevation: 0,
                       ),
-                      child: const Text(
+                      child: Text(
                         'Xem chi tiết đơn',
-                        style: TextStyle(
+                        style: AppTypography.buttonMedium(
                           fontWeight: FontWeight.w800,
                           fontSize: 15,
+                          color: AppColors.surfacePrimary,
                         ),
                       ),
                     ),

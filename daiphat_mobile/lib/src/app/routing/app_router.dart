@@ -22,16 +22,17 @@ import 'package:daiphat_mobile/src/features/profile/presentation/views/profile_d
 import 'package:daiphat_mobile/src/features/notifications/presentation/views/notification_view.dart';
 import 'package:daiphat_mobile/src/features/notifications/presentation/views/notification_settings_view.dart';
 import 'package:daiphat_mobile/src/features/notifications/presentation/viewmodels/notification_viewmodel.dart';
-import 'package:daiphat_mobile/src/features/profile/presentation/views/bank_accounts_view.dart';
-import 'package:daiphat_mobile/src/features/profile/presentation/views/my_orders_view.dart';
-import 'package:daiphat_mobile/src/features/profile/presentation/views/my_tickets_view.dart';
-import 'package:daiphat_mobile/src/features/profile/presentation/views/my_ticket_detail_view.dart';
-import 'package:daiphat_mobile/src/features/profile/presentation/views/order_detail_view.dart';
+import 'package:daiphat_mobile/src/features/chat/presentation/views/chat_screen.dart';
+import 'package:daiphat_mobile/src/features/bank_accounts/presentation/views/bank_accounts_view.dart';
+import 'package:daiphat_mobile/src/features/orders/presentation/views/my_orders_view.dart';
+import 'package:daiphat_mobile/src/features/tickets/presentation/views/my_tickets_view.dart';
+import 'package:daiphat_mobile/src/features/tickets/presentation/views/my_ticket_detail_view.dart';
+import 'package:daiphat_mobile/src/features/orders/presentation/views/order_detail_view.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/views/profile_overview_view.dart';
-import 'package:daiphat_mobile/src/features/profile/presentation/views/refunds_view.dart';
-import 'package:daiphat_mobile/src/features/profile/presentation/views/refund_detail_view.dart';
-import 'package:daiphat_mobile/src/features/profile/presentation/views/prize_payouts_view.dart';
-import 'package:daiphat_mobile/src/features/profile/presentation/views/prize_payout_detail_view.dart';
+import 'package:daiphat_mobile/src/features/refunds/presentation/views/refunds_view.dart';
+import 'package:daiphat_mobile/src/features/refunds/presentation/views/refund_detail_view.dart';
+import 'package:daiphat_mobile/src/features/prize_payouts/presentation/views/prize_payouts_view.dart';
+import 'package:daiphat_mobile/src/features/prize_payouts/presentation/views/prize_payout_detail_view.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/views/complaints_view.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/views/complaint_detail_view.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/views/security_view.dart';
@@ -41,7 +42,6 @@ import 'package:daiphat_mobile/src/features/fortune/presentation/views/fortune_c
 import 'package:daiphat_mobile/src/features/blog/presentation/views/blog_screen.dart';
 import 'package:daiphat_mobile/src/features/schedule/presentation/views/schedule_view.dart';
 import 'package:daiphat_mobile/src/features/utilities/presentation/views/utilities_two_view.dart';
-import 'package:daiphat_mobile/src/features/utilities/presentation/views/utilities_view.dart';
 import 'app_routes.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -73,6 +73,7 @@ GoRouter createAppRouter({
               'orderCode': queryParams['orderCode']!,
             if (queryParams.containsKey('internalCode'))
               'internalCode': queryParams['internalCode']!,
+            if (queryParams.containsKey('orderId')) 'orderId': queryParams['orderId']!,
             if (queryParams.containsKey('status'))
               'status': queryParams['status']!,
             if (queryParams.containsKey('cancel'))
@@ -94,6 +95,7 @@ GoRouter createAppRouter({
               'orderCode': queryParams['orderCode']!,
             if (queryParams.containsKey('internalCode'))
               'internalCode': queryParams['internalCode']!,
+            if (queryParams.containsKey('orderId')) 'orderId': queryParams['orderId']!,
             if (queryParams.containsKey('status'))
               'status': queryParams['status']!,
             if (queryParams.containsKey('cancel'))
@@ -107,6 +109,7 @@ GoRouter createAppRouter({
           (path == AppRoute.cart.path ||
               path == AppRoute.checkout.path ||
               path == AppRoute.notifications.path ||
+              path == AppRoute.chat.path ||
               path == AppRoute.profile.path) &&
           !loginViewModel.isAuthenticated) {
         return Uri(
@@ -169,22 +172,9 @@ GoRouter createAppRouter({
                 name: AppRoute.utilitiesTwo.name,
                 builder: (context, state) => UtilitiesTwoView(
                   isAuthenticated: loginViewModel.isAuthenticated,
-                  onBack: () => context.go(AppRoute.home.path),
                   onOpenNotifications: () =>
-                      context.go(AppRoute.notifications.path),
+                      context.push(AppRoute.notifications.path),
                   onOpenBlog: () => context.push(AppRoute.blog.path),
-                ),
-              ),
-            ],
-          ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: AppRoute.notifications.path,
-                name: AppRoute.notifications.name,
-                builder: (context, state) => NotificationView(
-                  viewModel: notificationViewModel,
-                  showBackButton: false,
                 ),
               ),
             ],
@@ -203,7 +193,8 @@ GoRouter createAppRouter({
                     path: 'security',
                     name: AppRoute.security.name,
                     parentNavigatorKey: rootNavigatorKey,
-                    builder: (context, state) => const SecurityView(),
+                    builder: (context, state) =>
+                        SecurityView(profileViewModel: profileViewModel),
                   ),
                 ],
               ),
@@ -396,6 +387,22 @@ GoRouter createAppRouter({
         notificationViewModel,
       ),
       _route(
+        AppRoute.notifications,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
+      _route(
+        AppRoute.chat,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
+      _route(
         AppRoute.notificationSettings,
         loginViewModel,
         registerViewModel,
@@ -427,13 +434,10 @@ GoRouter createAppRouter({
         profileViewModel,
         notificationViewModel,
       ),
-      _route(
-        AppRoute.utilities,
-        loginViewModel,
-        registerViewModel,
-        forgotPasswordViewModel,
-        profileViewModel,
-        notificationViewModel,
+      GoRoute(
+        path: AppRoute.utilities.path,
+        name: AppRoute.utilities.name,
+        redirect: (context, state) => AppRoute.utilitiesTwo.path,
       ),
     ],
   );
@@ -521,10 +525,12 @@ Widget _buildRoute(
       final checkoutUrl = state.uri.queryParameters['checkoutUrl'] ?? '';
       final callbackBaseUrl = state.uri.queryParameters['callbackBaseUrl'];
       final orderId = state.uri.queryParameters['orderId'];
+      final internalCode = state.uri.queryParameters['internalCode'];
       return PaymentWebView(
         checkoutUrl: checkoutUrl,
         callbackBaseUrl: callbackBaseUrl,
         orderId: orderId,
+        internalCode: internalCode,
       );
     case AppRoute.profile:
       return ProfileView(
@@ -532,7 +538,7 @@ Widget _buildRoute(
         notificationViewModel: notificationViewModel,
       );
     case AppRoute.security:
-      return const SecurityView();
+      return SecurityView(profileViewModel: profileViewModel);
     case AppRoute.profileEdit:
       return ProfileEditView(viewModel: profileViewModel);
     case AppRoute.profileDetail:
@@ -545,15 +551,23 @@ Widget _buildRoute(
       final internalCode = state.uri.queryParameters['internalCode'];
       final status = state.uri.queryParameters['status'];
       final cancel = state.uri.queryParameters['cancel'];
+      final orderId = state.uri.queryParameters['orderId'];
       return CheckoutResultView(
         code: code,
         orderCode: orderCode,
         internalCode: internalCode,
         status: status,
         cancel: cancel,
+        orderId: orderId,
       );
     case AppRoute.notifications:
       return NotificationView(viewModel: notificationViewModel);
+    case AppRoute.chat:
+      return ChatScreen(
+        isAuthenticated: loginViewModel.isAuthenticated,
+        isActive: true,
+        onBack: () => context.pop(),
+      );
     case AppRoute.notificationSettings:
       return const NotificationSettingsView();
     case AppRoute.bankAccounts:
@@ -569,7 +583,7 @@ Widget _buildRoute(
       final id = state.pathParameters['id'] ?? '';
       return OrderDetailView(orderId: id);
     case AppRoute.profileOverview:
-      return ProfileOverviewView(profileViewModel: profileViewModel);
+      return const ProfileOverviewView();
     case AppRoute.refunds:
       return const RefundsView();
     case AppRoute.refundDetail:
@@ -602,16 +616,15 @@ Widget _buildRoute(
         },
       );
     case AppRoute.utilities:
-      return UtilitiesView(
+      return UtilitiesTwoView(
         isAuthenticated: loginViewModel.isAuthenticated,
-        onOpenNotifications: () => context.go(AppRoute.notifications.path),
+        onOpenNotifications: () => context.push(AppRoute.notifications.path),
         onOpenBlog: () => context.push(AppRoute.blog.path),
       );
     case AppRoute.utilitiesTwo:
       return UtilitiesTwoView(
         isAuthenticated: loginViewModel.isAuthenticated,
-        onBack: () => context.go(AppRoute.home.path),
-        onOpenNotifications: () => context.go(AppRoute.notifications.path),
+        onOpenNotifications: () => context.push(AppRoute.notifications.path),
         onOpenBlog: () => context.push(AppRoute.blog.path),
       );
   }

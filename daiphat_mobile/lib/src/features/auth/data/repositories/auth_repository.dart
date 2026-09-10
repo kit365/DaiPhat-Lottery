@@ -1,6 +1,7 @@
 import 'package:daiphat_mobile/src/shared/network/api_client.dart';
 import 'package:daiphat_mobile/src/shared/network/api_exception.dart';
 import 'package:daiphat_mobile/src/shared/storage/auth_token_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../dto/register_request.dart';
 import '../dto/forgot_password_request.dart';
 import '../dto/verify_otp_request.dart';
@@ -8,14 +9,24 @@ import '../dto/reset_password_request.dart';
 import 'package:daiphat_mobile/src/features/profile/data/dto/update_profile_request.dart';
 import '../models/user.dart';
 import '../services/auth_api_service.dart';
+import '../services/google_auth_service.dart';
 
 class AuthRepository {
+  static const _checkoutUserIdKey = 'checkout.user_id';
+  static const _checkoutUserNameKey = 'user_name';
+  static const _checkoutUserPhoneKey = 'user_phone';
   final AuthApiService _apiService;
   final ApiClient _apiClient;
   final AuthTokenStorage _tokenStorage;
+  final GoogleAuthService _googleAuthService;
   User? _currentUser;
 
-  AuthRepository(this._apiService, this._apiClient, this._tokenStorage);
+  AuthRepository(
+    this._apiService,
+    this._apiClient,
+    this._tokenStorage, [
+    GoogleAuthService? googleAuthService,
+  ]) : _googleAuthService = googleAuthService ?? GoogleAuthService();
 
   User? get currentUser => _currentUser;
   bool get isAuthenticated =>
@@ -40,7 +51,10 @@ class AuthRepository {
 
     try {
       final user = await _apiService.getCurrentUser();
-      _currentUser = user.copyWith(accessToken: _tokenStorage.getAccessToken() ?? '');
+      _currentUser = user.copyWith(
+        accessToken: _tokenStorage.getAccessToken() ?? '',
+      );
+      await _saveCheckoutProfile(_currentUser!);
     } on ApiException catch (error) {
       if (error.statusCode == 401 || error.statusCode == 403) {
         await logout();
@@ -52,12 +66,27 @@ class AuthRepository {
 
   Future<User> login(String username, String password) async {
     final authToken = await _apiService.login(username, password);
-    _apiClient.setAccessToken(authToken.accessToken);
-    await _tokenStorage.saveAccessToken(authToken.accessToken);
+    return _finalizeLogin(authToken.accessToken);
+  }
+
+  Future<User?> loginWithGoogle() async {
+    final idToken = await _googleAuthService.signIn();
+    if (idToken == null) {
+      return null;
+    }
+
+    final authToken = await _apiService.loginWithGoogle(idToken);
+    return _finalizeLogin(authToken.accessToken);
+  }
+
+  Future<User> _finalizeLogin(String accessToken) async {
+    _apiClient.setAccessToken(accessToken);
+    await _tokenStorage.saveAccessToken(accessToken);
 
     final user = await _apiService.getCurrentUser();
-    final authenticatedUser = user.copyWith(accessToken: authToken.accessToken);
+    final authenticatedUser = user.copyWith(accessToken: accessToken);
     _currentUser = authenticatedUser;
+    await _saveCheckoutProfile(authenticatedUser);
     return authenticatedUser;
   }
 
@@ -76,7 +105,9 @@ class AuthRepository {
       await _apiClient.clearCookies();
     }
     await _tokenStorage.clear();
+    await _clearCheckoutProfile();
     _currentUser = null;
+    await _googleAuthService.signOut();
   }
 
   Future<User> fetchCurrentUser() async {
@@ -85,8 +116,11 @@ class AuthRepository {
       if (_currentUser != null) {
         _currentUser = user.copyWith(accessToken: _currentUser!.accessToken);
       } else {
-        _currentUser = user.copyWith(accessToken: _tokenStorage.getAccessToken() ?? '');
+        _currentUser = user.copyWith(
+          accessToken: _tokenStorage.getAccessToken() ?? '',
+        );
       }
+      await _saveCheckoutProfile(_currentUser!);
       return _currentUser!;
     } on ApiException catch (e) {
       if (e.statusCode == 401 || e.statusCode == 403) {
@@ -117,22 +151,55 @@ class AuthRepository {
     // Refresh the user profile after updating
     final updatedUser = await _apiService.getCurrentUser();
     if (_currentUser != null) {
-      _currentUser = updatedUser.copyWith(accessToken: _currentUser!.accessToken);
+      _currentUser = updatedUser.copyWith(
+        accessToken: _currentUser!.accessToken,
+      );
     } else {
       _currentUser = updatedUser;
     }
+    await _saveCheckoutProfile(_currentUser!);
   }
 
   Future<void> uploadAvatar(String filePath) async {
     final updatedUser = await _apiService.uploadMyAvatar(filePath);
     if (_currentUser != null) {
-      _currentUser = updatedUser.copyWith(accessToken: _currentUser!.accessToken);
+      _currentUser = updatedUser.copyWith(
+        accessToken: _currentUser!.accessToken,
+      );
     } else {
       _currentUser = updatedUser;
     }
+    await _saveCheckoutProfile(_currentUser!);
   }
 
   Future<void> updateFcmToken(String token) {
     return _apiService.updateFcmToken(token);
+  }
+
+  Future<void> _saveCheckoutProfile(User user) async {
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setString(_checkoutUserIdKey, user.id);
+    await _writeOrRemove(preferences, _checkoutUserNameKey, user.fullName);
+    await _writeOrRemove(preferences, _checkoutUserPhoneKey, user.phone);
+  }
+
+  Future<void> _clearCheckoutProfile() async {
+    final preferences = await SharedPreferences.getInstance();
+    await Future.wait([
+      preferences.remove(_checkoutUserIdKey),
+      preferences.remove(_checkoutUserNameKey),
+      preferences.remove(_checkoutUserPhoneKey),
+    ]);
+  }
+
+  Future<void> _writeOrRemove(
+    SharedPreferences preferences,
+    String key,
+    String? value,
+  ) {
+    final normalized = value?.trim() ?? '';
+    return normalized.isEmpty
+        ? preferences.remove(key)
+        : preferences.setString(key, normalized);
   }
 }

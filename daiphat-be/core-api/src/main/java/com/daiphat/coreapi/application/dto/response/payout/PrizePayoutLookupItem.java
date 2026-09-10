@@ -47,6 +47,7 @@ public record PrizePayoutLookupItem(
         LocalDate customerRedemptionDeadline,
         LocalDate issuerRedemptionDeadline,
         PrizeRedemptionZone redemptionZone,
-        Integer daysRemainingToIssuer
+        Integer daysRemainingToIssuer,
+        boolean requiresStationOfficeRedemption
 ) {
 }

@@ -228,14 +228,27 @@ class BlogTagServiceTest {
     }
 
     @Test
-    void createTag_slugExisted_throwsSlugExisted() {
+    void createTag_existingSlug_autoGeneratesUniqueSlug() {
         CreateBlogTagRequest request = new CreateBlogTagRequest("Title", "existed-slug");
+        // Khi slug gốc tồn tại → trả true
         when(blogTagRepositoryPort.existsBySlug("existed-slug")).thenReturn(true);
+        // Slug suffix không tồn tại → trả false để thoát vòng lặp
+        when(blogTagRepositoryPort.existsBySlug("existed-slug-2")).thenReturn(false);
 
-        assertThatThrownBy(() -> blogTagService.createTag(request))
-                .isInstanceOf(DomainException.class)
-                .extracting("errorCode")
-                .isEqualTo(ErrorCode.SLUG_EXISTED);
+        BlogTagModel savedModel = BlogTagModel.builder()
+                .id(1L)
+                .name("Title")
+                .slug("existed-slug-2")
+                .build();
+        when(blogTagRepositoryPort.save(any())).thenReturn(savedModel);
+        when(blogTagApplicationMapper.toResponse(savedModel)).thenReturn(
+                BlogTagResponse.builder().id(1L).name("Title").slug("existed-slug-2").build());
+
+        BlogTagResponse result = blogTagService.createTag(request);
+
+        assertThat(result).isNotNull();
+        assertThat(result.slug()).isEqualTo("existed-slug-2");
+        verify(blogTagRepositoryPort).save(any());
     }
 
     @Test

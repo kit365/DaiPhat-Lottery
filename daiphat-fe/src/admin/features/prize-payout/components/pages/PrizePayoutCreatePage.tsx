@@ -39,6 +39,7 @@ import { prefixAdmin } from '@/admin/constants/routes';
 import { prizePayoutAdminApi } from "@/admin/features/prize-payout/services/prizePayoutService";
 import { useAuthStore } from '@/stores/useAuthStore';
 import {
+    buildStationOfficeRedemptionMessage,
     formatPrizePayoutCurrency,
     PrizePayoutCustomerSuggestion,
     PrizePayoutLookupItem,
@@ -517,7 +518,9 @@ export const PrizePayoutCreatePage = () => {
                 const autoSelect = res.data.items
                     .filter((i) => {
                         const state = resolveLookupPayoutState(i);
-                        return i.prizeStatus === 'WON' && state === 'NONE';
+                        return i.prizeStatus === 'WON'
+                            && state === 'NONE'
+                            && !i.requiresStationOfficeRedemption;
                     })
                     .map((i) => i.orderDetailId);
                 setSelectedIds(autoSelect);
@@ -540,7 +543,7 @@ export const PrizePayoutCreatePage = () => {
         const lockedByPayout = item.payoutState === 'PAID_OUT'
             || item.payoutState === 'PAYOUT_PENDING'
             || Boolean(item.alreadyRequested);
-        if (item.prizeStatus !== 'WON' || lockedByPayout) return;
+        if (item.prizeStatus !== 'WON' || lockedByPayout || item.requiresStationOfficeRedemption) return;
         setSelectedIds((prev) =>
             prev.includes(item.orderDetailId)
                 ? prev.filter((id) => id !== item.orderDetailId)
@@ -552,10 +555,12 @@ export const PrizePayoutCreatePage = () => {
         () => lookupItems.filter((item) => {
             const payoutState = resolveLookupPayoutState(item);
             const lockedByPayout = payoutState === 'PAYOUT_PENDING' || payoutState === 'PAID_OUT';
-            return item.prizeStatus === 'WON' && !lockedByPayout;
+            return item.prizeStatus === 'WON' && !lockedByPayout && !item.requiresStationOfficeRedemption;
         }),
         [lookupItems]
     );
+
+    const hasStationOfficeOnlySelection = selectedItems.some((item) => item.requiresStationOfficeRedemption);
 
     const allSelected = selectableItems.length > 0 && selectableItems.every((item) => selectedIds.includes(item.orderDetailId));
 
@@ -683,6 +688,7 @@ export const PrizePayoutCreatePage = () => {
 
     const submitDisabled =
         selectedItems.length === 0
+        || hasStationOfficeOnlySelection
         || !hasMatchProof
         || createMutation.isPending
         || !identityDocsReady
@@ -697,6 +703,10 @@ export const PrizePayoutCreatePage = () => {
 
     const submitBlockerHint = (() => {
         if (selectedItems.length === 0) return 'Chọn ít nhất một vé trúng thưởng.';
+        if (hasStationOfficeOnlySelection) {
+            const stationItem = selectedItems.find((item) => item.requiresStationOfficeRedemption);
+            return buildStationOfficeRedemptionMessage(stationItem?.stationName);
+        }
         if (!hasMatchProof) return 'Thiếu đối chiếu số trên vé / KQXS.';
         if (hasLockedRedemption) return 'Vé đã quá hạn lĩnh nhà đài — không thể trả thưởng.';
         if (!identityDocsReady) {
@@ -722,9 +732,10 @@ export const PrizePayoutCreatePage = () => {
     })();
 
     return (
-        <Box sx={{ width: '100%', mx: 'auto', pt: 1, pb: 5 }}>
+        <div className="admin-list-page">
             {/* Header Section */}
             <PageHeader
+                disableBottomMargin
                 title="Tạo trả thưởng tại quầy"
                 breadcrumbItems={[
                     { label: 'Bảng điều khiển', to: `/${prefixAdmin}` },
@@ -763,13 +774,9 @@ export const PrizePayoutCreatePage = () => {
                 </Box>
                 }
             />
-            <Grid container spacing={2.5} alignItems="stretch">
-                
-                {/* LEFT COLUMN: Tra cứu, Kết quả vé, Định danh & Hợp đồng (50%) */}
-                <Grid size={{ xs: 12, md: 6 }} sx={{ display: 'flex', flexDirection: 'column' }}>
-                    <Stack spacing={2.5} sx={{ width: '100%' }}>
-                        {/* Section 1: Search Card */}
-                        <SectionCard title="1. Tra cứu vé số" icon="solar:magnifer-bold-duotone">
+
+            {/* Section 1: Search Card */}
+            <SectionCard title="1. Tra cứu vé số" icon="solar:magnifer-bold-duotone">
                             <Alert severity="info" sx={{ mb: 2, borderRadius: '10px' }}>
                                 Chỉ hỗ trợ vé đã bán qua hệ thống. Tra cứu bằng số điện thoại hoặc email của khách hàng.
                             </Alert>
@@ -867,11 +874,11 @@ export const PrizePayoutCreatePage = () => {
                             >
                                 {loadingLookup ? 'Đang tra cứu…' : 'Tra cứu vé số'}
                             </Button>
-                        </SectionCard>
+            </SectionCard>
 
-                        {/* Section 2: Ticket Selection & Match Proof */}
-                        {lookupItems.length > 0 && (
-                            <SectionCard title="2. Chọn vé trúng & Đối chiếu KQXS" icon="solar:ticket-bold-duotone">
+            {/* Section 2: Ticket Selection & Match Proof */}
+            {lookupItems.length > 0 && (
+                <SectionCard title="2. Chọn vé trúng & Đối chiếu KQXS" icon="solar:ticket-bold-duotone">
                                 <TableContainer>
                                     <Table size="small">
                                         <TableHead>
@@ -905,7 +912,8 @@ export const PrizePayoutCreatePage = () => {
                                             {lookupItems.filter((item) => item.prizeStatus === 'WON').map((item) => {
                                                 const payoutState = resolveLookupPayoutState(item);
                                                 const lockedByPayout = payoutState === 'PAYOUT_PENDING' || payoutState === 'PAID_OUT';
-                                                const selectable = item.prizeStatus === 'WON' && !lockedByPayout;
+                                                const stationOfficeOnly = Boolean(item.requiresStationOfficeRedemption);
+                                                const selectable = item.prizeStatus === 'WON' && !lockedByPayout && !stationOfficeOnly;
                                                 const checked = selectedIds.includes(item.orderDetailId);
                                                 const payoutBadge = lookupPayoutStatusBadge(item);
                                                 const isWon = item.prizeStatus === 'WON';
@@ -964,7 +972,14 @@ export const PrizePayoutCreatePage = () => {
                                                             )}
                                                         </TableCell>
                                                         <TableCell>
-                                                            {payoutBadge ? (
+                                                            {stationOfficeOnly ? (
+                                                                <Chip
+                                                                    label="VPĐĐ"
+                                                                    size="small"
+                                                                    color="warning"
+                                                                    sx={{ fontWeight: 700 }}
+                                                                />
+                                                            ) : payoutBadge ? (
                                                                 <AdminStatusBadge
                                                                     label={payoutBadge.label}
                                                                     modifier={payoutBadge.modifier}
@@ -973,7 +988,12 @@ export const PrizePayoutCreatePage = () => {
                                                             ) : (
                                                                 <Typography variant="caption" color="text.disabled">—</Typography>
                                                             )}
-                                                            {(() => {
+                                                            {stationOfficeOnly && (
+                                                                <Typography variant="caption" color="warning.main" sx={{ display: 'block', mt: 0.5 }}>
+                                                                    {buildStationOfficeRedemptionMessage(item.stationName)}
+                                                                </Typography>
+                                                            )}
+                                                            {!stationOfficeOnly && (() => {
                                                                 const urgency = getUrgencyBadge(item);
                                                                 return urgency ? (
                                                                     <Box sx={{ mt: 0.5 }}>
@@ -1056,12 +1076,12 @@ export const PrizePayoutCreatePage = () => {
                                         />
                                     </Stack>
                                 )}
-                            </SectionCard>
-                        )}
+                </SectionCard>
+            )}
 
-                        {/* Section 3: Identity & CCCD Images */}
-                        {selectedItems.length > 0 && (
-                            <SectionCard title="3. Định danh người nhận thưởng" icon="solar:user-id-bold-duotone">
+            {/* Section 3: Identity & CCCD Images */}
+            {selectedItems.length > 0 && (
+                <SectionCard title="3. Định danh người nhận thưởng" icon="solar:user-id-bold-duotone">
                                 <Alert severity="info" sx={{ mb: 2, borderRadius: '10px' }}>
                                     Cần họ tên, CCCD và ảnh mặt trước + mặt sau.
                                 </Alert>
@@ -1145,12 +1165,12 @@ export const PrizePayoutCreatePage = () => {
                                         />
                                     )}
                                 </Stack>
-                            </SectionCard>
-                        )}
+                </SectionCard>
+            )}
 
-                        {/* Section 4: Hợp đồng xác nhận trả thưởng (Placed in Left Column to perfectly equalize height) */}
-                        {selectedItems.length > 0 && (
-                            <SectionCard title="4. Hợp đồng xác nhận trả thưởng" icon="solar:document-bold-duotone">
+            {/* Section 4: Hợp đồng xác nhận trả thưởng */}
+            {selectedItems.length > 0 && (
+                <SectionCard title="4. Hợp đồng xác nhận trả thưởng" icon="solar:document-bold-duotone">
                                 <Stack spacing={1.5}>
                                     <Button
                                         variant="outlined"
@@ -1229,18 +1249,13 @@ export const PrizePayoutCreatePage = () => {
                                         </Stack>
                                     ) : null}
                                 </Stack>
-                            </SectionCard>
-                        )}
-                    </Stack>
-                </Grid>
+                </SectionCard>
+            )}
 
-                {/* RIGHT COLUMN: Tổng tiền & Thanh toán (50%) */}
-                <Grid size={{ xs: 12, md: 6 }} sx={{ display: 'flex', flexDirection: 'column' }}>
-                    <Stack spacing={2.5} sx={{ width: '100%' }}>
-                        {/* Money Summary Card */}
-                        {selectedItems.length > 0 ? (
-                            <>
-                                <MoneySummary
+            {/* Money Summary */}
+            {selectedItems.length > 0 ? (
+                <>
+                    <MoneySummary
                                     gross={totalGross}
                                     commission={totalCommission}
                                     tax={totalTax}
@@ -1257,10 +1272,10 @@ export const PrizePayoutCreatePage = () => {
                                         Vé đã <strong>quá hạn đổi thưởng của khách</strong> nhưng còn trong hạn nhà đài.
                                         Cần xác nhận ưu tiên mang đi lĩnh khi hoàn tất.
                                     </Alert>
-                                )}
-                            </>
-                        ) : (
-                            <SectionCard title="Tổng tiền thưởng" icon="solar:wallet-money-bold-duotone">
+                    )}
+                </>
+            ) : (
+                <SectionCard title="Tổng tiền thưởng" icon="solar:wallet-money-bold-duotone">
                                 <Box sx={{ py: 4, textCenter: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
                                     <Box className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mb-1">
                                         <Icon icon="solar:wallet-money-bold-duotone" width={28} />
@@ -1272,12 +1287,12 @@ export const PrizePayoutCreatePage = () => {
                                         Vui lòng tra cứu và tích chọn vé trúng thưởng ở cột bên trái để xem bảng phân bổ số tiền.
                                     </Typography>
                                 </Box>
-                            </SectionCard>
-                        )}
+                </SectionCard>
+            )}
 
-                        {/* Section 5: Payment & Finalize */}
-                        {selectedItems.length > 0 && (
-                            <SectionCard title="5. Thanh toán & Hoàn tất" icon="solar:wallet-money-bold-duotone">
+            {/* Section 5: Payment & Finalize */}
+            {selectedItems.length > 0 && (
+                <SectionCard title="5. Thanh toán & Hoàn tất" icon="solar:wallet-money-bold-duotone">
                                 <Stack spacing={2}>
                                     {!identityDocsReady && (
                                         <Alert severity="warning" sx={{ borderRadius: '10px' }}>
@@ -1517,12 +1532,8 @@ export const PrizePayoutCreatePage = () => {
                                         {createMutation.isPending ? 'Đang hoàn tất…' : 'Hoàn tất trả thưởng tại quầy'}
                                     </Button>
                                 </Stack>
-                            </SectionCard>
-                        )}
-                    </Stack>
-                </Grid>
-
-            </Grid>
+                </SectionCard>
+            )}
 
             <ContractDocumentViewerDialog
                 open={viewSignedOpen}
@@ -1641,6 +1652,6 @@ export const PrizePayoutCreatePage = () => {
                     )}
                 </Stack>
             </AdminConfirmDialog>
-        </Box>
+        </div>
     );
 };

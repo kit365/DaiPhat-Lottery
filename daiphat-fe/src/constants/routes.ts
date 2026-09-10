@@ -85,6 +85,11 @@ export const ROUTES = {
             DETAIL: `/${prefixAdmin}/prize-payouts/detail/`,
             CREATE: `/${prefixAdmin}/prize-payouts/create`,
         },
+        PRIZE_CLAIM_SUBMISSIONS: {
+            LIST: `/${prefixAdmin}/prize-claim-submissions`,
+            DETAIL: (id: number | string) => `/${prefixAdmin}/prize-claim-submissions/${id}`,
+            CREATE: `/${prefixAdmin}/prize-claim-submissions/create`,
+        },
         SUPPORT_TICKETS: {
             LIST: `/${prefixAdmin}/support-tickets/list`,
             DETAIL: `/${prefixAdmin}/support-tickets/detail/`,

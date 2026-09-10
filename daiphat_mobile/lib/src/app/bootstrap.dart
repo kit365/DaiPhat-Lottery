@@ -7,15 +7,29 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 import 'package:daiphat_mobile/firebase_options.dart';
 import 'package:daiphat_mobile/src/app/app.dart';
+import 'package:daiphat_mobile/src/shared/config/firebase_config.dart';
 import 'package:daiphat_mobile/src/app/dependencies/app_dependencies.dart';
+import 'package:daiphat_mobile/src/shared/network/api_config.dart';
 import 'package:daiphat_mobile/src/shared/providers/api_providers.dart';
 import 'package:daiphat_mobile/src/shared/services/notification_service.dart';
 import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
-import 'package:daiphat_mobile/src/features/checkout/data/order_service.dart';
 import 'package:daiphat_mobile/src/features/checkout/data/transaction_service.dart';
-import 'package:daiphat_mobile/src/features/profile/data/bank_account_service.dart';
-import 'package:daiphat_mobile/src/features/profile/data/prize_payout_service.dart';
-import 'package:daiphat_mobile/src/features/profile/data/refund_service.dart';
+import 'package:daiphat_mobile/src/features/checkout/data/repositories/transaction_repository_impl.dart';
+import 'package:daiphat_mobile/src/features/orders/data/datasources/order_remote_data_source.dart';
+import 'package:daiphat_mobile/src/features/orders/data/repositories/orders_repository_impl.dart';
+import 'package:daiphat_mobile/src/features/orders/presentation/providers/orders_providers.dart';
+import 'package:daiphat_mobile/src/features/tickets/data/datasources/purchased_tickets_remote_data_source.dart';
+import 'package:daiphat_mobile/src/features/tickets/data/repositories/purchased_tickets_repository_impl.dart';
+import 'package:daiphat_mobile/src/features/tickets/presentation/providers/purchased_tickets_providers.dart';
+import 'package:daiphat_mobile/src/features/bank_accounts/data/datasources/bank_account_remote_data_source.dart';
+import 'package:daiphat_mobile/src/features/bank_accounts/data/repositories/bank_accounts_repository_impl.dart';
+import 'package:daiphat_mobile/src/features/bank_accounts/presentation/providers/bank_accounts_providers.dart';
+import 'package:daiphat_mobile/src/features/prize_payouts/data/datasources/prize_payout_remote_data_source.dart';
+import 'package:daiphat_mobile/src/features/prize_payouts/data/repositories/prize_payouts_repository_impl.dart';
+import 'package:daiphat_mobile/src/features/prize_payouts/presentation/providers/prize_payouts_providers.dart';
+import 'package:daiphat_mobile/src/features/refunds/data/datasources/refund_remote_data_source.dart';
+import 'package:daiphat_mobile/src/features/refunds/data/repositories/refunds_repository_impl.dart';
+import 'package:daiphat_mobile/src/features/refunds/presentation/providers/refunds_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/data/support_ticket_service.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
 import 'package:daiphat_mobile/src/features/notifications/data/services/notification_setting_service.dart';
@@ -27,28 +41,18 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   debugPrint('Handling a background message: ${message.messageId}');
 }
 
-bool _hasFirebaseConfig() {
-  final projectId = dotenv.env['FIREBASE_PROJECT_ID']?.trim() ?? '';
-  final androidAppId = dotenv.env['FIREBASE_ANDROID_APP_ID']?.trim() ?? '';
-  final androidApiKey = dotenv.env['FIREBASE_ANDROID_API_KEY']?.trim() ?? '';
-  return projectId.isNotEmpty &&
-      androidAppId.isNotEmpty &&
-      androidApiKey.isNotEmpty;
-}
-
 Future<void> bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: '.env');
+  debugPrint('API base URL: ${ApiConfig.baseUrl}');
 
-  try {
-    if (_hasFirebaseConfig()) {
+  if (isFirebaseConfigured()) {
+    try {
       await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-    } else {
-      await Firebase.initializeApp();
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    } catch (e) {
+      debugPrint('Firebase init warning/error (running without push notifications): $e');
     }
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-  } catch (e) {
-    debugPrint('Firebase init warning/error (running without push notifications): $e');
   }
 
   try {
@@ -68,9 +72,23 @@ Future<void> bootstrap() async {
 
   final orderService = OrderService(dependencies.apiClient);
   final transactionService = TransactionService(dependencies.apiClient);
-  final prizePayoutService = PrizePayoutService(dependencies.apiClient);
-  final bankAccountService = BankAccountService(dependencies.apiClient);
-  final refundService = RefundService(dependencies.apiClient);
+  final ordersRepository = OrdersRepositoryImpl(orderService);
+  final purchasedTicketsDataSource = PurchasedTicketsRemoteDataSource(
+    dependencies.apiClient,
+  );
+  final purchasedTicketsRepository = PurchasedTicketsRepositoryImpl(
+    purchasedTicketsDataSource,
+  );
+  final transactionRepository = TransactionRepositoryImpl(transactionService);
+  final prizePayoutsRepository = PrizePayoutsRepositoryImpl(
+    PrizePayoutRemoteDataSource(dependencies.apiClient),
+  );
+  final bankAccountsRepository = BankAccountsRepositoryImpl(
+    BankAccountRemoteDataSource(dependencies.apiClient),
+  );
+  final refundsRepository = RefundsRepositoryImpl(
+    RefundRemoteDataSource(dependencies.apiClient),
+  );
   final supportTicketService = SupportTicketService(dependencies.apiClient);
   final notificationSettingService = NotificationSettingService(
     dependencies.apiClient,
@@ -82,12 +100,20 @@ Future<void> bootstrap() async {
         apiClientProvider.overrideWithValue(dependencies.apiClient),
         orderServiceProvider.overrideWithValue(orderService),
         transactionServiceProvider.overrideWithValue(transactionService),
-        prizePayoutServiceProvider.overrideWithValue(prizePayoutService),
-        bankAccountServiceProvider.overrideWithValue(bankAccountService),
-        refundServiceProvider.overrideWithValue(refundService),
+        ordersRepositoryProvider.overrideWithValue(ordersRepository),
+        purchasedTicketsRepositoryProvider.overrideWithValue(
+          purchasedTicketsRepository,
+        ),
+        transactionRepositoryProvider.overrideWithValue(transactionRepository),
+        prizePayoutsRepositoryProvider.overrideWithValue(prizePayoutsRepository),
+        bankAccountsRepositoryProvider.overrideWithValue(bankAccountsRepository),
+        refundsRepositoryProvider.overrideWithValue(refundsRepository),
         supportTicketServiceProvider.overrideWithValue(supportTicketService),
         notificationSettingServiceProvider.overrideWithValue(
           notificationSettingService,
+        ),
+        notificationViewModelProvider.overrideWithValue(
+          dependencies.notificationViewModel,
         ),
       ],
       child: DaiPhatMobileApp(router: dependencies.router),

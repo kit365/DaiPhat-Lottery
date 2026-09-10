@@ -40,14 +40,14 @@ class _ResultsCardState extends State<ResultsCard> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surfacePrimary,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppColors.cardBorder, width: 1.5),
-          boxShadow: [
+          boxShadow: const [
             BoxShadow(
-              color: Colors.black.withValues(alpha: .03),
+              color: AppColors.shadowFaint,
               blurRadius: 20,
-              offset: const Offset(0, 8),
+              offset: Offset(0, 8),
             ),
           ],
         ),
@@ -68,7 +68,7 @@ class _ResultsCardState extends State<ResultsCard> {
 
   Widget _buildProvinceHeader(List<String> provinces) {
     return Container(
-      color: const Color(0xFFFCE5DF).withValues(alpha: .3),
+      color: AppColors.surfaceBrandLight.withValues(alpha: .3),
       child: Row(
         children: [
           Container(
@@ -80,12 +80,10 @@ class _ResultsCardState extends State<ResultsCard> {
             ),
             child: Text(
               'Giải',
-              style: AppTypography.main(
-                const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textMuted,
-                ),
+              style: AppTypography.labelSmall(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textMuted,
               ),
             ),
           ),
@@ -95,7 +93,9 @@ class _ResultsCardState extends State<ResultsCard> {
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 decoration: province != provinces.last
                     ? const BoxDecoration(
-                        border: Border(right: BorderSide(color: AppColors.cardBorder)),
+                        border: Border(
+                          right: BorderSide(color: AppColors.cardBorder),
+                        ),
                       )
                     : null,
                 alignment: Alignment.center,
@@ -104,12 +104,10 @@ class _ResultsCardState extends State<ResultsCard> {
                   textAlign: TextAlign.center,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppTypography.main(
-                    TextStyle(
-                      fontSize: provinces.length > 3 ? 9 : 11,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.primary,
-                    ),
+                  style: AppTypography.labelMedium(
+                    fontSize: provinces.length > 3 ? 9 : 11,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primary,
                   ),
                 ),
               ),
@@ -125,12 +123,16 @@ class _ResultsCardState extends State<ResultsCard> {
     bool isSingle,
     Map<String, LotteryResult> resultsByProvince,
   ) {
-    final singleResult = provinces.isNotEmpty ? resultsByProvince[provinces.first] : null;
+    final singleResult = provinces.isNotEmpty
+        ? resultsByProvince[provinces.first]
+        : null;
 
     return IntrinsicHeight(
       child: Container(
         decoration: BoxDecoration(
-          color: isSingle ? const Color(0xFFFCE5DF).withValues(alpha: .3) : Colors.white,
+          color: isSingle
+              ? AppColors.surfaceBrandLight.withValues(alpha: .3)
+              : AppColors.surfacePrimary,
           border: const Border(
             bottom: BorderSide(color: AppColors.cardBorder, width: .8),
           ),
@@ -141,32 +143,37 @@ class _ResultsCardState extends State<ResultsCard> {
             if (isSingle)
               Container(
                 width: 90,
-                padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 20,
+                  horizontal: 8,
+                ),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [Color(0xFF8B0000), Color(0xFFEE1314)],
+                    colors: [AppColors.brandPrimaryDeep, AppColors.brandPrimaryStrong],
                   ),
                   border: Border(
-                    right: BorderSide(color: Color(0x1AFFFFFF)),
+                    right: BorderSide(color: AppColors.white.withValues(alpha: 0.1)),
                   ),
                 ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.star_rounded, color: Color(0xFFFFD54F), size: 22),
+                    const Icon(
+                      Icons.star_rounded,
+                      color: AppColors.brandAccentGoldMuted,
+                      size: 22,
+                    ),
                     const SizedBox(height: 4),
                     Text(
                       'Giải\nĐẶC BIỆT',
                       textAlign: TextAlign.center,
-                      style: AppTypography.display(
-                        const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                          height: 1.3,
-                        ),
+                      style: AppTypography.h6(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.surfacePrimary,
+                        height: 1.3,
                       ),
                     ),
                   ],
@@ -177,18 +184,18 @@ class _ResultsCardState extends State<ResultsCard> {
                 width: 72,
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: const BoxDecoration(
-                  border: Border(right: BorderSide(color: AppColors.cardBorder)),
+                  border: Border(
+                    right: BorderSide(color: AppColors.cardBorder),
+                  ),
                 ),
                 alignment: Alignment.center,
                 child: Text(
                   'Đặc biệt',
                   textAlign: TextAlign.center,
-                  style: AppTypography.main(
-                    const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
-                    ),
+                  style: AppTypography.labelSmall(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
                   ),
                 ),
               ),
@@ -198,13 +205,11 @@ class _ResultsCardState extends State<ResultsCard> {
                       padding: const EdgeInsets.symmetric(vertical: 22),
                       child: _renderNumber(
                         _specialValue(singleResult),
-                        AppTypography.number(
-                          const TextStyle(
-                            fontSize: 36,
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.primary,
-                            letterSpacing: -1,
-                          ),
+                        AppTypography.lotterySpecial(
+                          fontSize: 36,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.primary,
+                          letterSpacing: -1,
                         ),
                       ),
                     )
@@ -217,19 +222,19 @@ class _ResultsCardState extends State<ResultsCard> {
                             decoration: province != provinces.last
                                 ? const BoxDecoration(
                                     border: Border(
-                                      right: BorderSide(color: AppColors.cardBorder),
+                                      right: BorderSide(
+                                        color: AppColors.cardBorder,
+                                      ),
                                     ),
                                   )
                                 : null,
                             alignment: Alignment.center,
                             child: _renderNumber(
                               _specialValue(result),
-                              AppTypography.number(
-                                TextStyle(
-                                  fontSize: provinces.length > 3 ? 18 : 22,
-                                  fontWeight: FontWeight.w900,
-                                  color: AppColors.primary,
-                                ),
+                              AppTypography.lotteryPrize(
+                                fontSize: provinces.length > 3 ? 18 : 22,
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.primary,
                               ),
                             ),
                           ),
@@ -251,11 +256,12 @@ class _ResultsCardState extends State<ResultsCard> {
     final labelWidth = isSingle ? 90.0 : 72.0;
     final rows = isSingle
         ? (provinces.isNotEmpty
-            ? (resultsByProvince[provinces.first]?.prizeRows ?? const <LotteryPrizeRow>[])
-            : const <LotteryPrizeRow>[])
+              ? (resultsByProvince[provinces.first]?.prizeRows ??
+                    const <LotteryPrizeRow>[])
+              : const <LotteryPrizeRow>[])
         : (resultsByProvince.values.isNotEmpty
-            ? resultsByProvince.values.first.prizeRows
-            : const <LotteryPrizeRow>[]);
+              ? resultsByProvince.values.first.prizeRows
+              : const <LotteryPrizeRow>[]);
 
     return Container(
       decoration: const BoxDecoration(
@@ -280,37 +286,45 @@ class _ResultsCardState extends State<ResultsCard> {
                   width: labelWidth,
                   padding: const EdgeInsets.symmetric(vertical: 9),
                   decoration: const BoxDecoration(
-                    border: Border(right: BorderSide(color: AppColors.cardBorder)),
+                    border: Border(
+                      right: BorderSide(color: AppColors.cardBorder),
+                    ),
                   ),
                   alignment: Alignment.center,
                   child: Text(
                     row.label,
                     textAlign: TextAlign.center,
-                    style: AppTypography.main(
-                      TextStyle(
-                        fontSize: isSingle ? 11 : 10,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primary,
-                      ),
+                    style: AppTypography.labelSmall(
+                      fontSize: isSingle ? 11 : 10,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
                     ),
                   ),
                 ),
                 ...provinces.map((province) {
                   final result = resultsByProvince[province];
-                  final provinceRow = result?.prizeRows.firstWhere(
+                  final provinceRow =
+                      result?.prizeRows.firstWhere(
                         (item) => item.label == row.label,
-                        orElse: () => LotteryPrizeRow(label: row.label, values: const []),
+                        orElse: () =>
+                            LotteryPrizeRow(label: row.label, values: const []),
                       ) ??
                       LotteryPrizeRow(label: row.label, values: const []);
-                  final values = provinceRow.values.isEmpty ? ['--'] : provinceRow.values;
+                  final values = provinceRow.values.isEmpty
+                      ? ['--']
+                      : provinceRow.values;
 
-                  final baseStyle = AppTypography.number(
-                    TextStyle(
-                      fontSize: row.highlight ? (isSingle ? 18 : 14) : (isSingle ? 15 : 12),
-                      fontWeight: row.highlight ? FontWeight.w800 : FontWeight.w600,
-                      color: row.highlight ? AppColors.primary : AppColors.textMain,
-                      height: 1.6,
-                    ),
+                  final baseStyle = AppTypography.lotteryDigit(
+                    fontSize: row.highlight
+                        ? (isSingle ? 18 : 14)
+                        : (isSingle ? 15 : 12),
+                    fontWeight: row.highlight
+                        ? FontWeight.w800
+                        : FontWeight.w600,
+                    color: row.highlight
+                        ? AppColors.primary
+                        : AppColors.textMain,
+                    height: 1.6,
                   );
 
                   return Expanded(
@@ -319,7 +333,10 @@ class _ResultsCardState extends State<ResultsCard> {
                       decoration: province != provinces.last
                           ? const BoxDecoration(
                               border: Border(
-                                right: BorderSide(color: AppColors.cardBorder, width: .5),
+                                right: BorderSide(
+                                  color: AppColors.cardBorder,
+                                  width: .5,
+                                ),
                               ),
                             )
                           : null,
@@ -382,23 +399,23 @@ class _ResultsCardState extends State<ResultsCard> {
                         width: 28,
                         height: 28,
                         decoration: BoxDecoration(
-                          color: enabled ? const Color(0xFFFDE047) : Colors.white,
+                          color: enabled
+                              ? AppColors.brandAccentYellow
+                              : AppColors.surfacePrimary,
                           shape: BoxShape.circle,
                           border: Border.all(
                             color: enabled
-                                ? const Color(0xFFFDE047)
+                                ? AppColors.brandAccentYellow
                                 : AppColors.cardBorder,
                           ),
                         ),
                         alignment: Alignment.center,
                         child: Text(
                           value,
-                          style: AppTypography.main(
-                            const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textMain,
-                            ),
+                          style: AppTypography.buttonSmall(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textMain,
                           ),
                         ),
                       ),
@@ -428,12 +445,10 @@ class _ResultsCardState extends State<ResultsCard> {
           child: Center(
             child: Text(
               value,
-              style: AppTypography.main(
-                TextStyle(
-                  fontSize: 13,
-                  fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
-                  color: selected ? AppColors.primary : AppColors.textMuted,
-                ),
+              style: AppTypography.buttonSmall(
+                fontSize: 13,
+                fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
+                color: selected ? AppColors.primary : AppColors.textMuted,
               ),
             ),
           ),
@@ -443,11 +458,11 @@ class _ResultsCardState extends State<ResultsCard> {
   }
 
   Widget _divider() => Container(
-        width: 1,
-        height: 13,
-        color: AppColors.cardBorder,
-        margin: const EdgeInsets.symmetric(horizontal: 9),
-      );
+    width: 1,
+    height: 13,
+    color: AppColors.cardBorder,
+    margin: const EdgeInsets.symmetric(horizontal: 9),
+  );
 
   String _specialValue(LotteryResult? result) {
     final value = result?.prizes.special.trim() ?? '';
@@ -494,22 +509,20 @@ class _ResultsCardState extends State<ResultsCard> {
             TextSpan(
               text: prefix,
               style: baseStyle.copyWith(
-                color: baseStyle.color?.withValues(alpha: 0.3) ??
+                color:
+                    baseStyle.color?.withValues(alpha: 0.3) ??
                     AppColors.textMain.withValues(alpha: 0.3),
               ),
             ),
           TextSpan(
             text: lotoPart,
-            style: AppTypography.number(
-              TextStyle(
-                fontSize: baseStyle.fontSize,
-                backgroundColor: const Color(0xFFFDE047),
-                color: const Color(0xFFEE1314),
-                fontWeight: FontWeight.w900,
-                height: baseStyle.height,
-                letterSpacing: baseStyle.letterSpacing,
-              ),
-            ),
+            style: AppTypography.lotteryDigit(
+              fontSize: baseStyle.fontSize,
+              color: AppColors.brandPrimaryStrong,
+              fontWeight: FontWeight.w900,
+              height: baseStyle.height,
+              letterSpacing: baseStyle.letterSpacing,
+            ).copyWith(backgroundColor: AppColors.brandAccentYellow),
           ),
         ],
       ),

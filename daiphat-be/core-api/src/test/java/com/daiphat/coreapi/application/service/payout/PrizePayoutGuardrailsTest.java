@@ -92,6 +92,30 @@ class PrizePayoutGuardrailsTest {
     }
 
     @Test
+    void requiresStationOfficeRedemption_onlyDb() {
+        var db = new PrizePayoutEligibilityService.PrizeMatchContext(
+                TicketDrawResultStatus.WON, "DB", "Giải đặc biệt", new BigDecimal("2000000000"),
+                "123456", "123456", "EXACT", 6);
+        var g1 = new PrizePayoutEligibilityService.PrizeMatchContext(
+                TicketDrawResultStatus.WON, "G1", "Giải nhất", new BigDecimal("30000000"),
+                "123456", "123456", "EXACT", 6);
+        var phuDb = new PrizePayoutEligibilityService.PrizeMatchContext(
+                TicketDrawResultStatus.WON, "PHU_DB", "Giải phụ đặc biệt", new BigDecimal("50000000"),
+                "123456", "123456", "EXACT", 6);
+
+        assertTrue(eligibilityService.requiresStationOfficeRedemption(db));
+        assertFalse(eligibilityService.requiresStationOfficeRedemption(g1));
+        assertFalse(eligibilityService.requiresStationOfficeRedemption(phuDb));
+    }
+
+    @Test
+    void buildStationOfficeRedemptionMessage_includesStationName() {
+        String message = eligibilityService.buildStationOfficeRedemptionMessage("Đài Bạc Liêu");
+        assertTrue(message.contains("Đài Bạc Liêu"));
+        assertTrue(message.contains("Văn phòng Đại diện Đài"));
+    }
+
+    @Test
     void outOfScopeMessage_constant() {
         assertTrue(PrizePayoutRequestModel.OUT_OF_SCOPE_TICKET_MESSAGE.contains("ngoài phạm vi hỗ trợ"));
     }

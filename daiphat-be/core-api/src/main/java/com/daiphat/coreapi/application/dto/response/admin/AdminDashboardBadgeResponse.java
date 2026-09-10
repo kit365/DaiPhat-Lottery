@@ -14,6 +14,7 @@ public record AdminDashboardBadgeResponse(
         Long returnBatchPending,
         Long ordersPreparing,
         Long chatAttention,
-        Long notificationUnread
+        Long notificationUnread,
+        Long prizeClaimOutcomePending
 ) {
 }

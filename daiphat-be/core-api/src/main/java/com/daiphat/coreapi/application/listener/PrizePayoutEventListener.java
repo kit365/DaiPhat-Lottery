@@ -57,6 +57,7 @@ public class PrizePayoutEventListener {
             case REJECTED -> "Yêu cầu trả thưởng bị từ chối";
             case MANUAL_RESOLUTION -> "Trả thưởng trực tuyến bị khóa";
             case CANCELLED -> "Yêu cầu trả thưởng đã hủy";
+            case AWAITING_FUND -> "Trả thưởng chờ quỹ";
         };
     }
 
@@ -85,6 +86,9 @@ public class PrizePayoutEventListener {
                     code);
             case CANCELLED -> String.format(
                     "Yêu cầu %s đã được hủy. Vé quay về trạng thái đang giữ hộ.",
+                    code);
+            case AWAITING_FUND -> String.format(
+                    "Yêu cầu %s đang chờ quỹ. Bạn sẽ nhận được thông báo khi có quỹ.",
                     code);
         };
     }

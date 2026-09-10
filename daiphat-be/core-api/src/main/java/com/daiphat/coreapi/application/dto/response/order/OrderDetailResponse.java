@@ -17,10 +17,16 @@ public record OrderDetailResponse(
         Long lotteryTicketSerialId,
         Long stationId,
         String stationName,
+        String province,
         String numbers,
         LocalDate drawDate,
+        /** Physical ticket serial, exposed for backwards compatibility. */
         String ticketImg,
         String serialNumber,
+        /** Mobile-friendly alias for the ticket's printed serial/symbol. */
+        String symbol,
+        /** Current product is traditional lottery; retained as an explicit client contract. */
+        String ticketType,
         /** Current physical serial status (SOLD, DAMAGED, ...). */
         LotteryTicketSerialStatus serialStatus,
         String serialStatusDisplayName,

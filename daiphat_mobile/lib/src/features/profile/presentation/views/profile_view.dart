@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/widgets/app_header_action_button.dart';
 import 'package:go_router/go_router.dart';
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
-import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
-import 'package:daiphat_mobile/src/features/chat/presentation/views/chat_screen.dart';
+import 'package:daiphat_mobile/src/features/tickets/presentation/providers/purchased_tickets_providers.dart';
 import 'package:daiphat_mobile/src/features/notifications/presentation/viewmodels/notification_viewmodel.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/profile_iconography.dart';
 import '../viewmodels/profile_viewmodel.dart';
 import '../viewmodels/profile_tickets_summary_viewmodel.dart';
 
@@ -31,7 +32,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
   void initState() {
     super.initState();
     _ticketsSummaryViewModel = ProfileTicketsSummaryViewModel(
-      ref.read(orderServiceProvider),
+      ref.read(getMyTicketsSummaryProvider),
     );
   }
 
@@ -65,7 +66,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
         }
 
         return Scaffold(
-          backgroundColor: const Color(0xFFFFFBFA),
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           body: RefreshIndicator(
             onRefresh: () async {
               await viewModel.loadUser();
@@ -74,7 +75,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
             color: AppColors.primary,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.only(bottom: 24),
+              padding: const EdgeInsets.only(bottom: 20),
               child: Column(
                 children: [
                   _buildHeaderAndProfileCard(context),
@@ -82,13 +83,13 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                     const SizedBox(height: 16),
                     _buildAdminSection(context),
                   ],
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   _buildMyTicketsSection(),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   _buildMyAccountSection(context),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   _buildUtilitiesSection(context),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   _buildSettingsSection(context),
                 ],
               ),
@@ -101,8 +102,10 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
 
   Widget _buildHeaderAndProfileCard(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top;
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final profileCardHeight = 114.0 + ((textScale - 1) * 24).clamp(0, 18);
     return SizedBox(
-      height: 204 + topPadding,
+      height: 72 + profileCardHeight + topPadding,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -110,12 +113,16 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
             top: 0,
             left: 0,
             right: 0,
-            height: 156 + topPadding,
+            height: 132 + topPadding,
             child: ShaderMask(
               shaderCallback: (bounds) => const LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Colors.white, Colors.white, Colors.transparent],
+                colors: [
+                  AppColors.surfacePrimary,
+                  AppColors.surfacePrimary,
+                  AppColors.transparent,
+                ],
                 stops: [0, .72, 1],
               ).createShader(bounds),
               blendMode: BlendMode.dstIn,
@@ -132,24 +139,22 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
             right: 16,
             child: Row(
               children: [
-                _buildHeaderAction(
-                  icon: Icons.settings_outlined,
-                  onTap: () => context.push(AppRoute.profileDetail.path),
+                ListenableBuilder(
+                  listenable: widget.notificationViewModel,
+                  builder: (context, _) => AppHeaderActionButton(
+                    icon: ProfileIconography.notifications,
+                    tooltip: 'Thông báo',
+                    badgeCount: widget.notificationViewModel.unreadCount,
+                    variant: AppHeaderActionVariant.bare,
+                    onTap: () => context.push(AppRoute.notifications.path),
+                  ),
                 ),
-                const SizedBox(width: 10),
-                _buildHeaderAction(
-                  icon: Icons.chat_bubble_outline_rounded,
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => ChatScreen(
-                          isAuthenticated: true,
-                          isActive: true,
-                          onBack: () => Navigator.of(context).pop(),
-                        ),
-                      ),
-                    );
-                  },
+                const SizedBox(width: 8),
+                AppHeaderActionButton(
+                  icon: ProfileIconography.chat,
+                  tooltip: 'Chat hỗ trợ',
+                  variant: AppHeaderActionVariant.bare,
+                  onTap: () => context.push(AppRoute.chat.path),
                 ),
               ],
             ),
@@ -158,16 +163,16 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
           Positioned(
             left: 16,
             right: 16,
-            top: topPadding + 70,
-            height: 124,
+            top: topPadding + 62,
+            height: profileCardHeight,
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: .97),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFFFFEEEE)),
+                color: AppColors.surfacePrimary.withValues(alpha: .97),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.brandPrimaryBorderLight),
                 boxShadow: const [
                   BoxShadow(
-                    color: Color(0x147B1820),
+                    color: AppColors.shadowBrandFaint,
                     blurRadius: 24,
                     spreadRadius: -6,
                     offset: Offset(0, 9),
@@ -191,20 +196,23 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                     clipBehavior: Clip.none,
                     children: [
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(18, 18, 106, 16),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 16,
+                        ),
                         child: Row(
                           children: [
                             Stack(
                               clipBehavior: Clip.none,
                               children: [
                                 Container(
-                                  width: 72,
-                                  height: 72,
+                                  width: 64,
+                                  height: 64,
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFFFF6F6),
+                                    color: AppColors.brandPrimarySubtle,
                                     shape: BoxShape.circle,
                                     border: Border.all(
-                                      color: const Color(0xFFF5D8DA),
+                                      color: AppColors.brandPrimaryBorder,
                                     ),
                                   ),
                                   clipBehavior: Clip.antiAlias,
@@ -215,50 +223,62 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                                           fit: BoxFit.cover,
                                           errorBuilder: (_, _, _) => const Icon(
                                             Icons.person_rounded,
-                                            color: Color(0xFF8D9AA8),
-                                            size: 43,
+                                            color: AppColors.contentMuted,
+                                            size: 38,
                                           ),
                                         )
                                       : const Icon(
                                           Icons.person_rounded,
-                                          color: Color(0xFF8D9AA8),
-                                          size: 43,
+                                          color: AppColors.contentMuted,
+                                          size: 38,
                                         ),
                                 ),
                                 Positioned(
-                                  right: -3,
-                                  bottom: 0,
-                                  child: GestureDetector(
-                                    onTap: () =>
-                                        context.push(AppRoute.profileEdit.path),
-                                    child: Container(
-                                      width: 25,
-                                      height: 25,
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: const Color(0xFFF1E5E5),
-                                        ),
-                                        boxShadow: const [
-                                          BoxShadow(
-                                            color: Color(0x19000000),
-                                            blurRadius: 6,
-                                            offset: Offset(0, 2),
-                                          ),
-                                        ],
+                                  right: -10,
+                                  bottom: -8,
+                                  child: Semantics(
+                                    button: true,
+                                    label: 'Đổi ảnh đại diện',
+                                    child: InkResponse(
+                                      onTap: () => context.push(
+                                        AppRoute.profileEdit.path,
                                       ),
-                                      child: const Icon(
-                                        Icons.photo_camera_rounded,
-                                        size: 13,
-                                        color: Color(0xFF78828D),
+                                      radius: 24,
+                                      child: SizedBox(
+                                        width: 44,
+                                        height: 44,
+                                        child: Center(
+                                          child: Container(
+                                            width: 26,
+                                            height: 26,
+                                            decoration: BoxDecoration(
+                                              color: AppColors.surfacePrimary,
+                                              shape: BoxShape.circle,
+                                              border: Border.all(
+                                                color: AppColors.borderWarm,
+                                              ),
+                                              boxShadow: const [
+                                                BoxShadow(
+                                                  color: AppColors.shadowMedium,
+                                                  blurRadius: 6,
+                                                  offset: Offset(0, 2),
+                                                ),
+                                              ],
+                                            ),
+                                            child: const Icon(
+                                              Icons.photo_camera_rounded,
+                                              size: 13,
+                                              color: AppColors.contentSlate600,
+                                            ),
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(width: 18),
+                            const SizedBox(width: 14),
                             Expanded(
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -268,54 +288,54 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                                     name,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: GoogleFonts.publicSans(
+                                    style: AppTypography.h4(
                                       fontSize: 17,
                                       fontWeight: FontWeight.w800,
-                                      color: const Color(0xFF202124),
+                                      color: AppColors.contentPrimary,
                                     ),
                                   ),
-                                  const SizedBox(height: 11),
+                                  const SizedBox(height: 8),
                                   InkWell(
                                     borderRadius: BorderRadius.circular(999),
                                     onTap: () =>
                                         context.push(AppRoute.profileEdit.path),
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 7,
+                                        horizontal: 11,
+                                        vertical: 6,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFFFFF8F8),
+                                        color: AppColors.surfaceBrandWarm,
                                         borderRadius: BorderRadius.circular(
                                           999,
                                         ),
                                         border: Border.all(
-                                          color: const Color(0xFFF5CBCD),
+                                          color: AppColors.brandPrimaryBorder,
                                         ),
                                       ),
-                                      child: const Row(
+                                      child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Icon(
-                                            Icons.edit_outlined,
+                                          const Icon(
+                                            ProfileIconography.edit,
                                             size: 14,
                                             color: AppColors.primary,
                                           ),
-                                          SizedBox(width: 6),
+                                          const SizedBox(width: 6),
                                           Flexible(
                                             child: Text(
                                               'Chỉnh sửa hồ sơ',
                                               maxLines: 1,
-                                              style: TextStyle(
+                                              style: AppTypography.caption(
                                                 fontSize: 11,
                                                 fontWeight: FontWeight.w600,
                                                 color: AppColors.primary,
                                               ),
                                             ),
                                           ),
-                                          SizedBox(width: 3),
-                                          Icon(
-                                            Icons.chevron_right_rounded,
+                                          const SizedBox(width: 3),
+                                          const Icon(
+                                            ProfileIconography.chevron,
                                             size: 15,
                                             color: AppColors.primary,
                                           ),
@@ -329,17 +349,6 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                           ],
                         ),
                       ),
-                      Positioned(
-                        right: -2,
-                        bottom: 0,
-                        width: 112,
-                        height: 116,
-                        child: Image.asset(
-                          'assets/images/thantai.png',
-                          fit: BoxFit.contain,
-                          alignment: Alignment.bottomRight,
-                        ),
-                      ),
                     ],
                   );
                 },
@@ -348,57 +357,6 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildHeaderAction({
-    required IconData icon,
-    required VoidCallback onTap,
-    int badge = 0,
-  }) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Material(
-          color: Colors.white,
-          shape: const CircleBorder(),
-          elevation: 2,
-          shadowColor: const Color(0x26000000),
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            onTap: onTap,
-            child: SizedBox(
-              width: 39,
-              height: 39,
-              child: Icon(icon, color: const Color(0xFF222222), size: 21),
-            ),
-          ),
-        ),
-        if (badge > 0)
-          Positioned(
-            right: -2,
-            top: -3,
-            child: Container(
-              constraints: const BoxConstraints(minWidth: 17, minHeight: 17),
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: Colors.white, width: 1.5),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                badge > 9 ? '9+' : '$badge',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 9,
-                  height: 1,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-          ),
-      ],
     );
   }
 
@@ -427,7 +385,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                 children: [
                   Text(
                     'Bảng điều khiển Admin',
-                    style: GoogleFonts.publicSans(
+                    style: AppTypography.h4(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
                       color: AppColors.textMain,
@@ -435,7 +393,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                   ),
                   Text(
                     'Quyền Quản trị viên & Nhân viên',
-                    style: GoogleFonts.publicSans(
+                    style: AppTypography.caption(
                       fontSize: 11,
                       color: AppColors.textMuted,
                     ),
@@ -452,14 +410,14 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFFD32F2F), Color(0xFFE53935)],
+                  colors: [AppColors.brandPrimary, AppColors.brandPrimaryDark],
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight,
                 ),
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: const [
                   BoxShadow(
-                    color: Color(0x33D32F2F),
+                    color: AppColors.shadowBrand,
                     blurRadius: 10,
                     offset: Offset(0, 4),
                   ),
@@ -469,13 +427,13 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                 children: [
                   Container(
                     padding: const EdgeInsets.all(8),
-                    decoration: const BoxDecoration(
-                      color: Colors.white24,
+                    decoration: BoxDecoration(
+                      color: AppColors.white.withValues(alpha: 0.24),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
                       Icons.qr_code_scanner_rounded,
-                      color: Colors.white,
+                      color: AppColors.surfacePrimary,
                       size: 24,
                     ),
                   ),
@@ -486,8 +444,8 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                       children: [
                         Text(
                           'Quét vé số OCR (Trang Admin)',
-                          style: GoogleFonts.publicSans(
-                            color: Colors.white,
+                          style: AppTypography.subtitle2(
+                            color: AppColors.surfacePrimary,
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
                           ),
@@ -495,8 +453,8 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                         const SizedBox(height: 2),
                         Text(
                           'Kết nối Real-time với màn hình Web Admin',
-                          style: GoogleFonts.publicSans(
-                            color: Colors.white70,
+                          style: AppTypography.caption(
+                            color: AppColors.white.withValues(alpha: 0.70),
                             fontSize: 11,
                           ),
                         ),
@@ -505,7 +463,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                   ),
                   const Icon(
                     Icons.arrow_forward_ios_rounded,
-                    color: Colors.white,
+                    color: AppColors.surfacePrimary,
                     size: 16,
                   ),
                 ],
@@ -535,53 +493,33 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Vé của tôi',
-                      style: GoogleFonts.publicSans(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textMain,
-                      ),
-                    ),
-                  ),
-                  InkWell(
-                    onTap: () => context.push(AppRoute.myTickets.path),
-                    child: Text(
-                      'Xem tất cả',
-                      style: GoogleFonts.publicSans(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ),
-                ],
+              _buildSectionHeader(
+                'Vé của tôi',
+                actionLabel: 'Xem tất cả',
+                onAction: () => context.push(AppRoute.myTickets.path),
               ),
               const SizedBox(height: 16),
               Row(
                 children: [
-                  _buildTicketStatItemAsset(
-                    'assets/images/icons/icon_ve_cho_quay.png',
-                    const Color(0xFFFBC02D),
+                  _buildTicketStatItemIcon(
+                    ProfileIconography.pendingTicket,
+                    AppColors.ticketPendingForeground,
                     pending,
                     'Chờ quay',
                     onTap: () => context.push(AppRoute.myTickets.path),
                   ),
                   _buildVerticalDivider(),
-                  _buildTicketStatItemAsset(
-                    'assets/images/icons/icon_ve_da_quay.png',
-                    const Color(0xFFE91E63),
+                  _buildTicketStatItemIcon(
+                    ProfileIconography.drawnTicket,
+                    ProfileIconTone.drawn,
                     drawn,
                     'Đã quay',
                     onTap: () => context.push(AppRoute.myTickets.path),
                   ),
                   _buildVerticalDivider(),
                   _buildTicketStatItemIcon(
-                    Icons.emoji_events_outlined,
-                    const Color(0xFFF57F17),
+                    ProfileIconography.prize,
+                    ProfileIconTone.prize,
                     won,
                     'Trúng thưởng',
                     onTap: () => context.push(AppRoute.myTickets.path),
@@ -608,19 +546,15 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
         borderRadius: BorderRadius.circular(12),
         child: Column(
           children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: color, size: 25),
+            SizedBox(
+              width: 46,
+              height: 46,
+              child: Icon(icon, color: color, size: 28),
             ),
             const SizedBox(height: 8),
             Text(
               count,
-              style: GoogleFonts.publicSans(
+              style: AppTypography.h4(
                 fontSize: 16,
                 fontWeight: FontWeight.w800,
                 color: AppColors.textMain,
@@ -629,62 +563,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
             const SizedBox(height: 2),
             Text(
               label,
-              style: GoogleFonts.publicSans(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textMuted,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTicketStatItemAsset(
-    String assetPath,
-    Color color,
-    String count,
-    String label, {
-    VoidCallback? onTap,
-  }) {
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Column(
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Transform.scale(
-                scale: 1.55,
-                child: Image.asset(
-                  assetPath,
-                  width: 34,
-                  height: 34,
-                  fit: BoxFit.contain,
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              count,
-              style: GoogleFonts.publicSans(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textMain,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: GoogleFonts.publicSans(
+              style: AppTypography.caption(
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
                 color: AppColors.textMuted,
@@ -697,7 +576,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
   }
 
   Widget _buildVerticalDivider() {
-    return Container(height: 42, width: 1, color: const Color(0xFFF1E7E5));
+    return Container(height: 42, width: 1, color: AppColors.borderDecorative);
   }
 
   Widget _buildMyAccountSection(BuildContext context) {
@@ -705,49 +584,42 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Tài khoản của tôi',
-            style: GoogleFonts.publicSans(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textMain,
-            ),
-          ),
-          const SizedBox(height: 8),
+          _buildSectionHeader('Quản lý tài khoản'),
+          const SizedBox(height: 4),
           _buildListItem(
-            Icons.dashboard_outlined,
-            'Tổng quan tài khoản',
-            onTap: () => context.push(AppRoute.profileOverview.path),
-          ),
-          _buildListItem(
-            Icons.person_outline,
+            ProfileIconography.identity,
             'Thông tin cá nhân',
             onTap: () {
               context.push(AppRoute.profileDetail.path);
             },
           ),
           _buildListItem(
-            Icons.confirmation_number_outlined,
+            ProfileIconography.spending,
+            'Tổng quan vé số',
+            onTap: () => context.push(AppRoute.profileOverview.path),
+          ),
+          _buildListItem(
+            ProfileIconography.ticket,
             'Vé của tôi',
             onTap: () => context.push(AppRoute.myTickets.path),
           ),
           _buildListItem(
-            Icons.receipt_long_outlined,
+            ProfileIconography.order,
             'Đơn hàng của tôi',
             onTap: () => context.push(AppRoute.myOrders.path),
           ),
           _buildListItem(
-            Icons.rotate_left_rounded,
+            ProfileIconography.refund,
             'Yêu cầu hoàn tiền',
             onTap: () => context.push(AppRoute.refunds.path),
           ),
           _buildListItem(
-            Icons.emoji_events_outlined,
+            ProfileIconography.prize,
             'Yêu cầu trả thưởng',
             onTap: () => context.push(AppRoute.prizePayouts.path),
           ),
           _buildListItem(
-            Icons.account_balance_outlined,
+            ProfileIconography.bankAccount,
             'Tài khoản ngân hàng',
             onTap: () => context.push(AppRoute.bankAccounts.path),
             showDivider: false,
@@ -764,15 +636,8 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Tiện ích',
-            style: GoogleFonts.publicSans(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textMain,
-            ),
-          ),
-          const SizedBox(height: 16),
+          _buildSectionHeader('Tiện ích của tôi'),
+          const SizedBox(height: 12),
           IntrinsicHeight(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -786,9 +651,9 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                   const SizedBox(width: 10),
                 ],
                 _buildUtilityItemIcon(
-                  Icons.notifications_active_outlined,
+                  ProfileIconography.notifications,
                   'Thông báo',
-                  onTap: () => context.go(AppRoute.notifications.path),
+                  onTap: () => context.push(AppRoute.notifications.path),
                 ),
                 const SizedBox(width: 10),
                 _buildUtilityItemIcon(
@@ -823,9 +688,9 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 11),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.surfacePrimary,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFF0E6E4)),
+            border: Border.all(color: AppColors.borderDecorative),
           ),
           child: Column(
             children: [
@@ -833,7 +698,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                 width: 48,
                 height: 48,
                 decoration: const BoxDecoration(
-                  color: Color(0xFFFFF2F3),
+                  color: AppColors.surfaceBrandWarm,
                   shape: BoxShape.circle,
                 ),
                 child: Icon(icon, color: AppColors.primary, size: 23),
@@ -846,7 +711,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.caption(
                     fontSize: 11,
                     height: 1.25,
                     fontWeight: FontWeight.w500,
@@ -866,38 +731,28 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Cài đặt & hỗ trợ',
-            style: GoogleFonts.publicSans(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textMain,
-            ),
-          ),
-          const SizedBox(height: 8),
+          _buildSectionHeader('Cài đặt & hỗ trợ'),
+          const SizedBox(height: 4),
           _buildListItem(
-            Icons.notifications_outlined,
+            ProfileIconography.notifications,
             'Cài đặt thông báo',
-            iconColor: const Color(0xFF242424),
             onTap: () => context.push(AppRoute.notificationSettings.path),
           ),
           _buildListItem(
             Icons.security_outlined,
             'Bảo mật',
-            iconColor: const Color(0xFF242424),
             onTap: () => context.pushNamed(AppRoute.security.name),
           ),
           _buildListItem(
-            Icons.headset_mic_outlined,
+            ProfileIconography.support,
             'Khiếu nại / Hỗ trợ',
-            iconColor: const Color(0xFF242424),
             onTap: () => context.push(AppRoute.complaints.path),
           ),
           _buildListItem(
             Icons.logout,
             'Đăng xuất',
+            iconColor: AppColors.contentDestructive,
             showDivider: false,
-            iconColor: const Color(0xFF242424),
             onTap: () async {
               await viewModel.logout();
               if (context.mounted) {
@@ -920,27 +775,88 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
     return Column(
       children: [
         ListTile(
+          minTileHeight: 52,
           dense: true,
-          visualDensity: const VisualDensity(vertical: -2),
+          visualDensity: const VisualDensity(vertical: -1),
           contentPadding: EdgeInsets.zero,
-          minLeadingWidth: 24,
-          leading: Icon(icon, color: iconColor, size: 20),
+          minLeadingWidth: 32,
+          leading: SizedBox(
+            width: 32,
+            height: 32,
+            child: Icon(icon, color: iconColor, size: 22),
+          ),
           title: Text(
             title,
-            style: GoogleFonts.publicSans(
+            style: AppTypography.bodySmall(
               fontSize: 12,
               fontWeight: FontWeight.w500,
               color: AppColors.textMain,
             ),
           ),
           trailing: const Icon(
-            Icons.chevron_right_rounded,
-            color: Color(0xFF9A9A9A),
+            ProfileIconography.chevron,
+            color: AppColors.contentDisabled,
             size: 19,
           ),
           onTap: onTap ?? () {},
         ),
-        if (showDivider) const Divider(height: 1, color: Color(0xFFF2EAE8)),
+        if (showDivider)
+          const Divider(
+            height: 1,
+            indent: 44,
+            color: AppColors.borderDecorative,
+          ),
+      ],
+    );
+  }
+
+  Widget _buildSectionHeader(
+    String title, {
+    String? actionLabel,
+    VoidCallback? onAction,
+  }) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            title,
+            style: AppTypography.subtitle2(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textMain,
+            ),
+          ),
+        ),
+        if (actionLabel != null)
+          InkWell(
+            onTap: onAction,
+            borderRadius: BorderRadius.circular(8),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 44),
+              child: Padding(
+                padding: const EdgeInsets.only(left: 12),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      actionLabel,
+                      style: AppTypography.caption(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    const Icon(
+                      ProfileIconography.chevron,
+                      size: 18,
+                      color: AppColors.primary,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -948,17 +864,17 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
   Widget _buildCard({required Widget child}) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 15),
+      padding: const EdgeInsets.fromLTRB(14, 13, 14, 14),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFFFF1EF)),
+        color: AppColors.surfacePrimary,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.borderDecorative),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x0F6D1F20),
-            blurRadius: 18,
-            spreadRadius: -5,
-            offset: Offset(0, 7),
+            color: AppColors.shadowLight,
+            blurRadius: 14,
+            spreadRadius: -4,
+            offset: Offset(0, 5),
           ),
         ],
       ),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/viewmodels/profile_viewmodel.dart';
@@ -107,20 +107,18 @@ class _FortuneCastViewState extends ConsumerState<FortuneCastView>
     final result = _viewModel.result;
     if (result == null) return;
     final parsed = parseFortuneBuyPath(result.buyPath);
-    final ticketNumber =
-        parsed.ticketNumber.isNotEmpty ? parsed.ticketNumber : result.luckyTail;
+    final ticketNumber = parsed.ticketNumber.isNotEmpty
+        ? parsed.ticketNumber
+        : result.luckyTail;
     final drawDate = parsed.drawDate?.isNotEmpty == true
         ? parsed.drawDate!
         : (result.sellableDrawDate.isNotEmpty
-            ? result.sellableDrawDate.split('T').first
-            : SellableDrawDate.defaultSellableDrawDateIso());
+              ? result.sellableDrawDate.split('T').first
+              : SellableDrawDate.defaultSellableDrawDateIso());
     context.go(
       Uri(
         path: AppRoute.buyTicket.path,
-        queryParameters: {
-          'ticketNumber': ticketNumber,
-          'drawDate': drawDate,
-        },
+        queryParameters: {'ticketNumber': ticketNumber, 'drawDate': drawDate},
       ).toString(),
     );
   }
@@ -136,11 +134,11 @@ class _FortuneCastViewState extends ConsumerState<FortuneCastView>
         vm.phase == FortuneAnimPhase.ejecting;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF3D0A0C),
+      backgroundColor: AppColors.fortuneBackgroundDark,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF4A0E10),
-        surfaceTintColor: Colors.transparent,
-        foregroundColor: const Color(0xFFFDE68A),
+        backgroundColor: AppColors.fortuneBackgroundMedium,
+        surfaceTintColor: AppColors.transparent,
+        foregroundColor: AppColors.fortuneGoldLight,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
@@ -150,18 +148,18 @@ class _FortuneCastViewState extends ConsumerState<FortuneCastView>
           children: [
             Text(
               'Mỗi ngày một quẻ · Đón vận may',
-              style: GoogleFonts.publicSans(
+              style: AppTypography.caption(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xCCFDE68A),
+                color: AppColors.fortuneGoldLight.withValues(alpha: 0.8),
               ),
             ),
             Text(
               'Gieo quẻ tài lộc',
-              style: GoogleFonts.publicSans(
+              style: AppTypography.h4(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
-                color: Colors.white,
+                color: AppColors.surfacePrimary,
               ),
             ),
           ],
@@ -173,28 +171,35 @@ class _FortuneCastViewState extends ConsumerState<FortuneCastView>
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF4A0E10), Color(0xFF2A0C0E), Color(0xFF1A0808)],
+            colors: [
+              AppColors.fortuneBackgroundMedium,
+              AppColors.fortuneBackgroundDeep,
+              AppColors.fortuneBackgroundOverlay,
+            ],
           ),
         ),
         child: SafeArea(
           top: false,
           child: vm.loadingToday && vm.phase == FortuneAnimPhase.idle
-              ? const Center(
+              ? Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      CircularProgressIndicator(color: Color(0xFFE8C872)),
-                      SizedBox(height: 12),
+                      const CircularProgressIndicator(color: AppColors.fortuneGold),
+                      const SizedBox(height: 12),
                       Text(
                         'Đang chuẩn bị ống quẻ…',
-                        style: TextStyle(color: Color(0xFFFDE68A)),
+                        style: AppTypography.bodyMedium(
+                          color: AppColors.fortuneGoldLight,
+                        ),
                       ),
                     ],
                   ),
                 )
               : AnimatedSwitcher(
                   duration: const Duration(milliseconds: 280),
-                  child: vm.phase == FortuneAnimPhase.result && vm.result != null
+                  child:
+                      vm.phase == FortuneAnimPhase.result && vm.result != null
                       ? _ResultPane(
                           key: const ValueKey('result'),
                           viewModel: vm,
@@ -239,148 +244,152 @@ class _JarPane extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final shaking = viewModel.phase == FortuneAnimPhase.shaking ||
+    final shaking =
+        viewModel.phase == FortuneAnimPhase.shaking ||
         viewModel.phase == FortuneAnimPhase.ejecting;
 
     return RefreshIndicator(
-      color: const Color(0xFFE8C872),
+      color: AppColors.fortuneGold,
       onRefresh: () => viewModel.loadToday(),
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
-        if (!isAuthenticated)
-          _Banner(
-            text: 'Đăng nhập để gieo quẻ và lưu kết quả trong ngày.',
-            actionLabel: 'Đăng nhập',
-            onAction: onLogin,
-          ),
-        if (viewModel.showCastSetup && isAuthenticated) ...[
+          if (!isAuthenticated)
+            _Banner(
+              text: 'Đăng nhập để gieo quẻ và lưu kết quả trong ngày.',
+              actionLabel: 'Đăng nhập',
+              onAction: onLogin,
+            ),
+          if (viewModel.showCastSetup && isAuthenticated) ...[
+            Text(
+              'CHỌN CÁCH GIEO',
+              textAlign: TextAlign.center,
+              style: AppTypography.overline(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.8,
+                color: AppColors.fortuneGoldLight.withValues(alpha: 0.8),
+              ),
+            ),
+            const SizedBox(height: 10),
+            _ModeCard(
+              selected: viewModel.castMode == FortuneCastMode.random,
+              icon: Icons.shuffle_rounded,
+              title: 'Gieo ngẫu nhiên',
+              subtitle: 'Để vận khí hôm nay chọn bản mệnh giúp bạn.',
+              onTap: () => viewModel.selectCastMode(FortuneCastMode.random),
+            ),
+            const SizedBox(height: 10),
+            _ModeCard(
+              selected: viewModel.castMode == FortuneCastMode.birthdate,
+              icon: Icons.auto_awesome_rounded,
+              title: 'Theo ngày sinh',
+              subtitle: 'Kết hợp Can Chi bản mệnh với ngũ hành ngày.',
+              onTap: () => viewModel.selectCastMode(FortuneCastMode.birthdate),
+              child: _DobButton(
+                day: viewModel.birthDay,
+                month: viewModel.birthMonth,
+                year: viewModel.birthYear,
+                onTap: onPickDob,
+              ),
+            ),
+            const SizedBox(height: 14),
+          ],
+          if (viewModel.errorMessage != null) ...[
+            const SizedBox(height: 10),
+            _Banner(text: viewModel.errorMessage!, isError: true),
+          ],
+          const SizedBox(height: 16),
           Text(
-            'CHỌN CÁCH GIEO',
+            'THẦN TÀI',
             textAlign: TextAlign.center,
-            style: GoogleFonts.publicSans(
-              fontSize: 11,
+            style: AppTypography.overline(
+              fontSize: 10,
               fontWeight: FontWeight.w800,
-              letterSpacing: 1.8,
-              color: const Color(0xCCFDE68A),
+              letterSpacing: 2.4,
+              color: AppColors.borderDestructive.withValues(alpha: 0.6),
             ),
           ),
-          const SizedBox(height: 10),
-          _ModeCard(
-            selected: viewModel.castMode == FortuneCastMode.random,
-            icon: Icons.shuffle_rounded,
-            title: 'Gieo ngẫu nhiên',
-            subtitle: 'Để vận khí hôm nay chọn bản mệnh giúp bạn.',
-            onTap: () => viewModel.selectCastMode(FortuneCastMode.random),
-          ),
-          const SizedBox(height: 10),
-          _ModeCard(
-            selected: viewModel.castMode == FortuneCastMode.birthdate,
-            icon: Icons.cake_outlined,
-            title: 'Gieo theo ngày sinh',
-            subtitle: 'Luận quẻ đúng bản mệnh của bạn.',
-            onTap: () => viewModel.selectCastMode(FortuneCastMode.birthdate),
-            child: _DobButton(
-              day: viewModel.birthDay,
-              month: viewModel.birthMonth,
-              year: viewModel.birthYear,
-              onTap: onPickDob,
+          Text(
+            'Ống quẻ tài lộc',
+            textAlign: TextAlign.center,
+            style: AppTypography.h3(
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+              color: AppColors.fortuneCream,
             ),
           ),
-        ],
-        if (viewModel.errorMessage != null) ...[
-          const SizedBox(height: 10),
-          _Banner(text: viewModel.errorMessage!, isError: true),
-        ],
-        const SizedBox(height: 16),
-        Text(
-          'THẦN TÀI',
-          textAlign: TextAlign.center,
-          style: GoogleFonts.publicSans(
-            fontSize: 10,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 2.4,
-            color: const Color(0x99FCA5A5),
-          ),
-        ),
-        Text(
-          'Ống quẻ tài lộc',
-          textAlign: TextAlign.center,
-          style: GoogleFonts.publicSans(
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
-            color: const Color(0xFFFFF7ED),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Lắc ống — số trên que là đuôi may mắn hôm nay.',
-          textAlign: TextAlign.center,
-          style: GoogleFonts.publicSans(
-            fontSize: 13,
-            color: const Color(0xCCFDE68A),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Center(
-          child: FortuneJar(
-            phase: viewModel.phase,
-            luckyTail: viewModel.result?.luckyTail,
-            enabled: !viewModel.busy && !viewModel.isLocked,
-            onShake: onShake,
-          ),
-        ),
-        if (shaking)
-          Container(
-            margin: const EdgeInsets.only(top: 8),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xCC2A0C0E),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0x40E8C872)),
+          const SizedBox(height: 4),
+          Text(
+            'Lắc ống — số trên que là đuôi may mắn hôm nay.',
+            textAlign: TextAlign.center,
+            style: AppTypography.bodySmall(
+              fontSize: 13,
+              color: AppColors.fortuneGoldLight.withValues(alpha: 0.8),
             ),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Color(0xFFE8C872),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      viewModel.phase == FortuneAnimPhase.shaking
-                          ? 'Đang lắc ống quẻ…'
-                          : 'Một que đang bay ra…',
-                      style: GoogleFonts.publicSans(
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
+          ),
+          const SizedBox(height: 8),
+          Center(
+            child: FortuneJar(
+              phase: viewModel.phase,
+              luckyTail: viewModel.result?.luckyTail,
+              enabled: !viewModel.busy && !viewModel.isLocked,
+              onShake: onShake,
+            ),
+          ),
+          if (shaking)
+            Container(
+              margin: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.fortuneBackgroundDeep.withValues(alpha: 0.8),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppColors.fortuneGold.withValues(alpha: 0.25),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  viewModel.phase == FortuneAnimPhase.shaking
-                      ? 'Que xăm đang nhảy trong ống — giữ vững tâm thế.'
-                      : 'Que may mắn sắp chạm đất.',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.publicSans(
-                    fontSize: 13,
-                    color: const Color(0xA6FFF7ED),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.fortuneGold,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        viewModel.phase == FortuneAnimPhase.shaking
+                            ? 'Đang lắc ống quẻ…'
+                            : 'Một que đang bay ra…',
+                        style: AppTypography.subtitle2(
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.surfacePrimary,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 6),
+                  Text(
+                    viewModel.phase == FortuneAnimPhase.shaking
+                        ? 'Que xăm đang nhảy trong ống — giữ vững tâm thế.'
+                        : 'Que may mắn sắp chạm đất.',
+                    textAlign: TextAlign.center,
+                    style: AppTypography.bodySmall(
+                      fontSize: 13,
+                      color: AppColors.fortuneCream.withValues(alpha: 0.65),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-      ],
-    ),
+        ],
+      ),
     );
   }
 }
@@ -404,177 +413,186 @@ class _ResultPane extends StatelessWidget {
       children: [
         Expanded(
           child: RefreshIndicator(
-            color: const Color(0xFFE8C872),
+            color: AppColors.fortuneGold,
             onRefresh: () => viewModel.loadToday(),
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
               children: [
-              Text(
-                'QUẺ XĂM TÀI LỘC HÔM NAY',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.publicSans(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.6,
-                  color: const Color(0xCCE8C872),
+                Text(
+                  'QUẺ XĂM TÀI LỘC HÔM NAY',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.overline(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.6,
+                    color: AppColors.fortuneGold.withValues(alpha: 0.8),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Thẻ may mắn của bạn',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.publicSans(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white,
+                const SizedBox(height: 4),
+                Text(
+                  'Thẻ may mắn của bạn',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.h3(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.surfacePrimary,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 14),
-              FortuneStickCard(luckyTail: result.luckyTail),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _ElementPill(
-                      title: 'Bản mệnh',
-                      value: fortuneElementLabel(result.userElement),
+                const SizedBox(height: 14),
+                FortuneStickCard(luckyTail: result.luckyTail),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _ElementPill(
+                        title: 'Bản mệnh',
+                        value: fortuneElementLabel(result.userElement),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _ElementPill(
+                        title: 'Hành ngày',
+                        value: fortuneElementLabel(result.dayElement),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Lời luận quẻ',
+                  style: AppTypography.h4(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.surfacePrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppColors.fortuneBackgroundOverlay.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: AppColors.fortuneGold.withValues(alpha: 0.2),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _ElementPill(
-                      title: 'Hành ngày',
-                      value: fortuneElementLabel(result.dayElement),
+                  child: FortuneProseText(
+                    prose: result.prose,
+                    luckyTail: result.luckyTail,
+                  ),
+                ),
+                if (viewModel.isLocked) ...[
+                  const SizedBox(height: 14),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.fortuneBackgroundOverlay.withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: AppColors.fortuneGold.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          'THỜI GIAN CHỜ GIỮA CÁC LẦN GIEO',
+                          style: AppTypography.overline(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.1,
+                            color: AppColors.fortuneGoldLight.withValues(alpha: 0.6),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Lượt tiếp theo',
+                          style: AppTypography.caption(
+                            fontSize: 12,
+                            color: AppColors.fortuneGoldLight.withValues(alpha: 0.6),
+                          ),
+                        ),
+                        Text(
+                          formatCountdownHms(viewModel.nextCastCountdown),
+                          style: AppTypography.lotteryDigit(
+                            fontSize: 32,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.fortuneGoldDark,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ] else ...[
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: onBackToJar,
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    label: Text(
+                      'Về ống quẻ',
+                      style: AppTypography.buttonLarge(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                        color: AppColors.fortuneCrimsonDark,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.fortuneCrimsonDark,
+                      backgroundColor: AppColors.fortuneGoldLight,
+                      side: BorderSide.none,
+                      minimumSize: const Size.fromHeight(48),
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Lời luận quẻ',
-                style: GoogleFonts.publicSans(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0x991A0808),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0x33E8C872)),
-                ),
-                child: FortuneProseText(
-                  prose: result.prose,
-                  luckyTail: result.luckyTail,
-                ),
-              ),
-              if (viewModel.isLocked) ...[
-                const SizedBox(height: 14),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: const Color(0x991A0808),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0x33E8C872)),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        'THỜI GIAN CHỜ GIỮA CÁC LẦN GIEO',
-                        style: GoogleFonts.publicSans(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.1,
-                          color: const Color(0x99FDE68A),
-                        ),
+                if (result.previousCastSummary != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.fortuneBackgroundOverlay.withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: AppColors.fortuneGold.withValues(alpha: 0.2),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Lượt tiếp theo',
-                        style: GoogleFonts.publicSans(
-                          fontSize: 12,
-                          color: const Color(0x99FDE68A),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          'QUẺ GẦN NHẤT',
+                          style: AppTypography.overline(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.2,
+                            color: AppColors.fortuneGoldLight.withValues(alpha: 0.6),
+                          ),
                         ),
-                      ),
-                      Text(
-                        formatCountdownHms(viewModel.nextCastCountdown),
-                        style: GoogleFonts.publicSans(
-                          fontSize: 32,
-                          fontWeight: FontWeight.w900,
-                          color: const Color(0xFFFCD34D),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Đuôi may mắn ${result.previousCastSummary!.luckyTail}',
+                          style: AppTypography.h5(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.surfacePrimary,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-              ] else ...[
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: onBackToJar,
-                  icon: const Icon(Icons.arrow_back_rounded),
-                  label: const Text('Về ống quẻ'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF6B1012),
-                    backgroundColor: const Color(0xFFFDE68A),
-                    side: BorderSide.none,
-                    minimumSize: const Size.fromHeight(48),
-                    textStyle: GoogleFonts.publicSans(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 15,
+                        Text(
+                          '${formatFortuneDisplayDate(result.previousCastSummary!.castDate)}'
+                          '${result.previousCastSummary!.userElement.isNotEmpty ? ' · Mệnh ${fortuneElementLabel(result.previousCastSummary!.userElement)}' : ''}',
+                          style: AppTypography.bodySmall(
+                            fontSize: 13,
+                            color: AppColors.fortuneCream.withValues(alpha: 0.6),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
+                ],
               ],
-              if (result.previousCastSummary != null) ...[
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: const Color(0x991A0808),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0x33E8C872)),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        'QUẺ GẦN NHẤT',
-                        style: GoogleFonts.publicSans(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.2,
-                          color: const Color(0x99FDE68A),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Đuôi may mắn ${result.previousCastSummary!.luckyTail}',
-                        style: GoogleFonts.publicSans(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                        ),
-                      ),
-                      Text(
-                        '${formatFortuneDisplayDate(result.previousCastSummary!.castDate)}'
-                        '${result.previousCastSummary!.userElement.isNotEmpty ? ' · Mệnh ${fortuneElementLabel(result.previousCastSummary!.userElement)}' : ''}',
-                        style: GoogleFonts.publicSans(
-                          fontSize: 13,
-                          color: const Color(0x99FFF7ED),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ],
-          ),
+            ),
           ),
         ),
         Padding(
@@ -585,14 +603,17 @@ class _ResultPane extends StatelessWidget {
             child: FilledButton.icon(
               onPressed: onBuy,
               icon: const Icon(Icons.shopping_cart_outlined),
-              label: Text('Mua vé đuôi ${result.luckyTail}'),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                textStyle: GoogleFonts.publicSans(
+              label: Text(
+                'Mua vé đuôi ${result.luckyTail}',
+                style: AppTypography.buttonLarge(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
+                  color: AppColors.surfacePrimary,
                 ),
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.surfacePrimary,
               ),
             ),
           ),
@@ -622,7 +643,9 @@ class _ModeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected ? const Color(0xFF8B1A1C) : const Color(0xB32A0C0E),
+      color: selected
+          ? AppColors.fortuneCrimson
+          : AppColors.fortuneBackgroundDeep.withValues(alpha: 0.7),
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
@@ -634,8 +657,8 @@ class _ModeCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: selected
-                  ? const Color(0xFFE8C872)
-                  : const Color(0x40E8C872),
+                  ? AppColors.fortuneGold
+                  : AppColors.fortuneGold.withValues(alpha: 0.25),
             ),
           ),
           child: Column(
@@ -649,14 +672,14 @@ class _ModeCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: selected
-                          ? const Color(0xFFE8C872)
-                          : const Color(0x33E8C872),
+                          ? AppColors.fortuneGold
+                          : AppColors.fortuneGold.withValues(alpha: 0.2),
                     ),
                     child: Icon(
                       icon,
                       color: selected
-                          ? const Color(0xFF6B1012)
-                          : const Color(0xFFE8C872),
+                          ? AppColors.fortuneCrimsonDark
+                          : AppColors.fortuneGold,
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -666,17 +689,17 @@ class _ModeCard extends StatelessWidget {
                       children: [
                         Text(
                           title,
-                          style: GoogleFonts.publicSans(
+                          style: AppTypography.subtitle1(
                             fontSize: 14,
                             fontWeight: FontWeight.w800,
-                            color: Colors.white,
+                            color: AppColors.surfacePrimary,
                           ),
                         ),
                         Text(
                           subtitle,
-                          style: GoogleFonts.publicSans(
+                          style: AppTypography.bodySmall(
                             fontSize: 12,
-                            color: const Color(0xB3FFF7ED),
+                            color: AppColors.fortuneCream.withValues(alpha: 0.7),
                           ),
                         ),
                       ],
@@ -689,15 +712,15 @@ class _ModeCard extends StatelessWidget {
                         vertical: 3,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE8C872),
+                        color: AppColors.fortuneGold,
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
                         'CHỌN',
-                        style: GoogleFonts.publicSans(
+                        style: AppTypography.overline(
                           fontSize: 10,
                           fontWeight: FontWeight.w900,
-                          color: const Color(0xFF5A1012),
+                          color: AppColors.fortuneCrimsonDeep,
                         ),
                       ),
                     ),
@@ -738,24 +761,26 @@ class _DobButton extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
-          color: const Color(0xCC1A0808),
+          color: AppColors.fortuneBackgroundOverlay.withValues(alpha: 0.8),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0x59E8C872)),
+          border: Border.all(
+            color: AppColors.fortuneGold.withValues(alpha: 0.35),
+          ),
         ),
         child: Row(
           children: [
-            const Icon(Icons.calendar_month_outlined, color: Color(0xFFE8C872)),
+            const Icon(Icons.calendar_month_outlined, color: AppColors.fortuneGold),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 label,
-                style: GoogleFonts.publicSans(
+                style: AppTypography.subtitle2(
                   fontWeight: FontWeight.w700,
-                  color: Colors.white,
+                  color: AppColors.surfacePrimary,
                 ),
               ),
             ),
-            const Icon(Icons.expand_more_rounded, color: Color(0xFFE8C872)),
+            const Icon(Icons.expand_more_rounded, color: AppColors.fortuneGold),
           ],
         ),
       ),
@@ -774,25 +799,27 @@ class _ElementPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xCC2A0C0E),
+        color: AppColors.fortuneBackgroundDeep.withValues(alpha: 0.8),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0x4DE8C872)),
+        border: Border.all(
+          color: AppColors.fortuneGold.withValues(alpha: 0.3),
+        ),
       ),
       child: Column(
         children: [
           Text(
             title,
-            style: GoogleFonts.publicSans(
+            style: AppTypography.caption(
               fontSize: 11,
-              color: const Color(0x99FDE68A),
+              color: AppColors.fortuneGoldLight.withValues(alpha: 0.6),
             ),
           ),
           Text(
             value,
-            style: GoogleFonts.publicSans(
+            style: AppTypography.h5(
               fontSize: 16,
               fontWeight: FontWeight.w800,
-              color: Colors.white,
+              color: AppColors.surfacePrimary,
             ),
           ),
         ],
@@ -821,19 +848,23 @@ class _Banner extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isError ? const Color(0xCC5A1012) : const Color(0xB32A0C0E),
+        color: isError
+            ? AppColors.fortuneCrimsonDeep.withValues(alpha: 0.8)
+            : AppColors.fortuneBackgroundDeep.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0x4DE8C872)),
+        border: Border.all(
+          color: AppColors.fortuneGold.withValues(alpha: 0.3),
+        ),
       ),
       child: Row(
         children: [
           Expanded(
             child: Text(
               text,
-              style: GoogleFonts.publicSans(
+              style: AppTypography.bodySmall(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFFFDE68A),
+                color: AppColors.fortuneGoldLight,
               ),
             ),
           ),
@@ -842,9 +873,9 @@ class _Banner extends StatelessWidget {
               onPressed: onAction,
               child: Text(
                 actionLabel!,
-                style: GoogleFonts.publicSans(
+                style: AppTypography.buttonSmall(
                   fontWeight: FontWeight.w800,
-                  color: Colors.white,
+                  color: AppColors.surfacePrimary,
                 ),
               ),
             ),

@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
-import { Box, Typography } from '@mui/material';
+import { Box, Link, Tooltip, Typography } from '@mui/material';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import dayjs from 'dayjs';
 import { AdminRowActionsMenu } from '../../../../../components/ui/AdminRowActionsMenu';
@@ -11,6 +11,7 @@ import { formatImportCost } from '../../../import-batch/utils/importCostCalculat
 import type { ReturnBatch } from '../../types/returnBatch.type';
 import {
     getReturnBatchStatusBadgeClass,
+    getReturnBatchStatusColorTheme,
     getReturnBatchStatusLabel,
 } from '../../utils/returnBatchLabels';
 
@@ -28,6 +29,56 @@ const ActionCell = ({ row }: { row: ReturnBatch }) => {
                 },
             ]}
         />
+    );
+};
+
+const BatchCodeCell = ({ row }: { row: ReturnBatch }) => {
+    const router = useAdminRouter();
+    const rawCode = row.batchCode?.trim() || `#${row.id}`;
+    const detailUrl = ROUTES.ADMIN.RETURN_BATCH.DETAIL(row.id);
+
+    return (
+        <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+            <Link
+                href={detailUrl}
+                onClick={(e) => {
+                    e.stopPropagation();
+                    if (!e.ctrlKey && !e.metaKey && e.button === 0) {
+                        e.preventDefault();
+                        router.push(detailUrl);
+                    }
+                }}
+                underline="none"
+                sx={{
+                    px: 1.25,
+                    py: 0.5,
+                    borderRadius: '8px',
+                    bgcolor: '#f1f5f9',
+                    border: '1px solid #e2e8f0',
+                    fontFamily: 'monospace',
+                    fontWeight: 700,
+                    fontSize: '0.8125rem',
+                    color: '#0f172a',
+                    letterSpacing: '0.02em',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    textDecoration: 'none',
+                    transition: 'all 0.15s ease',
+                    '&:hover': {
+                        bgcolor: '#e2e8f0',
+                        borderColor: '#cbd5e1',
+                        color: 'var(--color-primary-admin, #0284c7)',
+                        textDecoration: 'none',
+                        transform: 'translateY(-1px)',
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
+                    },
+                }}
+                title={`Xem chi tiết phiếu trả ${rawCode}`}
+            >
+                {rawCode}
+            </Link>
+        </Box>
     );
 };
 
@@ -64,7 +115,39 @@ export const returnBatchColumnsConfig: GridColDef[] = [
                 rowIndex = 0;
             }
             const sttNumber = page * pageSize + rowIndex + 1;
-            return <CellTextCenter>{sttNumber}</CellTextCenter>;
+            const theme = getReturnBatchStatusColorTheme(params.row.status);
+            return (
+                <div className="flex h-full w-full min-w-0 items-center justify-center">
+                    <Tooltip title={`Trạng thái: ${theme.label}`} arrow placement="right">
+                        <Box
+                            sx={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                minWidth: 28,
+                                height: 26,
+                                px: 0.75,
+                                borderRadius: '6px',
+                                bgcolor: theme.bg,
+                                color: theme.text,
+                                border: `1.5px solid ${theme.border}`,
+                                fontWeight: 800,
+                                fontSize: '0.8125rem',
+                                fontFamily: 'monospace',
+                                cursor: 'default',
+                                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
+                                transition: 'all 0.15s ease',
+                                '&:hover': {
+                                    transform: 'scale(1.08)',
+                                    boxShadow: `0 2px 6px ${theme.border}`,
+                                },
+                            }}
+                        >
+                            {sttNumber}
+                        </Box>
+                    </Tooltip>
+                </div>
+            );
         },
     },
     {
@@ -73,29 +156,7 @@ export const returnBatchColumnsConfig: GridColDef[] = [
         flex: 1.1,
         minWidth: 160,
         sortable: true,
-        renderCell: (params: GridRenderCellParams<ReturnBatch>) => {
-            const rawCode = params.row.batchCode?.trim() || `#${params.row.id}`;
-            return (
-                <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-                    <Box
-                        sx={{
-                            px: 1.25,
-                            py: 0.5,
-                            borderRadius: '8px',
-                            bgcolor: '#f1f5f9',
-                            border: '1px solid #e2e8f0',
-                            fontFamily: 'monospace',
-                            fontWeight: 700,
-                            fontSize: '0.8125rem',
-                            color: '#0f172a',
-                            letterSpacing: '0.02em',
-                        }}
-                    >
-                        {rawCode}
-                    </Box>
-                </Box>
-            );
-        },
+        renderCell: (params: GridRenderCellParams<ReturnBatch>) => <BatchCodeCell row={params.row} />,
     },
     {
         field: 'supplierName',
@@ -214,10 +275,10 @@ export const returnBatchColumnsConfig: GridColDef[] = [
         flex: 1.2,
         minWidth: 160,
         sortable: true,
-        align: 'right',
-        headerAlign: 'right',
+        align: 'center',
+        headerAlign: 'center',
         renderCell: (params: GridRenderCellParams<ReturnBatch>) => (
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', width: '100%', height: '100%' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
                 <span className={`admin-status-badge ${getReturnBatchStatusBadgeClass(params.row.status)}`}>
                     {getReturnBatchStatusLabel(params.row.status, params.row.statusLabel)}
                 </span>

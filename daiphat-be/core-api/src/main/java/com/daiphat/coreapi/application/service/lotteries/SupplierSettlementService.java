@@ -236,7 +236,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         settlement.applyExpiredReturnValue(expiredReturnValue);
 
         BigDecimal remainingAmount = BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE);
-        if (settlement.getStatus() != SupplierSettlementStatus.COMPLETED) {
+        if (!settlement.getStatus().isCompleted()) {
             BigDecimal paid = settlement.getTotalPaidAmount() != null
                     ? settlement.getTotalPaidAmount()
                     : BigDecimal.ZERO;
@@ -255,7 +255,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
             remainingAmount = BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE);
         }
         settlement.applyRemainingAmount(remainingAmount);
-        if (settlement.getStatus() == SupplierSettlementStatus.COMPLETED && settlement.getPaidAt() == null) {
+        if (settlement.getStatus().isCompleted() && settlement.getPaidAt() == null) {
             settlement.setPaidAt(LocalDateTime.now(clock));
         }
 
@@ -361,7 +361,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
     }
 
     private boolean shouldRefreshMatchingSystemTotals(SupplierSettlementModel settlement) {
-        if (settlement.getStatus() == SupplierSettlementStatus.COMPLETED) {
+        if (settlement.getStatus().isCompleted()) {
             return false;
         }
         return settlement.getReconciliationPhase() != SupplierSettlementReconciliationPhase.COMPLETED;
@@ -526,7 +526,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
     public SupplierSettlementResponse updateReceiptUrl(Long settlementId, String supplierSettlementReceiptUrl) {
         SupplierSettlementModel settlement = supplierSettlementRepositoryPort.findById(settlementId)
                 .orElseThrow(() -> new DomainException(ErrorCode.SUPPLIER_SETTLEMENT_NOT_FOUND));
-        if (settlement.getStatus() == SupplierSettlementStatus.COMPLETED) {
+        if (settlement.getStatus().isCompleted()) {
             throw new DomainException(
                     ErrorCode.INVALID_INPUT,
                     "Không thể cập nhật biên lai khi kỳ đối soát đã thanh toán"
@@ -564,7 +564,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
     ) {
         SupplierSettlementModel settlement = supplierSettlementRepositoryPort.findById(settlementId)
                 .orElseThrow(() -> new DomainException(ErrorCode.SUPPLIER_SETTLEMENT_NOT_FOUND));
-        if (settlement.getStatus() == SupplierSettlementStatus.COMPLETED
+        if (settlement.getStatus().isCompleted()
                 || settlement.getReconciliationPhase() == SupplierSettlementReconciliationPhase.COMPLETED) {
             throw new DomainException(
                     ErrorCode.INVALID_INPUT,
@@ -1841,7 +1841,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
     private SupplierSettlementModel requireOpenSettlement(Long settlementId) {
         SupplierSettlementModel settlement = supplierSettlementRepositoryPort.findById(settlementId)
                 .orElseThrow(() -> new DomainException(ErrorCode.SUPPLIER_SETTLEMENT_NOT_FOUND));
-        if (settlement.getStatus() == SupplierSettlementStatus.COMPLETED
+        if (settlement.getStatus().isCompleted()
                 || settlement.getReconciliationPhase() == SupplierSettlementReconciliationPhase.COMPLETED) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "Kỳ đối soát đã thanh toán, không thể thao tác.");
         }

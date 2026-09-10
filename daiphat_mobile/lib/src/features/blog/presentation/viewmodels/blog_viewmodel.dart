@@ -96,10 +96,14 @@ class BlogViewModel extends AsyncNotifier<BlogListState> {
   }
 
   int? _resolveCategoryId(List<BlogCategory>? categories, int index) {
-    if (index <= 0 || categories == null || index >= categories.length) {
+    if (index <= 0 || categories == null) {
       return null;
     }
-    final categoryId = categories[index].id;
+    final categoryIndex = index - 1;
+    if (categoryIndex >= categories.length) {
+      return null;
+    }
+    final categoryId = categories[categoryIndex].id;
     return categoryId == 0 ? null : categoryId;
   }
 
@@ -122,6 +126,23 @@ class BlogViewModel extends AsyncNotifier<BlogListState> {
       () => _load(
         selectedCategoryIndex: current?.selectedCategoryIndex ?? 0,
         searchQuery: query.trim(),
+        knownCategories: current?.categories,
+      ),
+    );
+  }
+
+  Future<void> resetFilters() async {
+    final current = state.asData?.value;
+    if ((current?.selectedCategoryIndex ?? 0) == 0 &&
+        (current?.searchQuery ?? '').isEmpty) {
+      return;
+    }
+
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(
+      () => _load(
+        selectedCategoryIndex: 0,
+        searchQuery: '',
         knownCategories: current?.categories,
       ),
     );

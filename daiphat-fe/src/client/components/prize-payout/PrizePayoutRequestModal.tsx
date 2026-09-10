@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { PurchasedTicket } from '../../../types/lottery-ticket.type';
-import { formatPrizePayoutCurrency, PrizePayoutPreviewResponse } from '../../../types/prize-payout.type';
+import { formatPrizePayoutCurrency, buildStationOfficeRedemptionMessage, PrizePayoutPreviewResponse } from '../../../types/prize-payout.type';
 import { useGetBankAccounts } from '../../hooks/useBankAccount';
 import { useCreatePrizePayout } from '../../hooks/usePrizePayout';
 import { BankAccountFormModal } from '../refund/BankAccountFormModal';
@@ -92,6 +92,11 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
     const commission = preview?.commissionAmount;
     const net = preview?.netAmount;
 
+    const stationOfficeOnly = preview?.requiresStationOfficeRedemption === true
+        || ticket.matchedPrizeCode?.toUpperCase() === 'DB'
+        || ticket.requiresStationOfficeRedemption === true;
+    const canContinueOnline = !stationOfficeOnly && (preview == null || preview.canClaimOnline);
+
     return createPortal(
         <div className="fixed inset-0 z-[9998] flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
             <div className="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto">
@@ -158,13 +163,18 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
                                 </>
                             )}
                         </div>
+                        {stationOfficeOnly && (
+                            <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-[13px] text-orange-800">
+                                {buildStationOfficeRedemptionMessage(preview?.stationName ?? ticket.stationName)}
+                            </div>
+                        )}
                         <p className="text-[12px] text-[#919EAB] m-0">
                             Yêu cầu vẫn cần nhân viên duyệt trước khi chuyển tiền.
                         </p>
                         <button
                             type="button"
                             onClick={() => setStep(2)}
-                            disabled={previewLoading || (preview != null && !preview.canClaimOnline)}
+                            disabled={previewLoading || !canContinueOnline}
                             className="w-full py-3 bg-[#ee1314] text-white font-bold rounded-xl cursor-pointer disabled:opacity-50"
                         >
                             Tiếp tục

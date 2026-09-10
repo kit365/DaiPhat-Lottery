@@ -72,6 +72,11 @@ public enum ErrorCode {
     IMAGE_FILE_REQUIRED("SYS_007", "Vui lòng chọn một tệp hình ảnh.", HttpStatus.BAD_REQUEST),
     IMAGE_INVALID_TYPE("SYS_008", "Chỉ hỗ trợ tải lên các tệp định dạng hình ảnh.", HttpStatus.BAD_REQUEST),
     IMAGE_UPLOAD_FAILED("SYS_009", "Không thể tải ảnh lên. Vui lòng kiểm tra cấu hình lưu trữ hoặc thử lại.", HttpStatus.BAD_GATEWAY),
+    IMAGE_FILE_TOO_LARGE("SYS_016", "Ảnh vượt quá dung lượng cho phép (%d MB).", HttpStatus.BAD_REQUEST),
+    IMAGE_DIMENSIONS_TOO_SMALL(
+            "SYS_017",
+            "Ảnh quá nhỏ để làm mẫu OCR (tối thiểu %d×%d px). Vui lòng tải ảnh vé thật.",
+            HttpStatus.BAD_REQUEST),
     CONTRACT_TEMPLATE_NOT_FOUND("SYS_010", "Chưa cấu hình mẫu hợp đồng mặc định. Vào Cài đặt → Hợp đồng để tạo hoặc đặt mặc định.", HttpStatus.NOT_FOUND),
     CONTRACT_NOT_FOUND("SYS_011", "Hợp đồng không tồn tại.", HttpStatus.NOT_FOUND),
     CONTRACT_DEFAULT_REQUIRED("SYS_012", "Không thể xóa hợp đồng đang là mặc định. Hãy đặt mặc định cho bản khác trước.", HttpStatus.BAD_REQUEST),
@@ -159,6 +164,22 @@ public enum ErrorCode {
     PRIZE_PAYOUT_LATE_REDEMPTION_ACK_REQUIRED(
             "ORD_054",
             "Vé đã quá hạn đổi thưởng của khách. Cần xác nhận ưu tiên mang đi lĩnh trước hạn nhà đài.",
+            HttpStatus.BAD_REQUEST),
+    PRIZE_PAYOUT_INSUFFICIENT_FUND(
+            "ORD_055",
+            "Quỹ đại lý không đủ để thực hiện thanh toán.",
+            HttpStatus.BAD_REQUEST),
+    PRIZE_PAYOUT_REQUIRES_STATION_OFFICE(
+            "ORD_056",
+            "Giải Đặc Biệt phải đến Văn phòng Đại diện Đài để xác minh, đóng thuế và nhận tiền qua ngân hàng.",
+            HttpStatus.BAD_REQUEST),
+    PRIZE_CLAIM_EXPORT_NOT_READY(
+            "ORD_057",
+            "Phiếu nộp chưa sẵn sàng xuất. Vui lòng xác nhận kiểm tra trước khi xuất phiếu.",
+            HttpStatus.BAD_REQUEST),
+    PRIZE_CLAIM_EXPORT_EMPTY(
+            "ORD_058",
+            "Phiếu nộp chưa có vé nào — không thể xuất tệp.",
             HttpStatus.BAD_REQUEST),
 
     // Lottery Errors
@@ -558,7 +579,7 @@ public enum ErrorCode {
     STREET_AGENT_PROFILE_INVALID_CONTRACT_DATE("SAG_005", "Ngày kết thúc hợp đồng phải sau ngày bắt đầu.", HttpStatus.BAD_REQUEST),
     VENDOR_ALLOCATION_NOT_FOUND("SAG_006", "Phiếu bàn giao vé không tồn tại.", HttpStatus.NOT_FOUND),
     VENDOR_ALLOCATION_INVALID_STATE("SAG_007", "Phiếu bàn giao không ở trạng thái phù hợp cho thao tác này.", HttpStatus.CONFLICT),
-    /** @deprecated Prefer specific SAG_017–SAG_020 eligibility codes; kept as generic fallback. */
+    @Deprecated
     VENDOR_ALLOCATION_NOT_ELIGIBLE("SAG_008", "Hồ sơ vendor chưa đủ điều kiện nhận vé.", HttpStatus.BAD_REQUEST),
     VENDOR_ALLOCATION_DAILY_CAP_EXCEEDED("SAG_009", "Số vé bàn giao vượt hạn mức trong ngày của vendor.", HttpStatus.BAD_REQUEST),
     VENDOR_ALLOCATION_OPEN_BATCH_EXISTS("SAG_010", "Vendor vẫn còn phiếu bàn giao chưa quyết toán.", HttpStatus.CONFLICT),
@@ -778,7 +799,7 @@ public enum ErrorCode {
     TICKET_SCAN_IMAGE_REQUIRED("LT_121", "Ảnh quét vé không được để trống.", HttpStatus.BAD_REQUEST),
     TICKET_SCAN_SERVICE_UNAVAILABLE(
             "LT_122",
-            "Dịch vụ quét vé số hiện không khả dụng, vui lòng thử lại sau.",
+            "Dịch vụ quét vé OCR hiện không khả dụng. Vui lòng khởi động ticket-vision (cổng 8090), rồi thử lại.",
             HttpStatus.SERVICE_UNAVAILABLE),
     TICKET_SCAN_BATCH_CODE_MISMATCH(
             "LT_123",

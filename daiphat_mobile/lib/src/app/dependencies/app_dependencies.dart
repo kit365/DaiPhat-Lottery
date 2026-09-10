@@ -1,11 +1,15 @@
+import 'dart:io';
+
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_router.dart';
 import 'package:daiphat_mobile/src/features/auth/data/repositories/auth_repository.dart';
 import 'package:daiphat_mobile/src/features/auth/data/services/auth_api_service.dart';
+import 'package:daiphat_mobile/src/features/auth/data/services/google_auth_service.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/forgot_password_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/login_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/register_viewmodel.dart';
@@ -15,21 +19,27 @@ import 'package:daiphat_mobile/src/features/notifications/presentation/viewmodel
 import 'package:daiphat_mobile/src/features/profile/presentation/viewmodels/profile_viewmodel.dart';
 import 'package:daiphat_mobile/src/shared/network/api_client.dart';
 import 'package:daiphat_mobile/src/shared/storage/auth_token_storage.dart';
+import 'package:daiphat_mobile/src/shared/storage/secure_cookie_storage.dart';
 
 class AppDependencies {
   final ApiClient apiClient;
   final GoRouter router;
+  final NotificationViewModel notificationViewModel;
+  final LoginViewModel loginViewModel;
 
   const AppDependencies({
     required this.apiClient,
     required this.router,
+    required this.notificationViewModel,
+    required this.loginViewModel,
   });
 
   static Future<AppDependencies> create() async {
-    final documentsDirectory = await getApplicationDocumentsDirectory();
+    await _deleteLegacyCookieStorage();
+    const secureStorage = FlutterSecureStorage();
     final cookieJar = PersistCookieJar(
       ignoreExpires: true,
-      storage: FileStorage('${documentsDirectory.path}/.cookies'),
+      storage: SecureCookieStorage(secureStorage),
     );
     final tokenStorage = await AuthTokenStorage.create();
     final apiClient = ApiClient(cookieJar: cookieJar);
@@ -38,10 +48,10 @@ class AppDependencies {
       AuthApiService(apiClient),
       apiClient,
       tokenStorage,
+      GoogleAuthService(),
     );
     apiClient.resolveAccessToken = tokenStorage.getAccessToken;
     apiClient.onAccessTokenRefreshed = tokenStorage.saveAccessToken;
-    apiClient.onSessionExpired = authRepository.logout;
     await authRepository.restoreSession();
 
     if (authRepository.isAuthenticated) {
@@ -56,6 +66,10 @@ class AppDependencies {
     }
 
     final loginViewModel = LoginViewModel(authRepository);
+    apiClient.onSessionExpired = () async {
+      await authRepository.logout();
+      loginViewModel.onLoggedOut();
+    };
     final registerViewModel = RegisterViewModel(authRepository);
     final forgotPasswordViewModel = ForgotPasswordViewModel(authRepository);
     final profileViewModel = ProfileViewModel(authRepository, loginViewModel);
@@ -73,6 +87,20 @@ class AppDependencies {
         profileViewModel: profileViewModel,
         notificationViewModel: notificationViewModel,
       ),
+      notificationViewModel: notificationViewModel,
+      loginViewModel: loginViewModel,
     );
+  }
+
+  static Future<void> _deleteLegacyCookieStorage() async {
+    try {
+      final documentsDirectory = await getApplicationDocumentsDirectory();
+      final legacyDirectory = Directory('${documentsDirectory.path}/.cookies');
+      if (await legacyDirectory.exists()) {
+        await legacyDirectory.delete(recursive: true);
+      }
+    } catch (_) {
+      // A failed legacy cleanup must not prevent the app from starting.
+    }
   }
 }

@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -43,7 +42,8 @@ class AdminScanViewModel extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
 
   final List<ScannedTicketItem> _scannedTickets = [];
-  List<ScannedTicketItem> get scannedTickets => List.unmodifiable(_scannedTickets);
+  List<ScannedTicketItem> get scannedTickets =>
+      List.unmodifiable(_scannedTickets);
 
   int _countdownSeconds = 10;
   int get countdownSeconds => _countdownSeconds;
@@ -69,7 +69,9 @@ class AdminScanViewModel extends ChangeNotifier {
       if (webIsWaiting && i <= 8) {
         _isConnecting = false;
         _isConnected = true;
-        _sessionCode = code ?? 'BATCH-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+        _sessionCode =
+            code ??
+            'BATCH-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
         _errorMessage = null;
         notifyListeners();
         return true;
@@ -81,7 +83,8 @@ class AdminScanViewModel extends ChangeNotifier {
     // Timeout > 10s if Web is not open/waiting
     _isConnecting = false;
     _isConnected = false;
-    _errorMessage = 'Chưa kết nối được trang quản trị trên Web. Vui lòng mở màn hình "Quét vé bằng Mobile App" trên Web Admin và thử lại.';
+    _errorMessage =
+        'Chưa kết nối được trang quản trị trên Web. Vui lòng mở màn hình "Quét vé bằng Mobile App" trên Web Admin và thử lại.';
     notifyListeners();
     return false;
   }
@@ -120,9 +123,15 @@ class AdminScanViewModel extends ChangeNotifier {
 
       // Mock OCR result returned from AI Vision microservice
       final sampleNumbers = ['789123', '456089', '123987', '654321', '998877'];
-      final sampleStations = ['TP. Hồ Chí Minh', 'Tiền Giang', 'Kiên Giang', 'Đồng Tháp', 'Bến Tre'];
+      final sampleStations = [
+        'TP. Hồ Chí Minh',
+        'Tiền Giang',
+        'Kiên Giang',
+        'Đồng Tháp',
+        'Bến Tre',
+      ];
       final nextIndex = _scannedTickets.length;
-      
+
       final newItem = ScannedTicketItem(
         id: 'TICK-${DateTime.now().millisecondsSinceEpoch}',
         imagePath: photo.path,

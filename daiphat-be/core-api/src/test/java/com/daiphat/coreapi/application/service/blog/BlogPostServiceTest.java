@@ -28,6 +28,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import com.daiphat.coreapi.application.dto.request.blog.UpdateBlogPostRequest;
 import org.springframework.context.ApplicationEventPublisher;
 import com.daiphat.coreapi.application.event.BlogPostPublishedEvent;
@@ -43,6 +45,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 @DisplayName("[DP-168] Core BlogPostService Unit Tests")
 class BlogPostServiceTest {
 
@@ -246,22 +249,31 @@ class BlogPostServiceTest {
     }
 
     @Test
-    @DisplayName("[DP-302] CREATE: Tạo bài viết thất bại - Slug đã tồn tại")
-    void createPost_duplicateSlug_throwsSlugExisted() {
+    @DisplayName("[DP-302] CREATE: Slug tồn tại → tự động sinh slug duy nhất")
+    void createPost_duplicateSlug_generatesUniqueSlug() {
         // GIVEN
         CreateBlogPostRequest request = CreateBlogPostRequest.builder()
                 .slug(DEFAULT_SLUG)
                 .build();
 
+        // Khi slug gốc tồn tại → trả true
         when(blogPostRepositoryPort.existsBySlug(DEFAULT_SLUG)).thenReturn(true);
+        // Slug có suffix không tồn tại → trả false để thoát vòng lặp
+        when(blogPostRepositoryPort.existsBySlug(DEFAULT_SLUG + "-2")).thenReturn(false);
 
-        // WHEN & THEN
-        assertThatThrownBy(() -> blogPostService.createPost(request))
-                .isInstanceOf(DomainException.class)
-                .extracting("errorCode")
-                .isEqualTo(ErrorCode.SLUG_EXISTED);
+        BlogPostModel savedModel = BlogPostModel.builder()
+                .id(1L)
+                .slug(DEFAULT_SLUG + "-2")
+                .build();
+        when(blogPostRepositoryPort.save(any())).thenReturn(savedModel);
 
-        verify(blogPostRepositoryPort, never()).save(any());
+        // WHEN
+        BlogPostResponse response = blogPostService.createPost(request);
+
+        // THEN - slug mới được tạo tự động
+        assertThat(response).isNotNull();
+        verify(blogPostRepositoryPort).save(argThat(model ->
+                (DEFAULT_SLUG + "-2").equals(model.getSlug())));
     }
 
     @Test

@@ -10,6 +10,7 @@ import com.daiphat.coreapi.application.dto.response.lotteries.scan.OcrFieldLayou
 import com.daiphat.coreapi.application.dto.response.lotteries.scan.OcrTemplateDefaultReadyResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.scan.OcrTicketTemplateResponse;
 import com.daiphat.coreapi.application.port.in.lotteries.OcrTicketTemplateServicePort;
+import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
 import com.daiphat.coreapi.shared.util.StorageUtils;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -29,33 +30,49 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
+/**
+ * OCR ticket templates / field layouts for lottery stations.
+ * Authorities align with {@link LotteryStationController}:
+ * {@code station:edit} (not the obsolete {@code station:update} alias alone),
+ * plus {@link RoleConstants#ADMIN} so full admins are never blocked when
+ * permission rows are incomplete.
+ */
 @RestController
 @RequestMapping(ApiConstants.API_V1 + "/ocr-templates")
 @RequiredArgsConstructor
 public class OcrTicketTemplateController {
 
+    private static final String READ =
+            "hasAnyAuthority('" + RoleConstants.ADMIN + "', 'station:view', 'station:edit', 'station:update', 'provider:view')";
+    private static final String CREATE =
+            "hasAnyAuthority('" + RoleConstants.ADMIN + "', 'station:create', 'provider:create')";
+    private static final String WRITE =
+            "hasAnyAuthority('" + RoleConstants.ADMIN + "', 'station:edit', 'station:update', 'provider:edit', 'provider:create')";
+    private static final String SCAN_GATE =
+            "hasAnyAuthority('" + RoleConstants.ADMIN + "', 'ticket:view', 'ticket:create', 'station:view', 'station:edit', 'station:update')";
+
     private final OcrTicketTemplateServicePort ocrTicketTemplateServicePort;
 
     @GetMapping("/default-ready")
-    @PreAuthorize("hasAnyAuthority('ticket:view', 'ticket:create', 'station:view', 'station:update')")
+    @PreAuthorize(SCAN_GATE)
     public ApiResponse<OcrTemplateDefaultReadyResponse> defaultReady() {
         return ApiResponse.success(null, ocrTicketTemplateServicePort.defaultReady());
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('station:view', 'station:update', 'provider:view')")
+    @PreAuthorize(READ)
     public ApiResponse<List<OcrTicketTemplateResponse>> listByStation(@RequestParam Long stationId) {
         return ApiResponse.success(null, ocrTicketTemplateServicePort.listByStation(stationId));
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('station:view', 'station:update', 'provider:view')")
+    @PreAuthorize(READ)
     public ApiResponse<OcrTicketTemplateResponse> getById(@PathVariable Long id) {
         return ApiResponse.success(null, ocrTicketTemplateServicePort.getById(id));
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('station:create', 'station:update', 'provider:create')")
+    @PreAuthorize(CREATE)
     public ApiResponse<OcrTicketTemplateResponse> create(
             @Valid @RequestBody CreateOcrTicketTemplateRequest request
     ) {
@@ -63,7 +80,7 @@ public class OcrTicketTemplateController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('station:update', 'provider:create')")
+    @PreAuthorize(WRITE)
     public ApiResponse<OcrTicketTemplateResponse> update(
             @PathVariable Long id,
             @Valid @RequestBody UpdateOcrTicketTemplateRequest request
@@ -72,7 +89,7 @@ public class OcrTicketTemplateController {
     }
 
     @PostMapping(value = "/{id}/sample-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyAuthority('station:update', 'provider:create')")
+    @PreAuthorize(WRITE)
     public ApiResponse<OcrTicketTemplateResponse> uploadSampleImage(
             @PathVariable Long id,
             @RequestPart("file") MultipartFile file
@@ -84,7 +101,7 @@ public class OcrTicketTemplateController {
     }
 
     @PostMapping("/{id}/set-default")
-    @PreAuthorize("hasAnyAuthority('station:update', 'provider:create')")
+    @PreAuthorize(WRITE)
     public ApiResponse<OcrTicketTemplateResponse> setDefault(@PathVariable Long id) {
         return ApiResponse.success(
                 "Đã đặt mẫu vé OCR mặc định.",
@@ -93,20 +110,20 @@ public class OcrTicketTemplateController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('station:update', 'provider:create')")
+    @PreAuthorize(WRITE)
     public ApiResponse<Void> softDelete(@PathVariable Long id) {
         ocrTicketTemplateServicePort.softDelete(id);
         return ApiResponse.success("Đã xóa mẫu vé OCR.", null);
     }
 
     @GetMapping("/{templateId}/field-layouts")
-    @PreAuthorize("hasAnyAuthority('station:view', 'station:update', 'provider:view')")
+    @PreAuthorize(READ)
     public ApiResponse<List<OcrFieldLayoutResponse>> listFieldLayouts(@PathVariable Long templateId) {
         return ApiResponse.success(null, ocrTicketTemplateServicePort.listFieldLayouts(templateId));
     }
 
     @PostMapping("/{templateId}/field-layouts")
-    @PreAuthorize("hasAnyAuthority('station:update', 'provider:create')")
+    @PreAuthorize(WRITE)
     public ApiResponse<OcrFieldLayoutResponse> createFieldLayout(
             @PathVariable Long templateId,
             @Valid @RequestBody CreateOcrFieldLayoutRequest request
@@ -118,7 +135,7 @@ public class OcrTicketTemplateController {
     }
 
     @PutMapping("/{templateId}/field-layouts/{layoutId}")
-    @PreAuthorize("hasAnyAuthority('station:update', 'provider:create')")
+    @PreAuthorize(WRITE)
     public ApiResponse<OcrFieldLayoutResponse> updateFieldLayout(
             @PathVariable Long templateId,
             @PathVariable Long layoutId,
@@ -131,7 +148,7 @@ public class OcrTicketTemplateController {
     }
 
     @DeleteMapping("/{templateId}/field-layouts/{layoutId}")
-    @PreAuthorize("hasAnyAuthority('station:update', 'provider:create')")
+    @PreAuthorize(WRITE)
     public ApiResponse<Void> softDeleteFieldLayout(
             @PathVariable Long templateId,
             @PathVariable Long layoutId

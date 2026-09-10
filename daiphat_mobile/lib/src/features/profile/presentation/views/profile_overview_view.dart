@@ -3,22 +3,21 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:intl/intl.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
-import 'package:daiphat_mobile/src/features/auth/data/models/user.dart';
-import 'package:daiphat_mobile/src/features/checkout/models/order_type.dart';
-import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
-import 'package:daiphat_mobile/src/features/profile/data/models/purchased_ticket.dart';
-import 'package:daiphat_mobile/src/features/profile/presentation/viewmodels/profile_viewmodel.dart';
+import 'package:daiphat_mobile/src/features/orders/domain/entities/order.dart';
+import 'package:daiphat_mobile/src/features/orders/presentation/providers/orders_providers.dart';
+import 'package:daiphat_mobile/src/features/tickets/domain/entities/purchased_ticket.dart';
+import 'package:daiphat_mobile/src/features/tickets/presentation/providers/purchased_tickets_providers.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/profile_iconography.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 import '../viewmodels/profile_overview_viewmodel.dart';
 
 class ProfileOverviewView extends ConsumerStatefulWidget {
-  const ProfileOverviewView({super.key, this.profileViewModel});
-
-  final ProfileViewModel? profileViewModel;
+  const ProfileOverviewView({super.key});
 
   @override
   ConsumerState<ProfileOverviewView> createState() =>
@@ -28,16 +27,14 @@ class ProfileOverviewView extends ConsumerStatefulWidget {
 class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
   late final ProfileOverviewViewModel _viewModel;
 
-  final _currencyFmt = NumberFormat.currency(
-    locale: 'vi_VN',
-    symbol: 'đ',
-    decimalDigits: 0,
-  );
-
   @override
   void initState() {
     super.initState();
-    _viewModel = ProfileOverviewViewModel(ref.read(orderServiceProvider));
+    _viewModel = ProfileOverviewViewModel(
+      ref.read(getMyOrdersProvider),
+      ref.read(getMyTicketsProvider),
+      ref.read(getMyTicketsSummaryProvider),
+    );
   }
 
   @override
@@ -49,10 +46,10 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        surfaceTintColor: AppColors.transparent,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(
@@ -63,8 +60,8 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
           onPressed: () => context.pop(),
         ),
         title: Text(
-          'Tổng quan tài khoản',
-          style: GoogleFonts.publicSans(
+          'Tổng quan vé số',
+          style: AppTypography.h4(
             fontSize: 18,
             fontWeight: FontWeight.w700,
             color: AppColors.textMain,
@@ -87,25 +84,18 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
               children: [
-                if (widget.profileViewModel != null)
-                  ListenableBuilder(
-                    listenable: widget.profileViewModel!,
-                    builder: (context, _) {
-                      final profileVm = widget.profileViewModel;
-                      if (profileVm == null) return const SizedBox.shrink();
-                      return _buildProfileBanner(profileVm.user);
-                    },
-                  ),
-                if (widget.profileViewModel != null) const SizedBox(height: 14),
                 _buildStatsSection(),
                 const SizedBox(height: 14),
-                _buildRecentOrders(),
-                const SizedBox(height: 14),
                 _buildQuickActions(),
-                const SizedBox(height: 14),
-                _buildRecentTickets(),
-                const SizedBox(height: 14),
-                _buildSpendingStats(),
+                if (_viewModel.recentOrders.isNotEmpty ||
+                    _viewModel.recentTickets.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  _buildRecentActivity(),
+                ],
+                if (_viewModel.recentTickets.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  _buildSpendingStats(),
+                ],
                 const SizedBox(height: 14),
                 _buildSupportBanner(),
               ],
@@ -116,187 +106,43 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
     );
   }
 
-  Widget _buildProfileBanner(User? user) {
-    final rawName = user?.fullName?.trim();
-    final username = user?.username.trim();
-    final name = (rawName != null && rawName.isNotEmpty
-            ? rawName
-            : (username != null && username.isNotEmpty
-                ? username
-                : 'Thành viên Đại Phát'))
-        .toUpperCase();
-    final emailValue = user?.email?.trim();
-    final email = (emailValue != null && emailValue.isNotEmpty)
-        ? emailValue
-        : 'Chưa cập nhật email';
-    final phoneValue = user?.phone?.trim();
-    final phone = (phoneValue != null && phoneValue.isNotEmpty)
-        ? phoneValue
-        : 'Chưa cập nhật SĐT';
-    final avatarUrl = user?.avatarUrl;
-
-    return Container(
-      height: 132,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFFFEEEE)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x147B1820),
-            blurRadius: 18,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: Image.asset(
-              'assets/images/profile_cherry_bg.png',
-              fit: BoxFit.cover,
-              alignment: Alignment.topLeft,
-              errorBuilder: (_, error, stackTrace) => Container(
-                color: const Color(0xFFFFF5F5),
-              ),
-            ),
-          ),
-          Positioned(
-            right: -4,
-            bottom: -2,
-            width: 96,
-            height: 100,
-            child: Image.asset(
-              'assets/images/thantai.png',
-              fit: BoxFit.contain,
-              alignment: Alignment.bottomRight,
-              errorBuilder: (_, error, stackTrace) => const SizedBox.shrink(),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 16, 100, 14),
-            child: Row(
-              children: [
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF6F6),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0xFFF5D8DA)),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: avatarUrl != null && avatarUrl.isNotEmpty
-                      ? Image.network(
-                          avatarUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, error, stackTrace) => const Icon(
-                            Icons.person_rounded,
-                            color: AppColors.primary,
-                            size: 32,
-                          ),
-                        )
-                      : const Icon(
-                          Icons.person_rounded,
-                          color: AppColors.primary,
-                          size: 32,
-                        ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.publicSans(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF212B36),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        email,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.publicSans(
-                          fontSize: 12,
-                          color: const Color(0xFF637381),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        phone,
-                        style: GoogleFonts.publicSans(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF454F5B),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildStatsSection() {
     final stats = _viewModel.ticketStats;
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE5E8EB)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x08000000),
-            blurRadius: 12,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
+    return _buildCard(
+      title: 'Hoạt động của bạn',
+      accented: true,
       child: Row(
         children: [
           _buildStatCard(
-            icon: Icons.receipt_long_rounded,
-            color: const Color(0xFFFF4842),
-            bg: const Color(0xFFFFF5F5),
+            icon: ProfileIconography.order,
+            color: ProfileIconTone.order,
+            surface: ProfileIconTone.orderSurface,
             value: '${_viewModel.totalOrders}',
             label: 'Đơn hàng',
           ),
           const SizedBox(width: 8),
           _buildStatCard(
-            icon: Icons.confirmation_number_rounded,
-            color: const Color(0xFF1CD162),
-            bg: const Color(0xFFF4FBFA),
+            icon: ProfileIconography.ticket,
+            color: ProfileIconTone.ticket,
+            surface: ProfileIconTone.ticketSurface,
             value: '${_viewModel.totalTicketsBought}',
             label: 'Vé đã mua',
           ),
           const SizedBox(width: 8),
           _buildStatCard(
-            icon: Icons.emoji_events_rounded,
-            color: const Color(0xFFFFB020),
-            bg: const Color(0xFFFFF9F3),
+            icon: ProfileIconography.prize,
+            color: ProfileIconTone.prize,
+            surface: ProfileIconTone.prizeSurface,
             value: '${stats.wonCount}',
             label: 'Trúng thưởng',
           ),
           const SizedBox(width: 8),
           _buildStatCard(
-            icon: Icons.star_rounded,
-            color: const Color(0xFF9E5FFF),
-            bg: const Color(0xFFF8F5FF),
+            icon: ProfileIconography.drawnTicket,
+            color: ProfileIconTone.drawn,
+            surface: ProfileIconTone.drawnSurface,
             value: '${stats.drawnCount}',
             label: 'Đã quay',
-            iconRadius: 12,
           ),
         ],
       ),
@@ -306,36 +152,29 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
   Widget _buildStatCard({
     required IconData icon,
     required Color color,
-    required Color bg,
+    required Color surface,
     required String value,
     required String label,
-    double iconRadius = 999,
   }) {
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(14),
-        ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
         child: Column(
           children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(iconRadius),
-              ),
-              child: Icon(icon, color: Colors.white, size: 18),
+            ProfileIconWell(
+              icon: icon,
+              color: color,
+              surface: surface,
+              size: 38,
+              iconSize: 21,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               value,
-              style: GoogleFonts.publicSans(
-                fontSize: 18,
+              style: AppTypography.h3(
+                fontSize: 16,
                 fontWeight: FontWeight.w800,
-                color: const Color(0xFF212B36),
+                color: AppColors.contentHeading,
               ),
             ),
             const SizedBox(height: 2),
@@ -344,9 +183,9 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.publicSans(
+              style: AppTypography.caption(
                 fontSize: 10,
-                color: const Color(0xFF637381),
+                color: AppColors.contentNeutral,
               ),
             ),
           ],
@@ -358,79 +197,76 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
   Widget _buildQuickActions() {
     final actions = <_QuickAction>[
       _QuickAction(
-        Icons.confirmation_number_outlined,
+        ProfileIconography.buyTicket,
         'Mua vé số',
-        const Color(0xFFEE1314),
-        const Color(0xFFFFF4F4),
+        ProfileIconTone.ticket,
+        ProfileIconTone.ticketSurface,
         () => context.go(AppRoute.buyTicket.path),
       ),
       _QuickAction(
-        Icons.account_balance_wallet_outlined,
+        ProfileIconography.ticket,
         'Vé của tôi',
-        const Color(0xFFFFB020),
-        const Color(0xFFFFF9F3),
+        ProfileIconTone.ticket,
+        ProfileIconTone.ticketSurface,
         () => context.push(AppRoute.myTickets.path),
       ),
       _QuickAction(
-        Icons.pie_chart_outline_rounded,
+        ProfileIconography.drawnTicket,
         'Kết quả xổ số',
-        const Color(0xFF1CD162),
-        const Color(0xFFF4FBFA),
+        ProfileIconTone.standard,
+        ProfileIconTone.standardSurface,
         () => context.go(AppRoute.home.path),
       ),
       _QuickAction(
-        Icons.headset_mic_outlined,
+        ProfileIconography.support,
         'Hỗ trợ',
-        const Color(0xFF9E5FFF),
-        const Color(0xFFF8F5FF),
+        ProfileIconTone.standard,
+        ProfileIconTone.standardSurface,
         () => context.push(AppRoute.complaints.path),
       ),
     ];
 
     return _buildCard(
       title: 'Thao tác nhanh',
-      child: GridView.count(
-        crossAxisCount: 2,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        mainAxisSpacing: 10,
-        crossAxisSpacing: 10,
-        childAspectRatio: 2.2,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: actions
             .map(
-              (a) => InkWell(
-                onTap: a.onTap,
-                borderRadius: BorderRadius.circular(14),
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFE5E8EB)),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: a.bg,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(a.icon, color: a.color, size: 20),
+              (a) => Expanded(
+                child: InkWell(
+                  onTap: a.onTap,
+                  borderRadius: BorderRadius.circular(10),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 76),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 3,
+                        vertical: 8,
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        a.label,
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.publicSans(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF454F5B),
-                        ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          ProfileIconWell(
+                            icon: a.icon,
+                            color: a.color,
+                            surface: a.surface,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            a.label,
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTypography.caption(
+                              fontSize: 10,
+                              height: 1.2,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.contentSlate700,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -440,22 +276,85 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
     );
   }
 
-  Widget _buildRecentOrders() {
+  Widget _buildRecentActivity() {
     final orders = _viewModel.recentOrders;
+    final tickets = _viewModel.recentTickets;
+    final hasOrders = orders.isNotEmpty;
+    final hasTickets = tickets.isNotEmpty;
+
     return _buildCard(
-      title: 'Đơn hàng gần đây',
-      onSeeAll: () => context.push(AppRoute.myOrders.path),
-      child: orders.isEmpty
-          ? _buildEmpty('Chưa có đơn hàng nào')
-          : Column(
-              children: [
-                for (var i = 0; i < orders.length; i++) ...[
-                  if (i > 0)
-                    const Divider(height: 1, color: Color(0xFFF4F6F8)),
-                  _buildOrderRow(orders[i]),
-                ],
-              ],
+      title: 'Hoạt động gần đây',
+      child: Column(
+        children: [
+          if (hasOrders) ...[
+            _buildActivitySubheader(
+              icon: ProfileIconography.order,
+              color: ProfileIconTone.order,
+              title: 'Đơn hàng',
+              onSeeAll: () => context.push(AppRoute.myOrders.path),
             ),
+            for (var i = 0; i < orders.length; i++) ...[
+              if (i > 0)
+                const Divider(height: 1, color: AppColors.surfaceNeutral),
+              _buildOrderRow(orders[i]),
+            ],
+          ],
+          if (hasOrders && hasTickets)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 10),
+              child: Divider(height: 1, color: AppColors.borderDecorative),
+            ),
+          if (hasTickets) ...[
+            _buildActivitySubheader(
+              icon: ProfileIconography.ticket,
+              color: ProfileIconTone.ticket,
+              title: 'Vé số',
+              onSeeAll: () => context.push(AppRoute.myTickets.path),
+            ),
+            for (var i = 0; i < tickets.length; i++) ...[
+              if (i > 0) const SizedBox(height: 4),
+              _buildTicketRow(tickets[i]),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActivitySubheader({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required VoidCallback onSeeAll,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, color: color, size: 19),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            title,
+            style: AppTypography.bodySmall(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.contentHeading,
+            ),
+          ),
+        ),
+        InkWell(
+          onTap: onSeeAll,
+          borderRadius: BorderRadius.circular(8),
+          child: const SizedBox(
+            width: 44,
+            height: 44,
+            child: Icon(
+              ProfileIconography.chevron,
+              color: AppColors.contentDisabled,
+              size: 19,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -467,11 +366,8 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
       final dt = DateTime.tryParse(order.createdAt!)?.toLocal();
       if (dt != null) createdAt = DateFormat('dd/MM/yyyy - HH:mm').format(dt);
     }
-    final qty = order.orderDetails?.fold<int>(
-          0,
-          (sum, e) => sum + e.quantity,
-        ) ??
-        0;
+    final qty =
+        order.orderDetails?.fold<int>(0, (sum, e) => sum + e.quantity) ?? 0;
 
     return InkWell(
       onTap: () => context.push('/profile/orders/${order.id}'),
@@ -487,18 +383,18 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                     order.orderCode.isNotEmpty
                         ? order.orderCode
                         : 'DP${order.id}',
-                    style: GoogleFonts.publicSans(
+                    style: AppTypography.subtitle2(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: const Color(0xFF212B36),
+                      color: AppColors.contentHeading,
                     ),
                   ),
                   const SizedBox(height: 3),
                   Text(
                     createdAt,
-                    style: GoogleFonts.publicSans(
+                    style: AppTypography.caption(
                       fontSize: 11,
-                      color: const Color(0xFF637381),
+                      color: AppColors.contentNeutral,
                     ),
                   ),
                 ],
@@ -509,9 +405,9 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                 padding: const EdgeInsets.only(right: 10),
                 child: Text(
                   '$qty vé',
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.bodySmall(
                     fontSize: 12,
-                    color: const Color(0xFF637381),
+                    color: AppColors.contentNeutral,
                   ),
                 ),
               ),
@@ -519,24 +415,26 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  _currencyFmt.format(order.totalAmount),
-                  style: GoogleFonts.publicSans(
+                  AppFormatters.formatCurrency(order.totalAmount),
+                  style: AppTypography.subtitle2(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFF212B36),
+                    color: AppColors.contentHeading,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: badge.bg,
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
                     status.label,
-                    style: GoogleFonts.publicSans(
+                    style: AppTypography.caption(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                       color: badge.fg,
@@ -555,32 +453,20 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
     switch (status) {
       case OrderStatus.completed:
       case OrderStatus.paid:
-        return (fg: const Color(0xFF1CD162), bg: const Color(0xFFF4FBFA));
+        return (
+          fg: AppColors.statusSuccess,
+          bg: AppColors.statusSuccessSurface,
+        );
       case OrderStatus.cancelled:
-        return (fg: const Color(0xFF637381), bg: const Color(0xFFF4F6F8));
+        return (fg: AppColors.contentNeutral, bg: AppColors.surfaceNeutral);
       case OrderStatus.pendingPayment:
       case OrderStatus.preparing:
       case OrderStatus.pendingPickup:
-        return (fg: const Color(0xFFFFB020), bg: const Color(0xFFFFF9F3));
+        return (
+          fg: AppColors.statusWarningForeground,
+          bg: AppColors.statusWarningSurface,
+        );
     }
-  }
-
-  Widget _buildRecentTickets() {
-    final tickets = _viewModel.recentTickets;
-    return _buildCard(
-      title: 'Vé số gần đây',
-      onSeeAll: () => context.push(AppRoute.myTickets.path),
-      child: tickets.isEmpty
-          ? _buildEmpty('Chưa có vé nào')
-          : Column(
-              children: [
-                for (var i = 0; i < tickets.length; i++) ...[
-                  if (i > 0) const SizedBox(height: 4),
-                  _buildTicketRow(tickets[i]),
-                ],
-              ],
-            ),
-    );
   }
 
   Widget _buildTicketRow(PurchasedTicket ticket) {
@@ -597,19 +483,12 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF4F6F8),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFE5E8EB)),
-            ),
-            child: const Icon(
-              Icons.confirmation_number_outlined,
-              size: 20,
-              color: AppColors.textMuted,
-            ),
+          const ProfileIconWell(
+            icon: ProfileIconography.ticket,
+            color: ProfileIconTone.ticket,
+            surface: ProfileIconTone.ticketSurface,
+            size: 42,
+            iconSize: 20,
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -620,18 +499,18 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                   ticket.stationName ?? 'Vé số',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.subtitle2(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFF212B36),
+                    color: AppColors.contentHeading,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   drawDate,
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.caption(
                     fontSize: 11,
-                    color: const Color(0xFF637381),
+                    color: AppColors.contentNeutral,
                   ),
                 ),
               ],
@@ -642,7 +521,7 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
             children: [
               Text(
                 ticket.numbers,
-                style: GoogleFonts.publicSans(
+                style: AppTypography.lotteryDigit(
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1,
@@ -651,10 +530,10 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
               ),
               const SizedBox(height: 2),
               Text(
-                '1 vé - ${_currencyFmt.format(ticket.price)}',
-                style: GoogleFonts.publicSans(
+                '1 vé - ${AppFormatters.formatCurrency(ticket.price)}',
+                style: AppTypography.caption(
                   fontSize: 11,
-                  color: const Color(0xFF637381),
+                  color: AppColors.contentNeutral,
                 ),
               ),
             ],
@@ -671,7 +550,12 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
     return _buildCard(
       title: 'Thống kê chi tiêu theo nhà đài',
       child: slices.isEmpty
-          ? _buildEmpty('Chưa có dữ liệu chi tiêu')
+          ? _buildEmpty(
+              'Chưa có dữ liệu chi tiêu',
+              icon: ProfileIconography.spending,
+              color: ProfileIconTone.spending,
+              surface: ProfileIconTone.spendingSurface,
+            )
           : Column(
               children: [
                 const SizedBox(height: 8),
@@ -685,18 +569,18 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            _currencyFmt.format(total),
-                            style: GoogleFonts.publicSans(
+                            AppFormatters.formatCurrency(total),
+                            style: AppTypography.priceMedium(
                               fontSize: 15,
                               fontWeight: FontWeight.w900,
-                              color: const Color(0xFF212B36),
+                              color: AppColors.contentHeading,
                             ),
                           ),
                           Text(
                             'Tổng chi tiêu',
-                            style: GoogleFonts.publicSans(
+                            style: AppTypography.caption(
                               fontSize: 11,
-                              color: const Color(0xFF637381),
+                              color: AppColors.contentNeutral,
                             ),
                           ),
                         ],
@@ -727,9 +611,9 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                             slice.label,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.publicSans(
+                            style: AppTypography.bodySmall(
                               fontSize: 13,
-                              color: const Color(0xFF454F5B),
+                              color: AppColors.contentSlate700,
                             ),
                           ),
                         ),
@@ -738,21 +622,21 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
                           child: Text(
                             '$pct%',
                             textAlign: TextAlign.right,
-                            style: GoogleFonts.publicSans(
+                            style: AppTypography.bodySmall(
                               fontSize: 13,
-                              color: const Color(0xFF637381),
+                              color: AppColors.contentNeutral,
                             ),
                           ),
                         ),
                         SizedBox(
                           width: 88,
                           child: Text(
-                            _currencyFmt.format(slice.amount),
+                            AppFormatters.formatCurrency(slice.amount),
                             textAlign: TextAlign.right,
-                            style: GoogleFonts.publicSans(
+                            style: AppTypography.bodySmall(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: const Color(0xFF212B36),
+                              color: AppColors.contentHeading,
                             ),
                           ),
                         ),
@@ -767,11 +651,11 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
 
   List<_SpendSlice> _buildSpendingSlices() {
     const palette = [
-      Color(0xFFEE1314),
-      Color(0xFFFFB020),
-      Color(0xFF2065D1),
-      Color(0xFF1CD162),
-      Color(0xFF9E5FFF),
+      AppColors.brandPrimaryStrong,
+      AppColors.brandPrimaryDark,
+      AppColors.brandAccentGoldAmber,
+      AppColors.contentSlate600,
+      AppColors.contentMuted,
     ];
     final map = <String, int>{};
     for (final ticket in _viewModel.recentTickets) {
@@ -797,20 +681,11 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
     }
 
     final top = entries.take(4).toList();
-    final otherAmount =
-        entries.skip(4).fold<int>(0, (sum, e) => sum + e.value);
+    final otherAmount = entries.skip(4).fold<int>(0, (sum, e) => sum + e.value);
     return [
       for (var i = 0; i < top.length; i++)
-        _SpendSlice(
-          label: top[i].key,
-          amount: top[i].value,
-          color: palette[i],
-        ),
-      _SpendSlice(
-        label: 'Vé số khác',
-        amount: otherAmount,
-        color: palette[4],
-      ),
+        _SpendSlice(label: top[i].key, amount: top[i].value, color: palette[i]),
+      _SpendSlice(label: 'Vé số khác', amount: otherAmount, color: palette[4]),
     ];
   }
 
@@ -822,9 +697,12 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
         gradient: const LinearGradient(
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
-          colors: [Color(0xFFFFF5F5), Color(0xFFFFECEC)],
+          colors: [
+            AppColors.surfaceDestructiveSoft,
+            AppColors.surfaceBrandWarm,
+          ],
         ),
-        border: Border.all(color: const Color(0xFFFFDADA)),
+        border: Border.all(color: AppColors.brandPrimaryBorderLight),
       ),
       child: Row(
         children: [
@@ -834,27 +712,29 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
               children: [
                 Text(
                   'Bạn cần hỗ trợ?',
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.h4(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
-                    color: const Color(0xFF212B36),
+                    color: AppColors.contentHeading,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Đội ngũ CSKH của chúng tôi luôn sẵn sàng!',
-                  style: GoogleFonts.publicSans(
+                  style: AppTypography.bodySmall(
                     fontSize: 12,
-                    color: const Color(0xFF637381),
+                    color: AppColors.contentNeutral,
                   ),
                 ),
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
                   onPressed: () => context.push(AppRoute.complaints.path),
-                  icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
-                  label: const Text(
+                  icon: const Icon(ProfileIconography.support, size: 16),
+                  label: Text(
                     'Liên hệ ngay',
-                    style: TextStyle(fontWeight: FontWeight.w700),
+                    style: AppTypography.buttonMedium(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.primary,
@@ -872,26 +752,48 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
             ),
           ),
           const Icon(
-            Icons.headset_mic_rounded,
+            ProfileIconography.support,
             size: 56,
-            color: Color(0xFFFF8A8A),
+            color: AppColors.brandPrimaryBorder,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildEmpty(String text) {
+  Widget _buildEmpty(
+    String text, {
+    IconData? icon,
+    Color color = AppColors.contentMuted,
+    Color surface = AppColors.surfaceSlate100,
+    bool compact = false,
+  }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 18),
-      child: Center(
-        child: Text(
-          text,
-          style: GoogleFonts.publicSans(
-            fontSize: 13,
-            color: AppColors.textMuted,
+      padding: EdgeInsets.symmetric(vertical: compact ? 6 : 14),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (icon != null) ...[
+            ProfileIconWell(
+              icon: icon,
+              color: color,
+              surface: surface,
+              size: compact ? 34 : 40,
+              iconSize: compact ? 18 : 22,
+            ),
+            const SizedBox(width: 10),
+          ],
+          Flexible(
+            child: Text(
+              text,
+              textAlign: TextAlign.center,
+              style: AppTypography.bodySmall(
+                fontSize: 12,
+                color: AppColors.textMuted,
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -900,18 +802,35 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
     required String title,
     required Widget child,
     VoidCallback? onSeeAll,
+    bool accented = false,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(14, 13, 14, 14),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE5E8EB)),
+        color: accented ? null : AppColors.surfacePrimary,
+        gradient: accented
+            ? const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.statusErrorSurface,
+                  AppColors.surfacePrimary,
+                ],
+                stops: [0, .82],
+              )
+            : null,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: accented
+              ? AppColors.brandPrimaryBorderLight
+              : AppColors.borderDecorative,
+        ),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x08000000),
-            blurRadius: 12,
-            offset: Offset(0, 2),
+            color: AppColors.shadowLight,
+            blurRadius: 14,
+            spreadRadius: -4,
+            offset: Offset(0, 5),
           ),
         ],
       ),
@@ -923,22 +842,40 @@ class _ProfileOverviewViewState extends ConsumerState<ProfileOverviewView> {
               Expanded(
                 child: Text(
                   title,
-                  style: GoogleFonts.publicSans(
-                    fontSize: 15,
+                  style: AppTypography.subtitle2(
+                    fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFF212B36),
+                    color: AppColors.contentHeading,
                   ),
                 ),
               ),
               if (onSeeAll != null)
                 InkWell(
                   onTap: onSeeAll,
-                  child: Text(
-                    'Xem tất cả >',
-                    style: GoogleFonts.publicSans(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(8),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 44),
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 12),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Xem tất cả',
+                            style: AppTypography.caption(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          const SizedBox(width: 2),
+                          const Icon(
+                            ProfileIconography.chevron,
+                            size: 18,
+                            color: AppColors.primary,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -956,10 +893,16 @@ class _QuickAction {
   final IconData icon;
   final String label;
   final Color color;
-  final Color bg;
+  final Color surface;
   final VoidCallback onTap;
 
-  const _QuickAction(this.icon, this.label, this.color, this.bg, this.onTap);
+  const _QuickAction(
+    this.icon,
+    this.label,
+    this.color,
+    this.surface,
+    this.onTap,
+  );
 }
 
 class _SpendSlice {

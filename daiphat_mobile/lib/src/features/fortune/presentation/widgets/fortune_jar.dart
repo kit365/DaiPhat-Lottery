@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 
 import '../../utils/fortune_ui.dart';
 import '../viewmodels/fortune_cast_viewmodel.dart';
@@ -67,37 +69,44 @@ class _FortuneJarState extends State<FortuneJar>
 
   @override
   Widget build(BuildContext context) {
-    final shaking = widget.phase == FortuneAnimPhase.shaking;
     final ejecting = widget.phase == FortuneAnimPhase.ejecting;
-
-    return GestureDetector(
-      onTap: widget.enabled ? widget.onShake : null,
-      child: SizedBox(
-        height: 280,
-        width: 220,
-        child: AnimatedBuilder(
-          animation: _controller,
-          builder: (context, child) {
-            final t = _controller.value * math.pi * 8;
-            final dx = shaking ? math.sin(t) * 10 : 0.0;
-            final dy = shaking ? math.cos(t * 1.4) * 6 : 0.0;
-            final tilt = shaking ? math.sin(t * 0.8) * 0.08 : 0.0;
-            return Transform.translate(
-              offset: Offset(dx, dy),
-              child: Transform.rotate(angle: tilt, child: child),
-            );
-          },
+    return Center(
+      child: GestureDetector(
+        onTap: widget.enabled ? widget.onShake : null,
+        child: SizedBox(
+          width: 280,
+          height: 330,
           child: Stack(
             alignment: Alignment.bottomCenter,
             children: [
               Positioned(
-                bottom: 18,
-                child: Container(
-                  width: 150,
-                  height: 18,
-                  decoration: BoxDecoration(
-                    color: const Color(0x332A0C0E),
-                    borderRadius: BorderRadius.circular(20),
+                bottom: 24,
+                child: AnimatedBuilder(
+                  animation: _controller,
+                  builder: (context, child) {
+                    final value = _controller.value;
+                    final angle = widget.phase == FortuneAnimPhase.shaking
+                        ? math.sin(value * math.pi * 8) * 0.08
+                        : 0.0;
+                    final offsetY = widget.phase == FortuneAnimPhase.shaking
+                        ? (math.cos(value * math.pi * 8) * 4).abs()
+                        : 0.0;
+                    return Transform.translate(
+                      offset: Offset(0, -offsetY),
+                      child: Transform.rotate(
+                        angle: angle,
+                        alignment: const Alignment(0, 0.7),
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: Container(
+                    width: 140,
+                    height: 18,
+                    decoration: BoxDecoration(
+                      color: AppColors.fortuneBackgroundDeep.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
                   ),
                 ),
               ),
@@ -123,9 +132,9 @@ class _FortuneJarState extends State<FortuneJar>
                         gradient: const LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
-                          colors: [Color(0xFFFFF3C4), Color(0xFFD4A24A)],
+                          colors: [AppColors.fortuneCreamLight, AppColors.fortuneGoldWarm],
                         ),
-                        border: Border.all(color: const Color(0xFF8B1A1C), width: 0.6),
+                        border: Border.all(color: AppColors.fortuneCrimson, width: 0.6),
                       ),
                     ),
                   ),
@@ -147,18 +156,18 @@ class _FortuneJarState extends State<FortuneJar>
                       gradient: const LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        colors: [Color(0xFFFFF8DC), Color(0xFFE8C872)],
+                        colors: [AppColors.fortuneCreamLight, AppColors.fortuneGold],
                       ),
-                      border: Border.all(color: const Color(0xFF7A1F22), width: 1),
+                      border: Border.all(color: AppColors.fortuneCrimson, width: 1),
                     ),
                     child: Padding(
                       padding: const EdgeInsets.only(top: 8),
                       child: Text(
                         widget.luckyTail ?? '?',
-                        style: const TextStyle(
+                        style: AppTypography.lotteryDigit(
                           fontSize: 11,
                           fontWeight: FontWeight.w900,
-                          color: Color(0xFF5C1A0A),
+                          color: AppColors.fortuneWoodDark,
                         ),
                       ),
                     ),
@@ -166,12 +175,12 @@ class _FortuneJarState extends State<FortuneJar>
                 ),
               ),
               if (widget.enabled)
-                const Positioned(
+                Positioned(
                   bottom: 44,
                   child: Text(
                     'Chạm để lắc',
-                    style: TextStyle(
-                      color: Color(0xCCFFF8E7),
+                    style: AppTypography.caption(
+                      color: AppColors.fortuneCream.withValues(alpha: 0.8),
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),
@@ -209,12 +218,16 @@ class _JarPainter extends CustomPainter {
       ..shader = const LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [Color(0xFFB42324), Color(0xFF6B1012), Color(0xFF3D0A0C)],
+        colors: [
+          AppColors.fortuneCrimsonBright,
+          AppColors.fortuneCrimsonDark,
+          AppColors.fortuneBackgroundDark,
+        ],
       ).createShader(Offset.zero & size);
     canvas.drawPath(body, fill);
 
     final rim = Paint()
-      ..color = const Color(0xFFE8C872)
+      ..color = AppColors.fortuneGold
       ..style = PaintingStyle.stroke
       ..strokeWidth = 8;
     canvas.drawOval(
@@ -226,7 +239,7 @@ class _JarPainter extends CustomPainter {
       rim,
     );
 
-    final mouth = Paint()..color = const Color(0xFF2A0C0E);
+    final mouth = Paint()..color = AppColors.fortuneBackgroundDeep;
     canvas.drawOval(
       Rect.fromCenter(
         center: Offset(size.width / 2, size.height * 0.16),

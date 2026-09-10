@@ -2,19 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import '../models/blog_post.dart';
 import '../viewmodels/blog_viewmodel.dart';
 
-const _primary = Color(0xFFEE1314);
-const _gold = Color(0xFFFFD700);
-const _goldLight = Color(0xFFFFF9E6);
-const _ink = Color(0xFF17191F);
-const _secondary = Color(0xFF5D3F3C);
-const _surface = Colors.white;
-const _pageBg = Color(0xFFF7F7FB);
-const _tagBg = Color(0xFFF9ECEE);
-const _divider = Color(0xFFE7BDB8);
+const _primary = AppColors.primary;
+const _gold = AppColors.brandAccentYellow;
+const _goldLight = AppColors.surfaceWarning;
+const _ink = AppColors.contentHeading;
+const _secondary = AppColors.contentSecondary;
+const _surface = AppColors.surfacePrimary;
+const _pageBg = AppColors.surfacePrimary;
+const _tagBg = AppColors.brandPrimaryBorderLight;
+const _divider = AppColors.borderLight;
+const _brandAvatarAsset = 'assets/images/logoApp.png';
 
 class BlogDetailScreen extends ConsumerWidget {
   const BlogDetailScreen({
@@ -57,7 +59,8 @@ class BlogDetailScreen extends ConsumerWidget {
                 SliverToBoxAdapter(child: _buildAppBar(context)),
                 SliverToBoxAdapter(child: _buildArticle(data.post)),
                 SliverToBoxAdapter(
-                  child: _buildRelatedSection(context, ref, data.post, data.related),
+                  child:
+                      _buildRelatedSection(context, ref, data.post, data.related),
                 ),
                 const SliverToBoxAdapter(child: SizedBox(height: 32)),
               ],
@@ -87,24 +90,20 @@ class BlogDetailScreen extends ConsumerWidget {
                         const SizedBox(height: 16),
                         Text(
                           'Không thể tải bài viết',
-                          style: AppTypography.display(
-                            const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: _ink,
-                            ),
+                          style: AppTypography.h4(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: _ink,
                           ),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           error.toString(),
                           textAlign: TextAlign.center,
-                          style: AppTypography.main(
-                            const TextStyle(
-                              fontSize: 14,
-                              color: _secondary,
-                              height: 1.5,
-                            ),
+                          style: AppTypography.bodyMedium(
+                            fontSize: 14,
+                            color: _secondary,
+                            height: 1.5,
                           ),
                         ),
                         const SizedBox(height: 20),
@@ -112,7 +111,7 @@ class BlogDetailScreen extends ConsumerWidget {
                           onPressed: () => ref.invalidate(blogDetailProvider(slug)),
                           style: FilledButton.styleFrom(
                             backgroundColor: _primary,
-                            foregroundColor: Colors.white,
+                            foregroundColor: AppColors.surfacePrimary,
                             padding: const EdgeInsets.symmetric(
                               horizontal: 26,
                               vertical: 14,
@@ -121,7 +120,12 @@ class BlogDetailScreen extends ConsumerWidget {
                               borderRadius: BorderRadius.circular(14),
                             ),
                           ),
-                          child: const Text('Thử lại ngay'),
+                          child: Text(
+                            'Thử lại ngay',
+                            style: AppTypography.buttonMedium(
+                              color: AppColors.surfacePrimary,
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -136,62 +140,48 @@ class BlogDetailScreen extends ConsumerWidget {
   }
 
   Widget _buildAppBar(BuildContext context) {
-    return Container(
-      height: 56,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: _surface,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
+    return SizedBox(
+      height: 78,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+        child: Stack(
+          alignment: Alignment.center,
         children: [
-          SizedBox(
-            width: 40,
-            height: 40,
-            child: IconButton(
+          Align(
+            alignment: Alignment.centerLeft,
+            child: _CircleHeaderButton(
+              icon: Icons.arrow_back_rounded,
               onPressed: () => Navigator.of(context).pop(),
-              splashRadius: 20,
-              padding: EdgeInsets.zero,
-              icon: const Icon(Icons.arrow_back_rounded, size: 28, color: _ink),
             ),
           ),
-          Expanded(
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 66),
             child: Text(
               'Chi tiết bài viết',
               textAlign: TextAlign.center,
-              style: AppTypography.display(
-                const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: _primary,
-                ),
+              style: AppTypography.h3(
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                color: _primary,
               ),
             ),
           ),
-          SizedBox(
-            width: 40,
-            height: 40,
-            child: IconButton(
+          Align(
+            alignment: Alignment.centerRight,
+            child: _CircleHeaderButton(
+              icon: Icons.share_outlined,
               onPressed: () {},
-              splashRadius: 20,
-              padding: EdgeInsets.zero,
-              icon: const Icon(Icons.share_outlined, size: 24, color: _ink),
             ),
           ),
         ],
+        ),
       ),
     );
   }
 
   Widget _buildArticle(BlogPost post) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 22, 16, 0),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -201,16 +191,13 @@ class BlogDetailScreen extends ConsumerWidget {
               decoration: BoxDecoration(
                 color: _tagBg,
                 borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: _divider.withValues(alpha: 0.5)),
               ),
               child: Text(
                 post.category,
-                style: AppTypography.main(
-                  const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: _primary,
-                  ),
+                style: AppTypography.labelMedium(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: _primary,
                 ),
               ),
             ),
@@ -218,41 +205,55 @@ class BlogDetailScreen extends ConsumerWidget {
           ],
           Text(
             post.title,
-            style: AppTypography.display(
-              const TextStyle(
-                fontSize: 21,
-                fontWeight: FontWeight.w700,
-                color: _ink,
-                height: 1.35,
-              ),
+            style: AppTypography.h2(
+              fontSize: 26,
+              fontWeight: FontWeight.w900,
+              color: _ink,
+              height: 1.22,
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 18),
           _buildAuthorRow(post),
-          const SizedBox(height: 22),
+          const SizedBox(height: 18),
           _buildHeroImage(post),
           if (post.excerpt.isNotEmpty) ...[
-            const SizedBox(height: 28),
-            Text(
-              post.excerpt,
-              style: AppTypography.main(
-                const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w400,
-                  color: _secondary,
-                  height: 1.7,
-                ),
+            const SizedBox(height: 20),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceDestructiveSoft,
+                borderRadius: BorderRadius.circular(10),
+                border: const Border(left: BorderSide(color: _primary, width: 3)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.format_quote_rounded,
+                      color: _primary, size: 34),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      post.excerpt,
+                      style: AppTypography.bodyLarge(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w500,
+                        color: _ink,
+                        height: 1.55,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
-          const SizedBox(height: 28),
+          const SizedBox(height: 22),
           _buildBody(post),
           if (post.tags.isNotEmpty) ...[
             const SizedBox(height: 24),
             _buildTags(post),
           ],
-          const SizedBox(height: 28),
-          const Divider(color: _divider, height: 1),
+          const SizedBox(height: 18),
         ],
       ),
     );
@@ -263,26 +264,38 @@ class BlogDetailScreen extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
-          width: 48,
-          height: 48,
+          width: 56,
+          height: 56,
           decoration: BoxDecoration(
-            color: _goldLight,
+            color: AppColors.surfacePrimary,
             shape: BoxShape.circle,
-            border: Border.all(color: _divider.withValues(alpha: 0.5)),
+            boxShadow: [
+              BoxShadow(
+                color: _primary.withValues(alpha: 0.18),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-          alignment: Alignment.center,
-          child: Text(
-            'DP',
-            style: AppTypography.display(
-              const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-                color: _primary,
+          padding: const EdgeInsets.all(3),
+          clipBehavior: Clip.antiAlias,
+          child: ClipOval(
+            child: Image.asset(
+              _brandAvatarAsset,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => Center(
+                child: Text(
+                  'DP',
+                  style: AppTypography.buttonMedium(
+                    color: AppColors.surfacePrimary,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
               ),
             ),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 14),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -292,13 +305,10 @@ class BlogDetailScreen extends ConsumerWidget {
                   Flexible(
                     child: Text(
                       post.author.isEmpty ? 'DAI PHAT' : post.author.toUpperCase(),
-                      style: AppTypography.main(
-                        const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: _ink,
-                          letterSpacing: 0.2,
-                        ),
+                      style: AppTypography.subtitle1(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: _ink,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -308,7 +318,7 @@ class BlogDetailScreen extends ConsumerWidget {
                   const Icon(
                     Icons.verified_rounded,
                     size: 16,
-                    color: Color(0xFF27AE60),
+                    color: AppColors.statusSuccess,
                   ),
                 ],
               ),
@@ -318,11 +328,9 @@ class BlogDetailScreen extends ConsumerWidget {
                 spacing: 6,
                 runSpacing: 4,
                 children: [
-                  _metaText(post.date),
+                  _metaIconText(Icons.calendar_month_outlined, post.date),
                   _metaDot(),
                   _metaIconText(Icons.visibility_outlined, _formatViews(post.viewCount)),
-                  _metaDot(),
-                  _metaText(_estimateReadTime(post)),
                 ],
               ),
             ],
@@ -337,7 +345,7 @@ class BlogDetailScreen extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ClipRRect(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(14),
           child: AspectRatio(
             aspectRatio: 16 / 9,
             child: Image.network(
@@ -347,18 +355,6 @@ class BlogDetailScreen extends ConsumerWidget {
                 color: _goldLight,
                 child: const Icon(Icons.image_outlined, size: 52, color: _gold),
               ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          'Kỳ quay thưởng trực tiếp tại hội trường Dai Phat',
-          textAlign: TextAlign.center,
-          style: AppTypography.main(
-            const TextStyle(
-              fontSize: 14,
-              fontStyle: FontStyle.italic,
-              color: _secondary,
             ),
           ),
         ),
@@ -377,17 +373,17 @@ class BlogDetailScreen extends ConsumerWidget {
             fontSize: FontSize(16),
             lineHeight: const LineHeight(1.8),
             color: _ink,
-            fontFamily: AppTypography.main().fontFamily,
+            fontFamily: AppTypography.mainFamily,
           ),
           'p': Style(
             margin: Margins.only(bottom: 20),
             color: _ink,
             fontSize: FontSize(16),
             lineHeight: const LineHeight(1.8),
-            fontFamily: AppTypography.main().fontFamily,
+            fontFamily: AppTypography.mainFamily,
           ),
           'h1': Style(
-            fontFamily: AppTypography.display().fontFamily,
+            fontFamily: AppTypography.displayFamily,
             fontSize: FontSize(24),
             fontWeight: FontWeight.w700,
             color: _ink,
@@ -395,7 +391,7 @@ class BlogDetailScreen extends ConsumerWidget {
             margin: Margins.only(bottom: 18),
           ),
           'h2': Style(
-            fontFamily: AppTypography.display().fontFamily,
+            fontFamily: AppTypography.displayFamily,
             fontSize: FontSize(22),
             fontWeight: FontWeight.w700,
             color: _ink,
@@ -403,7 +399,7 @@ class BlogDetailScreen extends ConsumerWidget {
             margin: Margins.only(top: 10, bottom: 18),
           ),
           'h3': Style(
-            fontFamily: AppTypography.display().fontFamily,
+            fontFamily: AppTypography.displayFamily,
             fontSize: FontSize(18),
             fontWeight: FontWeight.w700,
             color: _ink,
@@ -418,7 +414,7 @@ class BlogDetailScreen extends ConsumerWidget {
             margin: Margins.only(bottom: 10),
             fontSize: FontSize(16),
             lineHeight: const LineHeight(1.7),
-            fontFamily: AppTypography.main().fontFamily,
+            fontFamily: AppTypography.mainFamily,
           ),
           'a': Style(
             color: _primary,
@@ -437,7 +433,7 @@ class BlogDetailScreen extends ConsumerWidget {
             color: _secondary,
             fontStyle: FontStyle.italic,
             lineHeight: const LineHeight(1.8),
-            fontFamily: AppTypography.main().fontFamily,
+            fontFamily: AppTypography.mainFamily,
           ),
         },
       );
@@ -450,13 +446,11 @@ class BlogDetailScreen extends ConsumerWidget {
           if (i > 0) const SizedBox(height: 20),
           Text(
             post.bodyParagraphs[i],
-            style: AppTypography.main(
-              const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w400,
-                color: _ink,
-                height: 1.85,
-              ),
+            style: AppTypography.bodyLarge(
+              fontSize: 16,
+              fontWeight: FontWeight.w400,
+              color: _ink,
+              height: 1.85,
             ),
           ),
         ],
@@ -481,12 +475,10 @@ class BlogDetailScreen extends ConsumerWidget {
       ),
       child: Text(
         tag,
-        style: AppTypography.main(
-          const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: _secondary,
-          ),
+        style: AppTypography.caption(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: _secondary,
         ),
       ),
     );
@@ -521,14 +513,12 @@ class BlogDetailScreen extends ConsumerWidget {
               Expanded(
                 child: Text(
                   'BÀI VIẾT LIÊN QUAN',
-                  style: AppTypography.display(
-                    const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: _ink,
-                      letterSpacing: 0.6,
-                      height: 1.3,
-                    ),
+                  style: AppTypography.h4(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: _ink,
+                    letterSpacing: 0.6,
+                    height: 1.3,
                   ),
                 ),
               ),
@@ -557,11 +547,11 @@ class BlogDetailScreen extends ConsumerWidget {
           color: _surface,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: _divider.withValues(alpha: 0.28)),
-          boxShadow: [
+          boxShadow: const [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
+              color: AppColors.shadowLight,
               blurRadius: 10,
-              offset: const Offset(0, 4),
+              offset: Offset(0, 4),
             ),
           ],
         ),
@@ -593,25 +583,21 @@ class BlogDetailScreen extends ConsumerWidget {
                     if (item.category.isNotEmpty) ...[
                       Text(
                         item.category.toUpperCase(),
-                        style: AppTypography.main(
-                          const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            color: _primary,
-                          ),
+                        style: AppTypography.overline(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: _primary,
                         ),
                       ),
                       const SizedBox(height: 8),
                     ],
                     Text(
                       item.title,
-                      style: AppTypography.display(
-                        const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                          color: _ink,
-                          height: 1.45,
-                        ),
+                      style: AppTypography.subtitle1(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: _ink,
+                        height: 1.45,
                       ),
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
@@ -619,11 +605,9 @@ class BlogDetailScreen extends ConsumerWidget {
                     const SizedBox(height: 12),
                     Text(
                       item.authorDate.isNotEmpty ? item.authorDate : item.date,
-                      style: AppTypography.main(
-                        const TextStyle(
-                          fontSize: 13,
-                          color: _secondary,
-                        ),
+                      style: AppTypography.caption(
+                        fontSize: 13,
+                        color: _secondary,
                       ),
                     ),
                   ],
@@ -639,12 +623,10 @@ class BlogDetailScreen extends ConsumerWidget {
   Widget _metaText(String text) {
     return Text(
       text,
-      style: AppTypography.main(
-        const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
-          color: _secondary,
-        ),
+      style: AppTypography.caption(
+        fontSize: 11,
+        fontWeight: FontWeight.w500,
+        color: _secondary,
       ),
     );
   }
@@ -679,17 +661,39 @@ class BlogDetailScreen extends ConsumerWidget {
     }
     return '$count';
   }
+}
 
-  String _estimateReadTime(BlogPost post) {
-    final content = [
-      post.title,
-      post.excerpt,
-      post.htmlContent,
-      ...post.bodyParagraphs,
-    ].join(' ');
+class _CircleHeaderButton extends StatelessWidget {
+  const _CircleHeaderButton({
+    required this.icon,
+    required this.onPressed,
+  });
 
-    final wordCount = RegExp(r'\S+').allMatches(content).length;
-    final minutes = (wordCount / 220).ceil().clamp(1, 30);
-    return '$minutes phút đọc';
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 52,
+      height: 52,
+      decoration: BoxDecoration(
+        color: AppColors.surfacePrimary,
+        shape: BoxShape.circle,
+        border: Border.all(color: AppColors.borderLight),
+        boxShadow: const [
+          BoxShadow(
+            color: AppColors.shadowLight,
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: IconButton(
+        onPressed: onPressed,
+        splashRadius: 24,
+        icon: Icon(icon, color: _primary, size: 28),
+      ),
+    );
   }
 }
