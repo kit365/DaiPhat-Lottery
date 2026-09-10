@@ -11,12 +11,20 @@ FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app:/app/services/ticket-vision
+    PYTHONPATH=/app:/app/services/ticket-vision \
+    HOME=/cache
 
 WORKDIR /app
 
 RUN addgroup --system daiphat \
-    && adduser --system --ingroup daiphat daiphat
+    && adduser --system --ingroup daiphat daiphat \
+    && mkdir -p \
+        /cache/easyocr \
+        /cache/paddlex \
+        /cache/huggingface \
+        /cache/torch \
+        /cache/ultralytics \
+    && chown -R daiphat:daiphat /cache
 
 # OpenCV/EasyOCR/PaddleOCR need a handful of native shared libs even in
 # "headless" builds (libGL for cv2, libgomp for the ML frameworks).
@@ -26,7 +34,7 @@ RUN apt-get update \
 
 COPY services/ticket-vision/requirements.txt /tmp/requirements.txt
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir -r /tmp/requirements.txt
+    pip install -r /tmp/requirements.txt
 
 COPY --chown=daiphat:daiphat contracts ./contracts
 COPY --chown=daiphat:daiphat infra ./infra
@@ -39,4 +47,4 @@ EXPOSE 8090
 HEALTHCHECK --interval=20s --timeout=5s --start-period=30s --retries=5 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/health', timeout=3)" || exit 1
 
-CMD ["uvicorn", "main:app", "--app-dir", "services/ticket-vision", "--host", "0.0.0.0", "--port", "8090"]
+CMD ["uvicorn", "main:app", "--app-dir", "services/ticket-vision", "--host", "0.0.0.0", "--port", "8090", "--workers", "1"]

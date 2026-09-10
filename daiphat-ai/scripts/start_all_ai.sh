@@ -1,6 +1,7 @@
 #!/bin/sh
 # Start chat-bot (8000) and ticket-vision (8090) in one container.
-# Used by daiphat-ai/Dockerfile so `docker compose up ai` runs all AI APIs.
+# Manual compatibility helper only. The Docker stack intentionally runs
+# chat-bot and ticket-vision as separate services and does not call this file.
 set -eu
 
 CHAT_PID=""
