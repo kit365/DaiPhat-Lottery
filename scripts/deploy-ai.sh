@@ -118,12 +118,16 @@ memory_limit=${memory_limit//\'/}
 [[ "$memory_limit" =~ ^[0-9]+([kKmMgG][bB]?|[bB])?$ ]] || { echo 'Unsupported AI memory limit.' >&2; exit 1; }
 requested_mb=$(awk -v limit="$memory_limit" 'BEGIN {unit=tolower(limit); value=limit+0; if(unit ~ /g/) value*=1024; else if(unit ~ /k/) value/=1024; else if(unit !~ /m/) value/=1048576; print int(value+0.999)}')
 available_mb=$(awk '/MemAvailable:/ {print int($2/1024)}' /proc/meminfo)
-(( available_mb >= requested_mb + 640 )) || { echo 'Not enough available RAM for the new slot and gateway; active services retained.' >&2; exit 1; }
+required_mb=$((requested_mb + 640))
+echo "AI available RAM: ${available_mb} MiB; required for candidate + reserve: ${required_mb} MiB"
+(( available_mb >= required_mb )) || { echo 'Not enough available RAM for the new slot and gateway; active services retained.' >&2; exit 1; }
 if [[ "$component" == ocr ]]; then
-  total_mb=$(awk '/MemTotal:/ {print int($2/1024)}' /proc/meminfo)
   docker_root=$(docker info --format '{{.DockerRootDir}}')
   free_mb=$(df -Pm "$docker_root" | awk 'NR==2 {print $4}')
-  (( total_mb >= 5500 && free_mb >= 25600 )) || { echo 'OCR requires 5500 MiB host RAM and 25 GiB free Docker disk; deployment stopped.' >&2; exit 1; }
+  # Admission uses available RAM above, not the host's installed RAM.
+  # Keep a 10 GiB disk floor for pulling/unpacking the current image and cache.
+  echo "OCR free Docker disk: ${free_mb} MiB; required: 10240 MiB"
+  (( free_mb >= 10240 )) || { echo 'OCR requires 10 GiB free Docker disk; active services retained.' >&2; exit 1; }
 fi
 
 # Never take over an already-running direct OCR endpoint by recreating it.
