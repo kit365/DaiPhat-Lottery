@@ -10,9 +10,9 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:daiphat_mobile/src/features/auth/data/models/auth_token.dart';
-import 'package:daiphat_mobile/src/features/auth/data/models/user.dart';
-import 'package:daiphat_mobile/src/features/auth/data/repositories/auth_repository.dart';
+import 'package:daiphat_mobile/src/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:daiphat_mobile/src/features/auth/data/services/auth_api_service.dart';
+import 'package:daiphat_mobile/src/features/auth/domain/entities/user.dart';
 import 'package:daiphat_mobile/src/features/cart/data/mappers/cart_item_mapper.dart';
 import 'package:daiphat_mobile/src/features/cart/domain/entities/cart_item.dart';
 import 'package:daiphat_mobile/src/features/cart/presentation/providers/cart_provider.dart';
@@ -466,7 +466,7 @@ void main() {
     final preferences = await SharedPreferences.getInstance();
     final api = _FakeAuthApiService();
     final client = ApiClient(dio: Dio());
-    final repository = AuthRepository(
+    final repository = AuthRepositoryImpl(
       api,
       client,
       AuthTokenStorage(preferences),

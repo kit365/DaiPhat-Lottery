@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:daiphat_mobile/src/features/auth/data/repositories/auth_repository.dart';
+import 'package:daiphat_mobile/src/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:daiphat_mobile/src/features/auth/data/services/auth_api_service.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/login_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/views/login_view.dart';
@@ -70,7 +70,7 @@ void main() {
       dio: Dio(BaseOptions(baseUrl: 'https://example.invalid')),
     );
     final viewModel = LoginViewModel(
-      AuthRepository(
+      AuthRepositoryImpl(
         AuthApiService(apiClient),
         apiClient,
         AuthTokenStorage(prefs),

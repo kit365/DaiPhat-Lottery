@@ -12,6 +12,7 @@ import 'package:daiphat_mobile/src/app/dependencies/app_dependencies.dart';
 import 'package:daiphat_mobile/src/shared/network/api_config.dart';
 import 'package:daiphat_mobile/src/shared/providers/api_providers.dart';
 import 'package:daiphat_mobile/src/shared/services/notification_service.dart';
+import 'package:daiphat_mobile/src/features/auth/presentation/providers/auth_providers.dart';
 import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
 import 'package:daiphat_mobile/src/features/checkout/data/transaction_service.dart';
 import 'package:daiphat_mobile/src/features/checkout/data/repositories/transaction_repository_impl.dart';
@@ -98,6 +99,7 @@ Future<void> bootstrap() async {
     ProviderScope(
       overrides: [
         apiClientProvider.overrideWithValue(dependencies.apiClient),
+        authRepositoryProvider.overrideWithValue(dependencies.authRepository),
         orderServiceProvider.overrideWithValue(orderService),
         transactionServiceProvider.overrideWithValue(transactionService),
         ordersRepositoryProvider.overrideWithValue(ordersRepository),
