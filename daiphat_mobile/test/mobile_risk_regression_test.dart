@@ -13,8 +13,9 @@ import 'package:daiphat_mobile/src/features/auth/data/models/auth_token.dart';
 import 'package:daiphat_mobile/src/features/auth/data/models/user.dart';
 import 'package:daiphat_mobile/src/features/auth/data/repositories/auth_repository.dart';
 import 'package:daiphat_mobile/src/features/auth/data/services/auth_api_service.dart';
-import 'package:daiphat_mobile/src/features/cart/models/cart_item_model.dart';
-import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
+import 'package:daiphat_mobile/src/features/cart/data/mappers/cart_item_mapper.dart';
+import 'package:daiphat_mobile/src/features/cart/domain/entities/cart_item.dart';
+import 'package:daiphat_mobile/src/features/cart/presentation/providers/cart_provider.dart';
 import 'package:daiphat_mobile/src/features/chat/data/models/chat_models.dart';
 import 'package:daiphat_mobile/src/features/chat/data/repositories/chat_repository.dart';
 import 'package:daiphat_mobile/src/features/chat/data/services/chat_api_service.dart';
@@ -362,7 +363,7 @@ void main() {
 
   test('cart removes only a confirmed pending purchase', () async {
     final box = Hive.box('cartBox');
-    await box.put('items', [_normalCartItem.toMap()]);
+    await box.put('items', [CartItemMapper.toMap(_normalCartItem)]);
     final container = ProviderContainer();
     addTearDown(container.dispose);
     final notifier = container.read(cartProvider.notifier);
@@ -391,19 +392,21 @@ void main() {
     () async {
       final box = Hive.box('cartBox');
       await box.put('items', [
-        const CartItemData(
-          lotteryTicketId: 202608200001,
-          province: 'Hồ Chí Minh',
-          dateLabel: '20/08/2026',
-          drawTime: '16:15',
-          kyHieu: 'HCM',
-          number: '208620',
-          quantity: 1,
-          unitPrice: 10000,
-          logoText: 'HCM',
-          drawDateIso: '2026-08-20',
-        ).toMap(),
-        _normalCartItem.toMap(),
+        CartItemMapper.toMap(
+          const CartItemData(
+            lotteryTicketId: 202608200001,
+            province: 'Hồ Chí Minh',
+            dateLabel: '20/08/2026',
+            drawTime: '16:15',
+            kyHieu: 'HCM',
+            number: '208620',
+            quantity: 1,
+            unitPrice: 10000,
+            logoText: 'HCM',
+            drawDateIso: '2026-08-20',
+          ),
+        ),
+        CartItemMapper.toMap(_normalCartItem),
       ]);
       final container = ProviderContainer();
       addTearDown(container.dispose);

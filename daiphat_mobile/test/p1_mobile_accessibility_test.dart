@@ -10,9 +10,9 @@ import 'package:daiphat_mobile/src/features/auth/data/repositories/auth_reposito
 import 'package:daiphat_mobile/src/features/auth/data/services/auth_api_service.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/login_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/views/login_view.dart';
-import 'package:daiphat_mobile/src/features/cart/models/cart_item_model.dart';
+import 'package:daiphat_mobile/src/features/cart/domain/entities/cart_item.dart';
 import 'package:daiphat_mobile/src/features/cart/presentation/views/cart_view.dart';
-import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
+import 'package:daiphat_mobile/src/features/cart/presentation/providers/cart_provider.dart';
 import 'package:daiphat_mobile/src/features/checkout/data/system_config_service.dart';
 import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
 import 'package:daiphat_mobile/src/features/checkout/presentation/views/checkout_view.dart';
