@@ -28,13 +28,31 @@ permissions:
   contents: read
 
 jobs:
+  select:
+    runs-on: ubuntu-latest
+    outputs:
+      deploy: ${{ steps.select.outputs.deploy }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref || github.sha }}
+          fetch-depth: 0
+      - id: select
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: python3 .github/scripts/select-infra-deploy.py
+
   deploy-infrastructure:
+    needs: select
+    if: needs.select.outputs.deploy == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout selected source
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.source_ref || github.ref_name }}
+          ref: ${{ inputs.source_ref || github.sha }}
 
       - name: Prepare protected runtime files
         env:
@@ -66,6 +84,7 @@ jobs:
             printf 'BACKEND_IMAGE=docker.io/%s/daiphat-be:prod\n' "$DOCKER_USERNAME"
             printf 'FRONTEND_IMAGE=docker.io/%s/daiphat-fe:prod\n' "$DOCKER_USERNAME"
             printf 'AI_IMAGE=docker.io/%s/daiphat-ai:prod\n' "$DOCKER_USERNAME"
+            printf 'TICKET_VISION_IMAGE=docker.io/%s/daiphat-ticket-vision:prod\n' "$DOCKER_USERNAME"
             printf 'DEPLOY_SHA=infra-%s\n' "$source_sha"
           } > .deploy.bootstrap.env
           chmod 755 .dozzle

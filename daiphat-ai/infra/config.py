@@ -119,6 +119,10 @@ class Settings(BaseSettings):
     # the calibration that ratio stands in for. Costs one extra inference per
     # ticket, so it's opt-in.
     TICKET_VISION_LAYOUT_STRATEGY: str = "generic"
+    # LLM path (Groq/Gemini/Grok): run best.pt once for ticket/field crops,
+    # merge with OCR Template layouts (YOLO wins per field; template fills gaps).
+    # Soft-skips when weights are missing. Turn off to force template/full-image only.
+    TICKET_VISION_LLM_YOLO_GUIDANCE: bool = True
     # Lower than the ticket-detection threshold on purpose: a field box that
     # is slightly off still yields a crop the OCR pass can use, and the
     # parser validates every field value before accepting it, so a spurious

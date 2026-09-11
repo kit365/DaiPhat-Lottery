@@ -13,16 +13,14 @@ const isUsableToken = (token: string | null | undefined): token is string => {
 };
 
 /**
- * Local / Next rewrite: cookie HttpOnly Path=/api/v1/auth đôi khi không được set.
- * BE đọc cookie `refresh_token` — ghi thêm bản JS path=/ để refresh vẫn gửi được.
+ * Do not mirror the HttpOnly refresh cookie into a JS cookie of the same name.
+ * Duplicate `refresh_token` values (JS Path=/ + HttpOnly Path=/api/v1/auth) caused
+ * Spring to read a stale token and return 401 on /auth/refresh-token → forced logout.
+ * Clear any leftover JS copy from older clients.
  */
-export const persistRefreshTokenFallback = (refreshToken?: string | null) => {
-    if (typeof window === "undefined" || !isUsableToken(refreshToken)) return;
-    Cookies.set(BE_REFRESH_COOKIE, refreshToken.trim(), {
-        expires: 7,
-        sameSite: "lax",
-        ...ACCESS_COOKIE,
-    });
+export const persistRefreshTokenFallback = (_refreshToken?: string | null) => {
+    if (typeof window === "undefined") return;
+    Cookies.remove(BE_REFRESH_COOKIE, ACCESS_COOKIE);
 };
 
 export const readAccessTokenCookie = (): string | null => {

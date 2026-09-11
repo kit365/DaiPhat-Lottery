@@ -10,6 +10,10 @@ import type {
     ScannedTicket,
     ScannedTicketStatus,
 } from '../types/ticketOcr.type';
+import {
+    normalizeOcrScanErrorMessage,
+    normalizeOcrWarningList,
+} from './ocrScanErrorMessage';
 
 export type OcrLineOption = {
     key: string;
@@ -387,8 +391,8 @@ export const mapScannedTicketToReviewRow = (
         fields: ticket.fields ?? {},
         overallValidationStatus: overall,
         missingFields: ticket.missingFields ?? [],
-        validationErrors: ticket.validationErrors ?? [],
-        businessValidationErrors: ticket.businessValidationErrors ?? [],
+        validationErrors: normalizeOcrWarningList(ticket.validationErrors),
+        businessValidationErrors: normalizeOcrWarningList(ticket.businessValidationErrors),
         duplicate: Boolean(ticket.duplicate),
         croppedImageBase64: ticket.croppedImageBase64 ?? null,
         selected:
@@ -414,7 +418,7 @@ export const createFailedReviewRow = (
     sourcePreviewUrl: string | null | undefined,
     reason?: string | null
 ): OcrReviewRow => {
-    const message = reason?.trim() || OCR_SOFT_FAIL_MESSAGE;
+    const message = normalizeOcrScanErrorMessage(reason) || OCR_SOFT_FAIL_MESSAGE;
     const unreadable: FieldValidationResult = {
         status: 'UNREADABLE',
         message: 'OCR không đọc được trường này. Ảnh có thể bị che / mờ / cắt / chồng.',

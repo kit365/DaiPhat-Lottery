@@ -2,8 +2,9 @@
 set -euo pipefail
 
 deploy_path=${1:-}
+component=${2:-}
 if [[ -z "$deploy_path" ]]; then
-    echo "Usage: $0 <absolute-vps-deploy-path>" >&2
+    echo "Usage: $0 <absolute-vps-deploy-path> [component]" >&2
     exit 2
 fi
 
@@ -31,6 +32,9 @@ echo "Available disk near deploy path: ${available_mb} MB"
     echo "At least 10 GB free disk is required." >&2
     exit 1
 }
+
+# AI deployments perform available-RAM admission and check the Docker data
+# filesystem in deploy-ai.sh. Do not reject them based on installed host RAM.
 
 if ss -ltn | awk '{print $4}' | grep -Eq '(^|:)(80|443)$'; then
     echo "WARNING: port 80 or 443 is already in use; confirm it belongs to the DaiPhat stack." >&2

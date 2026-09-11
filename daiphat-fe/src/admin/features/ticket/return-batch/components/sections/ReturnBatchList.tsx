@@ -136,6 +136,9 @@ export const ReturnBatchList = ({
                         pageSizeOptions={[5, 10, 20, 50]}
                         initialState={returnBatchColumnsInitialState}
                         {...adminDataGridRowHeightProps}
+                        getRowClassName={(params) =>
+                            `return-batch-row-status-${(params.row.status || 'unknown').toLowerCase()}`
+                        }
                         disableRowSelectionOnClick
                         className="admin-datagrid"
                         sx={{
@@ -143,6 +146,23 @@ export const ReturnBatchList = ({
                             ...adminDataGridRowHeightSx,
                             '& .MuiDataGrid-row': {
                                 minHeight: `${ADMIN_DATAGRID_ROW_MIN_HEIGHT}px !important`,
+                                borderLeft: '4px solid transparent',
+                                transition: 'all 0.15s ease',
+                            },
+                            '& .return-batch-row-status-pending_inspection': {
+                                borderLeft: '4px solid #f59e0b !important',
+                            },
+                            '& .return-batch-row-status-inspecting': {
+                                borderLeft: '4px solid #0284c7 !important',
+                            },
+                            '& .return-batch-row-status-pending_handover': {
+                                borderLeft: '4px solid #ea580c !important',
+                            },
+                            '& .return-batch-row-status-handed_over': {
+                                borderLeft: '4px solid #22c55e !important',
+                            },
+                            '& .return-batch-row-status-cancelled': {
+                                borderLeft: '4px solid #ef4444 !important',
                             },
                         } as import('@mui/material/styles').SxProps<import('@mui/material/styles').Theme>}
                     />

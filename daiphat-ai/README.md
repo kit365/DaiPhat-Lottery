@@ -130,16 +130,45 @@ From the repository root, the standard local stack builds and starts both AI ser
 docker compose up -d --build
 ```
 
+The services remain separate containers in the same `daiphat-local` network.
+The backend calls `http://ai:8000` and `http://ticket-vision:8090`; OCR port
+8090 is also bound to localhost for direct testing. Start, rebuild, restart,
+or stop either AI service independently:
+
+```bash
+docker compose up -d ai ticket-vision
+docker compose up -d --build ticket-vision
+docker compose restart ticket-vision
+docker compose stop ticket-vision
+```
+
+Ticket Vision runs as the unprivileged `daiphat` user with one Uvicorn worker,
+2 CPUs and 4 GB RAM by default. Override the latter two with
+`LOCAL_TICKET_VISION_CPUS` and `LOCAL_TICKET_VISION_MEMORY`. OCR model downloads
+persist in the `ticket_vision_model_cache` volume, while the local
+`services/ticket-vision/models/` directory is mounted read-only so replacing
+`best.pt` only requires restarting `ticket-vision`. The Docker stack does not
+use `scripts/start_all_ai.sh`; that file is retained only as a manual
+compatibility helper.
+
 Production publishes each service as an immutable image tagged with the same commit SHA as FE and BE, reachable only on the internal Docker network — neither is exposed publicly on the VPS:
 
 | Service | Image | Internal URL | Workflow |
 |---------|-------|--------------|----------|
-| chat-bot | `daiphat-ai` | `http://ai:8000` | `ai-deploy.yml` |
-| ticket-vision | `daiphat-ticket-vision` | `http://ticket-vision:8090` | `ticket-vision-deploy.yml` |
+| chat-bot | `daiphat-ai` | `http://ai-gateway:8000` after bootstrap | `ai-deploy.yml`, target `chatbot` |
+| ticket-vision | `daiphat-ticket-vision` | `http://ticket-vision:8090` | `ai-deploy.yml`, target `ocr` |
 
-They deploy independently: `ticket-vision`'s image carries torch/paddlepaddle/easyocr and is far slower to build, so `ai-deploy.yml` excludes its subtree rather than rebuilding it on every chat-bot change.
+One AI CD workflow selects the changed component; shared runtime changes select both.
+OCR and chatbot remain separate images, with independent blue/green slots and internal
+gateways. Manual dispatch also supports `both` and deploying an existing digest.
+The currently running chatbot stays at `ai:8000` until its gateway bootstrap and
+the separate backend URL migration are complete. See [AI deployment](../docs/ai-deployment.md).
 
-**Model weights in CI.** `models/best.pt` is gitignored, so a CI checkout has none and the image ships without YOLO — `TicketDetectorFactory` and `LayoutStrategyFactory` fall back to the contour detector and the generic layout on their own. To bake the weights in, set the `TICKET_VISION_WEIGHTS_URL` repository secret to a downloadable `best.pt`; the build validates size and file type so a bad URL fails the build instead of shipping an HTML error page as "weights". Production defaults to `contour`/`generic` regardless — flip `TICKET_VISION_DETECTOR_STRATEGY` / `TICKET_VISION_LAYOUT_STRATEGY` only after benchmarking.
+**Model weights in CD builds.** `models/best.pt` is gitignored. New OCR builds require
+the `TICKET_VISION_WEIGHTS_URL` repository secret and `TICKET_VISION_WEIGHTS_SHA256`
+Actions variable. Builds stop when the artifact is missing or does not match its
+checksum. Existing-image deployments reuse the weights inside that image.
+Groq uses YOLO guidance independently of the legacy `contour`/`generic` strategies.
 
 
 ## License

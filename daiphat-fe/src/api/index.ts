@@ -8,7 +8,8 @@
  *                                      │
  *                    có NEXT_PUBLIC_API_BASE_URL  →  gọi thẳng BE (local đừng set)
  *                    không có                     →  /api cùng origin FE
- *                                                      → Next rewrite → BE
+ *                                                      → App Router proxy (multipart-safe)
+ *                                                      → fallback rewrite → BE
  *                                      │
  *                               [Request]
  *                    gắn Bearer (trừ login / register / refresh / forgot / verify)
@@ -31,8 +32,9 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from "axios"
 import { peekQueryAbortSignal } from "@/shared/react-query/queryAbort"
 import { API_PREFIX, API_VERSION } from "./api.constants"
 import { AppToast } from "../utils/toast.util"
-import { persistAccessToken, persistRefreshTokenFallback, resolveAccessToken } from "./authHeaders"
+import { persistRefreshTokenFallback, resolveAccessToken } from "./authHeaders"
 import { endAuthSession } from "./endAuthSession"
+import { refreshAccessSession } from "./sessionBoot"
 
 const getBaseUrl = () => {
     if (typeof process !== "undefined" && process.env) {
@@ -238,7 +240,11 @@ apiApp.interceptors.response.use(
                     .then(token => {
                         if (token) {
                             originalRequest._retry = true;
-                            originalRequest.headers.Authorization = `Bearer ${token}`;
+                            if (typeof originalRequest.headers.set === 'function') {
+                                originalRequest.headers.set('Authorization', `Bearer ${token}`);
+                            } else {
+                                originalRequest.headers.Authorization = `Bearer ${token}`;
+                            }
                             return apiApp(originalRequest);
                         }
                         return Promise.reject(error);
@@ -252,18 +258,15 @@ apiApp.interceptors.response.use(
                 isRefreshing = true;
 
                 return new Promise((resolve, reject) => {
-                    apiApp.post('/auth/refresh-token', null, { skipGlobalErrorToast: true } as ApiRequestConfig)
-                        .then(({ data }) => {
-                            const newAccessToken = data?.data?.accessToken || data?.data?.access_token;
-                            const expiresIn = data?.data?.expiresIn || data?.data?.expires_in;
-
+                    refreshAccessSession()
+                        .then((newAccessToken) => {
                             if (newAccessToken) {
-                                persistAccessToken(newAccessToken, expiresIn);
-                                persistRefreshTokenFallback(
-                                    data?.data?.refreshToken || data?.data?.refresh_token
-                                );
                                 processQueue(null, newAccessToken);
-                                originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+                                if (typeof originalRequest.headers.set === 'function') {
+                                    originalRequest.headers.set('Authorization', `Bearer ${newAccessToken}`);
+                                } else {
+                                    originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+                                }
                                 resolve(apiApp(originalRequest));
                             } else {
                                 handleExpiredSession(!skipToast);

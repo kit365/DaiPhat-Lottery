@@ -167,102 +167,160 @@ export const ReturnBatchReminderBanner = ({ batches }: ReturnBatchReminderBanner
                     },
                 }}
             >
-                <Stack
-                    direction={{ xs: 'column', lg: 'row' }}
-                    justifyContent="space-between"
-                    alignItems={{ xs: 'flex-start', lg: 'center' }}
-                    spacing={1.5}
+                <Box
+                    sx={{
+                        display: 'flex',
+                        flexDirection: { xs: 'column', lg: 'row' },
+                        alignItems: { xs: 'flex-start', lg: 'center' },
+                        justifyContent: 'space-between',
+                        gap: { xs: 1.5, lg: 2 },
+                        width: '100%',
+                    }}
                 >
                     {/* Left: Info */}
-                    <Stack direction="row" spacing={1.25} alignItems="center" flexWrap="wrap" useFlexGap>
-                        <Chip
-                            size="small"
-                            label={batchCode}
-                            sx={{
-                                fontWeight: 800,
-                                fontFamily: 'monospace',
-                                bgcolor: '#0f172a',
-                                color: '#ffffff',
-                                fontSize: '0.8rem',
-                                height: 26,
-                                borderRadius: '6px',
-                            }}
-                        />
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            flexWrap: { xs: 'wrap', sm: 'nowrap' },
+                            gap: 1.25,
+                            flexShrink: 0,
+                            minWidth: { lg: 590 },
+                        }}
+                    >
+                        <Box sx={{ minWidth: { sm: 200 }, flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                            <Chip
+                                size="small"
+                                label={batchCode}
+                                onClick={() => router.push(ROUTES.ADMIN.RETURN_BATCH.DETAIL(batch.id))}
+                                sx={{
+                                    fontWeight: 800,
+                                    fontFamily: 'monospace',
+                                    bgcolor: '#0f172a',
+                                    color: '#ffffff',
+                                    fontSize: '0.8rem',
+                                    height: 26,
+                                    borderRadius: '6px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s ease',
+                                    '&:hover': {
+                                        bgcolor: '#334155',
+                                        transform: 'translateY(-1px)',
+                                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.15)',
+                                    },
+                                }}
+                                title={`Xem chi tiết phiếu trả ${batchCode}`}
+                            />
+                        </Box>
 
-                        <Typography variant="body2" sx={{ fontWeight: 800, color: '#0f172a', fontSize: '0.9rem' }}>
-                            {supplierName}
-                        </Typography>
+                        <Box sx={{ minWidth: { sm: 135 }, maxWidth: { sm: 155 }, flexShrink: 0 }}>
+                            <Typography
+                                variant="body2"
+                                sx={{ fontWeight: 800, color: '#0f172a', fontSize: '0.9rem' }}
+                                noWrap
+                                title={supplierName}
+                            >
+                                {supplierName}
+                            </Typography>
+                        </Box>
 
-                        <Chip
-                            size="small"
-                            icon={<ConfirmationNumberOutlinedIcon sx={{ fontSize: '13px !important', color: '#64748b !important' }} />}
-                            label={`${totalQty.toLocaleString('vi-VN')} vé`}
-                            sx={{
-                                fontWeight: 700,
-                                bgcolor: '#f1f5f9',
-                                color: '#334155',
-                                height: 24,
-                                fontSize: '0.75rem',
-                                borderRadius: '6px',
-                            }}
-                        />
+                        <Box sx={{ minWidth: { sm: 95 }, flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                            <Chip
+                                size="small"
+                                icon={<ConfirmationNumberOutlinedIcon sx={{ fontSize: '13px !important', color: '#64748b !important' }} />}
+                                label={`${totalQty.toLocaleString('vi-VN')} vé`}
+                                sx={{
+                                    fontWeight: 700,
+                                    bgcolor: '#f1f5f9',
+                                    color: '#334155',
+                                    height: 24,
+                                    fontSize: '0.75rem',
+                                    borderRadius: '6px',
+                                }}
+                            />
+                        </Box>
 
-                        <AdminStatusBadge
-                            label={getReturnBatchStatusLabel(batch.status, batch.statusLabel)}
-                            modifier={getReturnBatchStatusBadgeClass(batch.status)}
-                        />
-                    </Stack>
+                        <Box sx={{ minWidth: { sm: 130 }, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <AdminStatusBadge
+                                label={getReturnBatchStatusLabel(batch.status, batch.statusLabel)}
+                                modifier={getReturnBatchStatusBadgeClass(batch.status)}
+                            />
+                        </Box>
+                    </Box>
 
                     {/* Middle: Timing Breakdown */}
-                    <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
-                        <Tooltip title={`Thời điểm mở kiểm tra = Hạn trả (${cutOffTimeStr}) − Thời gian đệm (${bufferMin} phút)`} arrow>
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            flexWrap: { xs: 'wrap', sm: 'nowrap' },
+                            gap: { xs: 1.5, sm: 2 },
+                            flexShrink: 0,
+                            minWidth: { lg: 390 },
+                        }}
+                    >
+                        <Box sx={{ minWidth: { sm: 120 }, flexShrink: 0 }}>
+                            <Tooltip title={`Thời điểm mở kiểm tra = Hạn trả (${cutOffTimeStr}) − Thời gian đệm (${bufferMin} phút)`} arrow>
+                                <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                    Mở kiểm tra: <b style={{ color: '#334155' }}>{windowStartStr}</b>
+                                </Typography>
+                            </Tooltip>
+                        </Box>
+
+                        <Box sx={{ minWidth: { sm: 120 }, flexShrink: 0 }}>
                             <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                Mở kiểm tra: <b style={{ color: '#334155' }}>{windowStartStr}</b>
+                                Hạn chót trả: <b style={{ color: variant === 'urgent' || variant === 'expired' ? '#e11d48' : '#d97706' }}>{cutOffTimeStr}</b>
                             </Typography>
-                        </Tooltip>
+                        </Box>
 
-                        <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            Hạn chót trả: <b style={{ color: variant === 'urgent' || variant === 'expired' ? '#e11d48' : '#d97706' }}>{cutOffTimeStr}</b>
-                        </Typography>
+                        <Box sx={{ minWidth: { sm: 125 }, flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                            {variant !== 'expired' && minutesUntilCutoff !== null && (
+                                <Chip
+                                    size="small"
+                                    icon={<ScheduleOutlinedIcon sx={{ fontSize: '13px !important', color: 'inherit !important' }} />}
+                                    label={`Còn ${formatMinutesUntilCutoff(minutesUntilCutoff)}`}
+                                    sx={{
+                                        fontWeight: 800,
+                                        fontSize: '0.725rem',
+                                        height: 24,
+                                        bgcolor: variant === 'urgent' ? '#fee2e2' : '#fef3c7',
+                                        color: variant === 'urgent' ? '#b91c1c' : '#b45309',
+                                        border: '1px solid',
+                                        borderColor: variant === 'urgent' ? '#fca5a5' : '#fde68a',
+                                        borderRadius: '6px',
+                                    }}
+                                />
+                            )}
 
-                        {variant !== 'expired' && minutesUntilCutoff !== null && (
-                            <Chip
-                                size="small"
-                                icon={<ScheduleOutlinedIcon sx={{ fontSize: '13px !important', color: 'inherit !important' }} />}
-                                label={`Còn ${formatMinutesUntilCutoff(minutesUntilCutoff)}`}
-                                sx={{
-                                    fontWeight: 800,
-                                    fontSize: '0.725rem',
-                                    height: 24,
-                                    bgcolor: variant === 'urgent' ? '#fee2e2' : '#fef3c7',
-                                    color: variant === 'urgent' ? '#b91c1c' : '#b45309',
-                                    border: '1px solid',
-                                    borderColor: variant === 'urgent' ? '#fca5a5' : '#fde68a',
-                                    borderRadius: '6px',
-                                }}
-                            />
-                        )}
-
-                        {variant === 'expired' && (
-                            <Chip
-                                size="small"
-                                icon={<WarningAmberOutlinedIcon sx={{ fontSize: '13px !important', color: 'inherit !important' }} />}
-                                label="Đã quá hạn trả"
-                                sx={{
-                                    fontWeight: 800,
-                                    fontSize: '0.725rem',
-                                    height: 24,
-                                    bgcolor: '#fff1f2',
-                                    color: '#be123c',
-                                    border: '1px solid #fecdd3',
-                                    borderRadius: '6px',
-                                }}
-                            />
-                        )}
-                    </Stack>
+                            {variant === 'expired' && (
+                                <Chip
+                                    size="small"
+                                    icon={<WarningAmberOutlinedIcon sx={{ fontSize: '13px !important', color: 'inherit !important' }} />}
+                                    label="Đã quá hạn trả"
+                                    sx={{
+                                        fontWeight: 800,
+                                        fontSize: '0.725rem',
+                                        height: 24,
+                                        bgcolor: '#fff1f2',
+                                        color: '#be123c',
+                                        border: '1px solid #fecdd3',
+                                        borderRadius: '6px',
+                                    }}
+                                />
+                            )}
+                        </Box>
+                    </Box>
 
                     {/* Right: Single Clear Action CTA */}
-                    <Box>
+                    <Box
+                        sx={{
+                            flex: { xs: '1 1 auto', lg: '1 0 auto' },
+                            display: 'flex',
+                            justifyContent: { xs: 'flex-start', lg: 'flex-end' },
+                            alignItems: 'center',
+                            minWidth: { sm: 130 },
+                        }}
+                    >
                         {variant !== 'expired' && batch.status === 'PENDING_INSPECTION' && (
                             <Button
                                 size="small"
@@ -369,7 +427,7 @@ export const ReturnBatchReminderBanner = ({ batches }: ReturnBatchReminderBanner
                                 </Button>
                             )}
                     </Box>
-                </Stack>
+                </Box>
             </Paper>
         );
     };

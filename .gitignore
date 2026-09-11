@@ -130,3 +130,8 @@ __pycache__/
 .coverage
 htmlcov/
 .tox/
+.local/ocr-publish/
+
+# AI production slot state and staged runtime secrets
+.ai-deploy/
+.ai-runtime.env

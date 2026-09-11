@@ -31,7 +31,7 @@ class AuthControllerCookieTest {
         ReflectionTestUtils.setField(controller, "refreshCookieName", "__Secure-refresh_token");
         ReflectionTestUtils.setField(controller, "refreshCookieSecure", true);
         ReflectionTestUtils.setField(controller, "refreshCookieSameSite", "Lax");
-        ReflectionTestUtils.setField(controller, "refreshCookiePath", "/api/v1/auth");
+        ReflectionTestUtils.setField(controller, "refreshCookiePath", "/");
     }
 
     @Test
@@ -51,9 +51,12 @@ class AuthControllerCookieTest {
         List<String> cookies = response.getHeaders("Set-Cookie");
         assertThat(cookies).anyMatch(value -> value.startsWith("__Secure-refresh_token=")
                 && value.contains("Max-Age=0")
-                && value.contains("Path=/api/v1/auth")
+                && value.contains("Path=/")
                 && value.contains("Secure")
                 && value.contains("HttpOnly"));
+        assertThat(cookies).anyMatch(value -> value.startsWith("__Secure-refresh_token=")
+                && value.contains("Max-Age=0")
+                && value.contains("Path=/api/v1/auth"));
         assertThat(cookies).anyMatch(value -> value.startsWith("token=")
                 && value.contains("Max-Age=0")
                 && value.contains("Path=/"));

@@ -10,6 +10,7 @@ import '../../../cart/providers/cart_provider.dart';
 import 'package:daiphat_mobile/src/features/orders/domain/entities/order.dart';
 import 'package:daiphat_mobile/src/features/orders/presentation/providers/orders_providers.dart';
 import 'package:daiphat_mobile/src/shared/providers/api_providers.dart';
+import 'package:daiphat_mobile/src/shared/network/api_exception.dart';
 import 'package:daiphat_mobile/src/shared/utils/api_error_message.dart';
 
 // ─── Dependencies ───────────────────────────────────────────────────────────
@@ -57,8 +58,9 @@ final receiveTypesProvider = FutureProvider.autoDispose<List<EnumOption>>((
   ref,
 ) async {
   try {
-    final types =
-        await ref.watch(ordersRepositoryProvider).getOrderReceiveTypes();
+    final types = await ref
+        .watch(ordersRepositoryProvider)
+        .getOrderReceiveTypes();
     if (types.isNotEmpty) return types;
   } catch (_) {
     // Fallback để không khóa màn thanh toán khi API/session lỗi tạm thời.
@@ -70,8 +72,9 @@ final transactionTypesProvider = FutureProvider.autoDispose<List<EnumOption>>((
   ref,
 ) async {
   try {
-    final types =
-        await ref.watch(transactionRepositoryProvider).getTransactionTypes();
+    final types = await ref
+        .watch(transactionRepositoryProvider)
+        .getTransactionTypes();
     if (types.isNotEmpty) return types;
   } catch (_) {
     // Fallback: mobile chỉ dùng ONLINE.
@@ -93,6 +96,10 @@ class CheckoutState {
   final String? checkoutUrl;
   final String? orderId;
   final String? orderCode;
+  final String? pendingPaymentOrderId;
+  final String? pendingPaymentOrderCode;
+  final int? pendingPaymentTransactionId;
+  final bool creationOutcomeUnknown;
 
   const CheckoutState({
     this.name = '',
@@ -106,6 +113,10 @@ class CheckoutState {
     this.checkoutUrl,
     this.orderId,
     this.orderCode,
+    this.pendingPaymentOrderId,
+    this.pendingPaymentOrderCode,
+    this.pendingPaymentTransactionId,
+    this.creationOutcomeUnknown = false,
   });
 
   CheckoutState copyWith({
@@ -122,22 +133,40 @@ class CheckoutState {
     String? orderId,
     String? orderCode,
     bool clearCheckoutResult = false,
+    String? pendingPaymentOrderId,
+    String? pendingPaymentOrderCode,
+    int? pendingPaymentTransactionId,
+    bool clearPendingPayment = false,
+    bool? creationOutcomeUnknown,
   }) {
     return CheckoutState(
       name: name ?? this.name,
       phone: phone ?? this.phone,
-      expectedPickupAt:
-          clearExpectedPickupAt ? null : (expectedPickupAt ?? this.expectedPickupAt),
+      expectedPickupAt: clearExpectedPickupAt
+          ? null
+          : (expectedPickupAt ?? this.expectedPickupAt),
       note: note ?? this.note,
       selectedReceiveType: selectedReceiveType ?? this.selectedReceiveType,
       selectedTransactionType:
           selectedTransactionType ?? this.selectedTransactionType,
       isSubmitting: isSubmitting ?? this.isSubmitting,
       errorMessage: errorMessage,
-      checkoutUrl:
-          clearCheckoutResult ? null : (checkoutUrl ?? this.checkoutUrl),
+      checkoutUrl: clearCheckoutResult
+          ? null
+          : (checkoutUrl ?? this.checkoutUrl),
       orderId: clearCheckoutResult ? null : (orderId ?? this.orderId),
       orderCode: clearCheckoutResult ? null : (orderCode ?? this.orderCode),
+      pendingPaymentOrderId: clearPendingPayment
+          ? null
+          : (pendingPaymentOrderId ?? this.pendingPaymentOrderId),
+      pendingPaymentOrderCode: clearPendingPayment
+          ? null
+          : (pendingPaymentOrderCode ?? this.pendingPaymentOrderCode),
+      pendingPaymentTransactionId: clearPendingPayment
+          ? null
+          : (pendingPaymentTransactionId ?? this.pendingPaymentTransactionId),
+      creationOutcomeUnknown:
+          creationOutcomeUnknown ?? this.creationOutcomeUnknown,
     );
   }
 
@@ -185,7 +214,26 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
 
   void clearError() => state = state.copyWith(errorMessage: null);
 
+  void beginCheckout() {
+    state = state.copyWith(
+      clearCheckoutResult: true,
+      clearPendingPayment: true,
+      creationOutcomeUnknown: false,
+      errorMessage: null,
+    );
+  }
+
   Future<bool> submitOrder() async {
+    state = state.copyWith(clearCheckoutResult: true, errorMessage: null);
+
+    if (state.creationOutcomeUnknown) {
+      state = state.copyWith(
+        errorMessage:
+            'Chưa xác định được trạng thái đơn vừa tạo. Vui lòng kiểm tra mục Đơn hàng trước khi thử lại.',
+      );
+      return false;
+    }
+
     if (!state.isValid) {
       state = state.copyWith(
         errorMessage:
@@ -202,13 +250,20 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
       return false;
     }
 
-    state = state.copyWith(
-      isSubmitting: true,
-      errorMessage: null,
-      clearCheckoutResult: true,
-    );
+    state = state.copyWith(isSubmitting: true, errorMessage: null);
 
+    var awaitingCreateResponse = false;
     try {
+      final pendingOrderId = state.pendingPaymentOrderId;
+      final pendingTransactionId = state.pendingPaymentTransactionId;
+      if (pendingOrderId != null && pendingTransactionId != null) {
+        return await _processPendingPayment(
+          orderId: pendingOrderId,
+          orderCode: state.pendingPaymentOrderCode ?? '',
+          transactionId: pendingTransactionId,
+        );
+      }
+
       final items = ref.read(checkoutItemsProvider);
       if (items.isEmpty) {
         state = state.copyWith(
@@ -219,7 +274,6 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
       }
 
       final createOnlineOrder = ref.read(createOnlineOrderProvider);
-      final processPayment = ref.read(processPaymentProvider);
 
       // 1. Create order
       final request = CreateOnlineOrderRequest(
@@ -238,38 +292,37 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
         note: state.note.isNotEmpty ? state.note.trim() : null,
       );
 
+      awaitingCreateResponse = true;
       final orderResponse = await createOnlineOrder(request);
+      awaitingCreateResponse = false;
 
       // 2. Check if online payment
       final transactionId = orderResponse.transactions?.firstOrNull?.id;
 
-      if (state.selectedTransactionType == 'ONLINE' && transactionId != null) {
-        // Process payment → get PayOS checkout URL
-        final paymentResult = await processPayment(
+      if (state.selectedTransactionType == 'ONLINE') {
+        ref
+            .read(cartProvider.notifier)
+            .recordPendingPurchase(orderResponse.id, items);
+        state = state.copyWith(
           orderId: orderResponse.id,
-          request: ProcessPaymentRequest(
-            transactionId: transactionId,
-            gateway: PaymentGateway.payos.value,
-          ),
+          orderCode: orderResponse.orderCode,
+          pendingPaymentOrderId: orderResponse.id,
+          pendingPaymentOrderCode: orderResponse.orderCode,
+          pendingPaymentTransactionId: transactionId,
         );
-
-        if (paymentResult.checkoutUrl != null &&
-            paymentResult.checkoutUrl!.isNotEmpty) {
-          // Do NOT clear cart here – caller will finalize after navigation
-          state = state.copyWith(
-            checkoutUrl: paymentResult.checkoutUrl,
-            orderId: orderResponse.id,
-            orderCode: orderResponse.orderCode,
-            isSubmitting: false,
-          );
-          return true;
-        } else {
+        if (transactionId == null) {
           state = state.copyWith(
             isSubmitting: false,
-            errorMessage: 'Không lấy được đường dẫn thanh toán',
+            errorMessage:
+                'Đơn đã được tạo nhưng chưa có giao dịch thanh toán. Vui lòng kiểm tra chi tiết đơn hàng.',
           );
           return false;
         }
+        return _processPendingPayment(
+          orderId: orderResponse.id,
+          orderCode: orderResponse.orderCode,
+          transactionId: transactionId,
+        );
       } else {
         // Offline / cash payment – cập nhật giỏ ngay
         _finalizePurchasedItems();
@@ -281,12 +334,54 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
         return true;
       }
     } catch (e) {
+      final unknownCreateOutcome =
+          awaitingCreateResponse && _isUncertainCreateError(e);
       state = state.copyWith(
         isSubmitting: false,
-        errorMessage: toUserFacingApiMessage(e),
+        creationOutcomeUnknown: unknownCreateOutcome,
+        errorMessage: unknownCreateOutcome
+            ? 'Mất kết nối khi tạo đơn. Vui lòng kiểm tra mục Đơn hàng trước khi thử lại.'
+            : toUserFacingApiMessage(e),
       );
       return false;
     }
+  }
+
+  bool _isUncertainCreateError(Object error) {
+    if (error is! ApiException) return true;
+    final statusCode = error.statusCode;
+    return statusCode == null || statusCode >= 500;
+  }
+
+  Future<bool> _processPendingPayment({
+    required String orderId,
+    required String orderCode,
+    required int transactionId,
+  }) async {
+    final paymentResult = await ref.read(processPaymentProvider)(
+      orderId: orderId,
+      request: ProcessPaymentRequest(
+        transactionId: transactionId,
+        gateway: PaymentGateway.payos.value,
+      ),
+    );
+
+    final checkoutUrl = paymentResult.checkoutUrl?.trim() ?? '';
+    if (checkoutUrl.isEmpty) {
+      state = state.copyWith(
+        isSubmitting: false,
+        errorMessage: 'Không lấy được đường dẫn thanh toán',
+      );
+      return false;
+    }
+
+    state = state.copyWith(
+      checkoutUrl: checkoutUrl,
+      orderId: orderId,
+      orderCode: orderCode,
+      isSubmitting: false,
+    );
+    return true;
   }
 
   /// Mua ngay: chỉ trừ vé vừa mua khỏi giỏ chính. Checkout thường: xoá cả giỏ.
@@ -300,7 +395,14 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
     }
   }
 
-  void finalizeAfterOnlinePayment() => _finalizePurchasedItems();
+  void finalizeAfterConfirmedPayment(String orderId) {
+    ref.read(cartProvider.notifier).finalizePendingPurchase(orderId);
+    ref.read(buyNowItemsProvider.notifier).clear();
+    state = state.copyWith(
+      clearCheckoutResult: true,
+      clearPendingPayment: true,
+    );
+  }
 
   void reset() {
     state = const CheckoutState();

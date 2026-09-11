@@ -6,27 +6,163 @@ on:
       - main
     paths:
       - "daiphat-ai/**"
-      # ticket-vision has its own (much heavier) image and workflow --
-      # see ticket-vision-deploy.yml. Excluded so a change there doesn't
-      # needlessly rebuild and redeploy chat-bot.
-      - "!daiphat-ai/services/ticket-vision/**"
+      - "docker-compose*.yml"
+      - "scripts/deploy-ai.sh"
       - ".github/workflows/ai-deploy.yml"
       - ".github/workflows/component-deploy.yml"
+      - ".github/scripts/select-ai-components.py"
   workflow_dispatch:
     inputs:
-      source_ref:
-        description: Git ref to build and deploy
+      target:
+        description: AI component to deploy
         required: true
-        default: main
+        default: ocr
         type: choice
         options:
-          - main
-          - feature/dp-5-infs
+          - chatbot
+          - ocr
+          - both
+      mode:
+        description: Build a new image or deploy an existing immutable digest
+        required: true
+        default: build-and-deploy
+        type: choice
+        options:
+          - build-and-deploy
+          - deploy-existing
+      source_ref:
+        description: Git ref whose exact commit will be deployed
+        required: true
+        default: main
+        type: string
+      chatbot_digest:
+        description: Existing chatbot image (docker.io/...@sha256:...) when mode is deploy-existing
+        required: false
+        type: string
+      ocr_digest:
+        description: Existing OCR image (docker.io/...@sha256:...) when mode is deploy-existing
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daiphat-ai-production
+  cancel-in-progress: false
 
 jobs:
-  deploy-ai:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      source_sha: ${{ steps.source.outputs.sha }}
+      release_channel: ${{ steps.source.outputs.release_channel }}
+      components: ${{ steps.select.outputs.components }}
+      has_targets: ${{ steps.select.outputs.has_targets }}
+      mode: ${{ steps.inputs.outputs.mode }}
+      chatbot_digest: ${{ steps.inputs.outputs.chatbot_digest }}
+      ocr_digest: ${{ steps.inputs.outputs.ocr_digest }}
+    steps:
+      - name: Checkout selected source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.source_ref || github.sha }}
+          fetch-depth: 0
+
+      - name: Resolve exact source commit
+        id: source
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          SOURCE_REF: ${{ inputs.source_ref }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            source_sha=$(git rev-parse HEAD)
+            if [[ "$SOURCE_REF" == "main" ]]; then
+              release_channel=prod
+            else
+              release_channel=candidate
+            fi
+          else
+            source_sha="$GITHUB_SHA"
+            release_channel=prod
+          fi
+          printf 'sha=%s\n' "$source_sha" >> "$GITHUB_OUTPUT"
+          printf 'release_channel=%s\n' "$release_channel" >> "$GITHUB_OUTPUT"
+
+      - name: Capture dispatch inputs
+        id: inputs
+        env:
+          MODE: ${{ inputs.mode }}
+          CHATBOT_DIGEST: ${{ inputs.chatbot_digest }}
+          OCR_DIGEST: ${{ inputs.ocr_digest }}
+        run: |
+          printf 'mode=%s\n' "${MODE:-build-and-deploy}" >> "$GITHUB_OUTPUT"
+          printf 'chatbot_digest=%s\n' "$CHATBOT_DIGEST" >> "$GITHUB_OUTPUT"
+          printf 'ocr_digest=%s\n' "$OCR_DIGEST" >> "$GITHUB_OUTPUT"
+
+      - name: Select changed AI components
+        id: select
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          TARGET: ${{ inputs.target }}
+          BEFORE_SHA: ${{ github.event.before }}
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            changed_files=""
+          elif [[ "$BEFORE_SHA" =~ ^0+$ ]]; then
+            changed_files=$(git ls-tree -r --name-only "$SOURCE_SHA")
+          else
+            changed_files=$(git diff --name-only "$BEFORE_SHA" "$SOURCE_SHA")
+          fi
+          printf '%s\n' "$changed_files" \
+            | python3 .github/scripts/select-ai-components.py --target "${TARGET:-auto}"
+
+      - name: Validate existing image inputs
+        if: ${{ steps.inputs.outputs.mode == 'deploy-existing' }}
+        env:
+          TARGET: ${{ steps.select.outputs.components }}
+          CHATBOT_DIGEST: ${{ steps.inputs.outputs.chatbot_digest }}
+          OCR_DIGEST: ${{ steps.inputs.outputs.ocr_digest }}
+        run: |
+          set -euo pipefail
+          digest_pattern='^docker\.io/[a-z0-9._/-]+@sha256:[0-9a-f]{64}$'
+          if [[ "$TARGET" == *'"ai"'* ]]; then
+            [[ "$CHATBOT_DIGEST" =~ $digest_pattern ]] || {
+              echo "chatbot_digest must be a full Docker image digest" >&2
+              exit 1
+            }
+          fi
+          if [[ "$TARGET" == *'"ticket-vision"'* ]]; then
+            [[ "$OCR_DIGEST" =~ $digest_pattern ]] || {
+              echo "ocr_digest must be a full Docker image digest" >&2
+              exit 1
+            }
+          fi
+
+  deploy-ocr:
+    name: OCR
+    needs: resolve
+    if: contains(fromJSON(needs.resolve.outputs.components), 'ticket-vision')
+    uses: ./.github/workflows/component-deploy.yml
+    with:
+      component: ticket-vision
+      source_ref: ${{ needs.resolve.outputs.source_sha }}
+      release_channel: ${{ needs.resolve.outputs.release_channel }}
+      existing_image: ${{ needs.resolve.outputs.mode == 'deploy-existing' && needs.resolve.outputs.ocr_digest || '' }}
+    secrets: inherit
+
+  deploy-chatbot:
+    name: Chatbot
+    needs: [resolve, deploy-ocr]
+    if: ${{ always() && !cancelled() && needs.resolve.result == 'success' && contains(fromJSON(needs.resolve.outputs.components), 'ai') && (needs.deploy-ocr.result == 'success' || needs.deploy-ocr.result == 'skipped') }}
     uses: ./.github/workflows/component-deploy.yml
     with:
       component: ai
-      source_ref: ${{ inputs.source_ref || github.ref_name }}
+      source_ref: ${{ needs.resolve.outputs.source_sha }}
+      release_channel: ${{ needs.resolve.outputs.release_channel }}
+      existing_image: ${{ needs.resolve.outputs.mode == 'deploy-existing' && needs.resolve.outputs.chatbot_digest || '' }}
     secrets: inherit

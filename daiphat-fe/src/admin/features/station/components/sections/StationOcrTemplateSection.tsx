@@ -35,6 +35,9 @@ import {
     OcrFieldLayoutAnnotator,
 } from './OcrFieldLayoutAnnotator';
 
+/** Match BE multipart limit (50MB). */
+const OCR_SAMPLE_MAX_BYTES = 50 * 1024 * 1024;
+
 type StationOcrTemplateSectionProps = {
     stationId: number;
     defaultOcrTemplateId?: number | null;
@@ -163,6 +166,31 @@ export const StationOcrTemplateSection = ({
             toast.error('Chỉ chấp nhận file ảnh.');
             return;
         }
+        if (file.size > OCR_SAMPLE_MAX_BYTES) {
+            toast.error('Ảnh mẫu vượt quá 50MB. Vui lòng chọn ảnh nhỏ hơn hoặc nén trước khi tải lên.');
+            return;
+        }
+        if (file.size < 2_048) {
+            toast.error('Ảnh quá nhỏ để làm mẫu OCR. Vui lòng tải ảnh vé thật.');
+            return;
+        }
+        const dimensionsOk = await new Promise<boolean>((resolve) => {
+            const url = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = () => {
+                URL.revokeObjectURL(url);
+                resolve(img.naturalWidth >= 200 && img.naturalHeight >= 200);
+            };
+            img.onerror = () => {
+                URL.revokeObjectURL(url);
+                resolve(false);
+            };
+            img.src = url;
+        });
+        if (!dimensionsOk) {
+            toast.error('Ảnh quá nhỏ để làm mẫu OCR (tối thiểu 200×200 px).');
+            return;
+        }
         setUploadingSample(true);
         try {
             const res = await uploadOcrTemplateSampleImage(Number(selectedTemplateId), file);
@@ -175,7 +203,19 @@ export const StationOcrTemplateSection = ({
                 prev.map((t) => (t.id === res.data!.id ? res.data! : t))
             );
         } catch (err: any) {
-            toast.error(err?.response?.data?.message || 'Tải ảnh mẫu thất bại.');
+            const status = err?.response?.status;
+            const apiMessage = err?.response?.data?.message;
+            if (status === 401 || status === 403) {
+                toast.error(apiMessage || 'Phiên đăng nhập hết hạn hoặc không đủ quyền tải ảnh mẫu.');
+            } else if (err?.code === 'ECONNABORTED') {
+                toast.error('Tải ảnh mẫu quá lâu (timeout). Thử ảnh nhỏ hơn hoặc kiểm tra Cloudinary.');
+            } else if (status === 400 || status === 413) {
+                toast.error(apiMessage || 'Ảnh mẫu không hợp lệ hoặc vượt quá dung lượng cho phép (50MB).');
+            } else if (!err?.response) {
+                toast.error('Không kết nối được máy chủ khi tải ảnh mẫu. Kiểm tra backend đang chạy.');
+            } else {
+                toast.error(apiMessage || 'Tải ảnh mẫu thất bại.');
+            }
         } finally {
             setUploadingSample(false);
             if (fileInputRef.current) {
