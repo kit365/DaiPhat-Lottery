@@ -54,13 +54,18 @@ healthy() {
   return 1
 }
 drained() {
-  local id
+  # The first slot has no prior release to drain. A bootstrap gateway may
+  # already exist, but it has never served a managed slot.
+  [[ -n "$active" ]] || return 0
+
+  local id processes
   id=$(compose ps -q "$router")
   [[ -n "$id" ]] || return 0
   # Old nginx workers retain in-flight requests through a graceful reload.
   for ((j=0; j<120; j++)); do
-    local processes
-    processes=$(docker top "$id" -eo args) || return 1
+    # Docker's ps-format support differs by daemon version. BusyBox `ps` is
+    # present in nginx:alpine and exposes nginx worker process titles directly.
+    processes=$(compose exec -T "$router" sh -c 'ps' 2>/dev/null) || return 1
     if ! grep -q '[w]orker process is shutting down' <<< "$processes"; then
       return 0
     fi
