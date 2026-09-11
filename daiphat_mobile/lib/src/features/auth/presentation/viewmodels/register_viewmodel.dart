@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:daiphat_mobile/src/shared/network/api_exception.dart';
-import '../../data/dto/register_request.dart';
-import 'package:daiphat_mobile/src/features/auth/data/repositories/auth_repository.dart';
+import '../../domain/entities/register_request.dart';
+import '../../domain/repositories/auth_repository.dart';
+import '../../domain/usecases/auth_usecases.dart';
 
 class RegisterViewModel extends ChangeNotifier {
-  final AuthRepository _authRepository;
+  final RegisterAccount _registerAccount;
 
-  RegisterViewModel(this._authRepository);
+  RegisterViewModel(
+    AuthRepository authRepository, {
+    RegisterAccount? registerAccount,
+  }) : _registerAccount = registerAccount ?? RegisterAccount(authRepository);
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -20,7 +24,7 @@ class RegisterViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _authRepository.register(request);
+      await _registerAccount(request);
       return true;
     } on ApiException catch (e) {
       _error = e.message;

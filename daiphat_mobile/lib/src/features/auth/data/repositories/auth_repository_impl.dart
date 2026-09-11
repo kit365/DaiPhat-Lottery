@@ -1,17 +1,21 @@
+import 'package:daiphat_mobile/src/features/auth/domain/entities/change_password_request.dart';
+import 'package:daiphat_mobile/src/features/auth/domain/entities/forgot_password_request.dart';
+import 'package:daiphat_mobile/src/features/auth/domain/entities/password_policy.dart';
+import 'package:daiphat_mobile/src/features/auth/domain/entities/register_request.dart';
+import 'package:daiphat_mobile/src/features/auth/domain/entities/reset_password_request.dart';
+import 'package:daiphat_mobile/src/features/auth/domain/entities/user.dart';
+import 'package:daiphat_mobile/src/features/auth/domain/entities/verify_otp_request.dart';
+import 'package:daiphat_mobile/src/features/auth/domain/repositories/auth_repository.dart';
+import 'package:daiphat_mobile/src/features/profile/data/dto/update_profile_request.dart';
 import 'package:daiphat_mobile/src/shared/network/api_client.dart';
 import 'package:daiphat_mobile/src/shared/network/api_exception.dart';
 import 'package:daiphat_mobile/src/shared/storage/auth_token_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../dto/register_request.dart';
-import '../dto/forgot_password_request.dart';
-import '../dto/verify_otp_request.dart';
-import '../dto/reset_password_request.dart';
-import 'package:daiphat_mobile/src/features/profile/data/dto/update_profile_request.dart';
-import '../models/user.dart';
+
 import '../services/auth_api_service.dart';
 import '../services/google_auth_service.dart';
 
-class AuthRepository {
+class AuthRepositoryImpl implements AuthRepository {
   static const _checkoutUserIdKey = 'checkout.user_id';
   static const _checkoutUserNameKey = 'user_name';
   static const _checkoutUserPhoneKey = 'user_phone';
@@ -21,17 +25,21 @@ class AuthRepository {
   final GoogleAuthService _googleAuthService;
   User? _currentUser;
 
-  AuthRepository(
+  AuthRepositoryImpl(
     this._apiService,
     this._apiClient,
     this._tokenStorage, [
     GoogleAuthService? googleAuthService,
   ]) : _googleAuthService = googleAuthService ?? GoogleAuthService();
 
+  @override
   User? get currentUser => _currentUser;
+
+  @override
   bool get isAuthenticated =>
       _currentUser != null || _tokenStorage.hasAccessToken();
 
+  @override
   Future<void> restoreSession() async {
     final accessToken = _tokenStorage.getAccessToken();
     if (accessToken == null || accessToken.isEmpty) {
@@ -64,11 +72,13 @@ class AuthRepository {
     }
   }
 
+  @override
   Future<User> login(String username, String password) async {
     final authToken = await _apiService.login(username, password);
     return _finalizeLogin(authToken.accessToken);
   }
 
+  @override
   Future<User?> loginWithGoogle() async {
     final idToken = await _googleAuthService.signIn();
     if (idToken == null) {
@@ -90,6 +100,7 @@ class AuthRepository {
     return authenticatedUser;
   }
 
+  @override
   Future<void> logout({bool clearCookies = true}) async {
     try {
       // Revoke the refresh token on the backend before removing the local
@@ -110,6 +121,7 @@ class AuthRepository {
     await _googleAuthService.signOut();
   }
 
+  @override
   Future<User> fetchCurrentUser() async {
     try {
       final user = await _apiService.getCurrentUser();
@@ -130,25 +142,40 @@ class AuthRepository {
     }
   }
 
+  @override
   Future<void> register(RegisterRequest request) {
     return _apiService.register(request);
   }
 
+  @override
   Future<void> forgotPasswordRequest(ForgotPasswordRequest request) {
     return _apiService.forgotPasswordRequest(request);
   }
 
+  @override
   Future<String> verifyResetOtp(VerifyOtpRequest request) {
     return _apiService.verifyResetOtp(request);
   }
 
+  @override
   Future<void> resetPassword(ResetPasswordRequest request) {
     return _apiService.resetPassword(request);
   }
 
+  @override
+  Future<void> changePassword(ChangePasswordRequest request) {
+    return _apiService.changePassword(request);
+  }
+
+  @override
+  Future<PasswordPolicy> getPasswordPolicy() {
+    return _apiService.getPasswordPolicy();
+  }
+
+  @override
   Future<void> updateUser(String id, UpdateProfileRequest request) async {
     await _apiService.updateUser(id, request);
-    // Refresh the user profile after updating
+    // Refresh the user profile after updating.
     final updatedUser = await _apiService.getCurrentUser();
     if (_currentUser != null) {
       _currentUser = updatedUser.copyWith(
@@ -160,6 +187,7 @@ class AuthRepository {
     await _saveCheckoutProfile(_currentUser!);
   }
 
+  @override
   Future<void> uploadAvatar(String filePath) async {
     final updatedUser = await _apiService.uploadMyAvatar(filePath);
     if (_currentUser != null) {
@@ -172,6 +200,7 @@ class AuthRepository {
     await _saveCheckoutProfile(_currentUser!);
   }
 
+  @override
   Future<void> updateFcmToken(String token) {
     return _apiService.updateFcmToken(token);
   }
