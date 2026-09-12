@@ -16,6 +16,12 @@ import 'package:daiphat_mobile/src/features/auth/presentation/providers/auth_pro
 import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
 import 'package:daiphat_mobile/src/features/checkout/data/transaction_service.dart';
 import 'package:daiphat_mobile/src/features/checkout/data/repositories/transaction_repository_impl.dart';
+import 'package:daiphat_mobile/src/features/home/data/repositories/home_lottery_repository_impl.dart';
+import 'package:daiphat_mobile/src/features/home/data/repositories/ticket_check_repository_impl.dart';
+import 'package:daiphat_mobile/src/features/home/data/services/home_lottery_api_service.dart';
+import 'package:daiphat_mobile/src/features/home/data/services/ticket_check_api_service.dart';
+import 'package:daiphat_mobile/src/features/home/presentation/viewmodels/home_viewmodel.dart';
+import 'package:daiphat_mobile/src/features/home/presentation/viewmodels/ticket_check_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/orders/data/datasources/order_remote_data_source.dart';
 import 'package:daiphat_mobile/src/features/orders/data/repositories/orders_repository_impl.dart';
 import 'package:daiphat_mobile/src/features/orders/presentation/providers/orders_providers.dart';
@@ -31,6 +37,9 @@ import 'package:daiphat_mobile/src/features/prize_payouts/presentation/providers
 import 'package:daiphat_mobile/src/features/refunds/data/datasources/refund_remote_data_source.dart';
 import 'package:daiphat_mobile/src/features/refunds/data/repositories/refunds_repository_impl.dart';
 import 'package:daiphat_mobile/src/features/refunds/presentation/providers/refunds_providers.dart';
+import 'package:daiphat_mobile/src/features/schedule/data/repositories/schedule_repository_impl.dart';
+import 'package:daiphat_mobile/src/features/schedule/data/services/schedule_api_service.dart';
+import 'package:daiphat_mobile/src/features/schedule/presentation/providers/schedule_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/data/repositories/support_ticket_repository_impl.dart';
 import 'package:daiphat_mobile/src/features/profile/data/support_ticket_service.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
@@ -94,6 +103,15 @@ Future<void> bootstrap() async {
   final refundsRepository = RefundsRepositoryImpl(
     RefundRemoteDataSource(dependencies.apiClient),
   );
+  final scheduleRepository = ScheduleRepositoryImpl(
+    ScheduleApiService(dependencies.apiClient),
+  );
+  final homeLotteryRepository = HomeLotteryRepositoryImpl(
+    HomeLotteryApiService(dependencies.apiClient),
+  );
+  final ticketCheckRepository = TicketCheckRepositoryImpl(
+    TicketCheckApiService(dependencies.apiClient),
+  );
   final supportTicketService = SupportTicketService(dependencies.apiClient);
   final supportTicketRepository = SupportTicketRepositoryImpl(
     supportTicketService,
@@ -123,6 +141,9 @@ Future<void> bootstrap() async {
         prizePayoutsRepositoryProvider.overrideWithValue(prizePayoutsRepository),
         bankAccountsRepositoryProvider.overrideWithValue(bankAccountsRepository),
         refundsRepositoryProvider.overrideWithValue(refundsRepository),
+        scheduleRepositoryProvider.overrideWithValue(scheduleRepository),
+        homeLotteryRepositoryProvider.overrideWithValue(homeLotteryRepository),
+        ticketCheckRepositoryProvider.overrideWithValue(ticketCheckRepository),
         supportTicketRepositoryProvider.overrideWithValue(
           supportTicketRepository,
         ),
