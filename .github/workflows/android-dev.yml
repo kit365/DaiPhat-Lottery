@@ -15,7 +15,7 @@ jobs:
     defaults:
       run:
         working-directory: daiphat_mobile
-        
+
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -31,6 +31,20 @@ jobs:
         with:
           channel: 'stable'
           flutter-version: 3.44.1
+
+      - name: Create Flutter environment file
+        env:
+          MOBILE_ENV_FILE: ${{ secrets.MOBILE_ENV_FILE }}
+          ENV_FILE: ${{ secrets.ENV_FILE }}
+        run: |
+          if [ -n "$MOBILE_ENV_FILE" ]; then
+            printf '%s\n' "$MOBILE_ENV_FILE" > .env
+          elif [ -n "$ENV_FILE" ]; then
+            printf '%s\n' "$ENV_FILE" > .env
+          else
+            echo "Missing GitHub Actions secret MOBILE_ENV_FILE or ENV_FILE."
+            exit 1
+          fi
 
       - name: Install dependencies
         run: flutter pub get
