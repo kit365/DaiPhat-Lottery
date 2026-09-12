@@ -1,4 +1,4 @@
-import 'package:daiphat_mobile/src/features/profile/data/dto/update_profile_request.dart';
+import 'package:daiphat_mobile/src/features/profile/domain/entities/update_profile_request.dart';
 
 import '../entities/change_password_request.dart';
 import '../entities/forgot_password_request.dart';

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:daiphat_mobile/src/features/auth/domain/entities/user.dart';
 import 'package:daiphat_mobile/src/features/auth/domain/repositories/auth_repository.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/login_viewmodel.dart';
-import 'package:daiphat_mobile/src/features/profile/data/dto/update_profile_request.dart';
+import 'package:daiphat_mobile/src/features/profile/domain/entities/update_profile_request.dart';
 import 'package:daiphat_mobile/src/shared/network/api_exception.dart';
 
 class ProfileViewModel extends ChangeNotifier {

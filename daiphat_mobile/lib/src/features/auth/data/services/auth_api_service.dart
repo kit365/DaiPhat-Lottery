@@ -8,7 +8,7 @@ import '../../domain/entities/forgot_password_request.dart';
 import '../../domain/entities/register_request.dart';
 import '../../domain/entities/reset_password_request.dart';
 import '../../domain/entities/verify_otp_request.dart';
-import 'package:daiphat_mobile/src/features/profile/data/dto/update_profile_request.dart';
+import 'package:daiphat_mobile/src/features/profile/domain/entities/update_profile_request.dart';
 import '../models/auth_token.dart';
 import '../../domain/entities/password_policy.dart';
 import '../../domain/entities/user.dart';

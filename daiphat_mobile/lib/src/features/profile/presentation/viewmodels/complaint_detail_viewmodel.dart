@@ -2,16 +2,27 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
-import 'package:daiphat_mobile/src/features/profile/data/models/support_ticket.dart';
-import 'package:daiphat_mobile/src/features/profile/data/support_ticket_service.dart';
+import 'package:daiphat_mobile/src/features/profile/domain/entities/support_ticket.dart';
+import 'package:daiphat_mobile/src/features/profile/domain/usecases/support_ticket_usecases.dart';
 
 class ComplaintDetailViewModel extends ChangeNotifier {
-  final SupportTicketService _service;
+  final GetSupportTicketDetail _getSupportTicketDetail;
+  final GetTicketCategories _getTicketCategories;
+  final AddSupportTicketComment _addSupportTicketComment;
+  final SubmitSupportTicketResolutionFeedback _submitResolutionFeedback;
+  final CloseSupportTicket _closeSupportTicket;
   final int ticketId;
 
   static const _pollInterval = Duration(seconds: 3);
 
-  ComplaintDetailViewModel(this._service, this.ticketId) {
+  ComplaintDetailViewModel(
+    this._getSupportTicketDetail,
+    this._getTicketCategories,
+    this._addSupportTicketComment,
+    this._submitResolutionFeedback,
+    this._closeSupportTicket,
+    this.ticketId,
+  ) {
     load();
     _startPolling();
   }
@@ -51,8 +62,8 @@ class ComplaintDetailViewModel extends ChangeNotifier {
     notifyListeners();
     try {
       final results = await Future.wait([
-        _service.getById(ticketId),
-        _service.getCategories(),
+        _getSupportTicketDetail(ticketId),
+        _getTicketCategories(),
       ]);
       if (_disposed) return;
       _ticket = results[0] as SupportTicketResponse;
@@ -74,7 +85,7 @@ class ComplaintDetailViewModel extends ChangeNotifier {
   /// Poll nhẹ mỗi 3s (giống FE web) để cập nhật hội thoại / trạng thái.
   Future<void> refreshComments() async {
     try {
-      final updated = await _service.getById(ticketId);
+      final updated = await _getSupportTicketDetail(ticketId);
       if (_disposed) return;
       final current = _ticket;
       if (current == null) {
@@ -101,8 +112,8 @@ class ComplaintDetailViewModel extends ChangeNotifier {
     _isSendingComment = true;
     notifyListeners();
     try {
-      await _service.addComment(ticketId, content, filePath: filePath);
-      _ticket = await _service.getById(ticketId);
+      await _addSupportTicketComment(ticketId, content, filePath: filePath);
+      _ticket = await _getSupportTicketDetail(ticketId);
       return null;
     } catch (e) {
       return e.toString().replaceFirst('Exception: ', '');
@@ -116,7 +127,7 @@ class ComplaintDetailViewModel extends ChangeNotifier {
     _isBusy = true;
     notifyListeners();
     try {
-      _ticket = await _service.submitResolutionFeedback(ticketId, satisfied);
+      _ticket = await _submitResolutionFeedback(ticketId, satisfied);
       return null;
     } catch (e) {
       return e.toString().replaceFirst('Exception: ', '');
@@ -130,7 +141,7 @@ class ComplaintDetailViewModel extends ChangeNotifier {
     _isBusy = true;
     notifyListeners();
     try {
-      _ticket = await _service.close(ticketId);
+      _ticket = await _closeSupportTicket(ticketId);
       return null;
     } catch (e) {
       return e.toString().replaceFirst('Exception: ', '');

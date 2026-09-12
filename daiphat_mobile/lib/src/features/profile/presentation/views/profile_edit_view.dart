@@ -6,7 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../viewmodels/profile_viewmodel.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
-import 'package:daiphat_mobile/src/features/profile/data/dto/update_profile_request.dart';
+import 'package:daiphat_mobile/src/features/profile/domain/entities/update_profile_request.dart';
 
 class ProfileEditView extends StatefulWidget {
   final ProfileViewModel viewModel;

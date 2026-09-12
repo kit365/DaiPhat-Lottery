@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:daiphat_mobile/src/features/profile/data/models/support_ticket.dart';
+import 'package:daiphat_mobile/src/features/profile/domain/entities/support_ticket.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 

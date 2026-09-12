@@ -8,7 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
-import 'package:daiphat_mobile/src/features/profile/data/models/support_ticket.dart';
+import 'package:daiphat_mobile/src/features/profile/domain/entities/support_ticket.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/profile_status_badge.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
@@ -35,7 +35,11 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
   void initState() {
     super.initState();
     _viewModel = ComplaintDetailViewModel(
-      ref.read(supportTicketServiceProvider),
+      ref.read(getSupportTicketDetailProvider),
+      ref.read(getTicketCategoriesProvider),
+      ref.read(addSupportTicketCommentProvider),
+      ref.read(submitSupportTicketResolutionFeedbackProvider),
+      ref.read(closeSupportTicketProvider),
       widget.ticketId,
     );
   }
@@ -141,7 +145,6 @@ class _ComplaintDetailViewState extends ConsumerState<ComplaintDetailView> {
     final result = await Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute(
         builder: (_) => ComplaintFormPage(
-          service: ref.read(supportTicketServiceProvider),
           editingTicket: ticket,
         ),
       ),

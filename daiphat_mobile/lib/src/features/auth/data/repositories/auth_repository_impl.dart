@@ -6,7 +6,7 @@ import 'package:daiphat_mobile/src/features/auth/domain/entities/reset_password_
 import 'package:daiphat_mobile/src/features/auth/domain/entities/user.dart';
 import 'package:daiphat_mobile/src/features/auth/domain/entities/verify_otp_request.dart';
 import 'package:daiphat_mobile/src/features/auth/domain/repositories/auth_repository.dart';
-import 'package:daiphat_mobile/src/features/profile/data/dto/update_profile_request.dart';
+import 'package:daiphat_mobile/src/features/profile/domain/entities/update_profile_request.dart';
 import 'package:daiphat_mobile/src/shared/network/api_client.dart';
 import 'package:daiphat_mobile/src/shared/network/api_exception.dart';
 import 'package:daiphat_mobile/src/shared/storage/auth_token_storage.dart';

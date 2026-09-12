@@ -31,6 +31,7 @@ import 'package:daiphat_mobile/src/features/prize_payouts/presentation/providers
 import 'package:daiphat_mobile/src/features/refunds/data/datasources/refund_remote_data_source.dart';
 import 'package:daiphat_mobile/src/features/refunds/data/repositories/refunds_repository_impl.dart';
 import 'package:daiphat_mobile/src/features/refunds/presentation/providers/refunds_providers.dart';
+import 'package:daiphat_mobile/src/features/profile/data/repositories/support_ticket_repository_impl.dart';
 import 'package:daiphat_mobile/src/features/profile/data/support_ticket_service.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
 import 'package:daiphat_mobile/src/features/notifications/data/services/notification_setting_service.dart';
@@ -91,6 +92,9 @@ Future<void> bootstrap() async {
     RefundRemoteDataSource(dependencies.apiClient),
   );
   final supportTicketService = SupportTicketService(dependencies.apiClient);
+  final supportTicketRepository = SupportTicketRepositoryImpl(
+    supportTicketService,
+  );
   final notificationSettingService = NotificationSettingService(
     dependencies.apiClient,
   );
@@ -110,7 +114,9 @@ Future<void> bootstrap() async {
         prizePayoutsRepositoryProvider.overrideWithValue(prizePayoutsRepository),
         bankAccountsRepositoryProvider.overrideWithValue(bankAccountsRepository),
         refundsRepositoryProvider.overrideWithValue(refundsRepository),
-        supportTicketServiceProvider.overrideWithValue(supportTicketService),
+        supportTicketRepositoryProvider.overrideWithValue(
+          supportTicketRepository,
+        ),
         notificationSettingServiceProvider.overrideWithValue(
           notificationSettingService,
         ),
