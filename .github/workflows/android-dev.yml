@@ -85,5 +85,12 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: daiphat-mobile-release-apk
+          path: daiphat_mobile/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+
       - name: Build APK
         run: flutter build apk --release --build-name=1.0.0 --build-number=1
