@@ -2,7 +2,7 @@ import 'package:daiphat_mobile/src/shared/network/api_client.dart';
 import 'package:daiphat_mobile/src/shared/network/api_exception.dart';
 import 'package:daiphat_mobile/src/shared/network/api_response.dart';
 
-import 'models/fortune_cast_result.dart';
+import '../domain/entities/fortune_cast_result.dart';
 
 class FortuneCastService {
   static const _baseFortuneCast = '/fortune/cast';

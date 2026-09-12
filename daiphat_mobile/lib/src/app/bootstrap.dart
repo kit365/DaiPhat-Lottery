@@ -19,6 +19,9 @@ import 'package:daiphat_mobile/src/features/blog/presentation/viewmodels/blog_vi
 import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
 import 'package:daiphat_mobile/src/features/checkout/data/transaction_service.dart';
 import 'package:daiphat_mobile/src/features/checkout/data/repositories/transaction_repository_impl.dart';
+import 'package:daiphat_mobile/src/features/fortune/data/fortune_cast_service.dart';
+import 'package:daiphat_mobile/src/features/fortune/data/repositories/fortune_cast_repository_impl.dart';
+import 'package:daiphat_mobile/src/features/fortune/presentation/providers/fortune_providers.dart';
 import 'package:daiphat_mobile/src/features/home/data/repositories/home_lottery_repository_impl.dart';
 import 'package:daiphat_mobile/src/features/home/data/repositories/ticket_check_repository_impl.dart';
 import 'package:daiphat_mobile/src/features/home/data/services/home_lottery_api_service.dart';
@@ -118,6 +121,9 @@ Future<void> bootstrap() async {
   final blogRepository = BlogRepositoryImpl(
     BlogApiService(dependencies.apiClient),
   );
+  final fortuneCastRepository = FortuneCastRepositoryImpl(
+    FortuneCastService(dependencies.apiClient),
+  );
   final supportTicketService = SupportTicketService(dependencies.apiClient);
   final supportTicketRepository = SupportTicketRepositoryImpl(
     supportTicketService,
@@ -151,6 +157,7 @@ Future<void> bootstrap() async {
         homeLotteryRepositoryProvider.overrideWithValue(homeLotteryRepository),
         ticketCheckRepositoryProvider.overrideWithValue(ticketCheckRepository),
         blogRepositoryProvider.overrideWithValue(blogRepository),
+        fortuneCastRepositoryProvider.overrideWithValue(fortuneCastRepository),
         supportTicketRepositoryProvider.overrideWithValue(
           supportTicketRepository,
         ),

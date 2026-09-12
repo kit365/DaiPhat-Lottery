@@ -32,7 +32,10 @@ class _FortuneCastViewState extends ConsumerState<FortuneCastView>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _viewModel = FortuneCastViewModel(ref.read(fortuneCastServiceProvider));
+    _viewModel = FortuneCastViewModel(
+      ref.read(castFortuneProvider),
+      ref.read(getTodayFortuneCastProvider),
+    );
     _viewModel.addListener(_onChanged);
     widget.profileViewModel.addListener(_syncProfile);
     WidgetsBinding.instance.addPostFrameCallback((_) {
