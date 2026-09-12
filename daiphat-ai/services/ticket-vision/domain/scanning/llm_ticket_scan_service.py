@@ -278,17 +278,54 @@ def _field_confidences(
     return result
 
 
+def _looks_normalized(bbox: TicketBBox) -> bool:
+    """True when the model returned unit-square fractions of the full frame."""
+    if bbox.width <= 0 or bbox.height <= 0:
+        return False
+    return (
+        0.0 <= float(bbox.x) <= 1.0
+        and 0.0 <= float(bbox.y) <= 1.0
+        and 0.0 < float(bbox.width) <= 1.0
+        and 0.0 < float(bbox.height) <= 1.0
+        and float(bbox.x) + float(bbox.width) <= 1.01
+        and float(bbox.y) + float(bbox.height) <= 1.01
+    )
+
+
+def _to_pixel_ticket_bbox(
+    bbox: TicketBBox | None,
+    image_width: int,
+    image_height: int,
+) -> TicketBBox | None:
+    """Accept normalized 0..1 or absolute pixel boxes from the vision model."""
+    if not bbox or bbox.width <= 0 or bbox.height <= 0:
+        return None
+    if _looks_normalized(bbox):
+        return TicketBBox(
+            x=float(bbox.x) * image_width,
+            y=float(bbox.y) * image_height,
+            width=float(bbox.width) * image_width,
+            height=float(bbox.height) * image_height,
+        )
+    return bbox
+
+
+def _bbox_area(box: BoundingBox) -> int:
+    return max(0, box.width) * max(0, box.height)
+
+
 def _clamp_bbox(
     bbox: TicketBBox | None,
     image_width: int,
     image_height: int,
 ) -> BoundingBox | None:
-    if not bbox or bbox.width <= 0 or bbox.height <= 0:
+    pixel = _to_pixel_ticket_bbox(bbox, image_width, image_height)
+    if not pixel or pixel.width <= 0 or pixel.height <= 0:
         return None
-    x = max(0, min(bbox.x, image_width - 1))
-    y = max(0, min(bbox.y, image_height - 1))
-    w = max(1, min(bbox.width, image_width - x))
-    h = max(1, min(bbox.height, image_height - y))
+    x = max(0, min(int(round(pixel.x)), image_width - 1))
+    y = max(0, min(int(round(pixel.y)), image_height - 1))
+    w = max(1, min(int(round(pixel.width)), image_width - x))
+    h = max(1, min(int(round(pixel.height)), image_height - y))
     corners = [[x, y], [x + w, y], [x + w, y + h], [x, y + h]]
     return BoundingBox(x=x, y=y, width=w, height=h, corners=corners)
 
@@ -308,19 +345,89 @@ def _resolve_field_boxes(
     return result
 
 
+def _yolo_ticket_bbox(
+    yolo_boxes: list[tuple[int, int, int, int]] | None,
+    ticket_index: int,
+    image_width: int,
+    image_height: int,
+) -> BoundingBox | None:
+    if not yolo_boxes or ticket_index < 0 or ticket_index >= len(yolo_boxes):
+        return None
+    x, y, w, h = yolo_boxes[ticket_index]
+    return _clamp_bbox(TicketBBox(x=x, y=y, width=w, height=h), image_width, image_height)
+
+
+def _should_prefer_yolo_ticket(llm_box: BoundingBox, yolo_box: BoundingBox) -> bool:
+    """Prefer YOLO when the LLM box is clearly undersized vs the detector."""
+    llm_area = _bbox_area(llm_box)
+    yolo_area = _bbox_area(yolo_box)
+    if yolo_area <= 0:
+        return False
+    if llm_area <= 0:
+        return True
+    # LLM box covers less than 70% of YOLO area, or IoU is poor while YOLO is larger.
+    if llm_area < yolo_area * 0.7:
+        return True
+    return _iou(llm_box, yolo_box) < 0.35 and yolo_area > llm_area
+
+
+def _remap_field_boxes_to_ticket(
+    field_boxes: dict[str, BoundingBox],
+    source_ticket: BoundingBox,
+    target_ticket: BoundingBox,
+    image_width: int,
+    image_height: int,
+) -> dict[str, BoundingBox]:
+    if (
+        source_ticket.width <= 0
+        or source_ticket.height <= 0
+        or (
+            source_ticket.x == target_ticket.x
+            and source_ticket.y == target_ticket.y
+            and source_ticket.width == target_ticket.width
+            and source_ticket.height == target_ticket.height
+        )
+    ):
+        return field_boxes
+
+    sx = target_ticket.width / float(source_ticket.width)
+    sy = target_ticket.height / float(source_ticket.height)
+    remapped: dict[str, BoundingBox] = {}
+    for name, box in field_boxes.items():
+        x = target_ticket.x + (box.x - source_ticket.x) * sx
+        y = target_ticket.y + (box.y - source_ticket.y) * sy
+        w = box.width * sx
+        h = box.height * sy
+        clamped = _clamp_bbox(
+            TicketBBox(x=x, y=y, width=w, height=h),
+            image_width,
+            image_height,
+        )
+        if clamped is not None:
+            remapped[name] = clamped
+    return remapped
+
+
 def _resolve_bbox(
     bbox: TicketBBox | None,
     image_width: int,
     image_height: int,
     ticket_index: int,
     total_tickets: int,
-) -> BoundingBox:
-    if bbox and bbox.width > 0 and bbox.height > 0:
-        x = max(0, min(bbox.x, image_width - 1))
-        y = max(0, min(bbox.y, image_height - 1))
-        w = max(1, min(bbox.width, image_width - x))
-        h = max(1, min(bbox.height, image_height - y))
-    elif total_tickets == 1:
+    yolo_boxes: list[tuple[int, int, int, int]] | None = None,
+) -> tuple[BoundingBox, BoundingBox | None]:
+    """Return (final_ticket_bbox, llm_pixel_bbox_before_yolo_override_or_None)."""
+    llm_box = _clamp_bbox(bbox, image_width, image_height)
+    yolo_box = _yolo_ticket_bbox(yolo_boxes, ticket_index, image_width, image_height)
+
+    if llm_box and yolo_box and _should_prefer_yolo_ticket(llm_box, yolo_box):
+        return yolo_box, llm_box
+    if llm_box:
+        return llm_box, llm_box
+    if yolo_box:
+        return yolo_box, None
+
+    if total_tickets == 1:
         x, y, w, h = 0, 0, image_width, image_height
     else:
         band_h = max(1, image_height // max(total_tickets, 1))
@@ -328,7 +435,7 @@ def _resolve_bbox(
         x, w, h = 0, image_width, min(band_h, image_height - y)
 
     corners = [[x, y], [x + w, y], [x + w, y + h], [x, y + h]]
-    return BoundingBox(x=x, y=y, width=w, height=h, corners=corners)
+    return BoundingBox(x=x, y=y, width=w, height=h, corners=corners), None
 
 
 def _crop_image(image: np.ndarray, bbox: BoundingBox) -> np.ndarray:
@@ -452,6 +559,7 @@ class LlmTicketScanService:
 
         tickets: list[TicketScanResult] = []
         llm_tickets = extraction.tickets[:max_tickets]
+        yolo_ticket_boxes = list(yolo_guidance.ticket_boxes)
 
         for index, llm_ticket in enumerate(llm_tickets):
             try:
@@ -466,6 +574,7 @@ class LlmTicketScanService:
                         station_matcher,
                         expected_lengths_by_code,
                         ordered_layouts,
+                        yolo_ticket_boxes,
                     )
                 )
             except Exception:  # noqa: BLE001
@@ -633,6 +742,7 @@ class LlmTicketScanService:
         station_matcher: StationMatcher,
         expected_lengths_by_code: dict[str, int | None],
         ordered_layouts: list | None = None,
+        yolo_ticket_boxes: list[tuple[int, int, int, int]] | None = None,
     ) -> TicketScanResult:
         station_name = llm_ticket.stationName.strip() if llm_ticket.stationName else None
         station_code = llm_ticket.stationCode.strip() if llm_ticket.stationCode else None
@@ -682,8 +792,28 @@ class LlmTicketScanService:
             self._low_confidence_threshold,
         )
 
-        bbox = _resolve_bbox(llm_ticket.bbox, image_width, image_height, index, total_tickets)
+        bbox, llm_ticket_box = _resolve_bbox(
+            llm_ticket.bbox,
+            image_width,
+            image_height,
+            index,
+            total_tickets,
+            yolo_ticket_boxes,
+        )
         field_boxes = _resolve_field_boxes(llm_ticket.fieldBoxes, image_width, image_height)
+        if llm_ticket_box is not None and (
+            llm_ticket_box.x != bbox.x
+            or llm_ticket_box.y != bbox.y
+            or llm_ticket_box.width != bbox.width
+            or llm_ticket_box.height != bbox.height
+        ):
+            field_boxes = _remap_field_boxes_to_ticket(
+                field_boxes,
+                llm_ticket_box,
+                bbox,
+                image_width,
+                image_height,
+            )
 
         used_field_layouts: dict[str, int] = {}
         raw_used = dict(llm_ticket.usedFieldLayouts or {})

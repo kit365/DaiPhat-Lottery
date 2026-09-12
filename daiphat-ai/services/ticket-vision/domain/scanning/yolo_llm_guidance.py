@@ -52,6 +52,8 @@ class YoloLlmGuidance:
     """Fields for which YOLO produced a crop (Rule A winners)."""
     fields_covered: set[str] = field(default_factory=set)
     ticket_count: int = 0
+    """Axis-aligned ticket boxes (x, y, w, h) in full-frame pixel space."""
+    ticket_boxes: list[tuple[int, int, int, int]] = field(default_factory=list)
 
 
 def build_yolo_llm_guidance(
@@ -127,6 +129,7 @@ def build_yolo_llm_guidance(
     hint_lines: list[str] = []
     crops: list[tuple[str, bytes]] = []
     fields_covered: set[str] = set()
+    ticket_pixel_boxes: list[tuple[int, int, int, int]] = []
 
     for index, (conf, box) in enumerate(ticket_boxes):
         crop = _padded_crop(image, box, height, width)
@@ -138,9 +141,14 @@ def build_yolo_llm_guidance(
             logger.exception("Failed to encode YOLO ticket crop #%s", index)
             continue
         x1, y1, x2, y2 = (int(round(float(v))) for v in box)
+        px = max(x1, 0)
+        py = max(y1, 0)
+        pw = max(1, x2 - x1)
+        ph = max(1, y2 - y1)
+        ticket_pixel_boxes.append((px, py, pw, ph))
         hint_lines.append(
             f"- ticket #{index} (yolo, conf={conf:.2f}): "
-            f"x={max(x1, 0)}, y={max(y1, 0)}, w={max(1, x2 - x1)}, h={max(1, y2 - y1)}"
+            f"x={px}, y={py}, w={pw}, h={ph}"
         )
         crops.append((f"{YOLO_TICKET_CROP_PREFIX}{index}", crop_bytes))
 
@@ -174,7 +182,8 @@ def build_yolo_llm_guidance(
         hint="\n".join(hint_lines),
         crops=crops,
         fields_covered=fields_covered,
-        ticket_count=len(ticket_boxes),
+        ticket_count=len(ticket_pixel_boxes),
+        ticket_boxes=ticket_pixel_boxes,
     )
 
 
