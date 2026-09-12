@@ -285,8 +285,19 @@ class WebSocketService {
         const configuredBaseUrl = (typeof process !== 'undefined' && process.env)
             ? (process.env.NEXT_PUBLIC_WS_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL)
             : undefined;
-        const runtimeBaseUrl = configuredBaseUrl
-            || (typeof window !== 'undefined' ? window.location.origin : DEFAULT_WS_SERVER_URL);
+
+        // SockJS must hit Spring directly. Next App Router proxy cannot keep
+        // xhr-streaming / WS upgrade alive → "failed to pipe response" / ECONNRESET.
+        let runtimeBaseUrl = configuredBaseUrl;
+        if (!runtimeBaseUrl && typeof window !== 'undefined') {
+            const host = window.location.hostname;
+            const isLocal = host === 'localhost' || host === '127.0.0.1';
+            runtimeBaseUrl = isLocal ? DEFAULT_WS_SERVER_URL : window.location.origin;
+        }
+        if (!runtimeBaseUrl) {
+            runtimeBaseUrl = DEFAULT_WS_SERVER_URL;
+        }
+
         const normalizedBaseUrl = runtimeBaseUrl.endsWith('/')
             ? runtimeBaseUrl.slice(0, -1)
             : runtimeBaseUrl;
