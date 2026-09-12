@@ -8,9 +8,45 @@ import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { uploadAdminImage } from "@/admin/shared/services/upload.service";
 import { AppToast } from "../../../utils/toast.util";
 
+import RotateRightIcon from '@mui/icons-material/RotateRight';
+
 interface CustomFile extends File {
     preview: string;
 }
+
+const rotateImageFile = async (file: File, angle: number = 90): Promise<File> => {
+    return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => {
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+            if (!ctx) return reject(new Error("Failed to get canvas context"));
+
+            if (angle === 90 || angle === 270) {
+                canvas.width = image.height;
+                canvas.height = image.width;
+            } else {
+                canvas.width = image.width;
+                canvas.height = image.height;
+            }
+
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            ctx.rotate((angle * Math.PI) / 180);
+            ctx.drawImage(image, -image.width / 2, -image.height / 2);
+
+            canvas.toBlob((blob) => {
+                if (!blob) return reject(new Error("Canvas toBlob failed"));
+                const rotatedFile = new File([blob], file.name, {
+                    type: file.type,
+                    lastModified: Date.now(),
+                });
+                resolve(rotatedFile);
+            }, file.type);
+        };
+        image.onerror = reject;
+        image.src = URL.createObjectURL(file);
+    });
+};
 
 interface UploadSingleFileProps {
     value?: string | File | null;
@@ -136,6 +172,32 @@ export const UploadSingleFile = memo(
             await uploadFile(localFile);
         };
 
+        const handleRotate = useCallback(async () => {
+            if (isUploading) return;
+            const targetFile = useRawFile ? (value instanceof File ? value : null) : (localFile ? localFile : null);
+            if (!targetFile) return;
+
+            try {
+                setIsUploading(true);
+                const rotatedFile = await rotateImageFile(targetFile, 90);
+                
+                if (useRawFile) {
+                    onChange(rotatedFile);
+                } else {
+                    const customFile = rotatedFile as CustomFile;
+                    customFile.preview = URL.createObjectURL(rotatedFile);
+                    setLocalFile(customFile);
+                    if (autoUpload) {
+                        void uploadFile(customFile);
+                    }
+                }
+            } catch (err: any) {
+                AppToast.error("Không thể xoay ảnh");
+            } finally {
+                setIsUploading(false);
+            }
+        }, [isUploading, useRawFile, value, localFile, onChange, autoUpload, uploadFile]);
+
         useEffect(() => {
             return () => {
                 if (fileRef.current?.preview) {
@@ -170,6 +232,8 @@ export const UploadSingleFile = memo(
             }
 
             if (!src) return null;
+
+            const canRotate = isImageFile && (useRawFile ? value instanceof File : Boolean(localFile));
 
             return (
                 <Box
@@ -243,6 +307,28 @@ export const UploadSingleFile = memo(
                             </Typography>
                         </ButtonBase>
                     ) : null}
+
+                    {canRotate && (
+                        <ButtonBase
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                void handleRotate();
+                            }}
+                            disabled={isUploading}
+                            sx={{
+                                position: 'absolute',
+                                top: 2,
+                                right: compact ? 18 : 34,
+                                color: '#fff',
+                                bgcolor: '#141a217a',
+                                borderRadius: '50%',
+                                padding: compact ? '2px' : '4px',
+                                '&:hover': { bgcolor: '#FF5630' },
+                            }}
+                        >
+                            <RotateRightIcon sx={{ fontSize: compact ? '10px' : '14px' }} />
+                        </ButtonBase>
+                    )}
 
                     <ButtonBase
                         onClick={(e) => {

@@ -100,7 +100,7 @@ export const menuManagementData = [
         permission: PERMISSIONS.STREET_AGENT.VIEW,
         children: [
             { id: "street-agents", label: "Hồ sơ người bán vé số", path: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST, permission: PERMISSIONS.STREET_AGENT.VIEW },
-            { id: "street-agent-allocation", label: "Bàn giao vé cho người bán vé số", path: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION, permission: PERMISSIONS.STREET_AGENT.VIEW },
+            { id: "street-agent-allocation", label: "Bàn giao vé", path: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION, permission: PERMISSIONS.STREET_AGENT.VIEW },
             { id: "street-agent-allocation-batches", label: "Phiếu bàn giao vé", path: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.ALLOCATION_BATCHES, permission: PERMISSIONS.STREET_AGENT.VIEW },
             { id: "street-agent-reports", label: "Báo cáo người bán vé", path: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.REPORTS, permission: PERMISSIONS.DASHBOARD.ANALYTICS },
         ]
