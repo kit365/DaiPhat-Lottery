@@ -7,10 +7,10 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
-import 'package:daiphat_mobile/src/features/home/data/models/ticket_check_models.dart';
+import 'package:daiphat_mobile/src/features/home/domain/entities/ticket_check.dart';
 import 'package:daiphat_mobile/src/features/home/presentation/viewmodels/ticket_check_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/home/presentation/views/widgets/lottery_date_picker_dialog.dart';
-import 'package:daiphat_mobile/src/features/schedule/data/models/lottery_station_schedule.dart';
+import 'package:daiphat_mobile/src/features/schedule/domain/entities/lottery_station_schedule.dart';
 import 'package:daiphat_mobile/src/features/schedule/presentation/providers/schedule_providers.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';

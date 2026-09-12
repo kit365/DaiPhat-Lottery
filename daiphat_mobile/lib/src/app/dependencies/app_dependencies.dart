@@ -13,8 +13,9 @@ import 'package:daiphat_mobile/src/features/auth/data/services/google_auth_servi
 import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/forgot_password_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/login_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/register_viewmodel.dart';
-import 'package:daiphat_mobile/src/features/notifications/data/repositories/notification_repository.dart';
+import 'package:daiphat_mobile/src/features/notifications/data/repositories/notification_repository_impl.dart';
 import 'package:daiphat_mobile/src/features/notifications/data/services/notification_api_service.dart';
+import 'package:daiphat_mobile/src/features/notifications/domain/usecases/notification_usecases.dart';
 import 'package:daiphat_mobile/src/features/notifications/presentation/viewmodels/notification_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/viewmodels/profile_viewmodel.dart';
 import 'package:daiphat_mobile/src/shared/network/api_client.dart';
@@ -75,8 +76,16 @@ class AppDependencies {
     final registerViewModel = RegisterViewModel(authRepository);
     final forgotPasswordViewModel = ForgotPasswordViewModel(authRepository);
     final profileViewModel = ProfileViewModel(authRepository, loginViewModel);
+    final notificationsRepository = NotificationRepositoryImpl(
+      NotificationApiService(apiClient),
+    );
     final notificationViewModel = NotificationViewModel(
-      NotificationRepository(NotificationApiService(apiClient)),
+      GetMyNotifications(notificationsRepository),
+      MarkNotificationAsRead(notificationsRepository),
+      MarkAllNotificationsAsRead(notificationsRepository),
+      CheckNotificationReferenceAvailable(notificationsRepository),
+      DeleteReadNotification(notificationsRepository),
+      DeleteAllReadNotifications(notificationsRepository),
       autoFetch: authRepository.isAuthenticated,
     );
 

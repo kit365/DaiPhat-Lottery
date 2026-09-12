@@ -1,13 +1,24 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:daiphat_mobile/src/shared/network/api_exception.dart';
-import 'package:daiphat_mobile/src/shared/providers/api_providers.dart';
 
-import '../../data/models/ticket_check_models.dart';
-import '../../data/services/ticket_check_api_service.dart';
+import '../../domain/entities/ticket_check.dart';
+import '../../domain/repositories/ticket_check_repository.dart';
+import '../../domain/usecases/ticket_check_usecases.dart';
 
-final ticketCheckApiServiceProvider = Provider<TicketCheckApiService>((ref) {
-  return TicketCheckApiService(ref.watch(apiClientProvider));
+final ticketCheckRepositoryProvider = Provider<TicketCheckRepository>((ref) {
+  throw UnimplementedError(
+    'ticketCheckRepositoryProvider must be overridden in bootstrap',
+  );
+});
+
+final getTicketCheckStationsForDateProvider =
+    Provider<GetTicketCheckStationsForDate>((ref) {
+  return GetTicketCheckStationsForDate(ref.watch(ticketCheckRepositoryProvider));
+});
+
+final checkTicketWinningProvider = Provider<CheckTicketWinning>((ref) {
+  return CheckTicketWinning(ref.watch(ticketCheckRepositoryProvider));
 });
 
 class TicketCheckState {
@@ -89,7 +100,11 @@ class TicketCheckState {
 }
 
 class TicketCheckViewModel extends Notifier<TicketCheckState> {
-  TicketCheckApiService get _api => ref.read(ticketCheckApiServiceProvider);
+  GetTicketCheckStationsForDate get _getStationsForDate =>
+      ref.read(getTicketCheckStationsForDateProvider);
+
+  CheckTicketWinning get _checkTicketWinning =>
+      ref.read(checkTicketWinningProvider);
 
   @override
   TicketCheckState build() {
@@ -105,7 +120,7 @@ class TicketCheckViewModel extends Notifier<TicketCheckState> {
       clearDateError: true,
     );
     try {
-      final stations = await _api.getScheduleForDate(date);
+      final stations = await _getStationsForDate(date);
       state = state.copyWith(
         stations: stations,
         isLoadingStations: false,
@@ -192,7 +207,7 @@ class TicketCheckViewModel extends Notifier<TicketCheckState> {
     );
 
     try {
-      final result = await _api.checkWinning(
+      final result = await _checkTicketWinning(
         stationId: state.selectedStationId!,
         drawDate: state.selectedDate!,
         ticketNumber: number,

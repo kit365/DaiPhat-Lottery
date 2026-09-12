@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:daiphat_mobile/src/features/home/data/models/lottery_result.dart';
+import 'package:daiphat_mobile/src/features/home/domain/entities/lottery_result.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 

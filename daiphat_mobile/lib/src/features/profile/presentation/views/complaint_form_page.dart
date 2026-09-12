@@ -6,9 +6,9 @@ import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'package:daiphat_mobile/src/features/orders/presentation/providers/orders_providers.dart';
-import 'package:daiphat_mobile/src/features/profile/data/models/support_ticket.dart';
-import 'package:daiphat_mobile/src/features/profile/data/support_ticket_service.dart';
+import 'package:daiphat_mobile/src/features/profile/domain/entities/support_ticket.dart';
 import 'package:daiphat_mobile/src/features/prize_payouts/presentation/providers/prize_payouts_providers.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
 import 'package:daiphat_mobile/src/features/refunds/presentation/providers/refunds_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/complaint_ref_picker_sheet.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
@@ -16,12 +16,10 @@ import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 
 /// Trang tạo mới / chỉnh sửa một khiếu nại (hỗ trợ).
 class ComplaintFormPage extends ConsumerStatefulWidget {
-  final SupportTicketService service;
   final SupportTicketResponse? editingTicket;
 
   const ComplaintFormPage({
     super.key,
-    required this.service,
     this.editingTicket,
   });
 
@@ -80,7 +78,7 @@ class _ComplaintFormPageState extends ConsumerState<ComplaintFormPage> {
       _loadError = null;
     });
     try {
-      final all = await widget.service.getCategories();
+      final all = await ref.read(getTicketCategoriesProvider)();
       final selectable = all
           .where((c) => !c.code.startsWith('GROUP_'))
           .toList();
@@ -196,13 +194,16 @@ class _ComplaintFormPageState extends ConsumerState<ComplaintFormPage> {
       );
       final SupportTicketResponse result;
       if (_isEditing) {
-        result = await widget.service.update(
+        result = await ref.read(updateSupportTicketProvider)(
           widget.editingTicket!.id,
           data,
           filePath: _attachment?.path,
         );
       } else {
-        result = await widget.service.create(data, filePath: _attachment?.path);
+        result = await ref.read(createSupportTicketProvider)(
+          data,
+          filePath: _attachment?.path,
+        );
       }
       if (!mounted) return;
       Navigator.of(context).pop(result);
