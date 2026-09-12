@@ -33,7 +33,8 @@ export const fetchAllPublicBuyTickets = async (params: PublicTicketQueryParams) 
                 stationIds: params.stationIds,
                 drawDate: params.drawDate,
                 search: params.search || undefined,
-                searchMode: params.search ? 'CONTAINS' : undefined,
+                // Tra đuôi số (SUFFIX). CONTAINS còn khớp batchCode (vd. mã chứa ngày -13) nên trả cả kho.
+                searchMode: params.search ? 'SUFFIX' : undefined,
                 searches: params.searches && params.searches.length > 0 ? params.searches : undefined,
                 tailRanges: params.tailRanges && params.tailRanges.length > 0 ? params.tailRanges : undefined,
                 numberTypes: params.numberTypes && params.numberTypes.length > 0 ? params.numberTypes : undefined,
