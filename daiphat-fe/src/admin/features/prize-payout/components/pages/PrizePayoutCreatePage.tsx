@@ -22,9 +22,9 @@ import {
     TableContainer,
     TableHead,
     TableRow,
+    Tabs,
+    Tab,
     TextField,
-    ToggleButton,
-    ToggleButtonGroup,
     Typography,
 } from '@mui/material';
 import { Icon } from '@/admin/components/ui/AdminIcon';
@@ -83,6 +83,7 @@ import {
     SectionCard,
     renderHighlightedNumber,
 } from '../PrizePayoutCreateSections';
+import { SegmentedControl } from '@/admin/components/ui/SegmentedControl';
 
 type LookupMode = 'PHONE' | 'EMAIL';
 
@@ -776,104 +777,107 @@ export const PrizePayoutCreatePage = () => {
             />
 
             {/* Section 1: Search Card */}
-            <SectionCard title="1. Tra cứu vé số" icon="solar:magnifer-bold-duotone">
-                            <Alert severity="info" sx={{ mb: 2, borderRadius: '10px' }}>
-                                Chỉ hỗ trợ vé đã bán qua hệ thống. Tra cứu bằng số điện thoại hoặc email của khách hàng.
-                            </Alert>
+            <SectionCard
+                title="1. Tra cứu vé số"
+                icon="solar:magnifer-bold-duotone"
+                action={
+                    <Typography variant="body2" color="info.main" sx={{ fontStyle: 'italic', pr: 1 }}>
+                        * Chỉ hỗ trợ vé đã bán qua hệ thống. Tra cứu bằng số điện thoại hoặc email.
+                    </Typography>
+                }
+            >
+                <SegmentedControl
+                    sx={{ width: { xs: "100%", sm: 240 }, mb: 2 }}
+                    value={searchMode}
+                    onChange={(value) => {
+                        setSearchMode(value as 'PHONE' | 'EMAIL');
+                        setSearchInput('');
+                        setSelectedSuggestion(null);
+                        setDebouncedSearch('');
+                        setLookupItems([]);
+                        setSelectedIds([]);
+                    }}
+                    options={[
+                        { value: 'PHONE', label: 'Điện thoại' },
+                        { value: 'EMAIL', label: 'Email' }
+                    ]}
+                />
 
-                            <ToggleButtonGroup
-                                value={searchMode}
-                                exclusive
-                                onChange={(_, value) => {
-                                    if (value) {
-                                        setSearchMode(value);
-                                        setSearchInput('');
-                                        setSelectedSuggestion(null);
-                                        setDebouncedSearch('');
-                                        setLookupItems([]);
-                                        setSelectedIds([]);
-                                    }
-                                }}
-                                size="small"
-                                sx={{ mb: 2 }}
-                            >
-                                <ToggleButton value="PHONE">Điện thoại</ToggleButton>
-                                <ToggleButton value="EMAIL">Email</ToggleButton>
-                            </ToggleButtonGroup>
-
-                            <Autocomplete
-                                freeSolo
-                                options={suggestions}
-                                loading={isLoadingSuggestions}
-                                value={selectedSuggestion}
-                                inputValue={searchInput}
-                                onInputChange={(_, value, reason) => {
-                                    setSearchInput(value);
-                                    if (reason === 'input') {
-                                        setSelectedSuggestion(null);
-                                    }
-                                }}
-                                onChange={(_, value) => {
-                                    if (!value || typeof value === 'string') {
-                                        setSelectedSuggestion(null);
-                                        return;
-                                    }
-                                    setSelectedSuggestion(value);
-                                    const searchValue = searchMode === 'PHONE' ? value.phone : value.email;
-                                    if (searchValue) {
-                                        setSearchInput(searchValue);
-                                        setDebouncedSearch(searchValue);
-                                    }
-                                }}
-                                getOptionLabel={(o) => {
-                                    if (typeof o === 'string') return o;
-                                    if (searchMode === 'EMAIL') {
-                                        return `${o.displayName} - ${o.email || ''}`;
-                                    }
-                                    return `${o.displayName} - ${o.phone || ''}`;
-                                }}
-                                noOptionsText={
-                                    debouncedSearch.length < 2
-                                        ? 'Nhập từ 2 ký tự để tìm...'
-                                        : 'Không tìm thấy'
+                <Autocomplete
+                    freeSolo
+                    options={suggestions}
+                    loading={isLoadingSuggestions}
+                    value={selectedSuggestion}
+                    inputValue={searchInput}
+                    onInputChange={(_, value, reason) => {
+                        setSearchInput(value);
+                        if (reason === 'input') {
+                            setSelectedSuggestion(null);
+                        }
+                    }}
+                    onChange={(_, value) => {
+                        if (!value || typeof value === 'string') {
+                            setSelectedSuggestion(null);
+                            return;
+                        }
+                        setSelectedSuggestion(value);
+                        const searchValue = searchMode === 'PHONE' ? value.phone : value.email;
+                        if (searchValue) {
+                            setSearchInput(searchValue);
+                            setDebouncedSearch(searchValue);
+                        }
+                    }}
+                    getOptionLabel={(o) => {
+                        if (typeof o === 'string') return o;
+                        if (searchMode === 'EMAIL') {
+                            return `${o.displayName} - ${o.email || ''}`;
+                        }
+                        return `${o.displayName} - ${o.phone || ''}`;
+                    }}
+                    noOptionsText={
+                        debouncedSearch.length < 2
+                            ? 'Nhập từ 2 ký tự để tìm...'
+                            : 'Không tìm thấy'
+                    }
+                    renderInput={(params) => (
+                        <TextField
+                            {...params}
+                            label={searchMode === 'PHONE' ? 'Số điện thoại' : 'Email'}
+                            placeholder={
+                                searchMode === 'PHONE'
+                                    ? 'Nhập số điện thoại khách hàng...'
+                                    : 'Nhập email khách hàng...'
+                            }
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    void handleLookup();
                                 }
-                                renderInput={(params) => (
-                                    <TextField
-                                        {...params}
-                                        label={searchMode === 'PHONE' ? 'Số điện thoại' : 'Email'}
-                                        placeholder={
-                                            searchMode === 'PHONE'
-                                                ? 'Nhập số điện thoại khách hàng...'
-                                                : 'Nhập email khách hàng...'
-                                        }
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
-                                                e.preventDefault();
-                                                void handleLookup();
-                                            }
-                                        }}
-                                        size="small"
-                                        InputProps={{
-                                            ...params.InputProps,
-                                            endAdornment: (
-                                                <>
-                                                    {isLoadingSuggestions ? <CircularProgress size={16} /> : null}
-                                                </>
-                                            ),
-                                        }}
-                                    />
-                                )}
-                            />
+                            }}
+                            size="small"
+                            InputProps={{
+                                ...params.InputProps,
+                                endAdornment: (
+                                    <>
+                                        {isLoadingSuggestions ? <CircularProgress size={16} /> : null}
+                                    </>
+                                ),
+                            }}
+                        />
+                    )}
+                />
 
-                            <Button
-                                variant="contained"
-                                onClick={handleLookup}
-                                disabled={loadingLookup || !lookupReady}
-                                startIcon={loadingLookup ? <CircularProgress size={16} color="inherit" /> : <Icon icon="solar:magnifer-bold-duotone" />}
-                                sx={{ fontWeight: 700, textTransform: 'none', borderRadius: '8px', boxShadow: 'none', mt: 2 }}
-                            >
-                                {loadingLookup ? 'Đang tra cứu…' : 'Tra cứu vé số'}
-                            </Button>
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+                    <Button
+                        variant="contained"
+                        onClick={handleLookup}
+                        disabled={loadingLookup || !lookupReady}
+                        startIcon={loadingLookup ? <CircularProgress size={16} color="inherit" /> : <Icon icon="solar:magnifer-bold-duotone" />}
+                        sx={{ fontWeight: 700, textTransform: 'none', borderRadius: '8px', boxShadow: 'none' }}
+                    >
+                        {loadingLookup ? 'Đang tra cứu…' : 'Tra cứu vé số'}
+                    </Button>
+                </Box>
             </SectionCard>
 
             {/* Section 2: Ticket Selection & Match Proof */}
