@@ -15,11 +15,21 @@ class PrizePayoutsRepositoryImpl implements PrizePayoutsRepository {
     int? orderDetailId,
     int? serialId,
     required int bankAccountId,
+    required String recipientIdNumber,
+    required String recipientIdImageUrl,
+    required String recipientIdImageBackUrl,
   }) => _remoteDataSource.create(
     orderDetailId: orderDetailId,
     serialId: serialId,
     bankAccountId: bankAccountId,
+    recipientIdNumber: recipientIdNumber,
+    recipientIdImageUrl: recipientIdImageUrl,
+    recipientIdImageBackUrl: recipientIdImageBackUrl,
   );
+
+  @override
+  Future<String> uploadRecipientIdImage(String filePath) =>
+      _remoteDataSource.uploadRecipientIdImage(filePath);
 
   @override
   Future<PrizePayoutPageResult> getMyRequests({

@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:daiphat_mobile/src/features/prize_payouts/domain/entities/prize_payout_request.dart';
 import 'package:daiphat_mobile/src/shared/network/api_client.dart';
 import 'package:daiphat_mobile/src/shared/network/api_exception.dart';
@@ -44,10 +45,33 @@ class PrizePayoutRemoteDataSource {
     return apiResponse.data!;
   }
 
+  Future<String> uploadRecipientIdImage(String filePath) async {
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(filePath),
+    });
+    final response = await _apiClient.post(
+      '$_basePrizePayoutRequests/recipient-id/upload',
+      data: formData,
+    );
+    final data = response['data'];
+    final url = data is Map<String, dynamic> ? data['url']?.toString() : null;
+    if (url == null || url.isEmpty) {
+      throw ApiException(
+        response['message']?.toString().isNotEmpty == true
+            ? response['message'].toString()
+            : 'Không nhận được URL ảnh CCCD từ server.',
+      );
+    }
+    return url;
+  }
+
   Future<PrizePayoutRequestResult> create({
     int? orderDetailId,
     int? serialId,
     required int bankAccountId,
+    required String recipientIdNumber,
+    required String recipientIdImageUrl,
+    required String recipientIdImageBackUrl,
   }) async {
     if (orderDetailId == null && serialId == null) {
       throw const ApiException('Thiếu thông tin vé để gửi yêu cầu trả thưởng.');
@@ -59,6 +83,9 @@ class PrizePayoutRemoteDataSource {
         'orderDetailId': ?orderDetailId,
         'serialId': ?serialId,
         'bankAccountId': bankAccountId,
+        'recipientIdNumber': recipientIdNumber,
+        'recipientIdImageUrl': recipientIdImageUrl,
+        'recipientIdImageBackUrl': recipientIdImageBackUrl,
       },
     );
 
