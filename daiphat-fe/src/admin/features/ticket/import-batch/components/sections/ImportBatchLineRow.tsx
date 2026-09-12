@@ -173,10 +173,10 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                 eligibleStations.find((station) => station.lotteryStationId === lotteryStationId) ??
                 (displayStationName
                     ? {
-                          lotteryStationId,
-                          name: displayStationName,
-                          resolvedBatchType: batchType ?? ('NEW' as ImportBatchType),
-                      }
+                        lotteryStationId,
+                        name: displayStationName,
+                        resolvedBatchType: batchType ?? ('NEW' as ImportBatchType),
+                    }
                     : null);
             if (current) {
                 return [current, ...filtered];
@@ -348,20 +348,16 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                                     '& .MuiOutlinedInput-root': {
                                         bgcolor: 'background.paper',
                                     },
-                                    '& .MuiOutlinedInput-input': {
-                                        py: 1,
-                                        px: 1.25,
-                                    },
                                     ...(declareQuantityHighlighted
                                         ? {
-                                              '& .MuiOutlinedInput-root': {
-                                                  bgcolor: 'rgba(255, 236, 179, 0.45)',
-                                                  '& fieldset': {
-                                                      borderColor: 'warning.main',
-                                                      borderWidth: 2,
-                                                  },
-                                              },
-                                          }
+                                            '& .MuiOutlinedInput-root': {
+                                                bgcolor: 'rgba(255, 236, 179, 0.45)',
+                                                '& fieldset': {
+                                                    borderColor: 'warning.main',
+                                                    borderWidth: 2,
+                                                },
+                                            },
+                                        }
                                         : {}),
                                 }}
                                 onChange={(e) => {
@@ -399,70 +395,70 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                 </Typography>
             </TableCell>
             {!hideActionsColumn && (
-            <TableCell
-                align="center"
-                sx={{
-                    width:
-                        canPause || canResume || canAdjustDeclareQuantity
-                            ? 260
-                            : 48,
-                    px: 0.5,
-                }}
-            >
-                <Box
+                <TableCell
+                    align="center"
                     sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 0.5,
-                        flexWrap: 'wrap',
+                        width:
+                            canPause || canResume || canAdjustDeclareQuantity
+                                ? 260
+                                : 48,
+                        px: 0.5,
                     }}
                 >
-                    {canPause && (
-                        <Button
-                            size="small"
-                            variant="outlined"
-                            color="warning"
-                            startIcon={<PauseCircleOutlineIcon fontSize="small" />}
-                            onClick={onPause}
-                            disabled={pausePending || !onPause}
-                            sx={{ whiteSpace: 'nowrap', minWidth: 0, px: 1 }}
-                        >
-                            Tạm dừng
-                        </Button>
-                    )}
-                    {canAdjustDeclareQuantity && (
-                        <Button
-                            size="small"
-                            variant="outlined"
-                            color="primary"
-                            onClick={onAdjustDeclareQuantity}
-                            disabled={!onAdjustDeclareQuantity}
-                            sx={{ whiteSpace: 'nowrap', minWidth: 0, px: 1 }}
-                        >
-                            Điều chỉnh SL
-                        </Button>
-                    )}
-                    {canResume && (
-                        <Button
-                            size="small"
-                            variant="outlined"
-                            color="success"
-                            startIcon={<PlayCircleOutlineIcon fontSize="small" />}
-                            onClick={onResume}
-                            disabled={resumePending || !onResume}
-                            sx={{ whiteSpace: 'nowrap', minWidth: 0, px: 1 }}
-                        >
-                            Tiếp tục
-                        </Button>
-                    )}
-                    {canRemove && (
-                        <IconButton size="small" color="error" onClick={onRemove} aria-label="Xóa dòng">
-                            <DeleteOutlineIcon fontSize="small" />
-                        </IconButton>
-                    )}
-                </Box>
-            </TableCell>
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 0.5,
+                            flexWrap: 'wrap',
+                        }}
+                    >
+                        {canPause && (
+                            <Button
+                                size="small"
+                                variant="outlined"
+                                color="warning"
+                                startIcon={<PauseCircleOutlineIcon fontSize="small" />}
+                                onClick={onPause}
+                                disabled={pausePending || !onPause}
+                                sx={{ whiteSpace: 'nowrap', minWidth: 0, px: 1 }}
+                            >
+                                Tạm dừng
+                            </Button>
+                        )}
+                        {canAdjustDeclareQuantity && (
+                            <Button
+                                size="small"
+                                variant="outlined"
+                                color="primary"
+                                onClick={onAdjustDeclareQuantity}
+                                disabled={!onAdjustDeclareQuantity}
+                                sx={{ whiteSpace: 'nowrap', minWidth: 0, px: 1 }}
+                            >
+                                Điều chỉnh SL
+                            </Button>
+                        )}
+                        {canResume && (
+                            <Button
+                                size="small"
+                                variant="outlined"
+                                color="success"
+                                startIcon={<PlayCircleOutlineIcon fontSize="small" />}
+                                onClick={onResume}
+                                disabled={resumePending || !onResume}
+                                sx={{ whiteSpace: 'nowrap', minWidth: 0, px: 1 }}
+                            >
+                                Tiếp tục
+                            </Button>
+                        )}
+                        {canRemove && (
+                            <IconButton size="small" color="error" onClick={onRemove} aria-label="Xóa dòng">
+                                <DeleteOutlineIcon fontSize="small" />
+                            </IconButton>
+                        )}
+                    </Box>
+                </TableCell>
             )}
         </TableRow>
     );

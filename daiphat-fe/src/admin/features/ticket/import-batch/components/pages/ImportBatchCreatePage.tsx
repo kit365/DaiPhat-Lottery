@@ -35,6 +35,7 @@ import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
 import { Title } from '../../../../../components/ui/Title';
 import { AdminDatePicker } from '../../../../../components/ui/AdminDatePicker';
+import { SelectSingle } from '../../../../../components/ui/SelectSingle';
 import { Button as LoadingButton } from '../../../../../components/ui/Button';
 import { Button } from '../../../../../components/ui/Button';
 import { UploadSingleFile } from '../../../../../components/upload/UploadSingleFile';
@@ -369,8 +370,8 @@ export const ImportBatchCreatePage = () => {
         (allStationsDraftBlocked
             ? 'Tất cả nhà đài trong ngày quay đã có phiếu nhập nháp. Vui lòng hoàn tất các phiếu hiện tại hoặc chọn ngày quay khác.'
             : noEligibleStations
-              ? 'Không có nhà đài nào phù hợp với ngày quay đã chọn.'
-              : undefined);
+                ? 'Không có nhà đài nào phù hợp với ngày quay đã chọn.'
+                : undefined);
 
     // Shared receipt is required for in-day imports (NEW).
     const showSharedReceipt = importMode === 'IN_DAY';
@@ -511,7 +512,7 @@ export const ImportBatchCreatePage = () => {
             } else {
                 toast.error(
                     intakeGate.message ??
-                        'Đã qua giờ cho phép nhập lô. Không thể tạo phiếu nhập lô mới cho kỳ quay hôm nay.'
+                    'Đã qua giờ cho phép nhập lô. Không thể tạo phiếu nhập lô mới cho kỳ quay hôm nay.'
                 );
             }
             return;
@@ -525,7 +526,7 @@ export const ImportBatchCreatePage = () => {
             ) {
                 toast.error(
                     receiptUploadError ||
-                        'Vui lòng tải ảnh biên lai thành công trước khi xác nhận.'
+                    'Vui lòng tải ảnh biên lai thành công trước khi xác nhận.'
                 );
                 return;
             }
@@ -767,12 +768,11 @@ export const ImportBatchCreatePage = () => {
                             <Box
                                 sx={{
                                     px: 3,
-                                    py: 2,
-                                    borderBottom: '1px solid #f1f5f9',
-                                    bgcolor: '#f8fafc',
+                                    pt: 3,
+                                    pb: 1,
                                 }}
                             >
-                                <Typography variant="subtitle1" fontWeight={800} color="#0f172a">
+                                <Typography variant="h6" fontWeight={700} color="text.primary">
                                     Thông tin phiếu nhập lô
                                 </Typography>
                             </Box>
@@ -786,31 +786,20 @@ export const ImportBatchCreatePage = () => {
                                             name="supplierId"
                                             control={control}
                                             render={({ field }) => (
-                                                <FormControl
-                                                    fullWidth
-                                                    size="small"
+                                                <SelectSingle
+                                                    label="Nhà cung cấp *"
+                                                    {...field}
+                                                    value={field.value ? String(field.value) : ''}
+                                                    onChange={(val) => field.onChange(val ? Number(val) : '')}
+                                                    disabled={isLoadingSuppliers || activeSuppliers.length === 0}
                                                     error={isSubmitted && !!errors.supplierId}
-                                                >
-                                                    <InputLabel>Nhà cung cấp *</InputLabel>
-                                                    <Select
-                                                        {...field}
-                                                        label="Nhà cung cấp *"
-                                                        value={field.value || ''}
-                                                        disabled={isLoadingSuppliers || activeSuppliers.length === 0}
-                                                        sx={{ borderRadius: '10px', bgcolor: '#ffffff' }}
-                                                    >
-                                                        {activeSuppliers.map((supplier) => (
-                                                            <MenuItem key={supplier.id} value={supplier.id}>
-                                                                {supplier.name} ({supplier.code})
-                                                            </MenuItem>
-                                                        ))}
-                                                    </Select>
-                                                    {isSubmitted && errors.supplierId && (
-                                                        <Typography variant="caption" color="error" sx={{ mt: 0.5 }}>
-                                                            {errors.supplierId.message}
-                                                        </Typography>
-                                                    )}
-                                                </FormControl>
+                                                    helperText={isSubmitted && errors.supplierId ? errors.supplierId.message : undefined}
+                                                    sx={{ width: '100%' }}
+                                                    options={activeSuppliers.map(s => ({
+                                                        value: String(s.id),
+                                                        label: `${s.name} (${s.code})`
+                                                    }))}
+                                                />
                                             )}
                                         />
                                     </Grid>
@@ -837,8 +826,8 @@ export const ImportBatchCreatePage = () => {
                                                         errors.drawDate
                                                             ? 'error'
                                                             : noEligibleStations || allStationsDraftBlocked
-                                                              ? 'warning'
-                                                              : 'default'
+                                                                ? 'warning'
+                                                                : 'default'
                                                     }
                                                 />
                                             )}
@@ -1039,9 +1028,8 @@ export const ImportBatchCreatePage = () => {
                             <Box
                                 sx={{
                                     px: 3,
-                                    py: 2,
-                                    borderBottom: '1px solid #f1f5f9',
-                                    bgcolor: '#f8fafc',
+                                    pt: 3,
+                                    pb: 1,
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'space-between',
@@ -1050,10 +1038,10 @@ export const ImportBatchCreatePage = () => {
                                 }}
                             >
                                 <Box>
-                                    <Typography variant="subtitle1" fontWeight={800} color="#0f172a">
+                                    <Typography variant="h6" fontWeight={700} color="text.primary">
                                         Phân bổ số lượng nhập theo từng nhà đài
                                     </Typography>
-                                    <Typography variant="caption" color="text.secondary">
+                                    <Typography variant="body2" color="text.secondary">
                                         Chọn nhà đài và phân bổ số lượng vé nhập tương ứng cho kỳ quay
                                     </Typography>
                                 </Box>
@@ -1155,7 +1143,7 @@ export const ImportBatchCreatePage = () => {
                                                                 router.push(
                                                                     ROUTES.ADMIN.IMPORT_BATCH.DETAIL(
                                                                         station.existingDraftBatchId!
-                                                                      )
+                                                                    )
                                                                 )
                                                             }
                                                         >
@@ -1171,7 +1159,7 @@ export const ImportBatchCreatePage = () => {
 
                             {/* Table */}
                             <Box sx={{ px: 0 }}>
-                                <TableContainer>
+                                <TableContainer sx={{ padding: '0 !important' }}>
                                     <Table size="small" sx={{ tableLayout: 'fixed', width: '100%' }}>
                                         <TableHead>
                                             <TableRow

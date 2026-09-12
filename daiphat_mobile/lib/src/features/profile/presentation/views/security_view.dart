@@ -3,12 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 
-import 'package:daiphat_mobile/src/features/auth/data/models/password_policy.dart';
-import 'package:daiphat_mobile/src/features/auth/data/dto/change_password_request.dart';
-import 'package:daiphat_mobile/src/features/auth/data/services/auth_api_service.dart';
+import 'package:daiphat_mobile/src/features/auth/domain/entities/change_password_request.dart';
+import 'package:daiphat_mobile/src/features/auth/domain/entities/password_policy.dart';
+import 'package:daiphat_mobile/src/features/auth/presentation/providers/auth_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/viewmodels/profile_viewmodel.dart';
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
-import 'package:daiphat_mobile/src/shared/providers/api_providers.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 
@@ -67,9 +66,7 @@ class _SecurityViewState extends ConsumerState<SecurityView> {
 
   Future<void> _loadPasswordPolicy() async {
     try {
-      final policy = await AuthApiService(
-        ref.read(apiClientProvider),
-      ).getPasswordPolicy();
+      final policy = await ref.read(getPasswordPolicyProvider)();
       if (!mounted) return;
       setState(() {
         _passwordPolicy = policy;
@@ -117,7 +114,7 @@ class _SecurityViewState extends ConsumerState<SecurityView> {
 
     setState(() => _isSubmitting = true);
     try {
-      await AuthApiService(ref.read(apiClientProvider)).changePassword(
+      await ref.read(changePasswordProvider)(
         ChangePasswordRequest(
           currentPassword: current,
           newPassword: next,

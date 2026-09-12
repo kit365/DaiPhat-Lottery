@@ -1,0 +1,107 @@
+# Managed exclusively by scripts/deploy-ai.sh; shares the existing backend network.
+name: daiphat-ai
+
+x-chatbot: &chatbot
+  restart: unless-stopped
+  profiles: [slots]
+  logging:
+    driver: json-file
+    options: {max-size: "10m", max-file: "3"}
+  mem_limit: ${AI_CHATBOT_MEMORY_LIMIT:-256m}
+  networks: [production]
+  labels:
+    dev.dozzle.group: AI
+  healthcheck:
+    test: [CMD, python, -c, "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=3)); assert d.get('success') is True"]
+    interval: 10s
+    timeout: 5s
+    start_period: 15s
+    retries: 12
+
+x-ocr: &ocr
+  restart: unless-stopped
+  profiles: [slots]
+  logging:
+    driver: json-file
+    options: {max-size: "10m", max-file: "3"}
+  mem_limit: ${TICKET_VISION_MEMORY_LIMIT:-1g}
+  cpus: ${TICKET_VISION_CPU_LIMIT:-1}
+  networks: [production]
+  environment:
+    HOME: /cache
+    EASYOCR_MODULE_PATH: /cache/easyocr
+    PADDLE_PDX_CACHE_HOME: /cache/paddlex
+    HF_HOME: /cache/huggingface
+    TORCH_HOME: /cache/torch
+    YOLO_CONFIG_DIR: /cache/ultralytics
+    OMP_NUM_THREADS: ${TICKET_VISION_CPU_THREADS:-1}
+    OPENBLAS_NUM_THREADS: ${TICKET_VISION_CPU_THREADS:-1}
+    MKL_NUM_THREADS: ${TICKET_VISION_CPU_THREADS:-1}
+    NUMEXPR_NUM_THREADS: ${TICKET_VISION_CPU_THREADS:-1}
+    TZ: Asia/Ho_Chi_Minh
+  labels:
+    dev.dozzle.group: AI
+  healthcheck:
+    test: [CMD, python, -c, "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:8090/health',timeout=3)); assert d.get('success') is True and d.get('data',{}).get('visionReady') is True"]
+    interval: 10s
+    timeout: 5s
+    start_period: 30s
+    retries: 18
+
+x-router: &router
+  image: "${AI_PROXY_IMAGE:-nginx:stable-alpine}"
+  restart: unless-stopped
+  profiles: [routers]
+  logging:
+    driver: json-file
+    options: {max-size: "10m", max-file: "3"}
+  mem_limit: 128m
+  labels:
+    dev.dozzle.group: AI
+  # No host ports: all AI traffic remains inside the existing production network.
+  healthcheck:
+    test: [CMD, wget, -qO-, "http://127.0.0.1:8080/router-health"]
+    interval: 10s
+    timeout: 5s
+    retries: 6
+
+services:
+  chatbot-blue:
+    <<: *chatbot
+    image: "${CHATBOT_BLUE_IMAGE:-docker.io/kitops365/daiphat-ai:prod}"
+    env_file: ./.ai-deploy/chatbot/blue.env
+  chatbot-green:
+    <<: *chatbot
+    image: "${CHATBOT_GREEN_IMAGE:-docker.io/kitops365/daiphat-ai:prod}"
+    env_file: ./.ai-deploy/chatbot/green.env
+  ocr-blue:
+    <<: *ocr
+    image: "${OCR_BLUE_IMAGE:-docker.io/kitops365/daiphat-ticket-vision:prod}"
+    env_file: ./.ai-deploy/ocr/blue.env
+    volumes: ["ocr_blue_cache:/cache"]
+  ocr-green:
+    <<: *ocr
+    image: "${OCR_GREEN_IMAGE:-docker.io/kitops365/daiphat-ticket-vision:prod}"
+    env_file: ./.ai-deploy/ocr/green.env
+    volumes: ["ocr_green_cache:/cache"]
+  chatbot-router:
+    <<: *router
+    volumes: ["./.ai-deploy/chatbot/nginx:/etc/nginx/conf.d:ro"]
+    networks:
+      production:
+        aliases: [ai-gateway]
+  ocr-router:
+    <<: *router
+    volumes: ["./.ai-deploy/ocr/nginx:/etc/nginx/conf.d:ro"]
+    networks:
+      production:
+        aliases: [ticket-vision]
+
+networks:
+  production:
+    external: true
+    name: "${AI_DOCKER_NETWORK:-daiphat-prod_default}"
+
+volumes:
+  ocr_blue_cache:
+  ocr_green_cache:

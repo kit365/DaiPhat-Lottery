@@ -1,4 +1,4 @@
-package com.example.daiphat_mobile
+package com.daiphatlottery.mobile
 
 import io.flutter.embedding.android.FlutterActivity
 

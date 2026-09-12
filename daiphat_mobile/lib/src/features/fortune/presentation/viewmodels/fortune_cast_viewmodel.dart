@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
-import 'package:daiphat_mobile/src/features/fortune/data/fortune_cast_service.dart';
-import 'package:daiphat_mobile/src/features/fortune/data/models/fortune_cast_result.dart';
+import 'package:daiphat_mobile/src/features/fortune/domain/entities/fortune_cast_result.dart';
+import 'package:daiphat_mobile/src/features/fortune/domain/usecases/fortune_cast_usecases.dart';
 import 'package:daiphat_mobile/src/features/fortune/utils/fortune_ui.dart';
 import 'package:daiphat_mobile/src/shared/network/api_exception.dart';
 import 'package:daiphat_mobile/src/shared/utils/api_error_message.dart';
@@ -13,9 +13,10 @@ enum FortuneAnimPhase { idle, shaking, ejecting, result, error }
 enum FortuneCastMode { birthdate, random }
 
 class FortuneCastViewModel extends ChangeNotifier {
-  FortuneCastViewModel(this._service);
+  FortuneCastViewModel(this._castFortune, this._getTodayFortuneCast);
 
-  final FortuneCastService _service;
+  final CastFortune _castFortune;
+  final GetTodayFortuneCast _getTodayFortuneCast;
 
   FortuneAnimPhase phase = FortuneAnimPhase.idle;
   FortuneCastMode? castMode;
@@ -65,7 +66,7 @@ class FortuneCastViewModel extends ChangeNotifier {
       notifyListeners();
     }
     try {
-      final today = await _service.getToday();
+      final today = await _getTodayFortuneCast();
       if (today != null) {
         result = today;
         phase = FortuneAnimPhase.result;
@@ -142,7 +143,7 @@ class FortuneCastViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final apiFuture = _service.cast(payload);
+      final apiFuture = _castFortune(payload);
       await Future<void>.delayed(kFortuneShakeDuration);
       phase = FortuneAnimPhase.ejecting;
       notifyListeners();

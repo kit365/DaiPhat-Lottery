@@ -1,4 +1,4 @@
-import '../data/models/chat_models.dart';
+import '../domain/entities/chat_models.dart';
 
 class ChatWsConstants {
   const ChatWsConstants._();

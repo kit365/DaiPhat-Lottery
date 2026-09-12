@@ -6,6 +6,17 @@ __pycache__
 .ruff_cache
 .DS_Store
 .env
+.env.*
 tests
 test_*.py
 conftest.py
+dist
+build
+*.pt
+!services/ticket-vision/models/*.pt
+*.pth
+*.onnx
+data/raw
+data/labeled
+services/ticket-vision/fixtures/*
+!services/ticket-vision/fixtures/README.md

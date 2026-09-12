@@ -5,7 +5,7 @@ import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:intl/intl.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
-import 'package:daiphat_mobile/src/features/profile/data/models/support_ticket.dart';
+import 'package:daiphat_mobile/src/features/profile/domain/entities/support_ticket.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/widgets/profile_status_badge.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
@@ -40,7 +40,11 @@ class _ComplaintsViewState extends ConsumerState<ComplaintsView> {
   @override
   void initState() {
     super.initState();
-    _viewModel = ComplaintsViewModel(ref.read(supportTicketServiceProvider));
+    _viewModel = ComplaintsViewModel(
+      ref.read(getTicketCategoriesProvider),
+      ref.read(getMySupportTicketsProvider),
+      ref.read(closeSupportTicketProvider),
+    );
     _scrollController.addListener(_onScroll);
   }
 
@@ -62,8 +66,7 @@ class _ComplaintsViewState extends ConsumerState<ComplaintsView> {
   Future<void> _openCreateForm() async {
     final result = await Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute(
-        builder: (_) =>
-            ComplaintFormPage(service: ref.read(supportTicketServiceProvider)),
+        builder: (_) => const ComplaintFormPage(),
       ),
     );
     if (result is SupportTicketResponse && mounted) {

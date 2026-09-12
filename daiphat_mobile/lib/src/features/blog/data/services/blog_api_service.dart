@@ -2,7 +2,7 @@ import 'package:daiphat_mobile/src/shared/network/api_client.dart';
 import 'package:daiphat_mobile/src/shared/network/api_exception.dart';
 import 'package:daiphat_mobile/src/shared/network/api_response.dart';
 import 'package:daiphat_mobile/src/shared/network/page_response.dart';
-import '../models/blog_category.dart';
+import '../../domain/entities/blog_category.dart';
 import '../models/public_blog_post.dart';
 import '../models/public_blog_post_detail.dart';
 

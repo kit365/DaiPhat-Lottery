@@ -3,8 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../shared/network/api_exception.dart';
-import '../../data/models/notification_model.dart';
-import '../../data/repositories/notification_repository.dart';
+import '../../domain/entities/notification.dart';
+import '../../domain/usecases/notification_usecases.dart';
 
 class NotificationItem {
   final String id;
@@ -89,7 +89,13 @@ extension NotificationFilterX on NotificationFilter {
 }
 
 class NotificationViewModel extends ChangeNotifier {
-  final NotificationRepository _repository;
+  final GetMyNotifications _getMyNotifications;
+  final MarkNotificationAsRead _markNotificationAsRead;
+  final MarkAllNotificationsAsRead _markAllNotificationsAsRead;
+  final CheckNotificationReferenceAvailable
+      _checkNotificationReferenceAvailable;
+  final DeleteReadNotification _deleteReadNotification;
+  final DeleteAllReadNotifications _deleteAllReadNotifications;
 
   List<NotificationItem> _notifications = [];
   List<NotificationItem> get notifications => _notifications;
@@ -124,7 +130,15 @@ class NotificationViewModel extends ChangeNotifier {
   bool _hasNextPage = true;
   bool get hasNextPage => _hasNextPage;
 
-  NotificationViewModel(this._repository, {bool autoFetch = false}) {
+  NotificationViewModel(
+    this._getMyNotifications,
+    this._markNotificationAsRead,
+    this._markAllNotificationsAsRead,
+    this._checkNotificationReferenceAvailable,
+    this._deleteReadNotification,
+    this._deleteAllReadNotifications, {
+    bool autoFetch = false,
+  }) {
     if (autoFetch) {
       fetchNotifications();
     }
@@ -158,7 +172,7 @@ class NotificationViewModel extends ChangeNotifier {
     }
 
     try {
-      final response = await _repository.getMyNotifications(_page, _limit);
+      final response = await _getMyNotifications(_page, _limit);
       final newItems = response.items.map(_mapModelToItem).toList();
 
       if (refresh) {
@@ -199,7 +213,7 @@ class NotificationViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _repository.markAsRead(intId);
+      await _markNotificationAsRead(intId);
     } catch (e) {
       _notifications[index] = _notifications[index].copyWith(isRead: false);
       _bumpUnreadCount(1);
@@ -218,7 +232,7 @@ class NotificationViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _repository.markAllAsRead();
+      await _markAllNotificationsAsRead();
     } catch (e) {
       _notifications = oldList;
       _statusCounts = oldCounts;
@@ -241,7 +255,7 @@ class NotificationViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _repository.deleteReadNotification(intId);
+      await _deleteReadNotification(intId);
       return null;
     } catch (e) {
       _notifications.insert(index, removed);
@@ -256,7 +270,7 @@ class NotificationViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _repository.deleteAllReadNotifications();
+      await _deleteAllReadNotifications();
     } catch (e) {
       _notifications = oldList;
       notifyListeners();
@@ -268,7 +282,7 @@ class NotificationViewModel extends ChangeNotifier {
     final intId = int.tryParse(id);
     if (intId == null) return false;
     try {
-      return await _repository.isReferenceAvailable(intId);
+      return await _checkNotificationReferenceAvailable(intId);
     } catch (e) {
       debugPrint('Failed to resolve notification reference: $e');
       return false;

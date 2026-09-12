@@ -1,7 +1,7 @@
 import 'package:daiphat_mobile/src/shared/network/api_client.dart';
 import 'package:daiphat_mobile/src/shared/network/api_response.dart';
 import 'package:daiphat_mobile/src/shared/network/page_response.dart';
-import '../models/notification_model.dart';
+import '../../domain/entities/notification.dart';
 
 class NotificationApiService {
   static const _baseNotifications = '/notifications';

@@ -78,6 +78,7 @@ android/app/src/main/res/raw/
 .vscode/
 .flutter-plugins
 .flutter-plugins-dependencies
+daiphat_mobile/android/key.properties
 
 # Eclipse
 .settings/
@@ -130,3 +131,8 @@ __pycache__/
 .coverage
 htmlcov/
 .tox/
+.local/ocr-publish/
+
+# AI production slot state and staged runtime secrets
+.ai-deploy/
+.ai-runtime.env

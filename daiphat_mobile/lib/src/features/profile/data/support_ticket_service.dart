@@ -2,34 +2,9 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 
-import 'package:daiphat_mobile/src/features/profile/data/models/support_ticket.dart';
+import 'package:daiphat_mobile/src/features/profile/domain/entities/support_ticket.dart';
 import 'package:daiphat_mobile/src/shared/network/api_client.dart';
 import 'package:daiphat_mobile/src/shared/network/api_exception.dart';
-
-/// Payload tạo/cập nhật một khiếu nại.
-class SupportTicketFormData {
-  final int ticketCategoryId;
-  final String title;
-  final String description;
-  final String? refId;
-  final String? refType;
-
-  const SupportTicketFormData({
-    required this.ticketCategoryId,
-    required this.title,
-    required this.description,
-    this.refId,
-    this.refType,
-  });
-
-  Map<String, dynamic> toJson() => {
-        'ticketCategoryId': ticketCategoryId,
-        'title': title,
-        'description': description,
-        if (refId != null && refId!.isNotEmpty) 'refId': refId,
-        if (refType != null && refType!.isNotEmpty) 'refType': refType,
-      };
-}
 
 class SupportTicketService {
   static const _baseTickets = '/tickets';

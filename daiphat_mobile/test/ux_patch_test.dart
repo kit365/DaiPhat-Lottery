@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:daiphat_mobile/src/features/cart/models/cart_item_model.dart';
+import 'package:daiphat_mobile/src/features/cart/domain/entities/cart_item.dart';
 import 'package:daiphat_mobile/src/features/cart/presentation/views/cart_view.dart';
-import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
+import 'package:daiphat_mobile/src/features/cart/presentation/providers/cart_provider.dart';
 import 'package:daiphat_mobile/src/shared/widgets/brand_scrollbar.dart';
 
 class _MockCartNotifier extends CartNotifier {

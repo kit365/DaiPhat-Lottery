@@ -909,7 +909,6 @@ export const MatchingActualsForm = ({
             cancelled = true;
         };
         // Only hydrate once per settlement mount.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [settlement.id]);
 
     // Autosave matching draft to localStorage (Cloudinary URLs).

@@ -2,7 +2,7 @@ import 'package:daiphat_mobile/src/shared/network/api_client.dart';
 import 'package:daiphat_mobile/src/shared/network/api_exception.dart';
 import 'package:daiphat_mobile/src/shared/network/api_response.dart';
 
-import '../models/lottery_station_schedule.dart';
+import '../../domain/entities/lottery_station_schedule.dart';
 
 class ScheduleApiService {
   ScheduleApiService(this._apiClient);

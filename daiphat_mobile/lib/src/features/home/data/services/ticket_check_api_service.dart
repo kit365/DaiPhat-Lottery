@@ -2,7 +2,7 @@ import 'package:daiphat_mobile/src/shared/network/api_client.dart';
 import 'package:daiphat_mobile/src/shared/network/api_exception.dart';
 import 'package:daiphat_mobile/src/shared/network/api_response.dart';
 
-import '../models/ticket_check_models.dart';
+import '../../domain/entities/ticket_check.dart';
 
 class TicketCheckApiService {
   TicketCheckApiService(this._apiClient);

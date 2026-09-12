@@ -5,13 +5,12 @@ import 'package:stomp_dart_client/stomp_dart_client.dart';
 
 import 'package:daiphat_mobile/src/shared/network/api_config.dart';
 
+import '../../domain/entities/chat_models.dart';
+import '../../domain/repositories/chat_repository_port.dart';
 import '../../utils/chat_constants.dart';
-import '../models/chat_models.dart';
 
-typedef ChatSocketMessageHandler = void Function(ChatSocketMessageEvent event);
-typedef ChatConversationEventHandler = void Function(
-  ChatConversationSocketEvent event,
-);
+export '../../domain/repositories/chat_repository_port.dart'
+    show ChatConversationEventHandler, ChatSocketMessageHandler;
 
 class _ChatSubscription {
   _ChatSubscription({required this.callback});

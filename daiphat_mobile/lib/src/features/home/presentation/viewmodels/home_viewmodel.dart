@@ -2,17 +2,19 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:daiphat_mobile/src/shared/providers/api_providers.dart';
-import '../../data/models/lottery_result.dart';
-import '../../data/repositories/home_lottery_repository.dart';
-import '../../data/services/home_lottery_api_service.dart';
-
-final homeLotteryApiServiceProvider = Provider<HomeLotteryApiService>((ref) {
-  return HomeLotteryApiService(ref.watch(apiClientProvider));
-});
+import '../../domain/entities/lottery_result.dart';
+import '../../domain/repositories/home_lottery_repository.dart';
+import '../../domain/usecases/fetch_home_lottery_results.dart';
 
 final homeLotteryRepositoryProvider = Provider<HomeLotteryRepository>((ref) {
-  return HomeLotteryRepository(ref.watch(homeLotteryApiServiceProvider));
+  throw UnimplementedError(
+    'homeLotteryRepositoryProvider must be overridden in bootstrap',
+  );
+});
+
+final fetchHomeLotteryResultsProvider =
+    Provider<FetchHomeLotteryResults>((ref) {
+  return FetchHomeLotteryResults(ref.watch(homeLotteryRepositoryProvider));
 });
 
 final homeLotteryProvider =
@@ -21,7 +23,6 @@ final homeLotteryProvider =
   const maxSummaryRetries = 24;
   const maxDetailRetries = 12;
 
-  final repository = ref.watch(homeLotteryRepositoryProvider);
   final normalizedDate = DateTime(drawDate.year, drawDate.month, drawDate.day);
   final disposed = Completer<void>();
   ref.onDispose(() {
@@ -32,9 +33,10 @@ final homeLotteryProvider =
 
   var summaryPollCount = 0;
   var detailPollCount = 0;
+  final fetchHomeLotteryResults = ref.watch(fetchHomeLotteryResultsProvider);
 
   while (!disposed.isCompleted) {
-    final fetchResult = await repository.fetchResults(normalizedDate);
+    final fetchResult = await fetchHomeLotteryResults(normalizedDate);
     yield fetchResult.data;
 
     Duration? nextDelay;

@@ -33,6 +33,7 @@ import RemoveIcon from "@mui/icons-material/Remove";
 import CloseIcon from "@mui/icons-material/Close";
 import { toast } from "react-toastify";
 import { PageHeader } from "../../../../components/ui/PageHeader";
+import { SelectSingle } from "../../../../components/ui/SelectSingle";
 import { Button } from '../../../../components/ui/Button';
 import { ROUTES } from "../../../../constants/routes";
 import { PERMISSIONS } from "../../../../constants/permission.constants";
@@ -71,6 +72,7 @@ import { StationCapacityBadges } from "../sections/StationCapacityBadges";
 import { AdminDatePicker } from "../../../../components/ui/AdminDatePicker";
 import { VendorAllocationStationDrawer } from "../sections/VendorAllocationStationDrawer";
 import { todayIsoVn } from "@/client/utils/sellableDrawDate.util";
+import { SegmentedControl } from "../../../../components/ui/SegmentedControl";
 
 const fieldSx = {
     "& .MuiOutlinedInput-root": {
@@ -821,28 +823,22 @@ export const VendorAllocationPage = () => {
                         Chọn đại lý & ngày kinh doanh
                     </Typography>
                     <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "2fr 1fr" }, gap: 2 }}>
-                        <TextField
-                            select
-                            fullWidth
+                        <SelectSingle
                             label="Người bán vé số *"
                             value={profile?.id ? String(profile.id) : ""}
-                            onChange={(event) => {
-                                const nextId = event.target.value;
+                            onChange={(nextId) => {
                                 setProfile(profiles.find((item) => String(item.id) === nextId) || null);
                             }}
                             disabled={isLoadingProfiles}
                             helperText={isLoadingProfiles ? "Đang tải danh sách…" : undefined}
-                            sx={fieldSx}
+                            sx={{ width: '100%', ...fieldSx }}
+                            options={profiles.map((item) => ({
+                                value: String(item.id),
+                                label: formatVendorSelectLabel(item)
+                            }))}
+                            showClear={true}
                         >
-                            <MenuItem value="">
-                                <em>Chọn người bán vé số</em>
-                            </MenuItem>
-                            {profiles.map((item) => (
-                                <MenuItem key={item.id} value={String(item.id)}>
-                                    {formatVendorSelectLabel(item)}
-                                </MenuItem>
-                            ))}
-                        </TextField>
+                        </SelectSingle>
                         <DisabledWithTooltip
                             title={businessDateDisabledReason}
                             disabled={!!businessDateDisabledReason}
@@ -945,56 +941,13 @@ export const VendorAllocationPage = () => {
                                         title={selectionModeDisabledReason}
                                         disabled={!!selectionModeDisabledReason}
                                     >
-                                        <Box
-                                            role="group"
-                                            aria-label="Cách chọn vé"
-                                            sx={{
-                                                display: "inline-flex",
-                                                width: { xs: "100%", sm: 200 },
-                                                minWidth: { sm: 200 },
-                                                p: "3px",
-                                                borderRadius: "10px",
-                                                border: "1px solid",
-                                                borderColor: "divider",
-                                                bgcolor: "background.paper",
-                                                opacity: selectionModeDisabledReason ? 0.6 : 1,
-                                            }}
-                                        >
-                                            {ALLOCATION_SELECTION_MODE_OPTIONS.map((option) => {
-                                                const selected = selectionMode === option.value;
-                                                return (
-                                                    <Box
-                                                        key={option.value}
-                                                        component="button"
-                                                        type="button"
-                                                        disabled={!!selectionModeDisabledReason}
-                                                        onClick={() => changeSelectionMode(option.value)}
-                                                        sx={{
-                                                            flex: 1,
-                                                            width: "50%",
-                                                            border: 0,
-                                                            borderRadius: "8px",
-                                                            py: 0.75,
-                                                            px: 1,
-                                                            fontSize: "0.8125rem",
-                                                            fontWeight: selected ? 600 : 500,
-                                                            lineHeight: 1.2,
-                                                            cursor: selectionModeDisabledReason ? "not-allowed" : "pointer",
-                                                            bgcolor: selected ? "action.selected" : "transparent",
-                                                            color: "text.primary",
-                                                            transition: "background-color 0.15s ease",
-                                                            "&:hover": selectionModeDisabledReason
-                                                                ? undefined
-                                                                : {
-                                                                      bgcolor: selected ? "action.selected" : "action.hover",
-                                                                  },
-                                                        }}
-                                                    >
-                                                        {option.label}
-                                                    </Box>
-                                                );
-                                            })}
-                                        </Box>
+                                        <SegmentedControl
+                                            sx={{ width: { xs: "100%", sm: 200 }, minWidth: { sm: 200 } }}
+                                            value={selectionMode}
+                                            onChange={(val) => changeSelectionMode(val as AllocationSelectionMode)}
+                                            options={ALLOCATION_SELECTION_MODE_OPTIONS}
+                                            disabled={!!selectionModeDisabledReason}
+                                        />
                                     </DisabledWithTooltip>
                                 </Stack>
                             )}
