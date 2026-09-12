@@ -192,7 +192,6 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
             />
             {previewUrl || uploadedUrl ? (
                 <div className="relative rounded-xl border border-[#E5E8EB] overflow-hidden bg-[#F9FAFB]">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                         src={previewUrl || uploadedUrl}
                         alt={label}
