@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { PurchasedTicket } from '../../../types/lottery-ticket.type';
 import { formatPrizePayoutCurrency, buildStationOfficeRedemptionMessage, PrizePayoutPreviewResponse } from '../../../types/prize-payout.type';
@@ -11,6 +11,7 @@ import { BankAccountFormModal } from '../refund/BankAccountFormModal';
 import { prizePayoutService } from '../../services/prizePayoutService';
 import dayjs from 'dayjs';
 import { LuckyNumber } from '../ui/LuckyNumber';
+import { AppToast as toast } from '../../../utils/toast.util';
 
 interface PrizePayoutRequestModalProps {
     isOpen: boolean;
@@ -18,17 +19,30 @@ interface PrizePayoutRequestModalProps {
     ticket: PurchasedTicket;
 }
 
+const CCCD_MAX_MB = 10;
+
+const isValidCccdNumber = (raw: string) => /^\d{9,12}$/.test(raw.trim());
+
 export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = ({
     isOpen,
     onClose,
     ticket,
 }) => {
     const router = useRouter();
-    const [step, setStep] = useState<1 | 2>(1);
+    const [step, setStep] = useState<1 | 2 | 3>(1);
     const [bankAccountId, setBankAccountId] = useState<number | ''>('');
     const [showBankForm, setShowBankForm] = useState(false);
     const [preview, setPreview] = useState<PrizePayoutPreviewResponse | null>(null);
     const [previewLoading, setPreviewLoading] = useState(false);
+    const [recipientIdNumber, setRecipientIdNumber] = useState('');
+    const [frontImageUrl, setFrontImageUrl] = useState('');
+    const [backImageUrl, setBackImageUrl] = useState('');
+    const [frontPreview, setFrontPreview] = useState('');
+    const [backPreview, setBackPreview] = useState('');
+    const [uploadingFront, setUploadingFront] = useState(false);
+    const [uploadingBack, setUploadingBack] = useState(false);
+    const frontInputRef = useRef<HTMLInputElement>(null);
+    const backInputRef = useRef<HTMLInputElement>(null);
     const { data: bankAccountsData, isLoading: isLoadingBanks } = useGetBankAccounts(isOpen);
     const createMutation = useCreatePrizePayout();
 
@@ -39,6 +53,11 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
         setStep(1);
         setBankAccountId('');
         setPreview(null);
+        setRecipientIdNumber('');
+        setFrontImageUrl('');
+        setBackImageUrl('');
+        setFrontPreview('');
+        setBackPreview('');
         setPreviewLoading(true);
         prizePayoutService
             .preview({ orderDetailId: ticket.orderDetailId, serialId: ticket.serialId })
@@ -67,13 +86,65 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
 
     if (!isOpen || typeof document === 'undefined') return null;
 
+    const handleUpload = async (file: File, side: 'front' | 'back') => {
+        const maxBytes = CCCD_MAX_MB * 1024 * 1024;
+        if (!file.type.startsWith('image/')) {
+            toast.error('Chỉ chấp nhận file ảnh CCCD');
+            return;
+        }
+        if (file.size > maxBytes) {
+            toast.error(`Ảnh vượt quá ${CCCD_MAX_MB}MB. Vui lòng chọn ảnh nhỏ hơn.`);
+            return;
+        }
+
+        const localPreview = URL.createObjectURL(file);
+        if (side === 'front') {
+            setFrontPreview(localPreview);
+            setUploadingFront(true);
+        } else {
+            setBackPreview(localPreview);
+            setUploadingBack(true);
+        }
+
+        try {
+            const url = await prizePayoutService.uploadRecipientIdImage(file);
+            if (side === 'front') {
+                setFrontImageUrl(url);
+            } else {
+                setBackImageUrl(url);
+            }
+        } catch (error: any) {
+            toast.error(error?.message || 'Tải ảnh CCCD thất bại');
+            if (side === 'front') {
+                setFrontPreview('');
+                setFrontImageUrl('');
+            } else {
+                setBackPreview('');
+                setBackImageUrl('');
+            }
+        } finally {
+            if (side === 'front') setUploadingFront(false);
+            else setUploadingBack(false);
+        }
+    };
+
+    const canContinueIdentity =
+        isValidCccdNumber(recipientIdNumber) &&
+        !!frontImageUrl &&
+        !!backImageUrl &&
+        !uploadingFront &&
+        !uploadingBack;
+
     const handleSubmit = () => {
-        if (bankAccountId === '') return;
+        if (bankAccountId === '' || !canContinueIdentity) return;
         createMutation.mutate(
             {
                 orderDetailId: ticket.orderDetailId,
                 serialId: ticket.serialId,
                 bankAccountId: Number(bankAccountId),
+                recipientIdNumber: recipientIdNumber.trim(),
+                recipientIdImageUrl: frontImageUrl,
+                recipientIdImageBackUrl: backImageUrl,
             },
             {
                 onSuccess: (response) => {
@@ -97,6 +168,73 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
         || ticket.requiresStationOfficeRedemption === true;
     const canContinueOnline = !stationOfficeOnly && (preview == null || preview.canClaimOnline);
 
+    const renderCccdUpload = (
+        side: 'front' | 'back',
+        label: string,
+        previewUrl: string,
+        uploadedUrl: string,
+        uploading: boolean,
+        inputRef: React.RefObject<HTMLInputElement | null>,
+        onClear: () => void,
+    ) => (
+        <div className="flex flex-col gap-2">
+            <span className="text-[13px] font-semibold text-[#212B36]">{label} *</span>
+            <input
+                ref={inputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = '';
+                    if (file) void handleUpload(file, side);
+                }}
+            />
+            {previewUrl || uploadedUrl ? (
+                <div className="relative rounded-xl border border-[#E5E8EB] overflow-hidden bg-[#F9FAFB]">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                        src={previewUrl || uploadedUrl}
+                        alt={label}
+                        className="w-full h-36 object-cover"
+                    />
+                    {uploading && (
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white text-[13px] font-bold">
+                            Đang tải…
+                        </div>
+                    )}
+                    {!uploading && (
+                        <div className="absolute top-2 right-2 flex gap-1">
+                            <button
+                                type="button"
+                                onClick={() => inputRef.current?.click()}
+                                className="px-2 py-1 rounded-lg bg-white/95 text-[12px] font-bold cursor-pointer border-none"
+                            >
+                                Đổi ảnh
+                            </button>
+                            <button
+                                type="button"
+                                onClick={onClear}
+                                className="px-2 py-1 rounded-lg bg-white/95 text-[12px] font-bold text-[#ee1314] cursor-pointer border-none"
+                            >
+                                Xóa
+                            </button>
+                        </div>
+                    )}
+                </div>
+            ) : (
+                <button
+                    type="button"
+                    onClick={() => inputRef.current?.click()}
+                    disabled={uploading}
+                    className="h-36 rounded-xl border border-dashed border-[#DFE3E8] bg-[#F9FAFB] text-[#637381] text-[13px] font-medium cursor-pointer disabled:opacity-50"
+                >
+                    Chọn ảnh {label.toLowerCase()}
+                </button>
+            )}
+        </div>
+    );
+
     return createPortal(
         <div className="fixed inset-0 z-[9998] flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
             <div className="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto">
@@ -108,7 +246,7 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
                 </div>
 
                 <div className="px-5 pt-4 pb-2 flex gap-2">
-                    {[1, 2].map((s) => (
+                    {[1, 2, 3].map((s) => (
                         <div
                             key={s}
                             className={`flex-1 h-1 rounded-full ${step >= s ? 'bg-[#ee1314]' : 'bg-[#E5E8EB]'}`}
@@ -180,6 +318,72 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
                             Tiếp tục
                         </button>
                     </div>
+                ) : step === 2 ? (
+                    <div className="p-5 flex flex-col gap-4">
+                        <p className="text-[14px] text-[#637381]">
+                            Xác minh danh tính — tải CCCD mặt trước, mặt sau và nhập số CCCD
+                        </p>
+                        <label className="flex flex-col gap-1.5">
+                            <span className="text-[13px] font-semibold text-[#212B36]">Số CCCD / CMND *</span>
+                            <input
+                                type="text"
+                                inputMode="numeric"
+                                value={recipientIdNumber}
+                                onChange={(e) => setRecipientIdNumber(e.target.value.replace(/\D/g, '').slice(0, 12))}
+                                placeholder="Nhập 9–12 chữ số"
+                                className="w-full px-3 py-2.5 rounded-xl border border-[#E5E8EB] text-[14px] outline-none focus:border-[#ee1314]"
+                            />
+                            {recipientIdNumber.length > 0 && !isValidCccdNumber(recipientIdNumber) && (
+                                <span className="text-[12px] text-[#ee1314]">Số CCCD/CMND phải đủ 9 đến 12 chữ số</span>
+                            )}
+                        </label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {renderCccdUpload(
+                                'front',
+                                'CCCD mặt trước',
+                                frontPreview,
+                                frontImageUrl,
+                                uploadingFront,
+                                frontInputRef,
+                                () => {
+                                    setFrontPreview('');
+                                    setFrontImageUrl('');
+                                },
+                            )}
+                            {renderCccdUpload(
+                                'back',
+                                'CCCD mặt sau',
+                                backPreview,
+                                backImageUrl,
+                                uploadingBack,
+                                backInputRef,
+                                () => {
+                                    setBackPreview('');
+                                    setBackImageUrl('');
+                                },
+                            )}
+                        </div>
+                        <p className="text-[12px] text-[#919EAB] m-0">
+                            Ảnh CCCD dùng để nhân viên đối chiếu khi duyệt trả thưởng trực tuyến.
+                        </p>
+                        <div className="flex gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setStep(1)}
+                                className="flex-1 py-3 border border-[#E5E8EB] rounded-xl font-bold cursor-pointer"
+                            >
+                                Quay lại
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setStep(3)}
+                                disabled={!canContinueIdentity}
+                                className="flex-1 py-3 bg-[#ee1314] text-white font-bold rounded-xl cursor-pointer disabled:opacity-50"
+                            >
+                                Tiếp tục
+                            </button>
+                        </div>
+                    </div>
                 ) : (
                     <div className="p-5 flex flex-col gap-4">
                         <p className="text-[14px] text-[#637381]">Chọn tài khoản nhận thưởng</p>
@@ -233,7 +437,7 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
                         <div className="flex gap-2">
                             <button
                                 type="button"
-                                onClick={() => setStep(1)}
+                                onClick={() => setStep(2)}
                                 className="flex-1 py-3 border border-[#E5E8EB] rounded-xl font-bold cursor-pointer"
                             >
                                 Quay lại
@@ -241,7 +445,7 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
                             <button
                                 type="button"
                                 onClick={handleSubmit}
-                                disabled={bankAccountId === '' || createMutation.isPending}
+                                disabled={bankAccountId === '' || createMutation.isPending || !canContinueIdentity}
                                 className="flex-1 py-3 bg-[#ee1314] text-white font-bold rounded-xl cursor-pointer disabled:opacity-50"
                             >
                                 {createMutation.isPending ? 'Đang gửi…' : 'Gửi yêu cầu'}

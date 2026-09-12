@@ -505,16 +505,23 @@ export const PrizePayoutDetailPage = () => {
                                     <AdminLuckyDisplay value={detail.numbers} ticket sx={{ fontWeight: 700, fontSize: '1rem' }} />
                                 </Grid>
 
-                                {(detail.recipientFullName || detail.recipientIdNumber) && (
+                                {(detail.recipientFullName ||
+                                    detail.recipientIdNumber ||
+                                    detail.recipientIdImageUrl ||
+                                    detail.recipientIdImageBackUrl) && (
                                     <>
-                                        <Grid size={{ xs: 12, sm: 6 }}>
-                                            <FieldLabel>Người nhận</FieldLabel>
-                                            <FieldValue>{detail.recipientFullName || '—'}</FieldValue>
-                                        </Grid>
-                                        <Grid size={{ xs: 12, sm: 6 }}>
-                                            <FieldLabel>CCCD (masked)</FieldLabel>
-                                            <FieldValue>{detail.recipientIdNumber || '—'}</FieldValue>
-                                        </Grid>
+                                        {detail.recipientFullName ? (
+                                            <Grid size={{ xs: 12, sm: 6 }}>
+                                                <FieldLabel>Người nhận</FieldLabel>
+                                                <FieldValue>{detail.recipientFullName}</FieldValue>
+                                            </Grid>
+                                        ) : null}
+                                        {detail.recipientIdNumber ? (
+                                            <Grid size={{ xs: 12, sm: detail.recipientFullName ? 6 : 12 }}>
+                                                <FieldLabel>Số CCCD / CMND</FieldLabel>
+                                                <FieldValue>{detail.recipientIdNumber}</FieldValue>
+                                            </Grid>
+                                        ) : null}
                                         {detail.recipientIdImageUrl || detail.recipientIdImageBackUrl ? (
                                             <Grid size={{ xs: 12 }}>
                                                 <FieldLabel>Ảnh CCCD</FieldLabel>
