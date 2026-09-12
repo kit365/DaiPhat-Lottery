@@ -152,10 +152,46 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
     }
   }
 
+  Future<ImageSource?> _chooseImageSource() {
+    return showModalBottomSheet<ImageSource>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt_rounded),
+                title: Text(
+                  'Chụp ảnh',
+                  style: AppTypography.mainWith(fontWeight: FontWeight.w600),
+                ),
+                onTap: () => Navigator.of(context).pop(ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_rounded),
+                title: Text(
+                  'Chọn từ thư viện',
+                  style: AppTypography.mainWith(fontWeight: FontWeight.w600),
+                ),
+                onTap: () => Navigator.of(context).pop(ImageSource.gallery),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _pickAndUpload(bool front) async {
+    final source = await _chooseImageSource();
+    if (source == null || !mounted) return;
+
     final picker = ImagePicker();
     final picked = await picker.pickImage(
-      source: ImageSource.gallery,
+      source: source,
       imageQuality: 85,
       maxWidth: 2000,
     );
@@ -655,12 +691,24 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
                     Image.file(File(localPath), fit: BoxFit.cover)
                   else
                     Center(
-                      child: Text(
-                        'Chọn ảnh',
-                        style: AppTypography.mainWith(
-                          fontSize: 12,
-                          color: AppColors.contentNeutral,
-                        ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.add_a_photo_outlined,
+                            size: 22,
+                            color: AppColors.contentNeutral,
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Chụp / chọn ảnh',
+                            textAlign: TextAlign.center,
+                            style: AppTypography.mainWith(
+                              fontSize: 12,
+                              color: AppColors.contentNeutral,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   if (uploading)
