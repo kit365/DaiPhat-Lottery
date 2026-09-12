@@ -709,6 +709,10 @@ public class Phu123Win50SeedInitializer implements ApplicationRunner {
     }
 
     private void resetPreviousSeedData() {
+        // Prize payout requests FK to order_details; clear them before cascading order delete.
+        lotterySerialSeedCleanup.clearPayoutDependentsForOrderCodePrefix(
+                Phu123Win50SeedCatalog.ORDER_CODE_PREFIX);
+
         List<OrderEntity> seedOrders =
                 orderRepository.findByOrderCodeStartingWith(Phu123Win50SeedCatalog.ORDER_CODE_PREFIX);
         if (!seedOrders.isEmpty()) {
