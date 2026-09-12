@@ -787,7 +787,6 @@ export const ImportBatchCreatePage = () => {
                                             control={control}
                                             render={({ field }) => (
                                                 <SelectSingle
-                                                    fullWidth
                                                     label="Nhà cung cấp *"
                                                     {...field}
                                                     value={field.value ? String(field.value) : ''}
