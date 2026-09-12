@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/dp-75-chats
   pull_request:
     branches:
       - main
@@ -46,8 +47,52 @@ jobs:
             exit 1
           fi
 
+      - name: Restore Android signing key
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "Missing secret ANDROID_KEYSTORE_BASE64."
+            exit 1
+          fi
+          if [ -z "$ANDROID_KEYSTORE_PASSWORD" ]; then
+            echo "Missing secret ANDROID_KEYSTORE_PASSWORD."
+            exit 1
+          fi
+          if [ -z "$ANDROID_KEY_ALIAS" ]; then
+            echo "Missing secret ANDROID_KEY_ALIAS."
+            exit 1
+          fi
+          if [ -z "$ANDROID_KEY_PASSWORD" ]; then
+            echo "Missing secret ANDROID_KEY_PASSWORD."
+            exit 1
+          fi
+
+          mkdir -p android/app
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/key.jks
+          chmod 600 android/app/key.jks
+
+          {
+            printf 'storePassword=%s\n' "$ANDROID_KEYSTORE_PASSWORD"
+            printf 'keyPassword=%s\n' "$ANDROID_KEY_PASSWORD"
+            printf 'keyAlias=%s\n' "$ANDROID_KEY_ALIAS"
+            printf 'storeFile=key.jks\n'
+          } > android/key.properties
+
       - name: Install dependencies
         run: flutter pub get
 
       - name: Build APK
         run: flutter build apk --release --build-name=1.0.0 --build-number=1
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: daiphat-mobile-release-apk
+          path: daiphat_mobile/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+
+      
