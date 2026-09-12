@@ -183,11 +183,7 @@ export function FortuneCastPage() {
   const jarRef = useRef<HTMLDivElement>(null);
   const fireworksStopRef = useRef<(() => void) | null>(null);
 
-  // Tạm tắt khóa lượt để test gieo liên tục — nhớ bật lại trước khi ship.
-  const skipDailyLimit = true;
-  const alreadyCastToday = skipDailyLimit
-    ? false
-    : hasCastToday || Boolean(result?.alreadyCastToday);
+  const alreadyCastToday = hasCastToday || Boolean(result?.alreadyCastToday);
   const profileHasDob = Boolean(user?.dob);
   const showCastSetup =
     Boolean(token) &&
