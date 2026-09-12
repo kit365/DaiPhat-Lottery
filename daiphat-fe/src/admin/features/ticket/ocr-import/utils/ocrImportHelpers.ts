@@ -368,7 +368,7 @@ export const mapScannedTicketToReviewRow = (
         key: `${scanId ?? 'local'}-${ticket.ticketIndex}-${ticket.ocrScanResultId ?? sourceImageId}`,
         sourceImageId,
         sourceFileName,
-        sourcePreviewUrl: sourcePreviewUrl ?? null,
+        sourcePreviewUrl: sourcePreviewUrl ?? ticket.sourceImageUrl ?? null,
         scanId: scanId ?? null,
         ticketIndex: ticket.ticketIndex,
         ocrScanResultId: ticket.ocrScanResultId ?? null,
@@ -395,6 +395,7 @@ export const mapScannedTicketToReviewRow = (
         businessValidationErrors: normalizeOcrWarningList(ticket.businessValidationErrors),
         duplicate: Boolean(ticket.duplicate),
         croppedImageBase64: ticket.croppedImageBase64 ?? null,
+        croppedImageUrl: ticket.croppedImageUrl ?? null,
         selected:
             (status === 'COMPLETE' || overall === 'VALID') &&
             !ticket.duplicate &&
@@ -461,6 +462,7 @@ export const createFailedReviewRow = (
         businessValidationErrors: [message],
         duplicate: false,
         croppedImageBase64: null,
+        croppedImageUrl: null,
         selected: false,
         edited: false,
     };
@@ -486,17 +488,44 @@ export const buildReviewImageGroups = (
     }>,
     rows: OcrReviewRow[]
 ): OcrReviewImageGroup[] => {
-    return images.map((image) => {
-        const imageRows = rows.filter((row) => row.sourceImageId === image.id);
-        return {
-            imageId: image.id,
-            fileName: image.file.name,
-            previewUrl: image.previewUrl,
-            rows: imageRows,
-            imageStatus: image.status,
-            imageError: image.error ?? null,
-        };
-    });
+    if (images.length > 0) {
+        return images.map((image) => {
+            const imageRows = rows.filter((row) => row.sourceImageId === image.id);
+            return {
+                imageId: image.id,
+                fileName: image.file.name,
+                previewUrl: image.previewUrl,
+                rows: imageRows,
+                imageStatus: image.status,
+                imageError: image.error ?? null,
+            };
+        });
+    }
+
+    // Resume path: images were not restored as File blobs, but rows may still
+    // carry durable sourcePreviewUrl / croppedImageBase64 from a prior scan.
+    const byImageId = new Map<string, OcrReviewImageGroup>();
+    for (const row of rows) {
+        const imageId = row.sourceImageId || `row-${row.key}`;
+        const existing = byImageId.get(imageId);
+        const previewUrl = row.sourcePreviewUrl || '';
+        if (!existing) {
+            byImageId.set(imageId, {
+                imageId,
+                fileName: row.sourceFileName || 'Ảnh đã quét',
+                previewUrl,
+                rows: [row],
+                imageStatus: row.status === 'FAILED' ? 'error' : 'done',
+                imageError: row.businessValidationErrors?.[0] ?? null,
+            });
+        } else {
+            existing.rows.push(row);
+            if (!existing.previewUrl && previewUrl) {
+                existing.previewUrl = previewUrl;
+            }
+        }
+    }
+    return Array.from(byImageId.values());
 };
 
 export const getUnreadableFieldCaption = (
@@ -636,7 +665,7 @@ export const ocrFieldUiChipColor = (
 export const getOverallValidationLabel = (status?: string | null): string => {
     switch (status) {
         case 'VALID':
-            return 'Hợp lệ hệ thống';
+            return 'Hợp lệ';
         case 'NEEDS_REVIEW':
             return 'Cần kiểm tra';
         case 'INVALID':
@@ -646,10 +675,41 @@ export const getOverallValidationLabel = (status?: string | null): string => {
     }
 };
 
+export const getScanLogEventLabel = (
+    eventType: string
+): { label: string; color: 'success' | 'error' | 'warning' | 'info' | 'default' } => {
+    switch (eventType) {
+        case 'OCR_COMPLETED':
+            return { label: 'Quét thành công', color: 'success' };
+        case 'OCR_FAILED':
+            return { label: 'Quét thất bại', color: 'error' };
+        case 'MANUAL_OVERRIDE':
+            return { label: 'Chỉnh sửa tay', color: 'info' };
+        case 'AUTO_IMPORTED':
+            return { label: 'Đã nhập kho tự động', color: 'success' };
+        case 'IMAGE_UPLOADED':
+            return { label: 'Tải ảnh lên', color: 'default' };
+        default:
+            return { label: eventType, color: 'default' };
+    }
+};
+
+export const getScanLogMethodLabel = (method?: string | null): string => {
+    if (!method) return '—';
+    switch (method) {
+        case 'OCR_SCAN':
+            return 'Nhận diện ảnh';
+        case 'MANUAL':
+            return 'Nhập thủ công';
+        default:
+            return method;
+    }
+};
+
 export const buildTicketOverlayLabel = (row: OcrReviewRow): string => {
     const serial = row.serialNumber?.trim() || '—';
     const numbers = row.numbers?.trim() || '—';
-    return `#${row.ticketIndex + 1} - Serial: ${serial} - Number: ${numbers}`;
+    return `#${row.ticketIndex + 1} - Sê-ri: ${serial} - Số: ${numbers}`;
 };
 
 export const formatTicketPriceDisplay = (value?: string | null): string => {
@@ -665,7 +725,7 @@ export const formatTicketPriceDisplay = (value?: string | null): string => {
         return trimmed;
     }
     const grouped = Number(digits).toLocaleString('vi-VN');
-    return `${grouped} VND`;
+    return `${grouped} đ`;
 };
 
 /** Lower OCR confidence → stronger visual emphasis. */
@@ -687,10 +747,10 @@ export const getConfidenceEmphasis = (confidence?: number | null): ConfidenceEmp
 
 export const OCR_FIELD_KEYS = [
     'stationName',
-    'batchCode',
+    'drawDate',
     'numbers',
     'serialNumber',
-    'drawDate',
+    'batchCode',
     'ticketType',
 ] as const;
 
@@ -698,9 +758,9 @@ export type OcrFieldKey = (typeof OCR_FIELD_KEYS)[number];
 
 export const OCR_FIELD_LABELS: Record<OcrFieldKey, string> = {
     stationName: 'Nhà đài',
-    batchCode: 'Batch code',
-    numbers: 'Dãy số',
-    serialNumber: 'Serial',
-    drawDate: 'Ngày xổ',
-    ticketType: 'Giá vé',
+    drawDate: 'Ngày mở thưởng',
+    numbers: 'Dãy số vé',
+    serialNumber: 'Số sê-ri',
+    batchCode: 'Mã lô (Ký hiệu)',
+    ticketType: 'Mệnh giá',
 };

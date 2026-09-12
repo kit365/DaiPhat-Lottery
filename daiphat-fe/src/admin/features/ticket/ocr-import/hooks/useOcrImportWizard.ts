@@ -14,6 +14,7 @@ import {
     confirmOcrImport,
     correctOcrScanResultFields,
     getLotteryScanLogs,
+    listOcrScanResults,
     scanTicketImage,
     type OcrFieldCorrectionPayload,
 } from '../services/ticketOcrService';
@@ -60,16 +61,27 @@ const newImageId = () =>
         ? crypto.randomUUID()
         : `img-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
+/**
+ * Prefer localStorage so unfinished OCR reviews survive tab refresh / closing the dialog.
+ * Falls back to reading legacy sessionStorage drafts once, then migrates them.
+ */
 const readDraft = (): OcrImportDraft | null => {
     if (typeof window === 'undefined') {
         return null;
     }
     try {
-        const raw = sessionStorage.getItem(OCR_IMPORT_DRAFT_KEY);
+        const raw =
+            localStorage.getItem(OCR_IMPORT_DRAFT_KEY) ??
+            sessionStorage.getItem(OCR_IMPORT_DRAFT_KEY);
         if (!raw) {
             return null;
         }
-        return JSON.parse(raw) as OcrImportDraft;
+        const draft = JSON.parse(raw) as OcrImportDraft;
+        if (!localStorage.getItem(OCR_IMPORT_DRAFT_KEY) && sessionStorage.getItem(OCR_IMPORT_DRAFT_KEY)) {
+            localStorage.setItem(OCR_IMPORT_DRAFT_KEY, raw);
+            sessionStorage.removeItem(OCR_IMPORT_DRAFT_KEY);
+        }
+        return draft;
     } catch {
         return null;
     }
@@ -79,14 +91,125 @@ const writeDraft = (draft: OcrImportDraft) => {
     if (typeof window === 'undefined') {
         return;
     }
-    sessionStorage.setItem(OCR_IMPORT_DRAFT_KEY, JSON.stringify(draft));
+    const raw = JSON.stringify(draft);
+    localStorage.setItem(OCR_IMPORT_DRAFT_KEY, raw);
+    sessionStorage.removeItem(OCR_IMPORT_DRAFT_KEY);
 };
 
 const clearDraftStorage = () => {
     if (typeof window === 'undefined') {
         return;
     }
+    localStorage.removeItem(OCR_IMPORT_DRAFT_KEY);
     sessionStorage.removeItem(OCR_IMPORT_DRAFT_KEY);
+};
+
+const isDurableImageUrl = (url?: string | null): url is string =>
+    Boolean(url && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')));
+
+const rebuildImagesFromDraft = (
+    imageMeta: OcrImportDraft['imageMeta'],
+    rows: OcrReviewRow[]
+): OcrQueuedImage[] => {
+    const byId = new Map<string, OcrQueuedImage>();
+
+    for (const meta of imageMeta ?? []) {
+        const rowMatch = rows.find((row) => row.sourceImageId === meta.id);
+        const previewUrl =
+            (isDurableImageUrl(meta.previewUrl) ? meta.previewUrl : null) ||
+            (isDurableImageUrl(rowMatch?.sourcePreviewUrl) ? rowMatch?.sourcePreviewUrl : null) ||
+            null;
+        if (!previewUrl) {
+            continue;
+        }
+        byId.set(meta.id, {
+            id: meta.id,
+            file: new File([], meta.fileName || 'restored-scan.jpg', { type: 'image/jpeg' }),
+            previewUrl,
+            status: 'done',
+            scanId: meta.scanId ?? rowMatch?.scanId ?? null,
+            imageWidth: meta.imageWidth ?? rowMatch?.imageWidth ?? null,
+            imageHeight: meta.imageHeight ?? rowMatch?.imageHeight ?? null,
+        });
+    }
+
+    for (const row of rows) {
+        if (byId.has(row.sourceImageId)) {
+            continue;
+        }
+        const previewUrl =
+            (isDurableImageUrl(row.sourcePreviewUrl) ? row.sourcePreviewUrl : null) ||
+            null;
+        if (!previewUrl) {
+            continue;
+        }
+        byId.set(row.sourceImageId, {
+            id: row.sourceImageId,
+            file: new File([], row.sourceFileName || 'restored-scan.jpg', { type: 'image/jpeg' }),
+            previewUrl,
+            status: row.status === 'FAILED' ? 'error' : 'done',
+            error: row.businessValidationErrors?.[0] ?? null,
+            scanId: row.scanId ?? null,
+            imageWidth: row.imageWidth ?? null,
+            imageHeight: row.imageHeight ?? null,
+        });
+    }
+
+    return Array.from(byId.values());
+};
+
+const hydrateRowsWithPersistedImages = async (rows: OcrReviewRow[]): Promise<OcrReviewRow[]> => {
+    const scanIds = Array.from(
+        new Set(rows.map((row) => row.scanId).filter((id): id is string => Boolean(id)))
+    );
+    if (scanIds.length === 0) {
+        return rows;
+    }
+
+    const byOcrId = new Map<number, { sourceImageUrl?: string | null; croppedImageUrl?: string | null }>();
+    await Promise.all(
+        scanIds.map(async (scanId) => {
+            try {
+                const results = await listOcrScanResults({ scanId });
+                for (const result of results ?? []) {
+                    if (result?.id != null) {
+                        byOcrId.set(result.id, {
+                            sourceImageUrl: result.sourceImageUrl ?? null,
+                            croppedImageUrl: result.croppedImageUrl ?? null,
+                        });
+                    }
+                }
+            } catch {
+                // Best-effort: keep draft URLs if API hydrate fails.
+            }
+        })
+    );
+
+    if (byOcrId.size === 0) {
+        return rows;
+    }
+
+    return rows.map((row) => {
+        if (!row.ocrScanResultId) {
+            return row;
+        }
+        const persisted = byOcrId.get(row.ocrScanResultId);
+        if (!persisted) {
+            return row;
+        }
+        const sourcePreviewUrl =
+            (isDurableImageUrl(persisted.sourceImageUrl) ? persisted.sourceImageUrl : null) ||
+            (isDurableImageUrl(row.sourcePreviewUrl) ? row.sourcePreviewUrl : null);
+        const croppedImageUrl =
+            (isDurableImageUrl(persisted.croppedImageUrl) ? persisted.croppedImageUrl : null) ||
+            row.croppedImageUrl ||
+            null;
+        return {
+            ...row,
+            sourcePreviewUrl,
+            croppedImageUrl,
+        };
+    });
 };
 
 export const useOcrImportWizard = ({
@@ -122,6 +245,7 @@ export const useOcrImportWizard = ({
         Record<string, { id: number; name: string; code?: string; price?: number }[]>
     >({});
     const [stationPriceById, setStationPriceById] = useState<Map<number, number>>(new Map());
+    const [savedDraft, setSavedDraft] = useState<OcrImportDraft | null>(null);
 
     const restoredRef = useRef(false);
     const onDraftRestoredRef = useRef(onDraftRestored);
@@ -161,7 +285,7 @@ export const useOcrImportWizard = ({
         setPrefillLineOption(null);
         setStationsByDrawDate({});
         setStationPriceById(new Map());
-        restoredRef.current = false;
+        // Keep restoredRef / savedDraft intact so "xem lại kết quả cũ" still works after reopen.
     }, [prefillBatch]);
 
     const loadBatchOptions = useCallback(async () => {
@@ -202,8 +326,7 @@ export const useOcrImportWizard = ({
     }, [prefillBatch, prefillLine]);
 
     const applyDraft = useCallback(
-        (draft: OcrImportDraft, overrideBatchId?: number | null) => {
-            setStep(draft.step === 'result' ? 'importMode' : draft.step);
+        (draft: OcrImportDraft, overrideBatchId?: number | null, targetStep?: OcrWizardStep) => {
             setImportMode(draft.importMode ?? 'AUTO');
             setDraftIntent(
                 draft.draftIntent ??
@@ -218,12 +341,21 @@ export const useOcrImportWizard = ({
                 overrideBatchId ?? draft.selectedImportBatchId ?? null
             );
             setForceCreate(Boolean(draft.forceCreate));
-            setRows(draft.rows ?? []);
-            setImages([]);
+            const nextRows = (draft.rows ?? []).map((row) => ({
+                ...row,
+                // Prefer durable https/data URLs; drop dead blob: previews from prior sessions.
+                sourcePreviewUrl:
+                    row.sourcePreviewUrl && !row.sourcePreviewUrl.startsWith('blob:')
+                        ? row.sourcePreviewUrl
+                        : null,
+            }));
+            setRows(nextRows);
+            setImages((prev) => {
+                prev.forEach((image) => URL.revokeObjectURL(image.previewUrl));
+                return rebuildImagesFromDraft(draft.imageMeta ?? [], nextRows);
+            });
             setImportResult(null);
-            if (draft.step === 'review' || draft.step === 'importMode' || draft.step === 'result') {
-                setStep('importMode');
-            }
+            setStep(targetStep ?? (draft.step === 'result' ? 'importMode' : draft.step));
         },
         []
     );
@@ -241,8 +373,8 @@ export const useOcrImportWizard = ({
 
         if (restoreFromDraft) {
             const draft = readDraft();
-            if (draft) {
-                applyDraft(draft, restoreSelectedImportBatchId);
+            if (draft && draft.rows && draft.rows.length > 0) {
+                applyDraft(draft, restoreSelectedImportBatchId, 'importMode');
                 writeDraft({
                     ...draft,
                     pendingRestore: false,
@@ -250,6 +382,7 @@ export const useOcrImportWizard = ({
                         restoreSelectedImportBatchId ?? draft.selectedImportBatchId,
                     step: 'importMode',
                 });
+                setSavedDraft(null);
                 onDraftRestoredRef.current?.();
                 void loadBatchOptions();
                 return;
@@ -257,10 +390,64 @@ export const useOcrImportWizard = ({
         }
 
         reset();
+        const draft = readDraft();
+        if (draft && Array.isArray(draft.rows) && draft.rows.length > 0) {
+            setSavedDraft(draft);
+            if (draft.supplierId != null) {
+                setSupplierId(draft.supplierId);
+            }
+        } else {
+            setSavedDraft(null);
+        }
         void loadBatchOptions();
         // Intentionally depend on `open` primarily; restore flags are read on first open only.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open]);
+
+    const resumePreviousScan = useCallback(() => {
+        const resumeFromDraft = async () => {
+            const draft = savedDraft || readDraft();
+            if (!draft || !draft.rows || draft.rows.length === 0) {
+                toast.info('Không còn kết quả quét chưa nhập kho để xem lại.');
+                return;
+            }
+
+            const hydratedRows = await hydrateRowsWithPersistedImages(draft.rows);
+            const hydratedDraft: OcrImportDraft = {
+                ...draft,
+                rows: hydratedRows,
+                imageMeta: (draft.imageMeta ?? []).map((meta) => {
+                    const row = hydratedRows.find((item) => item.sourceImageId === meta.id);
+                    return {
+                        ...meta,
+                        previewUrl:
+                            (isDurableImageUrl(meta.previewUrl) ? meta.previewUrl : null) ||
+                            (isDurableImageUrl(row?.sourcePreviewUrl) ? row?.sourcePreviewUrl : null) ||
+                            null,
+                    };
+                }),
+            };
+            applyDraft(hydratedDraft, null, 'review');
+            writeDraft(hydratedDraft);
+            setSavedDraft(hydratedDraft);
+        };
+
+        if (rows.length > 0 && images.some((image) => Boolean(image.previewUrl))) {
+            setStep('review');
+            return;
+        }
+        void resumeFromDraft();
+    }, [rows, images, savedDraft, applyDraft]);
+
+    const discardPreviousScan = useCallback(() => {
+        clearDraftStorage();
+        setSavedDraft(null);
+        setRows([]);
+        setImages((prev) => {
+            prev.forEach((image) => URL.revokeObjectURL(image.previewUrl));
+            return [];
+        });
+    }, []);
 
     useEffect(() => {
         return () => {
@@ -279,10 +466,22 @@ export const useOcrImportWizard = ({
             selectedImportBatchId,
             forceCreate,
             draftIntent,
-            rows,
+            rows: rows.map((row) => ({
+                ...row,
+                sourcePreviewUrl: isDurableImageUrl(row.sourcePreviewUrl)
+                    ? row.sourcePreviewUrl
+                    : null,
+                croppedImageBase64: isDurableImageUrl(row.croppedImageUrl)
+                    ? null
+                    : row.croppedImageBase64 ?? null,
+            })),
             imageMeta: images.map((image) => ({
                 id: image.id,
                 fileName: image.file.name,
+                previewUrl: isDurableImageUrl(image.previewUrl) ? image.previewUrl : null,
+                scanId: image.scanId ?? null,
+                imageWidth: image.imageWidth ?? null,
+                imageHeight: image.imageHeight ?? null,
             })),
             pendingRestore: true,
             ...overrides,
@@ -301,6 +500,18 @@ export const useOcrImportWizard = ({
         ]
     );
 
+    const persistUnimportedDraft = useCallback(() => {
+        if (rows.length === 0 || step === 'result') {
+            return;
+        }
+        const snapshot = buildDraftSnapshot({
+            step: step === 'upload' ? 'review' : step,
+            pendingRestore: false,
+        });
+        writeDraft(snapshot);
+        setSavedDraft(snapshot);
+    }, [rows.length, step, buildDraftSnapshot]);
+
     const saveDraftForCreateBatch = useCallback(() => {
         writeDraft(
             buildDraftSnapshot({
@@ -314,6 +525,7 @@ export const useOcrImportWizard = ({
 
     const clearDraft = useCallback(() => {
         clearDraftStorage();
+        setSavedDraft(null);
     }, []);
 
     const addImages = useCallback((files: FileList | File[]) => {
@@ -359,9 +571,18 @@ export const useOcrImportWizard = ({
         }
 
         setScanning(true);
-        const nextRows: OcrReviewRow[] = [];
+            const nextRows: OcrReviewRow[] = [];
         const nextImages = [...images];
         const softLineId = prefillLineOption?.lineId;
+
+        const compactRowsForDraft = (rowsToStore: OcrReviewRow[]): OcrReviewRow[] =>
+            rowsToStore.map((row) => ({
+                ...row,
+                // Prefer durable URL; drop large base64 payloads from localStorage drafts.
+                croppedImageBase64: isDurableImageUrl(row.croppedImageUrl)
+                    ? null
+                    : row.croppedImageBase64 ?? null,
+            }));
 
         for (let index = 0; index < nextImages.length; index += 1) {
             const image = nextImages[index];
@@ -374,12 +595,20 @@ export const useOcrImportWizard = ({
                 if (!data) {
                     throw new Error(response.message || 'Không nhận được kết quả OCR.');
                 }
+                const durablePreview =
+                    (data.sourceImageUrl && data.sourceImageUrl.trim()) ||
+                    data.tickets?.find((ticket) => ticket.sourceImageUrl)?.sourceImageUrl ||
+                    image.previewUrl;
+                if (durablePreview !== image.previewUrl && image.previewUrl.startsWith('blob:')) {
+                    URL.revokeObjectURL(image.previewUrl);
+                }
                 nextImages[index] = {
                     ...nextImages[index],
                     status: 'done',
                     scanId: data.scanId,
                     imageWidth: data.imageWidth ?? null,
                     imageHeight: data.imageHeight ?? null,
+                    previewUrl: durablePreview,
                     error: null,
                 };
                 const tickets = data.tickets ?? [];
@@ -393,7 +622,7 @@ export const useOcrImportWizard = ({
                         createFailedReviewRow(
                             image.id,
                             image.file.name,
-                            image.previewUrl,
+                            durablePreview,
                             reason
                         )
                     );
@@ -405,7 +634,7 @@ export const useOcrImportWizard = ({
                                 image.id,
                                 image.file.name,
                                 data.scanId,
-                                image.previewUrl,
+                                ticket.sourceImageUrl || durablePreview,
                                 data.imageWidth,
                                 data.imageHeight
                             )
@@ -450,7 +679,39 @@ export const useOcrImportWizard = ({
         setScanning(false);
         setStep('review');
         setImages(nextImages);
-    }, [images, prefillLineOption]);
+        const draftSnapshot: OcrImportDraft = {
+            step: 'review',
+            importMode,
+            supplierId,
+            invoiceEvidenceUrl,
+            ticketListImageUrl,
+            selectedImportBatchId,
+            forceCreate,
+            draftIntent,
+            rows: compactRowsForDraft(nextRows),
+            imageMeta: nextImages.map((img) => ({
+                id: img.id,
+                fileName: img.file.name,
+                previewUrl: isDurableImageUrl(img.previewUrl) ? img.previewUrl : null,
+                scanId: img.scanId ?? null,
+                imageWidth: img.imageWidth ?? null,
+                imageHeight: img.imageHeight ?? null,
+            })),
+            pendingRestore: false,
+        };
+        writeDraft(draftSnapshot);
+        setSavedDraft(draftSnapshot);
+    }, [
+        images,
+        prefillLineOption,
+        importMode,
+        supplierId,
+        invoiceEvidenceUrl,
+        ticketListImageUrl,
+        selectedImportBatchId,
+        forceCreate,
+        draftIntent,
+    ]);
 
     const updateRow = useCallback((key: string, patch: Partial<OcrReviewRow>) => {
         setRows((prev) => {
@@ -643,8 +904,11 @@ export const useOcrImportWizard = ({
             );
             return;
         }
+        const snapshot = buildDraftSnapshot({ step: 'importMode', pendingRestore: false });
+        writeDraft(snapshot);
+        setSavedDraft(snapshot);
         setStep('importMode');
-    }, [rows, isRowConfirmable]);
+    }, [rows, isRowConfirmable, buildDraftSnapshot]);
 
     const loadScanLogs = useCallback(async () => {
         const ocrIds = rows
@@ -827,9 +1091,17 @@ export const useOcrImportWizard = ({
         selectedImportBatchId,
     ]);
 
+    const previousScanRowsCount = rows.length > 0 ? rows.length : (savedDraft?.rows?.length ?? 0);
+    const hasPreviousScan = previousScanRowsCount > 0;
+
     return {
         step,
         setStep,
+        hasPreviousScan,
+        previousScanRowsCount,
+        resumePreviousScan,
+        discardPreviousScan,
+        persistUnimportedDraft,
         loadingBatches,
         batchOptions,
         prefillLineOption,
