@@ -131,6 +131,8 @@ public class TicketScanImportService implements TicketScanImportServicePort {
             throw new DomainException(ErrorCode.TICKET_SCAN_IMAGE_REQUIRED, e.getMessage());
         }
 
+        String sourceImageUrl = uploadOriginalScanImage(imageBytes, file.getOriginalFilename(), file.getContentType());
+
         lotteryScanLogServicePort.recordEvent(
                 ScanEventType.SCAN_STARTED, null, null, operatorId, ScanMethod.OCR_SCAN, null,
                 importBatchLineId != null
@@ -165,6 +167,7 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                         importBatchLineId,
                         operatorId,
                         file.getOriginalFilename(),
+                        sourceImageUrl,
                         remoteResult.imageWidth(),
                         remoteResult.imageHeight()
                 ));
@@ -180,6 +183,7 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                         remoteTicket,
                         remoteResult.scanId(),
                         file.getOriginalFilename(),
+                        sourceImageUrl,
                         remoteResult.imageWidth(),
                         remoteResult.imageHeight()
                 ));
@@ -192,6 +196,7 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                     importBatchLineId,
                     operatorId,
                     file.getOriginalFilename(),
+                    sourceImageUrl,
                     remoteResult.imageWidth(),
                     remoteResult.imageHeight(),
                     warnings
@@ -217,6 +222,7 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                 .warnings(warnings)
                 .imageWidth(remoteResult.imageWidth())
                 .imageHeight(remoteResult.imageHeight())
+                .sourceImageUrl(sourceImageUrl)
                 .build();
     }
 
@@ -481,6 +487,7 @@ public class TicketScanImportService implements TicketScanImportServicePort {
             Long importBatchLineId,
             UUID operatorId,
             String sourceImageName,
+            String sourceImageUrl,
             Integer scanImageWidth,
             Integer scanImageHeight
     ) {
@@ -514,7 +521,7 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                 .map(t -> t.getId())
                 .orElse(null);
 
-        Long ocrScanResultId = persistOcrScanResult(
+        PersistedOcrScanResult persistResult = persistOcrScanResult(
                 remote,
                 resolvedStationId,
                 templateId,
@@ -524,9 +531,12 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                 extracted,
                 outcome,
                 sourceImageName,
+                sourceImageUrl,
                 imageWidth,
                 imageHeight
         );
+        Long ocrScanResultId = persistResult.id();
+        String croppedImageUrl = persistResult.croppedImageUrl();
         lotteryScanLogServicePort.recordEvent(
                 outcome.businessValidationErrors().isEmpty()
                         ? ScanEventType.OCR_COMPLETED
@@ -560,8 +570,10 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                 .resolvedStationId(resolvedStationId)
                 .resolvedDrawDate(resolvedDrawDate)
                 .croppedImageBase64(remote.croppedImageBase64())
+                .croppedImageUrl(croppedImageUrl)
                 .ocrScanResultId(ocrScanResultId)
                 .sourceImageName(sourceImageName)
+                .sourceImageUrl(sourceImageUrl)
                 .imageWidth(imageWidth)
                 .imageHeight(imageHeight)
                 .build();
@@ -570,6 +582,7 @@ public class TicketScanImportService implements TicketScanImportServicePort {
             RemoteScannedTicket remote,
             String scanId,
             String sourceImageName,
+            String sourceImageUrl,
             Integer scanImageWidth,
             Integer scanImageHeight
     ) {
@@ -584,6 +597,7 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                             "Vui lòng kiểm tra lại ảnh hoặc nhập thông tin thủ công."
                     ))
                     .sourceImageName(sourceImageName)
+                    .sourceImageUrl(sourceImageUrl)
                     .imageWidth(scanImageWidth)
                     .imageHeight(scanImageHeight)
                     .build();
@@ -592,6 +606,11 @@ public class TicketScanImportService implements TicketScanImportServicePort {
         Integer imageHeight = remote.imageHeight() != null ? remote.imageHeight() : scanImageHeight;
         boolean hasAnyField = hasAnyExtractedValue(remote.extracted());
         ScannedTicketStatus status = hasAnyField ? ScannedTicketStatus.PARTIAL : ScannedTicketStatus.FAILED;
+        String croppedImageUrl = uploadCroppedScanImage(
+                remote.croppedImageBase64(),
+                remote.ticketIndex(),
+                scanId
+        );
         return ScannedTicketResponse.builder()
                 .ticketIndex(remote.ticketIndex())
                 .bbox(remote.bbox())
@@ -610,7 +629,9 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                         "Vui lòng kiểm tra lại ảnh hoặc nhập thông tin thủ công."
                 ))
                 .croppedImageBase64(remote.croppedImageBase64())
+                .croppedImageUrl(croppedImageUrl)
                 .sourceImageName(sourceImageName)
+                .sourceImageUrl(sourceImageUrl)
                 .imageWidth(imageWidth)
                 .imageHeight(imageHeight)
                 .build();
@@ -625,6 +646,7 @@ public class TicketScanImportService implements TicketScanImportServicePort {
             Long importBatchLineId,
             UUID operatorId,
             String sourceImageName,
+            String sourceImageUrl,
             Integer imageWidth,
             Integer imageHeight,
             List<String> visionWarnings
@@ -703,6 +725,7 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                     .fieldValidations(persistedValidations)
                     .missingFields(List.of("stationName", "serialNumber", "numbers", "drawDate"))
                     .sourceImageName(sourceImageName)
+                    .sourceImageUrl(sourceImageUrl)
                     .imageWidth(imageWidth)
                     .imageHeight(imageHeight)
                     .scannedBy(operatorId)
@@ -733,6 +756,7 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                 .duplicate(false)
                 .ocrScanResultId(ocrScanResultId)
                 .sourceImageName(sourceImageName)
+                .sourceImageUrl(sourceImageUrl)
                 .imageWidth(imageWidth)
                 .imageHeight(imageHeight)
                 .build();
@@ -803,7 +827,7 @@ public class TicketScanImportService implements TicketScanImportServicePort {
     }
 
     /** Best-effort: an OCR_Scan_Result write failure degrades to a null id (no scan-log linkage), never fails the scan. */
-    private Long persistOcrScanResult(
+    private PersistedOcrScanResult persistOcrScanResult(
             RemoteScannedTicket remote,
             Long stationId,
             Long templateId,
@@ -813,10 +837,16 @@ public class TicketScanImportService implements TicketScanImportServicePort {
             ExtractedTicketFieldsResponse extracted,
             OcrScanValidationService.ValidationOutcome outcome,
             String sourceImageName,
+            String sourceImageUrl,
             Integer imageWidth,
             Integer imageHeight
     ) {
         try {
+            String croppedImageUrl = uploadCroppedScanImage(
+                    remote.croppedImageBase64(),
+                    remote.ticketIndex(),
+                    scanId
+            );
             OcrScanResultModel saved = ocrScanResultRepositoryPort.save(
                     OcrScanResultModel.builder()
                             .scanId(scanId)
@@ -826,6 +856,7 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                             .templateId(templateId)
                             .aiModelId(resolveAiModelId())
                             .sourceImageName(sourceImageName)
+                            .sourceImageUrl(sourceImageUrl)
                             .bbox(ocrScanResultApplicationMapper.toDomainBox(remote.bbox()))
                             .imageWidth(imageWidth)
                             .imageHeight(imageHeight)
@@ -848,15 +879,56 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                             .missingFields(remote.missingFields())
                             .validationErrors(remote.validationErrors())
                             .businessValidationErrors(outcome.businessValidationErrors())
-                            .croppedImageUrl(null)
+                            .croppedImageUrl(croppedImageUrl)
                             .scannedBy(operatorId)
                             .scannedAt(LocalDateTime.now())
                             .build()
             );
             ocrScanResultFieldService.dualWriteFromParent(saved);
-            return saved.getId();
+            return new PersistedOcrScanResult(saved.getId(), croppedImageUrl);
         } catch (Exception e) {
             log.error("Failed to persist OCR scan result for ticketIndex {} (scanId {})", remote.ticketIndex(), scanId, e);
+            return new PersistedOcrScanResult(null, null);
+        }
+    }
+
+    private String uploadCroppedScanImage(String croppedImageBase64, int ticketIndex, String scanId) {
+        if (croppedImageBase64 == null || croppedImageBase64.isBlank()) {
+            return null;
+        }
+        try {
+            return uploadScannedImage(croppedImageBase64).url();
+        } catch (Exception uploadEx) {
+            log.warn(
+                    "Failed to upload cropped OCR image for ticketIndex {} (scanId {})",
+                    ticketIndex,
+                    scanId,
+                    uploadEx
+            );
+            return null;
+        }
+    }
+
+    private record PersistedOcrScanResult(Long id, String croppedImageUrl) {
+    }
+
+    private String uploadOriginalScanImage(byte[] imageBytes, String originalFilename, String contentType) {
+        try {
+            String safeName = (originalFilename != null && !originalFilename.isBlank())
+                    ? originalFilename
+                    : ("ocr-source-" + UUID.randomUUID() + ".jpg");
+            String mime = (contentType != null && !contentType.isBlank())
+                    ? contentType
+                    : "image/jpeg";
+            UploadRequest uploadRequest = new UploadRequest(
+                    imageBytes,
+                    "ocr-source-" + UUID.randomUUID() + "-" + safeName,
+                    mime,
+                    StorageFolderConstants.TICKET_IMAGE_FOLDER
+            );
+            return lotteryTicketServicePort.uploadAsset(uploadRequest).url();
+        } catch (Exception e) {
+            log.warn("Failed to upload original OCR source image; review resume may lack preview", e);
             return null;
         }
     }

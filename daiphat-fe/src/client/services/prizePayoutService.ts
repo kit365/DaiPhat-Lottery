@@ -42,6 +42,17 @@ export const prizePayoutService = {
         return response.data;
     },
 
+    uploadRecipientIdImage: async (file: File): Promise<string> => {
+        const formData = new FormData();
+        formData.append('file', file);
+        const response = await apiApp.post(`${BASE_URL}/recipient-id/upload`, formData);
+        const url = response.data?.data?.url;
+        if (!url) {
+            throw new Error(response.data?.message || 'Không nhận được URL ảnh CCCD từ server');
+        }
+        return url;
+    },
+
     getStatuses: async (): Promise<ApiResponse<EnumOptionResponse[]>> => {
         const response = await apiApp.get(`${BASE_URL}/statuses`);
         return response.data;

@@ -51,6 +51,9 @@ public class OcrScanResultEntity extends BaseEntity {
     @Column(name = "source_image_name", length = 255)
     private String sourceImageName;
 
+    @Column(name = "source_image_url", length = 500)
+    private String sourceImageUrl;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "bbox", columnDefinition = "jsonb")
     private OcrBoundingBox bbox;

@@ -7,7 +7,7 @@
     "dev": "next dev -p 5173",
     "dev:turbo": "next dev --turbo -p 5173",
     "build": "next build",
-    "start": "next start -p 5173",
+    "start": "node scripts/start-standalone.mjs",
     "lint": "next lint"
   },
   "dependencies": {

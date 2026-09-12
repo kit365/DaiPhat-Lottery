@@ -163,12 +163,17 @@ class ApiClient {
     Map<String, dynamic>? queryParameters,
     bool includeAuth = true,
   }) async {
+    final isMultipart = data is FormData;
     return _send(
       () => _dio.post<Map<String, dynamic>>(
         path,
         data: data,
         queryParameters: queryParameters,
-        options: Options(extra: {'includeAuth': includeAuth}),
+        options: Options(
+          extra: {'includeAuth': includeAuth},
+          // Clear default JSON Content-Type so Dio can set multipart boundary.
+          headers: isMultipart ? <String, dynamic>{Headers.contentTypeHeader: null} : null,
+        ),
       ),
     );
   }

@@ -10,6 +10,10 @@ class _FakePrizePayoutsRepository implements PrizePayoutsRepository {
   int? serialId;
   int? bankAccountId;
   int? requestId;
+  String? recipientIdNumber;
+  String? recipientIdImageUrl;
+  String? recipientIdImageBackUrl;
+  String? uploadedPath;
 
   final payout = const PrizePayoutRequestResponse(
     id: 23,
@@ -29,15 +33,27 @@ class _FakePrizePayoutsRepository implements PrizePayoutsRepository {
     int? orderDetailId,
     int? serialId,
     required int bankAccountId,
+    required String recipientIdNumber,
+    required String recipientIdImageUrl,
+    required String recipientIdImageBackUrl,
   }) async {
     this.orderDetailId = orderDetailId;
     this.serialId = serialId;
     this.bankAccountId = bankAccountId;
+    this.recipientIdNumber = recipientIdNumber;
+    this.recipientIdImageUrl = recipientIdImageUrl;
+    this.recipientIdImageBackUrl = recipientIdImageBackUrl;
     return const PrizePayoutRequestResult(
       id: 23,
       requestCode: 'TT-23',
       status: 'PENDING',
     );
+  }
+
+  @override
+  Future<String> uploadRecipientIdImage(String filePath) async {
+    uploadedPath = filePath;
+    return 'https://cdn.example/cccd.jpg';
   }
 
   @override
@@ -94,20 +110,28 @@ void main() {
     expect(payout.status, PrizePayoutRequestStatus.approved);
   });
 
-  test('prize payout use cases preserve ticket and bank identifiers', () async {
+  test('prize payout use cases preserve ticket, bank and CCCD identifiers', () async {
     final repository = _FakePrizePayoutsRepository();
 
     await PreviewPrizePayout(repository)(orderDetailId: 42, serialId: 7);
+    await UploadPrizePayoutRecipientIdImage(repository)('/tmp/front.jpg');
     await CreatePrizePayout(repository)(
       orderDetailId: 42,
       serialId: 7,
       bankAccountId: 9,
+      recipientIdNumber: '012345678901',
+      recipientIdImageUrl: 'https://cdn.example/front.jpg',
+      recipientIdImageBackUrl: 'https://cdn.example/back.jpg',
     );
     await CancelPrizePayout(repository)(23);
 
     expect(repository.orderDetailId, 42);
     expect(repository.serialId, 7);
     expect(repository.bankAccountId, 9);
+    expect(repository.recipientIdNumber, '012345678901');
+    expect(repository.recipientIdImageUrl, 'https://cdn.example/front.jpg');
+    expect(repository.recipientIdImageBackUrl, 'https://cdn.example/back.jpg');
+    expect(repository.uploadedPath, '/tmp/front.jpg');
     expect(repository.requestId, 23);
   });
 }

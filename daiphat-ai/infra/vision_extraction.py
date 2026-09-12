@@ -25,10 +25,11 @@ class VisionApiError(VisionClientError):
 
 
 class TicketBBox(BaseModel):
-    x: int = 0
-    y: int = 0
-    width: int = 0
-    height: int = 0
+    # Float so vision models can return either pixel ints or normalized 0..1.
+    x: float = 0
+    y: float = 0
+    width: float = 0
+    height: float = 0
 
 
 class TicketExtraction(BaseModel):
@@ -136,7 +137,9 @@ Analyze the uploaded image and extract ticket information. Rules:
 - If a field is unreadable or uncertain, set it to null and use a low fieldConfidences value (0.0-0.4).
 - Add a short warning when fields look covered by overlap (e.g. "Ticket #2 serial may be covered by another ticket").
 - Return at most {max_tickets} ticket(s).
-- Image size: {image_width}x{image_height} pixels. All bbox / fieldBoxes coordinates are in this image space (x,y = top-left).
+- Image size: {image_width}x{image_height} pixels.
+- All bbox / fieldBoxes MUST use this full-frame coordinate space (x,y = top-left of the whole image — NOT a crop).
+- Prefer NORMALIZED coordinates in [0.0, 1.0] (fraction of image width/height). Pixel coordinates in the {image_width}x{image_height} space are also accepted.
 - Prefer matching station names/codes against this active station list: {stations_json}
 - numbers: digits only, no spaces or punctuation.
 - drawDate: ISO format YYYY-MM-DD when visible. If the date is not clearly readable, use null (do not invent or emit non-ISO strings).
@@ -167,14 +170,14 @@ Respond with ONLY valid JSON (no markdown prose) matching this schema:
         "ticketType": number,
         "batchCode": number
       }},
-      "bbox": {{ "x": int, "y": int, "width": int, "height": int }} | null,
+      "bbox": {{ "x": number, "y": number, "width": number, "height": number }} | null,
       "fieldBoxes": {{
-        "stationName": {{ "x": int, "y": int, "width": int, "height": int }},
-        "serialNumber": {{ "x": int, "y": int, "width": int, "height": int }},
-        "numbers": {{ "x": int, "y": int, "width": int, "height": int }},
-        "drawDate": {{ "x": int, "y": int, "width": int, "height": int }},
-        "ticketType": {{ "x": int, "y": int, "width": int, "height": int }},
-        "batchCode": {{ "x": int, "y": int, "width": int, "height": int }}
+        "stationName": {{ "x": number, "y": number, "width": number, "height": number }},
+        "serialNumber": {{ "x": number, "y": number, "width": number, "height": number }},
+        "numbers": {{ "x": number, "y": number, "width": number, "height": number }},
+        "drawDate": {{ "x": number, "y": number, "width": number, "height": number }},
+        "ticketType": {{ "x": number, "y": number, "width": number, "height": number }},
+        "batchCode": {{ "x": number, "y": number, "width": number, "height": number }}
       }},
       "usedFieldLayouts": {{
         "stationName": number,

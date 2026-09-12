@@ -26,4 +26,8 @@ class LotterySerialSeedCleanup {
         lotteryTicketSerialRepository.clearReplacedForTicketIdRefs(serialIds);
         agentTicketStockRepository.deleteByLotteryTicketSerial_IdIn(serialIds);
     }
+
+    void clearPayoutDependentsForOrderCodePrefix(String orderCodePrefix) {
+        lotterySerialSeedCleanupRepository.clearPayoutDependentsForOrderCodePrefix(orderCodePrefix);
+    }
 }
