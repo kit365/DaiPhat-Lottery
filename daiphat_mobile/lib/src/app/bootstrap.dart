@@ -12,10 +12,15 @@ import 'package:daiphat_mobile/src/app/dependencies/app_dependencies.dart';
 import 'package:daiphat_mobile/src/shared/network/api_config.dart';
 import 'package:daiphat_mobile/src/shared/providers/api_providers.dart';
 import 'package:daiphat_mobile/src/shared/services/notification_service.dart';
+import 'package:daiphat_mobile/src/shared/storage/auth_token_storage.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/providers/auth_providers.dart';
 import 'package:daiphat_mobile/src/features/blog/data/repositories/blog_repository_impl.dart';
 import 'package:daiphat_mobile/src/features/blog/data/services/blog_api_service.dart';
 import 'package:daiphat_mobile/src/features/blog/presentation/viewmodels/blog_viewmodel.dart';
+import 'package:daiphat_mobile/src/features/chat/data/repositories/chat_repository.dart';
+import 'package:daiphat_mobile/src/features/chat/data/services/chat_api_service.dart';
+import 'package:daiphat_mobile/src/features/chat/data/services/chat_websocket_service.dart';
+import 'package:daiphat_mobile/src/features/chat/presentation/viewmodels/chat_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
 import 'package:daiphat_mobile/src/features/checkout/data/transaction_service.dart';
 import 'package:daiphat_mobile/src/features/checkout/data/repositories/transaction_repository_impl.dart';
@@ -121,6 +126,15 @@ Future<void> bootstrap() async {
   final blogRepository = BlogRepositoryImpl(
     BlogApiService(dependencies.apiClient),
   );
+  final chatWebSocketService = ChatWebSocketService();
+  final chatRepository = ChatRepository(
+    apiService: ChatApiService(dependencies.apiClient),
+    webSocketService: chatWebSocketService,
+    readAccessToken: () async {
+      final storage = await AuthTokenStorage.create();
+      return storage.getAccessToken();
+    },
+  );
   final fortuneCastRepository = FortuneCastRepositoryImpl(
     FortuneCastService(dependencies.apiClient),
   );
@@ -157,6 +171,7 @@ Future<void> bootstrap() async {
         homeLotteryRepositoryProvider.overrideWithValue(homeLotteryRepository),
         ticketCheckRepositoryProvider.overrideWithValue(ticketCheckRepository),
         blogRepositoryProvider.overrideWithValue(blogRepository),
+        chatRepositoryProvider.overrideWithValue(chatRepository),
         fortuneCastRepositoryProvider.overrideWithValue(fortuneCastRepository),
         supportTicketRepositoryProvider.overrideWithValue(
           supportTicketRepository,

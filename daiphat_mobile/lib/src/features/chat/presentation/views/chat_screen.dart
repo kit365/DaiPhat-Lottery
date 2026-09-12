@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
-import 'package:daiphat_mobile/src/features/chat/data/models/chat_models.dart';
+import 'package:daiphat_mobile/src/features/chat/domain/entities/chat_models.dart';
 import 'package:daiphat_mobile/src/features/chat/presentation/viewmodels/chat_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/chat/utils/chat_message_mapper.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';

@@ -1,7 +1,7 @@
 import 'package:daiphat_mobile/src/shared/network/api_client.dart';
 import 'package:daiphat_mobile/src/shared/network/api_response.dart';
 
-import '../models/chat_models.dart';
+import '../../domain/entities/chat_models.dart';
 
 class ChatApiService {
   ChatApiService(this._apiClient);
