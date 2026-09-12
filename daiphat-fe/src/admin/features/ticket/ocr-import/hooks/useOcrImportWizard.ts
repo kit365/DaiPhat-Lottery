@@ -259,14 +259,12 @@ export const useOcrImportWizard = ({
         reset();
         void loadBatchOptions();
         // Intentionally depend on `open` primarily; restore flags are read on first open only.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open]);
 
     useEffect(() => {
         return () => {
             images.forEach((image) => URL.revokeObjectURL(image.previewUrl));
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- revoke only on unmount
     }, []);
 
     const buildDraftSnapshot = useCallback(

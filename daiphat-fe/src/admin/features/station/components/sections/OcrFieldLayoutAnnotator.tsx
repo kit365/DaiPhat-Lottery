@@ -8,22 +8,46 @@ import type {
     OcrTemplateFieldName,
 } from '../../services/ocrTemplateService';
 
+import { AdminStatusBadge } from '../../../../components/ui/AdminStatusBadge';
+
 export const OCR_TEMPLATE_FIELD_OPTIONS: {
     value: OcrTemplateFieldName;
     label: string;
-    color: string;
 }[] = [
-    { value: 'stationName', label: 'Nhà đài', color: '#2563eb' },
-    { value: 'numbers', label: 'Dãy số', color: '#059669' },
-    { value: 'serialNumber', label: 'Số serial', color: '#d97706' },
-    { value: 'drawDate', label: 'Ngày xổ', color: '#7c3aed' },
-    { value: 'ticketType', label: 'Loại vé', color: '#0891b2' },
-    { value: 'batchCode', label: 'Mã lô', color: '#db2777' },
-    { value: 'price', label: 'Giá vé', color: '#4f46e5' },
+    { value: 'stationName', label: 'Nhà đài' },
+    { value: 'numbers', label: 'Dãy số' },
+    { value: 'serialNumber', label: 'Số serial' },
+    { value: 'drawDate', label: 'Ngày xổ' },
+    { value: 'ticketType', label: 'Loại vé' },
+    { value: 'batchCode', label: 'Mã lô' },
+    { value: 'price', label: 'Giá vé' },
 ];
 
-const colorForField = (fieldName: OcrTemplateFieldName): string =>
-    OCR_TEMPLATE_FIELD_OPTIONS.find((f) => f.value === fieldName)?.color ?? '#64748b';
+export const getBadgeModifierForOcrField = (fieldName: OcrTemplateFieldName) => {
+    switch (fieldName) {
+        case 'stationName': return 'admin-status-badge--active'; // Blue
+        case 'numbers': return 'admin-status-badge--success'; // Green
+        case 'serialNumber': return 'admin-status-badge--pending'; // Orange
+        case 'drawDate': return 'admin-status-badge--inactive'; // Red
+        case 'ticketType': return 'admin-status-badge--active'; 
+        case 'batchCode': return 'admin-status-badge--pending'; 
+        case 'price': return 'admin-status-badge--success'; 
+        default: return 'admin-status-badge--draft';
+    }
+};
+
+export const getBadgeColorForOcrField = (fieldName: OcrTemplateFieldName) => {
+    switch (fieldName) {
+        case 'stationName': return 'var(--palette-info-dark)'; 
+        case 'numbers': return 'var(--palette-success-dark)'; 
+        case 'serialNumber': return 'var(--palette-warning-dark)'; 
+        case 'drawDate': return 'var(--palette-error-dark)'; 
+        case 'ticketType': return 'var(--palette-info-dark)'; 
+        case 'batchCode': return 'var(--palette-warning-dark)'; 
+        case 'price': return 'var(--palette-success-dark)'; 
+        default: return '#374151';
+    }
+};
 
 const labelForField = (fieldName: OcrTemplateFieldName): string =>
     OCR_TEMPLATE_FIELD_OPTIONS.find((f) => f.value === fieldName)?.label ?? fieldName;
@@ -145,28 +169,32 @@ export const OcrFieldLayoutAnnotator = ({
             <Stack direction="row" flexWrap="wrap" gap={1}>
                 {OCR_TEMPLATE_FIELD_OPTIONS.map((opt) => {
                     const count = layouts.filter((l) => l.fieldName === opt.value).length;
+                    const isSelected = selectedField === opt.value;
                     return (
-                        <Chip
+                        <Box
                             key={opt.value}
-                            label={count > 0 ? `${opt.label} (${count})` : opt.label}
                             onClick={() => {
                                 onSelectField(opt.value);
                                 // New field selection starts a new region, not an edit.
                                 onSelectLayout?.(null);
                             }}
-                            variant={selectedField === opt.value ? 'filled' : 'outlined'}
                             sx={{
-                                borderColor: opt.color,
-                                bgcolor:
-                                    selectedField === opt.value
-                                        ? `${opt.color}22`
-                                        : count > 0
-                                          ? `${opt.color}14`
-                                          : undefined,
-                                color: opt.color,
-                                fontWeight: selectedField === opt.value ? 700 : 500,
+                                cursor: 'pointer',
+                                opacity: isSelected ? 1 : 0.4,
+                                transition: 'all 0.2s',
+                                '&:hover': { opacity: 0.8 },
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                borderRadius: '6px',
+                                color: getBadgeColorForOcrField(opt.value),
+                                boxShadow: isSelected ? '0 0 0 1.5px currentColor' : 'none'
                             }}
-                        />
+                        >
+                            <AdminStatusBadge
+                                label={count > 0 ? `${opt.label} (${count})` : opt.label}
+                                modifier={getBadgeModifierForOcrField(opt.value)}
+                            />
+                        </Box>
                     );
                 })}
             </Stack>
@@ -191,7 +219,6 @@ export const OcrFieldLayoutAnnotator = ({
                     bgcolor: 'action.hover',
                 }}
             >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                     key={sampleImageUrl}
                     src={sampleImageUrl}
@@ -224,7 +251,7 @@ export const OcrFieldLayoutAnnotator = ({
                 )}
 
                 {layouts.map((layout) => {
-                    const color = colorForField(layout.fieldName);
+                    const color = getBadgeColorForOcrField(layout.fieldName);
                     const selected = selectedLayoutId === layout.id;
                     return (
                         <Box
@@ -244,7 +271,7 @@ export const OcrFieldLayoutAnnotator = ({
                                 width: `${layout.boundingBox.width * 100}%`,
                                 height: `${layout.boundingBox.height * 100}%`,
                                 border: selected ? `2px solid ${color}` : `1.5px solid ${color}`,
-                                bgcolor: selected ? `${color}33` : `${color}22`,
+                                bgcolor: selected ? `color-mix(in srgb, ${color} 30%, transparent)` : `color-mix(in srgb, ${color} 15%, transparent)`,
                                 boxSizing: 'border-box',
                                 pointerEvents: 'auto',
                                 cursor: 'pointer',
@@ -283,8 +310,8 @@ export const OcrFieldLayoutAnnotator = ({
                             top: `${draftBox.y * 100}%`,
                             width: `${draftBox.width * 100}%`,
                             height: `${draftBox.height * 100}%`,
-                            border: `2px dashed ${colorForField(selectedField)}`,
-                            bgcolor: `${colorForField(selectedField)}28`,
+                            border: `2px dashed ${getBadgeColorForOcrField(selectedField)}`,
+                            bgcolor: `color-mix(in srgb, ${getBadgeColorForOcrField(selectedField)} 20%, transparent)`,
                             boxSizing: 'border-box',
                             pointerEvents: 'none',
                         }}
