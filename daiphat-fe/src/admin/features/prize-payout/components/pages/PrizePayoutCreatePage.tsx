@@ -249,6 +249,7 @@ export const PrizePayoutCreatePage = () => {
 
     // Counter payout now always captures both CCCD sides for audit.
     const needsIdImage = selectedItems.length > 0;
+
     const needsManualConfirm = selectedItems.some((item) => item.requiresManualOwnershipConfirm);
     const hasMatchProof = selectedItems.every(
         (item) => item.prizeStatus === 'WON' && item.ticketNumbers?.trim() && item.winningNumber?.trim()
@@ -882,7 +883,15 @@ export const PrizePayoutCreatePage = () => {
 
             {/* Section 2: Ticket Selection & Match Proof */}
             {lookupItems.length > 0 && (
-                <SectionCard title="2. Chọn vé trúng & Đối chiếu KQXS" icon="solar:ticket-bold-duotone">
+                <SectionCard 
+                    title="2. Chọn vé trúng & Đối chiếu KQXS" 
+                    icon="solar:ticket-bold-duotone"
+                    action={
+                        <Typography variant="body2" color="warning.main" sx={{ fontStyle: 'italic', pr: 1 }}>
+                            * Lưu ý: Giải Đặc Biệt phải đến Văn phòng Đại diện Đài để xác minh, không hỗ trợ.
+                        </Typography>
+                    }
+                >
                                 <TableContainer>
                                     <Table size="small">
                                         <TableHead>
@@ -903,9 +912,8 @@ export const PrizePayoutCreatePage = () => {
                                                 </TableCell>
                                                 <TableCell>Serial</TableCell>
                                                 <TableCell>Số vé</TableCell>
-                                                <TableCell>KQ</TableCell>
-                                                <TableCell>Giải</TableCell>
-                                                <TableCell>Trạng thái</TableCell>
+                                                <TableCell>Đối soát</TableCell>
+                                                <TableCell align="center">Giải</TableCell>
                                                 <TableCell align="right">Trúng</TableCell>
                                                 <TableCell align="right">HH</TableCell>
                                                 <TableCell align="right">Thuế</TableCell>
@@ -916,8 +924,7 @@ export const PrizePayoutCreatePage = () => {
                                             {lookupItems.filter((item) => item.prizeStatus === 'WON').map((item) => {
                                                 const payoutState = resolveLookupPayoutState(item);
                                                 const lockedByPayout = payoutState === 'PAYOUT_PENDING' || payoutState === 'PAID_OUT';
-                                                const stationOfficeOnly = Boolean(item.requiresStationOfficeRedemption);
-                                                const selectable = item.prizeStatus === 'WON' && !lockedByPayout && !stationOfficeOnly;
+                                                const selectable = item.prizeStatus === 'WON' && !lockedByPayout;
                                                 const checked = selectedIds.includes(item.orderDetailId);
                                                 const payoutBadge = lookupPayoutStatusBadge(item);
                                                 const isWon = item.prizeStatus === 'WON';
@@ -959,12 +966,10 @@ export const PrizePayoutCreatePage = () => {
                                                         <TableCell sx={{ fontFamily: 'monospace', fontWeight: 700 }}>
                                                             {renderHighlightedNumber(item.ticketNumbers, item.matchFrom, item.matchDigits, 'ticket')}
                                                         </TableCell>
-                                                        <TableCell>
-                                                            <Typography variant="caption" sx={{ fontWeight: 700 }}>
-                                                                {prizeStatusLabel(item.prizeStatus)}
-                                                            </Typography>
+                                                        <TableCell sx={{ fontFamily: 'monospace', fontWeight: 700 }}>
+                                                            {item.winningNumber ? renderHighlightedNumber(item.winningNumber, item.matchFrom, item.matchDigits, 'winning') : <Typography variant="caption" color="text.disabled">—</Typography>}
                                                         </TableCell>
-                                                        <TableCell>
+                                                        <TableCell align="center">
                                                             {item.prizeDisplayName ? (
                                                                 <AdminStatusBadge
                                                                     label={item.prizeDisplayName}
@@ -974,42 +979,6 @@ export const PrizePayoutCreatePage = () => {
                                                             ) : (
                                                                 <Typography variant="caption" color="text.disabled">—</Typography>
                                                             )}
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            {stationOfficeOnly ? (
-                                                                <Chip
-                                                                    label="VPĐĐ"
-                                                                    size="small"
-                                                                    color="warning"
-                                                                    sx={{ fontWeight: 700 }}
-                                                                />
-                                                            ) : payoutBadge ? (
-                                                                <AdminStatusBadge
-                                                                    label={payoutBadge.label}
-                                                                    modifier={payoutBadge.modifier}
-                                                                    className="admin-status-badge--compact"
-                                                                />
-                                                            ) : (
-                                                                <Typography variant="caption" color="text.disabled">—</Typography>
-                                                            )}
-                                                            {stationOfficeOnly && (
-                                                                <Typography variant="caption" color="warning.main" sx={{ display: 'block', mt: 0.5 }}>
-                                                                    {buildStationOfficeRedemptionMessage(item.stationName)}
-                                                                </Typography>
-                                                            )}
-                                                            {!stationOfficeOnly && (() => {
-                                                                const urgency = getUrgencyBadge(item);
-                                                                return urgency ? (
-                                                                    <Box sx={{ mt: 0.5 }}>
-                                                                        <Chip
-                                                                            label={urgency.label}
-                                                                            color={urgency.color}
-                                                                            size="small"
-                                                                            sx={{ fontSize: '0.7rem', height: 20 }}
-                                                                        />
-                                                                    </Box>
-                                                                ) : null;
-                                                            })()}
                                                         </TableCell>
                                                         <TableCell align="right" sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>
                                                             {formatPrizePayoutCurrency(item.grossAmount)}
@@ -1029,42 +998,6 @@ export const PrizePayoutCreatePage = () => {
                                         </TableBody>
                                     </Table>
                                 </TableContainer>
-
-                                {selectedItems.length > 0 && (
-                                    <Box
-                                        sx={{
-                                            mt: 2,
-                                            p: 2,
-                                            borderRadius: '12px',
-                                            bgcolor: 'var(--palette-background-neutral)',
-                                            border: '1px solid var(--palette-divider)',
-                                        }}
-                                    >
-                                        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.25 }}>
-                                            Đối chiếu số trúng ({selectedItems.length} vé)
-                                        </Typography>
-                                        {selectedItems.map((item) => (
-                                            <Grid container spacing={1} key={item.orderDetailId} sx={{ mb: 1 }}>
-                                                <Grid size={{ xs: 12, sm: 6 }}>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        Vé {item.serialNumber}
-                                                    </Typography>
-                                                    <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 700 }}>
-                                                        {renderHighlightedNumber(item.ticketNumbers, item.matchFrom, item.matchDigits, 'ticket')}
-                                                    </Typography>
-                                                </Grid>
-                                                <Grid size={{ xs: 12, sm: 6 }}>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        KQXS
-                                                    </Typography>
-                                                    <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 700 }}>
-                                                        {renderHighlightedNumber(item.winningNumber, item.matchFrom, item.matchDigits, 'winning')}
-                                                    </Typography>
-                                                </Grid>
-                                            </Grid>
-                                        ))}
-                                    </Box>
-                                )}
 
                                 {primary && (
                                     <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 2 }}>

@@ -219,7 +219,6 @@ export const OcrFieldLayoutAnnotator = ({
                     bgcolor: 'action.hover',
                 }}
             >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                     key={sampleImageUrl}
                     src={sampleImageUrl}

@@ -34,6 +34,7 @@ import {
     type OcrTicketTemplate,
 } from '../../services/ocrTemplateService';
 import {
+    getBadgeModifierForOcrField,
     OCR_TEMPLATE_FIELD_OPTIONS,
     OcrFieldLayoutAnnotator,
 } from './OcrFieldLayoutAnnotator';
@@ -137,7 +138,7 @@ export const StationOcrTemplateSection = ({
             }
             toast.success(res.message || 'Đã tạo mẫu vé OCR.');
             
-            let finalTemplateId = res.data?.id;
+            const finalTemplateId = res.data?.id;
 
             // If user provided a cropped image in the modal, upload it immediately
             if (finalTemplateId && data.sampleImage) {
@@ -451,12 +452,7 @@ export const StationOcrTemplateSection = ({
                                     <Stack direction="row" alignItems="center" gap={1}>
                                         <AdminStatusBadge
                                             label={`${fieldLabel(layout.fieldName)} #${layout.priority ?? 1}`}
-                                            modifier={
-                                                layout.fieldName === 'STATION' ? 'admin-status-badge--success' :
-                                                layout.fieldName === 'DRAW_DATE' ? 'admin-status-badge--pending' :
-                                                layout.fieldName === 'NUMBERS' ? 'admin-status-badge--active' :
-                                                'admin-status-badge--draft'
-                                            }
+                                            modifier={getBadgeModifierForOcrField(layout.fieldName)}
                                         />
                                         <Typography variant="body2" color="text.secondary">
                                             x={layout.boundingBox.x}, y={layout.boundingBox.y}, w={layout.boundingBox.width}, h={layout.boundingBox.height}
