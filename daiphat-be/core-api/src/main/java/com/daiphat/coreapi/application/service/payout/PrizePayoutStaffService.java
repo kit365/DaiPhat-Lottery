@@ -1016,6 +1016,7 @@ public class PrizePayoutStaffService implements PrizePayoutStaffServicePort {
         boolean requiresFourEyes = prizePayoutEligibilityService.requiresFourEyes(model.getGrossAmount());
         boolean canApprove = canCurrentStaffApprove(model, viewerStaffId, requiresFourEyes);
         boolean canComplete = canCurrentStaffComplete(model, viewerStaffId, requiresFourEyes);
+        // Staff must see full CCCD to verify identity when processing payouts.
         return prizePayoutApplicationMapper.toResponse(
                 model,
                 detail,
@@ -1026,7 +1027,8 @@ public class PrizePayoutStaffService implements PrizePayoutStaffServicePort {
                 locked,
                 requiresFourEyes,
                 canApprove,
-                canComplete);
+                canComplete,
+                false);
     }
 
     private UserEntity resolveUserByAuditValue(String auditValue, UserEntity preferredCustomer) {
