@@ -34,6 +34,9 @@ import 'package:daiphat_mobile/src/features/refunds/presentation/providers/refun
 import 'package:daiphat_mobile/src/features/profile/data/repositories/support_ticket_repository_impl.dart';
 import 'package:daiphat_mobile/src/features/profile/data/support_ticket_service.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/providers/profile_providers.dart';
+import 'package:daiphat_mobile/src/features/notifications/data/repositories/notification_repository_impl.dart';
+import 'package:daiphat_mobile/src/features/notifications/data/repositories/notification_settings_repository_impl.dart';
+import 'package:daiphat_mobile/src/features/notifications/data/services/notification_api_service.dart';
 import 'package:daiphat_mobile/src/features/notifications/data/services/notification_setting_service.dart';
 import 'package:daiphat_mobile/src/features/notifications/presentation/providers/notification_providers.dart';
 
@@ -98,6 +101,12 @@ Future<void> bootstrap() async {
   final notificationSettingService = NotificationSettingService(
     dependencies.apiClient,
   );
+  final notificationsRepository = NotificationRepositoryImpl(
+    NotificationApiService(dependencies.apiClient),
+  );
+  final notificationSettingsRepository = NotificationSettingsRepositoryImpl(
+    notificationSettingService,
+  );
 
   runApp(
     ProviderScope(
@@ -117,8 +126,11 @@ Future<void> bootstrap() async {
         supportTicketRepositoryProvider.overrideWithValue(
           supportTicketRepository,
         ),
-        notificationSettingServiceProvider.overrideWithValue(
-          notificationSettingService,
+        notificationSettingsRepositoryProvider.overrideWithValue(
+          notificationSettingsRepository,
+        ),
+        notificationsRepositoryProvider.overrideWithValue(
+          notificationsRepository,
         ),
         notificationViewModelProvider.overrideWithValue(
           dependencies.notificationViewModel,
