@@ -13,6 +13,9 @@ import 'package:daiphat_mobile/src/shared/network/api_config.dart';
 import 'package:daiphat_mobile/src/shared/providers/api_providers.dart';
 import 'package:daiphat_mobile/src/shared/services/notification_service.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/providers/auth_providers.dart';
+import 'package:daiphat_mobile/src/features/blog/data/repositories/blog_repository_impl.dart';
+import 'package:daiphat_mobile/src/features/blog/data/services/blog_api_service.dart';
+import 'package:daiphat_mobile/src/features/blog/presentation/viewmodels/blog_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
 import 'package:daiphat_mobile/src/features/checkout/data/transaction_service.dart';
 import 'package:daiphat_mobile/src/features/checkout/data/repositories/transaction_repository_impl.dart';
@@ -112,6 +115,9 @@ Future<void> bootstrap() async {
   final ticketCheckRepository = TicketCheckRepositoryImpl(
     TicketCheckApiService(dependencies.apiClient),
   );
+  final blogRepository = BlogRepositoryImpl(
+    BlogApiService(dependencies.apiClient),
+  );
   final supportTicketService = SupportTicketService(dependencies.apiClient);
   final supportTicketRepository = SupportTicketRepositoryImpl(
     supportTicketService,
@@ -144,6 +150,7 @@ Future<void> bootstrap() async {
         scheduleRepositoryProvider.overrideWithValue(scheduleRepository),
         homeLotteryRepositoryProvider.overrideWithValue(homeLotteryRepository),
         ticketCheckRepositoryProvider.overrideWithValue(ticketCheckRepository),
+        blogRepositoryProvider.overrideWithValue(blogRepository),
         supportTicketRepositoryProvider.overrideWithValue(
           supportTicketRepository,
         ),

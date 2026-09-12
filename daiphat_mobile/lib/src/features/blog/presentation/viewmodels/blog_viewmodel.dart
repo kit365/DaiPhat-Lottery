@@ -2,18 +2,27 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:daiphat_mobile/src/shared/providers/api_providers.dart';
-import '../../data/models/blog_category.dart';
-import '../../data/repositories/blog_repository.dart';
-import '../../data/services/blog_api_service.dart';
-import '../models/blog_post.dart';
-
-final blogApiServiceProvider = Provider<BlogApiService>((ref) {
-  return BlogApiService(ref.watch(apiClientProvider));
-});
+import '../../domain/entities/blog_category.dart';
+import '../../domain/entities/blog_post.dart';
+import '../../domain/repositories/blog_repository.dart';
+import '../../domain/usecases/blog_usecases.dart';
 
 final blogRepositoryProvider = Provider<BlogRepository>((ref) {
-  return BlogRepository(ref.watch(blogApiServiceProvider));
+  throw UnimplementedError(
+    'blogRepositoryProvider must be overridden in bootstrap',
+  );
+});
+
+final fetchBlogListProvider = Provider<FetchBlogList>((ref) {
+  return FetchBlogList(ref.watch(blogRepositoryProvider));
+});
+
+final fetchBlogDetailProvider = Provider<FetchBlogDetail>((ref) {
+  return FetchBlogDetail(ref.watch(blogRepositoryProvider));
+});
+
+final incrementBlogPostViewProvider = Provider<IncrementBlogPostView>((ref) {
+  return IncrementBlogPostView(ref.watch(blogRepositoryProvider));
 });
 
 final blogViewModelProvider =
@@ -21,11 +30,10 @@ final blogViewModelProvider =
 
 final blogDetailProvider = FutureProvider.autoDispose
     .family<BlogDetailResult, String>((ref, slug) async {
-  final repository = ref.read(blogRepositoryProvider);
-  final result = await repository.fetchBlogDetail(slug);
+  final result = await ref.read(fetchBlogDetailProvider)(slug);
 
   if (result.post.id != null) {
-    unawaited(repository.incrementPostView(result.post.id!));
+    unawaited(ref.read(incrementBlogPostViewProvider)(result.post.id!));
   }
 
   return result;
@@ -73,14 +81,12 @@ class BlogViewModel extends AsyncNotifier<BlogListState> {
     return _load();
   }
 
-  BlogRepository get _repository => ref.read(blogRepositoryProvider);
-
   Future<BlogListState> _load({
     int selectedCategoryIndex = 0,
     String searchQuery = '',
     List<BlogCategory>? knownCategories,
   }) async {
-    final result = await _repository.fetchBlogList(
+    final result = await ref.read(fetchBlogListProvider)(
       q: searchQuery.isEmpty ? null : searchQuery,
       categoryId: _resolveCategoryId(knownCategories, selectedCategoryIndex),
     );
