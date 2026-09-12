@@ -23,6 +23,7 @@ public record OcrScanResultResponse(
         Long templateId,
         Long aiModelId,
         String sourceImageName,
+        String sourceImageUrl,
         TicketBoundingBoxResponse bbox,
         Integer imageWidth,
         Integer imageHeight,
