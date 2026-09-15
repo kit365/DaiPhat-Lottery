@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
@@ -281,7 +279,9 @@ class _CartViewState extends ConsumerState<CartView> {
                   ),
                   child: Text(
                     'Hủy',
-                    style: AppTypography.buttonMedium(fontWeight: FontWeight.w700),
+                    style: AppTypography.buttonMedium(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
@@ -299,7 +299,9 @@ class _CartViewState extends ConsumerState<CartView> {
                   ),
                   child: Text(
                     'Xóa',
-                    style: AppTypography.buttonMedium(fontWeight: FontWeight.w800),
+                    style: AppTypography.buttonMedium(
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
               ),
@@ -908,18 +910,19 @@ class _CartTicketCard extends StatelessWidget {
                 children: [
                   Text(
                     _money(item.unitPrice),
-                    style: AppTypography.priceMedium(
-                      fontSize: 13.5,
-                      color: isExpired
-                          ? AppColors.contentPlaceholder
-                          : AppColors.primary,
-                      fontWeight: FontWeight.w800,
-                    ).copyWith(
-                      decoration: isExpired
-                          ? TextDecoration.lineThrough
-                          : null,
-                      decorationColor: AppColors.contentPlaceholder,
-                    ),
+                    style:
+                        AppTypography.priceMedium(
+                          fontSize: 13.5,
+                          color: isExpired
+                              ? AppColors.contentPlaceholder
+                              : AppColors.primary,
+                          fontWeight: FontWeight.w800,
+                        ).copyWith(
+                          decoration: isExpired
+                              ? TextDecoration.lineThrough
+                              : null,
+                          decorationColor: AppColors.contentPlaceholder,
+                        ),
                   ),
                   const SizedBox(height: 8),
                   if (isExpired) ...[
@@ -969,7 +972,6 @@ class _CartTicketCard extends StatelessWidget {
                       maxStock: item.maxStock > 0 ? item.maxStock : 1,
                       enabled: !isSelectionMode,
                       onChanged: onQuantityChanged,
-                      onDelete: onDelete,
                     ),
                   ],
                 ],
@@ -982,76 +984,22 @@ class _CartTicketCard extends StatelessWidget {
   }
 }
 
-class _CartQuantityStepper extends StatefulWidget {
+class _CartQuantityStepper extends StatelessWidget {
   const _CartQuantityStepper({
     required this.quantity,
     required this.maxStock,
     required this.enabled,
     required this.onChanged,
-    required this.onDelete,
   });
 
   final int quantity;
   final int maxStock;
   final bool enabled;
   final ValueChanged<int> onChanged;
-  final VoidCallback onDelete;
-
-  @override
-  State<_CartQuantityStepper> createState() => _CartQuantityStepperState();
-}
-
-class _CartQuantityStepperState extends State<_CartQuantityStepper> {
-  bool _showDelete = false;
-  Timer? _timer;
-
-  @override
-  void didUpdateWidget(covariant _CartQuantityStepper oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.quantity > 1 && _showDelete) {
-      _resetDelete();
-    }
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  void _resetDelete() {
-    _timer?.cancel();
-    if (_showDelete && mounted) {
-      setState(() => _showDelete = false);
-    }
-  }
-
-  void _onMinusTap() {
-    if (!widget.enabled) return;
-
-    if (widget.quantity > 1) {
-      _resetDelete();
-      widget.onChanged(widget.quantity - 1);
-    } else {
-      // Khi số lượng đang là 1:
-      if (!_showDelete) {
-        // Lần 1: Chuyển nút trừ thành icon xóa đỏ
-        setState(() => _showDelete = true);
-        _timer?.cancel();
-        _timer = Timer(const Duration(seconds: 4), () {
-          if (mounted) setState(() => _showDelete = false);
-        });
-      } else {
-        // Lần 2 (khi đang hiện nút xóa): Hiện hộp thoại xác nhận xóa
-        _resetDelete();
-        widget.onDelete();
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
-    final effectiveMax = widget.maxStock > 0 ? widget.maxStock : 1;
+    final effectiveMax = maxStock > 0 ? maxStock : 1;
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -1069,15 +1017,9 @@ class _CartQuantityStepperState extends State<_CartQuantityStepper> {
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
                   decoration: BoxDecoration(
-                    color: _showDelete
-                        ? AppColors.surfaceDestructiveSoft
-                        : AppColors.surfaceSoft,
+                    color: AppColors.surfaceSoft,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: _showDelete
-                          ? AppColors.borderDestructive
-                          : AppColors.borderSubtle,
-                    ),
+                    border: Border.all(color: AppColors.borderSubtle),
                   ),
                 ),
               ),
@@ -1085,23 +1027,21 @@ class _CartQuantityStepperState extends State<_CartQuantityStepper> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _CartStepBtn(
-                    icon: _showDelete
-                        ? Icons.delete_outline_rounded
-                        : Icons.remove_rounded,
-                    iconColor: _showDelete
-                        ? AppColors.primary
-                        : AppColors.contentNavy,
-                    disabled: !widget.enabled,
-                    onTap: _onMinusTap,
+                    icon: Icons.remove_rounded,
+                    iconColor: AppColors.contentNavy,
+                    disabled: !enabled || quantity <= 1,
+                    onTap: enabled && quantity > 1
+                        ? () => onChanged(quantity - 1)
+                        : null,
                   ),
                   Container(
                     constraints: const BoxConstraints(minWidth: 26),
                     padding: const EdgeInsets.symmetric(horizontal: 2),
                     alignment: Alignment.center,
                     child: Text(
-                      '${widget.quantity}',
+                      '$quantity',
                       style: AppTypography.lotteryDigit(
-                        color: _showDelete ? AppColors.primary : AppColors.ink,
+                        color: AppColors.ink,
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
                       ),
@@ -1109,14 +1049,10 @@ class _CartQuantityStepperState extends State<_CartQuantityStepper> {
                   ),
                   _CartStepBtn(
                     icon: Icons.add_rounded,
-                    disabled:
-                        !widget.enabled || widget.quantity >= effectiveMax,
+                    disabled: !enabled || quantity >= effectiveMax,
                     iconColor: AppColors.contentNavy,
-                    onTap: (widget.enabled && widget.quantity < effectiveMax)
-                        ? () {
-                            _resetDelete();
-                            widget.onChanged(widget.quantity + 1);
-                          }
+                    onTap: (enabled && quantity < effectiveMax)
+                        ? () => onChanged(quantity + 1)
                         : null,
                     onDisabledTap: () {
                       AppToast.info(
@@ -1578,7 +1514,9 @@ class _EmptyCartView extends StatelessWidget {
                   ),
                   child: Text(
                     'Quay lại mua vé',
-                    style: AppTypography.buttonMedium(fontWeight: FontWeight.w700),
+                    style: AppTypography.buttonMedium(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
