@@ -10,6 +10,7 @@ import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/features/home/domain/entities/ticket_check.dart';
 import 'package:daiphat_mobile/src/features/home/presentation/viewmodels/ticket_check_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/home/presentation/views/widgets/lottery_date_picker_dialog.dart';
+import 'package:daiphat_mobile/src/features/home/presentation/views/widgets/ticket_check_results_card.dart';
 import 'package:daiphat_mobile/src/features/schedule/domain/entities/lottery_station_schedule.dart';
 import 'package:daiphat_mobile/src/features/schedule/presentation/providers/schedule_providers.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
@@ -142,6 +143,9 @@ class _CheckTicketViewState extends ConsumerState<CheckTicketView> {
                         ),
                       ),
                     ),
+
+                    if (state.hasChecked && state.checkResult != null)
+                      _CheckedStationResultsSection(state: state),
 
                     if (showSupport)
                       _CheckTicketSupportSection(schedule: schedule),
@@ -962,6 +966,87 @@ class _FormStateState extends State<_FormState> {
     if (selected != null) {
       vm.selectStation(selected.id);
     }
+  }
+}
+
+class _CheckedStationResultsSection extends StatelessWidget {
+  const _CheckedStationResultsSection({required this.state});
+
+  final TicketCheckState state;
+
+  @override
+  Widget build(BuildContext context) {
+    if (state.isLoadingCheckedStationResult) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
+          decoration: BoxDecoration(
+            color: AppColors.surfacePrimary,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.borderDecorative),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2.5),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Đang tải kết quả đầy đủ của đài...',
+                textAlign: TextAlign.center,
+                style: AppTypography.bodyMedium(color: AppColors.contentMuted),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final result = state.checkedStationResult;
+    if (result != null) {
+      return TicketCheckResultsCard(result: result);
+    }
+
+    final stationName = state.checkResult?.stationName.trim();
+    final date = state.selectedDate;
+    final dateLabel = date == null ? '' : DateFormat('dd/MM/yyyy').format(date);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: AppColors.surfacePrimary,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.borderDecorative),
+        ),
+        child: Column(
+          children: [
+            const Icon(
+              Icons.hourglass_empty_rounded,
+              color: AppColors.contentMuted,
+              size: 28,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Kết quả đài ${stationName?.isEmpty ?? true ? 'đã chọn' : stationName}',
+              textAlign: TextAlign.center,
+              style: AppTypography.h6(color: AppColors.contentHeading),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              dateLabel.isEmpty
+                  ? 'Chưa thể tải bảng kết quả đầy đủ lúc này.'
+                  : 'Chưa thể tải bảng kết quả ngày $dateLabel. Vui lòng thử lại sau.',
+              textAlign: TextAlign.center,
+              style: AppTypography.bodySmall(color: AppColors.contentMuted),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
