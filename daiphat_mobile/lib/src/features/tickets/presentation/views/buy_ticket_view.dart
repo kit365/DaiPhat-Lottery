@@ -150,16 +150,12 @@ class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
     }
 
     ref.read(cartProvider.notifier).addItem(cartItem);
+    final router = GoRouter.of(context);
 
     AppToast.show(
       'Đã thêm ${ticket.code} vào giỏ hàng',
-      actionLabel: 'Xem giỏ hàng',
-      onAction: () => requireAuthOrGoLoginWithRef(
-        context,
-        ref,
-        redirectPath: AppRoute.cart.path,
-        onAuthenticated: () => context.push(AppRoute.cart.path),
-      ),
+      actionLabel: 'Xem ngay',
+      onAction: () => router.push(AppRoute.cart.path),
     );
   }
 
@@ -1527,17 +1523,13 @@ class _TicketDetailModalSheetState
     }
 
     ref.read(cartProvider.notifier).addItem(_buildCartItem());
+    final router = GoRouter.of(context);
     Navigator.of(context).pop();
 
     AppToast.show(
       'Đã thêm $_quantity vé ${widget.ticket.code} vào giỏ hàng.',
-      actionLabel: 'Xem giỏ hàng',
-      onAction: () => requireAuthOrGoLoginWithRef(
-        context,
-        ref,
-        redirectPath: AppRoute.cart.path,
-        onAuthenticated: () => context.push(AppRoute.cart.path),
-      ),
+      actionLabel: 'Xem ngay',
+      onAction: () => router.push(AppRoute.cart.path),
     );
   }
 
@@ -1831,16 +1823,8 @@ class _TicketDetailModalSheetState
                                 disabled: _quantity >= _maxStock,
                                 onTap: _increase,
                                 onDisabledTap: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Đã đạt số lượng vé tối đa còn lại',
-                                        style: AppTypography.bodySmall(
-                                          color: AppColors.surfacePrimary,
-                                        ),
-                                      ),
-                                      duration: const Duration(seconds: 1),
-                                    ),
+                                  AppToast.show(
+                                    'Đã đạt số lượng vé tối đa còn lại',
                                   );
                                 },
                               ),
