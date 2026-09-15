@@ -151,10 +151,15 @@ class _ResultsCardState extends State<ResultsCard> {
                   gradient: const LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [AppColors.brandPrimaryDeep, AppColors.brandPrimaryStrong],
+                    colors: [
+                      AppColors.brandPrimaryDeep,
+                      AppColors.brandPrimaryStrong,
+                    ],
                   ),
                   border: Border(
-                    right: BorderSide(color: AppColors.white.withValues(alpha: 0.1)),
+                    right: BorderSide(
+                      color: AppColors.white.withValues(alpha: 0.1),
+                    ),
                   ),
                 ),
                 child: Column(
@@ -474,7 +479,16 @@ class _ResultsCardState extends State<ResultsCard> {
 
   Widget _renderNumber(String fullNumber, TextStyle baseStyle) {
     if (fullNumber == '--' || fullNumber == 'Đang chờ') {
-      return Text(fullNumber, textAlign: TextAlign.center, style: baseStyle);
+      return FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          fullNumber,
+          maxLines: 1,
+          softWrap: false,
+          textAlign: TextAlign.center,
+          style: baseStyle,
+        ),
+      );
     }
 
     var displayNum = fullNumber;
@@ -485,7 +499,16 @@ class _ResultsCardState extends State<ResultsCard> {
     }
 
     if (_digits.isEmpty) {
-      return Text(displayNum, textAlign: TextAlign.center, style: baseStyle);
+      return FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          displayNum,
+          maxLines: 1,
+          softWrap: false,
+          textAlign: TextAlign.center,
+          style: baseStyle,
+        ),
+      );
     }
 
     final lotoStartIndex = displayNum.length >= 2 ? displayNum.length - 2 : 0;
@@ -496,35 +519,49 @@ class _ResultsCardState extends State<ResultsCard> {
     if (!matched) {
       return Opacity(
         opacity: 0.3,
-        child: Text(displayNum, textAlign: TextAlign.center, style: baseStyle),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            displayNum,
+            maxLines: 1,
+            softWrap: false,
+            textAlign: TextAlign.center,
+            style: baseStyle,
+          ),
+        ),
       );
     }
 
-    return RichText(
-      textAlign: TextAlign.center,
-      text: TextSpan(
-        style: baseStyle,
-        children: [
-          if (prefix.isNotEmpty)
-            TextSpan(
-              text: prefix,
-              style: baseStyle.copyWith(
-                color:
-                    baseStyle.color?.withValues(alpha: 0.3) ??
-                    AppColors.textMain.withValues(alpha: 0.3),
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: RichText(
+        maxLines: 1,
+        softWrap: false,
+        textAlign: TextAlign.center,
+        text: TextSpan(
+          style: baseStyle,
+          children: [
+            if (prefix.isNotEmpty)
+              TextSpan(
+                text: prefix,
+                style: baseStyle.copyWith(
+                  color:
+                      baseStyle.color?.withValues(alpha: 0.3) ??
+                      AppColors.textMain.withValues(alpha: 0.3),
+                ),
               ),
+            TextSpan(
+              text: lotoPart,
+              style: AppTypography.lotteryDigit(
+                fontSize: baseStyle.fontSize,
+                color: AppColors.brandPrimaryStrong,
+                fontWeight: FontWeight.w900,
+                height: baseStyle.height,
+                letterSpacing: baseStyle.letterSpacing,
+              ).copyWith(backgroundColor: AppColors.brandAccentYellow),
             ),
-          TextSpan(
-            text: lotoPart,
-            style: AppTypography.lotteryDigit(
-              fontSize: baseStyle.fontSize,
-              color: AppColors.brandPrimaryStrong,
-              fontWeight: FontWeight.w900,
-              height: baseStyle.height,
-              letterSpacing: baseStyle.letterSpacing,
-            ).copyWith(backgroundColor: AppColors.brandAccentYellow),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
