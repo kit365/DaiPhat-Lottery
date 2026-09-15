@@ -202,8 +202,9 @@ class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: account.isDefault
-              ? AppColors.primary.withValues(alpha: 0.35)
+              ? AppColors.primary
               : AppColors.borderDecorative,
+          width: account.isDefault ? 2 : 1,
         ),
         boxShadow: const [
           BoxShadow(
@@ -249,13 +250,24 @@ class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
                               color: AppColors.surfaceBrandWarm,
                               borderRadius: BorderRadius.circular(6),
                             ),
-                            child: Text(
-                              'Mặc định',
-                              style: AppTypography.mainWith(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.primary,
-                              ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.star_rounded,
+                                  size: 14,
+                                  color: AppColors.primary,
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  'Mặc định',
+                                  style: AppTypography.mainWith(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
