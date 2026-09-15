@@ -8,6 +8,7 @@ import 'package:daiphat_mobile/src/features/bank_accounts/domain/usecases/bank_a
 import 'package:daiphat_mobile/src/shared/network/api_exception.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
+import 'bank_account_name_input_formatter.dart';
 import 'bank_search_screen.dart';
 
 class BankAccountFormPage extends StatefulWidget {
@@ -189,7 +190,10 @@ class _BankAccountFormPageState extends State<BankAccountFormPage> {
               controller: _accountNameController,
               hintText: 'NGUYEN VAN A',
               textCapitalization: TextCapitalization.characters,
-              inputFormatters: [LengthLimitingTextInputFormatter(150)],
+              inputFormatters: [
+                const BankAccountNameInputFormatter(),
+                LengthLimitingTextInputFormatter(150),
+              ],
               validator: (value) {
                 if ((value ?? '').trim().isEmpty) {
                   return 'Vui lòng nhập tên chủ tài khoản';
@@ -199,7 +203,7 @@ class _BankAccountFormPageState extends State<BankAccountFormPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Tên phải trùng khớp với tên đã đăng ký tại ngân hàng.',
+              'Nhập tên IN HOA, không dấu và trùng khớp với tên đã đăng ký tại ngân hàng.',
               style: AppTypography.mainWith(
                 fontSize: 12,
                 color: AppColors.textMuted,

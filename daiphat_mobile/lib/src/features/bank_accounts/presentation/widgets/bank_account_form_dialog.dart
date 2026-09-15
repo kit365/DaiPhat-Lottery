@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../domain/entities/bank_account.dart';
 import '../../domain/usecases/bank_account_usecases.dart';
 import '../../../../shared/theme/app_colors.dart';
 import '../../../../shared/theme/app_typography.dart';
 import '../../../../shared/utils/app_toast.dart';
+import 'bank_account_name_input_formatter.dart';
 import 'bank_search_screen.dart';
+
 class BankAccountFormDialog extends StatefulWidget {
   final GetBanks getBanks;
   final CreateBankAccount createBankAccount;
@@ -305,6 +308,10 @@ class _BankAccountFormDialogState extends State<BankAccountFormDialog> {
                         controller: _accountNameController,
                         enabled: !_isSubmitting,
                         textCapitalization: TextCapitalization.characters,
+                        inputFormatters: [
+                          const BankAccountNameInputFormatter(),
+                          LengthLimitingTextInputFormatter(150),
+                        ],
                         decoration: _inputDecoration(hintText: 'NGUYEN VAN A'),
                       ),
                       const SizedBox(height: 10),
