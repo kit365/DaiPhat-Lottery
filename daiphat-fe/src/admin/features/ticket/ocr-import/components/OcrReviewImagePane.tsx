@@ -1,4 +1,17 @@
-import { Box, Chip, Stack, Typography } from '@mui/material';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import {
+    Box,
+    Chip,
+    Dialog,
+    DialogContent,
+    DialogTitle,
+    IconButton,
+    Stack,
+    Tooltip,
+    Typography,
+} from '@mui/material';
+import ZoomInOutlinedIcon from '@mui/icons-material/ZoomInOutlined';
+import CloseIcon from '@mui/icons-material/Close';
 import type { OcrReviewRow, TicketBoundingBox } from '../types/ticketOcr.type';
 import {
     OCR_FIELD_KEYS,
@@ -8,6 +21,12 @@ import {
     getUnreadableFieldCaption,
     type OcrFieldKey,
 } from '../utils/ocrImportHelpers';
+import {
+    computeContainedImageRect,
+    mapBoxToNaturalPixels,
+    resolveCoordSize,
+    type ContainedImageRect,
+} from '../utils/ocrBboxOverlay';
 
 export type OcrFieldSelection = {
     rowKey: string;
@@ -21,7 +40,7 @@ type Props = {
     rows: OcrReviewRow[];
     selection: OcrFieldSelection | null;
     onSelect: (selection: OcrFieldSelection) => void;
-    /** Fixed preview height in px — independent of ticket count. */
+    /** Fixed or minimum preview height in px. */
     previewHeight?: number;
 };
 
@@ -128,7 +147,8 @@ const resolveFieldBox = (row: OcrReviewRow, field: OcrFieldKey): TicketBoundingB
 
 /**
  * Source image with ticket + per-field bounding boxes.
- * Preview uses a fixed-height container so ticket count does not resize the image.
+ * Overlay is locked to the object-fit:contain content rect so boxes track
+ * responsive resizing and OCR-resized coordinate spaces.
  */
 export default function OcrReviewImagePane({
     previewUrl,
@@ -139,61 +159,123 @@ export default function OcrReviewImagePane({
     onSelect,
     previewHeight = 360,
 }: Props) {
+    const [zoomOpen, setZoomOpen] = useState(false);
+    const containerRef = useRef<HTMLDivElement | null>(null);
+    const imgRef = useRef<HTMLImageElement | null>(null);
+    const [layout, setLayout] = useState<ContainedImageRect | null>(null);
+
     const basis = rows.find((row) => row.imageWidth && row.imageHeight);
-    const imageWidth = basis?.imageWidth ?? 0;
-    const imageHeight = basis?.imageHeight ?? 0;
+    const ocrWidth = basis?.imageWidth ?? 0;
+    const ocrHeight = basis?.imageHeight ?? 0;
+
+    const updateLayout = useCallback(() => {
+        const container = containerRef.current;
+        const img = imgRef.current;
+        if (!container || !img || !img.naturalWidth || !img.naturalHeight) {
+            setLayout(null);
+            return;
+        }
+        setLayout(
+            computeContainedImageRect(
+                container.clientWidth,
+                container.clientHeight,
+                img.naturalWidth,
+                img.naturalHeight
+            )
+        );
+    }, []);
+
+    useLayoutEffect(() => {
+        updateLayout();
+        const container = containerRef.current;
+        if (!container || typeof ResizeObserver === 'undefined') {
+            return;
+        }
+        const observer = new ResizeObserver(() => updateLayout());
+        observer.observe(container);
+        return () => observer.disconnect();
+    }, [updateLayout, previewUrl, previewHeight]);
+
+    const naturalWidth = layout?.naturalWidth ?? 0;
+    const naturalHeight = layout?.naturalHeight ?? 0;
+    const { coordWidth, coordHeight } = resolveCoordSize(
+        ocrWidth,
+        ocrHeight,
+        naturalWidth,
+        naturalHeight
+    );
+    const viewWidth = naturalWidth > 0 ? naturalWidth : coordWidth;
+    const viewHeight = naturalHeight > 0 ? naturalHeight : coordHeight;
+
+    const toOverlayBox = (box: TicketBoundingBox): TicketBoundingBox =>
+        mapBoxToNaturalPixels(box, coordWidth, coordHeight, viewWidth, viewHeight);
 
     return (
-        <Stack spacing={1}>
-            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                <Typography variant="subtitle2" fontWeight={700} noWrap title={fileName}>
-                    {fileName}
-                </Typography>
-                <Chip
-                    size="small"
-                    label={`${ticketCount} vé nhận diện`}
-                    variant="outlined"
-                />
+        <Stack spacing={1} sx={{ height: '100%' }}>
+            <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" flexWrap="wrap" useFlexGap>
+                <Stack direction="row" spacing={0.75} alignItems="center">
+                    <Typography variant="caption" fontWeight={800} color="#475569" sx={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        Ảnh gốc ({ticketCount} vé)
+                    </Typography>
+                </Stack>
+                <Tooltip title="Xem ảnh gốc toàn màn hình" arrow>
+                    <IconButton
+                        size="small"
+                        onClick={() => setZoomOpen(true)}
+                        sx={{
+                            color: '#64748b',
+                            p: 0.35,
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '6px',
+                            '&:hover': { color: '#2563eb', bgcolor: '#eff6ff', borderColor: '#bfdbfe' },
+                        }}
+                    >
+                        <ZoomInOutlinedIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
+                </Tooltip>
             </Stack>
             <Box
+                ref={containerRef}
                 sx={{
                     position: 'relative',
                     width: '100%',
-                    height: previewHeight,
-                    borderRadius: 1,
+                    flex: 1,
+                    minHeight: previewHeight,
+                    borderRadius: '10px',
                     overflow: 'hidden',
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    bgcolor: 'grey.100',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    border: '1px solid #e2e8f0',
+                    bgcolor: '#0f172a',
                 }}
             >
                 <Box
                     component="img"
+                    ref={imgRef}
                     src={previewUrl}
                     alt={fileName}
+                    onLoad={updateLayout}
                     sx={{
+                        position: 'absolute',
+                        inset: 0,
                         display: 'block',
-                        maxWidth: '100%',
-                        maxHeight: '100%',
-                        width: 'auto',
-                        height: 'auto',
+                        width: '100%',
+                        height: '100%',
                         objectFit: 'contain',
+                        objectPosition: 'center',
                     }}
                 />
-                {imageWidth > 0 && imageHeight > 0 && (
+                {layout && viewWidth > 0 && viewHeight > 0 && (
                     <Box
                         component="svg"
-                        viewBox={`0 0 ${imageWidth} ${imageHeight}`}
-                        preserveAspectRatio="xMidYMid meet"
+                        viewBox={`0 0 ${viewWidth} ${viewHeight}`}
+                        preserveAspectRatio="none"
                         sx={{
                             position: 'absolute',
-                            inset: 0,
-                            width: '100%',
-                            height: '100%',
+                            left: layout.offsetX,
+                            top: layout.offsetY,
+                            width: layout.displayWidth,
+                            height: layout.displayHeight,
                             pointerEvents: 'none',
+                            overflow: 'visible',
                         }}
                     >
                         {rows.map((row) => {
@@ -209,16 +291,20 @@ export default function OcrReviewImagePane({
                                         row.status === 'PARTIAL'
                                       ? '#f59e0b'
                                       : '#16a34a';
+                            const ticketBox =
+                                row.bbox && row.bbox.width > 0 && row.bbox.height > 0
+                                    ? toOverlayBox(row.bbox)
+                                    : null;
 
                             return (
                                 <g key={row.key}>
-                                    {row.bbox && row.bbox.width > 0 && row.bbox.height > 0 && (
+                                    {ticketBox && (
                                         <g style={{ pointerEvents: 'auto', cursor: 'pointer' }}>
                                             <rect
-                                                x={row.bbox.x}
-                                                y={row.bbox.y}
-                                                width={row.bbox.width}
-                                                height={row.bbox.height}
+                                                x={ticketBox.x}
+                                                y={ticketBox.y}
+                                                width={ticketBox.width}
+                                                height={ticketBox.height}
                                                 fill={
                                                     ticketSelected
                                                         ? 'rgba(37,99,235,0.12)'
@@ -229,8 +315,8 @@ export default function OcrReviewImagePane({
                                                 stroke={ticketSelected ? '#2563eb' : ticketStroke}
                                                 strokeWidth={
                                                     ticketSelected
-                                                        ? Math.max(imageWidth, imageHeight) * 0.0035
-                                                        : Math.max(imageWidth, imageHeight) *
+                                                        ? Math.max(viewWidth, viewHeight) * 0.0035
+                                                        : Math.max(viewWidth, viewHeight) *
                                                           (row.status === 'FAILED' ? 0.0035 : 0.002)
                                                 }
                                                 onClick={() =>
@@ -238,10 +324,10 @@ export default function OcrReviewImagePane({
                                                 }
                                             />
                                             <text
-                                                x={row.bbox.x + 4}
-                                                y={Math.max(14, row.bbox.y - 6)}
+                                                x={ticketBox.x + 4}
+                                                y={Math.max(14, ticketBox.y - 6)}
                                                 fill={ticketSelected ? '#1d4ed8' : ticketStroke}
-                                                fontSize={Math.max(12, Math.round(imageWidth * 0.016))}
+                                                fontSize={Math.max(12, Math.round(viewWidth * 0.016))}
                                                 fontWeight={700}
                                                 style={{ pointerEvents: 'none' }}
                                             >
@@ -253,10 +339,11 @@ export default function OcrReviewImagePane({
                                     )}
 
                                     {OCR_FIELD_KEYS.map((fieldName) => {
-                                        const box = resolveFieldBox(row, fieldName);
-                                        if (!box) {
+                                        const rawBox = resolveFieldBox(row, fieldName);
+                                        if (!rawBox) {
                                             return null;
                                         }
+                                        const box = toOverlayBox(rawBox);
                                         const confidence =
                                             row.fields?.[fieldName]?.confidence ??
                                             row.fieldConfidences[fieldName];
@@ -296,13 +383,13 @@ export default function OcrReviewImagePane({
                                                     strokeWidth={strokeWidthForField(
                                                         confidence,
                                                         selected,
-                                                        imageWidth,
-                                                        imageHeight,
+                                                        viewWidth,
+                                                        viewHeight,
                                                         validationStatus
                                                     )}
                                                     strokeDasharray={
                                                         validationStatus === 'UNREADABLE'
-                                                            ? `${Math.max(imageWidth, imageHeight) * 0.008}`
+                                                            ? `${Math.max(viewWidth, viewHeight) * 0.008}`
                                                             : undefined
                                                     }
                                                     onClick={() =>
@@ -319,7 +406,7 @@ export default function OcrReviewImagePane({
                                                     )}
                                                     fontSize={Math.max(
                                                         10,
-                                                        Math.round(imageWidth * 0.012)
+                                                        Math.round(viewWidth * 0.012)
                                                     )}
                                                     fontWeight={600}
                                                     style={{ pointerEvents: 'none' }}
@@ -337,6 +424,61 @@ export default function OcrReviewImagePane({
                     </Box>
                 )}
             </Box>
+
+            <Dialog
+                open={zoomOpen}
+                onClose={() => setZoomOpen(false)}
+                maxWidth="lg"
+                fullWidth
+                PaperProps={{
+                    sx: {
+                        borderRadius: '16px',
+                        overflow: 'hidden',
+                    },
+                }}
+            >
+                <DialogTitle
+                    sx={{
+                        p: 2,
+                        bgcolor: '#ffffff',
+                        borderBottom: '1px solid #f1f5f9',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                    }}
+                >
+                    <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography variant="subtitle1" fontWeight={800} color="#0f172a">
+                            Ảnh gốc: {fileName}
+                        </Typography>
+                        <Chip
+                            size="small"
+                            label={`${ticketCount} vé nhận diện`}
+                            color="primary"
+                            variant="outlined"
+                            sx={{ height: 22, fontSize: '0.75rem', fontWeight: 700 }}
+                        />
+                    </Stack>
+                    <IconButton size="small" onClick={() => setZoomOpen(false)}>
+                        <CloseIcon fontSize="small" />
+                    </IconButton>
+                </DialogTitle>
+                <DialogContent sx={{ p: 2, bgcolor: '#0f172a', textAlign: 'center' }}>
+                    <Box
+                        component="img"
+                        src={previewUrl}
+                        alt={fileName}
+                        sx={{
+                            maxWidth: '100%',
+                            maxHeight: '80vh',
+                            objectFit: 'contain',
+                            borderRadius: '8px',
+                            mx: 'auto',
+                            display: 'block',
+                        }}
+                    />
+                </DialogContent>
+            </Dialog>
         </Stack>
     );
 }

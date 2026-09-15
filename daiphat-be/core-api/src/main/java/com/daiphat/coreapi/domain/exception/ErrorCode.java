@@ -799,7 +799,7 @@ public enum ErrorCode {
     TICKET_SCAN_IMAGE_REQUIRED("LT_121", "Ảnh quét vé không được để trống.", HttpStatus.BAD_REQUEST),
     TICKET_SCAN_SERVICE_UNAVAILABLE(
             "LT_122",
-            "Dịch vụ quét vé OCR hiện không khả dụng. Vui lòng khởi động ticket-vision (cổng 8090), rồi thử lại.",
+            "Dịch vụ nhận diện vé (OCR) hiện đang gián đoạn hoặc chưa sẵn sàng kết nối. Vui lòng thử lại sau hoặc liên hệ quản trị viên.",
             HttpStatus.SERVICE_UNAVAILABLE),
     TICKET_SCAN_BATCH_CODE_MISMATCH(
             "LT_123",

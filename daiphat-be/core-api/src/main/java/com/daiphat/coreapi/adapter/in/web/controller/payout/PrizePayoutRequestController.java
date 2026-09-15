@@ -8,15 +8,19 @@ import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutPreviewResponse;
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutRequestResponse;
+import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.port.in.payout.PrizePayoutRequestServicePort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.shared.util.StorageUtils;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -40,6 +44,14 @@ public class PrizePayoutRequestController {
         return ApiResponse.success(
                 "Yêu cầu trả thưởng đã gửi. Vui lòng chờ xử lý 1–3 ngày làm việc.",
                 prizePayoutRequestServicePort.create(principal.getId(), request));
+    }
+
+    @PostMapping(value = "/recipient-id/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<StorageResult> uploadRecipientId(@RequestPart("file") MultipartFile file) {
+        return ApiResponse.success(
+                "Tải ảnh CCCD thành công.",
+                prizePayoutRequestServicePort.uploadRecipientIdImage(StorageUtils.toUploadRequest(file)));
     }
 
     @GetMapping("/preview")

@@ -170,7 +170,8 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
             for (LotteryStationEntity station : stations) {
                 lines.add(createLine(batch, station, plan, now, 0));
             }
-            batch.setLines(lines);
+            batch.getLines().clear();
+            batch.getLines().addAll(lines);
             batch.setLineCount(lines.size());
             batch = importBatchRepository.save(batch);
 

@@ -304,7 +304,8 @@ public class SupplierSettlementScenarioSeedInitializer implements ApplicationRun
             returnableGood += lineResult.returnableGood();
         }
 
-        batch.setLines(lines);
+        batch.getLines().clear();
+        batch.getLines().addAll(lines);
         batch.setLineCount(lines.size());
         batch.setTotalImportedQuantity(importedQty);
         batch.setTotalImportedCostValue(importedCost);

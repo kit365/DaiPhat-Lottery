@@ -87,6 +87,20 @@ describe('OCR soft-fail helpers', () => {
         expect(groups[1].rows).toHaveLength(0);
     });
 
+    it('rebuilds review groups from draft rows when images are empty', () => {
+        const failedRow = createFailedReviewRow(
+            'img-restored',
+            'restored.jpg',
+            'https://cdn.example.com/ocr.jpg',
+            'Không thể đọc rõ'
+        );
+        const groups = buildReviewImageGroups([], [failedRow]);
+        expect(groups).toHaveLength(1);
+        expect(groups[0].imageId).toBe('img-restored');
+        expect(groups[0].previewUrl).toBe('https://cdn.example.com/ocr.jpg');
+        expect(groups[0].rows).toHaveLength(1);
+    });
+
     it('builds unreadable field caption from validation message', () => {
         expect(
             getUnreadableFieldCaption('serialNumber', {

@@ -194,7 +194,7 @@ class PrizePayoutStaffServiceCreateInPersonTest {
                 PrizePayoutRequestStatus.PENDING, 0, 3, false, false, false, true,
                 null, null, null, null, null, staffId.toString(), null, null, null, null);
         lenient().when(prizePayoutApplicationMapper.toResponse(
-                        any(), any(), any(), any(), any(), any(), anyBoolean(), anyBoolean(), anyBoolean(), anyBoolean()))
+                        any(), any(), any(), any(), any(), any(), anyBoolean(), anyBoolean(), anyBoolean(), anyBoolean(), anyBoolean()))
                 .thenReturn(dummyResponse);
     }
 

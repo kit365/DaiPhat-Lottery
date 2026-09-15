@@ -666,6 +666,8 @@ class _TicketDetailBody extends ConsumerWidget {
         ticket: ticket,
         previewPrizePayout: ref.read(previewPrizePayoutProvider),
         createPrizePayout: ref.read(createPrizePayoutProvider),
+        uploadRecipientIdImage:
+            ref.read(uploadPrizePayoutRecipientIdImageProvider),
         getMyBankAccounts: ref.read(getMyBankAccountsProvider),
         getBanks: ref.read(getBanksProvider),
         createBankAccount: ref.read(createBankAccountProvider),

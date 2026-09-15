@@ -95,13 +95,29 @@ export async function proxyToBackend(
         clearTimeout(timeout);
     }
 
-    const out = new NextResponse(upstream.body, {
+    // Buffer body instead of streaming pipe: SockJS/xhr long-polls and flaky
+    // upstream closes otherwise surface as uncaught "failed to pipe response".
+    let body: ArrayBuffer | null = null;
+    try {
+        body = await upstream.arrayBuffer();
+    } catch (error) {
+        console.error(`[api-proxy] ${req.method} ${target} upstream body closed`, error);
+        return NextResponse.json(
+            { success: false, message: "Máy chủ API đóng kết nối sớm." },
+            { status: 502 }
+        );
+    }
+
+    const out = new NextResponse(body, {
         status: upstream.status,
         statusText: upstream.statusText,
     });
 
     upstream.headers.forEach((value, key) => {
-        if (key.toLowerCase() === "set-cookie") return;
+        const lower = key.toLowerCase();
+        if (lower === "set-cookie" || lower === "content-encoding" || lower === "content-length") {
+            return;
+        }
         out.headers.append(key, value);
     });
 

@@ -1,34 +1,44 @@
-import { useEffect, useRef } from 'react';
+'use client';
+
+import { useState, useRef, useEffect, useMemo } from 'react';
 import {
     Box,
     Checkbox,
     Chip,
-    FormControl,
+    Dialog,
+    DialogContent,
+    DialogTitle,
+    IconButton,
     MenuItem,
+    Paper,
     Select,
     Stack,
-    TextField,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Tooltip,
     Typography,
 } from '@mui/material';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
+import CloseIcon from '@mui/icons-material/Close';
+import ZoomInOutlinedIcon from '@mui/icons-material/ZoomInOutlined';
+import ConfirmationNumberOutlinedIcon from '@mui/icons-material/ConfirmationNumberOutlined';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
+import ErrorOutlineOutlinedIcon from '@mui/icons-material/ErrorOutlineOutlined';
 import dayjs from 'dayjs';
-import type { FieldValidationResult, OcrReviewRow } from '../types/ticketOcr.type';
+import type { OcrReviewRow } from '../types/ticketOcr.type';
 import {
-    OCR_FIELD_KEYS,
-    OCR_FIELD_LABELS,
     canConfirmReviewRow,
     evaluateOcrFieldUiStatus,
     formatConfidence,
-    formatTicketPriceDisplay,
-    getConfidenceEmphasis,
-    getOcrFieldUiLabel,
-    getOverallValidationLabel,
-    getScanStatusBadgeClass,
-    getScanStatusLabel,
-    ocrFieldUiChipColor,
-    type OcrFieldKey,
     type OcrRowValidationContext,
 } from '../utils/ocrImportHelpers';
 import type { OcrFieldSelection } from './OcrReviewImagePane';
+import { getStationColor } from '../../../station/utils/stationColor';
 
 export type OcrStationOption = {
     id: number;
@@ -39,9 +49,7 @@ export type OcrStationOption = {
 type Props = {
     rows: OcrReviewRow[];
     selection: OcrFieldSelection | null;
-    stationLabel: (stationId?: number) => string;
     stations?: OcrStationOption[];
-    /** Prefer schedule-aware stations for the row's draw date. */
     stationsForRow?: (row: OcrReviewRow) => OcrStationOption[];
     validationContextForRow?: (row: OcrReviewRow) => OcrRowValidationContext | undefined;
     onSelect: (selection: OcrFieldSelection) => void;
@@ -51,418 +59,805 @@ type Props = {
     embedded?: boolean;
 };
 
-const chipColor = (status?: string | null): 'success' | 'warning' | 'error' | 'default' | 'info' => {
-    switch (status) {
-        case 'MATCHED':
-        case 'VALID':
-            return 'success';
-        case 'UNCERTAIN':
-        case 'NEEDS_REVIEW':
-        case 'PARTIAL':
-            return 'warning';
-        case 'UNREADABLE':
-        case 'FAILED':
-            return 'info';
-        case 'MISMATCHED':
-        case 'NOT_FOUND':
-        case 'INVALID':
-        case 'INCOMPLETE':
-            return 'error';
-        default:
-            return 'default';
+const resolveCroppedImageUrl = (row: OcrReviewRow): string | null => {
+    if (row.croppedImageUrl && row.croppedImageUrl.trim()) {
+        return row.croppedImageUrl;
     }
-};
-
-const fieldValue = (row: OcrReviewRow, fieldKey: OcrFieldKey, stationLabel: string): string => {
-    switch (fieldKey) {
-        case 'stationName':
-            return row.stationName || stationLabel || '—';
-        case 'batchCode':
-            return row.batchCode || '—';
-        case 'numbers':
-            return row.numbers || '—';
-        case 'serialNumber':
-            return row.serialNumber || '—';
-        case 'drawDate':
-            return row.drawDate ? dayjs(row.drawDate).format('DD/MM/YYYY') : '—';
-        case 'ticketType':
-            return formatTicketPriceDisplay(row.ticketType);
-        default:
-            return '—';
+    if (row.croppedImageBase64 && row.croppedImageBase64.trim()) {
+        return row.croppedImageBase64.startsWith('data:')
+            ? row.croppedImageBase64
+            : `data:image/jpeg;base64,${row.croppedImageBase64}`;
     }
+    return null;
 };
-
-function FieldRow({
-    row,
-    fieldKey,
-    label,
-    editable,
-    stationLabel,
-    stations,
-    validationCtx,
-    highlighted,
-    onSelect,
-    onUpdate,
-}: {
-    row: OcrReviewRow;
-    fieldKey: OcrFieldKey;
-    label: string;
-    editable?: 'numbers' | 'serialNumber' | 'drawDate' | 'stationId' | 'batchCode' | 'ticketType';
-    stationLabel: string;
-    stations: OcrStationOption[];
-    validationCtx?: OcrRowValidationContext;
-    highlighted: boolean;
-    onSelect: () => void;
-    onUpdate: (key: string, patch: Partial<OcrReviewRow>) => void;
-}) {
-    const ref = useRef<HTMLDivElement | null>(null);
-    const validation: FieldValidationResult | undefined = row.fieldValidations[fieldKey];
-    const ocrConf = row.fields?.[fieldKey]?.confidence ?? row.fieldConfidences[fieldKey];
-    const uiStatus = evaluateOcrFieldUiStatus(row, fieldKey, validationCtx);
-    const mismatched = uiStatus.status === 'invalid';
-    const unreadable = uiStatus.status === 'unreadable';
-    const emphasis = getConfidenceEmphasis(ocrConf);
-    const missingStation = fieldKey === 'stationName' && row.stationId == null;
-
-    useEffect(() => {
-        if (highlighted && ref.current) {
-            ref.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
-    }, [highlighted]);
-
-    return (
-        <Stack
-            ref={ref}
-            direction={{ xs: 'column', sm: 'row' }}
-            spacing={1}
-            alignItems={{ sm: 'center' }}
-            onClick={(event) => {
-                event.stopPropagation();
-                onSelect();
-            }}
-            sx={{
-                py: 0.75,
-                px: 1,
-                borderRadius: 1,
-                cursor: 'pointer',
-                outline: highlighted ? '2px solid' : undefined,
-                outlineColor: highlighted ? 'primary.main' : undefined,
-                bgcolor: mismatched || missingStation
-                    ? 'rgba(239,68,68,0.08)'
-                    : unreadable
-                      ? 'rgba(14,165,233,0.08)'
-                      : uiStatus.status === 'corrected'
-                        ? 'rgba(14,165,233,0.06)'
-                        : emphasis === 'low'
-                          ? 'rgba(239,68,68,0.05)'
-                          : emphasis === 'medium'
-                            ? 'rgba(245,158,11,0.06)'
-                            : highlighted
-                              ? 'rgba(37,99,235,0.06)'
-                              : undefined,
-            }}
-        >
-            <Typography variant="caption" sx={{ minWidth: 88, fontWeight: 700 }}>
-                {label}
-            </Typography>
-            <Box flex={1}>
-                {editable === 'numbers' ? (
-                    <TextField
-                        size="small"
-                        fullWidth
-                        value={row.numbers}
-                        error={mismatched}
-                        onFocus={onSelect}
-                        onChange={(event) =>
-                            onUpdate(row.key, { numbers: event.target.value })
-                        }
-                    />
-                ) : editable === 'serialNumber' ? (
-                    <TextField
-                        size="small"
-                        fullWidth
-                        value={row.serialNumber}
-                        error={mismatched}
-                        onFocus={onSelect}
-                        onChange={(event) =>
-                            onUpdate(row.key, { serialNumber: event.target.value })
-                        }
-                    />
-                ) : editable === 'batchCode' ? (
-                    <TextField
-                        size="small"
-                        fullWidth
-                        value={row.batchCode ?? ''}
-                        placeholder="Mã lô sản xuất trên vé"
-                        onFocus={onSelect}
-                        onChange={(event) =>
-                            onUpdate(row.key, { batchCode: event.target.value })
-                        }
-                    />
-                ) : editable === 'ticketType' ? (
-                    <TextField
-                        size="small"
-                        fullWidth
-                        value={row.ticketType ?? ''}
-                        error={mismatched}
-                        placeholder="Giá vé"
-                        onFocus={onSelect}
-                        onChange={(event) =>
-                            onUpdate(row.key, { ticketType: event.target.value })
-                        }
-                    />
-                ) : editable === 'drawDate' ? (
-                    <TextField
-                        size="small"
-                        fullWidth
-                        type="date"
-                        value={row.drawDate ? dayjs(row.drawDate).format('YYYY-MM-DD') : ''}
-                        error={!row.drawDate?.trim() || mismatched}
-                        InputLabelProps={{ shrink: true }}
-                        onFocus={onSelect}
-                        onChange={(event) =>
-                            onUpdate(row.key, { drawDate: event.target.value || null })
-                        }
-                    />
-                ) : editable === 'stationId' ? (
-                    <FormControl size="small" fullWidth error={missingStation || mismatched}>
-                        <Select
-                            displayEmpty
-                            value={row.stationId ?? ''}
-                            onFocus={onSelect}
-                            onChange={(event) => {
-                                const raw = String(event.target.value ?? '');
-                                const nextId = raw === '' ? null : Number(raw);
-                                const matched = stations.find((s) => s.id === nextId);
-                                onUpdate(row.key, {
-                                    stationId: nextId,
-                                    stationName: matched?.name ?? row.stationName,
-                                });
-                            }}
-                        >
-                            <MenuItem value="">
-                                <em>Chọn nhà đài (xổ đúng ngày vé)</em>
-                            </MenuItem>
-                            {stations.map((station) => (
-                                <MenuItem key={station.id} value={station.id}>
-                                    {station.name}
-                                    {station.code ? ` (${station.code})` : ''}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-                ) : (
-                    <Typography variant="body2">{fieldValue(row, fieldKey, stationLabel)}</Typography>
-                )}
-                {(uiStatus.message || validation?.message) && (
-                    <Typography
-                        variant="caption"
-                        color={
-                            uiStatus.status === 'unreadable'
-                                ? 'info.main'
-                                : uiStatus.status === 'invalid'
-                                  ? 'error.main'
-                                  : 'text.secondary'
-                        }
-                        display="block"
-                    >
-                        {uiStatus.message || validation?.message}
-                    </Typography>
-                )}
-                {missingStation && (
-                    <Typography variant="caption" color="error.main" display="block">
-                        Cần chọn nhà đài trước khi xác nhận nhập.
-                    </Typography>
-                )}
-                {unreadable && !row.fields?.[fieldKey]?.boundingBox && !row.fieldBoxes?.[fieldKey] && (
-                    <Typography variant="caption" color="text.secondary" display="block">
-                        Không có khung vùng cho trường này (không đọc được trên ảnh).
-                    </Typography>
-                )}
-            </Box>
-            <Stack direction="row" spacing={0.5} alignItems="center">
-                {ocrConf != null && (
-                    <Typography
-                        variant="caption"
-                        color={
-                            emphasis === 'low'
-                                ? 'error.main'
-                                : emphasis === 'medium'
-                                  ? 'warning.main'
-                                  : 'text.secondary'
-                        }
-                        fontWeight={emphasis === 'low' ? 700 : 400}
-                    >
-                        OCR {formatConfidence(ocrConf)}
-                    </Typography>
-                )}
-                <Chip
-                    size="small"
-                    label={getOcrFieldUiLabel(uiStatus.status)}
-                    color={ocrFieldUiChipColor(uiStatus.status)}
-                    variant="outlined"
-                />
-            </Stack>
-        </Stack>
-    );
-}
 
 export default function OcrReviewResultCards({
     rows,
     selection,
-    stationLabel,
     stations = [],
     stationsForRow,
     validationContextForRow,
     onSelect,
     onToggle,
     onUpdate,
-    embedded = false,
 }: Props) {
-    const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+    const [zoomImage, setZoomImage] = useState<{ url: string; title: string; row: OcrReviewRow } | null>(null);
+    const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
 
     useEffect(() => {
-        if (!selection?.rowKey) {
-            return;
-        }
-        const node = cardRefs.current[selection.rowKey];
+        if (!selection?.rowKey) return;
+        const node = rowRefs.current[selection.rowKey];
         if (node) {
             node.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
-    }, [selection?.rowKey, selection?.fieldName]);
+    }, [selection?.rowKey]);
+
+    const isAllSelected = useMemo(() => {
+        if (rows.length === 0) return false;
+        return rows.every((r) => r.selected);
+    }, [rows]);
+
+    const handleToggleAll = (checked: boolean) => {
+        for (const r of rows) {
+            const ctx = validationContextForRow?.(r);
+            const confirmable = canConfirmReviewRow(r, ctx);
+            if (confirmable || r.edited || !checked) {
+                onToggle(r.key, checked);
+            }
+        }
+    };
+
+    if (rows.length === 0) {
+        return (
+            <Paper
+                elevation={0}
+                sx={{
+                    p: 3,
+                    borderRadius: '12px',
+                    bgcolor: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    textAlign: 'center',
+                }}
+            >
+                <Typography variant="body2" color="text.secondary">
+                    Không nhận diện được vé nào trong ảnh này.
+                </Typography>
+            </Paper>
+        );
+    }
 
     return (
-        <Stack spacing={1.5} sx={embedded ? { maxHeight: 480, overflowY: 'auto', pr: 0.5 } : undefined}>
-            {rows.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">
-                    Không nhận diện được vé trong ảnh này.
-                </Typography>
-            ) : (
-                rows.map((row, indexInImage) => {
-                const ctx = validationContextForRow?.(row);
-                const confirmable = canConfirmReviewRow(row, ctx);
-                const rowStations = stationsForRow?.(row) ?? stations;
-                const cardSelected = selection?.rowKey === row.key;
-                const displayConfidence =
-                    row.adjustedConfidence != null ? row.adjustedConfidence : row.confidence;
-                const resolvedStationLabel = stationLabel(row.stationId ?? undefined);
+        <>
+            <TableContainer
+                component={Paper}
+                elevation={0}
+                sx={{
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '12px',
+                    bgcolor: '#ffffff',
+                    maxHeight: { xs: 450, md: 560 },
+                    overflowX: 'auto',
+                }}
+            >
+                <Table
+                    size="small"
+                    stickyHeader
+                    sx={{
+                        width: '100%',
+                        tableLayout: 'auto',
+                        '& .MuiTableCell-root': {
+                            py: 0.75,
+                            px: 0.85,
+                            fontSize: '0.8125rem',
+                            borderColor: '#f1f5f9',
+                        },
+                    }}
+                >
+                    <TableHead>
+                        <TableRow
+                            sx={{
+                                '& .MuiTableCell-root': {
+                                    bgcolor: '#f8fafc',
+                                    fontWeight: 800,
+                                    fontSize: '0.7rem',
+                                    color: '#475569',
+                                    letterSpacing: '0.04em',
+                                    textTransform: 'uppercase',
+                                    py: 1,
+                                    px: 0.85,
+                                    borderBottom: '1.5px solid #e2e8f0',
+                                    whiteSpace: 'nowrap',
+                                },
+                            }}
+                        >
+                            <TableCell align="center" sx={{ width: 56 }}>
+                                <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
+                                    <Checkbox
+                                        size="small"
+                                        checked={isAllSelected}
+                                        indeterminate={rows.some((r) => r.selected) && !isAllSelected}
+                                        onChange={(e) => handleToggleAll(e.target.checked)}
+                                        sx={{ p: 0, color: '#2563eb', '&.Mui-checked': { color: '#2563eb' } }}
+                                    />
+                                    <span>STT</span>
+                                </Stack>
+                            </TableCell>
+                            <TableCell align="center" sx={{ width: 72 }}>
+                                Ảnh cắt
+                            </TableCell>
+                            <TableCell sx={{ minWidth: 100 }}>
+                                Dãy số <span style={{ color: '#ef4444' }}>*</span>
+                            </TableCell>
+                            <TableCell sx={{ minWidth: 90 }}>
+                                Số sê-ri <span style={{ color: '#ef4444' }}>*</span>
+                            </TableCell>
+                            <TableCell sx={{ minWidth: 135 }}>
+                                Nhà đài <span style={{ color: '#ef4444' }}>*</span>
+                            </TableCell>
+                            <TableCell sx={{ minWidth: 115 }}>
+                                Ngày quay <span style={{ color: '#ef4444' }}>*</span>
+                            </TableCell>
+                            <TableCell sx={{ width: 75 }}>
+                                Ký hiệu / Lô
+                            </TableCell>
+                            <TableCell sx={{ width: 85 }}>
+                                Mệnh giá
+                            </TableCell>
+                            <TableCell align="center" sx={{ width: 95 }}>
+                                Trạng thái
+                            </TableCell>
+                            <TableCell align="center" sx={{ width: 36 }}>
+                                Xem
+                            </TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {rows.map((row, index) => {
+                            const ctx = validationContextForRow?.(row);
+                            const confirmable = canConfirmReviewRow(row, ctx);
+                            const rowStations = stationsForRow?.(row) ?? stations;
+                            const isSelectedRow = selection?.rowKey === row.key;
+                            const croppedUrl = resolveCroppedImageUrl(row);
 
-                return (
-                    <Box
-                        key={row.key}
-                        ref={(node: HTMLDivElement | null) => {
-                            cardRefs.current[row.key] = node;
-                        }}
-                        onClick={() => onSelect({ rowKey: row.key, fieldName: null })}
-                        sx={{
-                            border: '1px solid',
-                            borderColor: cardSelected ? 'primary.main' : 'divider',
-                            borderRadius: 1.5,
-                            p: 1.5,
-                            cursor: 'pointer',
-                            bgcolor:
+                            const numbersStatus = evaluateOcrFieldUiStatus(row, 'numbers', ctx);
+                            const serialStatus = evaluateOcrFieldUiStatus(row, 'serialNumber', ctx);
+                            const stationStatus = evaluateOcrFieldUiStatus(row, 'stationName', ctx);
+                            const drawDateStatus = evaluateOcrFieldUiStatus(row, 'drawDate', ctx);
+                            const priceStatus = evaluateOcrFieldUiStatus(row, 'ticketType', ctx);
+
+                            const missingStation = row.stationId == null;
+                            const displayConfidence =
+                                row.adjustedConfidence != null ? row.adjustedConfidence : row.confidence;
+
+                            const isError =
                                 row.status === 'FAILED' ||
                                 row.overallValidationStatus === 'INVALID' ||
-                                row.duplicate
-                                    ? 'rgba(239,68,68,0.06)'
-                                    : row.status === 'PARTIAL' ||
-                                        row.overallValidationStatus === 'NEEDS_REVIEW'
-                                      ? 'rgba(245,158,11,0.06)'
-                                      : cardSelected
-                                        ? 'rgba(37,99,235,0.04)'
-                                        : 'background.paper',
-                        }}
-                    >
-                        <Stack direction="row" spacing={1} alignItems="flex-start">
-                            <Checkbox
-                                checked={row.selected}
-                                disabled={!confirmable && !row.selected}
-                                onClick={(event) => event.stopPropagation()}
-                                onChange={(_, checked) => onToggle(row.key, checked)}
-                            />
-                            <Stack spacing={1} flex={1}>
-                                <Stack
-                                    direction="row"
-                                    spacing={1}
-                                    alignItems="center"
-                                    flexWrap="wrap"
-                                    useFlexGap
+                                row.duplicate;
+
+                            const stationColor = getStationColor(row.stationId);
+
+                            return (
+                                <TableRow
+                                    key={row.key}
+                                    ref={(node: HTMLTableRowElement | null) => {
+                                        rowRefs.current[row.key] = node;
+                                    }}
+                                    onClick={() => onSelect({ rowKey: row.key, fieldName: null })}
+                                    sx={{
+                                        cursor: 'pointer',
+                                        transition: 'all 0.15s ease',
+                                        bgcolor: isSelectedRow
+                                            ? 'rgba(37, 99, 235, 0.05)'
+                                            : isError
+                                              ? 'rgba(239, 68, 68, 0.02)'
+                                              : index % 2 === 1
+                                                ? '#fafafa'
+                                                : '#ffffff',
+                                        borderLeft: isSelectedRow
+                                            ? '4px solid #2563eb'
+                                            : isError
+                                              ? '4px solid #ef4444'
+                                              : row.selected
+                                                ? '4px solid #10b981'
+                                                : '4px solid transparent',
+                                        '&:hover': {
+                                            bgcolor: isSelectedRow
+                                                ? 'rgba(37, 99, 235, 0.08)'
+                                                : 'rgba(241, 245, 249, 0.8)',
+                                        },
+                                    }}
                                 >
-                                    <Typography fontWeight={700}>
-                                        Vé #{indexInImage + 1}
-                                    </Typography>
-                                    <span
-                                        className={`admin-status-badge ${getScanStatusBadgeClass(row.status)}`}
-                                    >
-                                        {getScanStatusLabel(row.status)}
-                                    </span>
-                                    <Chip
-                                        size="small"
-                                        label={getOverallValidationLabel(row.overallValidationStatus)}
-                                        color={chipColor(row.overallValidationStatus)}
-                                    />
-                                    <Typography variant="caption" color="text.secondary">
-                                        Confidence {formatConfidence(displayConfidence)}
-                                        {row.adjustedConfidence != null &&
-                                            ` (OCR ${formatConfidence(row.confidence)})`}
-                                    </Typography>
-                                </Stack>
-
-                                {(row.businessValidationErrors?.length ?? 0) > 0 && (
-                                    <Stack spacing={0.25}>
-                                        {row.businessValidationErrors.map((msg) => (
+                                    <TableCell align="center">
+                                        <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
+                                            <Checkbox
+                                                size="small"
+                                                checked={row.selected}
+                                                disabled={!confirmable && !row.edited}
+                                                onChange={(e) => {
+                                                    e.stopPropagation();
+                                                    onToggle(row.key, e.target.checked);
+                                                }}
+                                                sx={{ p: 0, color: '#2563eb', '&.Mui-checked': { color: '#2563eb' } }}
+                                            />
                                             <Typography
-                                                key={msg}
                                                 variant="caption"
-                                                color="error.main"
-                                                fontWeight={600}
+                                                sx={{
+                                                    fontWeight: 800,
+                                                    fontSize: '0.75rem',
+                                                    fontFamily: 'monospace',
+                                                    color: isSelectedRow ? '#1d4ed8' : '#64748b',
+                                                }}
                                             >
-                                                {msg}
+                                                #{index + 1}
                                             </Typography>
-                                        ))}
-                                    </Stack>
-                                )}
+                                        </Stack>
+                                    </TableCell>
+                                    <TableCell align="center">
+                                        {croppedUrl ? (
+                                            <Box
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setZoomImage({
+                                                        url: croppedUrl,
+                                                        title: `Vé #${index + 1} - ${row.numbers || 'Chưa nhận diện'}`,
+                                                        row,
+                                                    });
+                                                }}
+                                                sx={{
+                                                    position: 'relative',
+                                                    width: 64,
+                                                    height: 36,
+                                                    borderRadius: '6px',
+                                                    overflow: 'hidden',
+                                                    border: '1.5px solid',
+                                                    borderColor: isSelectedRow ? '#3b82f6' : '#cbd5e1',
+                                                    bgcolor: '#0f172a',
+                                                    mx: 'auto',
+                                                    cursor: 'pointer',
+                                                    boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+                                                    transition: 'all 0.15s ease',
+                                                    '&:hover': {
+                                                        transform: 'scale(1.06)',
+                                                        borderColor: '#2563eb',
+                                                        boxShadow: '0 2px 6px rgba(0,0,0,0.16)',
+                                                        '& .zoom-overlay': { opacity: 1 },
+                                                    },
+                                                }}
+                                            >
+                                                <Box
+                                                    component="img"
+                                                    src={croppedUrl}
+                                                    alt={`Vé #${index + 1}`}
+                                                    sx={{
+                                                        width: '100%',
+                                                        height: '100%',
+                                                        objectFit: 'contain',
+                                                        display: 'block',
+                                                    }}
+                                                />
+                                                <Box
+                                                    className="zoom-overlay"
+                                                    sx={{
+                                                        position: 'absolute',
+                                                        inset: 0,
+                                                        bgcolor: 'rgba(15, 23, 42, 0.45)',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        opacity: 0,
+                                                        transition: 'opacity 0.15s',
+                                                    }}
+                                                >
+                                                    <ZoomInOutlinedIcon sx={{ color: '#ffffff', fontSize: 16 }} />
+                                                </Box>
+                                            </Box>
+                                        ) : (
+                                            <Tooltip title="Không có ảnh cắt riêng cho vé này" arrow>
+                                                <Box
+                                                    sx={{
+                                                        width: 64,
+                                                        height: 36,
+                                                        borderRadius: '6px',
+                                                        border: '1px dashed #cbd5e1',
+                                                        bgcolor: '#f8fafc',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        mx: 'auto',
+                                                    }}
+                                                >
+                                                    <ConfirmationNumberOutlinedIcon sx={{ fontSize: 16, color: '#94a3b8' }} />
+                                                </Box>
+                                            </Tooltip>
+                                        )}
+                                    </TableCell>
+                                    <TableCell>
+                                        <Box onClick={(e) => e.stopPropagation()}>
+                                            <Box
+                                                component="input"
+                                                type="text"
+                                                value={row.numbers}
+                                                placeholder="VD: 433299"
+                                                onFocus={() => onSelect({ rowKey: row.key, fieldName: 'numbers' })}
+                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                                                    onUpdate(row.key, { numbers: e.target.value })
+                                                }
+                                                sx={{
+                                                    width: '100%',
+                                                    height: 32,
+                                                    px: 1,
+                                                    fontFamily: 'monospace',
+                                                    fontWeight: 800,
+                                                    fontSize: '0.875rem',
+                                                    letterSpacing: '0.04em',
+                                                    color: numbersStatus.status === 'invalid' ? '#dc2626' : '#0f172a',
+                                                    bgcolor: numbersStatus.status === 'invalid' ? '#fef2f2' : '#ffffff',
+                                                    border: '1px solid',
+                                                    borderColor:
+                                                        numbersStatus.status === 'invalid'
+                                                            ? '#f87171'
+                                                            : isSelectedRow
+                                                              ? '#93c5fd'
+                                                              : '#e2e8f0',
+                                                    borderRadius: '6px',
+                                                    outline: 'none',
+                                                    transition: 'all 0.15s',
+                                                    '&:hover': {
+                                                        borderColor: '#cbd5e1',
+                                                    },
+                                                    '&:focus': {
+                                                        borderColor: '#2563eb',
+                                                        boxShadow: '0 0 0 2px rgba(37,99,235,0.12)',
+                                                        bgcolor: '#ffffff',
+                                                    },
+                                                }}
+                                            />
+                                            {numbersStatus.message && (
+                                                <Typography
+                                                    variant="caption"
+                                                    color="error.main"
+                                                    sx={{ fontSize: '0.65rem', display: 'block', mt: 0.25, lineHeight: 1.1 }}
+                                                >
+                                                    {numbersStatus.message}
+                                                </Typography>
+                                            )}
+                                        </Box>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Box onClick={(e) => e.stopPropagation()}>
+                                            <Box
+                                                component="input"
+                                                type="text"
+                                                value={row.serialNumber}
+                                                placeholder="VD: 433299H"
+                                                onFocus={() => onSelect({ rowKey: row.key, fieldName: 'serialNumber' })}
+                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                                                    onUpdate(row.key, { serialNumber: e.target.value })
+                                                }
+                                                sx={{
+                                                    width: '100%',
+                                                    height: 32,
+                                                    px: 0.75,
+                                                    fontFamily: 'monospace',
+                                                    fontWeight: 700,
+                                                    fontSize: '0.8125rem',
+                                                    color: serialStatus.status === 'invalid' ? '#dc2626' : '#334155',
+                                                    bgcolor: serialStatus.status === 'invalid' ? '#fef2f2' : '#ffffff',
+                                                    border: '1px solid',
+                                                    borderColor:
+                                                        serialStatus.status === 'invalid'
+                                                            ? '#f87171'
+                                                            : isSelectedRow
+                                                              ? '#93c5fd'
+                                                              : '#e2e8f0',
+                                                    borderRadius: '6px',
+                                                    outline: 'none',
+                                                    transition: 'all 0.15s',
+                                                    '&:hover': {
+                                                        borderColor: '#cbd5e1',
+                                                    },
+                                                    '&:focus': {
+                                                        borderColor: '#2563eb',
+                                                        boxShadow: '0 0 0 2px rgba(37,99,235,0.12)',
+                                                        bgcolor: '#ffffff',
+                                                    },
+                                                }}
+                                            />
+                                        </Box>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Box onClick={(e) => e.stopPropagation()}>
+                                            <Select
+                                                size="small"
+                                                fullWidth
+                                                displayEmpty
+                                                value={row.stationId ?? ''}
+                                                error={missingStation || stationStatus.status === 'invalid'}
+                                                onFocus={() => onSelect({ rowKey: row.key, fieldName: 'stationName' })}
+                                                onChange={(e) => {
+                                                    const raw = String(e.target.value ?? '');
+                                                    const nextId = raw === '' ? null : Number(raw);
+                                                    const matched = rowStations.find((s) => s.id === nextId);
+                                                    onUpdate(row.key, {
+                                                        stationId: nextId,
+                                                        stationName: matched?.name ?? row.stationName,
+                                                    });
+                                                }}
+                                                renderValue={(val: any) => {
+                                                    if (!val || String(val) === '') {
+                                                        return <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>-- Chọn đài --</span>;
+                                                    }
+                                                    const matched = rowStations.find((s) => s.id === Number(val));
+                                                    return (
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, overflow: 'hidden' }}>
+                                                            {stationColor && (
+                                                                <Box
+                                                                    sx={{
+                                                                        width: 7,
+                                                                        height: 7,
+                                                                        borderRadius: '50%',
+                                                                        bgcolor: stationColor,
+                                                                        flexShrink: 0,
+                                                                    }}
+                                                                />
+                                                            )}
+                                                            <Typography
+                                                                variant="body2"
+                                                                noWrap
+                                                                sx={{
+                                                                    fontSize: '0.8125rem',
+                                                                    fontWeight: 700,
+                                                                    color: stationColor || '#0f172a',
+                                                                }}
+                                                            >
+                                                                {matched?.name ?? row.stationName ?? `Đài #${val}`}
+                                                            </Typography>
+                                                        </Box>
+                                                    );
+                                                }}
+                                                sx={{
+                                                    height: 32,
+                                                    bgcolor: '#ffffff',
+                                                    borderRadius: '6px',
+                                                    fontSize: '0.8125rem',
+                                                    fontWeight: 600,
+                                                    '& .MuiSelect-select': {
+                                                        py: '4px',
+                                                        px: '8px',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                    },
+                                                    '& .MuiOutlinedInput-notchedOutline': {
+                                                        borderColor: missingStation ? '#f87171' : '#e2e8f0',
+                                                    },
+                                                }}
+                                            >
+                                                <MenuItem value="">
+                                                    <em style={{ color: '#94a3b8', fontSize: '0.8125rem' }}>-- Chọn đài --</em>
+                                                </MenuItem>
+                                                {rowStations.map((station) => {
+                                                    const color = getStationColor(station.id);
+                                                    return (
+                                                        <MenuItem key={station.id} value={station.id} sx={{ fontSize: '0.8125rem' }}>
+                                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                                {color && (
+                                                                    <Box
+                                                                        sx={{
+                                                                            width: 7,
+                                                                            height: 7,
+                                                                            borderRadius: '50%',
+                                                                            bgcolor: color,
+                                                                            flexShrink: 0,
+                                                                        }}
+                                                                    />
+                                                                )}
+                                                                <Typography variant="body2" sx={{ fontSize: '0.8125rem', fontWeight: 600 }}>
+                                                                    {station.name} {station.code ? `(${station.code})` : ''}
+                                                                </Typography>
+                                                            </Box>
+                                                        </MenuItem>
+                                                    );
+                                                })}
+                                            </Select>
+                                            {missingStation && (
+                                                <Typography
+                                                    variant="caption"
+                                                    color="error.main"
+                                                    sx={{ fontSize: '0.65rem', display: 'block', mt: 0.25, lineHeight: 1.1 }}
+                                                >
+                                                    Chưa chọn đài
+                                                </Typography>
+                                            )}
+                                        </Box>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Box onClick={(e) => e.stopPropagation()}>
+                                            <Box
+                                                component="input"
+                                                type="date"
+                                                value={row.drawDate ? dayjs(row.drawDate).format('YYYY-MM-DD') : ''}
+                                                onFocus={() => onSelect({ rowKey: row.key, fieldName: 'drawDate' })}
+                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                                                    onUpdate(row.key, { drawDate: e.target.value || null })
+                                                }
+                                                sx={{
+                                                    width: '100%',
+                                                    height: 32,
+                                                    px: 0.75,
+                                                    fontSize: '0.8125rem',
+                                                    fontWeight: 600,
+                                                    color: drawDateStatus.status === 'invalid' ? '#dc2626' : '#0f172a',
+                                                    bgcolor: drawDateStatus.status === 'invalid' ? '#fef2f2' : '#ffffff',
+                                                    border: '1px solid',
+                                                    borderColor:
+                                                        drawDateStatus.status === 'invalid'
+                                                            ? '#f87171'
+                                                            : isSelectedRow
+                                                              ? '#93c5fd'
+                                                              : '#e2e8f0',
+                                                    borderRadius: '6px',
+                                                    outline: 'none',
+                                                    transition: 'all 0.15s',
+                                                    '&:hover': {
+                                                        borderColor: '#cbd5e1',
+                                                    },
+                                                    '&:focus': {
+                                                        borderColor: '#2563eb',
+                                                        boxShadow: '0 0 0 2px rgba(37,99,235,0.12)',
+                                                        bgcolor: '#ffffff',
+                                                    },
+                                                }}
+                                            />
+                                        </Box>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Box onClick={(e) => e.stopPropagation()}>
+                                            <Box
+                                                component="input"
+                                                type="text"
+                                                value={row.batchCode ?? ''}
+                                                placeholder="08D"
+                                                onFocus={() => onSelect({ rowKey: row.key, fieldName: 'batchCode' })}
+                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                                                    onUpdate(row.key, { batchCode: e.target.value })
+                                                }
+                                                sx={{
+                                                    width: '100%',
+                                                    height: 32,
+                                                    px: 0.75,
+                                                    fontSize: '0.8125rem',
+                                                    fontWeight: 600,
+                                                    color: '#334155',
+                                                    bgcolor: '#ffffff',
+                                                    border: '1px solid',
+                                                    borderColor: isSelectedRow ? '#93c5fd' : '#e2e8f0',
+                                                    borderRadius: '6px',
+                                                    outline: 'none',
+                                                    transition: 'all 0.15s',
+                                                    '&:hover': {
+                                                        borderColor: '#cbd5e1',
+                                                    },
+                                                    '&:focus': {
+                                                        borderColor: '#2563eb',
+                                                        boxShadow: '0 0 0 2px rgba(37,99,235,0.12)',
+                                                        bgcolor: '#ffffff',
+                                                    },
+                                                }}
+                                            />
+                                        </Box>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Box onClick={(e) => e.stopPropagation()}>
+                                            <Box
+                                                component="input"
+                                                type="text"
+                                                value={row.ticketType ?? ''}
+                                                placeholder="10.000đ"
+                                                onFocus={() => onSelect({ rowKey: row.key, fieldName: 'ticketType' })}
+                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                                                    onUpdate(row.key, { ticketType: e.target.value })
+                                                }
+                                                sx={{
+                                                    width: '100%',
+                                                    height: 32,
+                                                    px: 0.75,
+                                                    fontSize: '0.8125rem',
+                                                    fontWeight: 600,
+                                                    color: priceStatus.status === 'invalid' ? '#dc2626' : '#334155',
+                                                    bgcolor: priceStatus.status === 'invalid' ? '#fef2f2' : '#ffffff',
+                                                    border: '1px solid',
+                                                    borderColor:
+                                                        priceStatus.status === 'invalid'
+                                                            ? '#f87171'
+                                                            : isSelectedRow
+                                                              ? '#93c5fd'
+                                                              : '#e2e8f0',
+                                                    borderRadius: '6px',
+                                                    outline: 'none',
+                                                    transition: 'all 0.15s',
+                                                    '&:hover': {
+                                                        borderColor: '#cbd5e1',
+                                                    },
+                                                    '&:focus': {
+                                                        borderColor: '#2563eb',
+                                                        boxShadow: '0 0 0 2px rgba(37,99,235,0.12)',
+                                                        bgcolor: '#ffffff',
+                                                    },
+                                                }}
+                                            />
+                                        </Box>
+                                    </TableCell>
+                                    <TableCell align="center">
+                                        <Tooltip
+                                            arrow
+                                            title={
+                                                <Box sx={{ p: 0.5 }}>
+                                                    <Typography variant="caption" fontWeight={700} sx={{ display: 'block', mb: 0.5 }}>
+                                                        Chi tiết nhận diện:
+                                                    </Typography>
+                                                    <Typography variant="caption" sx={{ display: 'block' }}>
+                                                        • Độ chính xác: {formatConfidence(displayConfidence)}
+                                                    </Typography>
+                                                    {row.duplicate && (
+                                                        <Typography variant="caption" color="#fca5a5" sx={{ display: 'block' }}>
+                                                            • Cảnh báo: Trùng dãy số & đài với vé đã có trong hệ thống
+                                                        </Typography>
+                                                    )}
+                                                    {row.validationErrors?.map((err, i) => (
+                                                        <Typography key={i} variant="caption" color="#fca5a5" sx={{ display: 'block' }}>
+                                                            • {err}
+                                                        </Typography>
+                                                    ))}
+                                                    {row.edited && (
+                                                        <Typography variant="caption" color="#93c5fd" sx={{ display: 'block' }}>
+                                                            • Đã được chỉnh sửa thủ công
+                                                        </Typography>
+                                                    )}
+                                                </Box>
+                                            }
+                                        >
+                                            <Box sx={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                <Chip
+                                                    size="small"
+                                                    icon={
+                                                        row.status === 'COMPLETE' || row.overallValidationStatus === 'VALID' ? (
+                                                            <CheckCircleOutlineIcon sx={{ fontSize: '12px !important' }} />
+                                                        ) : row.duplicate || row.status === 'FAILED' ? (
+                                                            <ErrorOutlineOutlinedIcon sx={{ fontSize: '12px !important' }} />
+                                                        ) : (
+                                                            <WarningAmberOutlinedIcon sx={{ fontSize: '12px !important' }} />
+                                                        )
+                                                    }
+                                                    label={
+                                                        row.duplicate
+                                                            ? 'Trùng'
+                                                            : row.status === 'FAILED'
+                                                              ? 'Lỗi đọc'
+                                                              : row.edited
+                                                                ? 'Đã sửa'
+                                                                : `${formatConfidence(displayConfidence)}`
+                                                    }
+                                                    sx={{
+                                                        fontWeight: 800,
+                                                        fontSize: '0.7rem',
+                                                        height: 22,
+                                                        borderRadius: '5px',
+                                                        bgcolor:
+                                                            row.duplicate || row.status === 'FAILED'
+                                                                ? '#fee2e2'
+                                                                : row.status === 'COMPLETE' || row.overallValidationStatus === 'VALID'
+                                                                  ? '#dcfce7'
+                                                                  : '#fef3c7',
+                                                        color:
+                                                            row.duplicate || row.status === 'FAILED'
+                                                                ? '#b91c1c'
+                                                                : row.status === 'COMPLETE' || row.overallValidationStatus === 'VALID'
+                                                                  ? '#15803d'
+                                                                  : '#b45309',
+                                                        border: '1px solid',
+                                                        borderColor:
+                                                            row.duplicate || row.status === 'FAILED'
+                                                                ? '#fecaca'
+                                                                : row.status === 'COMPLETE' || row.overallValidationStatus === 'VALID'
+                                                                  ? '#bbf7d0'
+                                                                  : '#fde68a',
+                                                    }}
+                                                />
+                                            </Box>
+                                        </Tooltip>
+                                    </TableCell>
+                                    <TableCell align="center">
+                                        {croppedUrl && (
+                                            <IconButton
+                                                size="small"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setZoomImage({
+                                                        url: croppedUrl,
+                                                        title: `Vé #${index + 1} - ${row.numbers || 'Chưa nhận diện'}`,
+                                                        row,
+                                                    });
+                                                }}
+                                                sx={{
+                                                    p: 0.5,
+                                                    color: '#64748b',
+                                                    '&:hover': { color: '#2563eb', bgcolor: '#eff6ff' },
+                                                }}
+                                                title="Xem ảnh vé phóng to"
+                                            >
+                                                <VisibilityOutlinedIcon sx={{ fontSize: 16 }} />
+                                            </IconButton>
+                                        )}
+                                    </TableCell>
+                                </TableRow>
+                            );
+                        })}
+                    </TableBody>
+                </Table>
+            </TableContainer>
 
-                                {OCR_FIELD_KEYS.map((fieldKey) => (
-                                    <FieldRow
-                                        key={fieldKey}
-                                        row={row}
-                                        fieldKey={fieldKey}
-                                        label={OCR_FIELD_LABELS[fieldKey]}
-                                        editable={
-                                            fieldKey === 'numbers'
-                                                ? 'numbers'
-                                                : fieldKey === 'serialNumber'
-                                                  ? 'serialNumber'
-                                                  : fieldKey === 'drawDate'
-                                                    ? 'drawDate'
-                                                    : fieldKey === 'stationName'
-                                                      ? 'stationId'
-                                                      : fieldKey === 'batchCode'
-                                                        ? 'batchCode'
-                                                        : fieldKey === 'ticketType'
-                                                          ? 'ticketType'
-                                                          : undefined
-                                        }
-                                        stationLabel={resolvedStationLabel}
-                                        stations={rowStations}
-                                        validationCtx={ctx}
-                                        highlighted={
-                                            selection?.rowKey === row.key &&
-                                            selection.fieldName === fieldKey
-                                        }
-                                        onSelect={() =>
-                                            onSelect({ rowKey: row.key, fieldName: fieldKey })
-                                        }
-                                        onUpdate={onUpdate}
-                                    />
-                                ))}
-                            </Stack>
-                        </Stack>
-                    </Box>
-                );
-            })
-            )}
-        </Stack>
+            <Dialog
+                open={Boolean(zoomImage)}
+                onClose={() => setZoomImage(null)}
+                maxWidth="sm"
+                fullWidth
+                PaperProps={{
+                    sx: {
+                        borderRadius: '16px',
+                        overflow: 'hidden',
+                    },
+                }}
+            >
+                <DialogTitle
+                    sx={{
+                        p: 2,
+                        bgcolor: '#ffffff',
+                        borderBottom: '1px solid #f1f5f9',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                    }}
+                >
+                    <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography variant="subtitle1" fontWeight={800} color="#0f172a">
+                            {zoomImage?.title}
+                        </Typography>
+                        {zoomImage?.row?.stationName && (
+                            <Chip
+                                size="small"
+                                label={zoomImage.row.stationName}
+                                sx={{
+                                    bgcolor: '#f1f5f9',
+                                    color: getStationColor(zoomImage.row.stationId) || '#334155',
+                                    fontWeight: 700,
+                                    fontSize: '0.725rem',
+                                    height: 22,
+                                }}
+                            />
+                        )}
+                    </Stack>
+                    <IconButton size="small" onClick={() => setZoomImage(null)}>
+                        <CloseIcon fontSize="small" />
+                    </IconButton>
+                </DialogTitle>
+                <DialogContent sx={{ p: 2, bgcolor: '#0f172a', textAlign: 'center' }}>
+                    {zoomImage && (
+                        <Box
+                            component="img"
+                            src={zoomImage.url}
+                            alt={zoomImage.title}
+                            sx={{
+                                maxWidth: '100%',
+                                maxHeight: '70vh',
+                                objectFit: 'contain',
+                                borderRadius: '8px',
+                                mx: 'auto',
+                                display: 'block',
+                            }}
+                        />
+                    )}
+                </DialogContent>
+            </Dialog>
+        </>
     );
 }
