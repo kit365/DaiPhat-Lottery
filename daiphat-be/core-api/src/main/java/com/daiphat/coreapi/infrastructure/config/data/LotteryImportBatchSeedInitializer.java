@@ -1,6 +1,5 @@
 package com.daiphat.coreapi.infrastructure.config.data;
 
-import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchImportMode;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchLineStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus;
@@ -18,7 +17,6 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotterySu
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketSerialEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
-import com.daiphat.coreapi.infrastructure.persistence.repository.UserRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.ImportBatchLineRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.ImportBatchRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryStationRepository;
@@ -50,9 +48,14 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Seeds one NEW import batch per draw date (yesterday / today / tomorrow) for the
- * scheduled southern stations of that weekday. Ticket rows cover
- * {@link LotteryTicketStatus} + {@link TicketCondition} combinations; serials follow
+ * Seeds one NEW import batch per draw date for the shared demo inventory pool
+ * ({@link DemoSeedConstants#INVENTORY_SERIAL_PREFIX}).
+ * <p>
+ * Window: past {@code daiphat.lottery.seed.past-days} days (default 30) + today + tomorrow
+ * for southern stations of that weekday. Past days use a lighter ticket budget so local
+ * startup stays reasonable; today/tomorrow keep the full status-matrix mix.
+ * <p>
+ * Ticket rows cover {@link LotteryTicketStatus} + {@link TicketCondition} combinations; serials follow
  * current aggregate/expiry rules. Idempotent: only {@code PN-SEED-*} / {@code LO-SEED-*}
  * / {@code IBSEED-*} rows are replaced.
  */
@@ -60,15 +63,15 @@ import java.util.Set;
 @RequiredArgsConstructor
 @Slf4j
 @ConditionalOnProperty(value = "daiphat.lottery.seed.enabled", havingValue = "true")
-@Order(110)
+@Order(100)
 public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
 
-    private static final String SYSTEM_ACTOR = "import-batch-seed";
+    private static final String SYSTEM_ACTOR = DemoSeedConstants.INVENTORY_ACTOR;
     private static final String SUPPLIER_CODE = "MINH_CHINH";
     private static final String SUPPLIER_NAME = "Minh Chính";
-    private static final String HEADER_CODE_PREFIX = "PN-SEED-";
-    private static final String LINE_CODE_PREFIX = "LO-SEED-";
-    static final String SERIAL_PREFIX = "IBSEED-";
+    private static final String HEADER_CODE_PREFIX = DemoSeedConstants.IMPORT_BATCH_PREFIX;
+    private static final String LINE_CODE_PREFIX = DemoSeedConstants.IMPORT_LINE_PREFIX;
+    static final String SERIAL_PREFIX = DemoSeedConstants.INVENTORY_SERIAL_PREFIX;
     private static final BigDecimal DEFAULT_IMPORT_COST = BigDecimal.valueOf(10_000);
     private static final DateTimeFormatter BASIC_DATE = DateTimeFormatter.BASIC_ISO_DATE;
     private static final int MIN_TICKETS_PER_BATCH = 100;
@@ -109,6 +112,21 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
             SeedTicketScenario.PROXY_HOLDING
     );
 
+    private static final List<SeedTicketScenario> PAST_SELLABLE_SCENARIOS = List.of(
+            SeedTicketScenario.IN_STOCK_GOOD,
+            SeedTicketScenario.IN_STOCK_GOOD,
+            SeedTicketScenario.IN_STOCK_GOOD,
+            SeedTicketScenario.IN_STOCK_GOOD,
+            SeedTicketScenario.IN_STOCK_GOOD,
+            SeedTicketScenario.IN_STOCK_GOOD,
+            SeedTicketScenario.PARTIAL_RESERVED,
+            SeedTicketScenario.PARTIAL_SOLD,
+            SeedTicketScenario.SOLD_OUT,
+            SeedTicketScenario.DAMAGED_INTERNAL,
+            SeedTicketScenario.IN_STOCK_GOOD,
+            SeedTicketScenario.IN_STOCK_GOOD
+    );
+
     private final LotterySupplierRepository lotterySupplierRepository;
     private final LotteryStationRepository lotteryStationRepository;
     private final ImportBatchRepository importBatchRepository;
@@ -116,19 +134,27 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
     private final LotteryTicketRepository lotteryTicketRepository;
     private final LotteryTicketSerialRepository lotteryTicketSerialRepository;
     private final LotterySerialSeedCleanup lotterySerialSeedCleanup;
-    private final UserRepository userRepository;
+    private final SeedAccountResolver seedAccountResolver;
     private final Clock clock;
 
     @Value("${daiphat.lottery.seed.tickets-per-batch:150}")
     private int ticketsPerBatch;
 
+    /** Lighter budget for historical days (win/payout + settlement demos). */
+    @Value("${daiphat.lottery.seed.tickets-per-batch-past:36}")
+    private int ticketsPerBatchPast;
+
     @Value("${daiphat.lottery.seed.serials-per-ticket:4}")
     private int serialsPerTicket;
+
+    /** How many calendar days before today to seed (scheduled stations only). Cap 30. */
+    @Value("${daiphat.lottery.seed.past-days:30}")
+    private int pastDays;
 
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        UserEntity operator = findSeedOperator();
+        UserEntity operator = seedAccountResolver.findOperator();
         if (operator == null) {
             log.warn("Skip import-batch seed: no staff operator account found.");
             return;
@@ -177,7 +203,7 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
             int importedQty = 0;
             int batchTickets = 0;
             BigDecimal importedCost = BigDecimal.ZERO;
-            int[] ticketsByStation = distributeTickets(stations.size());
+            int[] ticketsByStation = distributeTickets(stations.size(), plan.ticketBudget());
             for (int stationIndex = 0; stationIndex < batch.getLines().size(); stationIndex++) {
                 ImportBatchLineEntity line = batch.getLines().get(stationIndex);
                 LotteryStationEntity station = line.getLotteryStation();
@@ -234,31 +260,44 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
     }
 
     private List<BatchPlan> buildBatchPlans(LocalDate today, LocalDateTime now) {
-        LocalDate yesterday = today.minusDays(1);
+        List<BatchPlan> plans = new ArrayList<>();
+        int historyDays = Math.max(0, Math.min(pastDays, 30));
+        int pastBudget = Math.max(SEED_TICKET_SCENARIOS.size(), ticketsPerBatchPast);
+        int liveBudget = Math.max(MIN_TICKETS_PER_BATCH, ticketsPerBatch);
+
+        for (int offset = historyDays; offset >= 1; offset--) {
+            LocalDate drawDate = today.minusDays(offset);
+            plans.add(new BatchPlan(
+                    drawDate,
+                    ImportBatchType.NEW,
+                    ImportBatchImportMode.IN_DAY,
+                    "SEED-NEW-PAST-" + offset,
+                    resolveImportedAt(drawDate, today, now),
+                    pastBudget,
+                    true
+            ));
+        }
+
+        plans.add(new BatchPlan(
+                today,
+                ImportBatchType.NEW,
+                ImportBatchImportMode.IN_DAY,
+                "SEED-NEW-TODAY",
+                resolveImportedAt(today, today, now),
+                liveBudget,
+                false
+        ));
         LocalDate tomorrow = today.plusDays(1);
-        return List.of(
-                new BatchPlan(
-                        yesterday,
-                        ImportBatchType.NEW,
-                        ImportBatchImportMode.IN_DAY,
-                        "SEED-NEW-YESTERDAY",
-                        resolveImportedAt(yesterday, today, now)
-                ),
-                new BatchPlan(
-                        today,
-                        ImportBatchType.NEW,
-                        ImportBatchImportMode.IN_DAY,
-                        "SEED-NEW-TODAY",
-                        resolveImportedAt(today, today, now)
-                ),
-                new BatchPlan(
-                        tomorrow,
-                        ImportBatchType.NEW,
-                        ImportBatchImportMode.IN_DAY,
-                        "SEED-NEW-TOMORROW",
-                        resolveImportedAt(tomorrow, today, now)
-                )
-        );
+        plans.add(new BatchPlan(
+                tomorrow,
+                ImportBatchType.NEW,
+                ImportBatchImportMode.IN_DAY,
+                "SEED-NEW-TOMORROW",
+                resolveImportedAt(tomorrow, today, now),
+                liveBudget,
+                false
+        ));
+        return plans;
     }
 
     /**
@@ -275,8 +314,8 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
         return now.minusMinutes(20);
     }
 
-    private int[] distributeTickets(int stationCount) {
-        int target = Math.min(MAX_TICKETS_PER_BATCH, Math.max(MIN_TICKETS_PER_BATCH, ticketsPerBatch));
+    private int[] distributeTickets(int stationCount, int ticketBudget) {
+        int target = Math.min(MAX_TICKETS_PER_BATCH, Math.max(SEED_TICKET_SCENARIOS.size(), ticketBudget));
         int[] counts = new int[stationCount];
         int base = target / stationCount;
         int remainder = target % stationCount;
@@ -530,7 +569,9 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
         int serialCount = Math.max(serialsPerTicket, 1);
         boolean pastDraw = isPastDraw(station, plan.drawDate(), now);
         boolean futureDraw = plan.drawDate().isAfter(now.toLocalDate());
-        List<SeedTicketScenario> scenarioCycle = futureDraw ? FUTURE_SELLABLE_SCENARIOS : SEED_TICKET_SCENARIOS;
+        List<SeedTicketScenario> scenarioCycle = plan.pastWindow()
+                ? PAST_SELLABLE_SCENARIOS
+                : (futureDraw ? FUTURE_SELLABLE_SCENARIOS : SEED_TICKET_SCENARIOS);
         BigDecimal price = station.getPrice() != null ? station.getPrice() : DEFAULT_IMPORT_COST;
         String cursorKey = station.getId() + "|" + plan.drawDate();
         int createdSerials = 0;
@@ -777,15 +818,6 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
         return new TicketSeedPlan(LotteryTicketStatus.EXPIRED, List.copyOf(expired));
     }
 
-    private UserEntity findSeedOperator() {
-        List<UserEntity> operators = userRepository.findAllByRole_CodeIn(List.of(RoleConstants.ROLE_STAFF_OPERATOR));
-        if (!operators.isEmpty()) {
-            return operators.getFirst();
-        }
-        List<UserEntity> admins = userRepository.findAllByRole_CodeIn(List.of(RoleConstants.ADMIN));
-        return admins.isEmpty() ? null : admins.getFirst();
-    }
-
     private enum SeedTicketScenario {
         IN_STOCK_GOOD,
         PARTIAL_RESERVED,
@@ -804,7 +836,9 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
             ImportBatchType batchType,
             ImportBatchImportMode importMode,
             String suffix,
-            LocalDateTime importedAt
+            LocalDateTime importedAt,
+            int ticketBudget,
+            boolean pastWindow
     ) {
     }
 

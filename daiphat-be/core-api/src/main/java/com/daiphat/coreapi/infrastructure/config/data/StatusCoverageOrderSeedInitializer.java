@@ -1,6 +1,5 @@
 package com.daiphat.coreapi.infrastructure.config.data;
 
-import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderReceiveType;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
@@ -16,7 +15,6 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderDetailEn
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.TransactionEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
-import com.daiphat.coreapi.infrastructure.persistence.repository.UserRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryTicketRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryTicketSerialRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.order.OrderRepository;
@@ -59,7 +57,7 @@ public class StatusCoverageOrderSeedInitializer implements ApplicationRunner {
 
     private final OrderRepository orderRepository;
     private final TransactionRepository transactionRepository;
-    private final UserRepository userRepository;
+    private final SeedAccountResolver seedAccountResolver;
     private final LotteryTicketRepository lotteryTicketRepository;
     private final LotteryTicketSerialRepository lotteryTicketSerialRepository;
     private final Clock clock;
@@ -67,8 +65,8 @@ public class StatusCoverageOrderSeedInitializer implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        UserEntity member = findSeedMember();
-        UserEntity operator = findSeedOperator();
+        UserEntity member = seedAccountResolver.findMember();
+        UserEntity operator = seedAccountResolver.findOperator();
         if (member == null || operator == null) {
             log.warn("Skip status-coverage order seed: member or operator account missing.");
             return;
@@ -538,21 +536,6 @@ public class StatusCoverageOrderSeedInitializer implements ApplicationRunner {
 
     private void resetPreviousSeedData() {
         StatusCoverageSeedCleanup.resetOrders(transactionRepository, orderRepository);
-    }
-
-    private UserEntity findSeedMember() {
-        return userRepository.findAllByRole_CodeIn(List.of(RoleConstants.ROLE_MEMBER)).stream()
-                .findFirst()
-                .orElse(null);
-    }
-
-    private UserEntity findSeedOperator() {
-        List<UserEntity> operators = userRepository.findAllByRole_CodeIn(List.of(RoleConstants.ROLE_STAFF_OPERATOR));
-        if (!operators.isEmpty()) {
-            return operators.getFirst();
-        }
-        List<UserEntity> admins = userRepository.findAllByRole_CodeIn(List.of(RoleConstants.ADMIN));
-        return admins.isEmpty() ? null : admins.getFirst();
     }
 
     private String fullNameOf(UserEntity user) {

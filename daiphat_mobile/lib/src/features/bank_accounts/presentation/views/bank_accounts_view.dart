@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
@@ -274,18 +275,40 @@ class _BankAccountsViewState extends ConsumerState<BankAccountsView> {
                       ],
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      account.bankAccountNo,
-                      style: AppTypography.mainWith(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.6,
-                        color: AppColors.textMain,
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          account.bankAccountNo,
+                          style: AppTypography.mainWith(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.6,
+                            color: AppColors.textMain,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        InkWell(
+                          onTap: () {
+                            Clipboard.setData(
+                              ClipboardData(text: account.bankAccountNo),
+                            );
+                            AppToast.success('Đã sao chép số tài khoản.');
+                          },
+                          borderRadius: BorderRadius.circular(4),
+                          child: const Padding(
+                            padding: EdgeInsets.all(2),
+                            child: Icon(
+                              Icons.copy_rounded,
+                              size: 14,
+                              color: AppColors.contentPlaceholderStrong,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      account.bankAccountName,
+                      account.bankAccountName.toUpperCase(),
                       style: AppTypography.mainWith(
                         fontSize: 12,
                         color: AppColors.textMuted,

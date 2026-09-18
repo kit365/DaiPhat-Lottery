@@ -64,15 +64,16 @@ class AppStatusTabBar<T> extends StatelessWidget {
                     displayLabel,
                     style: AppTypography.subtitle2(
                       fontSize: 13.5,
-                      fontWeight:
-                          isSelected ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w500,
                       color: isSelected ? activeColor : inactiveColor,
                     ),
                   ),
                   const Spacer(),
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 180),
-                    height: 2.5,
+                    height: 3,
                     width: isSelected ? 28 : 0,
                     decoration: BoxDecoration(
                       color: isSelected ? activeColor : AppColors.transparent,

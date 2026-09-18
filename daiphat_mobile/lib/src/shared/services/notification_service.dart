@@ -80,7 +80,7 @@ class NotificationService {
     try {
       final token = await messaging.getToken();
       if (token != null) {
-        developer.log('FCM Token: $token', name: 'NotificationService');
+        developer.log('FCM token is available.', name: 'NotificationService');
       }
     } catch (e) {
       developer.log(
@@ -91,11 +91,6 @@ class NotificationService {
 
     try {
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-        developer.log(
-          'Foreground message data: ${message.data}',
-          name: 'NotificationService',
-        );
-
         if (message.notification != null) {
           _showLocalNotification(message);
         }

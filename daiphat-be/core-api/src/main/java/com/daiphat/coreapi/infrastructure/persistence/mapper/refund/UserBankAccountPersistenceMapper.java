@@ -13,9 +13,11 @@ import java.util.UUID;
 public interface UserBankAccountPersistenceMapper {
 
     @Mapping(target = "userId", source = "user.id")
+    @Mapping(target = "isDefault", expression = "java(entity.isDefault())")
     UserBankAccountModel toDomain(UserBankAccountEntity entity);
 
     @Mapping(target = "user", source = "userId")
+    @Mapping(target = "isDefault", expression = "java(domain.isDefault())")
     UserBankAccountEntity toEntity(UserBankAccountModel domain);
 
     default UserEntity mapUserId(UUID userId) {

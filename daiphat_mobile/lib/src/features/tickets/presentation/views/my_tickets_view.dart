@@ -12,6 +12,7 @@ import 'package:daiphat_mobile/src/features/profile/presentation/profile_iconogr
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 import 'package:daiphat_mobile/src/shared/widgets/app_status_tab_bar.dart';
 import 'package:daiphat_mobile/src/shared/widgets/brand_scrollbar.dart';
+import 'package:daiphat_mobile/src/shared/widgets/ticket_number_display.dart';
 import '../viewmodels/my_tickets_viewmodel.dart';
 
 class MyTicketsView extends ConsumerStatefulWidget {
@@ -40,7 +41,19 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
     _scrollController.addListener(_onScroll);
     _searchController.addListener(() {
       _viewModel.setSearchQuery(_searchController.text);
+      _resetListPosition();
     });
+  }
+
+  void _resetListPosition() {
+    if (_scrollController.hasClients && _scrollController.offset != 0) {
+      _scrollController.jumpTo(0);
+    }
+  }
+
+  Future<void> _refreshTickets() async {
+    _resetListPosition();
+    await _viewModel.fetchTickets(refresh: true);
   }
 
   void _onScroll() {
@@ -109,7 +122,7 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
         children: [
           _buildMetricCard(
             'Tổng vé',
-            '${_viewModel.totalRecords}',
+            '${_viewModel.displayedTotalRecords}',
             ProfileIconography.ticket,
             AppColors.primary,
           ),
@@ -118,14 +131,14 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
             'Chờ quay',
             '${_viewModel.pendingCountOnPage}',
             ProfileIconography.pendingTicket,
-            AppColors.ticketPendingForeground,
+            AppColors.ticketResultPendingForeground,
           ),
           const SizedBox(width: 10),
           _buildMetricCard(
             'Trúng',
             '${_viewModel.wonCountOnPage}',
             ProfileIconography.prize,
-            ProfileIconTone.prize,
+            AppColors.ticketResultWonForeground,
           ),
         ],
       ),
@@ -162,9 +175,9 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
             Text(
               label,
               style: AppTypography.mainWith(
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textMuted,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppColors.ticketMetadataForeground,
               ),
             ),
           ],
@@ -192,6 +205,7 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
           ),
           filled: true,
           fillColor: AppColors.surfaceNeutral,
+          constraints: const BoxConstraints(minHeight: 48),
           contentPadding: const EdgeInsets.symmetric(vertical: 0),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
@@ -208,10 +222,359 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
       return AppStatusTabItem<String?>(value: entry.$1, label: entry.$2);
     }).toList();
 
-    return AppStatusTabBar<String?>(
-      items: items,
-      selectedValue: _viewModel.selectedStatus,
-      onSelected: (value) => _viewModel.setStatusFilter(value),
+    return Column(
+      children: [
+        AppStatusTabBar<String?>(
+          items: items,
+          selectedValue: _viewModel.selectedStatus,
+          onSelected: (value) {
+            _viewModel.setStatusFilter(value);
+            _resetListPosition();
+          },
+          height: 48,
+        ),
+        if (_viewModel.selectedStatus == 'WON') _buildRedeemedFilterBar(),
+      ],
+    );
+  }
+
+  Widget _buildRedeemedFilterBar() {
+    final selected = _viewModel.selectedRedeemed == null
+        ? 'ALL'
+        : _viewModel.selectedRedeemed == true
+        ? 'REDEEMED'
+        : 'UNREDEEMED';
+    final double pillWidth = ((MediaQuery.sizeOf(context).width - 48) / 3)
+        .clamp(112.0, 136.0)
+        .toDouble();
+
+    return Container(
+      width: double.infinity,
+      color: AppColors.surfacePrimary,
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _buildWinningFilterPill(
+              width: pillWidth,
+              label: 'Tất cả trúng',
+              selected: selected == 'ALL',
+              onTap: () {
+                _viewModel.setRedeemedFilter(null);
+                _resetListPosition();
+              },
+            ),
+            const SizedBox(width: 8),
+            _buildUnredeemedFilterPill(
+              selected == 'UNREDEEMED',
+              width: pillWidth,
+            ),
+            const SizedBox(width: 8),
+            _buildWinningFilterPill(
+              width: pillWidth,
+              label: 'Đã đổi',
+              selected: selected == 'REDEEMED',
+              onTap: () {
+                _viewModel.setRedeemedFilter(true);
+                _resetListPosition();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWinningFilterPill({
+    required double width,
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: 'Lọc vé trúng: $label',
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 48),
+        child: Material(
+          color: AppColors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(22),
+            child: Container(
+              width: width,
+              height: 40,
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: selected
+                    ? AppColors.ticketPrizeSurface
+                    : AppColors.surfacePrimary,
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(
+                  color: selected
+                      ? AppColors.ticketResultWonBorder
+                      : AppColors.ticketNumberBorder,
+                ),
+              ),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  style: AppTypography.mainWith(
+                    fontSize: 12,
+                    fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
+                    color: selected
+                        ? AppColors.ticketResultWonForeground
+                        : AppColors.ticketNumberForeground,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUnredeemedFilterPill(bool selected, {required double width}) {
+    final channelLabel = switch (_viewModel.selectedChannel) {
+      'ONLINE' => 'Trực tuyến',
+      'COUNTER' => 'Đổi tại quầy',
+      _ => 'Tất cả kênh',
+    };
+    final hasSpecificChannel = selected && _viewModel.selectedChannel != 'ALL';
+
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: 'Lọc vé trúng: Chưa đổi thưởng, $channelLabel',
+      hint: 'Mở bảng chọn kênh đổi thưởng',
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 48),
+        child: Material(
+          color: AppColors.transparent,
+          child: InkWell(
+            onTap: _openUnredeemedChannelSheet,
+            borderRadius: BorderRadius.circular(22),
+            child: Container(
+              width: width,
+              height: 40,
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: selected
+                    ? AppColors.ticketPrizeSurface
+                    : AppColors.surfacePrimary,
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(
+                  color: selected
+                      ? AppColors.ticketResultWonBorder
+                      : AppColors.ticketNumberBorder,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Chưa đổi',
+                    maxLines: 1,
+                    style: AppTypography.mainWith(
+                      fontSize: 12,
+                      fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
+                      color: selected
+                          ? AppColors.ticketPrizeForeground
+                          : AppColors.ticketNumberForeground,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  if (hasSpecificChannel)
+                    Container(
+                      width: 6,
+                      height: 6,
+                      margin: const EdgeInsets.only(right: 2),
+                      decoration: const BoxDecoration(
+                        color: AppColors.ticketPrizeForeground,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    size: 18,
+                    color: selected
+                        ? AppColors.ticketPrizeForeground
+                        : AppColors.ticketMetadataForeground,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openUnredeemedChannelSheet() async {
+    final channel = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppColors.surfacePrimary,
+      barrierColor: Colors.black.withValues(alpha: 0.28),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.borderMuted,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Kênh đổi thưởng',
+                        style: AppTypography.mainWith(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textMain,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Đóng',
+                      onPressed: () => Navigator.pop(sheetContext),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+                Text(
+                  'Chỉ hiển thị vé trúng chưa đổi thưởng',
+                  style: AppTypography.mainWith(
+                    fontSize: 13,
+                    color: AppColors.ticketMetadataForeground,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _buildChannelSheetOption(
+                  sheetContext,
+                  value: 'ALL',
+                  title: 'Tất cả kênh',
+                  subtitle: 'Gồm cả trực tuyến và tại quầy',
+                  icon: Icons.all_inclusive_rounded,
+                ),
+                _buildChannelSheetOption(
+                  sheetContext,
+                  value: 'ONLINE',
+                  title: 'Trực tuyến',
+                  subtitle: 'Vé có thể đổi thưởng online',
+                  icon: Icons.language_rounded,
+                ),
+                _buildChannelSheetOption(
+                  sheetContext,
+                  value: 'COUNTER',
+                  title: 'Đổi tại quầy',
+                  subtitle: 'Vé cần mang đến điểm giao dịch',
+                  icon: Icons.storefront_outlined,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (!mounted || channel == null) return;
+    _viewModel.setRedeemedFilter(false);
+    _viewModel.setChannelFilter(channel);
+    _resetListPosition();
+  }
+
+  Widget _buildChannelSheetOption(
+    BuildContext sheetContext, {
+    required String value,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+  }) {
+    final selected =
+        _viewModel.selectedRedeemed == false &&
+        _viewModel.selectedChannel == value;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: title,
+      child: InkWell(
+        onTap: () => Navigator.pop(sheetContext, value),
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: selected
+                      ? AppColors.ticketPrizeSurface
+                      : AppColors.surfaceNeutral,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  color: selected
+                      ? AppColors.ticketPrizeForeground
+                      : AppColors.ticketMetadataForeground,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: AppTypography.mainWith(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textMain,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: AppTypography.mainWith(
+                        fontSize: 12,
+                        color: AppColors.ticketMetadataForeground,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                selected
+                    ? Icons.radio_button_checked_rounded
+                    : Icons.radio_button_unchecked_rounded,
+                color: selected
+                    ? AppColors.ticketPrizeForeground
+                    : AppColors.ticketMetadataForeground,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -242,7 +605,7 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
             ),
             const SizedBox(height: 16),
             TextButton(
-              onPressed: () => _viewModel.fetchTickets(refresh: true),
+              onPressed: _refreshTickets,
               child: Text(
                 'Thử lại',
                 style: AppTypography.mainWith(
@@ -256,23 +619,24 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
       );
     }
 
-    if (_viewModel.tickets.isEmpty) {
-      return _buildEmptyState();
+    if (_viewModel.visibleTickets.isEmpty) {
+      return _buildEmptyState(filtered: _viewModel.selectedRedeemed == false);
     }
 
     return BrandScrollbar(
       controller: _scrollController,
       child: RefreshIndicator(
-        onRefresh: () => _viewModel.fetchTickets(refresh: true),
+        onRefresh: _refreshTickets,
         color: AppColors.primary,
         child: ListView.builder(
           controller: _scrollController,
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           itemCount:
-              _viewModel.tickets.length + (_viewModel.isLoadingMore ? 1 : 0),
+              _viewModel.visibleTickets.length +
+              (_viewModel.isLoadingMore ? 1 : 0),
           itemBuilder: (context, index) {
-            if (index == _viewModel.tickets.length) {
+            if (index == _viewModel.visibleTickets.length) {
               return const Padding(
                 padding: EdgeInsets.symmetric(vertical: 20),
                 child: Center(
@@ -280,16 +644,36 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
                 ),
               );
             }
-            final ticket = _viewModel.tickets[index];
+            final ticket = _viewModel.visibleTickets[index];
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: GestureDetector(
-                onTap: () => context.pushNamed(
-                  AppRoute.myTicketDetail.name,
-                  pathParameters: {'id': ticket.detailRouteId},
-                  extra: ticket,
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: AppColors.shadowLight,
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
                 ),
-                child: _buildTicketCard(ticket),
+                child: Material(
+                  color: AppColors.transparent,
+                  borderRadius: BorderRadius.circular(16),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    splashColor: AppColors.primary.withValues(alpha: 0.08),
+                    highlightColor: AppColors.primary.withValues(alpha: 0.04),
+                    onTap: () => context.pushNamed(
+                      AppRoute.myTicketDetail.name,
+                      pathParameters: {'id': ticket.detailRouteId},
+                      extra: ticket,
+                    ),
+                    child: _buildTicketCard(ticket),
+                  ),
+                ),
               ),
             );
           },
@@ -298,7 +682,7 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState({bool filtered = false}) {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -318,7 +702,13 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
           ),
           const SizedBox(height: 16),
           Text(
-            'Chưa có vé nào',
+            filtered
+                ? _viewModel.selectedChannel == 'ONLINE'
+                      ? 'Không có vé đổi thưởng trực tuyến'
+                      : _viewModel.selectedChannel == 'COUNTER'
+                      ? 'Không có vé cần đổi tại quầy'
+                      : 'Không có vé chưa đổi thưởng'
+                : 'Chưa có vé nào',
             style: AppTypography.mainWith(
               fontSize: 16,
               fontWeight: FontWeight.w700,
@@ -340,261 +730,160 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
 
   Widget _buildTicketCard(PurchasedTicket ticket) {
     final status = ticketStatusUi(ticket.drawResultStatus);
-    final possession = resolveTicketPossessionDisplay(ticket);
     final payout = resolveTicketPayoutDisplay(ticket);
-    final numberParts = splitTicketNumbers(ticket.numbers);
-    final formattedDrawDate = AppFormatters.formatDateIso(
+    final date = AppFormatters.formatDateIso(
       ticket.drawDate,
       fallback: ticket.drawDate,
     );
+    final isWon = ticket.drawResultStatus == 'WON';
 
-    return Container(
+    return Ink(
       decoration: BoxDecoration(
         color: AppColors.surfacePrimary,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(
-            color: AppColors.shadowLight,
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final number = TicketNumberDisplay.inline(
+                  value: ticket.numbers,
+                );
+                final badge = _buildStatusChip(
+                  status.label,
+                  status.color,
+                  status.bgColor,
+                  borderColor: status.borderColor,
+                );
+                if (MediaQuery.textScalerOf(context).scale(12) > 18) {
+                  return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        ticket.stationName ?? 'Vé số Đại Phát',
-                        style: AppTypography.mainWith(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textMain,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Kỳ quay: $formattedDrawDate',
-                        style: AppTypography.mainWith(
-                          fontSize: 12,
-                          color: AppColors.textMuted,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                _buildStatusChip(status.label, status.color, status.bgColor),
-              ],
+                    children: [number, const SizedBox(height: 8), badge],
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(child: number),
+                    const SizedBox(width: 12),
+                    badge,
+                  ],
+                );
+              },
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: numberParts.isNotEmpty
-                  ? numberParts
-                        .map(
-                          (n) => Container(
-                            width: 36,
-                            height: 36,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              gradient: ticket.drawResultStatus == 'WON'
-                                  ? const LinearGradient(
-                                      begin: Alignment.topCenter,
-                                      end: Alignment.bottomCenter,
-                                      colors: [
-                                        AppColors.fortuneGoldDark,
-                                        AppColors.statusWarningAccent,
-                                      ],
-                                    )
-                                  : null,
-                              color: ticket.drawResultStatus == 'WON'
-                                  ? null
-                                  : AppColors.surfaceNeutral,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: ticket.drawResultStatus == 'WON'
-                                    ? AppColors.brandAccentYellow
-                                    : AppColors.borderSubtle,
-                              ),
-                            ),
-                            child: Text(
-                              n,
-                              style: AppTypography.mainWith(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w800,
-                                color: ticket.drawResultStatus == 'WON'
-                                    ? AppColors.contentAmberDark
-                                    : AppColors.textMain,
-                              ),
-                            ),
-                          ),
-                        )
-                        .toList()
-                  : [
-                      Text(
-                        ticket.numbers,
-                        style: AppTypography.mainWith(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ],
-            ),
-          ),
-          if (ticket.drawResultStatus == 'WON' &&
-              ticket.matchedPrizeDisplayName != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.star_rounded,
-                    size: 16,
-                    color: AppColors.statusWarningAccent,
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      ticket.matchedPrizeDisplayName!,
-                      style: AppTypography.mainWith(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.brandAccentGoldAmber,
-                      ),
-                    ),
-                  ),
-                ],
+            const SizedBox(height: 10),
+            Text(
+              ticket.stationName ?? 'Vé số Đại Phát',
+              style: AppTypography.mainWith(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.ticketNumberForeground,
               ),
             ),
-          const Divider(height: 1, color: AppColors.borderLight),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            const SizedBox(height: 3),
+            Text(
+              'Kỳ quay: $date',
+              style: AppTypography.mainWith(
+                fontSize: 12,
+                color: AppColors.ticketMetadataForeground,
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Divider(height: 1, color: AppColors.borderLight),
+            const SizedBox(height: 12),
+            if (isWon) ...[
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final prize = Text(
+                    ticket.matchedPrizeDisplayName?.trim().isNotEmpty == true
+                        ? ticket.matchedPrizeDisplayName!
+                        : 'Tiền trúng thưởng',
+                    style: AppTypography.mainWith(
+                      fontSize: 13,
+                      color: AppColors.ticketMetadataForeground,
+                    ),
+                  );
+                  final amount = Text(
+                    ticket.prizeAmount == null
+                        ? 'Chưa có số tiền'
+                        : AppFormatters.formatCurrency(ticket.prizeAmount),
+                    style: AppTypography.mainWith(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.ticketNumberForeground,
+                    ),
+                  );
+                  if (constraints.maxWidth < 280 ||
+                      MediaQuery.textScalerOf(context).scale(13) > 18) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [prize, const SizedBox(height: 4), amount],
+                    );
+                  }
+                  return Row(
                     children: [
-                      Text(
-                        ticket.serialNumber ?? ticket.numbers,
-                        style: AppTypography.mainWith(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textMain,
-                        ),
-                      ),
-                      if (possession != null) ...[
-                        const SizedBox(height: 6),
-                        _buildMiniChip(
-                          possession.label,
-                          possession.color,
-                          possession.bgColor,
-                          possession.icon,
-                        ),
-                      ],
-                      if (payout != null) ...[
-                        const SizedBox(height: 6),
-                        _buildMiniChip(
-                          payout.label,
-                          payout.color,
-                          payout.bgColor,
-                          payout.icon,
-                        ),
-                      ],
+                      Expanded(child: prize),
+                      const SizedBox(width: 12),
+                      Flexible(child: amount),
                     ],
+                  );
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+            Row(
+              children: [
+                if (payout != null) ...[
+                  Icon(payout.icon, size: 16, color: payout.color),
+                  const SizedBox(width: 6),
+                ],
+                Expanded(
+                  child: Text(
+                    payout?.label ?? 'Xem chi tiết vé',
+                    style: AppTypography.mainWith(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color:
+                          payout?.color ?? AppColors.ticketMetadataForeground,
+                    ),
                   ),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      AppFormatters.formatCurrency(ticket.price),
-                      style: AppTypography.mainWith(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                    if (ticket.prizeAmount != null &&
-                        ticket.drawResultStatus == 'WON')
-                      Text(
-                        '+ ${AppFormatters.formatCurrency(ticket.prizeAmount)}',
-                        style: AppTypography.mainWith(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.statusWarningAccent,
-                        ),
-                      ),
-                  ],
+                const SizedBox(width: 8),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: AppColors.ticketMetadataForeground,
                 ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatusChip(String label, Color color, Color bgColor) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.25)),
-      ),
-      child: Text(
-        label,
-        style: AppTypography.mainWith(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          color: color,
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildMiniChip(
+  Widget _buildStatusChip(
     String label,
     Color color,
-    Color bgColor,
-    IconData icon,
-  ) {
+    Color bgColor, {
+    Color? borderColor,
+  }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: borderColor ?? color.withValues(alpha: 0.25)),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: color),
-          const SizedBox(width: 4),
-          Flexible(
-            child: Text(
-              label,
-              style: AppTypography.mainWith(
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: color,
-              ),
-            ),
-          ),
-        ],
+      child: Text(
+        label,
+        style: AppTypography.mainWith(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: color,
+        ),
       ),
     );
   }

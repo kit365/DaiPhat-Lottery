@@ -26,4 +26,12 @@ void main() {
       'Không thể kết nối đến máy chủ.',
     );
   });
+
+  test('unwraps ApiException and preserves domain error message', () {
+    const message = 'Mật khẩu không được chứa thông tin Email/Username.';
+    expect(
+      toUserFacingApiMessage(Exception(message)),
+      message,
+    );
+  });
 }

@@ -19,6 +19,7 @@ import 'package:daiphat_mobile/src/features/notifications/domain/usecases/notifi
 import 'package:daiphat_mobile/src/features/notifications/presentation/viewmodels/notification_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/viewmodels/profile_viewmodel.dart';
 import 'package:daiphat_mobile/src/shared/network/api_client.dart';
+import 'package:daiphat_mobile/src/shared/config/firebase_config.dart';
 import 'package:daiphat_mobile/src/shared/storage/auth_token_storage.dart';
 import 'package:daiphat_mobile/src/shared/storage/secure_cookie_storage.dart';
 
@@ -57,7 +58,7 @@ class AppDependencies {
     apiClient.onAccessTokenRefreshed = tokenStorage.saveAccessToken;
     await authRepository.restoreSession();
 
-    if (authRepository.isAuthenticated) {
+    if (authRepository.isAuthenticated && isFirebaseInitialized) {
       try {
         final token = await FirebaseMessaging.instance.getToken();
         if (token != null) {

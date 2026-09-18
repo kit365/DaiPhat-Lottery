@@ -1,8 +1,10 @@
 package com.daiphat.coreapi.infrastructure.config.data;
 
-import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
+import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchImportMode;
+import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchLineStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchType;
 import com.daiphat.coreapi.domain.model.enums.lottery.InputSource;
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition;
@@ -19,8 +21,10 @@ import com.daiphat.coreapi.domain.model.enums.order.refund.ReimburseStatus;
 import com.daiphat.coreapi.domain.model.enums.payment.PaymentGateway;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
-import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryRegionEntity;
+import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.ImportBatchEntity;
+import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.ImportBatchLineEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryStationEntity;
+import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotterySupplierEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketSerialEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderDetailEntity;
@@ -28,15 +32,15 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.TransactionEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.refund.RefundRequestEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
-import com.daiphat.coreapi.infrastructure.persistence.repository.UserRepository;
-import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryRegionRepository;
+import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.ImportBatchLineRepository;
+import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.ImportBatchRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryStationRepository;
+import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotterySupplierRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryTicketRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryTicketSerialRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.order.OrderRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.order.TransactionRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.refund.RefundRequestRepository;
-import com.daiphat.coreapi.shared.util.DrawScheduleUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
@@ -53,8 +57,10 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -67,31 +73,16 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 @ConditionalOnProperty(value = "daiphat.order.seed.enabled", havingValue = "true")
-@Order(60)
+@Order(110)
 public class OrderSeedInitializer implements ApplicationRunner {
 
     private static final String ORDER_CODE_PREFIX = "ORD-SEED-";
     private static final String TICKET_SERIAL_PREFIX = "SEED-";
     private static final String PAYMENT_REF_PREFIX = "PAYOS-SEED-";
     private static final String SYSTEM_ACTOR = "order-seed";
-    /** Unique test station — must not collide with synchronized southern stations. */
-    private static final String SEED_STATION_NAME = "CaMauStationTest";
-    private static final String SEED_STATION_PROVINCE = "CaMauStationTest";
-    private static final String LEGACY_SEED_STATION_NAME = "Ve so seed test";
-    private static final BigDecimal SEED_STATION_PRICE = BigDecimal.valueOf(10_000);
-    private static final BigDecimal SEED_STATION_COMMISSION_RATE = new BigDecimal("0.0500");
-    /** Test station draws every day so order fixtures stay sellable regardless of weekday. */
-    private static final List<DayOfWeek> SEED_STATION_DRAW_DAYS = List.of(
-            DayOfWeek.MONDAY,
-            DayOfWeek.TUESDAY,
-            DayOfWeek.WEDNESDAY,
-            DayOfWeek.THURSDAY,
-            DayOfWeek.FRIDAY,
-            DayOfWeek.SATURDAY,
-            DayOfWeek.SUNDAY
-    );
-    private static final LocalTime SEED_STATION_DRAW_TIME = LocalTime.of(16, 15);
     private static final String DEFAULT_SEED_PHONE = "0900000000";
+    private static final String SHARED_SUPPLIER_CODE = "MINH_CHINH";
+    private static final BigDecimal DEFAULT_IMPORT_COST = BigDecimal.valueOf(10_000);
     /** Sellable inventory per station/date for browsing & purchase flows. */
     private static final int AVAILABLE_TICKET_BATCH_SIZE = 12;
     private static final int SERIALS_PER_TICKET = 10;
@@ -100,27 +91,42 @@ public class OrderSeedInitializer implements ApplicationRunner {
     private final OrderRepository orderRepository;
     private final TransactionRepository transactionRepository;
     private final RefundRequestRepository refundRequestRepository;
-    private final UserRepository userRepository;
-    private final LotteryRegionRepository lotteryRegionRepository;
+    private final SeedAccountResolver seedAccountResolver;
     private final LotteryStationRepository lotteryStationRepository;
     private final LotteryTicketRepository lotteryTicketRepository;
     private final LotteryTicketSerialRepository lotteryTicketSerialRepository;
     private final LotterySerialSeedCleanup lotterySerialSeedCleanup;
+    private final LotterySupplierRepository lotterySupplierRepository;
+    private final ImportBatchRepository importBatchRepository;
+    private final ImportBatchLineRepository importBatchLineRepository;
+
+    /** Per-run cache: stationId|drawDate → import batch/line under MINH_CHINH. */
+    private Map<String, ImportLink> importLinksByStationDate = Map.of();
 
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        UserEntity member = findSeedMember();
-        UserEntity operator = findSeedOperator();
+        UserEntity member = seedAccountResolver.findMember();
+        UserEntity operator = seedAccountResolver.findOperator();
         if (member == null || operator == null) {
             log.warn("Skip order seed because member/operator account is missing.");
             return;
         }
 
-        SeedTime time = SeedTime.atNow();
-        resetPreviousSeedData();
+        if (lotterySupplierRepository.findByCodeIgnoreCaseAndDeletedAtIsNull(SHARED_SUPPLIER_CODE).isEmpty()) {
+            log.warn("Skip order seed: supplier {} missing (run LotteryImportBatchSeed first).", SHARED_SUPPLIER_CODE);
+            return;
+        }
 
-        LotteryStationEntity station = ensureSeedStation(operator, time);
+        importLinksByStationDate = new HashMap<>();
+        SeedTime time = SeedTime.atNow();
+        LotteryStationEntity station = findSeedStation(time.today());
+        if (station == null) {
+            log.warn("Skip order seed because no active canonical lottery station exists.");
+            return;
+        }
+
+        resetPreviousSeedData();
         seedAvailableTickets(operator, station, time);
 
         seedOnlinePendingPaymentOrder(member, operator, station, time);
@@ -196,9 +202,14 @@ public class OrderSeedInitializer implements ApplicationRunner {
     }
 
     private void seedAvailableTickets(UserEntity operator, LotteryStationEntity orderStation, SeedTime time) {
-        // Dedicated order-test station (all weekdays) — used by ORD-SEED-* scenarios.
-        seedAvailableTicketsForDate(operator, orderStation, time.today(), time);
-        seedAvailableTicketsForDate(operator, orderStation, time.tomorrow(), time);
+        // Keep the fixture on the real station schedule. The order scenarios use
+        // today's draw date, so findSeedStation() prefers a station drawing today.
+        if (isScheduledOn(orderStation, time.today())) {
+            seedAvailableTicketsForDate(operator, orderStation, time.today(), time);
+        }
+        if (isScheduledOn(orderStation, time.tomorrow())) {
+            seedAvailableTicketsForDate(operator, orderStation, time.tomorrow(), time);
+        }
 
         // Real southern stations that actually draw on today / tomorrow so client
         // schedule + purchase for "ngày mai" (e.g. 13/08 thứ 5) have inventory.
@@ -218,8 +229,6 @@ public class OrderSeedInitializer implements ApplicationRunner {
                 .filter(station -> station.getDeletedAt() == null)
                 .filter(LotteryStationEntity::isActive)
                 .filter(station -> station.getDrawDays() != null && station.getDrawDays().contains(day))
-                .filter(station -> !SEED_STATION_NAME.equalsIgnoreCase(station.getName())
-                        && !LEGACY_SEED_STATION_NAME.equalsIgnoreCase(station.getName()))
                 .sorted((a, b) -> String.CASE_INSENSITIVE_ORDER.compare(
                         a.getName() != null ? a.getName() : "",
                         b.getName() != null ? b.getName() : ""
@@ -257,6 +266,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
         String batchCode = "SEED-AVAILABLE-" + drawDate.format(DateTimeFormatter.BASIC_ISO_DATE)
                 + "-" + String.format("%03d", index);
         String primarySerial = serialPrefix + "-01";
+        ImportLink importLink = resolveImportLink(station, drawDate, operator, importedAt);
 
         LotteryTicketEntity ticket = lotteryTicketRepository
                 .findByStation_IdAndNumbersAndDrawDateAndDeletedAtIsNull(station.getId(), numbers, drawDate)
@@ -299,6 +309,8 @@ public class OrderSeedInitializer implements ApplicationRunner {
                             .status(LotteryTicketSerialStatus.IN_STOCK)
                             .ticketCondition(TicketCondition.GOOD)
                             .inputSource(InputSource.MANUAL)
+                            .importBatch(importLink.batch())
+                            .importBatchLine(importLink.line())
                             .importedBy(operator)
                             .importedAt(importedAt)
                             .verified(true)
@@ -832,78 +844,101 @@ public class OrderSeedInitializer implements ApplicationRunner {
         orderRepository.save(order);
     }
 
-    private UserEntity findSeedMember() {
-        return userRepository.findAllByRole_CodeIn(List.of(RoleConstants.ROLE_MEMBER)).stream()
-                .findFirst()
-                .orElse(null);
-    }
-
-    private UserEntity findSeedOperator() {
-        return userRepository.findAllByRole_CodeIn(List.of(RoleConstants.ROLE_STAFF_OPERATOR)).stream()
-                .findFirst()
-                .orElse(null);
-    }
-
-    private LotteryStationEntity ensureSeedStation(UserEntity operator, SeedTime time) {
-        LotteryRegionEntity mienNam = lotteryRegionRepository.findByCodeIgnoreCase("MIEN_NAM")
-                .orElseThrow();
-        return lotteryStationRepository.findAll().stream()
-                .filter(station -> SEED_STATION_NAME.equalsIgnoreCase(station.getName())
-                        || LEGACY_SEED_STATION_NAME.equalsIgnoreCase(station.getName()))
-                .findFirst()
-                .map(station -> refreshSeedStation(station, mienNam, operator, time.base()))
-                .orElseGet(() -> lotteryStationRepository.save(
-                        LotteryStationEntity.builder()
-                                .name(SEED_STATION_NAME)
-                                .province(SEED_STATION_PROVINCE)
-                                .region(mienNam)
-                                .price(SEED_STATION_PRICE)
-                                .commissionRate(SEED_STATION_COMMISSION_RATE)
-                                .inventoryCount(100)
-                                .drawDays(SEED_STATION_DRAW_DAYS)
-                                .drawTime(SEED_STATION_DRAW_TIME)
-                                .nextDrawDate(DrawScheduleUtils.resolveNextDrawDate(
-                                        SEED_STATION_DRAW_DAYS,
-                                        SEED_STATION_DRAW_TIME
-                                ))
-                                .status(LotteryStationStatus.ACTIVE)
-                                .isActive(true)
-                                .approvedBy(operator)
-                                .approvedAt(time.base())
-                                .description("Station dung de seed test order (CaMauStationTest).")
-                                .createdAt(time.base())
-                                .updatedAt(time.base())
-                                .createdBy(SYSTEM_ACTOR)
-                                .lastModifiedBy(SYSTEM_ACTOR)
-                                .build()
-                ));
-    }
-
-    private LotteryStationEntity refreshSeedStation(
+    private ImportLink resolveImportLink(
             LotteryStationEntity station,
-            LotteryRegionEntity region,
+            LocalDate drawDate,
             UserEntity operator,
-            LocalDateTime seedBase
+            LocalDateTime importedAt
     ) {
-        station.setName(SEED_STATION_NAME);
-        station.setProvince(SEED_STATION_PROVINCE);
-        station.setRegion(region);
-        station.setPrice(SEED_STATION_PRICE);
-        station.setCommissionRate(SEED_STATION_COMMISSION_RATE);
-        station.setDrawDays(SEED_STATION_DRAW_DAYS);
-        station.setDrawTime(SEED_STATION_DRAW_TIME);
-        station.setNextDrawDate(DrawScheduleUtils.resolveNextDrawDate(
-                SEED_STATION_DRAW_DAYS,
-                SEED_STATION_DRAW_TIME
-        ));
-        station.setStatus(LotteryStationStatus.ACTIVE);
-        station.setActive(true);
-        station.setApprovedBy(operator);
-        station.setApprovedAt(seedBase);
-        station.setDescription("Station dung de seed test order (CaMauStationTest).");
-        station.setUpdatedAt(seedBase);
-        station.setLastModifiedBy(SYSTEM_ACTOR);
-        return lotteryStationRepository.save(station);
+        String cacheKey = station.getId() + "|" + drawDate;
+        return importLinksByStationDate.computeIfAbsent(cacheKey, ignored -> {
+            LotterySupplierEntity supplier = lotterySupplierRepository
+                    .findByCodeIgnoreCaseAndDeletedAtIsNull(SHARED_SUPPLIER_CODE)
+                    .orElseThrow(() -> new IllegalStateException(
+                            "Order seed requires supplier " + SHARED_SUPPLIER_CODE
+                    ));
+
+            String headerCode = DemoSeedConstants.ORDER_AVAILABLE_BATCH_PREFIX
+                    + drawDate.format(DateTimeFormatter.BASIC_ISO_DATE)
+                    + "-S"
+                    + station.getId();
+            ImportBatchEntity batch = importBatchRepository
+                    .findByBatchCodeAndDeletedAtIsNull(headerCode)
+                    .orElseGet(() -> importBatchRepository.save(ImportBatchEntity.builder()
+                            .batchCode(headerCode)
+                            .drawDate(drawDate)
+                            .supplier(supplier)
+                            .importMode(ImportBatchImportMode.IN_DAY)
+                            .importedBy(operator)
+                            .importedAt(importedAt)
+                            .completedAt(importedAt)
+                            .status(ImportBatchStatus.IMPORTED)
+                            .note("Order-seed sellable inventory linked for vendor cutoff.")
+                            .createdBy(SYSTEM_ACTOR)
+                            .lastModifiedBy(SYSTEM_ACTOR)
+                            .createdAt(importedAt)
+                            .updatedAt(importedAt)
+                            .build()));
+
+            String lineCode = DemoSeedConstants.ORDER_AVAILABLE_LINE_PREFIX
+                    + drawDate.format(DateTimeFormatter.BASIC_ISO_DATE)
+                    + "-S"
+                    + station.getId();
+            BigDecimal importCost = station.getPrice() != null ? station.getPrice() : DEFAULT_IMPORT_COST;
+            ImportBatchLineEntity line = importBatchLineRepository
+                    .findByBatchCodeAndDeletedAtIsNull(lineCode)
+                    .orElseGet(() -> importBatchLineRepository.save(ImportBatchLineEntity.builder()
+                            .importBatch(batch)
+                            .lotteryStation(station)
+                            .batchType(ImportBatchType.NEW)
+                            .batchCode(lineCode)
+                            .declareQuantity(AVAILABLE_TICKET_BATCH_SIZE * SERIALS_PER_TICKET)
+                            .declaredCostValue(importCost.multiply(
+                                    BigDecimal.valueOf((long) AVAILABLE_TICKET_BATCH_SIZE * SERIALS_PER_TICKET)
+                            ))
+                            .totalQuantity(0)
+                            .importCost(importCost)
+                            .totalCostValue(BigDecimal.ZERO)
+                            .status(ImportBatchLineStatus.IMPORTED)
+                            .importedAt(importedAt)
+                            .createdBy(SYSTEM_ACTOR)
+                            .lastModifiedBy(SYSTEM_ACTOR)
+                            .createdAt(importedAt)
+                            .updatedAt(importedAt)
+                            .build()));
+
+            // Keep supplier cutoff fresh if an older row was reused without it.
+            if (supplier.getReturnCutOffTime() == null) {
+                supplier.setReturnCutOffTime(LocalTime.of(14, 30));
+                lotterySupplierRepository.save(supplier);
+            }
+            return new ImportLink(batch, line);
+        });
+    }
+
+    private record ImportLink(ImportBatchEntity batch, ImportBatchLineEntity line) {
+    }
+
+    private LotteryStationEntity findSeedStation(LocalDate drawDate) {
+        List<LotteryStationEntity> activeStations = lotteryStationRepository.findAll().stream()
+                .filter(station -> station.getDeletedAt() == null)
+                .filter(LotteryStationEntity::isActive)
+                .sorted((a, b) -> String.CASE_INSENSITIVE_ORDER.compare(
+                        a.getName() != null ? a.getName() : "",
+                        b.getName() != null ? b.getName() : ""
+                ))
+                .toList();
+        return activeStations.stream()
+                .filter(station -> isScheduledOn(station, drawDate))
+                .findFirst()
+                .orElseGet(() -> activeStations.stream().findFirst().orElse(null));
+    }
+
+    private static boolean isScheduledOn(LotteryStationEntity station, LocalDate drawDate) {
+        return station != null
+                && drawDate != null
+                && station.getDrawDays() != null
+                && station.getDrawDays().contains(drawDate.getDayOfWeek());
     }
 
     private LotteryTicketSerialEntity createSeedTicketSerial(
@@ -960,6 +995,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
         LocalDateTime importedAt = time.minutesAgo(30);
         LocalDate drawDate = time.today();
         boolean hasReplacement = replacementSerialNumber != null && !replacementSerialNumber.isBlank();
+        ImportLink importLink = resolveImportLink(station, drawDate, operator, importedAt);
 
         LotteryTicketEntity ticket = lotteryTicketRepository
                 .findByStation_IdAndNumbersAndDrawDateAndDeletedAtIsNull(station.getId(), numbers, drawDate)
@@ -998,6 +1034,8 @@ public class OrderSeedInitializer implements ApplicationRunner {
                 .serialNumber(soldSerialNumber)
                 .status(soldSerialStatus)
                 .inputSource(InputSource.MANUAL)
+                .importBatch(importLink.batch())
+                .importBatchLine(importLink.line())
                 .importedBy(operator)
                 .importedAt(importedAt)
                 .verified(true)
@@ -1023,7 +1061,10 @@ public class OrderSeedInitializer implements ApplicationRunner {
                             .ticketImg(ticket.getTicketImg())
                             .serialNumber(replacementSerialNumber)
                             .status(LotteryTicketSerialStatus.IN_STOCK)
+                            .ticketCondition(TicketCondition.GOOD)
                             .inputSource(InputSource.MANUAL)
+                            .importBatch(importLink.batch())
+                            .importBatchLine(importLink.line())
                             .importedBy(operator)
                             .importedAt(importedAt)
                             .verified(true)
@@ -1053,7 +1094,10 @@ public class OrderSeedInitializer implements ApplicationRunner {
                     .ticketImg(ticket.getTicketImg())
                     .serialNumber(fillerSerialNumber)
                     .status(fillerStatus)
+                    .ticketCondition(TicketCondition.GOOD)
                     .inputSource(InputSource.MANUAL)
+                    .importBatch(importLink.batch())
+                    .importBatchLine(importLink.line())
                     .importedBy(operator)
                     .importedAt(importedAt)
                     .verified(true)

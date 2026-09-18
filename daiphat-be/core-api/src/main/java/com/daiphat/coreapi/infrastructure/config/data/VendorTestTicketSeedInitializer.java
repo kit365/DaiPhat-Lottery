@@ -55,7 +55,7 @@ import java.util.Set;
  * has not recalculated nextDrawDate yet.
  */
 @Component
-@Order(100)
+@Order(108)
 @ConditionalOnProperty(
         value = "daiphat.vendor.test-seed.enabled",
         havingValue = "true"

@@ -41,14 +41,14 @@
                     android:host="payment" />
             </intent-filter>
 
-            <!-- Deep link: https://dai-phat.vn/payment -->
+            <!-- Deep link: https://daiphat.id.vn/payment -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data
                     android:scheme="https"
-                    android:host="dai-phat.vn"
+                    android:host="daiphat.id.vn"
                     android:pathPrefix="/payment" />
             </intent-filter>
         </activity>

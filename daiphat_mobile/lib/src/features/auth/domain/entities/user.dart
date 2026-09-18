@@ -26,9 +26,8 @@ class User {
   });
 
   bool get isAdmin =>
-      roleCode == 'ADMIN' ||
-      username.toLowerCase().contains('admin') ||
-      username.toLowerCase().contains('operator');
+      const {'ADMIN', 'ROLE_ADMIN', 'ROLE_STAFF_OPERATOR', 'STAFF_OPERATOR'}
+          .contains(roleCode?.trim().toUpperCase());
 
   factory User.fromJson(Map<String, dynamic> json) {
     String? role;
@@ -39,6 +38,7 @@ class User {
         role = json['role'] as String;
       }
     }
+    role ??= json['roleCode']?.toString();
 
     return User(
       id: (json['id'] ?? '').toString(),
@@ -66,6 +66,7 @@ class User {
     String? dob,
     String? gender,
     String? address,
+    String? roleCode,
   }) {
     return User(
       id: id ?? this.id,
@@ -78,6 +79,7 @@ class User {
       dob: dob ?? this.dob,
       gender: gender ?? this.gender,
       address: address ?? this.address,
+      roleCode: roleCode ?? this.roleCode,
     );
   }
 

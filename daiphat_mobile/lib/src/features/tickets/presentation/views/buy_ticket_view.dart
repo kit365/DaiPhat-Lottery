@@ -8,6 +8,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:shimmer/shimmer.dart';
 
+import 'package:daiphat_mobile/src/app/routing/app_router.dart';
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
@@ -1523,13 +1524,23 @@ class _TicketDetailModalSheetState
     }
 
     ref.read(cartProvider.notifier).addItem(_buildCartItem());
-    final router = GoRouter.of(context);
     Navigator.of(context).pop();
 
     AppToast.show(
       'Đã thêm $_quantity vé ${widget.ticket.code} vào giỏ hàng.',
-      actionLabel: 'Xem ngay',
-      onAction: () => router.push(AppRoute.cart.path),
+      actionLabel: 'Xem giỏ hàng',
+      onAction: () {
+        final rootContext = rootNavigatorKey.currentContext;
+        if (rootContext != null) {
+          requireAuthOrGoLoginWithRef(
+            rootContext,
+            ref,
+            redirectPath: AppRoute.cart.path,
+            onAuthenticated: () =>
+                GoRouter.of(rootContext).push(AppRoute.cart.path),
+          );
+        }
+      },
     );
   }
 
@@ -1823,7 +1834,7 @@ class _TicketDetailModalSheetState
                                 disabled: _quantity >= _maxStock,
                                 onTap: _increase,
                                 onDisabledTap: () {
-                                  AppToast.show(
+                                  AppToast.warning(
                                     'Đã đạt số lượng vé tối đa còn lại',
                                   );
                                 },
