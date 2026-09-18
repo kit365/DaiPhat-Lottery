@@ -26,6 +26,33 @@ public class PrizePayoutApplicationMapper {
             boolean requiresFourEyes,
             boolean canCurrentStaffApprove,
             boolean canCurrentStaffComplete) {
+        // Default: mask CCCD (customer-facing APIs).
+        return toResponse(
+                model,
+                detail,
+                customer,
+                createdByUser,
+                completedByUser,
+                maxOnlineRejectRetry,
+                onlineClaimLocked,
+                requiresFourEyes,
+                canCurrentStaffApprove,
+                canCurrentStaffComplete,
+                true);
+    }
+
+    public PrizePayoutRequestResponse toResponse(
+            PrizePayoutRequestModel model,
+            OrderDetailEntity detail,
+            UserEntity customer,
+            UserEntity createdByUser,
+            UserEntity completedByUser,
+            Integer maxOnlineRejectRetry,
+            boolean onlineClaimLocked,
+            boolean requiresFourEyes,
+            boolean canCurrentStaffApprove,
+            boolean canCurrentStaffComplete,
+            boolean maskRecipientIdNumber) {
         if (model == null) {
             return null;
         }
@@ -38,6 +65,13 @@ public class PrizePayoutApplicationMapper {
         String customerName = resolveUserDisplayName(customer);
         if (customerName == null && order != null && order.getName() != null && !order.getName().isBlank()) {
             customerName = order.getName().trim();
+        }
+
+        String recipientIdNumber = model.getRecipientIdNumber();
+        if (maskRecipientIdNumber) {
+            recipientIdNumber = maskIdNumber(recipientIdNumber);
+        } else if (recipientIdNumber != null) {
+            recipientIdNumber = recipientIdNumber.trim();
         }
 
         return new PrizePayoutRequestResponse(
@@ -74,7 +108,7 @@ public class PrizePayoutApplicationMapper {
                 model.getBankAccountNumber(),
                 model.getAccountHolderName(),
                 model.getRecipientFullName(),
-                maskIdNumber(model.getRecipientIdNumber()),
+                recipientIdNumber,
                 model.getRecipientIdImageUrl(),
                 model.getRecipientIdImageBackUrl(),
                 model.getRecipientIdentityCapturedAt(),

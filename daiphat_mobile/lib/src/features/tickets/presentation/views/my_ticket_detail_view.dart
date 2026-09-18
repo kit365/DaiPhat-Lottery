@@ -606,6 +606,8 @@ class _TicketDetailBodyState extends ConsumerState<_TicketDetailBody> {
         ticket: _ticket,
         previewPrizePayout: ref.read(previewPrizePayoutProvider),
         createPrizePayout: ref.read(createPrizePayoutProvider),
+        uploadRecipientIdImage:
+            ref.read(uploadPrizePayoutRecipientIdImageProvider),
         getMyBankAccounts: ref.read(getMyBankAccountsProvider),
         getBanks: ref.read(getBanksProvider),
         createBankAccount: ref.read(createBankAccountProvider),

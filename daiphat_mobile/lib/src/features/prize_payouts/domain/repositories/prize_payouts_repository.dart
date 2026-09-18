@@ -6,7 +6,11 @@ abstract interface class PrizePayoutsRepository {
     int? orderDetailId,
     int? serialId,
     required int bankAccountId,
+    required String recipientIdNumber,
+    required String recipientIdImageUrl,
+    required String recipientIdImageBackUrl,
   });
+  Future<String> uploadRecipientIdImage(String filePath);
   Future<PrizePayoutPageResult> getMyRequests({
     int page = 1,
     int limit = 10,

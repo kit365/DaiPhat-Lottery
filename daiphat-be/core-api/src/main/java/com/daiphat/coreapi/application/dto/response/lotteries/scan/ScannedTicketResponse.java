@@ -42,8 +42,10 @@ public record ScannedTicketResponse(
         Long resolvedStationId,
         LocalDate resolvedDrawDate,
         String croppedImageBase64,
+        String croppedImageUrl,
         Long ocrScanResultId,
         String sourceImageName,
+        String sourceImageUrl,
         Integer imageWidth,
         Integer imageHeight
 ) {

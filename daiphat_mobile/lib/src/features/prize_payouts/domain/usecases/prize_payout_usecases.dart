@@ -15,11 +15,24 @@ class CreatePrizePayout {
     int? orderDetailId,
     int? serialId,
     required int bankAccountId,
+    required String recipientIdNumber,
+    required String recipientIdImageUrl,
+    required String recipientIdImageBackUrl,
   }) => _repository.create(
     orderDetailId: orderDetailId,
     serialId: serialId,
     bankAccountId: bankAccountId,
+    recipientIdNumber: recipientIdNumber,
+    recipientIdImageUrl: recipientIdImageUrl,
+    recipientIdImageBackUrl: recipientIdImageBackUrl,
   );
+}
+
+class UploadPrizePayoutRecipientIdImage {
+  final PrizePayoutsRepository _repository;
+  const UploadPrizePayoutRecipientIdImage(this._repository);
+  Future<String> call(String filePath) =>
+      _repository.uploadRecipientIdImage(filePath);
 }
 
 class GetMyPrizePayouts {

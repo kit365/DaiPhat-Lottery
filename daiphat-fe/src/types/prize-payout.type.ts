@@ -194,6 +194,9 @@ export interface CreatePrizePayoutRequest {
     orderDetailId?: number;
     serialId?: number;
     bankAccountId: number;
+    recipientIdNumber: string;
+    recipientIdImageUrl: string;
+    recipientIdImageBackUrl: string;
 }
 
 export interface CreateStaffPrizePayoutRequest {

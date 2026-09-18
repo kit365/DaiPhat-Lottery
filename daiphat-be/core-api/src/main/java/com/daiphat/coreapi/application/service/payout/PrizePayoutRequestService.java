@@ -5,9 +5,12 @@ import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutPreviewResponse;
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutRequestResponse;
+import com.daiphat.coreapi.application.dto.storage.StorageResult;
+import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.application.event.PrizePayoutStatusChangedEvent;
 import com.daiphat.coreapi.application.mapper.payout.PrizePayoutApplicationMapper;
 import com.daiphat.coreapi.application.port.in.payout.PrizePayoutRequestServicePort;
+import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.port.out.payout.PrizePayoutRequestRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.UserBankAccountRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
@@ -27,6 +30,8 @@ import com.daiphat.coreapi.infrastructure.persistence.repository.UserRepository;
 import com.daiphat.coreapi.shared.util.PageableUtils;
 import com.daiphat.coreapi.shared.util.PersonNameMatchUtils;
 import com.daiphat.coreapi.shared.util.SortUtils;
+import com.daiphat.coreapi.shared.util.StorageFolderConstants;
+import com.daiphat.coreapi.shared.util.StorageUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
@@ -35,6 +40,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -63,6 +69,7 @@ public class PrizePayoutRequestService implements PrizePayoutRequestServicePort 
     private final PrizePayoutApplicationMapper prizePayoutApplicationMapper;
     private final OrderDetailRepository orderDetailRepository;
     private final UserRepository userRepository;
+    private final StoragePort storagePort;
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
@@ -84,6 +91,12 @@ public class PrizePayoutRequestService implements PrizePayoutRequestServicePort 
         if (!bankAccount.getUserId().equals(customerId)) {
             throw new DomainException(ErrorCode.PRIZE_PAYOUT_BANK_ACCOUNT_MISMATCH);
         }
+
+        String recipientIdNumber = requireOnlineRecipientIdNumber(request.recipientIdNumber());
+        String recipientIdImageUrl = requireOnlineRecipientIdImageUrl(
+                request.recipientIdImageUrl(), "Ảnh CCCD mặt trước");
+        String recipientIdImageBackUrl = requireOnlineRecipientIdImageUrl(
+                request.recipientIdImageBackUrl(), "Ảnh CCCD mặt sau");
 
         PrizePayoutCalculationService.PrizePayoutBreakdown breakdown =
                 prizePayoutCalculationService.calculate(match.prizeAmount());
@@ -109,6 +122,10 @@ public class PrizePayoutRequestService implements PrizePayoutRequestServicePort 
                 .bankName(bankAccount.getBankName())
                 .bankAccountNumber(bankAccount.getBankAccountNo())
                 .accountHolderName(bankAccount.getBankAccountName())
+                .recipientIdNumber(recipientIdNumber)
+                .recipientIdImageUrl(recipientIdImageUrl)
+                .recipientIdImageBackUrl(recipientIdImageBackUrl)
+                .recipientIdentityCapturedAt(LocalDateTime.now())
                 .build();
         model.initializeForCreate();
 
@@ -117,6 +134,16 @@ public class PrizePayoutRequestService implements PrizePayoutRequestServicePort 
 
         publishStatusChanged(saved);
         return toResponse(saved.getId());
+    }
+
+    @Override
+    public StorageResult uploadRecipientIdImage(UploadRequest request) {
+        StorageUtils.validateImageUpload(request);
+        return storagePort.upload(new UploadRequest(
+                request.data(),
+                request.fileName(),
+                request.contentType(),
+                StorageFolderConstants.PRIZE_PAYOUT_RECIPIENT_ID_FOLDER));
     }
 
     @Override
@@ -157,7 +184,7 @@ public class PrizePayoutRequestService implements PrizePayoutRequestServicePort 
                 ownership.level(),
                 ownership.requiresManualOwnershipConfirm(),
                 prizePayoutEligibilityService.requiresRecipientIdentity(ownership.level(), breakdown.grossAmount()),
-                prizePayoutEligibilityService.requiresRecipientIdImage(customerId, breakdown.grossAmount()),
+                true, // Online customer claims always require CCCD front + back images.
                 prizePayoutEligibilityService.requiresFourEyes(breakdown.grossAmount()),
                 prizePayoutCalculationService.resolveTaxThreshold(),
                 order != null ? order.getOrderType() : null,
@@ -342,5 +369,29 @@ public class PrizePayoutRequestService implements PrizePayoutRequestServicePort 
                 customer.getFirstName(),
                 customer.getLastName(),
                 customer.getUsername());
+    }
+
+    private String requireOnlineRecipientIdNumber(String raw) {
+        if (raw == null || raw.isBlank()) {
+            throw new DomainException(ErrorCode.PRIZE_PAYOUT_RECIPIENT_IDENTITY_REQUIRED);
+        }
+        String trimmed = raw.trim();
+        if (!trimmed.matches("\\d{9,12}")) {
+            throw new DomainException(
+                    ErrorCode.PRIZE_PAYOUT_RECIPIENT_IDENTITY_REQUIRED,
+                    "Số CCCD/CMND phải có từ 9 đến 12 chữ số.");
+        }
+        return trimmed;
+    }
+
+    private String requireOnlineRecipientIdImageUrl(String raw, String label) {
+        if (raw == null || raw.isBlank()) {
+            throw new DomainException(
+                    ErrorCode.PRIZE_PAYOUT_RECIPIENT_IDENTITY_REQUIRED,
+                    label + " là bắt buộc.");
+        }
+        String trimmed = raw.trim();
+        StorageUtils.validateImageEvidenceUrl(trimmed);
+        return trimmed;
     }
 }

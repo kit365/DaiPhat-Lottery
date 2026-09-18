@@ -38,6 +38,7 @@ public class OcrScanResultModel {
     private Long aiModelId;
 
     private String sourceImageName;
+    private String sourceImageUrl;
     private OcrBoundingBox bbox;
     private Integer imageWidth;
     private Integer imageHeight;

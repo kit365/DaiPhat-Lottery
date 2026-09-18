@@ -3,10 +3,10 @@
  * BE should already return ErrorCode messages; this covers older responses and soft warnings.
  */
 export const OCR_SERVICE_UNAVAILABLE_MESSAGE =
-    'Hệ thống đang bảo trì tính năng đọc vé. Vui lòng thử lại sau ít phút.';
+    'Dịch vụ nhận diện vé (OCR) hiện đang gián đoạn hoặc chưa sẵn sàng kết nối. Vui lòng thử lại sau giây lát hoặc liên hệ quản trị viên.';
 
 export const OCR_RATE_LIMIT_MESSAGE =
-    'Dịch vụ AI đọc vé đang quá tải (giới hạn tốc độ Groq). Vui lòng đợi khoảng 15–30 giây rồi quét lại ảnh.';
+    'Dịch vụ nhận diện vé đang bận xử lý nhiều yêu cầu cùng lúc. Vui lòng đợi khoảng 15–30 giây rồi thực hiện lại.';
 
 export const isTechnicalOcrErrorMessage = (message?: string | null): boolean => {
     if (!message) return false;
@@ -17,6 +17,10 @@ export const isTechnicalOcrErrorMessage = (message?: string | null): boolean => 
         lower.includes('connect to http') ||
         lower.includes('resourceaccessexception') ||
         lower.includes('localhost:8090') ||
+        lower.includes('ticket-vision') ||
+        lower.includes('cổng 8090') ||
+        lower.includes('8090') ||
+        lower.includes('lt_122') ||
         lower.includes('getsockopt') ||
         /status code 503/i.test(message) ||
         /failed to fetch/i.test(message) ||

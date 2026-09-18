@@ -84,8 +84,10 @@ export interface ScannedTicket {
     resolvedStationId?: number | null;
     resolvedDrawDate?: string | null;
     croppedImageBase64?: string | null;
+    croppedImageUrl?: string | null;
     ocrScanResultId?: number | null;
     sourceImageName?: string | null;
+    sourceImageUrl?: string | null;
     imageWidth?: number | null;
     imageHeight?: number | null;
 }
@@ -97,6 +99,7 @@ export interface TicketScanResponse {
     warnings?: string[] | null;
     imageWidth?: number | null;
     imageHeight?: number | null;
+    sourceImageUrl?: string | null;
 }
 
 export interface ConfirmedScannedTicketPayload {
@@ -195,6 +198,7 @@ export interface OcrScanResult {
     validationErrors?: string[] | null;
     businessValidationErrors?: string[] | null;
     croppedImageUrl?: string | null;
+    sourceImageUrl?: string | null;
     scannedBy?: string | null;
     scannedAt?: string | null;
 }
@@ -255,6 +259,7 @@ export interface OcrReviewRow {
     businessValidationErrors: string[];
     duplicate: boolean;
     croppedImageBase64?: string | null;
+    croppedImageUrl?: string | null;
     selected: boolean;
     edited: boolean;
 }
@@ -264,6 +269,10 @@ export const OCR_IMPORT_DRAFT_KEY = 'ocrImportDraft';
 export interface OcrImportDraftImageMeta {
     id: string;
     fileName: string;
+    previewUrl?: string | null;
+    scanId?: string | null;
+    imageWidth?: number | null;
+    imageHeight?: number | null;
 }
 
 export interface OcrImportDraft {
