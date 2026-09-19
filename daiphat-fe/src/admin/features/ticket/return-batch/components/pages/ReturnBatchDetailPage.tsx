@@ -313,45 +313,45 @@ export const ReturnBatchDetailPage = () => {
                     </Box>
                 }
                 action={
-                <Stack direction="row" spacing={1} flexWrap="wrap">
-                    {showInspectButton && (
-                        <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
-                            <Button
-                                label={
-                                    batch.status === 'INSPECTING' || remainingInspectable > 0
-                                        ? 'Tiến hành kiểm tra (Tiếp tục)'
-                                        : 'Tiến hành kiểm tra'
-                                }
-                                className="btn-primary-admin"
-                                loading={startInspection.isPending}
-                                disabled={!canInspectTickets}
-                                onClick={handleInspectTickets}
-                                sx={
-                                    !canInspectTickets
-                                        ? {
-                                              opacity: 0.55,
-                                              cursor: 'not-allowed',
-                                              '&.Mui-disabled': {
-                                                  bgcolor: '#cbd5e1',
-                                                  color: '#64748b',
-                                              },
-                                          }
-                                        : undefined
-                                }
-                            />
-                        </CanAccess>
-                    )}
-                    {batch.status === 'PENDING_HANDOVER' && remainingInspectable === 0 && !batch.inspectionExpired && (
-                        <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
-                            <Button
-                                label="Xác nhận bàn giao"
-                                className="btn-primary-admin"
-                                loading={confirmHandover.isPending}
-                                onClick={handleOpenHandoverDialog}
-                            />
-                        </CanAccess>
-                    )}
-                </Stack>
+                    <Stack direction="row" spacing={1} flexWrap="wrap">
+                        {showInspectButton && (
+                            <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
+                                <Button
+                                    label={
+                                        batch.status === 'INSPECTING' || remainingInspectable > 0
+                                            ? 'Tiến hành kiểm tra (Tiếp tục)'
+                                            : 'Tiến hành kiểm tra'
+                                    }
+                                    className="btn-primary-admin"
+                                    loading={startInspection.isPending}
+                                    disabled={!canInspectTickets}
+                                    onClick={handleInspectTickets}
+                                    sx={
+                                        !canInspectTickets
+                                            ? {
+                                                opacity: 0.55,
+                                                cursor: 'not-allowed',
+                                                '&.Mui-disabled': {
+                                                    bgcolor: '#cbd5e1',
+                                                    color: '#64748b',
+                                                },
+                                            }
+                                            : undefined
+                                    }
+                                />
+                            </CanAccess>
+                        )}
+                        {batch.status === 'PENDING_HANDOVER' && remainingInspectable === 0 && !batch.inspectionExpired && (
+                            <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
+                                <Button
+                                    label="Xác nhận bàn giao"
+                                    className="btn-primary-admin"
+                                    loading={confirmHandover.isPending}
+                                    onClick={handleOpenHandoverDialog}
+                                />
+                            </CanAccess>
+                        )}
+                    </Stack>
                 }
             />
 
@@ -542,11 +542,10 @@ export const ReturnBatchDetailPage = () => {
             )}
 
             {/* KPI Cards Overview - Consistent with ReturnBatchListPage */}
-            <AdminKpiCardsGrid columns={{ xs: 1, sm: 2, md: 3, lg: 6, xl: 6 }}>
+            <AdminKpiCardsGrid columns={{ xs: 1, sm: 2, md: 3, lg: 3, xl: 3 }}>
                 <AdminKpiCard
                     label="Nhà cung cấp"
                     value={batch.supplierName || '—'}
-                    valueTitle={batch.supplierCode ? `Mã NCC: ${batch.supplierCode}` : undefined}
                     icon={<StorefrontOutlinedIcon fontSize="small" />}
                     tone="blue"
                     valueSize="compact"

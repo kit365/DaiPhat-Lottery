@@ -14,7 +14,6 @@ import { formatKpiAmount } from '@/admin/utils/currency';
 import { formatImportCost } from '../../../import-batch/utils/importCostCalculator';
 import { useReturnBatchList } from '../../hooks/useReturnBatch';
 import { ReturnBatchList } from '../sections/ReturnBatchList';
-import { ReturnBatchReminderBanner } from '../sections/ReturnBatchReminderBanner';
 
 export const ReturnBatchListPage = () => {
     const listHook = useReturnBatchList();
@@ -48,9 +47,6 @@ export const ReturnBatchListPage = () => {
                     />
                 </div>
             </div>
-
-            {/* Reminder Banner (if any batch is urgent/in inspection window) */}
-            <ReturnBatchReminderBanner batches={batches} />
 
             <AdminKpiCardsGrid columns={{ xs: 1, sm: 2, md: 3, xl: 5 }}>
                 <AdminKpiCard
