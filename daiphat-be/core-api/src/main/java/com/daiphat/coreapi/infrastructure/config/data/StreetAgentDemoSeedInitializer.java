@@ -59,7 +59,7 @@ public class StreetAgentDemoSeedInitializer implements ApplicationRunner {
                         .lastName(blankToDefault(agent.getLastName(), "StreetAgent"))
                         .phone(DEMO_PHONE)
                         .cccd(DEMO_CCCD)
-                        .createdBy(DemoSeedConstants.STREET_AGENT_SEED_MARKER)
+                        .createdBy(SharedSeedConstants.STREET_AGENT_SEED_MARKER)
                         .build());
 
         profile.setUser(agent);
@@ -76,8 +76,8 @@ public class StreetAgentDemoSeedInitializer implements ApplicationRunner {
         profile.setContactWard("Ben Nghe");
         profile.setCoverageArea("Quan 1");
         profile.setCommissionRate(DEMO_COMMISSION);
-        profile.setContractCode(DemoSeedConstants.STREET_AGENT_CONTRACT_CODE);
-        profile.setContractDocumentUrl(DemoSeedConstants.STREET_AGENT_CONTRACT_DOC_URL);
+        profile.setContractCode(SharedSeedConstants.STREET_AGENT_CONTRACT_CODE);
+        profile.setContractDocumentUrl(SharedSeedConstants.STREET_AGENT_CONTRACT_DOC_URL);
         profile.setContractStartDate(today.minusMonths(1));
         profile.setContractEndDate(today.plusYears(1));
         profile.setContractMaxDailyCap(DEMO_DAILY_CAP);
@@ -87,9 +87,9 @@ public class StreetAgentDemoSeedInitializer implements ApplicationRunner {
         profile.setConfidenceTier(VendorConfidenceTier.NEW);
         profile.setStatus(StreetAgentProfileStatus.ACTIVE);
         profile.setUpdatedAt(now);
-        profile.setLastModifiedBy(DemoSeedConstants.STREET_AGENT_SEED_MARKER);
+        profile.setLastModifiedBy(SharedSeedConstants.STREET_AGENT_SEED_MARKER);
         if (profile.getCreatedBy() == null) {
-            profile.setCreatedBy(DemoSeedConstants.STREET_AGENT_SEED_MARKER);
+            profile.setCreatedBy(SharedSeedConstants.STREET_AGENT_SEED_MARKER);
         }
         if (profile.getCreatedAt() == null) {
             profile.setCreatedAt(now);
@@ -101,7 +101,7 @@ public class StreetAgentDemoSeedInitializer implements ApplicationRunner {
                 agent.getUsername(),
                 profile.getId(),
                 DEMO_DAILY_CAP,
-                DemoSeedConstants.STREET_AGENT_CONTRACT_CODE
+                SharedSeedConstants.STREET_AGENT_CONTRACT_CODE
         );
     }
 

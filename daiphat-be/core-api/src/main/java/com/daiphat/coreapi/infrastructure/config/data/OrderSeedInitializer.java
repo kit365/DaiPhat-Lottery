@@ -858,7 +858,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
                             "Order seed requires supplier " + SHARED_SUPPLIER_CODE
                     ));
 
-            String headerCode = DemoSeedConstants.ORDER_AVAILABLE_BATCH_PREFIX
+            String headerCode = SharedSeedConstants.ORDER_AVAILABLE_BATCH_PREFIX
                     + drawDate.format(DateTimeFormatter.BASIC_ISO_DATE)
                     + "-S"
                     + station.getId();
@@ -880,7 +880,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
                             .updatedAt(importedAt)
                             .build()));
 
-            String lineCode = DemoSeedConstants.ORDER_AVAILABLE_LINE_PREFIX
+            String lineCode = SharedSeedConstants.ORDER_AVAILABLE_LINE_PREFIX
                     + drawDate.format(DateTimeFormatter.BASIC_ISO_DATE)
                     + "-S"
                     + station.getId();

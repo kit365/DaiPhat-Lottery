@@ -55,7 +55,7 @@ import java.util.Set;
 
 /**
  * Marks 50 winning tickets <b>from the shared demo inventory</b>
- * ({@link DemoSeedConstants#INVENTORY_SERIAL_PREFIX}, past draws ≤ 30 days),
+ * ({@link SharedSeedConstants#INVENTORY_SERIAL_PREFIX}, past draws ≤ 30 days),
  * upserts matching lottery results, and attaches COMPLETED online orders to {@code member}.
  * <p>
  * Does not create a parallel ticket universe — inventory must already exist
@@ -66,7 +66,7 @@ import java.util.Set;
 @Order(105)
 @RequiredArgsConstructor
 @Slf4j
-public class DemoWinPayoutSeedInitializer implements ApplicationRunner {
+public class Win50PayoutSeedInitializer implements ApplicationRunner {
 
     private static final BigDecimal TICKET_PRICE = BigDecimal.valueOf(10_000);
     private static final int MAX_LOOKBACK_DAYS = 30;
@@ -93,7 +93,7 @@ public class DemoWinPayoutSeedInitializer implements ApplicationRunner {
         }
 
         Map<String, PrizeStructureEntity> prizeByCode = loadPrizeStructures();
-        if (prizeByCode.size() < DemoWinPayoutSeedCatalog.PRIZES.size()) {
+        if (prizeByCode.size() < Win50PayoutSeedCatalog.PRIZES.size()) {
             log.warn("Skip win50-payout seed: missing prize_structures (found {}).", prizeByCode.size());
             return;
         }
@@ -115,14 +115,14 @@ public class DemoWinPayoutSeedInitializer implements ApplicationRunner {
             return;
         }
 
-        Map<DemoWinPayoutSeedCatalog.DrawResultKey, Map<String, String>> drawResults = new LinkedHashMap<>();
+        Map<Win50PayoutSeedCatalog.DrawResultKey, Map<String, String>> drawResults = new LinkedHashMap<>();
         List<ClaimedWinner> winners = claimWinnersFromPool(pool, drawResults);
         if (winners.size() != TARGET_WINNERS) {
             log.warn("Skip win50-payout seed: claimed {} winners, expected {}.", winners.size(), TARGET_WINNERS);
             return;
         }
 
-        for (Map.Entry<DemoWinPayoutSeedCatalog.DrawResultKey, Map<String, String>> entry : drawResults.entrySet()) {
+        for (Map.Entry<Win50PayoutSeedCatalog.DrawResultKey, Map<String, String>> entry : drawResults.entrySet()) {
             LotteryStationEntity station = winners.stream()
                     .filter(w -> w.stationId() == entry.getKey().stationId()
                             && w.drawDate().equals(entry.getKey().drawDate()))
@@ -145,7 +145,7 @@ public class DemoWinPayoutSeedInitializer implements ApplicationRunner {
 
     private List<LotteryTicketSerialEntity> loadClaimableInventory(LocalDate fromInclusive, LocalDate toInclusive) {
         return lotteryTicketSerialRepository
-                .findBySerialNumberStartingWithAndDeletedAtIsNull(DemoSeedConstants.INVENTORY_SERIAL_PREFIX)
+                .findBySerialNumberStartingWithAndDeletedAtIsNull(SharedSeedConstants.INVENTORY_SERIAL_PREFIX)
                 .stream()
                 // Past inventory is seeded as EXPIRED (after draw cutoff). Claim those
                 // unsold serials and convert them into member-owned winners.
@@ -170,7 +170,7 @@ public class DemoWinPayoutSeedInitializer implements ApplicationRunner {
 
     private List<ClaimedWinner> claimWinnersFromPool(
             List<LotteryTicketSerialEntity> pool,
-            Map<DemoWinPayoutSeedCatalog.DrawResultKey, Map<String, String>> drawResults
+            Map<Win50PayoutSeedCatalog.DrawResultKey, Map<String, String>> drawResults
     ) {
         // One serial per ticket id so we do not double-claim.
         Map<Long, LotteryTicketSerialEntity> byTicketId = new LinkedHashMap<>();
@@ -179,22 +179,22 @@ public class DemoWinPayoutSeedInitializer implements ApplicationRunner {
         }
         List<LotteryTicketSerialEntity> unique = new ArrayList<>(byTicketId.values());
 
-        Map<DemoWinPayoutSeedCatalog.DrawResultKey, List<LotteryTicketSerialEntity>> byDraw = new LinkedHashMap<>();
+        Map<Win50PayoutSeedCatalog.DrawResultKey, List<LotteryTicketSerialEntity>> byDraw = new LinkedHashMap<>();
         for (LotteryTicketSerialEntity serial : unique) {
             LotteryTicketEntity ticket = serial.getTicket();
-            DemoWinPayoutSeedCatalog.DrawResultKey key =
-                    new DemoWinPayoutSeedCatalog.DrawResultKey(ticket.getStation().getId(), ticket.getDrawDate());
+            Win50PayoutSeedCatalog.DrawResultKey key =
+                    new Win50PayoutSeedCatalog.DrawResultKey(ticket.getStation().getId(), ticket.getDrawDate());
             byDraw.computeIfAbsent(key, ignored -> new ArrayList<>()).add(serial);
             drawResults.computeIfAbsent(
                     key,
-                    k -> DemoWinPayoutSeedCatalog.buildResults(k.stationId(), k.drawDate())
+                    k -> Win50PayoutSeedCatalog.buildResults(k.stationId(), k.drawDate())
             );
         }
 
-        List<DemoWinPayoutSeedCatalog.DrawResultKey> drawKeys = new ArrayList<>(byDraw.keySet());
+        List<Win50PayoutSeedCatalog.DrawResultKey> drawKeys = new ArrayList<>(byDraw.keySet());
         drawKeys.sort(Comparator
-                .comparing(DemoWinPayoutSeedCatalog.DrawResultKey::drawDate)
-                .thenComparing(DemoWinPayoutSeedCatalog.DrawResultKey::stationId));
+                .comparing(Win50PayoutSeedCatalog.DrawResultKey::drawDate)
+                .thenComparing(Win50PayoutSeedCatalog.DrawResultKey::stationId));
 
         List<ClaimedWinner> winners = new ArrayList<>();
         Set<Long> usedTicketIds = new HashSet<>();
@@ -202,13 +202,13 @@ public class DemoWinPayoutSeedInitializer implements ApplicationRunner {
         int dayI = 0;
         int idx = 0;
 
-        for (int prizeOrd = 0; prizeOrd < DemoWinPayoutSeedCatalog.PRIZES.size(); prizeOrd++) {
-            String prize = DemoWinPayoutSeedCatalog.PRIZES.get(prizeOrd);
-            int count = DemoWinPayoutSeedCatalog.PRIZE_COUNTS[prizeOrd];
+        for (int prizeOrd = 0; prizeOrd < Win50PayoutSeedCatalog.PRIZES.size(); prizeOrd++) {
+            String prize = Win50PayoutSeedCatalog.PRIZES.get(prizeOrd);
+            int count = Win50PayoutSeedCatalog.PRIZE_COUNTS[prizeOrd];
             for (int variant = 0; variant < count; variant++) {
                 boolean placed = false;
                 for (int attempt = 0; attempt < 500 && !placed; attempt++) {
-                    DemoWinPayoutSeedCatalog.DrawResultKey key =
+                    Win50PayoutSeedCatalog.DrawResultKey key =
                             drawKeys.get((dayI + attempt) % drawKeys.size());
                     List<LotteryTicketSerialEntity> candidates = byDraw.get(key);
                     if (candidates == null || candidates.isEmpty()) {
@@ -235,11 +235,11 @@ public class DemoWinPayoutSeedInitializer implements ApplicationRunner {
                         String base = ("DB_PHU".equals(prize) || "KK".equals(prize))
                                 ? results.get("DB")
                                 : results.get(prize);
-                        candidateNumbers = DemoWinPayoutSeedCatalog.craftTicket(
+                        candidateNumbers = Win50PayoutSeedCatalog.craftTicket(
                                 prize, base, variant * 11 + attempt * 7 + dayI + 3
                         );
                     }
-                    if (!Objects.equals(DemoWinPayoutSeedCatalog.firstPrize(candidateNumbers, results), prize)) {
+                    if (!Objects.equals(Win50PayoutSeedCatalog.firstPrize(candidateNumbers, results), prize)) {
                         continue;
                     }
 
@@ -257,13 +257,13 @@ public class DemoWinPayoutSeedInitializer implements ApplicationRunner {
                     ticket.setNumbers(candidateNumbers);
                     ticket.setStatus(LotteryTicketStatus.SOLD_OUT);
                     ticket.setActive(false);
-                    ticket.setLastModifiedBy(DemoWinPayoutSeedCatalog.SEED_MARKER);
+                    ticket.setLastModifiedBy(Win50PayoutSeedCatalog.SEED_MARKER);
                     lotteryTicketRepository.save(ticket);
 
                     serial.setStatus(LotteryTicketSerialStatus.SOLD);
                     serial.setPayoutState(SerialPayoutState.NONE);
                     serial.setInputSource(serial.getInputSource() != null ? serial.getInputSource() : InputSource.MANUAL);
-                    serial.setLastModifiedBy(DemoWinPayoutSeedCatalog.SEED_MARKER);
+                    serial.setLastModifiedBy(Win50PayoutSeedCatalog.SEED_MARKER);
                     lotteryTicketSerialRepository.save(serial);
 
                     usedTicketIds.add(ticket.getId());
@@ -294,7 +294,7 @@ public class DemoWinPayoutSeedInitializer implements ApplicationRunner {
         }
 
         long online = winners.stream()
-                .filter(w -> DemoWinPayoutSeedCatalog.ONLINE_CLAIMABLE.contains(w.prize()))
+                .filter(w -> Win50PayoutSeedCatalog.ONLINE_CLAIMABLE.contains(w.prize()))
                 .count();
         if (online != 30) {
             throw new IllegalStateException("WIN50_PAYOUT: expected 30 online-claimable, got " + online);
@@ -314,7 +314,7 @@ public class DemoWinPayoutSeedInitializer implements ApplicationRunner {
             memberName = member.getUsername();
         }
 
-        for (DemoWinPayoutSeedCatalog.OrderPlan plan : DemoWinPayoutSeedCatalog.ORDER_PLANS) {
+        for (Win50PayoutSeedCatalog.OrderPlan plan : Win50PayoutSeedCatalog.ORDER_PLANS) {
             List<ClaimedWinner> orderWinners = winners.stream()
                     .filter(winner -> winner.idx() > plan.cumStart() && winner.idx() <= plan.cumEnd())
                     .sorted(Comparator.comparingInt(ClaimedWinner::idx))
@@ -329,12 +329,12 @@ public class DemoWinPayoutSeedInitializer implements ApplicationRunner {
                     .orElseThrow();
             LocalDateTime paidAt = minDraw.atTime(LocalTime.of(9, 45)).plusMinutes((plan.orderN() - 1L) * 17L);
             LocalDateTime pickupAt = minDraw.atTime(LocalTime.of(18, 10)).plusMinutes((plan.orderN() - 1L) * 9L);
-            String orderCode = DemoWinPayoutSeedCatalog.ORDER_CODE_PREFIX + String.format("%03d", plan.orderN());
+            String orderCode = Win50PayoutSeedCatalog.ORDER_CODE_PREFIX + String.format("%03d", plan.orderN());
             BigDecimal total = TICKET_PRICE.multiply(BigDecimal.valueOf(plan.slots()));
 
             List<OrderDetailEntity> details = new ArrayList<>();
             for (ClaimedWinner winner : orderWinners) {
-                boolean online = DemoWinPayoutSeedCatalog.ONLINE_CLAIMABLE.contains(winner.prize());
+                boolean online = Win50PayoutSeedCatalog.ONLINE_CLAIMABLE.contains(winner.prize());
                 details.add(OrderDetailEntity.builder()
                         .lotteryTicket(winner.serial().getTicket())
                         .lotteryTicketSerial(winner.serial())
@@ -345,8 +345,8 @@ public class DemoWinPayoutSeedInitializer implements ApplicationRunner {
                         .handedOverBy(online ? null : operator.getId())
                         .createdAt(paidAt)
                         .updatedAt(now)
-                        .createdBy(DemoWinPayoutSeedCatalog.SEED_MARKER)
-                        .lastModifiedBy(DemoWinPayoutSeedCatalog.SEED_MARKER)
+                        .createdBy(Win50PayoutSeedCatalog.SEED_MARKER)
+                        .lastModifiedBy(Win50PayoutSeedCatalog.SEED_MARKER)
                         .build());
             }
 
@@ -365,8 +365,8 @@ public class DemoWinPayoutSeedInitializer implements ApplicationRunner {
                     .pickedUpBy(operator)
                     .createdAt(paidAt)
                     .updatedAt(now)
-                    .createdBy(DemoWinPayoutSeedCatalog.SEED_MARKER)
-                    .lastModifiedBy(DemoWinPayoutSeedCatalog.SEED_MARKER)
+                    .createdBy(Win50PayoutSeedCatalog.SEED_MARKER)
+                    .lastModifiedBy(Win50PayoutSeedCatalog.SEED_MARKER)
                     .build();
 
             for (OrderDetailEntity detail : details) {
@@ -380,11 +380,11 @@ public class DemoWinPayoutSeedInitializer implements ApplicationRunner {
                     .status(TransactionStatus.COMPLETED)
                     .paidAt(paidAt)
                     .type(TransactionType.ONLINE)
-                    .paymentRef(DemoWinPayoutSeedCatalog.PAYMENT_REF_PREFIX + String.format("%03d", plan.orderN()))
+                    .paymentRef(Win50PayoutSeedCatalog.PAYMENT_REF_PREFIX + String.format("%03d", plan.orderN()))
                     .createdAt(paidAt)
                     .updatedAt(now)
-                    .createdBy(DemoWinPayoutSeedCatalog.SEED_MARKER)
-                    .lastModifiedBy(DemoWinPayoutSeedCatalog.SEED_MARKER)
+                    .createdBy(Win50PayoutSeedCatalog.SEED_MARKER)
+                    .lastModifiedBy(Win50PayoutSeedCatalog.SEED_MARKER)
                     .build();
 
             order.setOrderDetails(new ArrayList<>(details));
@@ -406,7 +406,7 @@ public class DemoWinPayoutSeedInitializer implements ApplicationRunner {
                         .station(station)
                         .drawDate(drawDate)
                         .createdAt(now)
-                        .createdBy(DemoWinPayoutSeedCatalog.SEED_MARKER)
+                        .createdBy(Win50PayoutSeedCatalog.SEED_MARKER)
                         .build());
 
         result.setSource("MANUAL");
@@ -415,7 +415,7 @@ public class DemoWinPayoutSeedInitializer implements ApplicationRunner {
         result.setPublishedAt(drawDate.atTime(LocalTime.of(16, 35)));
         result.setDeletedAt(null);
         result.setUpdatedAt(now);
-        result.setLastModifiedBy(DemoWinPayoutSeedCatalog.SEED_MARKER);
+        result.setLastModifiedBy(Win50PayoutSeedCatalog.SEED_MARKER);
         result = lotteryResultRepository.save(result);
 
         List<LotteryResultDetailEntity> existing =
@@ -429,13 +429,13 @@ public class DemoWinPayoutSeedInitializer implements ApplicationRunner {
         }
 
         List<LotteryResultDetailEntity> details = new ArrayList<>();
-        for (String prizeCode : DemoWinPayoutSeedCatalog.RESULT_DETAIL_CODES) {
+        for (String prizeCode : Win50PayoutSeedCatalog.RESULT_DETAIL_CODES) {
             details.add(LotteryResultDetailEntity.builder()
                     .lotteryResult(result)
                     .prizeStructure(prizeByCode.get(prizeCode))
-                    .winningNumber(DemoWinPayoutSeedCatalog.padWin(prizeCode, results.get(prizeCode)))
-                    .createdBy(DemoWinPayoutSeedCatalog.SEED_MARKER)
-                    .lastModifiedBy(DemoWinPayoutSeedCatalog.SEED_MARKER)
+                    .winningNumber(Win50PayoutSeedCatalog.padWin(prizeCode, results.get(prizeCode)))
+                    .createdBy(Win50PayoutSeedCatalog.SEED_MARKER)
+                    .lastModifiedBy(Win50PayoutSeedCatalog.SEED_MARKER)
                     .build());
         }
         for (String prizeCode : List.of("DB_PHU", "KK")) {
@@ -443,34 +443,34 @@ public class DemoWinPayoutSeedInitializer implements ApplicationRunner {
                     .lotteryResult(result)
                     .prizeStructure(prizeByCode.get(prizeCode))
                     .winningNumber(results.get("DB"))
-                    .createdBy(DemoWinPayoutSeedCatalog.SEED_MARKER)
-                    .lastModifiedBy(DemoWinPayoutSeedCatalog.SEED_MARKER)
+                    .createdBy(Win50PayoutSeedCatalog.SEED_MARKER)
+                    .lastModifiedBy(Win50PayoutSeedCatalog.SEED_MARKER)
                     .build());
         }
         lotteryResultDetailRepository.saveAll(details);
     }
 
     private void resetPreviousOverlay(LocalDateTime now) {
-        deleteOrdersByPrefix(DemoWinPayoutSeedCatalog.ORDER_CODE_PREFIX);
-        deleteOrdersByPrefix(DemoWinPayoutSeedCatalog.LEGACY_ORDER_PREFIX);
+        deleteOrdersByPrefix(Win50PayoutSeedCatalog.ORDER_CODE_PREFIX);
+        deleteOrdersByPrefix(Win50PayoutSeedCatalog.LEGACY_ORDER_PREFIX);
 
         // Revert IBSEED serials previously claimed by this overlay.
         List<LotteryTicketSerialEntity> marked = lotteryTicketSerialRepository
-                .findBySerialNumberStartingWithAndDeletedAtIsNull(DemoSeedConstants.INVENTORY_SERIAL_PREFIX)
+                .findBySerialNumberStartingWithAndDeletedAtIsNull(SharedSeedConstants.INVENTORY_SERIAL_PREFIX)
                 .stream()
-                .filter(serial -> DemoWinPayoutSeedCatalog.SEED_MARKER.equals(serial.getLastModifiedBy())
-                        || DemoWinPayoutSeedCatalog.LEGACY_MARKER.equals(serial.getLastModifiedBy()))
+                .filter(serial -> Win50PayoutSeedCatalog.SEED_MARKER.equals(serial.getLastModifiedBy())
+                        || Win50PayoutSeedCatalog.LEGACY_MARKER.equals(serial.getLastModifiedBy()))
                 .toList();
         for (LotteryTicketSerialEntity serial : marked) {
             serial.setStatus(LotteryTicketSerialStatus.IN_STOCK);
             serial.setPayoutState(SerialPayoutState.NONE);
-            serial.setLastModifiedBy(DemoSeedConstants.INVENTORY_ACTOR);
+            serial.setLastModifiedBy(SharedSeedConstants.INVENTORY_ACTOR);
             serial.setUpdatedAt(now);
             if (serial.getTicket() != null) {
                 LotteryTicketEntity ticket = serial.getTicket();
                 ticket.setStatus(LotteryTicketStatus.IN_STOCK);
                 ticket.setActive(true);
-                ticket.setLastModifiedBy(DemoSeedConstants.INVENTORY_ACTOR);
+                ticket.setLastModifiedBy(SharedSeedConstants.INVENTORY_ACTOR);
                 ticket.setUpdatedAt(now);
                 lotteryTicketRepository.save(ticket);
             }
@@ -480,7 +480,7 @@ public class DemoWinPayoutSeedInitializer implements ApplicationRunner {
         // Hard-delete legacy parallel p123 universe if still present.
         List<LotteryTicketSerialEntity> legacySerials =
                 lotteryTicketSerialRepository.findBySerialNumberStartingWith(
-                        DemoWinPayoutSeedCatalog.LEGACY_SERIAL_PREFIX
+                        Win50PayoutSeedCatalog.LEGACY_SERIAL_PREFIX
                 );
         if (!legacySerials.isEmpty()) {
             List<Long> serialIds = legacySerials.stream()
@@ -521,7 +521,7 @@ public class DemoWinPayoutSeedInitializer implements ApplicationRunner {
             byCode.putIfAbsent(prize.getPrizeCode().toUpperCase(), prize);
         }
         Map<String, PrizeStructureEntity> filtered = new HashMap<>();
-        for (String code : DemoWinPayoutSeedCatalog.PRIZES) {
+        for (String code : Win50PayoutSeedCatalog.PRIZES) {
             PrizeStructureEntity entity = byCode.get(code);
             if (entity != null) {
                 filtered.put(code, entity);

@@ -174,6 +174,10 @@ class AppColors {
   static const Color fortuneBackgroundMedium = Color(0xFF4A0E10);
   static const Color fortuneBackgroundDeep = Color(0xFF2A0C0E);
   static const Color fortuneBackgroundOverlay = Color(0xFF1A0808);
+  static const Color fortuneSilkCream = Color(0xFFF7E4D8);
+  static const Color fortuneSilkPeach = Color(0xFFF0C4B4);
+  static const Color fortuneSilkTerracotta = Color(0xFFC45A4C);
+  static const Color fortuneSilkCrimson = Color(0xFF7A1F22);
   static const Color fortuneGold = Color(0xFFE8C872);
   static const Color fortuneGoldLight = Color(0xFFFDE68A);
   static const Color fortuneGoldDark = Color(0xFFFCD34D);
@@ -185,6 +189,7 @@ class AppColors {
   static const Color fortuneCrimsonDeep = Color(0xFF5A1012);
   static const Color fortuneCrimsonBright = Color(0xFFB42324);
   static const Color fortuneWoodDark = Color(0xFF5C1A0A);
+  static const Color fortuneMahoganyDark = Color(0xFF381008);
 
   // Ticket semantic tokens. These are the mobile source of truth mirrored by
   // the web ticket CSS variables. Keep result, possession, payout, action,

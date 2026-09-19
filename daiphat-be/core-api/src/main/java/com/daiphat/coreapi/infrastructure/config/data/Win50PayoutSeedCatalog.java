@@ -12,14 +12,14 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Prize/ticket helpers for {@link DemoWinPayoutSeedInitializer}.
- * Winners are taken from the shared {@link DemoSeedConstants#INVENTORY_SERIAL_PREFIX} pool.
+ * Prize/ticket helpers for {@link Win50PayoutSeedInitializer}.
+ * Winners are taken from the shared {@link SharedSeedConstants#INVENTORY_SERIAL_PREFIX} pool.
  */
-public final class DemoWinPayoutSeedCatalog {
+public final class Win50PayoutSeedCatalog {
 
-    public static final String SEED_MARKER = DemoSeedConstants.WIN_MARKER;
-    public static final String ORDER_CODE_PREFIX = DemoSeedConstants.WIN_ORDER_PREFIX;
-    public static final String PAYMENT_REF_PREFIX = DemoSeedConstants.WIN_PAYMENT_REF_PREFIX;
+    public static final String SEED_MARKER = SharedSeedConstants.WIN_MARKER;
+    public static final String ORDER_CODE_PREFIX = SharedSeedConstants.WIN_ORDER_PREFIX;
+    public static final String PAYMENT_REF_PREFIX = SharedSeedConstants.WIN_PAYMENT_REF_PREFIX;
     /** Legacy prefixes cleaned on reset (old Phu123Win50 runs). */
     public static final String LEGACY_ORDER_PREFIX = "ORD-WIN50-PHU123-";
     public static final String LEGACY_SERIAL_PREFIX = "p123";
@@ -52,7 +52,7 @@ public final class DemoWinPayoutSeedCatalog {
             new OrderPlan(12, 5, 45, 50)
     );
 
-    private DemoWinPayoutSeedCatalog() {
+    private Win50PayoutSeedCatalog() {
     }
 
     public record OrderPlan(int orderN, int slots, int cumStart, int cumEnd) {

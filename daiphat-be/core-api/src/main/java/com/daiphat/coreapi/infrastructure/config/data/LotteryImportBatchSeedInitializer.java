@@ -49,7 +49,7 @@ import java.util.Set;
 
 /**
  * Seeds one NEW import batch per draw date for the shared demo inventory pool
- * ({@link DemoSeedConstants#INVENTORY_SERIAL_PREFIX}).
+ * ({@link SharedSeedConstants#INVENTORY_SERIAL_PREFIX}).
  * <p>
  * Window: past {@code daiphat.lottery.seed.past-days} days (default 30) + today + tomorrow
  * for southern stations of that weekday. Past days use a lighter ticket budget so local
@@ -66,12 +66,12 @@ import java.util.Set;
 @Order(100)
 public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
 
-    private static final String SYSTEM_ACTOR = DemoSeedConstants.INVENTORY_ACTOR;
+    private static final String SYSTEM_ACTOR = SharedSeedConstants.INVENTORY_ACTOR;
     private static final String SUPPLIER_CODE = "MINH_CHINH";
     private static final String SUPPLIER_NAME = "Minh Chính";
-    private static final String HEADER_CODE_PREFIX = DemoSeedConstants.IMPORT_BATCH_PREFIX;
-    private static final String LINE_CODE_PREFIX = DemoSeedConstants.IMPORT_LINE_PREFIX;
-    static final String SERIAL_PREFIX = DemoSeedConstants.INVENTORY_SERIAL_PREFIX;
+    private static final String HEADER_CODE_PREFIX = SharedSeedConstants.IMPORT_BATCH_PREFIX;
+    private static final String LINE_CODE_PREFIX = SharedSeedConstants.IMPORT_LINE_PREFIX;
+    static final String SERIAL_PREFIX = SharedSeedConstants.INVENTORY_SERIAL_PREFIX;
     private static final BigDecimal DEFAULT_IMPORT_COST = BigDecimal.valueOf(10_000);
     private static final DateTimeFormatter BASIC_DATE = DateTimeFormatter.BASIC_ISO_DATE;
     private static final int MIN_TICKETS_PER_BATCH = 100;

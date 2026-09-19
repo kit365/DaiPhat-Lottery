@@ -10,7 +10,7 @@ package com.daiphat.coreapi.infrastructure.config.data;
  *   <li>{@link SouthernLotteryStationSeedInitializer} — station catalog</li>
  *   <li>{@link LotteryImportBatchSeedInitializer} (@Order 100) — <b>one inventory pool</b>
  *       ({@code PN-SEED-*} / {@code IBSEED-*}), past ≤ N days + today/tomorrow</li>
- *   <li>{@link DemoWinPayoutSeedInitializer} (@Order 105) — mark winners <b>from that pool</b>,
+ *   <li>{@link Win50PayoutSeedInitializer} (@Order 105) — mark winners <b>from that pool</b>,
  *       attach COMPLETED orders to {@code member}</li>
  *   <li>Order / vendor / return / settlement seeders (@Order ≥ 108) consume the same pool
  *       (do not invent parallel ticket worlds for buy/payout demos)</li>
@@ -19,9 +19,9 @@ package com.daiphat.coreapi.infrastructure.config.data;
  * {@code LOTTERY_SEED_WIN50_PAYOUT_ENABLED}, {@code VENDOR_TEST_SEED_ENABLED} (see application-*.yml).
  * Prefix ownership: one prefix → one seeder may delete/recreate it.
  */
-public final class DemoSeedConstants {
+public final class SharedSeedConstants {
 
-    private DemoSeedConstants() {
+    private SharedSeedConstants() {
     }
 
     /** Import inventory (shared pool for buy / vendor / win / settlement). */

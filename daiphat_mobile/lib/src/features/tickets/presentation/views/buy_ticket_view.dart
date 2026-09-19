@@ -454,9 +454,7 @@ class _SearchFieldState extends State<_SearchField> {
   @override
   void didUpdateWidget(covariant _SearchField oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.initialValue != oldWidget.initialValue &&
-        widget.initialValue != _controller.text &&
-        !_isDebouncing) {
+    if (widget.initialValue != _controller.text && !_isDebouncing) {
       _controller.value = TextEditingValue(
         text: widget.initialValue,
         selection: TextSelection.collapsed(offset: widget.initialValue.length),
