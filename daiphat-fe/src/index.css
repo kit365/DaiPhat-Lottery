@@ -33,6 +33,8 @@
 body {
   background-color: #FDFBF7;
   color: #17191F;
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 @layer utilities {

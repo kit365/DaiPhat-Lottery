@@ -63,22 +63,6 @@ CREATE TABLE IF NOT EXISTS allocation_batches (
     created_by VARCHAR(100) DEFAULT 'SYSTEM', last_modified_by VARCHAR(100) DEFAULT 'SYSTEM', deleted_at TIMESTAMP
 );
 
--- return_batches is created in an earlier migration, while allocation_batches is created here.
--- Add the cross-aggregate FK/check only now to preserve Flyway dependency order.
-ALTER TABLE return_batches
-    ADD CONSTRAINT fk_return_batches_source_allocation_batch
-        FOREIGN KEY (source_allocation_batch_id) REFERENCES allocation_batches(id);
-
-ALTER TABLE return_batches
-    ADD CONSTRAINT ck_return_batches_type_source CHECK (
-        (return_batch_type = 'SUPPLIER_RETURN'
-            AND lottery_supplier_id IS NOT NULL
-            AND source_allocation_batch_id IS NULL)
-        OR
-        (return_batch_type = 'STREET_AGENT_RETURN'
-            AND lottery_supplier_id IS NULL
-            AND source_allocation_batch_id IS NOT NULL)
-    );
 
 CREATE TABLE IF NOT EXISTS allocation_batch_details (
     id BIGSERIAL PRIMARY KEY,

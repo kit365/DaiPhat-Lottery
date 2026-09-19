@@ -12,8 +12,6 @@ export const ROUTES = {
         },
         DASHBOARD: {
             ROOT: `/${prefixAdmin}/dashboard`,
-            SYSTEM: `/${prefixAdmin}/dashboard/system`,
-            ANALYTICS: `/${prefixAdmin}/dashboard/analytics`,
             ECOMMERCE: `/${prefixAdmin}/dashboard/ecommerce`,
             STATISTICS: {
                 GENERAL: `/${prefixAdmin}/dashboard/statistics/general`,
