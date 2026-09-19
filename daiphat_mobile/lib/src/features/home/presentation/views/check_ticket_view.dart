@@ -56,6 +56,8 @@ class _CheckTicketViewState extends ConsumerState<CheckTicketView> {
         !state.isChecking &&
         state.errorMessage == null &&
         (!state.hasChecked || state.checkResult == null);
+    final isWinningResult =
+        state.hasChecked && state.checkResult?.winning == true;
 
     return Scaffold(
       backgroundColor: AppColors.pageBg,
@@ -103,7 +105,9 @@ class _CheckTicketViewState extends ConsumerState<CheckTicketView> {
                     // Main Form Card
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                      child: Container(
+                      child: _WinningResultPopup(
+                        active: isWinningResult,
+                        child: Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
@@ -121,9 +125,9 @@ class _CheckTicketViewState extends ConsumerState<CheckTicketView> {
                             ),
                           ],
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
                             if (state.isChecking)
                               const _CheckingState()
                             else if (state.errorMessage != null)
@@ -139,7 +143,8 @@ class _CheckTicketViewState extends ConsumerState<CheckTicketView> {
                               )
                             else
                               _FormState(state: state, vm: vm),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -548,44 +553,63 @@ class _ResultState extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           ...result.matchedPrizes.map(
-            (prize) => Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceSoft,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.borderSubtle),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          prize.prizeDisplayName,
-                          style: AppTypography.labelLarge(
-                            fontWeight: FontWeight.w700,
+            (prize) {
+              final isConsolationPrize = prize.prizeCode == 'KK';
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceSoft,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.borderSubtle),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            prize.prizeDisplayName,
+                            style: AppTypography.labelLarge(
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Số trúng: ${prize.winningNumber}',
-                          style: AppTypography.labelMedium(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
+                          const SizedBox(height: 2),
+                          if (isConsolationPrize) ...[
+                            Text(
+                              'Số vé của bạn: ${result.ticketNumber}',
+                              style: AppTypography.labelMedium(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            Text(
+                              'Đối chiếu giải đặc biệt: ${prize.winningNumber}',
+                              style: AppTypography.labelMedium(
+                                color: AppColors.contentMuted,
+                              ),
+                            ),
+                          ] else
+                            Text(
+                              'Số trúng: ${prize.winningNumber}',
+                              style: AppTypography.labelMedium(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
-                  Text(
-                    AppFormatters.formatCurrency(prize.prizeValue),
-                    style: AppTypography.priceMedium(color: AppColors.primary),
-                  ),
-                ],
-              ),
-            ),
+                    Text(
+                      AppFormatters.formatCurrency(prize.prizeValue),
+                      style: AppTypography.priceMedium(color: AppColors.primary),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
           if (result.matchedPrizes.length > 1) ...[
             const SizedBox(height: 4),
@@ -650,6 +674,97 @@ class _ResultState extends StatelessWidget {
       message:
           'Vé số của bạn không trùng với giải nào lần này. Chúc bạn may mắn lần sau!',
       onReset: onReset,
+    );
+  }
+}
+
+/// Gives a winning lookup a short, celebratory entrance without making the
+/// result hard to read. The sequence overshoots once, then settles in place.
+class _WinningResultPopup extends StatefulWidget {
+  const _WinningResultPopup({required this.active, required this.child});
+
+  final bool active;
+  final Widget child;
+
+  @override
+  State<_WinningResultPopup> createState() => _WinningResultPopupState();
+}
+
+class _WinningResultPopupState extends State<_WinningResultPopup>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _scale;
+  late final Animation<double> _opacity;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 620),
+    );
+    _scale = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween(begin: 0.76, end: 1.06)
+            .chain(CurveTween(curve: Curves.easeOutCubic)),
+        weight: 58,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: 1.06, end: 0.98)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 25,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: 0.98, end: 1.0)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 17,
+      ),
+    ]).animate(_controller);
+    _opacity = CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0, 0.34, curve: Curves.easeOut),
+    );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) => _playOrComplete());
+  }
+
+  @override
+  void didUpdateWidget(covariant _WinningResultPopup oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.active != widget.active) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _playOrComplete());
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _playOrComplete() {
+    if (!mounted) return;
+
+    if (widget.active && !MediaQuery.of(context).disableAnimations) {
+      _controller.forward(from: 0);
+    } else {
+      _controller.value = 1;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.active || MediaQuery.of(context).disableAnimations) {
+      return widget.child;
+    }
+
+    return FadeTransition(
+      opacity: _opacity,
+      child: ScaleTransition(
+        scale: _scale,
+        alignment: Alignment.center,
+        child: widget.child,
+      ),
     );
   }
 }
