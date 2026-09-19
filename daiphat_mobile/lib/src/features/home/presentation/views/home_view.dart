@@ -8,11 +8,13 @@ import 'package:daiphat_mobile/src/features/home/presentation/providers/lottery_
 import 'package:daiphat_mobile/src/features/notifications/presentation/viewmodels/notification_viewmodel.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
+import 'package:daiphat_mobile/src/features/schedule/presentation/providers/schedule_providers.dart';
 import '../viewmodels/home_viewmodel.dart';
 import 'widgets/home_blog_section.dart';
 import 'widgets/home_header.dart';
 import 'widgets/home_title_date.dart';
 import 'widgets/loto_card.dart';
+import 'widgets/lottery_countdown_banner.dart';
 import 'widgets/lottery_date_picker_dialog.dart';
 import 'widgets/province_chips.dart';
 import 'widgets/results_card.dart';
@@ -334,6 +336,30 @@ class _HomeContentState extends ConsumerState<_HomeContent>
         .where((result) => displayProvinces.contains(result.province))
         .toList();
 
+    final scheduleAsync = ref.watch(lotteryScheduleProvider);
+    final activeDrawTime = scheduleAsync.maybeWhen(
+      data: (stations) {
+        if (_selectedProvinces.isNotEmpty) {
+          final matched = stations.where(
+            (s) => _selectedProvinces.contains(s.stationName),
+          );
+          if (matched.isNotEmpty && matched.first.drawTime.trim().isNotEmpty) {
+            return matched.first.drawTime.trim();
+          }
+        }
+        return '16:15';
+      },
+      orElse: () => '16:15',
+    );
+
+    final hasResults = data.results.any(
+      (r) =>
+          r.prizes.special.trim().isNotEmpty ||
+          r.prizeRows.any(
+            (row) => row.values.any((v) => v.trim().isNotEmpty && v != '--'),
+          ),
+    );
+
     return Stack(
       children: [
         Positioned(
@@ -439,6 +465,22 @@ class _HomeContentState extends ConsumerState<_HomeContent>
                     ),
                   )
                 else ...[
+                  SliverToBoxAdapter(
+                    child: LotteryCountdownBanner(
+                      date: _date,
+                      selectedProvinces: _selectedProvinces.toList(),
+                      allAvailableProvinces: allProvinces,
+                      drawTime: activeDrawTime,
+                      isWaitingForResults: data.isWaitingForResults,
+                      hasResults: hasResults,
+                      onRefresh: () async {
+                        ref.invalidate(homeLotteryProvider(normalizedDate));
+                        await ref.read(
+                          homeLotteryProvider(normalizedDate).future,
+                        );
+                      },
+                    ),
+                  ),
                   SliverToBoxAdapter(
                     child: ResultsCard(
                       results: displayResults,
