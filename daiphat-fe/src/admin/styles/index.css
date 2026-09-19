@@ -1460,3 +1460,17 @@ input:-webkit-autofill:active {
     padding: 6px 16px !important;
 }
 
+/* ApexCharts Legend Customization */
+.apexcharts-legend-marker {
+    width: 16px !important;
+    height: 16px !important;
+    border-radius: 50% !important;
+    margin-right: 6px !important;
+}
+
+.apexcharts-legend-text {
+    color: var(--palette-text-primary) !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+}
+

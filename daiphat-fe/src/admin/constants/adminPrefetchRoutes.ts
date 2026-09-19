@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { ROUTES } from './routes';
 import { registerAdminPageChunkLoader } from '../lib/adminPagePrefetchRegistry';
@@ -18,7 +18,6 @@ export const ADMIN_PREFETCH_ROUTE_PRIORITY = [
     ROUTES.ADMIN.SUPPORT_TICKETS.LIST,
     ROUTES.ADMIN.RETURN_BATCH.LIST,
     ROUTES.ADMIN.SUPPLIER_SETTLEMENT.LIST,
-    ROUTES.ADMIN.DASHBOARD.SYSTEM,
     ROUTES.ADMIN.DASHBOARD.ECOMMERCE,
     ROUTES.ADMIN.BLOGS.LIST,
     ROUTES.ADMIN.ACCOUNTS.USER.LIST,
@@ -48,10 +47,7 @@ const registerAdminPageChunkLoaders = () => {
         [ROUTES.ADMIN.RETURN_BATCH.LIST, () => import('@/admin/features/ticket/return-batch/components/pages/ReturnBatchListPage')],
         [ROUTES.ADMIN.SUPPLIER_SETTLEMENT.LIST, () => import('@/admin/features/ticket/supplier-settlement/components/pages/SupplierSettlementListPage')],
         [ROUTES.ADMIN.SUPPLIER.LIST, () => import('@/admin/features/supplier/components/pages/SupplierListPage')],
-        [ROUTES.ADMIN.DASHBOARD.ROOT, () => import('@/admin/features/dashboard/components/pages/DashboardPage')],
-        [ROUTES.ADMIN.DASHBOARD.SYSTEM, () => import('@/admin/features/dashboard/components/pages/SystemPage')],
         [ROUTES.ADMIN.DASHBOARD.ECOMMERCE, () => import('@/admin/features/dashboard/components/pages/EcommercePage')],
-        [ROUTES.ADMIN.DASHBOARD.ANALYTICS, () => import('@/admin/features/dashboard/components/pages/AnalyticsPage')],
         [ROUTES.ADMIN.BLOGS.LIST, () => import('@/admin/features/blogs/components/pages/BlogListPage')],
         [ROUTES.ADMIN.BLOGS.CATEGORIES, () => import('@/admin/features/blogs/components/pages/BlogCategoryListPage')],
         [ROUTES.ADMIN.BLOGS.TAGS, () => import('@/admin/features/blogs/components/pages/BlogTagListPage')],

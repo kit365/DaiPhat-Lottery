@@ -19,19 +19,9 @@ import { PERMISSIONS } from "./permission.constants";
 
 export const menuOverviewData = [
     {
-        id: "system",
-        Icon: SettingsIcon,
-        label: "Hệ thống",
-        path: ROUTES.ADMIN.DASHBOARD.SYSTEM,
-        permission: PERMISSIONS.DASHBOARD.SYSTEM,
-        // Tạm ẩn dashboard hệ thống khỏi sidebar; route và quyền vẫn được giữ.
-        hidden: true,
-    },
-
-    {
         id: "ecommerce",
         Icon: ShoppingCartIcon,
-        label: "Bán hàng",
+        label: "Tổng quan Bán hàng",
         path: ROUTES.ADMIN.DASHBOARD.ECOMMERCE,
         permission: PERMISSIONS.DASHBOARD.ECOMMERCE
     },
@@ -41,7 +31,6 @@ export const menuOverviewData = [
         label: "Doanh thu & Đối soát",
         path: ROUTES.ADMIN.REPORTS.REVENUE,
         permission: PERMISSIONS.DASHBOARD.ECOMMERCE,
-        // Tạm ẩn dashboard doanh thu/đối soát khỏi sidebar; route không bị xóa.
         hidden: true,
     },
 ];
