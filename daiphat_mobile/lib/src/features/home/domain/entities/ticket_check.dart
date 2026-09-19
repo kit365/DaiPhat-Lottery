@@ -19,11 +19,15 @@ class LotteryStationDraw {
 class TicketMatchedPrize {
   const TicketMatchedPrize({
     required this.prizeDisplayName,
+    required this.prizeCode,
     required this.winningNumber,
     required this.prizeValue,
   });
 
   final String prizeDisplayName;
+  // Nullable for hot-reload compatibility when a result object was created
+  // before this field was introduced; API responses always provide a string.
+  final String? prizeCode;
   final String winningNumber;
   final int prizeValue;
 
@@ -31,6 +35,7 @@ class TicketMatchedPrize {
     return TicketMatchedPrize(
       prizeDisplayName: (json['prizeDisplayName'] ?? json['prizeCode'] ?? '')
           .toString(),
+      prizeCode: (json['prizeCode'] ?? '').toString(),
       winningNumber: (json['winningNumber'] ?? '').toString(),
       prizeValue: _asInt(json['prizeValue']) ?? 0,
     );
