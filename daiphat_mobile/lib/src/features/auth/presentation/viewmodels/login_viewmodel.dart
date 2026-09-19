@@ -4,6 +4,7 @@ import 'package:daiphat_mobile/src/shared/network/api_exception.dart';
 import 'package:daiphat_mobile/src/features/auth/domain/entities/user.dart';
 import 'package:daiphat_mobile/src/features/auth/domain/repositories/auth_repository.dart';
 import 'package:daiphat_mobile/src/features/auth/domain/usecases/auth_usecases.dart';
+import 'package:daiphat_mobile/src/shared/config/firebase_config.dart';
 
 class LoginViewModel extends ChangeNotifier {
   final AuthRepository _authRepository;
@@ -13,10 +14,11 @@ class LoginViewModel extends ChangeNotifier {
 
   LoginViewModel(
     this._authRepository, {
-    Login? login,
-    LoginWithGoogle? loginWithGoogle,
-    UpdateFcmToken? updateFcmToken,
+      Login? login,
+      LoginWithGoogle? loginWithGoogle,
+      UpdateFcmToken? updateFcmToken,
   })  : _login = login ?? Login(_authRepository),
+        _user = _authRepository.currentUser,
         _loginWithGoogle = loginWithGoogle ?? LoginWithGoogle(_authRepository),
         _updateFcmToken = updateFcmToken ?? UpdateFcmToken(_authRepository);
 
@@ -54,13 +56,15 @@ class LoginViewModel extends ChangeNotifier {
         return false;
       }
 
-      try {
+      if (isFirebaseInitialized) {
+        try {
         final fcmToken = await FirebaseMessaging.instance.getToken();
         if (fcmToken != null) {
           await _updateFcmToken(fcmToken);
         }
-      } catch (e) {
-        debugPrint('Failed to update FCM token: $e');
+        } catch (e) {
+          debugPrint('Failed to update FCM token: $e');
+        }
       }
 
       return true;

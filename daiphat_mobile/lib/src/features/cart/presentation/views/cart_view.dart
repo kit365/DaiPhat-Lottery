@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_dialog.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import 'package:daiphat_mobile/src/shared/widgets/app_header_action_button.dart';
@@ -169,53 +170,16 @@ class _CartViewState extends ConsumerState<CartView> {
     }
     if (expiredIndexes.isEmpty) return;
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          'Xóa vé hết hạn',
-          style: AppTypography.h4(fontWeight: FontWeight.w800, fontSize: 18),
-        ),
-        content: Text(
+    final confirmed = await AppDialog.confirm(
+      context,
+      title: 'Xóa vé hết hạn',
+      message:
           'Bạn có muốn xóa ${expiredIndexes.length} vé đã hết hạn mua khỏi giỏ hàng không?',
-          style: AppTypography.bodyMedium(
-            fontSize: 14,
-            height: 1.4,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(
-              'Hủy',
-              style: AppTypography.buttonMedium(
-                color: AppColors.contentMuted,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.surfacePrimary,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            child: Text(
-              'Xóa',
-              style: AppTypography.buttonMedium(fontWeight: FontWeight.w700),
-            ),
-          ),
-        ],
-      ),
+      confirmLabel: 'Xóa',
+      isDestructive: true,
     );
 
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
 
     ref.read(cartProvider.notifier).removeAtIndexes(expiredIndexes);
     setState(() {
@@ -241,77 +205,15 @@ class _CartViewState extends ConsumerState<CartView> {
     final count = _selectedIndexes.length;
     if (count == 0) return;
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          'Xóa sản phẩm',
-          textAlign: TextAlign.center,
-          style: AppTypography.h4(fontWeight: FontWeight.w800, fontSize: 18),
-        ),
-        content: Text(
-          'Bạn có muốn bỏ $count sản phẩm khỏi giỏ hàng không?',
-          textAlign: TextAlign.center,
-          style: AppTypography.bodyMedium(
-            color: AppColors.textSecondary,
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-            height: 1.4,
-          ),
-        ),
-        actionsAlignment: MainAxisAlignment.center,
-        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        actions: [
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.textSecondary,
-                    side: const BorderSide(color: AppColors.borderDefault),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: Text(
-                    'Hủy',
-                    style: AppTypography.buttonMedium(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(ctx, true),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.surfacePrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: Text(
-                    'Xóa',
-                    style: AppTypography.buttonMedium(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+    final confirmed = await AppDialog.confirm(
+      context,
+      title: 'Xóa sản phẩm',
+      message: 'Bạn có muốn bỏ $count sản phẩm khỏi giỏ hàng không?',
+      confirmLabel: 'Xóa',
+      isDestructive: true,
     );
 
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
 
     final indexes = _selectedIndexes.toList()..sort();
     ref.read(cartProvider.notifier).removeAtIndexes(indexes);
@@ -324,53 +226,16 @@ class _CartViewState extends ConsumerState<CartView> {
   }
 
   Future<void> _confirmRemoveItem(CartItemData item, int index) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          'Xác nhận xóa vé',
-          style: AppTypography.h4(fontWeight: FontWeight.w800, fontSize: 18),
-        ),
-        content: Text(
+    final confirmed = await AppDialog.confirm(
+      context,
+      title: 'Xác nhận xóa vé',
+      message:
           'Bạn có chắc muốn xóa vé số ${item.number} (${item.province}) khỏi giỏ hàng?',
-          style: AppTypography.bodyMedium(
-            fontSize: 14,
-            height: 1.4,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(
-              'Hủy',
-              style: AppTypography.buttonMedium(
-                color: AppColors.contentMuted,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.surfacePrimary,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            child: Text(
-              'Xóa',
-              style: AppTypography.buttonMedium(fontWeight: FontWeight.w700),
-            ),
-          ),
-        ],
-      ),
+      confirmLabel: 'Xóa',
+      isDestructive: true,
     );
 
-    if (confirmed == true) {
+    if (confirmed) {
       _removeItem(item, index);
     }
   }

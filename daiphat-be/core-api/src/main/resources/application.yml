@@ -76,10 +76,15 @@ daiphat:
     pending-payment-ttl-seconds: 600
     pending-payment-expire-rate-ms: 60000
     payment-failure-max-attempts: 3
+    seed:
+      enabled: ${ORDER_SEED_ENABLED:false}
     refund:
       closing-time: "14:00"
       window-minutes: 30
       timezone: Asia/Ho_Chi_Minh
+  sample-order:
+    seed:
+      enabled: ${SAMPLE_ORDER_SEED_ENABLED:false}
   fortune:
     # When true, one cast per Vietnam calendar day (production). Set false for local testing.
     daily-limit-enabled: ${FORTUNE_DAILY_LIMIT_ENABLED:true}
@@ -135,9 +140,17 @@ daiphat:
       enabled: ${LOTTERY_SEED_ENABLED:false}
       tickets-per-batch: 150
       serials-per-ticket: 4
+      status-coverage:
+        enabled: ${LOTTERY_SEED_STATUS_COVERAGE_ENABLED:false}
       southern-stations:
-        # Upsert 21 đài Miền Nam + lịch quay (Thứ 2–CN) mỗi lần startup
-        enabled: ${LOTTERY_SEED_SOUTHERN_STATIONS_ENABLED:true}
+        # Off by default — prod/staging must not overwrite operator-managed stations.
+        # Local profile enables create (+ overwrite when configured).
+        enabled: ${LOTTERY_SEED_SOUTHERN_STATIONS_ENABLED:false}
+        overwrite-existing: ${LOTTERY_SEED_SOUTHERN_STATIONS_OVERWRITE:false}
+      past-days: ${LOTTERY_SEED_PAST_DAYS:30}
+      tickets-per-batch-past: ${LOTTERY_SEED_TICKETS_PER_BATCH_PAST:36}
+      win50-payout:
+        enabled: ${LOTTERY_SEED_WIN50_PAYOUT_ENABLED:false}
     crawler:
       user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36
     draw-reminder-minutes: 30
@@ -166,6 +179,8 @@ daiphat:
   auth:
     frontend-url: ${FRONTEND_URL:http://localhost:3000}
     seed:
+      # Off by default for prod/staging. Local profile enables bootstrap accounts.
+      enabled: ${AUTH_SEED_ENABLED:false}
       admin:
         username: ${AUTH_SEED_ADMIN_USERNAME:admin}
         password: ${AUTH_SEED_ADMIN_PASSWORD:Admin@123456}
@@ -175,19 +190,19 @@ daiphat:
       member:
         username: ${AUTH_SEED_MEMBER_USERNAME:member}
         password: ${AUTH_SEED_MEMBER_PASSWORD:member123}
-        email: ${AUTH_SEED_MEMBER_EMAIL:member@daiphat.com}
+        email: ${AUTH_SEED_MEMBER_EMAIL:member@daiphat.local}
         first-name: ${AUTH_SEED_MEMBER_FIRST_NAME:Default}
         last-name: ${AUTH_SEED_MEMBER_LAST_NAME:Member}
       street-agent:
         username: ${AUTH_SEED_STREET_AGENT_USERNAME:street_agent}
         password: ${AUTH_SEED_STREET_AGENT_PASSWORD:agent123}
-        email: ${AUTH_SEED_STREET_AGENT_EMAIL:agent@daiphat.com}
+        email: ${AUTH_SEED_STREET_AGENT_EMAIL:agent@daiphat.local}
         first-name: ${AUTH_SEED_STREET_AGENT_FIRST_NAME:Default}
         last-name: ${AUTH_SEED_STREET_AGENT_LAST_NAME:Agent}
       operator:
         username: ${AUTH_SEED_OPERATOR_USERNAME:operator}
         password: ${AUTH_SEED_OPERATOR_PASSWORD:operator123}
-        email: ${AUTH_SEED_OPERATOR_EMAIL:operator@daiphat.com}
+        email: ${AUTH_SEED_OPERATOR_EMAIL:operator@daiphat.local}
         first-name: ${AUTH_SEED_OPERATOR_FIRST_NAME:Default}
         last-name: ${AUTH_SEED_OPERATOR_LAST_NAME:Operator}
     jwt:

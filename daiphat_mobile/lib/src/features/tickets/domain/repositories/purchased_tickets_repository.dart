@@ -5,6 +5,7 @@ abstract interface class PurchasedTicketsRepository {
     int page = 1,
     int size = 10,
     String? status,
+    bool? redeemed,
     String? ticketNumber,
     String sortBy = 'createdAt',
     String direction = 'desc',

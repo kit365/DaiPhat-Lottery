@@ -74,7 +74,9 @@ String? buildBirthDateIso(String day, String month, String year, [DateTime? now]
     return (ticketNumber: '', drawDate: null);
   }
   return (
-    ticketNumber: uri.queryParameters['ticketNumber'] ?? '',
+    ticketNumber: uri.queryParameters['ticketNumber'] ??
+        uri.queryParameters['search'] ??
+        '',
     drawDate: uri.queryParameters['drawDate'],
   );
 }

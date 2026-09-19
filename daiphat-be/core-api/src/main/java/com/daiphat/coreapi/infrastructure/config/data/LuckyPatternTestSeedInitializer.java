@@ -55,7 +55,7 @@ import java.util.stream.Collectors;
  * and finishes with {@code recomputeAll} so {@code is_lucky} matches production tagging.
  */
 @Component
-@Order(110)
+@Order(114)
 @ConditionalOnProperty(
         value = "daiphat.vendor.test-seed.enabled",
         havingValue = "true"

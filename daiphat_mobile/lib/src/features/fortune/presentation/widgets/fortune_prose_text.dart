@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 
 import '../../utils/fortune_ui.dart';
@@ -15,9 +14,9 @@ class FortuneProseText extends StatelessWidget {
     return Text.rich(
       TextSpan(children: _spans(localizeFortuneProseDates(prose), luckyTail)),
       style: AppTypography.bodyMedium(
-        fontSize: 15,
-        height: 1.75,
-        color: AppColors.fortuneCream.withValues(alpha: 0.85),
+        fontSize: 15.5,
+        height: 1.7,
+        color: const Color(0xFFFFF7ED),
       ),
     );
   }
@@ -55,8 +54,9 @@ List<TextSpan> _spans(String localized, String? luckyTail) {
       TextSpan(
         text: match.group(0),
         style: AppTypography.bodyMedium(
+          fontSize: 15.5,
           fontWeight: FontWeight.w800,
-          color: AppColors.fortuneGoldLight,
+          color: const Color(0xFFFFDF7D),
         ),
       ),
     );

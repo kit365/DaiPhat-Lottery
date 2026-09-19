@@ -9,6 +9,7 @@ import 'package:daiphat_mobile/src/features/auth/presentation/providers/auth_pro
 import 'package:daiphat_mobile/src/features/profile/presentation/viewmodels/profile_viewmodel.dart';
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/api_error_message.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 
 class SecurityView extends ConsumerStatefulWidget {
@@ -128,9 +129,9 @@ class _SecurityViewState extends ConsumerState<SecurityView> {
       _confirmPasswordController.clear();
       await widget.profileViewModel.logout();
       if (mounted) context.go(AppRoute.login.path);
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
-      AppToast.error('Không thể cập nhật mật khẩu.');
+      AppToast.error(toUserFacingApiMessage(e));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }

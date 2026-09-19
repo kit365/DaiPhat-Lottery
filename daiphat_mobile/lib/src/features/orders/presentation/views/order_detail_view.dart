@@ -16,6 +16,7 @@ import 'package:daiphat_mobile/src/features/bank_accounts/presentation/providers
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/profile_iconography.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
+import 'package:daiphat_mobile/src/shared/widgets/ticket_number_display.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import '../viewmodels/order_detail_viewmodel.dart';
 
@@ -51,9 +52,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
     super.initState();
     _viewModel = OrderDetailViewModel(
       getMyOrderDetail: ref.read(getMyOrderDetailProvider),
-      getOrderRefundEligibility: ref.read(
-        getOrderRefundEligibilityProvider,
-      ),
+      getOrderRefundEligibility: ref.read(getOrderRefundEligibilityProvider),
       requestOrderRefund: ref.read(requestOrderRefundProvider),
       transactionService: ref.read(transactionServiceProvider),
       getMyRefunds: ref.read(getMyRefundsProvider),
@@ -814,6 +813,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
     final drawDate = item.lotteryTicket?.drawDate;
     final ticketType = item.lotteryTicket?.ticketType;
     final symbol = item.lotteryTicket?.symbol;
+    final numbers = item.lotteryTicket?.numbers;
 
     return Container(
       decoration: BoxDecoration(
@@ -894,12 +894,16 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      if (numbers != null && numbers.trim().isNotEmpty) ...[
+                        TicketNumberDisplay.compact(value: numbers),
+                        const SizedBox(height: 10),
+                      ],
                       if (symbol != null)
                         _ticketDetail(
                           Icons.tag_rounded,
                           'Mã vé: $symbol',
                           bold: true,
-                          color: AppColors.primary,
+                          color: AppColors.ticketMetadataForeground,
                         ),
                       if (drawDate != null) ...[
                         const SizedBox(height: 6),
@@ -932,7 +936,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
                       style: AppTypography.mainWith(
                         fontSize: 16,
                         fontWeight: FontWeight.w900,
-                        color: AppColors.primary,
+                        color: AppColors.ticketNumberForeground,
                       ),
                     ),
                   ],
@@ -953,7 +957,11 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
   }) {
     return Row(
       children: [
-        Icon(icon, size: 13, color: color ?? AppColors.textMuted),
+        Icon(
+          icon,
+          size: 13,
+          color: color ?? AppColors.ticketMetadataForeground,
+        ),
         const SizedBox(width: 6),
         Expanded(
           child: Text(
@@ -961,7 +969,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
             style: AppTypography.mainWith(
               fontSize: 13,
               fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
-              color: color ?? AppColors.textMuted,
+              color: color ?? AppColors.ticketMetadataForeground,
             ),
           ),
         ),

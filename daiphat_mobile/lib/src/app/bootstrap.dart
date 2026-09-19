@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart' show kDebugMode, kReleaseMode;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -68,8 +69,16 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 Future<void> bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: '.env');
-  debugPrint('API base URL: ${ApiConfig.baseUrl}');
+  try {
+    await dotenv.load(fileName: '.env');
+  } catch (error) {
+    if (kReleaseMode) {
+      throw StateError('Thiếu cấu hình .env cho bản phát hành: $error');
+    }
+  }
+  if (kDebugMode) {
+    debugPrint('API base URL: ${ApiConfig.baseUrl}');
+  }
 
   if (isFirebaseConfigured()) {
     try {

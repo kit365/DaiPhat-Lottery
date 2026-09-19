@@ -35,7 +35,7 @@ class ChatWebSocketService {
     final completer = Completer<void>();
     _client = StompClient(
       config: StompConfig.sockJS(
-        url: ChatWsConstants.wsUrl(ApiConfig.baseUrl, token),
+        url: ChatWsConstants.wsUrl(ApiConfig.baseUrl),
         reconnectDelay: const Duration(milliseconds: ChatWsConstants.reconnectDelayMs),
         heartbeatIncoming: const Duration(milliseconds: ChatWsConstants.heartbeatMs),
         heartbeatOutgoing: const Duration(milliseconds: ChatWsConstants.heartbeatMs),

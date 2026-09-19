@@ -742,7 +742,7 @@ class _TicketSuggestCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 180,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: AppColors.surfacePrimary,
         borderRadius: BorderRadius.circular(14),

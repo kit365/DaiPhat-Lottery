@@ -12,6 +12,7 @@ class PurchasedTicketsRemoteDataSource {
     int page = 1,
     int size = 10,
     String? status,
+    bool? redeemed,
     String? ticketNumber,
     String sortBy = 'createdAt',
     String direction = 'desc',
@@ -22,9 +23,11 @@ class PurchasedTicketsRemoteDataSource {
       'sortBy': sortBy,
       'direction': direction,
       if (status != null && status.isNotEmpty) 'status': status,
-      if (ticketNumber != null && ticketNumber.isNotEmpty)
-        'ticketNumber': ticketNumber,
     };
+    if (redeemed != null) params['redeemed'] = redeemed;
+    if (ticketNumber != null && ticketNumber.isNotEmpty) {
+      params['ticketNumber'] = ticketNumber;
+    }
     final response = await _apiClient.get(
       '$_baseOrders/my-tickets',
       queryParameters: params,

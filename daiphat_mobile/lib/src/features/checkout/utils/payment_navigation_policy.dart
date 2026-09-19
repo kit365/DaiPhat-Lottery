@@ -1,7 +1,18 @@
 class PaymentNavigationPolicy {
   static const _payOsHost = 'pay.payos.vn';
   static const _appCallbackHost = 'payment';
-  static const _webCallbackHost = 'dai-phat.vn';
+  // Keep this list aligned with the domains configured as PayOS frontend
+  // return URLs. Matching is exact so a lookalike host cannot terminate a
+  // payment session.
+  static const _webCallbackHosts = {
+    'daiphat.id.vn',
+    'dai-phat.vn',
+  };
+  static const _webCallbackPaths = {
+    '/payment',
+    '/payment/payos/return',
+    '/payment/payos/cancel',
+  };
 
   const PaymentNavigationPolicy({String? callbackBaseUrl})
     : _callbackBaseUrl = callbackBaseUrl;
@@ -20,13 +31,15 @@ class PaymentNavigationPolicy {
     final uri = Uri.tryParse(url);
     if (uri == null) return false;
 
-    if (uri.scheme == 'daiphat' && uri.host.toLowerCase() == _appCallbackHost) {
+    if (uri.scheme == 'daiphat' &&
+        uri.host.toLowerCase() == _appCallbackHost &&
+        (uri.path.isEmpty || uri.path == '/')) {
       return true;
     }
 
     if (uri.scheme == 'https' &&
-        uri.host.toLowerCase() == _webCallbackHost &&
-        uri.path == '/payment') {
+        _webCallbackHosts.contains(uri.host.toLowerCase()) &&
+        _webCallbackPaths.contains(uri.path)) {
       return true;
     }
 
@@ -41,6 +54,14 @@ class PaymentNavigationPolicy {
 
   bool _matchesBaseUri(Uri candidate, Uri expected) {
     if (expected.scheme != 'https' && expected.scheme != 'daiphat') {
+      return false;
+    }
+    if (expected.scheme == 'https' &&
+        !_webCallbackHosts.contains(expected.host.toLowerCase())) {
+      return false;
+    }
+    if (expected.scheme == 'daiphat' &&
+        expected.host.toLowerCase() != _appCallbackHost) {
       return false;
     }
     return candidate.scheme == expected.scheme &&

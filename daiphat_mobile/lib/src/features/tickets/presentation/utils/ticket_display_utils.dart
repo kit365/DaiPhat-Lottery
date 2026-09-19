@@ -3,16 +3,19 @@ import 'package:daiphat_mobile/src/features/profile/presentation/profile_iconogr
 
 import '../../domain/entities/purchased_ticket.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/ticket_number_utils.dart';
 
 class TicketStatusUi {
   final String label;
   final Color color;
   final Color bgColor;
+  final Color borderColor;
 
   const TicketStatusUi({
     required this.label,
     required this.color,
     required this.bgColor,
+    required this.borderColor,
   });
 }
 
@@ -21,6 +24,7 @@ class TicketPossessionDisplay {
   final String? hint;
   final Color color;
   final Color bgColor;
+  final Color borderColor;
   final IconData icon;
 
   const TicketPossessionDisplay({
@@ -28,6 +32,7 @@ class TicketPossessionDisplay {
     this.hint,
     required this.color,
     required this.bgColor,
+    required this.borderColor,
     required this.icon,
   });
 }
@@ -36,12 +41,14 @@ class TicketPayoutDisplay {
   final String label;
   final Color color;
   final Color bgColor;
+  final Color borderColor;
   final IconData icon;
 
   const TicketPayoutDisplay({
     required this.label,
     required this.color,
     required this.bgColor,
+    required this.borderColor,
     required this.icon,
   });
 }
@@ -49,18 +56,21 @@ class TicketPayoutDisplay {
 const _statusUi = <String, TicketStatusUi>{
   'PENDING_DRAW': TicketStatusUi(
     label: 'Chờ quay số',
-    color: AppColors.ticketPendingForeground,
-    bgColor: AppColors.ticketPendingSurface,
+    color: AppColors.ticketResultPendingForeground,
+    bgColor: AppColors.ticketResultPendingSurface,
+    borderColor: AppColors.ticketResultPendingBorder,
   ),
   'WON': TicketStatusUi(
     label: 'Trúng thưởng',
-    color: AppColors.ticketPendingForeground,
-    bgColor: AppColors.ticketPendingSurface,
+    color: AppColors.ticketResultWonForeground,
+    bgColor: AppColors.ticketResultWonSurface,
+    borderColor: AppColors.ticketResultWonBorder,
   ),
   'LOST': TicketStatusUi(
     label: 'Không trúng',
-    color: AppColors.ticketLostForeground,
-    bgColor: AppColors.ticketLostSurface,
+    color: AppColors.ticketResultLostForeground,
+    bgColor: AppColors.ticketResultLostSurface,
+    borderColor: AppColors.ticketResultLostBorder,
   ),
 };
 
@@ -72,7 +82,7 @@ const _serialStatusLabels = <String, String>{
   'EXPIRED': 'Đã hết hạn kỳ quay',
 };
 
-const _payoutEligibleSerialStatuses = {'PROXY_HOLDING', 'EXPIRED'};
+const _payoutEligibleSerialStatuses = {'SOLD', 'PROXY_HOLDING', 'EXPIRED'};
 
 TicketStatusUi ticketStatusUi(String status) =>
     _statusUi[status] ?? _statusUi['PENDING_DRAW']!;
@@ -90,33 +100,76 @@ List<String> splitTicketNumbers(String? numbers) {
   return digits.split('');
 }
 
+String normalizeFullTicketNumber(String? numbers) {
+  return normalizeTicketNumber(numbers);
+}
+
 TicketPossessionDisplay? resolveTicketPossessionDisplay(
   PurchasedTicket ticket,
 ) {
-  if (ticket.serialStatus == 'PROXY_HOLDING') {
+  if (ticket.orderDetailStatus == 'REJECTED_BY_CUSTOMER') {
     return const TicketPossessionDisplay(
-      label: 'Đại lý đang giữ hộ',
-      hint: 'Vé chưa được bạn lấy tại quầy',
-      color: AppColors.ticketHoldingForeground,
-      bgColor: AppColors.ticketHoldingSurface,
-      icon: Icons.store_outlined,
+      label: 'Khách từ chối nhận',
+      hint: 'Vé vẫn được đại lý giữ — liên hệ hỗ trợ nếu cần',
+      color: AppColors.ticketPossessionRejectedForeground,
+      bgColor: AppColors.ticketPossessionRejectedSurface,
+      borderColor: AppColors.ticketPossessionRejectedBorder,
+      icon: Icons.front_hand_outlined,
     );
   }
-  if (ticket.serialStatus == 'SOLD' || ticket.actualPickedUpAt != null) {
+  if (ticket.orderDetailStatus == 'HANDED_OVER' ||
+      ticket.handedOverAt != null ||
+      ticket.actualPickedUpAt != null) {
     return const TicketPossessionDisplay(
       label: 'Đã lấy vé',
       hint: 'Bạn đã nhận vé vật lý tại đại lý',
-      color: AppColors.ticketPickedUpForeground,
-      bgColor: AppColors.ticketPickedUpSurface,
+      color: AppColors.ticketPossessionPickedForeground,
+      bgColor: AppColors.ticketPossessionPickedSurface,
+      borderColor: AppColors.ticketPossessionPickedBorder,
       icon: Icons.back_hand_outlined,
+    );
+  }
+  if (ticket.orderDetailStatus == 'HANDOVER_IN_PROGRESS') {
+    return const TicketPossessionDisplay(
+      label: 'Đang bàn giao',
+      hint: 'Đại lý đang hoàn tất bàn giao vé cho bạn',
+      color: AppColors.ticketPossessionHoldingForeground,
+      bgColor: AppColors.ticketPossessionHoldingSurface,
+      borderColor: AppColors.ticketPossessionHoldingBorder,
+      icon: Icons.local_shipping_outlined,
+    );
+  }
+  if (ticket.orderDetailStatus == 'REFUND_PENDING' ||
+      ticket.orderDetailStatus == 'REFUNDED') {
+    return TicketPossessionDisplay(
+      label: ticket.orderDetailStatus == 'REFUNDED'
+          ? 'Đã hoàn tiền'
+          : 'Chờ hoàn tiền',
+      color: AppColors.ticketPossessionReservedForeground,
+      bgColor: AppColors.ticketPossessionReservedSurface,
+      borderColor: AppColors.ticketPossessionReservedBorder,
+      icon: Icons.undo_rounded,
+    );
+  }
+  if (ticket.orderDetailStatus == 'PROXY_HOLDING' ||
+      ticket.serialStatus == 'PROXY_HOLDING' ||
+      ticket.serialStatus == 'SOLD') {
+    return const TicketPossessionDisplay(
+      label: 'Đại lý đang giữ hộ',
+      hint: 'Vé chưa được bạn lấy tại quầy',
+      color: AppColors.ticketPossessionHoldingForeground,
+      bgColor: AppColors.ticketPossessionHoldingSurface,
+      borderColor: AppColors.ticketPossessionHoldingBorder,
+      icon: Icons.store_outlined,
     );
   }
   if (ticket.serialStatus == 'RESERVED') {
     return const TicketPossessionDisplay(
       label: 'Đang giữ chỗ',
       hint: 'Chờ hoàn tất đơn hàng',
-      color: AppColors.ticketReservedForeground,
-      bgColor: AppColors.ticketReservedSurface,
+      color: AppColors.ticketPossessionReservedForeground,
+      bgColor: AppColors.ticketPossessionReservedSurface,
+      borderColor: AppColors.ticketPossessionReservedBorder,
       icon: ProfileIconography.pendingTicket,
     );
   }
@@ -124,18 +177,64 @@ TicketPossessionDisplay? resolveTicketPossessionDisplay(
     return const TicketPossessionDisplay(
       label: 'Còn tại đại lý',
       hint: 'Kỳ quay đã hết hạn — vé vẫn được đại lý giữ',
-      color: AppColors.ticketHoldingForeground,
-      bgColor: AppColors.ticketHoldingSurface,
+      color: AppColors.ticketPossessionExpiredForeground,
+      bgColor: AppColors.ticketPossessionExpiredSurface,
+      borderColor: AppColors.ticketPossessionExpiredBorder,
       icon: Icons.store_outlined,
     );
   }
-  if (ticket.serialStatus == null) return null;
+  if (ticket.serialStatus == 'WITH_STREET_AGENT') {
+    return const TicketPossessionDisplay(
+      label: 'Đang giao người bán dạo',
+      hint: 'Vé đang trong quá trình điều phối bàn giao',
+      color: AppColors.ticketPossessionStreetAgentForeground,
+      bgColor: AppColors.ticketPossessionStreetAgentSurface,
+      borderColor: AppColors.ticketPossessionStreetAgentBorder,
+      icon: Icons.delivery_dining_outlined,
+    );
+  }
+  if (ticket.serialStatus == null && ticket.orderDetailStatus == null) {
+    return null;
+  }
   return TicketPossessionDisplay(
-    label: _serialStatusLabels[ticket.serialStatus] ?? ticket.serialStatus!,
-    color: AppColors.ticketReservedForeground,
-    bgColor: AppColors.ticketReservedSurface,
+    label: ticket.serialStatus != null
+        ? (_serialStatusLabels[ticket.serialStatus] ?? ticket.serialStatus!)
+        : ticket.orderDetailStatus!,
+    color: AppColors.ticketPossessionReservedForeground,
+    bgColor: AppColors.ticketPossessionReservedSurface,
+    borderColor: AppColors.ticketPossessionReservedBorder,
     icon: ProfileIconography.ticket,
   );
+}
+
+bool isTicketOnlineRedemption(PurchasedTicket ticket) {
+  if (ticket.drawResultStatus != 'WON') return false;
+  if (ticket.claimChannel == 'IN_PERSON' ||
+      ticket.requiresStationOfficeRedemption ||
+      ticket.canClaimOnline == false ||
+      ticket.redemptionZone == 'PAST_CUSTOMER_URGENT' ||
+      ticket.redemptionZone == 'PAST_ISSUER_LOCKED') {
+    return false;
+  }
+  return ticket.canClaimOnline == true || ticket.claimChannel == 'ONLINE';
+}
+
+bool isTicketCounterRedemption(PurchasedTicket ticket) {
+  return ticket.drawResultStatus == 'WON' && !isTicketOnlineRedemption(ticket);
+}
+
+bool isStationOfficeRedemption(PurchasedTicket ticket) {
+  return ticket.requiresStationOfficeRedemption ||
+      ticket.matchedPrizeCode?.toUpperCase() == 'DB';
+}
+
+String buildStationOfficeRedemptionMessage(PurchasedTicket ticket) {
+  final station = ticket.stationName?.trim();
+  final issuer = station == null || station.isEmpty
+      ? 'nhà đài phát hành vé'
+      : 'Văn phòng Đại diện Đài $station';
+  return 'Vé trúng giải Đặc Biệt cần được xác minh và đổi thưởng tại $issuer. '
+      'Vui lòng mang vé gốc và CCCD khi đến làm thủ tục.';
 }
 
 TicketPayoutDisplay? resolveTicketPayoutDisplay(PurchasedTicket ticket) {
@@ -145,8 +244,9 @@ TicketPayoutDisplay? resolveTicketPayoutDisplay(PurchasedTicket ticket) {
   if (ticket.payoutState == 'PAID_OUT' || status == 'COMPLETED') {
     return const TicketPayoutDisplay(
       label: 'Đã trả thưởng',
-      color: AppColors.payoutCompleteForeground,
-      bgColor: AppColors.payoutCompleteSurface,
+      color: AppColors.ticketPayoutCompletedForeground,
+      bgColor: AppColors.ticketPayoutCompletedSurface,
+      borderColor: AppColors.ticketPayoutCompletedBorder,
       icon: Icons.check_circle_outline,
     );
   }
@@ -157,40 +257,54 @@ TicketPayoutDisplay? resolveTicketPayoutDisplay(PurchasedTicket ticket) {
       label: status == 'APPROVED'
           ? 'Đã duyệt — chờ hoàn tất'
           : 'Đang xử lý trả thưởng',
-      color: AppColors.payoutPendingForeground,
-      bgColor: AppColors.payoutPendingSurface,
+      color: AppColors.ticketPayoutProcessingForeground,
+      bgColor: AppColors.ticketPayoutProcessingSurface,
+      borderColor: AppColors.ticketPayoutProcessingBorder,
       icon: Icons.hourglass_top_outlined,
     );
   }
   if (status == 'MANUAL_RESOLUTION') {
     return const TicketPayoutDisplay(
       label: 'Cần đổi thưởng tại đại lý',
-      color: AppColors.payoutManualForeground,
-      bgColor: AppColors.payoutManualSurface,
+      color: AppColors.ticketPayoutManualForeground,
+      bgColor: AppColors.ticketPayoutManualSurface,
+      borderColor: AppColors.ticketPayoutManualBorder,
       icon: Icons.store_outlined,
     );
   }
   if (status == 'REJECTED') {
     return const TicketPayoutDisplay(
       label: 'Bị từ chối trả thưởng',
-      color: AppColors.payoutManualForeground,
-      bgColor: AppColors.payoutManualSurface,
+      color: AppColors.ticketPayoutManualForeground,
+      bgColor: AppColors.ticketPayoutManualSurface,
+      borderColor: AppColors.ticketPayoutManualBorder,
       icon: Icons.cancel_outlined,
     );
   }
   if (status == 'CANCELLED') {
     return const TicketPayoutDisplay(
       label: 'Đã hủy yêu cầu',
-      color: AppColors.payoutNeutralForeground,
-      bgColor: AppColors.payoutNeutralSurface,
+      color: AppColors.ticketPayoutCancelledForeground,
+      bgColor: AppColors.ticketPayoutCancelledSurface,
+      borderColor: AppColors.ticketPayoutCancelledBorder,
       icon: Icons.block_outlined,
+    );
+  }
+  if (isStationOfficeRedemption(ticket)) {
+    return const TicketPayoutDisplay(
+      label: 'Đổi thưởng tại VPĐĐ',
+      color: AppColors.ticketPayoutStationOfficeForeground,
+      bgColor: AppColors.ticketPayoutStationOfficeSurface,
+      borderColor: AppColors.ticketPayoutStationOfficeBorder,
+      icon: Icons.account_balance_outlined,
     );
   }
   if (ticket.redemptionZone == 'PAST_ISSUER_LOCKED') {
     return const TicketPayoutDisplay(
       label: 'Hết hạn trả thưởng',
-      color: AppColors.payoutManualForeground,
-      bgColor: AppColors.payoutManualSurface,
+      color: AppColors.ticketPayoutManualForeground,
+      bgColor: AppColors.ticketPayoutManualSurface,
+      borderColor: AppColors.ticketPayoutManualBorder,
       icon: Icons.lock_outline,
     );
   }
@@ -199,15 +313,17 @@ TicketPayoutDisplay? resolveTicketPayoutDisplay(PurchasedTicket ticket) {
       ticket.claimChannel == 'IN_PERSON') {
     return const TicketPayoutDisplay(
       label: 'Đổi thưởng tại đại lý',
-      color: AppColors.payoutInPersonForeground,
-      bgColor: AppColors.payoutInPersonSurface,
+      color: AppColors.ticketPayoutInPersonForeground,
+      bgColor: AppColors.ticketPayoutInPersonSurface,
+      borderColor: AppColors.ticketPayoutInPersonBorder,
       icon: Icons.store_outlined,
     );
   }
   return const TicketPayoutDisplay(
     label: 'Chưa yêu cầu trả thưởng',
-    color: AppColors.ticketPickedUpForeground,
-    bgColor: AppColors.ticketPickedUpSurface,
+    color: AppColors.ticketPayoutNotRequestedForeground,
+    bgColor: AppColors.ticketPayoutNotRequestedSurface,
+    borderColor: AppColors.ticketPayoutNotRequestedBorder,
     icon: Icons.payments_outlined,
   );
 }
@@ -218,6 +334,7 @@ bool canRequestPrizePayout(PurchasedTicket ticket) {
       ticket.redemptionZone == null ||
       ticket.redemptionZone == 'WITHIN_CUSTOMER';
   return ticket.drawResultStatus == 'WON' &&
+      !isStationOfficeRedemption(ticket) &&
       ticket.canClaimOnline == true &&
       withinCustomerWindow &&
       ticket.serialStatus != null &&
@@ -239,6 +356,9 @@ String? getPrizePayoutIneligibilityMessage(PurchasedTicket ticket) {
   }
   if (ticket.payoutState == 'PAID_OUT' || status == 'COMPLETED') {
     return null;
+  }
+  if (isStationOfficeRedemption(ticket)) {
+    return buildStationOfficeRedemptionMessage(ticket);
   }
   if (status == 'MANUAL_RESOLUTION') {
     return 'Yêu cầu trả thưởng trực tuyến đã bị từ chối quá số lần cho phép — vui lòng đến đại lý đổi thưởng.';

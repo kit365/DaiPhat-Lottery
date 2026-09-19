@@ -14,6 +14,7 @@ import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 import 'package:daiphat_mobile/src/shared/widgets/app_status_tab_bar.dart';
 import 'package:daiphat_mobile/src/shared/widgets/brand_scrollbar.dart';
+import 'package:daiphat_mobile/src/shared/widgets/ticket_number_display.dart';
 import '../viewmodels/my_orders_viewmodel.dart';
 
 class MyOrdersView extends ConsumerStatefulWidget {
@@ -34,11 +35,13 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
   static const _statusFilters = <AppStatusTabItem<String?>>[
     AppStatusTabItem(value: null, label: 'Tất cả'),
     AppStatusTabItem(value: 'PENDING_PAYMENT', label: 'Chờ thanh toán'),
-    AppStatusTabItem(value: 'PAID', label: 'Đã thanh toán'),
-    AppStatusTabItem(value: 'PREPARING', label: 'Đang chuẩn bị'),
+    AppStatusTabItem(value: 'PAID,PREPARING', label: 'Đang chuẩn bị'),
     AppStatusTabItem(value: 'PENDING_PICKUP', label: 'Chờ nhận vé'),
     AppStatusTabItem(value: 'COMPLETED', label: 'Hoàn thành'),
-    AppStatusTabItem(value: 'CANCELLED', label: 'Đã hủy'),
+    AppStatusTabItem(
+      value: 'CANCELLED,PAYMENT_COMPLAINT_PENDING',
+      label: 'Đã hủy',
+    ),
   ];
 
   @override
@@ -626,7 +629,6 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
     final ticket = item.lotteryTicket;
     final station = ticket?.province ?? ticket?.stationName;
     final rawDrawDate = ticket?.drawDate;
-    final symbol = ticket?.symbol;
     final numbers = ticket?.numbers;
     final ticketType = ticket?.ticketType;
 
@@ -650,10 +652,8 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
         : 'Vé Xổ Số Kiến Thiết';
 
     final subInfo = [
-      if (numbers != null && numbers.trim().isNotEmpty) 'Số: $numbers',
       if (formattedDrawDate != null && formattedDrawDate.isNotEmpty)
         'Kỳ quay: $formattedDrawDate',
-      if (symbol != null && symbol.trim().isNotEmpty) 'Ký hiệu: $symbol',
       receiveLabel,
     ].join('  •  ');
 
@@ -693,6 +693,10 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
             ],
           ),
           const SizedBox(height: 4),
+          if (numbers != null && numbers.trim().isNotEmpty) ...[
+            TicketNumberDisplay.compact(value: numbers),
+            const SizedBox(height: 8),
+          ],
           Row(
             children: [
               Expanded(

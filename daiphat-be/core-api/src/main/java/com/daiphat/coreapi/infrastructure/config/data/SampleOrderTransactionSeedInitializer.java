@@ -2,9 +2,7 @@ package com.daiphat.coreapi.infrastructure.config.data;
 
 import com.daiphat.coreapi.application.dto.order.OrderTicketSnapshot;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
-import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
 import com.daiphat.coreapi.domain.model.enums.lottery.InputSource;
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderReceiveType;
@@ -14,7 +12,6 @@ import com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus;
 import com.daiphat.coreapi.domain.model.enums.payment.PaymentGateway;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
-import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryRegionEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryStationEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketSerialEntity;
@@ -22,30 +19,26 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderDetailEn
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.TransactionEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
-import com.daiphat.coreapi.infrastructure.persistence.repository.UserRepository;
-import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryRegionRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryStationRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryTicketRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryTicketSerialRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.order.OrderRepository;
-import com.daiphat.coreapi.shared.util.DrawScheduleUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.IntStream;
 
 /**
@@ -54,23 +47,13 @@ import java.util.stream.IntStream;
  * with timestamps anchored to the current execution time.
  */
 @Component
-@Profile("local")
 @ConditionalOnProperty(value = "daiphat.sample-order.seed.enabled", havingValue = "true")
-@Order(100)
+@Order(111)
 @RequiredArgsConstructor
 @Slf4j
 public class SampleOrderTransactionSeedInitializer implements ApplicationRunner {
 
     private static final String SEED_ACTOR = "sample-order-seed";
-    /** Unique test station — must not collide with synchronized southern stations. */
-    private static final String SEED_STATION_NAME = "DongThapStationTest";
-    private static final String SEED_STATION_PROVINCE = "DongThapStationTest";
-    private static final String LEGACY_SEED_STATION_NAME = "Ve so sample seed";
-    private static final BigDecimal SEED_STATION_PRICE = BigDecimal.valueOf(10_000);
-    private static final BigDecimal SEED_STATION_COMMISSION_RATE = new BigDecimal("0.0500");
-    private static final List<DayOfWeek> SEED_STATION_DRAW_DAYS =
-            List.of(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY);
-    private static final LocalTime SEED_STATION_DRAW_TIME = LocalTime.of(16, 15);
     private static final String TICKET_SERIAL_PREFIX = "SAMPLE-SEED-SERIAL-";
     private static final int TICKET_COUNT = 10;
     private static final int SERIALS_PER_TICKET = 10;
@@ -91,25 +74,32 @@ public class SampleOrderTransactionSeedInitializer implements ApplicationRunner 
 
     private final LotteryTicketServicePort lotteryTicketServicePort;
     private final OrderRepository orderRepository;
-    private final UserRepository userRepository;
-    private final LotteryRegionRepository lotteryRegionRepository;
+    private final SeedAccountResolver seedAccountResolver;
     private final LotteryStationRepository lotteryStationRepository;
     private final LotteryTicketRepository lotteryTicketRepository;
     private final LotteryTicketSerialRepository lotteryTicketSerialRepository;
+    private final LotterySerialSeedCleanup lotterySerialSeedCleanup;
 
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        UserEntity member = findSeedMember();
-        UserEntity operator = findSeedOperator();
+        UserEntity member = seedAccountResolver.findMember();
+        UserEntity operator = seedAccountResolver.findOperator();
         if (member == null || operator == null) {
             log.warn("Skip sample order seed because member/operator account is missing.");
             return;
         }
 
         LocalDateTime seedBase = LocalDateTime.now();
-        LotteryStationEntity station = ensureSeedStation(operator, seedBase);
+        LocalDate drawDate = seedBase.toLocalDate().plusDays(1);
+        LotteryStationEntity station = findSeedStation(drawDate);
+        if (station == null) {
+            log.warn("Skip sample order seed because no active canonical lottery station exists.");
+            return;
+        }
+
         resetSampleOrders();
+        resetSampleTicketData();
         List<LotteryTicketEntity> tickets = ensureSampleTickets(operator, station, seedBase);
         restoreSampleTicketInventory(tickets);
 
@@ -157,6 +147,37 @@ public class SampleOrderTransactionSeedInitializer implements ApplicationRunner 
         for (String legacyCode : LEGACY_SAMPLE_ORDER_CODES) {
             orderRepository.findByOrderCode(legacyCode).ifPresent(this::releaseAndDeleteSampleOrder);
         }
+    }
+
+    private void resetSampleTicketData() {
+        List<LotteryTicketSerialEntity> seedSerials =
+                lotteryTicketSerialRepository.findBySerialNumberStartingWith(TICKET_SERIAL_PREFIX);
+        if (seedSerials.isEmpty()) {
+            return;
+        }
+
+        List<Long> serialIds = seedSerials.stream()
+                .map(LotteryTicketSerialEntity::getId)
+                .filter(id -> id != null)
+                .toList();
+        lotterySerialSeedCleanup.clearDependentsBeforeSerialDelete(serialIds);
+
+        Set<Long> ticketIds = new HashSet<>();
+        for (LotteryTicketSerialEntity serial : seedSerials) {
+            if (serial.getTicket() != null && serial.getTicket().getId() != null) {
+                ticketIds.add(serial.getTicket().getId());
+            }
+            lotteryTicketSerialRepository.delete(serial);
+        }
+        lotteryTicketSerialRepository.flush();
+
+        for (Long ticketId : ticketIds) {
+            if (lotteryTicketSerialRepository.findByTicket_IdAndDeletedAtIsNull(ticketId).isEmpty()) {
+                lotteryTicketRepository.deleteById(ticketId);
+            }
+        }
+        lotteryTicketRepository.flush();
+        log.info("Removed {} previous SAMPLE-SEED-SERIAL-* ticket serials.", seedSerials.size());
     }
 
     private void releaseAndDeleteSampleOrder(OrderEntity order) {
@@ -378,78 +399,20 @@ public class SampleOrderTransactionSeedInitializer implements ApplicationRunner 
         orderRepository.save(order);
     }
 
-    private LotteryStationEntity ensureSeedStation(UserEntity operator, LocalDateTime seedBase) {
-        LotteryRegionEntity mienNam = lotteryRegionRepository.findByCodeIgnoreCase("MIEN_NAM")
-                .orElseThrow();
-        return lotteryStationRepository.findAll().stream()
-                .filter(station -> SEED_STATION_NAME.equalsIgnoreCase(station.getName())
-                        || LEGACY_SEED_STATION_NAME.equalsIgnoreCase(station.getName()))
+    private LotteryStationEntity findSeedStation(LocalDate drawDate) {
+        List<LotteryStationEntity> activeStations = lotteryStationRepository.findAll().stream()
+                .filter(station -> station.getDeletedAt() == null)
+                .filter(LotteryStationEntity::isActive)
+                .sorted((a, b) -> String.CASE_INSENSITIVE_ORDER.compare(
+                        a.getName() != null ? a.getName() : "",
+                        b.getName() != null ? b.getName() : ""
+                ))
+                .toList();
+        return activeStations.stream()
+                .filter(station -> station.getDrawDays() != null
+                        && station.getDrawDays().contains(drawDate.getDayOfWeek()))
                 .findFirst()
-                .map(station -> refreshSeedStation(station, mienNam, operator, seedBase))
-                .orElseGet(() -> lotteryStationRepository.save(
-                        LotteryStationEntity.builder()
-                                .name(SEED_STATION_NAME)
-                                .province(SEED_STATION_PROVINCE)
-                                .region(mienNam)
-                                .price(SEED_STATION_PRICE)
-                                .commissionRate(SEED_STATION_COMMISSION_RATE)
-                                .inventoryCount(100)
-                                .drawDays(SEED_STATION_DRAW_DAYS)
-                                .drawTime(SEED_STATION_DRAW_TIME)
-                                .nextDrawDate(DrawScheduleUtils.resolveNextDrawDate(
-                                        SEED_STATION_DRAW_DAYS,
-                                        SEED_STATION_DRAW_TIME
-                                ))
-                                .status(LotteryStationStatus.ACTIVE)
-                                .isActive(true)
-                                .approvedBy(operator)
-                                .approvedAt(seedBase)
-                                .description("Station for sample order seed (DongThapStationTest).")
-                                .createdAt(seedBase)
-                                .updatedAt(seedBase)
-                                .createdBy(SEED_ACTOR)
-                                .lastModifiedBy(SEED_ACTOR)
-                                .build()
-                ));
-    }
-
-    private LotteryStationEntity refreshSeedStation(
-            LotteryStationEntity station,
-            LotteryRegionEntity region,
-            UserEntity operator,
-            LocalDateTime seedBase
-    ) {
-        station.setName(SEED_STATION_NAME);
-        station.setProvince(SEED_STATION_PROVINCE);
-        station.setRegion(region);
-        station.setPrice(SEED_STATION_PRICE);
-        station.setCommissionRate(SEED_STATION_COMMISSION_RATE);
-        station.setDrawDays(SEED_STATION_DRAW_DAYS);
-        station.setDrawTime(SEED_STATION_DRAW_TIME);
-        station.setNextDrawDate(DrawScheduleUtils.resolveNextDrawDate(
-                SEED_STATION_DRAW_DAYS,
-                SEED_STATION_DRAW_TIME
-        ));
-        station.setStatus(LotteryStationStatus.ACTIVE);
-        station.setActive(true);
-        station.setApprovedBy(operator);
-        station.setApprovedAt(seedBase);
-        station.setDescription("Station for sample order seed (DongThapStationTest).");
-        station.setUpdatedAt(seedBase);
-        station.setLastModifiedBy(SEED_ACTOR);
-        return lotteryStationRepository.save(station);
-    }
-
-    private UserEntity findSeedMember() {
-        return userRepository.findAllByRole_CodeIn(List.of(RoleConstants.ROLE_MEMBER)).stream()
-                .findFirst()
-                .orElse(null);
-    }
-
-    private UserEntity findSeedOperator() {
-        return userRepository.findAllByRole_CodeIn(List.of(RoleConstants.ROLE_STAFF_OPERATOR)).stream()
-                .findFirst()
-                .orElse(null);
+                .orElseGet(() -> activeStations.stream().findFirst().orElse(null));
     }
 
     private record PurchaseLine(LotteryTicketEntity ticket, int quantity) {

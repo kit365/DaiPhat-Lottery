@@ -53,7 +53,8 @@ class ApiClient {
       InterceptorsWrapper(
         onRequest: (options, handler) {
           if (_isPublicAuthEndpoint(options.path) ||
-              options.extra['includeAuth'] == false) {
+              options.extra['includeAuth'] == false ||
+              !_isConfiguredApiOrigin(options.uri)) {
             options.headers.remove('Authorization');
             handler.next(options);
             return;
@@ -266,6 +267,14 @@ class ApiClient {
 
   bool _isLoginEndpoint(String path) {
     return path.contains('/auth/login') || path.contains('/auth/google');
+  }
+
+  bool _isConfiguredApiOrigin(Uri requestUri) {
+    final configured = Uri.tryParse(ApiConfig.baseUrl);
+    if (configured == null || configured.host.isEmpty) return false;
+    return requestUri.scheme == configured.scheme &&
+        requestUri.host.toLowerCase() == configured.host.toLowerCase() &&
+        requestUri.port == configured.port;
   }
 
   Future<String?> _refreshAccessToken() async {

@@ -12,23 +12,19 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Constants and deterministic prize/ticket helpers ported from the former
- * {@code scripts/local-seed/*phu123*win50*.sql} fixtures.
+ * Prize/ticket helpers for {@link Win50PayoutSeedInitializer}.
+ * Winners are taken from the shared {@link SharedSeedConstants#INVENTORY_SERIAL_PREFIX} pool.
  */
-public final class Phu123Win50SeedCatalog {
+public final class Win50PayoutSeedCatalog {
 
-    public static final String SEED_MARKER = "WIN50_PHU123_SEED";
-    public static final String USERNAME = "phu123";
-    public static final String EMAIL = "phujason1992@gmail.com";
-    public static final String DEFAULT_PASSWORD = "Phu123456";
-    public static final String PHONE = "0918234567";
-    public static final String FIRST_NAME = "Phú";
-    public static final String LAST_NAME = "Jason";
-    public static final String ORDER_CODE_PREFIX = "ORD-WIN50-PHU123-";
-    public static final String BATCH_CODE_PREFIX = "WIN50-PHU123-";
-    public static final String SETTLEMENT_CODE_PREFIX = "SS-WIN50-PHU123-";
-    public static final String SERIAL_PREFIX = "p123";
-    public static final String LINE_CODE_PREFIX = "LO-PHU123-";
+    public static final String SEED_MARKER = SharedSeedConstants.WIN_MARKER;
+    public static final String ORDER_CODE_PREFIX = SharedSeedConstants.WIN_ORDER_PREFIX;
+    public static final String PAYMENT_REF_PREFIX = SharedSeedConstants.WIN_PAYMENT_REF_PREFIX;
+    /** Legacy prefixes cleaned on reset (old Phu123Win50 runs). */
+    public static final String LEGACY_ORDER_PREFIX = "ORD-WIN50-PHU123-";
+    public static final String LEGACY_SERIAL_PREFIX = "p123";
+    public static final String LEGACY_BATCH_PREFIX = "WIN50-PHU123-";
+    public static final String LEGACY_MARKER = "WIN50_PHU123_SEED";
 
     public static final List<String> PRIZES = List.of(
             "DB", "G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8", "DB_PHU", "KK"
@@ -56,7 +52,7 @@ public final class Phu123Win50SeedCatalog {
             new OrderPlan(12, 5, 45, 50)
     );
 
-    private Phu123Win50SeedCatalog() {
+    private Win50PayoutSeedCatalog() {
     }
 
     public record OrderPlan(int orderN, int slots, int cumStart, int cumEnd) {
@@ -205,23 +201,6 @@ public final class Phu123Win50SeedCatalog {
         results.put("G7", g7);
         results.put("G8", g8);
         return results;
-    }
-
-    public static String buildSerial(
-            LocalDate drawDate,
-            String stationCode,
-            int idx,
-            String numbers
-    ) {
-        String yyMMdd = String.format(
-                "%02d%02d%02d",
-                drawDate.getYear() % 100,
-                drawDate.getMonthValue(),
-                drawDate.getDayOfMonth()
-        );
-        String hash = md5Hex(stationCode + ":" + drawDate + ":" + numbers + ":" + idx).substring(0, 6);
-        String raw = ("p123" + yyMMdd + stationCode + String.format("%02d", idx) + hash).toLowerCase();
-        return raw.replaceAll("[^a-z0-9]", "");
     }
 
     private static int matchDigits(String prize) {

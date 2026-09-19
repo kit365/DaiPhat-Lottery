@@ -10,6 +10,7 @@ import 'package:daiphat_mobile/src/features/cart/presentation/views/cart_view.da
 import 'package:daiphat_mobile/src/features/checkout/presentation/views/checkout_view.dart';
 import 'package:daiphat_mobile/src/features/checkout/presentation/views/checkout_result_view.dart';
 import 'package:daiphat_mobile/src/features/checkout/presentation/views/payment_webview.dart';
+import 'package:daiphat_mobile/src/features/checkout/utils/payment_navigation_policy.dart';
 import 'package:daiphat_mobile/src/features/home/presentation/views/home_view.dart';
 import 'package:daiphat_mobile/src/features/home/presentation/views/check_ticket_view.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/views/login_view.dart';
@@ -46,6 +47,7 @@ import 'app_routes.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
+const _paymentNavigationPolicy = PaymentNavigationPolicy();
 
 GoRouter createAppRouter({
   required LoginViewModel loginViewModel,
@@ -62,7 +64,8 @@ GoRouter createAppRouter({
       final uri = state.uri;
 
       // Deep link: daiphat://payment?code=...&orderCode=...
-      if (uri.scheme == 'daiphat' && uri.host == 'payment') {
+      if (_paymentNavigationPolicy.isCallbackUrl(uri.toString()) &&
+          uri.scheme == 'daiphat') {
         final queryParams = uri.queryParameters;
         // Redirect to checkout result with payment params
         return Uri(
@@ -82,10 +85,9 @@ GoRouter createAppRouter({
         ).toString();
       }
 
-      // Deep link: https://dai-phat.vn/payment?code=...&orderCode=...
-      if (uri.scheme == 'https' &&
-          uri.host.contains('dai-phat') &&
-          uri.path.startsWith('/payment')) {
+      // Deep link: only the exact configured payment callback origins/paths.
+      if (_paymentNavigationPolicy.isCallbackUrl(uri.toString()) &&
+          uri.scheme == 'https') {
         final queryParams = uri.queryParameters;
         return Uri(
           path: AppRoute.checkoutResult.path,
@@ -105,17 +107,25 @@ GoRouter createAppRouter({
       }
 
       final path = state.uri.path;
+      final isProtectedPath = path == AppRoute.cart.path ||
+          path == AppRoute.checkout.path ||
+          path == AppRoute.paymentWebView.path ||
+          path == AppRoute.profile.path ||
+          path.startsWith('/profile/') ||
+          path == AppRoute.notifications.path ||
+          path == AppRoute.chat.path ||
+          path == AppRoute.adminScan.path;
       if (path != AppRoute.login.path &&
-          (path == AppRoute.cart.path ||
-              path == AppRoute.checkout.path ||
-              path == AppRoute.notifications.path ||
-              path == AppRoute.chat.path ||
-              path == AppRoute.profile.path) &&
+          isProtectedPath &&
           !loginViewModel.isAuthenticated) {
         return Uri(
           path: AppRoute.login.path,
           queryParameters: {'redirect': state.uri.toString()},
         ).toString();
+      }
+      if (path == AppRoute.adminScan.path &&
+          loginViewModel.user?.isAdmin != true) {
+        return AppRoute.home.path;
       }
 
       return null; // No redirect
@@ -600,6 +610,9 @@ Widget _buildRoute(
       final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
       return ComplaintDetailView(ticketId: id);
     case AppRoute.adminScan:
+      if (loginViewModel.user?.isAdmin != true) {
+        return const SizedBox.shrink();
+      }
       return AdminScanView(viewModel: AdminScanViewModel());
     case AppRoute.fortune:
       return FortuneCastView(profileViewModel: profileViewModel);

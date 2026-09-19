@@ -45,8 +45,8 @@ class LotteryTicketApiService {
       queryParameters['search'] = search.trim();
       queryParameters['searchMode'] =
           (searchMode != null && searchMode.trim().isNotEmpty)
-          ? searchMode.trim()
-          : 'CONTAINS';
+              ? searchMode.trim()
+              : 'SUFFIX';
     }
     if (tailRanges != null && tailRanges.isNotEmpty) {
       queryParameters['tailRanges'] = tailRanges;

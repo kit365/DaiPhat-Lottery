@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../shared/network/api_exception.dart';
+import '../../../../shared/config/firebase_config.dart';
 import '../../domain/entities/notification.dart';
 import '../../domain/usecases/notification_usecases.dart';
 
@@ -130,6 +133,9 @@ class NotificationViewModel extends ChangeNotifier {
   bool _hasNextPage = true;
   bool get hasNextPage => _hasNextPage;
 
+  StreamSubscription<RemoteMessage>? _foregroundMessageSubscription;
+  bool _disposed = false;
+
   NotificationViewModel(
     this._getMyNotifications,
     this._markNotificationAsRead,
@@ -146,9 +152,17 @@ class NotificationViewModel extends ChangeNotifier {
   }
 
   void _setupFirebaseListener() {
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      fetchNotifications(refresh: true);
+    if (!isFirebaseInitialized) return;
+    _foregroundMessageSubscription = FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      if (!_disposed) fetchNotifications(refresh: true);
     });
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    unawaited(_foregroundMessageSubscription?.cancel());
+    super.dispose();
   }
 
   void setFilter(NotificationFilter filter) {
@@ -158,6 +172,7 @@ class NotificationViewModel extends ChangeNotifier {
   }
 
   Future<void> fetchNotifications({bool refresh = false}) async {
+    if (_disposed) return;
     if (refresh) {
       _page = 1;
       _hasNextPage = true;

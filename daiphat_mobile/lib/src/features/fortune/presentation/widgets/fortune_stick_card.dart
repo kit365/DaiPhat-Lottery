@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 
 class FortuneStickCard extends StatelessWidget {
@@ -14,22 +13,29 @@ class FortuneStickCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.fortuneGoldWarm, width: 3),
+        border: Border.all(color: const Color(0xFFFFDF7D), width: 2.5),
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppColors.fortuneCreamLight,
-            AppColors.fortuneGoldLight,
-            AppColors.fortuneGoldWarm,
-            AppColors.fortuneWoodDark,
+            Color(0xFFFFFBEB),
+            Color(0xFFFEF3C7),
+            Color(0xFFFDE68A),
+            Color(0xFFF59E0B),
+            Color(0xFFD97706),
           ],
+          stops: [0.0, 0.25, 0.55, 0.85, 1.0],
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.fortuneWoodDark.withValues(alpha: 0.3),
-            blurRadius: 22,
-            offset: const Offset(0, 10),
+            color: const Color(0xFFF59E0B).withValues(alpha: 0.35),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.35),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -38,10 +44,10 @@ class FortuneStickCard extends StatelessWidget {
           Text(
             'ĐUÔI MAY MẮN',
             style: AppTypography.overline(
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w900,
               letterSpacing: 2.2,
-              color: AppColors.fortuneWoodDark,
+              color: const Color(0xFF78350F),
             ),
           ),
           const SizedBox(height: 8),
@@ -51,28 +57,28 @@ class FortuneStickCard extends StatelessWidget {
               Text(
                 '吉',
                 style: AppTypography.traditional(
-                  fontSize: 28,
+                  fontSize: 30,
                   fontWeight: FontWeight.w900,
-                  color: AppColors.brandPrimaryCrimson,
+                  color: const Color(0xFFB91C1C),
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 18),
               Text(
                 luckyTail,
                 style: AppTypography.lotteryDigit(
-                  fontSize: 56,
+                  fontSize: 60,
                   height: 1,
                   fontWeight: FontWeight.w900,
-                  color: AppColors.fortuneWoodDark,
+                  color: const Color(0xFF4A0A0D),
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 18),
               Text(
                 '祥',
                 style: AppTypography.traditional(
-                  fontSize: 28,
+                  fontSize: 30,
                   fontWeight: FontWeight.w900,
-                  color: AppColors.brandPrimaryCrimson,
+                  color: const Color(0xFFB91C1C),
                 ),
               ),
             ],
@@ -81,9 +87,9 @@ class FortuneStickCard extends StatelessWidget {
           Text(
             'Thẻ xăm Đại Phát',
             style: AppTypography.subtitle2(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: AppColors.fortuneWoodDark.withValues(alpha: 0.8),
+              fontSize: 13.5,
+              fontWeight: FontWeight.w800,
+              color: const Color(0xFF78350F),
             ),
           ),
         ],
