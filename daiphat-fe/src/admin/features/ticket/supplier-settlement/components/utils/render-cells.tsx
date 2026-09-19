@@ -2,7 +2,7 @@
 
 import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import type { ReactNode } from 'react';
-import { Link } from '@mui/material';
+import { Link, Tooltip } from '@mui/material';
 import { GridRenderCellParams } from '@mui/x-data-grid';
 import dayjs from 'dayjs';
 import { ROUTES } from '../../../../../constants/routes';
@@ -89,34 +89,68 @@ export const RenderPeriodCell = (params: GridRenderCellParams) => {
     );
 };
 
-const MoneyCellWrapper = ({ children }: { children: ReactNode }) => (
-    <div className="flex h-full w-full items-center justify-center">{children}</div>
-);
+export const RenderPaymentProgressCell = (params: GridRenderCellParams) => {
+    const importValue = params.row.totalImportValue ?? 0;
+    const returnValue = params.row.totalReturnValue ?? 0;
+    const paidValue = params.row.totalPaidAmount ?? 0;
+    const remainingValue = params.row.remainingAmount ?? 0;
+    
+    const netDebt = importValue - returnValue;
+    const progress = netDebt > 0 ? Math.min(100, Math.max(0, (paidValue / netDebt) * 100)) : (paidValue > 0 ? 100 : 0);
+    const isOverdue = params.row.status === 'RECEIPT_OVERDUE';
+    const isSettled = params.row.status === 'COMPLETED' || params.row.status === 'CLOSED';
 
-export const RenderMoneyCell = (params: GridRenderCellParams) => (
-    <MoneyCellWrapper>
-        <span className="admin-cell-text" style={{ fontWeight: 600, color: '#0f172a', textAlign: 'center' }}>
-            {formatVnd(params.value)}
-        </span>
-    </MoneyCellWrapper>
-);
+    const tooltipContent = (
+        <div className="flex flex-col gap-1.5 p-1 text-xs">
+            <div className="flex justify-between gap-4">
+                <span className="text-slate-300">Giá trị nhập:</span>
+                <span className="font-semibold text-white">{formatVnd(importValue)}</span>
+            </div>
+            {returnValue > 0 && (
+                <div className="flex justify-between gap-4">
+                    <span className="text-slate-300">Giá trị trả:</span>
+                    <span className="font-semibold text-rose-300">- {formatVnd(returnValue)}</span>
+                </div>
+            )}
+            <div className="my-0.5 h-px bg-slate-600/50" />
+            <div className="flex justify-between gap-4">
+                <span className="text-slate-300">Đã thanh toán:</span>
+                <span className="font-semibold text-emerald-400">{formatVnd(paidValue)}</span>
+            </div>
+            {remainingValue > 0 && (
+                <div className="flex justify-between gap-4">
+                    <span className="text-slate-300">Còn phải trả:</span>
+                    <span className={`font-semibold ${isOverdue ? 'text-red-400' : 'text-amber-300'}`}>{formatVnd(remainingValue)}</span>
+                </div>
+            )}
+        </div>
+    );
 
-export const RenderRemainingMoneyCell = (params: GridRenderCellParams) => {
-    const isExpired = params.row.isReturnExpired;
-    const value = params.value ?? 0;
     return (
-        <MoneyCellWrapper>
-            <span
-                className="admin-cell-text"
-                style={{
-                    fontWeight: 700,
-                    color: value > 0 && isExpired ? '#dc2626' : value > 0 ? '#166534' : '#64748b',
-                    textAlign: 'center',
-                }}
-            >
-                {formatImportCost(value)} VNĐ
-            </span>
-        </MoneyCellWrapper>
+        <Tooltip title={tooltipContent} arrow placement="top">
+            <div className="flex flex-col gap-1.5 justify-center w-full h-full py-2 px-3">
+                <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+                    <div 
+                        className={`h-full transition-all duration-500 rounded-full ${
+                            isSettled ? 'bg-emerald-500' : isOverdue ? 'bg-red-500' : 'bg-emerald-500'
+                        }`}
+                        style={{ width: `${progress}%` }}
+                    />
+                </div>
+                <div className="flex justify-between items-center text-[11.5px] leading-none">
+                    {isSettled ? (
+                        <span className="text-emerald-600 font-medium">Đã thanh toán đủ</span>
+                    ) : remainingValue > 0 ? (
+                        <span className={`${isOverdue ? 'text-red-600' : 'text-slate-600'} font-medium`}>
+                            Còn nợ: {formatVnd(remainingValue)}
+                        </span>
+                    ) : (
+                        <span className="text-slate-400 font-medium">Chưa phát sinh</span>
+                    )}
+                    <span className="text-slate-400 font-medium">{Math.round(progress)}%</span>
+                </div>
+            </div>
+        </Tooltip>
     );
 };
 
@@ -137,7 +171,7 @@ export const RenderStatusCell = (params: GridRenderCellParams) => {
     const modifier = getSupplierSettlementStatusModifier(params.row.status);
 
     return (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', width: '100%' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
             <span className={`admin-status-badge ${modifier}`}>{label}</span>
         </div>
     );
