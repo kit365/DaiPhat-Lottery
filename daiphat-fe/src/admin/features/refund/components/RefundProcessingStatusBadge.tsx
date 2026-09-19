@@ -1,17 +1,16 @@
-import { Chip } from '@mui/material';
+import { AdminStatusBadge } from '@/admin/components/ui/AdminStatusBadge';
 import {
     REFUND_PROCESSING_URGENCY_LABELS,
     RefundProcessingUrgency,
 } from '@/types/refund.type';
-
-const URGENCY_COLORS: Record<
+const URGENCY_MODIFIERS: Record<
     RefundProcessingUrgency,
-    'default' | 'success' | 'warning' | 'error'
+    string
 > = {
-    [RefundProcessingUrgency.ON_TIME]: 'success',
-    [RefundProcessingUrgency.NEAR_DEADLINE]: 'warning',
-    [RefundProcessingUrgency.OVERDUE]: 'error',
-    [RefundProcessingUrgency.NOT_APPLICABLE]: 'default',
+    [RefundProcessingUrgency.ON_TIME]: 'admin-status-badge--success',
+    [RefundProcessingUrgency.NEAR_DEADLINE]: 'admin-status-badge--pending',
+    [RefundProcessingUrgency.OVERDUE]: 'admin-status-badge--inactive',
+    [RefundProcessingUrgency.NOT_APPLICABLE]: '',
 };
 
 interface RefundProcessingStatusBadgeProps {
@@ -24,11 +23,9 @@ export const RefundProcessingStatusBadge = ({ urgency }: RefundProcessingStatusB
     }
 
     return (
-        <Chip
-            size="small"
+        <AdminStatusBadge
             label={REFUND_PROCESSING_URGENCY_LABELS[urgency]}
-            color={URGENCY_COLORS[urgency]}
-            variant="outlined"
+            modifier={URGENCY_MODIFIERS[urgency]}
         />
     );
 };

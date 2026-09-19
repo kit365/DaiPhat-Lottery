@@ -186,8 +186,8 @@ export const SupplierSettlementInspectPage = () => {
     const activeStep = isEditingMatching
         ? 0
         : reviewingDiscrepancy && phase !== 'MATCHING' && phase !== 'COMPLETED'
-          ? 1
-          : phaseStepIndex(phase);
+            ? 1
+            : phaseStepIndex(phase);
     const remainingAmount = settlement.remainingAmount ?? 0;
     const paymentEvidenceUrls = Array.isArray(settlement.paymentEvidenceUrls)
         ? settlement.paymentEvidenceUrls.filter(Boolean)
@@ -669,9 +669,9 @@ export const SupplierSettlementInspectPage = () => {
                     <Button onClick={() => setConfirmBackDialogOpen(false)} sx={{ fontWeight: 700, textTransform: 'none', color: '#475569' }}>
                         Hủy
                     </Button>
-                    <Button 
-                        variant="contained" 
-                        color="error" 
+                    <Button
+                        variant="contained"
+                        color="error"
                         sx={{ fontWeight: 800, textTransform: 'none', borderRadius: '8px' }}
                         onClick={() => {
                             setConfirmBackDialogOpen(false);

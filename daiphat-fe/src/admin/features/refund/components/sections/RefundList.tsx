@@ -310,7 +310,7 @@ export const RefundList = () => {
                 >
                     <TableHead sx={{ bgcolor: 'var(--palette-background-neutral)' }}>
                         <TableRow>
-                            <TableCell sx={headerCellSx}>Mã yêu cầu</TableCell>
+                            <TableCell sx={headerCellSx} align="center">Mã yêu cầu</TableCell>
                             <TableCell sx={headerCellSx}>Đơn hàng</TableCell>
                             <TableCell sx={headerCellSx}>Khách hàng</TableCell>
                             <TableCell sx={headerCellSx}>Số tiền hoàn</TableCell>
@@ -364,7 +364,7 @@ export const RefundList = () => {
                                             transition: 'background-color 0.2s',
                                         }}
                                     >
-                                        <TableCell sx={cellBorderSx}>
+                                        <TableCell sx={cellBorderSx} align="center">
                                             <Typography
                                                 onClick={() => handleViewDetail(refund.id)}
                                                 sx={{

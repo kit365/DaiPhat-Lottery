@@ -768,8 +768,8 @@ export const MatchingActualsForm = ({
                 !draft && settlement.reconciledTicketUnitPrice && settlement.reconciledTicketUnitPrice > 0
                     ? Number(settlement.reconciledTicketUnitPrice)
                     : !draft && settlement.actualTicketPrice && settlement.actualTicketPrice > 0
-                    ? Number(settlement.actualTicketPrice)
-                    : originalUnitPrice;
+                        ? Number(settlement.actualTicketPrice)
+                        : originalUnitPrice;
 
             setUnitPrice(formatWholeNumberInput(derivedUnitPrice));
             importQtyDirtyRef.current = false;
@@ -2049,28 +2049,28 @@ export const MatchingActualsForm = ({
                                             icon: <CheckCircleOutlinedIcon sx={{ fontSize: '1.15rem', color: '#16a34a' }} />,
                                         }
                                         : isPositive
-                                        ? {
-                                            bg: '#fef2f2',
-                                            border: '#fecaca',
-                                            textColor: '#dc2626',
-                                            subColor: '#991b1b',
-                                            badgeBg: '#fee2e2',
-                                            badgeColor: '#dc2626',
-                                            badgeBorder: '#fca5a5',
-                                            badgeText: 'Thiếu nhập (+)',
-                                            icon: <TrendingDownOutlinedIcon sx={{ fontSize: '1.2rem', color: '#dc2626' }} />,
-                                        }
-                                        : {
-                                            bg: '#fffbeb',
-                                            border: '#fde68a',
-                                            textColor: '#b45309',
-                                            subColor: '#92400e',
-                                            badgeBg: '#fef3c7',
-                                            badgeColor: '#b45309',
-                                            badgeBorder: '#fde68a',
-                                            badgeText: 'Thừa nhập (-)',
-                                            icon: <TrendingUpOutlinedIcon sx={{ fontSize: '1.2rem', color: '#b45309' }} />,
-                                        };
+                                            ? {
+                                                bg: '#fef2f2',
+                                                border: '#fecaca',
+                                                textColor: '#dc2626',
+                                                subColor: '#991b1b',
+                                                badgeBg: '#fee2e2',
+                                                badgeColor: '#dc2626',
+                                                badgeBorder: '#fca5a5',
+                                                badgeText: 'Thiếu nhập (+)',
+                                                icon: <TrendingDownOutlinedIcon sx={{ fontSize: '1.2rem', color: '#dc2626' }} />,
+                                            }
+                                            : {
+                                                bg: '#fffbeb',
+                                                border: '#fde68a',
+                                                textColor: '#b45309',
+                                                subColor: '#92400e',
+                                                badgeBg: '#fef3c7',
+                                                badgeColor: '#b45309',
+                                                badgeBorder: '#fde68a',
+                                                badgeText: 'Thừa nhập (-)',
+                                                icon: <TrendingUpOutlinedIcon sx={{ fontSize: '1.2rem', color: '#b45309' }} />,
+                                            };
 
                                     return (
                                         <Box
@@ -2196,17 +2196,17 @@ export const MatchingActualsForm = ({
                                     borderColor: isReturnInputsLocked
                                         ? '#e2e8f0'
                                         : isReturnMatching
-                                          ? '#e2e8f0'
-                                          : returnQtyDiff > 0
-                                            ? '#bfdbfe'
-                                            : '#fde68a',
+                                            ? '#e2e8f0'
+                                            : returnQtyDiff > 0
+                                                ? '#bfdbfe'
+                                                : '#fde68a',
                                     bgcolor: isReturnInputsLocked
                                         ? '#ffffff'
                                         : isReturnMatching
-                                          ? '#ffffff'
-                                          : returnQtyDiff > 0
-                                            ? '#f8fbff'
-                                            : '#fffdfa',
+                                            ? '#ffffff'
+                                            : returnQtyDiff > 0
+                                                ? '#f8fbff'
+                                                : '#fffdfa',
                                     transition: 'all 0.2s ease',
                                     height: '100%',
                                     display: 'flex',
@@ -2323,28 +2323,28 @@ export const MatchingActualsForm = ({
                                             icon: <CheckCircleOutlinedIcon sx={{ fontSize: '1.15rem', color: '#16a34a' }} />,
                                         }
                                         : isPositive
-                                        ? {
-                                            bg: '#eff6ff',
-                                            border: '#bfdbfe',
-                                            textColor: '#1d4ed8',
-                                            subColor: '#1e40af',
-                                            badgeBg: '#dbeafe',
-                                            badgeColor: '#1d4ed8',
-                                            badgeBorder: '#93c5fd',
-                                            badgeText: 'Thừa trả (+)',
-                                            icon: <TrendingUpOutlinedIcon sx={{ fontSize: '1.2rem', color: '#2563eb' }} />,
-                                        }
-                                        : {
-                                            bg: '#fffbeb',
-                                            border: '#fde68a',
-                                            textColor: '#b45309',
-                                            subColor: '#92400e',
-                                            badgeBg: '#fef3c7',
-                                            badgeColor: '#b45309',
-                                            badgeBorder: '#fde68a',
-                                            badgeText: 'Thiếu trả (-)',
-                                            icon: <TrendingDownOutlinedIcon sx={{ fontSize: '1.2rem', color: '#b45309' }} />,
-                                        };
+                                            ? {
+                                                bg: '#eff6ff',
+                                                border: '#bfdbfe',
+                                                textColor: '#1d4ed8',
+                                                subColor: '#1e40af',
+                                                badgeBg: '#dbeafe',
+                                                badgeColor: '#1d4ed8',
+                                                badgeBorder: '#93c5fd',
+                                                badgeText: 'Thừa trả (+)',
+                                                icon: <TrendingUpOutlinedIcon sx={{ fontSize: '1.2rem', color: '#2563eb' }} />,
+                                            }
+                                            : {
+                                                bg: '#fffbeb',
+                                                border: '#fde68a',
+                                                textColor: '#b45309',
+                                                subColor: '#92400e',
+                                                badgeBg: '#fef3c7',
+                                                badgeColor: '#b45309',
+                                                badgeBorder: '#fde68a',
+                                                badgeText: 'Thiếu trả (-)',
+                                                icon: <TrendingDownOutlinedIcon sx={{ fontSize: '1.2rem', color: '#b45309' }} />,
+                                            };
 
                                     return (
                                         <Box
@@ -2374,8 +2374,8 @@ export const MatchingActualsForm = ({
                                                         isMatching
                                                             ? getQtyDiffBadgeModifier(true, false)
                                                             : isPositive
-                                                              ? 'admin-status-badge--active'
-                                                              : getQtyDiffBadgeModifier(false, false)
+                                                                ? 'admin-status-badge--active'
+                                                                : getQtyDiffBadgeModifier(false, false)
                                                     }
                                                 />
                                             </Stack>
@@ -2415,10 +2415,10 @@ export const MatchingActualsForm = ({
                                                 isReturnInputsLocked
                                                     ? undefined
                                                     : isReturnQtyEmpty
-                                                      ? 'Bắt buộc nhập số lượng'
-                                                      : parsedReturnQty > systemReturnQty
-                                                        ? `Không được nhập nhiều hơn ${systemReturnQty.toLocaleString('vi-VN')} vé (số lượng trả hệ thống)`
-                                                        : `Tối đa ${systemReturnQty.toLocaleString('vi-VN')} vé (bằng hoặc ít hơn số lượng hệ thống)`
+                                                        ? 'Bắt buộc nhập số lượng'
+                                                        : parsedReturnQty > systemReturnQty
+                                                            ? `Không được nhập nhiều hơn ${systemReturnQty.toLocaleString('vi-VN')} vé (số lượng trả hệ thống)`
+                                                            : `Tối đa ${systemReturnQty.toLocaleString('vi-VN')} vé (bằng hoặc ít hơn số lượng hệ thống)`
                                             }
                                             onChange={(e) => {
                                                 if (isReturnInputsLocked) return;
@@ -2770,8 +2770,8 @@ export const MatchingActualsForm = ({
                                         bgcolor: isPaymentCoverageMatched
                                             ? '#16a34a'
                                             : paymentCoverageProgressPct >= 100
-                                              ? '#ea580c'
-                                              : '#f59e0b',
+                                                ? '#ea580c'
+                                                : '#f59e0b',
                                     },
                                 }}
                             />
@@ -3086,8 +3086,8 @@ export const MatchingActualsForm = ({
                                             {manualAdditionalCostTotal > 0
                                                 ? '→ Sẽ cộng thêm vào số tiền quyết toán sau đối soát'
                                                 : manualAdditionalCostTotal < 0
-                                                  ? '→ Sẽ khấu trừ giảm bớt khỏi số tiền quyết toán sau đối soát'
-                                                  : '—'}
+                                                    ? '→ Sẽ khấu trừ giảm bớt khỏi số tiền quyết toán sau đối soát'
+                                                    : '—'}
                                         </TableCell>
                                     </TableRow>
                                 </TableBody>
@@ -3694,15 +3694,15 @@ export const MatchingActualsForm = ({
                                                 ? `+${formatSettlementMoney(paymentRemainingDiff)}`
                                                 : formatSettlementMoney(paymentRemainingDiff)}{' '}
                                             <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>VNĐ</span>
-                                          </>
+                                        </>
                                         : '—'}
                                 </Typography>
                                 <Typography variant="caption" color={paidDiffTone.color} sx={{ fontSize: '0.75rem', opacity: 0.9, mt: 1 }}>
                                     {paidDiff > 0
                                         ? `= Thực trả > Đối soát (Đại lý đang tính thiếu ${formatSettlementMoney(paidDiff)} VNĐ so với biên lai NCC → cần thêm chi phí)`
                                         : paidDiff < 0
-                                          ? `= Thực trả < Đối soát (Đại lý đang tính thừa ${formatSettlementMoney(Math.abs(paidDiff))} VNĐ so với biên lai NCC → cần thêm chiết khấu)`
-                                          : '= Số tiền cần trả thực tế khớp hoàn toàn với quyết toán sau đối soát (0 VNĐ)'}
+                                            ? `= Thực trả < Đối soát (Đại lý đang tính thừa ${formatSettlementMoney(Math.abs(paidDiff))} VNĐ so với biên lai NCC → cần thêm chiết khấu)`
+                                            : '= Số tiền cần trả thực tế khớp hoàn toàn với quyết toán sau đối soát (0 VNĐ)'}
                                 </Typography>
                             </Box>
                         </Grid>
@@ -3879,27 +3879,26 @@ export const MatchingActualsForm = ({
                                                                 bgcolor: isSel
                                                                     ? '#2563eb'
                                                                     : batchHasImg
-                                                                    ? '#ffffff'
-                                                                    : '#fff1f2',
+                                                                        ? '#ffffff'
+                                                                        : '#fff1f2',
                                                                 color: isSel
                                                                     ? '#ffffff'
                                                                     : batchHasImg
-                                                                    ? '#334155'
-                                                                    : '#be123c',
-                                                                border: `1px solid ${
-                                                                    isSel
+                                                                        ? '#334155'
+                                                                        : '#be123c',
+                                                                border: `1px solid ${isSel
                                                                         ? '#2563eb'
                                                                         : batchHasImg
-                                                                        ? '#e2e8f0'
-                                                                        : '#fecdd3'
-                                                                }`,
+                                                                            ? '#e2e8f0'
+                                                                            : '#fecdd3'
+                                                                    }`,
                                                                 boxShadow: isSel ? '0 1px 3px rgba(37, 99, 235, 0.3)' : 'none',
                                                                 '&:hover': {
                                                                     bgcolor: isSel
                                                                         ? '#1d4ed8'
                                                                         : batchHasImg
-                                                                        ? '#f8fafc'
-                                                                        : '#ffe4e6',
+                                                                            ? '#f8fafc'
+                                                                            : '#ffe4e6',
                                                                 },
                                                             }}
                                                         >
@@ -3949,294 +3948,225 @@ export const MatchingActualsForm = ({
                                 {/* Selected Batch Details Subtitle Strip */}
                                 {selectedImport && (
                                     <Box
+                                        sx={{
+                                            p: 1.25,
+                                            mb: 1.5,
+                                            borderRadius: '10px',
+                                            bgcolor: '#f8fafc',
+                                            border: '1px solid #e2e8f0',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            flexWrap: 'wrap',
+                                            gap: 1,
+                                        }}
+                                    >
+                                        <Stack direction="row" spacing={0.75} alignItems="center">
+                                            <Box
                                                 sx={{
-                                                    p: 1.25,
-                                                    mb: 1.5,
-                                                    borderRadius: '10px',
-                                                    bgcolor: '#f8fafc',
-                                                    border: '1px solid #e2e8f0',
+                                                    width: 22,
+                                                    height: 22,
+                                                    borderRadius: '6px',
+                                                    bgcolor: '#eff6ff',
+                                                    color: '#2563eb',
                                                     display: 'flex',
                                                     alignItems: 'center',
-                                                    justifyContent: 'space-between',
-                                                    flexWrap: 'wrap',
-                                                    gap: 1,
+                                                    justifyContent: 'center',
                                                 }}
                                             >
-                                                <Stack direction="row" spacing={0.75} alignItems="center">
-                                                    <Box
-                                                        sx={{
-                                                            width: 22,
-                                                            height: 22,
-                                                            borderRadius: '6px',
-                                                            bgcolor: '#eff6ff',
-                                                            color: '#2563eb',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                        }}
-                                                    >
-                                                        <ReceiptLongOutlinedIcon sx={{ fontSize: '0.85rem' }} />
-                                                    </Box>
-                                                    <Typography variant="caption" color="#475569" sx={{ fontSize: '0.75rem' }}>
-                                                        Mã phiếu: <strong style={{ color: '#0f172a' }}>{selectedImport.batchCode || `#${selectedImport.id}`}</strong>
-                                                        {selectedImport.drawDate ? ` · Ngày quay: ${dayjs(selectedImport.drawDate).format('DD/MM/YYYY')}` : ''}
-                                                    </Typography>
-                                                </Stack>
-
-                                                {isBatchCompleteEvidence(selectedImport) ? (
-                                                    <AdminStatusBadge
-                                                        label="Đủ chứng từ"
-                                                        modifier="admin-status-badge--success"
-                                                    />
-                                                ) : (
-                                                    <AdminStatusBadge
-                                                        label={!hasImportReceipt ? 'Thiếu biên lai' : 'Thiếu danh sách vé'}
-                                                        modifier="admin-status-badge--inactive"
-                                                    />
-                                                )}
+                                                <ReceiptLongOutlinedIcon sx={{ fontSize: '0.85rem' }} />
                                             </Box>
+                                            <Typography variant="caption" color="#475569" sx={{ fontSize: '0.75rem' }}>
+                                                Mã phiếu: <strong style={{ color: '#0f172a' }}>{selectedImport.batchCode || `#${selectedImport.id}`}</strong>
+                                                {selectedImport.drawDate ? ` · Ngày quay: ${dayjs(selectedImport.drawDate).format('DD/MM/YYYY')}` : ''}
+                                            </Typography>
+                                        </Stack>
+
+                                        {isBatchCompleteEvidence(selectedImport) ? (
+                                            <AdminStatusBadge
+                                                label="Đủ chứng từ"
+                                                modifier="admin-status-badge--success"
+                                            />
+                                        ) : (
+                                            <AdminStatusBadge
+                                                label={!hasImportReceipt ? 'Thiếu biên lai' : 'Thiếu danh sách vé'}
+                                                modifier="admin-status-badge--inactive"
+                                            />
                                         )}
+                                    </Box>
+                                )}
 
-                                        {/* Tabs: Biên lai | Danh sách vé */}
-                                        <Box
-                                            sx={{
-                                                display: 'flex',
-                                                gap: 0.5,
-                                                p: '4px',
-                                                mb: 1.5,
-                                                bgcolor: '#f1f5f9',
-                                                borderRadius: '10px',
-                                                border: '1px solid #e2e8f0',
-                                            }}
-                                        >
-                                            <ButtonBase
-                                                onClick={() => setImportEvidenceTab('receipt')}
+                                {/* Tabs: Biên lai | Danh sách vé */}
+                                <Box
+                                    sx={{
+                                        display: 'flex',
+                                        gap: 0.5,
+                                        p: '4px',
+                                        mb: 1.5,
+                                        bgcolor: '#f1f5f9',
+                                        borderRadius: '10px',
+                                        border: '1px solid #e2e8f0',
+                                    }}
+                                >
+                                    <ButtonBase
+                                        onClick={() => setImportEvidenceTab('receipt')}
+                                        sx={{
+                                            flex: 1,
+                                            py: 0.6,
+                                            px: 1.25,
+                                            borderRadius: '7px',
+                                            fontSize: '0.78rem',
+                                            fontWeight: importEvidenceTab === 'receipt' ? 800 : 600,
+                                            bgcolor: importEvidenceTab === 'receipt' ? '#ffffff' : 'transparent',
+                                            color: importEvidenceTab === 'receipt' ? '#0f172a' : '#64748b',
+                                            boxShadow: importEvidenceTab === 'receipt' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                                            transition: 'all 0.15s ease',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: 0.75,
+                                        }}
+                                    >
+                                        <ReceiptLongOutlinedIcon sx={{ fontSize: '0.9rem', color: hasImportReceipt ? '#16a34a' : '#dc2626' }} />
+                                        Biên lai phiếu nhập
+                                        {hasImportReceipt ? (
+                                            <Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#16a34a' }} />
+                                        ) : (
+                                            <Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#dc2626' }} />
+                                        )}
+                                    </ButtonBase>
+                                    <ButtonBase
+                                        onClick={() => setImportEvidenceTab('ticketList')}
+                                        sx={{
+                                            flex: 1,
+                                            py: 0.6,
+                                            px: 1.25,
+                                            borderRadius: '7px',
+                                            fontSize: '0.78rem',
+                                            fontWeight: importEvidenceTab === 'ticketList' ? 800 : 600,
+                                            bgcolor: importEvidenceTab === 'ticketList' ? '#ffffff' : 'transparent',
+                                            color: importEvidenceTab === 'ticketList' ? '#0f172a' : '#64748b',
+                                            boxShadow: importEvidenceTab === 'ticketList' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                                            transition: 'all 0.15s ease',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: 0.75,
+                                        }}
+                                    >
+                                        <PhotoLibraryOutlinedIcon sx={{ fontSize: '0.9rem', color: hasSelectedImportTicketListImages ? '#16a34a' : '#dc2626' }} />
+                                        Danh sách vé ({selectedImportTicketListImages.length})
+                                        {hasSelectedImportTicketListImages ? (
+                                            <Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#16a34a' }} />
+                                        ) : (
+                                            <Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#dc2626' }} />
+                                        )}
+                                    </ButtonBase>
+                                </Box>
+
+                                {importEvidenceTab === 'receipt' ? (
+                                    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                                        {hasImportReceipt ? (
+                                            <Box
                                                 sx={{
+                                                    position: 'relative',
+                                                    width: '100%',
                                                     flex: 1,
-                                                    py: 0.6,
-                                                    px: 1.25,
-                                                    borderRadius: '7px',
-                                                    fontSize: '0.78rem',
-                                                    fontWeight: importEvidenceTab === 'receipt' ? 800 : 600,
-                                                    bgcolor: importEvidenceTab === 'receipt' ? '#ffffff' : 'transparent',
-                                                    color: importEvidenceTab === 'receipt' ? '#0f172a' : '#64748b',
-                                                    boxShadow: importEvidenceTab === 'receipt' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                                                    transition: 'all 0.15s ease',
+                                                    minHeight: 180,
+                                                    borderRadius: '12px',
+                                                    overflow: 'hidden',
+                                                    border: '1px solid #cbd5e1',
+                                                    bgcolor: '#f8fafc',
                                                     display: 'flex',
                                                     alignItems: 'center',
                                                     justifyContent: 'center',
-                                                    gap: 0.75,
                                                 }}
                                             >
-                                                <ReceiptLongOutlinedIcon sx={{ fontSize: '0.9rem', color: hasImportReceipt ? '#16a34a' : '#dc2626' }} />
-                                                Biên lai phiếu nhập
-                                                {hasImportReceipt ? (
-                                                    <Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#16a34a' }} />
-                                                ) : (
-                                                    <Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#dc2626' }} />
-                                                )}
-                                            </ButtonBase>
-                                            <ButtonBase
-                                                onClick={() => setImportEvidenceTab('ticketList')}
-                                                sx={{
-                                                    flex: 1,
-                                                    py: 0.6,
-                                                    px: 1.25,
-                                                    borderRadius: '7px',
-                                                    fontSize: '0.78rem',
-                                                    fontWeight: importEvidenceTab === 'ticketList' ? 800 : 600,
-                                                    bgcolor: importEvidenceTab === 'ticketList' ? '#ffffff' : 'transparent',
-                                                    color: importEvidenceTab === 'ticketList' ? '#0f172a' : '#64748b',
-                                                    boxShadow: importEvidenceTab === 'ticketList' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                                                    transition: 'all 0.15s ease',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    gap: 0.75,
-                                                }}
-                                            >
-                                                <PhotoLibraryOutlinedIcon sx={{ fontSize: '0.9rem', color: hasSelectedImportTicketListImages ? '#16a34a' : '#dc2626' }} />
-                                                Danh sách vé ({selectedImportTicketListImages.length})
-                                                {hasSelectedImportTicketListImages ? (
-                                                    <Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#16a34a' }} />
-                                                ) : (
-                                                    <Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#dc2626' }} />
-                                                )}
-                                            </ButtonBase>
-                                        </Box>
-
-                                        {importEvidenceTab === 'receipt' ? (
-                                            <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                                                {hasImportReceipt ? (
+                                                {selectedImportReceiptIsImage ? (
                                                     <Box
+                                                        component="img"
+                                                        src={selectedImportReceiptUrl}
+                                                        alt="Biên lai phiếu nhập"
                                                         sx={{
-                                                            position: 'relative',
                                                             width: '100%',
-                                                            flex: 1,
-                                                            minHeight: 180,
-                                                            borderRadius: '12px',
-                                                            overflow: 'hidden',
-                                                            border: '1px solid #cbd5e1',
-                                                            bgcolor: '#f8fafc',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
+                                                            height: '100%',
+                                                            objectFit: 'contain',
+                                                            cursor: 'pointer',
                                                         }}
+                                                        onClick={() =>
+                                                            openMatchingEvidence(
+                                                                selectedImportReceiptUrl,
+                                                                `Biên lai phiếu nhập: ${selectedImport?.batchCode || `#${selectedImport?.id}`}`,
+                                                                selectedImportPendingReceiptFile
+                                                            )
+                                                        }
+                                                    />
+                                                ) : (
+                                                    <Stack
+                                                        spacing={1}
+                                                        alignItems="center"
+                                                        justifyContent="center"
+                                                        sx={{ px: 2, textAlign: 'center', cursor: 'pointer' }}
+                                                        onClick={() =>
+                                                            openMatchingEvidence(
+                                                                selectedImportReceiptUrl,
+                                                                `Biên lai phiếu nhập: ${selectedImport?.batchCode || `#${selectedImport?.id}`}`,
+                                                                selectedImportPendingReceiptFile
+                                                            )
+                                                        }
+                                                    >
+                                                        <InsertDriveFileOutlinedIcon sx={{ fontSize: '2.25rem', color: '#2563eb' }} />
+                                                        <Typography variant="caption" fontWeight={700} color="#0f172a" sx={{ wordBreak: 'break-all' }}>
+                                                            {getEvidenceFileLabel(selectedImportReceiptUrl, selectedImportPendingReceiptFile)}
+                                                        </Typography>
+                                                        <Typography variant="caption" color="#64748b" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                                                            <OpenInNewOutlinedIcon sx={{ fontSize: '0.9rem' }} />
+                                                            Mở tệp
+                                                        </Typography>
+                                                    </Stack>
+                                                )}
+                                                <Stack
+                                                    direction="row"
+                                                    spacing={0.5}
+                                                    sx={{
+                                                        position: 'absolute',
+                                                        top: 8,
+                                                        right: 8,
+                                                        bgcolor: 'rgba(15, 23, 42, 0.75)',
+                                                        borderRadius: '8px',
+                                                        p: 0.5,
+                                                    }}
+                                                >
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={() =>
+                                                            openMatchingEvidence(
+                                                                selectedImportReceiptUrl,
+                                                                `Biên lai phiếu nhập: ${selectedImport?.batchCode || `#${selectedImport?.id}`}`,
+                                                                selectedImportPendingReceiptFile
+                                                            )
+                                                        }
+                                                        sx={{ color: '#ffffff', p: 0.5 }}
+                                                        title={selectedImportReceiptIsImage ? 'Xem ảnh lớn' : 'Mở tệp'}
                                                     >
                                                         {selectedImportReceiptIsImage ? (
-                                                            <Box
-                                                                component="img"
-                                                                src={selectedImportReceiptUrl}
-                                                                alt="Biên lai phiếu nhập"
-                                                                sx={{
-                                                                    width: '100%',
-                                                                    height: '100%',
-                                                                    objectFit: 'contain',
-                                                                    cursor: 'pointer',
-                                                                }}
-                                                                onClick={() =>
-                                                                    openMatchingEvidence(
-                                                                        selectedImportReceiptUrl,
-                                                                        `Biên lai phiếu nhập: ${selectedImport?.batchCode || `#${selectedImport?.id}`}`,
-                                                                        selectedImportPendingReceiptFile
-                                                                    )
-                                                                }
-                                                            />
+                                                            <ZoomInIcon fontSize="small" />
                                                         ) : (
-                                                            <Stack
-                                                                spacing={1}
-                                                                alignItems="center"
-                                                                justifyContent="center"
-                                                                sx={{ px: 2, textAlign: 'center', cursor: 'pointer' }}
-                                                                onClick={() =>
-                                                                    openMatchingEvidence(
-                                                                        selectedImportReceiptUrl,
-                                                                        `Biên lai phiếu nhập: ${selectedImport?.batchCode || `#${selectedImport?.id}`}`,
-                                                                        selectedImportPendingReceiptFile
-                                                                    )
-                                                                }
-                                                            >
-                                                                <InsertDriveFileOutlinedIcon sx={{ fontSize: '2.25rem', color: '#2563eb' }} />
-                                                                <Typography variant="caption" fontWeight={700} color="#0f172a" sx={{ wordBreak: 'break-all' }}>
-                                                                    {getEvidenceFileLabel(selectedImportReceiptUrl, selectedImportPendingReceiptFile)}
-                                                                </Typography>
-                                                                <Typography variant="caption" color="#64748b" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-                                                                    <OpenInNewOutlinedIcon sx={{ fontSize: '0.9rem' }} />
-                                                                    Mở tệp
-                                                                </Typography>
-                                                            </Stack>
+                                                            <OpenInNewOutlinedIcon fontSize="small" />
                                                         )}
-                                                        <Stack
-                                                            direction="row"
-                                                            spacing={0.5}
-                                                            sx={{
-                                                                position: 'absolute',
-                                                                top: 8,
-                                                                right: 8,
-                                                                bgcolor: 'rgba(15, 23, 42, 0.75)',
-                                                                borderRadius: '8px',
-                                                                p: 0.5,
-                                                            }}
-                                                        >
-                                                            <IconButton
-                                                                size="small"
-                                                                onClick={() =>
-                                                                    openMatchingEvidence(
-                                                                        selectedImportReceiptUrl,
-                                                                        `Biên lai phiếu nhập: ${selectedImport?.batchCode || `#${selectedImport?.id}`}`,
-                                                                        selectedImportPendingReceiptFile
-                                                                    )
-                                                                }
-                                                                sx={{ color: '#ffffff', p: 0.5 }}
-                                                                title={selectedImportReceiptIsImage ? 'Xem ảnh lớn' : 'Mở tệp'}
-                                                            >
-                                                                {selectedImportReceiptIsImage ? (
-                                                                    <ZoomInIcon fontSize="small" />
-                                                                ) : (
-                                                                    <OpenInNewOutlinedIcon fontSize="small" />
-                                                                )}
-                                                            </IconButton>
-                                                            <IconButton
-                                                                size="small"
-                                                                disabled={isUploadingImportReceipt}
-                                                                component="label"
-                                                                sx={{ color: '#ffffff', p: 0.5 }}
-                                                                title="Thay tệp khác"
-                                                            >
-                                                                <CloudUploadIcon fontSize="small" />
-                                                                <input
-                                                                    type="file"
-                                                                    accept={MATCHING_EVIDENCE_ACCEPT}
-                                                                    hidden
-                                                                    onChange={(e) => {
-                                                                        const file = e.target.files?.[0];
-                                                                        if (file && selectedImport) {
-                                                                            void handleUploadImportReceipt(file);
-                                                                        }
-                                                                        e.target.value = '';
-                                                                    }}
-                                                                />
-                                                            </IconButton>
-                                                            <IconButton
-                                                                size="small"
-                                                                disabled={isUploadingImportReceipt}
-                                                                onClick={handleDeleteImportReceipt}
-                                                                sx={{ color: '#f87171', p: 0.5 }}
-                                                                title="Gỡ tệp này"
-                                                            >
-                                                                <DeleteOutlineIcon fontSize="small" />
-                                                            </IconButton>
-                                                        </Stack>
-                                                    </Box>
-                                                ) : (
-                                                    <Box
-                                                        onDragOver={(e) => {
-                                                            e.preventDefault();
-                                                            setIsDraggingImportReceipt(true);
-                                                        }}
-                                                        onDragLeave={() => setIsDraggingImportReceipt(false)}
-                                                        onDrop={(e) => {
-                                                            e.preventDefault();
-                                                            setIsDraggingImportReceipt(false);
-                                                            const file = e.dataTransfer.files?.[0];
-                                                            if (file && isAllowedMatchingEvidenceFile(file) && selectedImport) {
-                                                                void handleUploadImportReceipt(file);
-                                                            } else if (file) {
-                                                                AppToast.warning('Vui lòng chọn ảnh, PDF, Excel hoặc CSV.');
-                                                            }
-                                                        }}
-                                                        onClick={() => {
-                                                            if (!isUploadingImportReceipt) {
-                                                                document.getElementById('matching-import-receipt-input')?.click();
-                                                            }
-                                                        }}
-                                                        sx={{
-                                                            width: '100%',
-                                                            flex: 1,
-                                                            minHeight: 180,
-                                                            borderRadius: '12px',
-                                                            border: '2px dashed',
-                                                            borderColor: isDraggingImportReceipt ? '#2563eb' : '#cbd5e1',
-                                                            bgcolor: isDraggingImportReceipt ? '#eff6ff' : '#f8fafc',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                            textAlign: 'center',
-                                                            cursor: isUploadingImportReceipt ? 'default' : 'pointer',
-                                                            transition: 'all 0.2s ease',
-                                                            p: 2,
-                                                            '&:hover': {
-                                                                borderColor: '#2563eb',
-                                                                bgcolor: '#eff6ff26',
-                                                            },
-                                                        }}
+                                                    </IconButton>
+                                                    <IconButton
+                                                        size="small"
+                                                        disabled={isUploadingImportReceipt}
+                                                        component="label"
+                                                        sx={{ color: '#ffffff', p: 0.5 }}
+                                                        title="Thay tệp khác"
                                                     >
+                                                        <CloudUploadIcon fontSize="small" />
                                                         <input
-                                                            id="matching-import-receipt-input"
                                                             type="file"
                                                             accept={MATCHING_EVIDENCE_ACCEPT}
                                                             hidden
-                                                            disabled={isUploadingImportReceipt}
                                                             onChange={(e) => {
                                                                 const file = e.target.files?.[0];
                                                                 if (file && selectedImport) {
@@ -4245,58 +4175,127 @@ export const MatchingActualsForm = ({
                                                                 e.target.value = '';
                                                             }}
                                                         />
-                                                        {isUploadingImportReceipt ? (
-                                                            <Stack spacing={1} alignItems="center" justifyContent="center">
-                                                                <CircularProgress size={28} sx={{ color: '#2563eb' }} />
-                                                                <Typography variant="caption" fontWeight={700} color="#0f172a">
-                                                                    Đang tải biên lai phiếu nhập...
-                                                                </Typography>
-                                                            </Stack>
-                                                        ) : (
-                                                            <Stack spacing={1} alignItems="center" justifyContent="center">
-                                                                <Box
-                                                                    sx={{
-                                                                        width: 44,
-                                                                        height: 44,
-                                                                        borderRadius: '50%',
-                                                                        bgcolor: '#ffffff',
-                                                                        border: '1px solid #e2e8f0',
-                                                                        display: 'flex',
-                                                                        alignItems: 'center',
-                                                                        justifyContent: 'center',
-                                                                        boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
-                                                                        color: '#2563eb',
-                                                                    }}
-                                                                >
-                                                                    <CloudUploadIcon sx={{ fontSize: '1.4rem' }} />
-                                                                </Box>
-                                                                <Typography variant="caption" fontWeight={700} color="#0f172a" sx={{ fontSize: '0.8rem' }}>
-                                                                    Kéo thả tệp vào đây hoặc{' '}
-                                                                    <Box component="span" sx={{ color: '#2563eb', textDecoration: 'underline' }}>
-                                                                        chọn từ thiết bị
-                                                                    </Box>
-                                                                </Typography>
-                                                                <Typography variant="caption" color="#94a3b8" sx={{ fontSize: '0.725rem' }}>
-                                                                    Ảnh JPG, PNG, PDF, Excel, CSV (tối đa 10MB) · Bắt buộc
-                                                                </Typography>
-                                                            </Stack>
-                                                        )}
-                                                    </Box>
-                                                )}
+                                                    </IconButton>
+                                                    <IconButton
+                                                        size="small"
+                                                        disabled={isUploadingImportReceipt}
+                                                        onClick={handleDeleteImportReceipt}
+                                                        sx={{ color: '#f87171', p: 0.5 }}
+                                                        title="Gỡ tệp này"
+                                                    >
+                                                        <DeleteOutlineIcon fontSize="small" />
+                                                    </IconButton>
+                                                </Stack>
                                             </Box>
                                         ) : (
-                                            <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                                                <ImportBatchTicketListImagesField
-                                                    key={`ticket-list-field-${selectedImport?.id ?? 'none'}`}
-                                                    value={selectedImportTicketListImages}
-                                                    disabled={isUploadingTicketListImages}
-                                                    onChange={(nextUrls) => {
-                                                        void handleUpdateTicketListImages(nextUrls);
+                                            <Box
+                                                onDragOver={(e) => {
+                                                    e.preventDefault();
+                                                    setIsDraggingImportReceipt(true);
+                                                }}
+                                                onDragLeave={() => setIsDraggingImportReceipt(false)}
+                                                onDrop={(e) => {
+                                                    e.preventDefault();
+                                                    setIsDraggingImportReceipt(false);
+                                                    const file = e.dataTransfer.files?.[0];
+                                                    if (file && isAllowedMatchingEvidenceFile(file) && selectedImport) {
+                                                        void handleUploadImportReceipt(file);
+                                                    } else if (file) {
+                                                        AppToast.warning('Vui lòng chọn ảnh, PDF, Excel hoặc CSV.');
+                                                    }
+                                                }}
+                                                onClick={() => {
+                                                    if (!isUploadingImportReceipt) {
+                                                        document.getElementById('matching-import-receipt-input')?.click();
+                                                    }
+                                                }}
+                                                sx={{
+                                                    width: '100%',
+                                                    flex: 1,
+                                                    minHeight: 180,
+                                                    borderRadius: '12px',
+                                                    border: '2px dashed',
+                                                    borderColor: isDraggingImportReceipt ? '#2563eb' : '#cbd5e1',
+                                                    bgcolor: isDraggingImportReceipt ? '#eff6ff' : '#f8fafc',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    textAlign: 'center',
+                                                    cursor: isUploadingImportReceipt ? 'default' : 'pointer',
+                                                    transition: 'all 0.2s ease',
+                                                    p: 2,
+                                                    '&:hover': {
+                                                        borderColor: '#2563eb',
+                                                        bgcolor: '#eff6ff26',
+                                                    },
+                                                }}
+                                            >
+                                                <input
+                                                    id="matching-import-receipt-input"
+                                                    type="file"
+                                                    accept={MATCHING_EVIDENCE_ACCEPT}
+                                                    hidden
+                                                    disabled={isUploadingImportReceipt}
+                                                    onChange={(e) => {
+                                                        const file = e.target.files?.[0];
+                                                        if (file && selectedImport) {
+                                                            void handleUploadImportReceipt(file);
+                                                        }
+                                                        e.target.value = '';
                                                     }}
-                                                    compact
                                                 />
+                                                {isUploadingImportReceipt ? (
+                                                    <Stack spacing={1} alignItems="center" justifyContent="center">
+                                                        <CircularProgress size={28} sx={{ color: '#2563eb' }} />
+                                                        <Typography variant="caption" fontWeight={700} color="#0f172a">
+                                                            Đang tải biên lai phiếu nhập...
+                                                        </Typography>
+                                                    </Stack>
+                                                ) : (
+                                                    <Stack spacing={1} alignItems="center" justifyContent="center">
+                                                        <Box
+                                                            sx={{
+                                                                width: 44,
+                                                                height: 44,
+                                                                borderRadius: '50%',
+                                                                bgcolor: '#ffffff',
+                                                                border: '1px solid #e2e8f0',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
+                                                                color: '#2563eb',
+                                                            }}
+                                                        >
+                                                            <CloudUploadIcon sx={{ fontSize: '1.4rem' }} />
+                                                        </Box>
+                                                        <Typography variant="caption" fontWeight={700} color="#0f172a" sx={{ fontSize: '0.8rem' }}>
+                                                            Kéo thả tệp vào đây hoặc{' '}
+                                                            <Box component="span" sx={{ color: '#2563eb', textDecoration: 'underline' }}>
+                                                                chọn từ thiết bị
+                                                            </Box>
+                                                        </Typography>
+                                                        <Typography variant="caption" color="#94a3b8" sx={{ fontSize: '0.725rem' }}>
+                                                            Ảnh JPG, PNG, PDF, Excel, CSV (tối đa 10MB) · Bắt buộc
+                                                        </Typography>
+                                                    </Stack>
+                                                )}
                                             </Box>
                                         )}
+                                    </Box>
+                                ) : (
+                                    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                                        <ImportBatchTicketListImagesField
+                                            key={`ticket-list-field-${selectedImport?.id ?? 'none'}`}
+                                            value={selectedImportTicketListImages}
+                                            disabled={isUploadingTicketListImages}
+                                            onChange={(nextUrls) => {
+                                                void handleUpdateTicketListImages(nextUrls);
+                                            }}
+                                            compact
+                                        />
+                                    </Box>
+                                )}
                             </Paper>
                         </Grid>
 
@@ -4722,8 +4721,8 @@ export const MatchingActualsForm = ({
                                     {isFlushingDraft
                                         ? 'Đang lưu chứng từ...'
                                         : isSubmitting
-                                          ? 'Đang đối chiếu...'
-                                          : 'Xác nhận đối chiếu'}
+                                            ? 'Đang đối chiếu...'
+                                            : 'Xác nhận đối chiếu'}
                                 </Button>
                             </span>
                         </Tooltip>
@@ -5095,48 +5094,48 @@ export const MatchingActualsForm = ({
                                     {compareLeftTab === 'receipt' ? (
                                         selectedImportReceiptUrl ? (
                                             selectedImportReceiptIsImage ? (
-                                            <>
-                                                <Box
-                                                    component="img"
-                                                    src={selectedImportReceiptUrl}
-                                                    alt="Biên lai nhập"
-                                                    sx={{
-                                                        width: '100%',
-                                                        height: '100%',
-                                                        maxHeight: '65vh',
-                                                        objectFit: 'contain',
-                                                        cursor: 'zoom-in',
-                                                    }}
-                                                    onClick={() =>
-                                                        openMatchingEvidence(
-                                                            selectedImportReceiptUrl,
-                                                            `Biên lai nhập · ${selectedImport?.batchCode || selectedImport?.id}`,
-                                                            selectedImportPendingReceiptFile
-                                                        )
-                                                    }
-                                                />
-                                                <IconButton
-                                                    size="small"
-                                                    onClick={() =>
-                                                        openMatchingEvidence(
-                                                            selectedImportReceiptUrl,
-                                                            `Biên lai nhập · ${selectedImport?.batchCode || selectedImport?.id}`,
-                                                            selectedImportPendingReceiptFile
-                                                        )
-                                                    }
-                                                    sx={{
-                                                        position: 'absolute',
-                                                        top: 10,
-                                                        right: 10,
-                                                        bgcolor: 'rgba(15, 23, 42, 0.8)',
-                                                        color: '#ffffff',
-                                                        '&:hover': { bgcolor: '#0f172a' },
-                                                    }}
-                                                    title="Phóng to ảnh"
-                                                >
-                                                    <ZoomInIcon fontSize="small" />
-                                                </IconButton>
-                                            </>
+                                                <>
+                                                    <Box
+                                                        component="img"
+                                                        src={selectedImportReceiptUrl}
+                                                        alt="Biên lai nhập"
+                                                        sx={{
+                                                            width: '100%',
+                                                            height: '100%',
+                                                            maxHeight: '65vh',
+                                                            objectFit: 'contain',
+                                                            cursor: 'zoom-in',
+                                                        }}
+                                                        onClick={() =>
+                                                            openMatchingEvidence(
+                                                                selectedImportReceiptUrl,
+                                                                `Biên lai nhập · ${selectedImport?.batchCode || selectedImport?.id}`,
+                                                                selectedImportPendingReceiptFile
+                                                            )
+                                                        }
+                                                    />
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={() =>
+                                                            openMatchingEvidence(
+                                                                selectedImportReceiptUrl,
+                                                                `Biên lai nhập · ${selectedImport?.batchCode || selectedImport?.id}`,
+                                                                selectedImportPendingReceiptFile
+                                                            )
+                                                        }
+                                                        sx={{
+                                                            position: 'absolute',
+                                                            top: 10,
+                                                            right: 10,
+                                                            bgcolor: 'rgba(15, 23, 42, 0.8)',
+                                                            color: '#ffffff',
+                                                            '&:hover': { bgcolor: '#0f172a' },
+                                                        }}
+                                                        title="Phóng to ảnh"
+                                                    >
+                                                        <ZoomInIcon fontSize="small" />
+                                                    </IconButton>
+                                                </>
                                             ) : (
                                                 <Stack spacing={1.25} alignItems="center" sx={{ p: 4, textAlign: 'center' }}>
                                                     <InsertDriveFileOutlinedIcon sx={{ fontSize: '2.75rem', color: '#2563eb' }} />
@@ -5178,63 +5177,63 @@ export const MatchingActualsForm = ({
                                                             : undefined;
                                                     const isImage = isLikelyImageEvidenceUrl(imgUrl, pendingFile);
                                                     return (
-                                                    <Box
-                                                        key={imgUrl}
-                                                        sx={{
-                                                            position: 'relative',
-                                                            borderRadius: '10px',
-                                                            overflow: 'hidden',
-                                                            border: '1px solid #cbd5e1',
-                                                            bgcolor: '#ffffff',
-                                                            cursor: 'pointer',
-                                                            boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-                                                            '&:hover': { transform: 'scale(1.02)', transition: 'transform 0.15s ease' },
-                                                        }}
-                                                        onClick={() =>
-                                                            openMatchingEvidence(
-                                                                imgUrl,
-                                                                `Danh sách vé #${idx + 1} · ${selectedImport?.batchCode || selectedImport?.id}`,
-                                                                pendingFile
-                                                            )
-                                                        }
-                                                    >
-                                                        {isImage ? (
-                                                            <Box
-                                                                component="img"
-                                                                src={imgUrl}
-                                                                alt={`Danh sách vé ${idx + 1}`}
-                                                                sx={{ width: 140, height: 140, objectFit: 'cover', display: 'block' }}
-                                                            />
-                                                        ) : (
-                                                            <Stack
-                                                                alignItems="center"
-                                                                justifyContent="center"
-                                                                spacing={0.75}
-                                                                sx={{ width: 140, height: 140, p: 1.5, textAlign: 'center' }}
-                                                            >
-                                                                <InsertDriveFileOutlinedIcon sx={{ color: '#2563eb' }} />
-                                                                <Typography variant="caption" fontWeight={700} color="#0f172a" sx={{ fontSize: '0.65rem', wordBreak: 'break-all' }}>
-                                                                    {getEvidenceFileLabel(imgUrl, pendingFile)}
-                                                                </Typography>
-                                                            </Stack>
-                                                        )}
                                                         <Box
+                                                            key={imgUrl}
                                                             sx={{
-                                                                position: 'absolute',
-                                                                bottom: 0,
-                                                                left: 0,
-                                                                right: 0,
-                                                                py: 0.5,
-                                                                bgcolor: 'rgba(15, 23, 42, 0.75)',
-                                                                color: '#ffffff',
-                                                                textAlign: 'center',
+                                                                position: 'relative',
+                                                                borderRadius: '10px',
+                                                                overflow: 'hidden',
+                                                                border: '1px solid #cbd5e1',
+                                                                bgcolor: '#ffffff',
+                                                                cursor: 'pointer',
+                                                                boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                                                                '&:hover': { transform: 'scale(1.02)', transition: 'transform 0.15s ease' },
                                                             }}
+                                                            onClick={() =>
+                                                                openMatchingEvidence(
+                                                                    imgUrl,
+                                                                    `Danh sách vé #${idx + 1} · ${selectedImport?.batchCode || selectedImport?.id}`,
+                                                                    pendingFile
+                                                                )
+                                                            }
                                                         >
-                                                            <Typography variant="caption" sx={{ fontSize: '0.65rem', fontWeight: 700 }}>
-                                                                Tệp #{idx + 1}
-                                                            </Typography>
+                                                            {isImage ? (
+                                                                <Box
+                                                                    component="img"
+                                                                    src={imgUrl}
+                                                                    alt={`Danh sách vé ${idx + 1}`}
+                                                                    sx={{ width: 140, height: 140, objectFit: 'cover', display: 'block' }}
+                                                                />
+                                                            ) : (
+                                                                <Stack
+                                                                    alignItems="center"
+                                                                    justifyContent="center"
+                                                                    spacing={0.75}
+                                                                    sx={{ width: 140, height: 140, p: 1.5, textAlign: 'center' }}
+                                                                >
+                                                                    <InsertDriveFileOutlinedIcon sx={{ color: '#2563eb' }} />
+                                                                    <Typography variant="caption" fontWeight={700} color="#0f172a" sx={{ fontSize: '0.65rem', wordBreak: 'break-all' }}>
+                                                                        {getEvidenceFileLabel(imgUrl, pendingFile)}
+                                                                    </Typography>
+                                                                </Stack>
+                                                            )}
+                                                            <Box
+                                                                sx={{
+                                                                    position: 'absolute',
+                                                                    bottom: 0,
+                                                                    left: 0,
+                                                                    right: 0,
+                                                                    py: 0.5,
+                                                                    bgcolor: 'rgba(15, 23, 42, 0.75)',
+                                                                    color: '#ffffff',
+                                                                    textAlign: 'center',
+                                                                }}
+                                                            >
+                                                                <Typography variant="caption" sx={{ fontSize: '0.65rem', fontWeight: 700 }}>
+                                                                    Tệp #{idx + 1}
+                                                                </Typography>
+                                                            </Box>
                                                         </Box>
-                                                    </Box>
                                                     );
                                                 })}
                                             </Box>
@@ -5299,48 +5298,48 @@ export const MatchingActualsForm = ({
                                 >
                                     {hasReceipt ? (
                                         nccReceiptIsImage ? (
-                                        <>
-                                            <Box
-                                                component="img"
-                                                src={receiptUrl}
-                                                alt="Biên lai đối soát NCC"
-                                                sx={{
-                                                    width: '100%',
-                                                    height: '100%',
-                                                    maxHeight: '65vh',
-                                                    objectFit: 'contain',
-                                                    cursor: 'zoom-in',
-                                                }}
-                                                onClick={() =>
-                                                    openMatchingEvidence(
-                                                        receiptUrl,
-                                                        `Biên lai đối soát NCC #${settlement.supplierSettlementCode || settlement.id}`,
-                                                        pendingNccReceiptFile
-                                                    )
-                                                }
-                                            />
-                                            <IconButton
-                                                size="small"
-                                                onClick={() =>
-                                                    openMatchingEvidence(
-                                                        receiptUrl,
-                                                        `Biên lai đối soát NCC #${settlement.supplierSettlementCode || settlement.id}`,
-                                                        pendingNccReceiptFile
-                                                    )
-                                                }
-                                                sx={{
-                                                    position: 'absolute',
-                                                    top: 10,
-                                                    right: 10,
-                                                    bgcolor: 'rgba(15, 23, 42, 0.8)',
-                                                    color: '#ffffff',
-                                                    '&:hover': { bgcolor: '#0f172a' },
-                                                }}
-                                                title="Phóng to ảnh"
-                                            >
-                                                <ZoomInIcon fontSize="small" />
-                                            </IconButton>
-                                        </>
+                                            <>
+                                                <Box
+                                                    component="img"
+                                                    src={receiptUrl}
+                                                    alt="Biên lai đối soát NCC"
+                                                    sx={{
+                                                        width: '100%',
+                                                        height: '100%',
+                                                        maxHeight: '65vh',
+                                                        objectFit: 'contain',
+                                                        cursor: 'zoom-in',
+                                                    }}
+                                                    onClick={() =>
+                                                        openMatchingEvidence(
+                                                            receiptUrl,
+                                                            `Biên lai đối soát NCC #${settlement.supplierSettlementCode || settlement.id}`,
+                                                            pendingNccReceiptFile
+                                                        )
+                                                    }
+                                                />
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() =>
+                                                        openMatchingEvidence(
+                                                            receiptUrl,
+                                                            `Biên lai đối soát NCC #${settlement.supplierSettlementCode || settlement.id}`,
+                                                            pendingNccReceiptFile
+                                                        )
+                                                    }
+                                                    sx={{
+                                                        position: 'absolute',
+                                                        top: 10,
+                                                        right: 10,
+                                                        bgcolor: 'rgba(15, 23, 42, 0.8)',
+                                                        color: '#ffffff',
+                                                        '&:hover': { bgcolor: '#0f172a' },
+                                                    }}
+                                                    title="Phóng to ảnh"
+                                                >
+                                                    <ZoomInIcon fontSize="small" />
+                                                </IconButton>
+                                            </>
                                         ) : (
                                             <Stack spacing={1.25} alignItems="center" sx={{ p: 4, textAlign: 'center' }}>
                                                 <InsertDriveFileOutlinedIcon sx={{ fontSize: '2.75rem', color: '#ea580c' }} />

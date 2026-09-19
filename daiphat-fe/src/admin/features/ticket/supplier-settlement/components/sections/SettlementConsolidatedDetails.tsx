@@ -91,7 +91,7 @@ export const SettlementConsolidatedDetails = ({
             </Tabs>
 
             {activeTab === 0 && (
-                <TableContainer className="admin-table-container">
+                <TableContainer className="admin-table-container" sx={{ minHeight: 360 }}>
                     <Table className="admin-table" size="medium">
                         <TableHead>
                             <TableRow>
@@ -160,7 +160,7 @@ export const SettlementConsolidatedDetails = ({
             )}
 
             {activeTab === 1 && (
-                <TableContainer className="admin-table-container">
+                <TableContainer className="admin-table-container" sx={{ minHeight: 360 }}>
                     <Table className="admin-table" size="medium">
                         <TableHead>
                             <TableRow>
@@ -191,14 +191,13 @@ export const SettlementConsolidatedDetails = ({
                                     return (
                                         <TableRow key={batch.id} hover>
                                             <TableCell>
-                                                <Typography
+                                                <span
                                                     className="admin-cell-text"
-                                                    fontWeight={700}
-                                                    sx={{ cursor: 'pointer' }}
+                                                    style={{ fontWeight: 700, cursor: 'pointer', color: 'var(--palette-primary-main)' }}
                                                     onClick={() => router.push(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id))}
                                                 >
                                                     {batch.batchCode || `#${batch.id}`}
-                                                </Typography>
+                                                </span>
                                             </TableCell>
                                             <TableCell>
                                                 <span className="admin-cell-text">
@@ -241,7 +240,7 @@ export const SettlementConsolidatedDetails = ({
             )}
 
             {activeTab === 2 && (
-                <TableContainer className="admin-table-container">
+                <TableContainer className="admin-table-container" sx={{ minHeight: 360 }}>
                     <Table className="admin-table" size="medium">
                         <TableHead>
                             <TableRow>
@@ -272,14 +271,13 @@ export const SettlementConsolidatedDetails = ({
                                     return (
                                         <TableRow key={batch.id} hover>
                                             <TableCell>
-                                                <Typography
+                                                <span
                                                     className="admin-cell-text"
-                                                    fontWeight={700}
-                                                    sx={{ cursor: 'pointer' }}
+                                                    style={{ fontWeight: 700, cursor: 'pointer', color: 'var(--palette-primary-main)' }}
                                                     onClick={() => router.push(ROUTES.ADMIN.RETURN_BATCH.DETAIL(batch.id))}
                                                 >
                                                     {batch.batchCode || `#${batch.id}`}
-                                                </Typography>
+                                                </span>
                                             </TableCell>
                                             <TableCell>
                                                 <span className="admin-cell-text">

@@ -66,17 +66,7 @@ const latePolicyLabel = (policy?: string | null) => {
     );
 };
 
-const timingBadgeSx = (late: boolean) => {
-    const colors = BADGE_COLOR_PALETTE[late ? "warning" : "success"].unselected;
-    return {
-        height: 26,
-        fontWeight: 700,
-        fontSize: "0.75rem",
-        bgcolor: colors.bg,
-        color: colors.text,
-        border: "none",
-    };
-};
+
 
 export const DetailRow = ({
     label,
@@ -353,7 +343,10 @@ export const VendorSettlementBreakdown = ({
                 {late == null ? (
                     <Box />
                 ) : (
-                    <Chip size="small" label={late ? "Trễ hạn" : "Đúng hạn"} sx={timingBadgeSx(late)} />
+                    <AdminStatusBadge 
+                        label={late ? "Trễ hạn" : "Đúng hạn"} 
+                        modifier={late ? "admin-status-badge--pending" : "admin-status-badge--success"} 
+                    />
                 )}
                 <Tooltip title="Chi tiết cách tính">
                     <IconButton size="small" aria-label="Chi tiết cách tính" onClick={() => setHelpOpen(true)}>
