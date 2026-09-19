@@ -90,5 +90,45 @@ void main() {
       // Verify month/year switched to 2024
       expect(find.text('Tháng 9 2024'), findsOneWidget);
     });
+
+    testWidgets('disables dates after lastDate and ignores tap on future dates', (tester) async {
+      final initial = DateTime(2026, 9, 18);
+      final last = DateTime(2026, 9, 19);
+      DateTime? pickedDate;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () async {
+                  pickedDate = await AppDatePickerDialog.show(
+                    context,
+                    initial,
+                    firstDate: DateTime(2026, 9, 1),
+                    lastDate: last,
+                  );
+                },
+                child: const Text('Open Picker'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open Picker'));
+      await tester.pumpAndSettle();
+
+      // Tapping day 20 (future / disabled) should do nothing
+      await tester.tap(find.text('20'));
+      await tester.pumpAndSettle();
+      expect(pickedDate, isNull);
+      expect(find.text('Tháng 9 2026'), findsOneWidget);
+
+      // Tapping day 19 (valid / lastDate) should pick 2026-09-19 and close dialog
+      await tester.tap(find.text('19'));
+      await tester.pumpAndSettle();
+      expect(pickedDate, equals(DateTime(2026, 9, 19)));
+    });
   });
 }

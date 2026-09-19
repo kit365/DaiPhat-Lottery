@@ -996,9 +996,12 @@ class _FormStateState extends State<_FormState> {
   }
 
   Future<void> _pickDate(BuildContext context) async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
     final picked = await LotteryDatePickerDialog.show(
       context,
-      state.selectedDate ?? DateTime.now(),
+      state.selectedDate ?? today,
+      lastDate: today,
     );
     if (picked != null) {
       await vm.loadStations(DateTime(picked.year, picked.month, picked.day));
