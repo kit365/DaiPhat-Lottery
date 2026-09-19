@@ -70,7 +70,8 @@ export const menuManagementData = [
         tKey: "admin.sidebar.roles",
         Icon: SecurityIcon,
         permission: PERMISSIONS.ROLE.VIEW,
-        path: ROUTES.ADMIN.ROLES.LIST
+        path: ROUTES.ADMIN.ROLES.LIST,
+        hidden: true
     },
     {
         id: "account-management",
