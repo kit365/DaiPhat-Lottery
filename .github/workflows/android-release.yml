@@ -1,0 +1,137 @@
+name: Android Release
+
+run-name: Publish DaiPhat Mobile ${{ github.ref_name }}
+
+# A release is intentionally separate from android-dev.yml: normal pushes keep
+# producing CI artifacts, while only a pushed version tag publishes a release.
+on:
+  push:
+    tags:
+      - 'v*'
+
+# Required for the built-in GITHUB_TOKEN to create a GitHub Release and upload
+# the APK as a release asset. All other scopes remain unavailable.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: daiphat_mobile
+
+    steps:
+      - name: Checkout tagged source
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Derive and validate release version
+        id: version
+        shell: bash
+        run: |
+          tag="$GITHUB_REF_NAME"
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.+][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Tag '$tag' is invalid. Use a semantic version such as v1.0.0 or v1.0.0-rc.1."
+            exit 1
+          fi
+
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "name=${tag#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Setup JDK
+        uses: actions/setup-java@v6
+        with:
+          java-version: '17'
+          distribution: 'zulu'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.44.1
+
+      - name: Create Flutter environment file
+        env:
+          MOBILE_ENV_FILE: ${{ secrets.MOBILE_ENV_FILE }}
+          ENV_FILE: ${{ secrets.ENV_FILE }}
+        run: |
+          if [ -n "$MOBILE_ENV_FILE" ]; then
+            printf '%s\n' "$MOBILE_ENV_FILE" > .env
+          elif [ -n "$ENV_FILE" ]; then
+            printf '%s\n' "$ENV_FILE" > .env
+          else
+            echo "Missing GitHub Actions secret MOBILE_ENV_FILE or ENV_FILE."
+            exit 1
+          fi
+
+      - name: Restore Android signing key
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          for required_secret in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "${!required_secret}" ]; then
+              echo "Missing secret $required_secret."
+              exit 1
+            fi
+          done
+
+          mkdir -p android/app
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/key.jks
+          chmod 600 android/app/key.jks
+
+          {
+            printf 'storePassword=%s\n' "$ANDROID_KEYSTORE_PASSWORD"
+            printf 'keyPassword=%s\n' "$ANDROID_KEY_PASSWORD"
+            printf 'keyAlias=%s\n' "$ANDROID_KEY_ALIAS"
+            printf 'storeFile=key.jks\n'
+          } > android/key.properties
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build signed release APK
+        run: >-
+          flutter build apk --release
+          --build-name="${{ steps.version.outputs.name }}"
+          --build-number="${{ github.run_number }}"
+
+      - name: Name APK for release
+        id: apk
+        shell: bash
+        run: |
+          apk_name="DaiPhat-${{ steps.version.outputs.tag }}.apk"
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk "dist/$apk_name"
+          echo "path=daiphat_mobile/dist/$apk_name" >> "$GITHUB_OUTPUT"
+          echo "name=$apk_name" >> "$GITHUB_OUTPUT"
+
+      - name: Upload release APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DaiPhat-${{ steps.version.outputs.tag }}-apk
+          path: ${{ steps.apk.outputs.path }}
+          if-no-files-found: error
+
+      - name: Create GitHub Release and attach APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          APK_PATH: ${{ steps.apk.outputs.path }}
+          APK_NAME: ${{ steps.apk.outputs.name }}
+        shell: bash
+        run: |
+          release_options=()
+          if [[ "$TAG" == *-* ]]; then
+            release_options+=(--prerelease)
+          fi
+
+          gh release create "$TAG" "$APK_PATH#${APK_NAME}" \
+            --title "DaiPhat Mobile $TAG" \
+            --generate-notes \
+            "${release_options[@]}"
