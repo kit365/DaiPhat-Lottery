@@ -100,6 +100,15 @@ export const uploadOcrTemplateSampleImage = async (
     return response.data;
 };
 
+export const clearOcrTemplateSampleImage = async (
+    id: number
+): Promise<ApiResponse<OcrTicketTemplate>> => {
+    const response = await apiApp.delete(`${BASE_URL}/${id}/sample-image`, {
+        skipGlobalErrorToast: true,
+    });
+    return response.data;
+};
+
 export const listOcrFieldLayouts = async (
     templateId: number
 ): Promise<OcrFieldLayout[]> => {
@@ -146,5 +155,83 @@ export const deleteOcrFieldLayout = async (
     layoutId: number
 ): Promise<ApiResponse<unknown>> => {
     const response = await apiApp.delete(`${BASE_URL}/${templateId}/field-layouts/${layoutId}`);
+    return response.data;
+};
+
+export type OcrValidationRuleType =
+    | 'REGEX'
+    | 'VALUE_LIST'
+    | 'DATE_RANGE'
+    | 'NUMBER_RANGE'
+    | 'REFERENCE_LOOKUP';
+
+export type OcrValidationRuleSeverity = 'HARD_FAIL' | 'SOFT_WARNING';
+
+export type OcrFieldValidationRule = {
+    id: number;
+    templateId: number;
+    fieldLayoutId?: number | null;
+    fieldName: OcrTemplateFieldName;
+    ruleType: OcrValidationRuleType;
+    ruleConfig: Record<string, unknown>;
+    severity: OcrValidationRuleSeverity;
+    isActive: boolean;
+    sortOrder: number;
+    createdAt?: string;
+    updatedAt?: string;
+};
+
+export const listOcrFieldValidationRules = async (
+    templateId: number
+): Promise<OcrFieldValidationRule[]> => {
+    const response = await apiApp.get(`${BASE_URL}/${templateId}/validation-rules`, {
+        skipGlobalErrorToast: true,
+    });
+    return response.data?.data ?? [];
+};
+
+export const createOcrFieldValidationRule = async (
+    templateId: number,
+    payload: {
+        fieldName: OcrTemplateFieldName;
+        ruleType: OcrValidationRuleType;
+        ruleConfig?: Record<string, unknown>;
+        severity?: OcrValidationRuleSeverity;
+        fieldLayoutId?: number | null;
+        isActive?: boolean;
+        sortOrder?: number;
+    }
+): Promise<ApiResponse<OcrFieldValidationRule>> => {
+    const response = await apiApp.post(`${BASE_URL}/${templateId}/validation-rules`, payload);
+    return response.data;
+};
+
+export const updateOcrFieldValidationRule = async (
+    templateId: number,
+    ruleId: number,
+    payload: {
+        fieldName?: OcrTemplateFieldName;
+        ruleType?: OcrValidationRuleType;
+        ruleConfig?: Record<string, unknown>;
+        severity?: OcrValidationRuleSeverity;
+        fieldLayoutId?: number | null;
+        isActive?: boolean;
+        sortOrder?: number;
+    }
+): Promise<ApiResponse<OcrFieldValidationRule>> => {
+    const response = await apiApp.put(
+        `${BASE_URL}/${templateId}/validation-rules/${ruleId}`,
+        payload
+    );
+    return response.data;
+};
+
+export const deleteOcrFieldValidationRule = async (
+    templateId: number,
+    ruleId: number
+): Promise<ApiResponse<unknown>> => {
+    const response = await apiApp.delete(
+        `${BASE_URL}/${templateId}/validation-rules/${ruleId}`
+    );
     return response.data;
 };
