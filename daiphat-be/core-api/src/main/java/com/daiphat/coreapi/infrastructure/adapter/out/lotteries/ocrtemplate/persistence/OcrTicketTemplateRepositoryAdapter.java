@@ -54,6 +54,15 @@ public class OcrTicketTemplateRepositoryAdapter implements OcrTicketTemplateRepo
     }
 
     @Override
+    public Optional<OcrTicketTemplateModel> findActiveDefault() {
+        List<OcrTicketTemplateEntity> defaults = repository.findActiveDefaults();
+        if (defaults == null || defaults.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(mapper.toDomain(defaults.get(0)));
+    }
+
+    @Override
     @Transactional
     public void clearDefaultsForStation(Long stationId, Long excludeId) {
         repository.clearDefaultsForStation(stationId, excludeId);

@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -34,9 +35,19 @@ public class OcrScanResultRepositoryAdapter implements OcrScanResultRepositoryPo
 
     @Override
     public List<OcrScanResultModel> findAll(String scanId, Long importBatchLineId) {
+        return findAll(scanId, importBatchLineId, null, null);
+    }
+
+    @Override
+    public List<OcrScanResultModel> findAll(
+            String scanId,
+            Long importBatchLineId,
+            LocalDate fromDate,
+            LocalDate toDate
+    ) {
         return ocrScanResultRepository
                 .findAll(
-                        OcrScanResultSpecification.filter(scanId, importBatchLineId),
+                        OcrScanResultSpecification.filter(scanId, importBatchLineId, fromDate, toDate),
                         Sort.by(Sort.Order.asc("scanId"), Sort.Order.asc("ticketIndex"), Sort.Order.asc("id"))
                 )
                 .stream()

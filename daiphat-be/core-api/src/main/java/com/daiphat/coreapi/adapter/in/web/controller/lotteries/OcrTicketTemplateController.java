@@ -3,13 +3,17 @@ package com.daiphat.coreapi.adapter.in.web.controller.lotteries;
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.application.dto.request.lotteries.scan.CreateOcrFieldLayoutRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.scan.CreateOcrFieldValidationRuleRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.scan.CreateOcrTicketTemplateRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.scan.UpdateOcrFieldLayoutRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.scan.UpdateOcrFieldValidationRuleRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.scan.UpdateOcrTicketTemplateRequest;
 import com.daiphat.coreapi.application.dto.response.lotteries.scan.OcrFieldLayoutResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.scan.OcrFieldValidationRuleResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.scan.OcrTemplateDefaultReadyResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.scan.OcrTicketTemplateResponse;
 import com.daiphat.coreapi.application.port.in.lotteries.OcrTicketTemplateServicePort;
+import com.daiphat.coreapi.application.service.lotteries.OcrFieldValidationRuleService;
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
 import com.daiphat.coreapi.shared.util.StorageUtils;
 import jakarta.validation.Valid;
@@ -52,6 +56,7 @@ public class OcrTicketTemplateController {
             "hasAnyAuthority('" + RoleConstants.ADMIN + "', 'ticket:view', 'ticket:create', 'station:view', 'station:edit', 'station:update')";
 
     private final OcrTicketTemplateServicePort ocrTicketTemplateServicePort;
+    private final OcrFieldValidationRuleService ocrFieldValidationRuleService;
 
     @GetMapping("/default-ready")
     @PreAuthorize(SCAN_GATE)
@@ -95,8 +100,17 @@ public class OcrTicketTemplateController {
             @RequestPart("file") MultipartFile file
     ) {
         return ApiResponse.success(
-                "Tải ảnh mẫu vé OCR thành công.",
+                "Tải ảnh mẫu vé OCR thành công. Các vùng gắn trước đó đã được xóa cứng.",
                 ocrTicketTemplateServicePort.uploadSampleImage(id, StorageUtils.toUploadRequest(file))
+        );
+    }
+
+    @DeleteMapping("/{id}/sample-image")
+    @PreAuthorize(WRITE)
+    public ApiResponse<OcrTicketTemplateResponse> clearSampleImage(@PathVariable Long id) {
+        return ApiResponse.success(
+                "Đã xóa ảnh mẫu và các vùng gắn OCR (xóa cứng).",
+                ocrTicketTemplateServicePort.clearSampleImage(id)
         );
     }
 
@@ -155,5 +169,48 @@ public class OcrTicketTemplateController {
     ) {
         ocrTicketTemplateServicePort.softDeleteFieldLayout(templateId, layoutId);
         return ApiResponse.success("Đã xóa bố cục trường OCR.", null);
+    }
+
+    @GetMapping("/{templateId}/validation-rules")
+    @PreAuthorize(READ)
+    public ApiResponse<List<OcrFieldValidationRuleResponse>> listValidationRules(
+            @PathVariable Long templateId
+    ) {
+        return ApiResponse.success(null, ocrFieldValidationRuleService.listByTemplate(templateId));
+    }
+
+    @PostMapping("/{templateId}/validation-rules")
+    @PreAuthorize(WRITE)
+    public ApiResponse<OcrFieldValidationRuleResponse> createValidationRule(
+            @PathVariable Long templateId,
+            @Valid @RequestBody CreateOcrFieldValidationRuleRequest request
+    ) {
+        return ApiResponse.success(
+                "Tạo luật kiểm tra OCR thành công.",
+                ocrFieldValidationRuleService.create(templateId, request)
+        );
+    }
+
+    @PutMapping("/{templateId}/validation-rules/{ruleId}")
+    @PreAuthorize(WRITE)
+    public ApiResponse<OcrFieldValidationRuleResponse> updateValidationRule(
+            @PathVariable Long templateId,
+            @PathVariable Long ruleId,
+            @Valid @RequestBody UpdateOcrFieldValidationRuleRequest request
+    ) {
+        return ApiResponse.success(
+                "Cập nhật luật kiểm tra OCR thành công.",
+                ocrFieldValidationRuleService.update(templateId, ruleId, request)
+        );
+    }
+
+    @DeleteMapping("/{templateId}/validation-rules/{ruleId}")
+    @PreAuthorize(WRITE)
+    public ApiResponse<Void> softDeleteValidationRule(
+            @PathVariable Long templateId,
+            @PathVariable Long ruleId
+    ) {
+        ocrFieldValidationRuleService.softDelete(templateId, ruleId);
+        return ApiResponse.success("Đã xóa luật kiểm tra OCR.", null);
     }
 }

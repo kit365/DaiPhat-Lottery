@@ -3,6 +3,7 @@ package com.daiphat.coreapi.infrastructure.persistence.entity.lotteries;
 import com.daiphat.coreapi.domain.model.enums.lottery.OcrFieldValidationStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.OcrTemplateFieldName;
 import com.daiphat.coreapi.domain.model.lotteries.OcrBoundingBox;
+import com.daiphat.coreapi.domain.model.lotteries.OcrFieldValidationFailure;
 import com.daiphat.coreapi.infrastructure.persistence.entity.BaseEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import jakarta.persistence.Column;
@@ -25,6 +26,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "ocr_scan_result_fields")
@@ -82,4 +84,8 @@ public class OcrScanResultFieldEntity extends BaseEntity {
     /** Which ocr_field_layouts row produced the recognized ai_value (nullable). */
     @Column(name = "field_layout_id")
     private Long fieldLayoutId;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "validation_failures", columnDefinition = "jsonb")
+    private List<OcrFieldValidationFailure> validationFailures;
 }

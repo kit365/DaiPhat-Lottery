@@ -25,6 +25,9 @@ public interface OcrTicketTemplateServicePort {
 
     OcrTicketTemplateResponse uploadSampleImage(Long id, UploadRequest request);
 
+    /** Clears sample image and hard-deletes tagged field layouts for the template. */
+    OcrTicketTemplateResponse clearSampleImage(Long id);
+
     OcrTicketTemplateResponse setDefault(Long id);
 
     void softDelete(Long id);
