@@ -28,6 +28,15 @@ public interface OcrTicketTemplateRepository extends JpaRepository<OcrTicketTemp
 
     long countByIsDefaultTrueAndActiveTrueAndDeletedAtIsNull();
 
+    @Query("""
+            SELECT t FROM OcrTicketTemplateEntity t
+            WHERE t.isDefault = true
+              AND t.active = true
+              AND t.deletedAt IS NULL
+            ORDER BY t.id DESC
+            """)
+    List<OcrTicketTemplateEntity> findActiveDefaults();
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
             UPDATE OcrTicketTemplateEntity t

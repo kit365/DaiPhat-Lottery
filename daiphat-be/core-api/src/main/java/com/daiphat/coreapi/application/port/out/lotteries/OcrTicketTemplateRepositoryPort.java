@@ -20,6 +20,9 @@ public interface OcrTicketTemplateRepositoryPort {
 
     long countActiveDefaults();
 
+    /** Global active default template (isDefault=true), if any. */
+    Optional<OcrTicketTemplateModel> findActiveDefault();
+
     void clearDefaultsForStation(Long stationId, Long excludeId);
 
     Optional<OcrTicketTemplateModel> resolveForStation(Long stationId, LocalDate drawDate);

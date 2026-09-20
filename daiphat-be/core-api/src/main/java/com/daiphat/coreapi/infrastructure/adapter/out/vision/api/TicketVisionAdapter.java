@@ -1,8 +1,6 @@
 package com.daiphat.coreapi.infrastructure.adapter.out.vision.api;
 
 import com.daiphat.coreapi.application.port.out.vision.TicketVisionPort;
-import com.daiphat.coreapi.domain.exception.DomainException;
-import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.infrastructure.dto.request.vision.RemoteScanMetadata;
 import com.daiphat.coreapi.infrastructure.dto.response.ai.AiRemoteApiResponse;
 import com.daiphat.coreapi.infrastructure.dto.response.vision.RemoteTicketScanResult;
@@ -33,15 +31,17 @@ import java.util.UUID;
 /**
  * Calls the ticket-vision Python microservice's POST /v1/scan.
  *
- * <p>Connectivity / true outages → {@link ErrorCode#TICKET_SCAN_SERVICE_UNAVAILABLE} (503).
- * OCR soft-failures (success:false, empty body, parse issues) degrade to an empty
- * scan result with warnings so partial/unreadable tickets never become HTTP 500/503.
+ * <p>Connectivity / timeouts / parse failures soft-degrade to an empty scan
+ * result with warnings (HTTP 200 upstream) so a single bad image never becomes
+ * Admin HTTP 503 or aborts the multi-image OCR loop.
  */
 @Slf4j
 @Component
 public class TicketVisionAdapter implements TicketVisionPort {
 
     private final RestTemplate restTemplate;
+    /** Short-timeout client for /health so readiness probes never sit on the OCR read timeout. */
+    private final RestTemplate healthRestTemplate;
     private final ObjectMapper objectMapper;
     private final String baseUrl;
 
@@ -58,6 +58,10 @@ public class TicketVisionAdapter implements TicketVisionPort {
                 .connectTimeout(Duration.ofMillis(connectTimeoutMs))
                 .readTimeout(Duration.ofMillis(readTimeoutMs))
                 .build();
+        this.healthRestTemplate = restTemplateBuilder
+                .connectTimeout(Duration.ofMillis(Math.min(connectTimeoutMs, 3_000)))
+                .readTimeout(Duration.ofMillis(3_000))
+                .build();
     }
 
     @Override
@@ -66,7 +70,7 @@ public class TicketVisionAdapter implements TicketVisionPort {
             return false;
         }
         try {
-            ResponseEntity<String> response = restTemplate.getForEntity(
+            ResponseEntity<String> response = healthRestTemplate.getForEntity(
                     baseUrl + TicketVisionApiConstants.HEALTH_PATH,
                     String.class
             );
@@ -81,7 +85,10 @@ public class TicketVisionAdapter implements TicketVisionPort {
     public RemoteTicketScanResult scan(byte[] imageBytes, String fileName, RemoteScanMetadata metadata) {
         if (baseUrl == null || baseUrl.isBlank()) {
             log.warn("ticket-vision base URL is unconfigured or empty");
-            throw new DomainException(ErrorCode.TICKET_SCAN_SERVICE_UNAVAILABLE);
+            return emptyResult(List.of(
+                    "Dịch vụ nhận diện vé (OCR) chưa được cấu hình. "
+                            + "Vui lòng liên hệ quản trị viên."
+            ));
         }
         String url = baseUrl + TicketVisionApiConstants.SCAN_PATH;
         try {
@@ -106,8 +113,34 @@ public class TicketVisionAdapter implements TicketVisionPort {
             return normalize(body.getData());
         } catch (ResourceAccessException e) {
             log.error("ticket-vision unreachable at {}", url, e);
-            // Do not pass I/O exception text to clients — ErrorCode message is user-facing.
-            throw new DomainException(ErrorCode.TICKET_SCAN_SERVICE_UNAVAILABLE, e);
+            Throwable cause = e.getMostSpecificCause() != null ? e.getMostSpecificCause() : e;
+            String detail = cause.getMessage() != null ? cause.getMessage().toLowerCase() : "";
+            // Never escalate OCR I/O failures to HTTP 503 — that surfaces as a global
+            // "server overloaded" toast and aborts the Admin multi-image scan loop.
+            // Soft-fail so this image can be marked failed and the next image continues.
+            if (detail.contains("timed out")
+                    || detail.contains("timeout")
+                    || detail.contains("read timed out")
+                    || detail.contains("connect timed out")) {
+                return emptyResult(List.of(
+                        "Dịch vụ OCR phản hồi quá chậm hoặc đang bận xử lý ảnh khác. "
+                                + "Vui lòng đợi 10–20 giây rồi quét lại ảnh này."
+                ));
+            }
+            if (detail.contains("connection refused")
+                    || detail.contains("connectexception")
+                    || detail.contains("connection reset")
+                    || detail.contains("failed to connect")
+                    || detail.contains("no route to host")) {
+                return emptyResult(List.of(
+                        "Dịch vụ nhận diện vé (OCR) tạm thời không kết nối được. "
+                                + "Vui lòng kiểm tra ticket-vision đang chạy rồi quét lại ảnh này."
+                ));
+            }
+            return emptyResult(List.of(
+                    "Dịch vụ nhận diện vé (OCR) tạm thời gián đoạn khi xử lý ảnh này. "
+                            + "Vui lòng thử lại ảnh này; các ảnh khác vẫn có thể quét tiếp."
+            ));
         } catch (RestClientException e) {
             // Includes many conversion failures — soft-degrade so one bad OCR payload
             // never becomes HTTP 500 for the Admin upload flow.

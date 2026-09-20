@@ -39,7 +39,8 @@ public interface OcrScanResultApplicationMapper {
         return FieldValidationResult.of(
                 validation.getStatus(),
                 validation.getMessage(),
-                validation.getExpectedValue()
+                validation.getExpectedValue(),
+                validation.getRuleFailures()
         );
     }
 
@@ -93,6 +94,11 @@ public interface OcrScanResultApplicationMapper {
                 .status(validation.status())
                 .message(validation.message())
                 .expectedValue(validation.expectedValue())
+                .ruleFailures(
+                        validation.ruleFailures() != null
+                                ? new ArrayList<>(validation.ruleFailures())
+                                : new ArrayList<>()
+                )
                 .build();
     }
 
