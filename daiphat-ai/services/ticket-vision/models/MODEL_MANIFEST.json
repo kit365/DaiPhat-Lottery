@@ -1,0 +1,7 @@
+{
+  "yoloVersion": "unversioned",
+  "fieldOcrVersion": "charset-easyocr",
+  "datasetVersion": "",
+  "trainedOn": "",
+  "notes": "Fill after each retrain of best.pt / field OCR ONNX. See models/README.md."
+}

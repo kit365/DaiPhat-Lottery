@@ -14,6 +14,7 @@ import {
     TableBody,
     TableCell,
     TableContainer,
+    TableFooter,
     TableHead,
     TableRow,
     TextField,
@@ -22,6 +23,7 @@ import {
     useTheme,
     createTheme,
     Paper,
+    ButtonBase,
     InputAdornment,
     Dialog,
     DialogTitle,
@@ -32,13 +34,19 @@ import AddIcon from '@mui/icons-material/Add';
 import PhoneIphoneIcon from '@mui/icons-material/PhoneIphone';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import ArrowForwardOutlinedIcon from '@mui/icons-material/ArrowForwardOutlined';
+import StorefrontOutlinedIcon from '@mui/icons-material/StorefrontOutlined';
+import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
+import ConfirmationNumberOutlinedIcon from '@mui/icons-material/ConfirmationNumberOutlined';
+import MonetizationOnOutlinedIcon from '@mui/icons-material/MonetizationOnOutlined';
 import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
 import { Title } from '../../../../../components/ui/Title';
 import { AdminDatePicker } from '../../../../../components/ui/AdminDatePicker';
 import { SelectSingle } from '../../../../../components/ui/SelectSingle';
 import { Button as LoadingButton } from '../../../../../components/ui/Button';
 import { Button } from '../../../../../components/ui/Button';
-import { UploadSingleFile } from '../../../../../components/upload/UploadSingleFile';
+import { ImportBatchReceiptField } from '../sections/ImportBatchReceiptField';
 import { uploadImportBatchInvoiceEvidence } from '../../services/importBatchService';
 import type { Accept } from 'react-dropzone';
 import { ImportBatchTicketListImagesField } from '../sections/ImportBatchTicketListImagesField';
@@ -220,6 +228,11 @@ export const ImportBatchCreatePage = () => {
             throw new Error('Vui lòng tải tệp / ảnh biên lai thành công trước khi xác nhận.');
         }
 
+        const ticketListImageUrls = (formData.ticketListImageUrls ?? []).filter(Boolean);
+        if (ticketListImageUrls.length < 1) {
+            throw new Error('Vui lòng tải lên ít nhất một ảnh hoặc tệp danh sách vé nhập.');
+        }
+
         return {
             drawDate: formData.drawDate,
             supplierId: formData.supplierId,
@@ -227,7 +240,7 @@ export const ImportBatchCreatePage = () => {
             totalDeclareQuantity: formData.totalDeclareQuantity,
             ...(forceCreate ? { forceCreate: true } : {}),
             invoiceEvidenceUrl,
-            ticketListImageUrls: (formData.ticketListImageUrls ?? []).filter(Boolean),
+            ticketListImageUrls,
             lines: formData.lines.map((line) => ({
                 lotteryStationId: line.lotteryStationId,
                 declareQuantity: line.declareQuantity,
@@ -446,7 +459,8 @@ export const ImportBatchCreatePage = () => {
         (!showSharedReceipt ||
             (hasInvoiceEvidence(invoiceEvidenceUrl) &&
                 !isReceiptUploading &&
-                !receiptUploadError));
+                !receiptUploadError)) &&
+        ticketListImageUrls.length > 0;
 
     const totals = computeImportBatchTotals(lines);
     const linesDeclaredQuantity = sumImportBatchLineDeclaredQuantity(lines);
@@ -528,6 +542,10 @@ export const ImportBatchCreatePage = () => {
                     receiptUploadError ||
                     'Vui lòng tải ảnh biên lai thành công trước khi xác nhận.'
                 );
+                return;
+            }
+            if (ticketListImageUrls.length === 0) {
+                toast.error('Vui lòng tải lên ít nhất một ảnh hoặc tệp danh sách vé nhập.');
                 return;
             }
             toast.error('Vui lòng chọn nhà đài hợp lệ cho ngày quay đã chọn.');
@@ -913,9 +931,9 @@ export const ImportBatchCreatePage = () => {
                                                                     name="invoiceEvidenceUrl"
                                                                     control={control}
                                                                     render={({ field }) => (
-                                                                        <UploadSingleFile
+                                                                        <ImportBatchReceiptField
                                                                             compact
-                                                                            label="Tải lên biên lai"
+                                                                            required
                                                                             value={typeof field.value === 'string' ? field.value : ''}
                                                                             onChange={(url) => {
                                                                                 const next = typeof url === 'string' ? url : '';
@@ -924,8 +942,6 @@ export const ImportBatchCreatePage = () => {
                                                                                     setReceiptUploadError(null);
                                                                                 }
                                                                             }}
-                                                                            autoUpload
-                                                                            required
                                                                             accept={IMPORT_EVIDENCE_ACCEPT}
                                                                             customUpload={uploadReceipt}
                                                                             onUploadingChange={setIsReceiptUploading}
@@ -937,21 +953,6 @@ export const ImportBatchCreatePage = () => {
                                                                     )}
                                                                 />
                                                             </Box>
-                                                            {!isPersistableInvoiceEvidenceUrl(invoiceEvidenceUrl) && !isReceiptUploading && !receiptUploadError && (
-                                                                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.75, display: 'block' }}>
-                                                                    Chọn tệp biên lai và đợi tải lên thành công để bật nút Xác nhận &amp; Lưu.
-                                                                </Typography>
-                                                            )}
-                                                            {isReceiptUploading && (
-                                                                <Typography variant="caption" color="primary.main" sx={{ mt: 0.75, display: 'block', fontWeight: 600 }}>
-                                                                    Đang tải tệp biên lai lên…
-                                                                </Typography>
-                                                            )}
-                                                            {receiptUploadError && (
-                                                                <Typography variant="caption" color="error" sx={{ mt: 0.75, display: 'block' }}>
-                                                                    Tải tệp thất bại. Vui lòng chọn lại để thử lại.
-                                                                </Typography>
-                                                            )}
                                                         </Paper>
                                                     </Grid>
                                                 )}
@@ -973,12 +974,12 @@ export const ImportBatchCreatePage = () => {
                                                     >
                                                         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.75 }}>
                                                             <Typography variant="body2" fontWeight={700} color="#0f172a">
-                                                                Ảnh / Tệp danh sách vé nhập
+                                                                Ảnh / Tệp danh sách vé nhập <Box component="span" color="error.main">*</Box>
                                                             </Typography>
                                                             <Chip
                                                                 size="small"
-                                                                label="Tùy chọn"
-                                                                sx={{ height: 20, fontSize: '0.675rem', fontWeight: 600, bgcolor: '#f1f5f9', color: '#64748b' }}
+                                                                label="Bắt buộc"
+                                                                sx={{ height: 20, fontSize: '0.675rem', fontWeight: 700, bgcolor: '#fee2e2', color: '#b91c1c' }}
                                                             />
                                                         </Stack>
                                                         <Typography variant="caption" color="text.secondary" sx={{ mb: 1.5, display: 'block' }}>
@@ -992,11 +993,17 @@ export const ImportBatchCreatePage = () => {
                                                                 render={({ field }) => (
                                                                     <ImportBatchTicketListImagesField
                                                                         compact
+                                                                        required
                                                                         value={field.value ?? []}
                                                                         onChange={field.onChange}
                                                                     />
                                                                 )}
                                                             />
+                                                            {isSubmitted && !isFormBlocked && errors.ticketListImageUrls?.message && (
+                                                                <Typography variant="caption" color="error" sx={{ mt: 0.75, display: 'block' }}>
+                                                                    {errors.ticketListImageUrls.message}
+                                                                </Typography>
+                                                            )}
                                                         </Box>
                                                     </Paper>
                                                 </Grid>
@@ -1028,23 +1035,40 @@ export const ImportBatchCreatePage = () => {
                             <Box
                                 sx={{
                                     px: 3,
-                                    pt: 3,
-                                    pb: 1,
+                                    py: 2.25,
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'space-between',
                                     gap: 2,
                                     flexWrap: 'wrap',
+                                    borderBottom: '1px solid #f1f5f9',
                                 }}
                             >
-                                <Box>
-                                    <Typography variant="h6" fontWeight={700} color="text.primary">
-                                        Phân bổ số lượng nhập theo từng nhà đài
-                                    </Typography>
-                                    <Typography variant="body2" color="text.secondary">
-                                        Chọn nhà đài và phân bổ số lượng vé nhập tương ứng cho kỳ quay
-                                    </Typography>
-                                </Box>
+                                <Stack direction="row" spacing={1.5} alignItems="center">
+                                    <Box
+                                        sx={{
+                                            width: 40,
+                                            height: 40,
+                                            borderRadius: '12px',
+                                            bgcolor: '#eff6ff',
+                                            color: '#2563eb',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            flexShrink: 0,
+                                        }}
+                                    >
+                                        <StorefrontOutlinedIcon sx={{ fontSize: '1.35rem' }} />
+                                    </Box>
+                                    <Box>
+                                        <Typography variant="subtitle1" fontWeight={800} color="#0f172a">
+                                            Phân bổ số lượng nhập theo từng nhà đài
+                                        </Typography>
+                                        <Typography variant="body2" color="#64748b" sx={{ fontSize: '0.8125rem' }}>
+                                            Chọn nhà đài và phân bổ số lượng vé nhập tương ứng cho kỳ quay
+                                        </Typography>
+                                    </Box>
+                                </Stack>
                                 <Button
                                     variant="outlined"
                                     size="small"
@@ -1056,10 +1080,18 @@ export const ImportBatchCreatePage = () => {
                                     }}
                                     disabled={!canAddRow || isLoadingStations || isFormBlocked}
                                     sx={{
-                                        borderRadius: '8px',
+                                        borderRadius: '9px',
                                         fontWeight: 700,
                                         textTransform: 'none',
                                         fontSize: '0.8125rem',
+                                        borderColor: '#bfdbfe',
+                                        color: '#1d4ed8',
+                                        bgcolor: '#eff6ff',
+                                        '&:hover': {
+                                            bgcolor: '#dbeafe',
+                                            borderColor: '#93c5fd',
+                                            color: '#1e40af',
+                                        },
                                     }}
                                 >
                                     Thêm nhà đài
@@ -1079,81 +1111,259 @@ export const ImportBatchCreatePage = () => {
                             <Box sx={{ px: 3, py: 2, bgcolor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                                 <Grid container spacing={2}>
                                     <Grid size={{ xs: 12, sm: 4 }}>
-                                        <Box sx={{ p: 1.5, bgcolor: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                                            <Typography variant="caption" color="text.secondary" fontWeight={600} display="block">
-                                                Số nhà đài phân bổ
-                                            </Typography>
-                                            <Typography variant="h6" fontWeight={800} color="#0f172a" sx={{ fontSize: '1.1rem', mt: 0.25 }}>
-                                                {lines.filter((l) => l.lotteryStationId > 0).length} / {fields.length} đài
-                                            </Typography>
-                                        </Box>
+                                        <Paper
+                                            elevation={0}
+                                            sx={{
+                                                p: 2,
+                                                bgcolor: '#ffffff',
+                                                borderRadius: '12px',
+                                                border: '1px solid #e2e8f0',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 1.75,
+                                                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
+                                            }}
+                                        >
+                                            <Box
+                                                sx={{
+                                                    width: 44,
+                                                    height: 44,
+                                                    borderRadius: '10px',
+                                                    bgcolor: '#eff6ff',
+                                                    color: '#2563eb',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    flexShrink: 0,
+                                                }}
+                                            >
+                                                <LocationOnOutlinedIcon sx={{ fontSize: '1.35rem' }} />
+                                            </Box>
+                                            <Box sx={{ minWidth: 0, flex: 1 }}>
+                                                <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                                                    Số nhà đài phân bổ
+                                                </Typography>
+                                                <Typography variant="h6" fontWeight={900} color="#0f172a" sx={{ fontSize: '1.15rem', mt: 0.25 }}>
+                                                    {lines.filter((l) => l.lotteryStationId > 0).length} / {fields.length} đài
+                                                </Typography>
+                                            </Box>
+                                        </Paper>
                                     </Grid>
 
                                     <Grid size={{ xs: 12, sm: 4 }}>
-                                        <Box sx={{ p: 1.5, bgcolor: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                                            <Typography variant="caption" color="text.secondary" fontWeight={600} display="block">
-                                                Tổng số lượng vé phân bổ
-                                            </Typography>
-                                            <Typography variant="h6" fontWeight={800} color="#0284c7" sx={{ fontSize: '1.1rem', mt: 0.25 }}>
-                                                {totals.totalQty.toLocaleString('vi-VN')}{' '}
-                                                <Typography component="span" variant="body2" color="text.secondary" fontWeight={600}>
-                                                    vé
+                                        <Paper
+                                            elevation={0}
+                                            sx={{
+                                                p: 2,
+                                                bgcolor: '#ffffff',
+                                                borderRadius: '12px',
+                                                border: '1px solid #e2e8f0',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 1.75,
+                                                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
+                                            }}
+                                        >
+                                            <Box
+                                                sx={{
+                                                    width: 44,
+                                                    height: 44,
+                                                    borderRadius: '10px',
+                                                    bgcolor: '#f0f9ff',
+                                                    color: '#0284c7',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    flexShrink: 0,
+                                                }}
+                                            >
+                                                <ConfirmationNumberOutlinedIcon sx={{ fontSize: '1.35rem' }} />
+                                            </Box>
+                                            <Box sx={{ minWidth: 0, flex: 1 }}>
+                                                <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                                                    Tổng số lượng vé phân bổ
                                                 </Typography>
-                                            </Typography>
-                                        </Box>
+                                                <Typography variant="h6" fontWeight={900} color="#0284c7" sx={{ fontSize: '1.15rem', mt: 0.25 }}>
+                                                    {totals.totalQty.toLocaleString('vi-VN')}{' '}
+                                                    <Typography component="span" variant="body2" color="#64748b" fontWeight={700}>
+                                                        vé
+                                                    </Typography>
+                                                </Typography>
+                                            </Box>
+                                        </Paper>
                                     </Grid>
 
                                     <Grid size={{ xs: 12, sm: 4 }}>
-                                        <Box sx={{ p: 1.5, bgcolor: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                                            <Typography variant="caption" color="text.secondary" fontWeight={600} display="block">
-                                                Tổng giá trị lô vé nhập
-                                            </Typography>
-                                            <Typography variant="h6" fontWeight={800} color="#16a34a" sx={{ fontSize: '1.1rem', mt: 0.25 }}>
-                                                {formatImportCost(totals.totalCost)}{' '}
-                                                <Typography component="span" variant="body2" color="text.secondary" fontWeight={600}>
-                                                    VNĐ
+                                        <Paper
+                                            elevation={0}
+                                            sx={{
+                                                p: 2,
+                                                bgcolor: '#ffffff',
+                                                borderRadius: '12px',
+                                                border: '1px solid #e2e8f0',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 1.75,
+                                                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
+                                            }}
+                                        >
+                                            <Box
+                                                sx={{
+                                                    width: 44,
+                                                    height: 44,
+                                                    borderRadius: '10px',
+                                                    bgcolor: '#f0fdf4',
+                                                    color: '#16a34a',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    flexShrink: 0,
+                                                }}
+                                            >
+                                                <MonetizationOnOutlinedIcon sx={{ fontSize: '1.35rem' }} />
+                                            </Box>
+                                            <Box sx={{ minWidth: 0, flex: 1 }}>
+                                                <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                                                    Tổng giá trị lô vé nhập
                                                 </Typography>
-                                            </Typography>
-                                        </Box>
+                                                <Typography variant="h6" fontWeight={900} color="#15803d" sx={{ fontSize: '1.15rem', mt: 0.25 }}>
+                                                    {formatImportCost(totals.totalCost)}{' '}
+                                                    <Typography component="span" variant="body2" color="#166534" fontWeight={700}>
+                                                        VNĐ
+                                                    </Typography>
+                                                </Typography>
+                                            </Box>
+                                        </Paper>
                                     </Grid>
                                 </Grid>
                             </Box>
 
                             {/* Blocked stations info */}
                             {blockedStations.length > 0 && !isFormBlocked && (
-                                <Box sx={{ px: 3, pt: 2 }}>
-                                    <Alert severity="info" sx={{ borderRadius: '10px' }}>
-                                        <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                                            Một số nhà đài đã có phiếu nhập nháp:
-                                        </Typography>
-                                        {blockedStations.map((station) => (
-                                            <Typography key={station.lotteryStationId} variant="body2">
-                                                {station.name}
-                                                {station.existingDraftBatchId
-                                                    ? ` — phiếu #${station.existingDraftBatchId}`
-                                                    : ''}
-                                                {station.existingDraftBatchId && (
-                                                    <>
-                                                        {' '}
-                                                        <Button
-                                                            size="small"
-                                                            variant="text"
-                                                            sx={{ p: 0, minWidth: 0, verticalAlign: 'baseline' }}
-                                                            onClick={() =>
-                                                                router.push(
-                                                                    ROUTES.ADMIN.IMPORT_BATCH.DETAIL(
-                                                                        station.existingDraftBatchId!
-                                                                    )
-                                                                )
-                                                            }
-                                                        >
-                                                            Xem phiếu
-                                                        </Button>
-                                                    </>
-                                                )}
+                                <Box sx={{ px: 3, pt: 2.5 }}>
+                                    <Box
+                                        sx={{
+                                            p: 2,
+                                            borderRadius: '12px',
+                                            bgcolor: '#f0f9ff',
+                                            border: '1px solid #bae6fd',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            gap: 1.25,
+                                        }}
+                                    >
+                                        <Stack direction="row" spacing={1} alignItems="center">
+                                            <InfoOutlinedIcon sx={{ color: '#0284c7', fontSize: '1.25rem' }} />
+                                            <Typography variant="body2" fontWeight={700} color="#0369a1">
+                                                Một số nhà đài trong kỳ quay này đã có phiếu nhập nháp:
                                             </Typography>
-                                        ))}
-                                    </Alert>
+                                        </Stack>
+
+                                        <Typography variant="caption" color="#0369a1" sx={{ mt: -0.5, opacity: 0.9 }}>
+                                            Các nhà đài dưới đây đã được tạo phiếu nhập trước đó. Bạn có thể mở phiếu nháp hiện có để tiếp tục xử lý:
+                                        </Typography>
+
+                                        <Box
+                                            sx={{
+                                                display: 'grid',
+                                                gridTemplateColumns: {
+                                                    xs: '1fr',
+                                                    sm: 'repeat(auto-fill, minmax(280px, 1fr))',
+                                                },
+                                                gap: 1.25,
+                                                mt: 0.25,
+                                            }}
+                                        >
+                                            {blockedStations.map((station) => (
+                                                <Paper
+                                                    key={station.lotteryStationId}
+                                                    elevation={0}
+                                                    sx={{
+                                                        p: 1.25,
+                                                        px: 1.5,
+                                                        borderRadius: '10px',
+                                                        border: '1px solid #bae6fd',
+                                                        bgcolor: '#ffffff',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'space-between',
+                                                        gap: 1.25,
+                                                        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
+                                                    }}
+                                                >
+                                                    <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0, flex: 1 }}>
+                                                        <Box
+                                                            sx={{
+                                                                width: 8,
+                                                                height: 8,
+                                                                borderRadius: '50%',
+                                                                bgcolor: '#0284c7',
+                                                                flexShrink: 0,
+                                                            }}
+                                                        />
+                                                        <Typography
+                                                            variant="body2"
+                                                            fontWeight={700}
+                                                            color="#0f172a"
+                                                            noWrap
+                                                            title={station.name}
+                                                        >
+                                                            {station.name}
+                                                        </Typography>
+                                                    </Stack>
+
+                                                    {station.existingDraftBatchId && (
+                                                        <Stack direction="row" spacing={1} alignItems="center" sx={{ flexShrink: 0 }}>
+                                                            <Chip
+                                                                size="small"
+                                                                label={`Phiếu #${station.existingDraftBatchId}`}
+                                                                sx={{
+                                                                    height: 22,
+                                                                    fontSize: '0.725rem',
+                                                                    fontWeight: 700,
+                                                                    fontFamily: 'monospace',
+                                                                    bgcolor: '#f0f9ff',
+                                                                    color: '#0369a1',
+                                                                    border: '1px solid #e0f2fe',
+                                                                }}
+                                                            />
+                                                            <ButtonBase
+                                                                onClick={() =>
+                                                                    router.push(
+                                                                        ROUTES.ADMIN.IMPORT_BATCH.DETAIL(
+                                                                            station.existingDraftBatchId!
+                                                                        )
+                                                                    )
+                                                                }
+                                                                sx={{
+                                                                    height: 24,
+                                                                    px: 1,
+                                                                    fontSize: '0.725rem',
+                                                                    fontWeight: 700,
+                                                                    borderRadius: '6px',
+                                                                    color: '#0284c7',
+                                                                    bgcolor: '#f0f9ff',
+                                                                    border: '1px solid #bae6fd',
+                                                                    display: 'inline-flex',
+                                                                    alignItems: 'center',
+                                                                    gap: 0.5,
+                                                                    transition: 'all 0.15s ease',
+                                                                    '&:hover': {
+                                                                        bgcolor: '#e0f2fe',
+                                                                        borderColor: '#7dd3fc',
+                                                                        color: '#0369a1',
+                                                                    },
+                                                                }}
+                                                            >
+                                                                <span>Xem phiếu</span>
+                                                                <ArrowForwardOutlinedIcon sx={{ fontSize: '0.85rem' }} />
+                                                            </ButtonBase>
+                                                        </Stack>
+                                                    )}
+                                                </Paper>
+                                            ))}
+                                        </Box>
+                                    </Box>
                                 </Box>
                             )}
 
@@ -1165,27 +1375,27 @@ export const ImportBatchCreatePage = () => {
                                             <TableRow
                                                 sx={{
                                                     '& .MuiTableCell-head': {
-                                                        fontWeight: 700,
+                                                        fontWeight: 800,
                                                         fontSize: '0.8125rem',
-                                                        color: '#64748b',
+                                                        color: '#475569',
                                                         bgcolor: '#f8fafc',
                                                         borderBottom: '1px solid #e2e8f0',
-                                                        py: 1.25,
+                                                        py: 1.5,
                                                         px: 2,
                                                     },
                                                 }}
                                             >
                                                 <TableCell sx={{ width: '28%' }}>Nhà đài</TableCell>
-                                                <TableCell sx={{ width: 110, whiteSpace: 'nowrap' }}>
+                                                <TableCell sx={{ width: 115, whiteSpace: 'nowrap' }}>
                                                     Ngày quay
                                                 </TableCell>
                                                 <TableCell align="center" sx={{ width: 140, whiteSpace: 'nowrap' }}>Loại lô</TableCell>
-                                                <TableCell sx={{ width: 120 }}>SL phân bổ</TableCell>
-                                                <TableCell align="center" sx={{ width: 130 }}>Giá vốn</TableCell>
-                                                <TableCell align="right" sx={{ width: 130, whiteSpace: 'nowrap' }}>
+                                                <TableCell align="right" sx={{ width: 130 }}>SL phân bổ</TableCell>
+                                                <TableCell align="right" sx={{ width: 130 }}>Đơn giá vốn</TableCell>
+                                                <TableCell align="right" sx={{ width: 140, whiteSpace: 'nowrap' }}>
                                                     Tổng giá vốn
                                                 </TableCell>
-                                                <TableCell align="center" width={48} />
+                                                <TableCell align="center" width={52} />
                                             </TableRow>
                                         </TableHead>
                                         <TableBody>
@@ -1216,6 +1426,25 @@ export const ImportBatchCreatePage = () => {
                                                 />
                                             ))}
                                         </TableBody>
+                                        {fields.length > 0 && (
+                                            <TableFooter sx={{ borderTop: '2px solid #e2e8f0', bgcolor: '#f8fafc' }}>
+                                                <TableRow sx={{ '& td': { py: 1.5, px: 2, fontWeight: 800, fontSize: '0.85rem' } }}>
+                                                    <TableCell colSpan={3} sx={{ color: '#334155' }}>
+                                                        Tổng cộng ({fields.length} đài)
+                                                    </TableCell>
+                                                    <TableCell align="right" sx={{ color: '#0284c7' }}>
+                                                        {totals.totalQty.toLocaleString('vi-VN')} vé
+                                                    </TableCell>
+                                                    <TableCell align="right" sx={{ color: 'text.secondary', fontWeight: 600 }}>
+                                                        —
+                                                    </TableCell>
+                                                    <TableCell align="right" sx={{ color: '#15803d' }}>
+                                                        {formatImportCost(totals.totalCost)} đ
+                                                    </TableCell>
+                                                    <TableCell />
+                                                </TableRow>
+                                            </TableFooter>
+                                        )}
                                     </Table>
                                 </TableContainer>
                             </Box>
@@ -1242,6 +1471,7 @@ export const ImportBatchCreatePage = () => {
                     }
                     importMode={pendingFormData?.importMode}
                     invoiceEvidenceUrl={pendingFormData?.invoiceEvidenceUrl}
+                    ticketListImageUrls={pendingFormData?.ticketListImageUrls ?? []}
                     lines={(pendingFormData?.lines ?? []).map((line) => ({
                         stationName: resolveStationName(line.lotteryStationId),
                         batchType: line.resolvedBatchType ?? 'NEW',

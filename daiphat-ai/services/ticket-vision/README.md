@@ -22,8 +22,13 @@ image bytes
   -> ScanResponse { scanId, tickets[], warnings[] }
 ```
 
-Orchestrated by `domain/scanning/ticket_scan_service.py`; wired into the
-route by `routers/scan.py`.
+Orchestrated by `domain/scanning/ticket_scan_service.py` (legacy EasyOCR path)
+or `domain/scanning/llm_ticket_scan_service.py` (Groq/Gemini/Grok). Wired by
+`routers/scan.py`, which **auto-falls back to legacy** when the cloud vision
+provider fails or returns no tickets (`TICKET_VISION_LLM_FALLBACK_TO_LEGACY`).
+
+See [`docs/LOCAL_FIRST_OCR_ROADMAP.md`](docs/LOCAL_FIRST_OCR_ROADMAP.md) for the
+phased plan toward local-first OCR.
 
 ## Design patterns (see doc section 9)
 

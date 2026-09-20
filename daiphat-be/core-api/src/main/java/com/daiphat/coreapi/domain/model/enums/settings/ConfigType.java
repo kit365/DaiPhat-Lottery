@@ -18,7 +18,8 @@ public enum ConfigType implements LabeledEnum {
     REFUND_SETTING("Cấu hình hoàn tiền"),
     COMPLAINT_SETTING("Cấu hình khiếu nại"),
     PAYOUT_SETTING("Cấu hình trả thưởng"),
-    FORTUNE_SETTING("Cấu hình gieo quẻ");
+    FORTUNE_SETTING("Cấu hình gieo quẻ"),
+    OCR_SCAN("Cấu hình OCR quét vé");
 
     private final String label;
 }

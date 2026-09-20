@@ -565,6 +565,11 @@ public enum ErrorCode {
             "Chỉ hỗ trợ tải lên ảnh, PDF, Excel (.xlsx/.xls) hoặc CSV cho biên lai / danh sách vé nhập.",
             HttpStatus.BAD_REQUEST
     ),
+    IMPORT_BATCH_TICKET_LIST_REQUIRED(
+            "LT_142",
+            "Danh sách vé nhập là bắt buộc khi tự động tạo phiếu nhập lô.",
+            HttpStatus.BAD_REQUEST
+    ),
     IMPORT_BATCH_FILE_TICKET_COLUMNS_INCOMPLETE(
             "LT_135",
             "Nhập vé cần cả cột dãy số và cột sê-ri.",
@@ -820,7 +825,15 @@ public enum ErrorCode {
     OCR_FIELD_LAYOUT_NOT_FOUND(
             "LT_127",
             "Bố cục trường OCR không tồn tại.",
-            HttpStatus.NOT_FOUND);
+            HttpStatus.NOT_FOUND),
+    OCR_FIELD_VALIDATION_RULE_NOT_FOUND(
+            "LT_128",
+            "Luật kiểm tra trường OCR không tồn tại.",
+            HttpStatus.NOT_FOUND),
+    OCR_FIELD_VALIDATION_RULE_INVALID(
+            "LT_129",
+            "Cấu hình luật kiểm tra trường OCR không hợp lệ.",
+            HttpStatus.BAD_REQUEST);
 
     private final String code;
     private final String message;

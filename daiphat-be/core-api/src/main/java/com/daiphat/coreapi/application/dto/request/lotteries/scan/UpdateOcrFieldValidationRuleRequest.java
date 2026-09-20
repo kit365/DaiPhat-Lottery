@@ -1,0 +1,18 @@
+package com.daiphat.coreapi.application.dto.request.lotteries.scan;
+
+import com.daiphat.coreapi.domain.model.enums.lottery.OcrTemplateFieldName;
+import com.daiphat.coreapi.domain.model.enums.lottery.OcrValidationRuleSeverity;
+import com.daiphat.coreapi.domain.model.enums.lottery.OcrValidationRuleType;
+
+import java.util.Map;
+
+public record UpdateOcrFieldValidationRuleRequest(
+        OcrTemplateFieldName fieldName,
+        OcrValidationRuleType ruleType,
+        Map<String, Object> ruleConfig,
+        OcrValidationRuleSeverity severity,
+        Long fieldLayoutId,
+        Boolean isActive,
+        Integer sortOrder
+) {
+}
