@@ -8,10 +8,9 @@ from domain.ocr.base import OcrTextResult
 from domain.stations.matcher import StationMatcher
 from dto.response.scan_response import ExtractedTicketFields
 
-# Real Vietnamese lottery serials mix letters and digits throughout (e.g.
-# "32TV17", "T05K4"), not just an optional single leading letter -- must
-# contain at least one of each, alphanumeric only, a plausible serial length.
-_SERIAL_PATTERN = re.compile(r"^(?=.*[A-Za-z])(?=.*\d)[A-Za-z0-9]{4,10}$")
+# Real Vietnamese lottery serials: digits with exactly one letter at the
+# start OR end only (A123456 / 123456B). Mid-string letters belong to batchCode.
+_SERIAL_PATTERN = re.compile(r"^(?:[A-Za-z]\d{4,19}|\d{4,19}[A-Za-z])$")
 _DIGITS_ONLY_PATTERN = re.compile(r"^\d+$")
 _DATE_ISO_PATTERN = re.compile(r"\b(\d{4})-(\d{1,2})-(\d{1,2})\b")
 _DATE_SLASH_PATTERN = re.compile(r"\b(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})\b")
@@ -253,8 +252,13 @@ class TicketParser:
             return None
 
         if field_name == "stationName":
+            # Keep raw OCR text even when fuzzy match fails so Java / review UI
+            # can show the hint and staff can pick the station manually.
             match = self._station_matcher.match(best.text, self._station_fuzzy_threshold)
-            return match.station.name if match.station is not None else None
+            if match.station is not None:
+                return match.station.name
+            cleaned = re.sub(r"\s+", " ", best.text.strip())
+            return cleaned or None
 
         if field_name == "ticketType":
             for result in sorted(results, key=lambda r: -r.confidence):

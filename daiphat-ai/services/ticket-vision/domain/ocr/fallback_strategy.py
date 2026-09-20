@@ -35,11 +35,17 @@ class FallbackOcrStrategy(OcrStrategy):
         self.low_confidence_threshold = low_confidence_threshold
         self.enable_fallback = enable_fallback
 
-    def read_text(self, image: np.ndarray, languages: list[str] = DEFAULT_LANGUAGES) -> list[OcrTextResult]:
+    def read_text(
+        self,
+        image: np.ndarray,
+        languages: list[str] = DEFAULT_LANGUAGES,
+        *,
+        field_hint: str | None = None,
+    ) -> list[OcrTextResult]:
         primary_results: list[OcrTextResult] | None = None
         primary_failed = False
         try:
-            primary_results = self.primary.read_text(image, languages)
+            primary_results = self.primary.read_text(image, languages, field_hint=field_hint)
         except Exception as exc:  # noqa: BLE001 -- any engine failure should trigger fallback, not crash the scan
             primary_failed = True
             logger.warning("Primary OCR engine '%s' failed: %s", self.primary.name, exc)
@@ -62,7 +68,7 @@ class FallbackOcrStrategy(OcrStrategy):
         )
 
         try:
-            fallback_results = self.fallback.read_text(image, languages)
+            fallback_results = self.fallback.read_text(image, languages, field_hint=field_hint)
         except Exception as exc:  # noqa: BLE001 -- both engines failing degrades to empty text, not a crash
             logger.warning("Fallback OCR engine '%s' also failed: %s", self.fallback.name, exc)
             return primary_results or []

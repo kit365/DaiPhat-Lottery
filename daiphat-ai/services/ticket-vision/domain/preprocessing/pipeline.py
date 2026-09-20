@@ -1,7 +1,9 @@
 import base64
+import io
 
 import cv2
 import numpy as np
+from PIL import Image, ImageOps
 
 from domain.detection.base import DetectedRegion
 
@@ -23,11 +25,27 @@ def guard_file_size(image_bytes: bytes, max_size_mb: int) -> None:
 
 
 def decode_image(image_bytes: bytes) -> np.ndarray:
-    buffer = np.frombuffer(image_bytes, dtype=np.uint8)
-    image = cv2.imdecode(buffer, cv2.IMREAD_COLOR)
-    if image is None:
-        raise InvalidImageError("Không thể đọc file ảnh. Vui lòng thử lại.")
-    return image
+    """Decode upload bytes to BGR, applying EXIF orientation like browsers do.
+
+    ``cv2.imdecode`` ignores EXIF orientation while browsers rotate for display.
+    Without this step, OCR bboxes are computed in the unrotated pixel grid and
+    appear shifted/rotated relative to the Admin overlay on the same file.
+    """
+    try:
+        with Image.open(io.BytesIO(image_bytes)) as pil_image:
+            oriented = ImageOps.exif_transpose(pil_image)
+            if oriented is None:
+                oriented = pil_image
+            rgb = oriented.convert("RGB")
+            array = np.asarray(rgb)
+            return cv2.cvtColor(array, cv2.COLOR_RGB2BGR)
+    except Exception:
+        # Fall back for exotic codecs Pillow rejects but OpenCV can read.
+        buffer = np.frombuffer(image_bytes, dtype=np.uint8)
+        image = cv2.imdecode(buffer, cv2.IMREAD_COLOR)
+        if image is None:
+            raise InvalidImageError("Không thể đọc file ảnh. Vui lòng thử lại.") from None
+        return image
 
 
 def resize_if_needed(image: np.ndarray, max_dimension: int) -> np.ndarray:
@@ -48,6 +66,140 @@ def resize_if_needed(image: np.ndarray, max_dimension: int) -> np.ndarray:
     scale = max_dimension / float(longest_side)
     new_size = (int(width * scale), int(height * scale))
     return cv2.resize(image, new_size, interpolation=cv2.INTER_AREA)
+
+
+def trim_uniform_borders(image: np.ndarray, *, max_trim_ratio: float = 0.12) -> np.ndarray:
+    """Crop near-uniform margins (letterbox / table edges) before vision encode.
+
+    Conservative by design: only removes obvious empty borders and keeps a
+    generous pad so ticket text near edges is never clipped. No-op when trim
+    would remove too much of the frame.
+    """
+    if image is None or image.size == 0:
+        return image
+    height, width = image.shape[:2]
+    if height < 40 or width < 40:
+        return image
+
+    gray = to_grayscale(image)
+    # Downsample for speed on large frames.
+    probe_scale = min(1.0, 640.0 / float(max(height, width)))
+    probe = (
+        gray
+        if probe_scale >= 0.999
+        else cv2.resize(
+            gray,
+            (max(1, int(width * probe_scale)), max(1, int(height * probe_scale))),
+            interpolation=cv2.INTER_AREA,
+        )
+    )
+    # Content = not near-white and not near-black.
+    content = ((probe > 28) & (probe < 245)).astype(np.uint8) * 255
+    coords = cv2.findNonZero(content)
+    if coords is None:
+        return image
+
+    x, y, w, h = cv2.boundingRect(coords)
+    # Map probe box back to full resolution.
+    inv = 1.0 / probe_scale
+    x1 = max(0, int(x * inv))
+    y1 = max(0, int(y * inv))
+    x2 = min(width, int((x + w) * inv))
+    y2 = min(height, int((y + h) * inv))
+    # Generous pad — prefer keeping a bit of background over clipping text.
+    pad = int(round(min(width, height) * 0.03))
+    x1 = max(0, x1 - pad)
+    y1 = max(0, y1 - pad)
+    x2 = min(width, x2 + pad)
+    y2 = min(height, y2 + pad)
+    crop_w = max(1, x2 - x1)
+    crop_h = max(1, y2 - y1)
+    area_ratio = (crop_w * crop_h) / float(width * height)
+    if area_ratio > 0.98 or area_ratio < (1.0 - max_trim_ratio):
+        return image
+    return image[y1:y2, x1:x2]
+
+
+def expand_bbox(
+    x: int,
+    y: int,
+    w: int,
+    h: int,
+    image_width: int,
+    image_height: int,
+    *,
+    pad_ratio: float = 0.04,
+) -> tuple[int, int, int, int]:
+    """Expand a ticket/field box outward so edge text is not clipped."""
+    pad = int(round(min(image_width, image_height) * max(0.0, pad_ratio)))
+    pad = max(pad, 8)
+    x1 = max(0, x - pad)
+    y1 = max(0, y - pad)
+    x2 = min(image_width, x + w + pad)
+    y2 = min(image_height, y + h + pad)
+    return x1, y1, max(1, x2 - x1), max(1, y2 - y1)
+
+
+def encode_to_jpeg_bytes(image: np.ndarray, quality: int = 94) -> bytes:
+    ok, buffer = cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, quality])
+    if not ok:
+        raise InvalidImageError("Không thể mã hóa ảnh vé đã xử lý.")
+    return buffer.tobytes()
+
+
+def encode_to_jpeg_bytes_bounded(
+    image: np.ndarray,
+    *,
+    max_bytes: int = 3_000_000,
+    quality_start: int = 94,
+    quality_floor: int = 85,
+    max_dimension: int = 2400,
+    allow_geometry_shrink: bool = True,
+) -> bytes:
+    """JPEG-encode for vision LLMs with a soft size budget.
+
+    Readability first: keep resolution and a high JPEG quality floor. Only
+    when absolutely necessary do we lower quality slightly, then gently
+    downscale. Set allow_geometry_shrink=False when bbox coords must stay
+    tied to ``image``.
+    """
+    working = image
+    if max(working.shape[:2]) > max_dimension:
+        working = resize_if_needed(working, max_dimension)
+
+    quality = quality_start
+    encoded = encode_to_jpeg_bytes(working, quality)
+    while len(encoded) > max_bytes and quality > quality_floor:
+        quality = max(quality_floor, quality - 3)
+        encoded = encode_to_jpeg_bytes(working, quality)
+
+    if not allow_geometry_shrink:
+        return encoded
+
+    # Still too big: shrink geometry very gently and re-encode.
+    shrink_steps = 0
+    while len(encoded) > max_bytes and shrink_steps < 3:
+        shrink_steps += 1
+        height, width = working.shape[:2]
+        working = cv2.resize(
+            working,
+            (max(1, int(width * 0.95)), max(1, int(height * 0.95))),
+            interpolation=cv2.INTER_AREA,
+        )
+        encoded = encode_to_jpeg_bytes(working, quality)
+    return encoded
+
+
+def encode_to_base64_jpeg(image: np.ndarray, quality: int = 98) -> str:
+    return base64.b64encode(encode_to_jpeg_bytes(image, quality)).decode("ascii")
+
+
+def encode_to_base64_png(image: np.ndarray) -> str:
+    """Lossless preview encode — preferred for Admin review sharpness."""
+    ok, buffer = cv2.imencode(".png", image)
+    if not ok:
+        raise InvalidImageError("Không thể mã hóa ảnh vé đã xử lý.")
+    return base64.b64encode(buffer.tobytes()).decode("ascii")
 
 
 def perspective_warp(image: np.ndarray, corners: list[tuple[int, int]]) -> np.ndarray:
@@ -185,10 +337,14 @@ def remove_glare(image: np.ndarray) -> np.ndarray:
     return cv2.inpaint(image, glare_mask, inpaintRadius=5, flags=cv2.INPAINT_TELEA)
 
 
-def denoise(image: np.ndarray) -> np.ndarray:
+def denoise(image: np.ndarray, *, strength: float = 5.0) -> np.ndarray:
+    """Light denoise — strong NLMeans softens printed digits and hurts OCR."""
+    h = float(max(0.0, strength))
+    if h <= 0.01:
+        return image
     if len(image.shape) == 3:
-        return cv2.fastNlMeansDenoisingColored(image, None, 7, 7, 7, 21)
-    return cv2.fastNlMeansDenoising(image, None, 7, 7, 21)
+        return cv2.fastNlMeansDenoisingColored(image, None, h, h, 7, 21)
+    return cv2.fastNlMeansDenoising(image, None, h, 7, 21)
 
 
 def to_grayscale(image: np.ndarray) -> np.ndarray:
@@ -203,27 +359,50 @@ def enhance_contrast(gray_image: np.ndarray) -> np.ndarray:
     return clahe.apply(gray_image)
 
 
-def encode_to_jpeg_bytes(image: np.ndarray, quality: int = 85) -> bytes:
-    ok, buffer = cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, quality])
-    if not ok:
-        raise InvalidImageError("Không thể mã hóa ảnh vé đã xử lý.")
-    return buffer.tobytes()
+def normalize_lighting(image: np.ndarray) -> np.ndarray:
+    """Balance brightness/contrast on the L channel without crushing color."""
+    if len(image.shape) != 3:
+        return enhance_contrast(image)
+
+    lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+    lightness, a_channel, b_channel = cv2.split(lab)
+    clahe = cv2.createCLAHE(clipLimit=2.2, tileGridSize=(8, 8))
+    lightness = clahe.apply(lightness)
+    # Gentle midtone lift for dull phone photos.
+    lightness = cv2.convertScaleAbs(lightness, alpha=1.05, beta=6)
+    merged = cv2.merge((lightness, a_channel, b_channel))
+    return cv2.cvtColor(merged, cv2.COLOR_LAB2BGR)
 
 
-def encode_to_base64_jpeg(image: np.ndarray, quality: int = 85) -> str:
-    return base64.b64encode(encode_to_jpeg_bytes(image, quality)).decode("ascii")
+def sharpen_unsharp_mask(
+    image: np.ndarray,
+    *,
+    amount: float = 0.55,
+    radius: float = 1.2,
+) -> np.ndarray:
+    """Unsharp-mask sharpening to recover edge clarity after resize/JPEG."""
+    if amount <= 0:
+        return image
+    sigma = max(0.5, float(radius))
+    blurred = cv2.GaussianBlur(image, (0, 0), sigmaX=sigma, sigmaY=sigma)
+    return cv2.addWeighted(image, 1.0 + amount, blurred, -amount, 0)
+
+
+def enhance_for_ocr(image: np.ndarray) -> np.ndarray:
+    """Mild OCR prep: lighting normalize only — no denoise / heavy sharpen stack.
+
+    Aggressive filters previously stacked with JPEG and blurred ticket previews.
+    """
+    if image is None or image.size == 0:
+        return image
+    return normalize_lighting(image)
 
 
 class ProcessedTicketCrop:
     """The two derivatives every detected ticket needs downstream.
 
-    preview: color, denoised, perspective-warped -- for the mobile overlay
-      preview and (once confirmed) the image uploaded to Cloudinary by Java.
-    ocr_ready: grayscale + denoised + contrast-enhanced on top of preview --
-      what actually gets fed to the OCR engines. Kept as a separate object
-      because storage/preview quality and OCR-friendliness are different
-      goals (doc section 4, Flow 2: "grayscale, denoise, perspective warp,
-      contrast enhancement").
+    preview: color, perspective-warped -- for Admin overlay / Cloudinary.
+    ocr_ready: grayscale + contrast-enhanced for classic OCR engines.
     """
 
     def __init__(self, preview: np.ndarray, ocr_ready: np.ndarray) -> None:
@@ -232,10 +411,7 @@ class ProcessedTicketCrop:
 
 
 def rotate_crop(crop: ProcessedTicketCrop, quarter_turns: int) -> ProcessedTicketCrop:
-    """Rotate both derivatives of a crop together, keeping them in sync --
-    used by TicketScanService._correct_orientation to fix a sideways or
-    upside-down ticket after the fact (perspective warp alone can't tell
-    content-orientation from pure geometry)."""
+    """Rotate both derivatives of a crop together, keeping them in sync."""
     if quarter_turns % 4 == 0:
         return crop
     return ProcessedTicketCrop(
@@ -253,11 +429,12 @@ def process_ticket_crop(source_image: np.ndarray, region: DetectedRegion) -> Pro
         x, y, w, h = region.bbox
         warped = source_image[y : y + h, x : x + w]
 
-    warped = upscale_if_too_small(warped)
-    warped = remove_glare(warped)
-
-    preview = denoise(warped)
-    gray = to_grayscale(preview)
-    ocr_ready = enhance_contrast(denoise(gray))
+    # Admin review / durable crop: geometry only — no glare/OCR filters.
+    preview = warped
+    # OCR path may upscale tiny crops and normalize lighting separately.
+    ocr_source = upscale_if_too_small(warped)
+    ocr_source = remove_glare(ocr_source)
+    gray = to_grayscale(ocr_source)
+    ocr_ready = enhance_contrast(gray)
 
     return ProcessedTicketCrop(preview=preview, ocr_ready=ocr_ready)

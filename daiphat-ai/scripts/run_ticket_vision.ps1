@@ -29,5 +29,13 @@ if (-not (Test-Path $VenvPython)) {
 & $VenvPython -m pip install -q -r (Join-Path $ServiceDir "requirements.txt")
 
 $env:PYTHONPATH = "$RootDir;$ServiceDir"
+$Reload = if ($env:TICKET_VISION_RELOAD -eq "1") { $true } else { $false }
 Write-Host "Starting ticket-vision on http://127.0.0.1:$Port (health: /health, docs: /docs)"
-& $VenvPython -m uvicorn main:app --app-dir $ServiceDir --host 0.0.0.0 --port $Port --reload
+if ($Reload) {
+    Write-Host "Reload enabled (TICKET_VISION_RELOAD=1). Prefer restart without reload if OCR hangs."
+    & $VenvPython -m uvicorn main:app --app-dir $ServiceDir --host 0.0.0.0 --port $Port --reload
+} else {
+    # Default: no --reload. Reload + long YOLO/Groq sync work can wedge the worker so
+    # /health and /v1/scan stop responding (Admin then shows LT_122 service unavailable).
+    & $VenvPython -m uvicorn main:app --app-dir $ServiceDir --host 0.0.0.0 --port $Port
+}

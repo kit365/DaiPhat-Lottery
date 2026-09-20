@@ -149,34 +149,34 @@ def _line(text: str, confidence: float = 0.9) -> OcrTextResult:
 def test_field_region_binds_serial_directly(sample_stations):
     # The whole-ticket pass would have to tell this serial apart from every
     # other alnum token; a field crop removes the ambiguity entirely.
-    parsed = _parser(sample_stations).parse({f"{FIELD_REGION_PREFIX}serialNumber": [_line("32TV17")]})
+    parsed = _parser(sample_stations).parse({f"{FIELD_REGION_PREFIX}serialNumber": [_line("A123456")]})
 
-    assert parsed.extracted.serialNumber == "32TV17"
+    assert parsed.extracted.serialNumber == "A123456"
     assert parsed.field_confidences["serialNumber"] == 0.9
 
 
 def test_field_region_overrides_a_whole_ticket_guess(sample_stations):
     ocr = {
         "whole": [_line("KY VE A1B2C3 GIAI DAC BIET", 0.95)],
-        f"{FIELD_REGION_PREFIX}serialNumber": [_line("32TV17", 0.60)],
+        f"{FIELD_REGION_PREFIX}serialNumber": [_line("A123456", 0.60)],
     }
 
     parsed = _parser(sample_stations).parse(ocr)
 
-    assert parsed.extracted.serialNumber == "32TV17"
+    assert parsed.extracted.serialNumber == "A123456"
 
 
 def test_field_region_value_is_still_validated(sample_stations):
     # A garbled read must not be trusted just because it was well-located --
     # the whole-ticket result stands instead.
     ocr = {
-        "whole": [_line("32TV17", 0.8)],
+        "whole": [_line("A123456", 0.8)],
         f"{FIELD_REGION_PREFIX}serialNumber": [_line("!!!", 0.99)],
     }
 
     parsed = _parser(sample_stations).parse(ocr)
 
-    assert parsed.extracted.serialNumber == "32TV17"
+    assert parsed.extracted.serialNumber == "A123456"
 
 
 def test_field_region_parses_a_date_and_normalises_it(sample_stations):
@@ -225,7 +225,7 @@ def test_field_region_clears_the_stale_refinement_position(sample_stations):
     # ROI refinement re-crops using field_positions; a position from the
     # whole-ticket pass no longer describes where this value came from.
     ocr = {
-        "whole": [_line("32TV17", 0.8)],
+        "whole": [_line("A123456", 0.8)],
         f"{FIELD_REGION_PREFIX}numbers": [_line("298407", 0.9)],
     }
 

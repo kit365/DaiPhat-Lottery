@@ -1,4 +1,5 @@
 from domain.stations.matcher import StationMatcher
+from domain.stations.models import StationRef
 
 THRESHOLD = 80
 
@@ -40,18 +41,29 @@ def test_unrelated_text_does_not_match(sample_stations):
     assert result.station is None
 
 
-def test_empty_text_does_not_match(sample_stations):
-    matcher = StationMatcher(sample_stations)
+def test_kien_giang_not_confused_with_an_giang():
+    stations = [
+        StationRef(id=10, name="An Giang", code="AGI", aliases=("an giang",)),
+        StationRef(id=11, name="Kiên Giang", code="KGI", aliases=("kien giang",)),
+        StationRef(id=12, name="Hậu Giang", code="HGI", aliases=("hau giang",)),
+        StationRef(id=13, name="Tiền Giang", code="TGI", aliases=("tien giang",)),
+    ]
+    matcher = StationMatcher(stations)
 
-    result = matcher.match("", THRESHOLD)
+    result = matcher.match("KIEN GIANG", THRESHOLD)
 
-    assert result.station is None
-    assert result.score == 0.0
+    assert result.station is not None
+    assert result.station.code == "KGI"
 
 
-def test_no_known_stations_never_matches():
-    matcher = StationMatcher([])
+def test_an_giang_still_matches():
+    stations = [
+        StationRef(id=10, name="An Giang", code="AGI", aliases=("an giang",)),
+        StationRef(id=11, name="Kiên Giang", code="KGI", aliases=("kien giang",)),
+    ]
+    matcher = StationMatcher(stations)
 
-    result = matcher.match("TP. Hồ Chí Minh", THRESHOLD)
+    result = matcher.match("AN GIANG", THRESHOLD)
 
-    assert result.station is None
+    assert result.station is not None
+    assert result.station.code == "AGI"

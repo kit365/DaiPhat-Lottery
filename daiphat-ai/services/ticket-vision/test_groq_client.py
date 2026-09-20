@@ -73,7 +73,7 @@ def test_groq_client_parses_chat_completions(monkeypatch):
     client = GroqVisionClient(
         api_base_url="https://api.groq.com/openai/v1",
         api_key="test-key",
-        model="qwen/qwen3.6-27b",
+        model="qwen/qwen3.8-27b",
         timeout_seconds=5,
     )
     result = client.analyze_ticket_image(b"\xff\xd8\xffdummy", "extract ticket")
@@ -82,6 +82,11 @@ def test_groq_client_parses_chat_completions(monkeypatch):
 
 
 def test_groq_client_maps_rate_limit(monkeypatch):
+    monkeypatch.setattr("infra.groq_client.time.sleep", lambda *_args, **_kwargs: None)
+    from infra import llm_circuit
+
+    llm_circuit.reset_for_tests()
+
     def fake_post(self, url, headers=None, json=None):  # noqa: A002
         return _FakeResponse(429, {"error": {"message": "rate limit"}}, text="rate limit")
 
@@ -92,6 +97,35 @@ def test_groq_client_maps_rate_limit(monkeypatch):
     )
     with pytest.raises(VisionApiError, match="rate limit"):
         client.analyze_ticket_image(b"\xff\xd8\xff", "prompt")
+    assert llm_circuit.is_open()
+    llm_circuit.reset_for_tests()
+
+
+def test_groq_client_fails_fast_on_tpd_quota(monkeypatch):
+    monkeypatch.setattr("infra.groq_client.time.sleep", lambda *_args, **_kwargs: None)
+    from infra import llm_circuit
+
+    llm_circuit.reset_for_tests()
+    calls = {"n": 0}
+
+    def fake_post(self, url, headers=None, json=None):  # noqa: A002
+        calls["n"] += 1
+        return _FakeResponse(
+            429,
+            {"error": {"message": "Rate limit reached for model on tokens per day (TPD)"}},
+            text="Rate limit reached for model on tokens per day (TPD): Limit 100000",
+        )
+
+    monkeypatch.setattr(httpx.Client, "post", fake_post)
+    client = GroqVisionClient(
+        api_base_url="https://api.groq.com/openai/v1",
+        api_key="test-key",
+    )
+    with pytest.raises(VisionApiError, match="quota/token"):
+        client.analyze_ticket_image(b"\xff\xd8\xff", "prompt")
+    assert calls["n"] == 1
+    assert llm_circuit.is_open()
+    llm_circuit.reset_for_tests()
 
 
 def test_groq_client_maps_model_not_found(monkeypatch):

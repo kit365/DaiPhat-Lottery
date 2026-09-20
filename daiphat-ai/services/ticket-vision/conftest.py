@@ -33,7 +33,14 @@ class StubOcrStrategy(OcrStrategy):
         self._error = error
         self.call_count = 0
 
-    def read_text(self, image: np.ndarray, languages: list[str] = DEFAULT_LANGUAGES) -> list[OcrTextResult]:
+    def read_text(
+        self,
+        image: np.ndarray,
+        languages: list[str] = DEFAULT_LANGUAGES,
+        *,
+        field_hint: str | None = None,
+    ) -> list[OcrTextResult]:
+        del field_hint
         self.call_count += 1
         if self._error is not None:
             raise self._error
