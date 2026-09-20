@@ -29,12 +29,23 @@ class EasyOcrStrategy(OcrStrategy):
             self._reader = easyocr.Reader(languages, gpu=False)
         return self._reader
 
-    def read_text(self, image: np.ndarray, languages: list[str] = DEFAULT_LANGUAGES) -> list[OcrTextResult]:
+    def read_text(
+        self,
+        image: np.ndarray,
+        languages: list[str] = DEFAULT_LANGUAGES,
+        *,
+        field_hint: str | None = None,
+        allowlist: str | None = None,
+    ) -> list[OcrTextResult]:
+        del field_hint  # used by FieldAwareOcrStrategy; plain EasyOCR ignores it
         reader = self._get_reader(languages)
         # detail=1 -> (bbox, text, confidence) tuples; paragraph=False keeps
         # line-level granularity, which the parser regexes over. bbox is 4
         # (x, y) corner points -- used below for y_center, not kept as-is.
-        raw_results = reader.readtext(image, detail=1, paragraph=False)
+        kwargs: dict = {"detail": 1, "paragraph": False}
+        if allowlist:
+            kwargs["allowlist"] = allowlist
+        raw_results = reader.readtext(image, **kwargs)
         height = image.shape[0] or 1
         width = image.shape[1] or 1
         return [

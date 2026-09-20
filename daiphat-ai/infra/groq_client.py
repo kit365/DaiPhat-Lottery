@@ -24,9 +24,12 @@ from infra.vision_extraction import (
 _MAX_BASE64_IMAGE_BYTES = 4 * 1024 * 1024
 # Ticket JSON rarely needs 4k tokens; lower reservation reduces OTPM 429s.
 _MAX_COMPLETION_TOKENS = 2048
+# Transient RPM: a couple of short waits, then fail fast so legacy OCR can run
+# inside the Admin/BE timeout budget. Daily TPD/token exhaustion never retries.
 _RATE_LIMIT_RETRIES = 2
 _RETRY_AFTER_PATTERN = re.compile(r"try again in ([0-9]+(?:\.[0-9]+)?)s", re.IGNORECASE)
-# qwen/qwen3.6-27b: "This model supports up to 3 images"
+_MAX_RATE_LIMIT_WAIT_SECONDS = 8.0
+# qwen/qwen3.8-27b: docs allow at most 3 images per request
 _MAX_IMAGES_PER_REQUEST = 3
 _MAX_EXTRA_IMAGES = _MAX_IMAGES_PER_REQUEST - 1
 
@@ -133,9 +136,8 @@ class GroqVisionClient:
                 }
             )
 
-        # Current Groq vision model is qwen/qwen3.6-27b (Llama-4 Scout removed).
-        # JSON mode requires reasoning_format parsed|hidden; hide reasoning so
-        # message.content stays parseable ticket JSON.
+        # Default Groq vision model is qwen/qwen3.8-27b (account-available).
+        # JSON mode + reasoning_format hidden keeps message.content parseable.
         payload: dict[str, Any] = {
             "model": self._model,
             "messages": [
@@ -167,12 +169,15 @@ class GroqVisionClient:
 
         response = self._post_with_rate_limit_retry(url, headers, payload)
         return self._parse_success_response(response)
+
     def _post_with_rate_limit_retry(
         self,
         url: str,
         headers: dict[str, str],
         payload: dict[str, Any],
     ) -> httpx.Response:
+        from infra import llm_circuit  # noqa: PLC0415 -- avoid import cycle at module load
+
         last_429_body = ""
         for attempt in range(_RATE_LIMIT_RETRIES + 1):
             try:
@@ -194,14 +199,25 @@ class GroqVisionClient:
                 _RATE_LIMIT_RETRIES + 1,
                 last_429_body,
             )
+
+            # Daily token / org quota: retrying burns the BE 60–180s budget and
+            # delays local OCR fallback. Fail immediately and trip the circuit.
+            if llm_circuit.looks_like_quota_exhaustion(last_429_body):
+                llm_circuit.trip("Groq token/quota exhausted (TPD)")
+                raise VisionApiError(
+                    "Groq API quota/token limit exceeded (HTTP 429)",
+                    status_code=429,
+                )
+
             if attempt >= _RATE_LIMIT_RETRIES:
                 break
-            wait_seconds = _parse_retry_after_seconds(last_429_body) or (5.0 * (attempt + 1))
-            # Cap wait so Admin UI does not hang for minutes on OTPM limits.
-            wait_seconds = min(max(wait_seconds, 1.0), 20.0)
+            wait_seconds = _parse_retry_after_seconds(last_429_body) or (2.0 * (attempt + 1))
+            # Keep waits short so VisionClientError → legacy still fits Admin timeout.
+            wait_seconds = min(max(wait_seconds, 1.0), _MAX_RATE_LIMIT_WAIT_SECONDS)
             logger.info("Waiting %.1fs before Groq retry", wait_seconds)
             time.sleep(wait_seconds)
 
+        llm_circuit.trip("Groq rate limit (RPM) exhausted after short retries")
         raise VisionApiError(
             "Groq API rate limit exceeded (HTTP 429)",
             status_code=429,
@@ -243,8 +259,8 @@ class GroqVisionClient:
             if response.status_code == 404 or "model_not_found" in detail_lower:
                 raise VisionApiError(
                     f"Groq vision model '{self._model}' is unavailable. "
-                    "Set GROQ_VISION_MODEL to a current vision model "
-                    "(e.g. qwen/qwen3.6-27b).",
+                    "Set GROQ_VISION_MODEL to a model your Groq account can access "
+                    "(e.g. qwen/qwen3.8-27b).",
                     status_code=response.status_code,
                 )
             raise VisionApiError(

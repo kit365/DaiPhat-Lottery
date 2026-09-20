@@ -30,7 +30,7 @@ YOLO_FIELD_CROP_PREFIX = "yolo-field-crop:"
 YOLO_TICKET_CROP_PREFIX = "yolo-ticket-crop:"
 TEMPLATE_FIELD_CROP_PREFIX = "field-crop:"
 
-# qwen/qwen3.6-27b (and current Groq vision) accepts at most 3 images total
+# qwen/qwen3.8-27b (current Groq vision default) accepts at most 3 images total
 # (1 full frame + extras). Sending YOLO ticket + field crops without a cap
 # causes HTTP 400 "Too many images provided".
 GROQ_MAX_TOTAL_IMAGES = 3
@@ -54,6 +54,29 @@ class YoloLlmGuidance:
     ticket_count: int = 0
     """Axis-aligned ticket boxes (x, y, w, h) in full-frame pixel space."""
     ticket_boxes: list[tuple[int, int, int, int]] = field(default_factory=list)
+    """Detection confidence aligned with ``ticket_boxes`` (same index)."""
+    ticket_confidences: list[float] = field(default_factory=list)
+    """Per-ticket field boxes aligned with ``ticket_boxes`` (same index)."""
+    ticket_field_boxes: list[dict[str, tuple[int, int, int, int]]] = field(
+        default_factory=list
+    )
+
+
+def _box_center(box: np.ndarray) -> tuple[float, float]:
+    x1, y1, x2, y2 = (float(v) for v in box)
+    return (x1 + x2) / 2.0, (y1 + y2) / 2.0
+
+
+def _point_in_xyxy(px: float, py: float, box: np.ndarray, *, pad: float = 8.0) -> bool:
+    x1, y1, x2, y2 = (float(v) for v in box)
+    return (x1 - pad) <= px <= (x2 + pad) and (y1 - pad) <= py <= (y2 + pad)
+
+
+def _xyxy_to_xywh(box: np.ndarray) -> tuple[int, int, int, int]:
+    x1, y1, x2, y2 = (int(round(float(v))) for v in box)
+    px = max(x1, 0)
+    py = max(y1, 0)
+    return px, py, max(1, x2 - x1), max(1, y2 - y1)
 
 
 def build_yolo_llm_guidance(
@@ -108,7 +131,9 @@ def build_yolo_llm_guidance(
     }
 
     height, width = image.shape[:2]
-    best_fields: dict[str, tuple[float, np.ndarray]] = {}
+    # Keep every field detection (not just global best) so multi-ticket photos
+    # can assign fields to the correct ticket.
+    field_detections: list[tuple[str, float, np.ndarray]] = []
     ticket_boxes: list[tuple[float, np.ndarray]] = []
 
     for box, class_id, confidence in zip(boxes, classes, confidences):
@@ -120,51 +145,93 @@ def build_yolo_llm_guidance(
         field_name = class_to_field.get(raw_name)
         if field_name is None:
             continue
-        if field_name not in best_fields or conf > best_fields[field_name][0]:
-            best_fields[field_name] = (conf, box)
+        field_detections.append((field_name, conf, box))
 
     ticket_boxes.sort(key=lambda item: item[0], reverse=True)
-    ticket_boxes = ticket_boxes[: max(1, max_tickets)]
+    # Prefer the ticket-class threshold (stricter than field conf) and drop tiny
+    # background false-positives that are not real lottery tickets.
+    min_ticket_conf = float(settings.TICKET_VISION_YOLO_CONFIDENCE_THRESHOLD)
+    min_ticket_area = max(400.0, float(height * width) * 0.008)
+    filtered_tickets: list[tuple[float, np.ndarray]] = []
+    for conf, box in ticket_boxes:
+        if conf < min_ticket_conf:
+            continue
+        x1, y1, x2, y2 = (float(v) for v in box)
+        area = max(0.0, x2 - x1) * max(0.0, y2 - y1)
+        if area < min_ticket_area:
+            continue
+        filtered_tickets.append((conf, box))
+    ticket_boxes = filtered_tickets[: max(1, max_tickets)]
 
     hint_lines: list[str] = []
     crops: list[tuple[str, bytes]] = []
     fields_covered: set[str] = set()
     ticket_pixel_boxes: list[tuple[int, int, int, int]] = []
+    ticket_confidences: list[float] = []
+    ticket_field_boxes: list[dict[str, tuple[int, int, int, int]]] = []
+    ticket_raw_boxes: list[np.ndarray] = []
 
     for index, (conf, box) in enumerate(ticket_boxes):
         crop = _padded_crop(image, box, height, width)
         if crop is None:
             continue
         try:
-            crop_bytes = image_pipeline.encode_to_jpeg_bytes(crop)
+            crop_bytes = image_pipeline.encode_to_jpeg_bytes(crop, quality=95)
         except Exception:  # noqa: BLE001
             logger.exception("Failed to encode YOLO ticket crop #%s", index)
             continue
-        x1, y1, x2, y2 = (int(round(float(v))) for v in box)
-        px = max(x1, 0)
-        py = max(y1, 0)
-        pw = max(1, x2 - x1)
-        ph = max(1, y2 - y1)
+        px, py, pw, ph = _xyxy_to_xywh(box)
         ticket_pixel_boxes.append((px, py, pw, ph))
+        ticket_confidences.append(conf)
+        ticket_raw_boxes.append(box)
+        ticket_field_boxes.append({})
         hint_lines.append(
             f"- ticket #{index} (yolo, conf={conf:.2f}): "
             f"x={px}, y={py}, w={pw}, h={ph}"
         )
         crops.append((f"{YOLO_TICKET_CROP_PREFIX}{index}", crop_bytes))
 
-    for field_name, (conf, box) in sorted(best_fields.items()):
+    # Assign each field detection to the ticket that contains its center.
+    # Keep highest-confidence box per (ticket, field).
+    best_per_ticket_field: dict[tuple[int, str], tuple[float, np.ndarray]] = {}
+    orphan_fields: dict[str, tuple[float, np.ndarray]] = {}
+    for field_name, conf, box in field_detections:
+        cx, cy = _box_center(box)
+        owner = None
+        for ticket_index, ticket_box in enumerate(ticket_raw_boxes):
+            if _point_in_xyxy(cx, cy, ticket_box, pad=12.0):
+                owner = ticket_index
+                break
+        if owner is None:
+            prev = orphan_fields.get(field_name)
+            if prev is None or conf > prev[0]:
+                orphan_fields[field_name] = (conf, box)
+            continue
+        key = (owner, field_name)
+        prev = best_per_ticket_field.get(key)
+        if prev is None or conf > prev[0]:
+            best_per_ticket_field[key] = (conf, box)
+
+    for (ticket_index, field_name), (conf, box) in best_per_ticket_field.items():
+        ticket_field_boxes[ticket_index][field_name] = _xyxy_to_xywh(box)
+        # Global extras: one best crop per field name (prefer highest conf).
+        prev = orphan_fields.get(field_name)
+        if prev is None or conf > prev[0]:
+            orphan_fields[field_name] = (conf, box)
+
+    for field_name, (conf, box) in sorted(orphan_fields.items()):
         crop = _padded_crop(image, box, height, width)
         if crop is None:
             continue
         try:
-            crop_bytes = image_pipeline.encode_to_jpeg_bytes(crop)
+            crop_bytes = image_pipeline.encode_to_jpeg_bytes(crop, quality=95)
         except Exception:  # noqa: BLE001
             logger.exception("Failed to encode YOLO field crop %s", field_name)
             continue
-        x1, y1, x2, y2 = (int(round(float(v))) for v in box)
+        px, py, pw, ph = _xyxy_to_xywh(box)
         hint_lines.append(
             f"- {field_name} (yolo, conf={conf:.2f}): "
-            f"x={max(x1, 0)}, y={max(y1, 0)}, w={max(1, x2 - x1)}, h={max(1, y2 - y1)}"
+            f"x={px}, y={py}, w={pw}, h={ph}"
         )
         crops.append((f"{YOLO_FIELD_CROP_PREFIX}{field_name}", crop_bytes))
         fields_covered.add(field_name)
@@ -174,16 +241,18 @@ def build_yolo_llm_guidance(
 
     logger.info(
         "LLM YOLO guidance: tickets=%s fields=%s crops=%s",
-        len(ticket_boxes),
+        len(ticket_pixel_boxes),
         sorted(fields_covered),
         len(crops),
     )
     return YoloLlmGuidance(
-        hint="\n".join(hint_lines),
+        hint="\n".join(hint_lines) if hint_lines else None,
         crops=crops,
         fields_covered=fields_covered,
         ticket_count=len(ticket_pixel_boxes),
         ticket_boxes=ticket_pixel_boxes,
+        ticket_confidences=ticket_confidences,
+        ticket_field_boxes=ticket_field_boxes,
     )
 
 
@@ -242,39 +311,59 @@ def limit_vision_extra_images(
     crops: list[tuple[str, bytes]] | None,
     *,
     max_extra: int = GROQ_MAX_EXTRA_IMAGES,
+    prefer_ticket_crops: bool | None = None,
 ) -> list[tuple[str, bytes]]:
     """Keep the most useful crops so (full image + extras) stays within Groq's limit.
 
-    Skip YOLO ticket crops: the full frame is already sent, and a near-duplicate
-    ticket crop often pushes free-tier ITPM over the limit (HTTP 413).
+    Single-ticket photos: prefer field zooms (numbers/serial) over a duplicate
+    ticket crop of the full frame.
+
+    Multi-ticket photos: prefer YOLO ticket crops so the model can read each
+    small ticket clearly — field crops from the wrong ticket hurt more than they help.
     """
     if not crops:
         return []
     if max_extra <= 0:
         return []
 
+    ticket_crops: list[tuple[str, bytes]] = []
     ranked_fields: list[tuple[int, str, bytes]] = []
-    skipped_ticket = 0
     for label, data in crops:
         if not data:
             continue
         if label.startswith(YOLO_TICKET_CROP_PREFIX):
-            skipped_ticket += 1
+            ticket_crops.append((label, data))
             continue
         field_name = _field_name_from_crop_label(label)
         priority = _FIELD_CROP_PRIORITY.get(field_name or "", 100)
         ranked_fields.append((priority, label, data))
 
     ranked_fields.sort(key=lambda item: (item[0], item[1]))
-    selected = [(label, data) for _, label, data in ranked_fields[:max_extra]]
+    use_tickets = (
+        prefer_ticket_crops
+        if prefer_ticket_crops is not None
+        else len(ticket_crops) >= 2
+    )
 
-    if skipped_ticket or len(crops) > len(selected):
+    selected: list[tuple[str, bytes]] = []
+    if use_tickets and ticket_crops:
+        selected.extend(ticket_crops[:max_extra])
+        remaining = max_extra - len(selected)
+        if remaining > 0:
+            selected.extend(
+                (label, data) for _, label, data in ranked_fields[:remaining]
+            )
+    else:
+        selected = [(label, data) for _, label, data in ranked_fields[:max_extra]]
+
+    if len(crops) > len(selected):
         logger.info(
             "Limited vision extra images from %s to %s "
-            "(skipped_ticket_crops=%s, Groq max total images=%s)",
+            "(ticket_crops=%s, prefer_tickets=%s, Groq max total images=%s)",
             len(crops),
             len(selected),
-            skipped_ticket,
+            len(ticket_crops),
+            use_tickets,
             GROQ_MAX_TOTAL_IMAGES,
         )
     return selected

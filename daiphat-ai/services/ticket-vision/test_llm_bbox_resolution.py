@@ -29,10 +29,20 @@ def test_clamp_bbox_keeps_absolute_pixels():
 def test_resolve_bbox_prefers_larger_yolo_when_llm_undersized():
     llm = TicketBBox(x=20, y=20, width=300, height=400)
     yolo = [(10, 10, 900, 1200)]
-    final, source = _resolve_bbox(llm, 1000, 1400, 0, 1, yolo)
+    final, source, yolo_index = _resolve_bbox(llm, 1000, 1400, 0, 1, yolo)
     assert (final.x, final.y, final.width, final.height) == (10, 10, 900, 1200)
     assert source is not None
     assert (source.width, source.height) == (300, 400)
+    assert yolo_index == 0
+
+
+def test_resolve_bbox_matches_yolo_by_iou_not_index():
+    llm = TicketBBox(x=500, y=400, width=400, height=500)
+    # Index 0 is far away; index 1 overlaps the LLM box.
+    yolo = [(10, 10, 200, 200), (480, 380, 420, 520)]
+    final, _, yolo_index = _resolve_bbox(llm, 1200, 1000, 0, 2, yolo)
+    assert yolo_index == 1
+    assert (final.x, final.y, final.width, final.height) == (480, 380, 420, 520)
 
 
 def test_should_prefer_yolo_when_llm_area_much_smaller():

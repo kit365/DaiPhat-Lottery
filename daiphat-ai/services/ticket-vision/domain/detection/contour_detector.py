@@ -52,6 +52,24 @@ def _suppress_contained_regions(candidates: list[DetectedRegion]) -> list[Detect
 
     return kept
 
+
+def _has_ticket_like_texture(image: np.ndarray, bbox: tuple[int, int, int, int]) -> bool:
+    """Reject near-uniform dark/empty blobs that are not printable ticket faces."""
+    x, y, w, h = bbox
+    if w < 24 or h < 24:
+        return False
+    patch = image[y : y + h, x : x + w]
+    if patch.size == 0:
+        return False
+    gray = cv2.cvtColor(patch, cv2.COLOR_BGR2GRAY) if len(patch.shape) == 3 else patch
+    # Low variance ≈ shadow / table / blank margin, not a printed ticket.
+    if float(np.std(gray)) < 12.0:
+        return False
+    edges = cv2.Canny(gray, 60, 140)
+    edge_ratio = float(np.count_nonzero(edges)) / float(edges.size)
+    return edge_ratio >= 0.012
+
+
 class ContourTicketDetector(TicketDetectorStrategy):
     """MVP ticket detector: OpenCV contour detection + aspect-ratio filtering.
 
@@ -138,6 +156,9 @@ class ContourTicketDetector(TicketDetectorStrategy):
 
             aspect_ratio = min(quad_width, quad_height) / max(quad_width, quad_height)
             if not (self.min_aspect_ratio <= aspect_ratio <= self.max_aspect_ratio):
+                continue
+
+            if not _has_ticket_like_texture(image, (x, y, w, h)):
                 continue
 
             candidates.append(DetectedRegion(bbox=(x, y, w, h), corners=corners))

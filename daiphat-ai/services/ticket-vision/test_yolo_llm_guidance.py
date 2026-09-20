@@ -159,7 +159,7 @@ def test_merge_rule_a_template_only_when_yolo_empty():
     assert "OCR template field layouts" in hint
 
 
-def test_limit_vision_extra_images_skips_ticket_prefers_numbers():
+def test_limit_vision_extra_images_single_ticket_prefers_fields():
     crops = [
         (f"{YOLO_TICKET_CROP_PREFIX}0", b"ticket"),
         (f"{YOLO_FIELD_CROP_PREFIX}drawDate", b"date"),
@@ -167,12 +167,28 @@ def test_limit_vision_extra_images_skips_ticket_prefers_numbers():
         (f"{YOLO_FIELD_CROP_PREFIX}serialNumber", b"serial"),
         (f"{YOLO_FIELD_CROP_PREFIX}stationName", b"station"),
     ]
-    limited = limit_vision_extra_images(crops)
+    limited = limit_vision_extra_images(crops, prefer_ticket_crops=False)
     assert len(limited) == GROQ_MAX_EXTRA_IMAGES
     labels = [label for label, _ in limited]
     assert f"{YOLO_TICKET_CROP_PREFIX}0" not in labels
     assert f"{YOLO_FIELD_CROP_PREFIX}numbers" in labels
     assert f"{YOLO_FIELD_CROP_PREFIX}serialNumber" in labels
+
+
+def test_limit_vision_extra_images_multi_ticket_prefers_ticket_crops():
+    crops = [
+        (f"{YOLO_TICKET_CROP_PREFIX}0", b"ticket0"),
+        (f"{YOLO_TICKET_CROP_PREFIX}1", b"ticket1"),
+        (f"{YOLO_TICKET_CROP_PREFIX}2", b"ticket2"),
+        (f"{YOLO_FIELD_CROP_PREFIX}numbers", b"numbers"),
+        (f"{YOLO_FIELD_CROP_PREFIX}serialNumber", b"serial"),
+    ]
+    limited = limit_vision_extra_images(crops, prefer_ticket_crops=True)
+    assert len(limited) == GROQ_MAX_EXTRA_IMAGES
+    labels = [label for label, _ in limited]
+    assert f"{YOLO_TICKET_CROP_PREFIX}0" in labels
+    assert f"{YOLO_TICKET_CROP_PREFIX}1" in labels
+    assert f"{YOLO_FIELD_CROP_PREFIX}numbers" not in labels
 
 
 def test_limit_vision_extra_images_fields_only_prioritizes_numbers():

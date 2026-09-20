@@ -109,6 +109,81 @@ def format_price_vnd(raw: str | None) -> str | None:
     return f"{grouped} VND"
 
 
+_TICKET_INDEX_PATTERN = re.compile(r"ticket\s*#?\s*(\d+)", re.IGNORECASE)
+_EN_FIELD_HINTS = (
+    ("serial", "số seri"),
+    ("number", "dãy số"),
+    ("station", "tên đài"),
+    ("date", "ngày quay"),
+    ("price", "mệnh giá"),
+    ("batch", "mã lô"),
+)
+
+
+def localize_scan_warnings(warnings: list[str] | None) -> list[str]:
+    """Map English LLM soft-warnings into actionable Vietnamese Admin copy."""
+    if not warnings:
+        return []
+    localized: list[str] = []
+    seen: set[str] = set()
+    for raw in warnings:
+        if not raw or not str(raw).strip():
+            continue
+        text = str(raw).strip()
+        mapped = _localize_one_warning(text)
+        if mapped not in seen:
+            seen.add(mapped)
+            localized.append(mapped)
+    return localized
+
+
+def _localize_one_warning(text: str) -> str:
+    lower = text.lower()
+    # Already Vietnamese — keep as-is.
+    if re.search(r"[àáạảãâăèéêìíòóôơùúýđ]", lower) or re.search(
+        r"\b(vé|seri|dãy số|chụp|quét lại|thủ công|tải lại)\b", lower
+    ):
+        return text
+
+    ticket_match = _TICKET_INDEX_PATTERN.search(text)
+    ticket_label = f"Vé #{ticket_match.group(1)}" if ticket_match else "Một vé trong ảnh"
+
+    field_vi = None
+    for en, vi in _EN_FIELD_HINTS:
+        if en in lower:
+            field_vi = vi
+            break
+
+    covered = any(
+        token in lower
+        for token in ("cover", "obscur", "overlap", "hidden", "not clearly", "unreadable", "blur")
+    )
+    if covered and field_vi:
+        return (
+            f"{ticket_label}: {field_vi} bị che hoặc không rõ. "
+            f"Hãy tách các vé chồng nhau hoặc chụp lại gần hơn, rồi quét lại."
+        )
+    if covered:
+        return (
+            f"{ticket_label}: một số thông tin bị che hoặc không rõ. "
+            f"Hãy tách vé / chỉnh góc chụp rồi quét lại."
+        )
+    if "no ticket" in lower or "not detect" in lower:
+        return (
+            "Không phát hiện được vé trong ảnh. "
+            "Vui lòng chụp rõ toàn bộ tờ vé (đủ ánh sáng, không bị cắt) rồi quét lại."
+        )
+    if "rate limit" in lower or "too many" in lower:
+        return text  # FE / router already maps provider limits
+    # Generic English leftover
+    if re.search(r"[A-Za-z]{4,}", text):
+        return (
+            f"{ticket_label}: nhận diện chưa đầy đủ. "
+            f"Vui lòng kiểm tra ảnh hoặc nhập thủ công các trường còn thiếu."
+        )
+    return text
+
+
 def build_ticket_extraction_prompt(
     stations_json: str,
     max_tickets: int,
@@ -135,17 +210,20 @@ Analyze the uploaded image and extract ticket information. Rules:
 - For each detected ticket, extract every field independently. If some fields are covered/obscured by another ticket, set ONLY those fields to null with low fieldConfidences (0.0-0.2). Keep and return the ticket with all readable fields.
 - Never omit a ticket from "tickets" just because some fields are unreadable.
 - If a field is unreadable or uncertain, set it to null and use a low fieldConfidences value (0.0-0.4).
-- Add a short warning when fields look covered by overlap (e.g. "Ticket #2 serial may be covered by another ticket").
+- Add a short Vietnamese warning when fields look covered/obscured, including what to do next
+  (e.g. "Vé #2: số seri bị che — hãy tách vé hoặc chụp lại góc nghiêng để thấy rõ seri.").
+  Warnings MUST be in Vietnamese for Admin operators. Do not write English warnings.
 - Return at most {max_tickets} ticket(s).
 - Image size: {image_width}x{image_height} pixels.
-- All bbox / fieldBoxes MUST use this full-frame coordinate space (x,y = top-left of the whole image — NOT a crop).
-- Prefer NORMALIZED coordinates in [0.0, 1.0] (fraction of image width/height). Pixel coordinates in the {image_width}x{image_height} space are also accepted.
+- All bbox / fieldBoxes MUST use this full-frame coordinate space (x,y = top-left of the whole image — NOT relative to a ticket crop or extra crop image).
+- Prefer NORMALIZED coordinates in [0.0, 1.0] (fraction of full image width/height). Absolute pixel coordinates in the {image_width}x{image_height} space are also accepted.
+- List tickets in reading order: top-to-bottom, then left-to-right.
 - Prefer matching station names/codes against this active station list: {stations_json}
 - numbers: digits only, no spaces or punctuation.
 - drawDate: ISO format YYYY-MM-DD when visible. If the date is not clearly readable, use null (do not invent or emit non-ISO strings).
-- serialNumber: alphanumeric ticket serial as printed.
+- serialNumber: the ticket serial as printed. MUST be mostly digits with exactly ONE letter at the beginning OR the end only (examples: "A123456", "123456B", "A424944"). NEVER put a letter in the middle. NEVER put production lot/ký hiệu codes here (reject forms like "4E2", "5D2", "XSCMG997", "08D", "8K4", "26-T05K4").
 - ticketType: printed ticket PRICE as digits when possible (e.g. "10000"), not a product category.
-- batchCode: production batch code printed by the lottery issuer/manufacturer on the ticket (NOT a warehouse import-batch code). Null if not visible.
+- batchCode: production batch / ký hiệu / lô phát hành printed by the lottery issuer on the ticket (alphanumeric lot code such as "08D", "8K4", "4E2", "XSCMG997", "26-T05K4"). NOT a warehouse import-batch code. NOT the serialNumber. Null if not visible.
 - fieldConfidences must include stationName, serialNumber, numbers, drawDate, ticketType, and batchCode (0.0-1.0).
 - fieldBoxes: for each non-null field above, provide a tight bounding box around that printed value inside the ticket. Omit boxes for null/unreadable fields. Do not copy template layout boxes unless they match the actual printed text.
 - usedFieldLayouts: for each non-null extracted field that used a template layout, map fieldName to that layout's id (integer). Omit entries when no layout was used.

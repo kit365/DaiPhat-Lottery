@@ -21,12 +21,17 @@ DEFAULT_CLASS_TO_FIELD: dict[str, str] = {
     "lotterynumber": "numbers",
     "drawdate": "drawDate",
     "price": "ticketType",
+    # Optional aliases if a retrain adds a ký hiệu / batch class.
+    "batchcode": "batchCode",
+    "batch-code": "batchCode",
+    "lottery-batch": "batchCode",
+    "ky-hieu": "batchCode",
 }
 
 # Grown around each field box before OCR: the trained boxes hug the glyphs
 # tightly, and OCR text detectors do better with a little quiet space than
 # with characters flush against the crop edge.
-_FIELD_PADDING_RATIO = 0.08
+_FIELD_PADDING_RATIO = 0.14
 
 
 class YoloFieldLayoutStrategy(TicketLayoutStrategy):

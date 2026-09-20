@@ -115,6 +115,7 @@ class YoloObbTicketDetector(TicketDetectorStrategy):
         keep = self._ticket_class_mask(obb, getattr(prediction, "names", None))
 
         height, width = image.shape[:2]
+        image_area = float(height * width)
         regions: list[DetectedRegion] = []
         for quad, box, is_ticket in zip(quads, boxes, keep):
             if not is_ticket:
@@ -126,12 +127,15 @@ class YoloObbTicketDetector(TicketDetectorStrategy):
             x2, y2 = min(x2, width), min(y2, height)
             if x2 - x1 <= 0 or y2 - y1 <= 0:
                 continue
+            # Drop tiny field-like false positives that slipped ticket-class filter.
+            if ((x2 - x1) * (y2 - y1)) / image_area < 0.02:
+                continue
 
             regions.append(
                 DetectedRegion(
                     bbox=(x1, y1, x2 - x1, y2 - y1),
                     # The OBB's own point order follows the box's rotation,
-                    # not image-space TL/TR/BR/BL -- re-order it or the
+                    # not image-space TL/TR/BL/BR -- re-order it or the
                     # perspective warp yields rotated/mirrored crops.
                     corners=order_corners(np.asarray(quad, dtype="float32")),
                 )

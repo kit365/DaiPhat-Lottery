@@ -82,12 +82,12 @@ def test_invalid_calendar_date_is_ignored(sample_stations):
 
 def test_real_world_serial_formats_are_recognized(sample_stations):
     # Real Vietnamese lottery serials mix letters and digits throughout
-    # (e.g. "32TV17"), not just a single optional leading letter.
+    # (e.g. "A123456"), not just a single optional leading letter.
     parser = _parser(sample_stations)
 
-    result = parser.parse({"body": [OcrTextResult(text="32TV17", confidence=0.85)]})
+    result = parser.parse({"body": [OcrTextResult(text="A123456", confidence=0.85)]})
 
-    assert result.extracted.serialNumber == "32TV17"
+    assert result.extracted.serialNumber == "A123456"
 
 
 def test_numbers_prefers_a_value_repeated_across_the_ticket(sample_stations):
@@ -118,13 +118,13 @@ def test_serial_prefers_the_candidate_lower_on_the_ticket(sample_stations):
     parser = _parser(sample_stations)
 
     ocr_by_region = {
-        "header": [OcrTextResult(text="35TV21", confidence=0.9, y_center=0.1)],
-        "body": [OcrTextResult(text="32TV17", confidence=0.9, y_center=0.9)],
+        "header": [OcrTextResult(text="B654321", confidence=0.9, y_center=0.1)],
+        "body": [OcrTextResult(text="A123456", confidence=0.9, y_center=0.9)],
     }
 
     result = parser.parse(ocr_by_region)
 
-    assert result.extracted.serialNumber == "32TV17"
+    assert result.extracted.serialNumber == "A123456"
 
 
 def test_station_falls_back_to_body_when_header_text_matches_no_station(sample_stations):

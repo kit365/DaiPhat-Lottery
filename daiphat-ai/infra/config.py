@@ -45,13 +45,16 @@ class Settings(BaseSettings):
     # Recognition engine: "groq" (default), "gemini", "grok" (xAI), or "legacy".
     # Leave unset to resolve from OCR_AI_PROVIDER, else default to groq.
     TICKET_VISION_RECOGNITION_ENGINE: str | None = None
+    # When Groq/Gemini/Grok fails (quota, timeout, misconfig) or returns zero
+    # tickets, automatically retry with local EasyOCR/PaddleOCR (legacy).
+    TICKET_VISION_LLM_FALLBACK_TO_LEGACY: bool = True
     # Optional alias when TICKET_VISION_RECOGNITION_ENGINE is unset: GROQ|GEMINI|GROK|LEGACY.
     OCR_AI_PROVIDER: str = ""
 
     # Groq.com vision (OpenAI-compatible). Active default for OCR Scan Vé.
     GROQ_API_BASE_URL: str = "https://api.groq.com/openai/v1"
     GROQ_API_KEY: str = ""
-    GROQ_VISION_MODEL: str = "qwen/qwen3.6-27b"
+    GROQ_VISION_MODEL: str = "qwen/qwen3.8-27b"
     GROQ_READ_TIMEOUT_SECONDS: float = 60.0
 
     # Gemini vision (Google Generative Language API). Kept for rollback.
@@ -73,8 +76,11 @@ class Settings(BaseSettings):
 
     # Upload guardrails (mobile is expected to resize before upload; the
     # service re-checks defensively rather than trusting the client).
-    TICKET_VISION_MAX_FILE_SIZE_MB: int = 5
-    TICKET_VISION_MAX_IMAGE_DIMENSION: int = 1920
+    TICKET_VISION_MAX_FILE_SIZE_MB: int = 8
+    # Soft ceiling for detection/OCR workspace. Prefer compression over
+    # aggressive shrink so serial/number glyphs stay readable (Admin FE
+    # also avoids downscaling below ~3200px).
+    TICKET_VISION_MAX_IMAGE_DIMENSION: int = 2400
 
     # A single photo may contain several tickets fanned out; cap detection
     # to keep OCR latency bounded (see doc "Potential Pitfalls" section).
@@ -91,9 +97,9 @@ class Settings(BaseSettings):
     # Ticket detector strategy (Strategy+Factory, see
     # services/ticket-vision/domain/detection/factory.py): "contour" (MVP,
     # OpenCV, no weights needed) or "yolov8_obb" (fine-tuned YOLOv8-OBB).
-    # Stays on "contour" until the trained model is benchmarked against it on
-    # a held-out set -- flipping the default is a config change, not a deploy.
-    TICKET_VISION_DETECTOR_STRATEGY: str = "contour"
+    # Prefers YOLO when best.pt is present; factory soft-falls back to contour
+    # if weights/ultralytics are missing.
+    TICKET_VISION_DETECTOR_STRATEGY: str = "yolov8_obb"
 
     # Path to the YOLOv8-OBB weights, relative to the service directory (or
     # absolute). Gitignored (*.pt) -- mounted as a volume in docker-compose
@@ -116,9 +122,9 @@ class Settings(BaseSettings):
     # services/ticket-vision/domain/layouts/factory.py): "generic" splits the
     # ticket into header/body at a fixed, uncalibrated ratio; "yolo_field"
     # uses the model's per-field classes to crop each field exactly, which is
-    # the calibration that ratio stands in for. Costs one extra inference per
-    # ticket, so it's opt-in.
-    TICKET_VISION_LAYOUT_STRATEGY: str = "generic"
+    # the calibration that ratio stands in for. Soft-falls back to generic
+    # when best.pt is missing.
+    TICKET_VISION_LAYOUT_STRATEGY: str = "yolo_field"
     # LLM path (Groq/Gemini/Grok): run best.pt once for ticket/field crops,
     # merge with OCR Template layouts (YOLO wins per field; template fills gaps).
     # Soft-skips when weights are missing. Turn off to force template/full-image only.
@@ -136,6 +142,30 @@ class Settings(BaseSettings):
     # raises or its confidence is below the low threshold, PaddleOCR is
     # retried and the higher-confidence result wins.
     TICKET_VISION_ENABLE_OCR_FALLBACK: bool = True
+
+    # Phase 3 — field-specialized OCR on YOLO `field:*` crops. Uses charset
+    # allowlists (serial/numbers/drawDate) first; optional ONNX paths soft-skip
+    # until fine-tuned weights + decoder are registered. Low confidence still
+    # falls through to EasyOCR→Paddle.
+    TICKET_VISION_FIELD_OCR_ENABLED: bool = True
+    TICKET_VISION_FIELD_OCR_FIELDS: str = "serialNumber,numbers,drawDate"
+    TICKET_VISION_FIELD_OCR_SERIAL_MODEL: str = "models/field_ocr/serial.onnx"
+    TICKET_VISION_FIELD_OCR_NUMBERS_MODEL: str = "models/field_ocr/numbers.onnx"
+    TICKET_VISION_FIELD_OCR_DRAW_DATE_MODEL: str = "models/field_ocr/draw_date.onnx"
+
+    # Phase 4 — ops: soft daily cloud-LLM quota (0 = unlimited) and model
+    # version labels for /health + scan responses.
+    TICKET_VISION_LLM_DAILY_QUOTA: int = 200
+    TICKET_VISION_LLM_QUOTA_DIR: str = "data/llm_quota"
+    # After Groq TPD/token exhaustion (or repeated RPM 429), skip cloud LLM
+    # for this many seconds and go straight to local OCR.
+    TICKET_VISION_LLM_CIRCUIT_COOLDOWN_SECONDS: int = 900
+    # Legacy/local path: skip multi-pass EasyOCR orientation probes (use
+    # geometric text-axis only). Cuts many seconds when Groq falls back.
+    TICKET_VISION_LEGACY_FAST_ORIENTATION: bool = True
+    TICKET_VISION_YOLO_MODEL_VERSION: str = ""
+    TICKET_VISION_FIELD_OCR_VERSION: str = ""
+    TICKET_VISION_MODEL_MANIFEST_PATH: str = "models/MODEL_MANIFEST.json"
 
     # Placeholder for future config
     # CHROMA_DB_PATH: str = "./data/chroma"

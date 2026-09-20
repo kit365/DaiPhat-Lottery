@@ -56,3 +56,6 @@ class ScanResponse(BaseModel):
     warnings: list[str] = Field(default_factory=list)
     imageWidth: int | None = None
     imageHeight: int | None = None
+    # Phase 4 ops: which engine actually ran + weight/version labels.
+    recognitionEngineUsed: str | None = None
+    modelVersions: dict[str, object] | None = None

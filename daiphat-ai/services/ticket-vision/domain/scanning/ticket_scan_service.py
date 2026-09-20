@@ -5,6 +5,7 @@ import numpy as np
 
 from domain.detection.base import DetectedRegion, TicketDetectorStrategy
 from domain.layouts.factory import LayoutStrategyFactory
+from domain.layouts.yolo_field_layout import FIELD_REGION_PREFIX
 from domain.ocr.base import OcrStrategy
 from domain.parsing.ticket_parser import ParsedTicket, TicketParser
 from domain.preprocessing import pipeline as image_pipeline
@@ -16,7 +17,16 @@ from domain.stations.models import StationRef
 from domain.validation.format_validator import FormatValidator
 from dto.request.scan_metadata import ScanMetadata
 from dto.response.scan_response import BoundingBox, ScanResponse, TicketScanResult
+from infra.config import settings
 from infra.logger import logger
+
+
+def _field_hint_from_region(region_name: str) -> str | None:
+    """Map layout region name ``field:serialNumber`` → ``serialNumber``."""
+    if region_name.startswith(FIELD_REGION_PREFIX):
+        hint = region_name[len(FIELD_REGION_PREFIX) :].strip()
+        return hint or None
+    return None
 
 # Orientation correction (see _correct_orientation): image size fed to each
 # per-rotation OCR probe. Kept small since this only needs to compare
@@ -151,7 +161,10 @@ class TicketScanService:
             name: image_pipeline.upscale_if_too_small(region_image) for name, region_image in regions_map.items()
         }
         ocr_results_by_region = {
-            name: self._ocr_strategy.read_text(region_image) for name, region_image in regions_map.items()
+            name: self._ocr_strategy.read_text(
+                region_image, field_hint=_field_hint_from_region(name)
+            )
+            for name, region_image in regions_map.items()
         }
 
         if not any(ocr_results_by_region.values()):
@@ -190,9 +203,10 @@ class TicketScanService:
             corners=[[point[0], point[1]] for point in region.corners],
         )
 
-        cropped_image_base64 = (
-            image_pipeline.encode_to_base64_jpeg(crop.preview) if self._include_cropped_image else None
-        )
+        cropped_image_base64 = None
+        if self._include_cropped_image and crop.preview is not None and crop.preview.size > 0:
+            # Crop-only lossless PNG — no resize / JPEG / enhance on review pixels.
+            cropped_image_base64 = image_pipeline.encode_to_base64_png(crop.preview)
 
         return TicketScanResult(
             ticketIndex=index,
@@ -223,6 +237,11 @@ class TicketScanService:
         ticket background.
         """
         axis_hint = image_pipeline.dominant_text_axis(crop.ocr_ready)
+        # Fast path (default): geometric axis only — avoids 2–4 EasyOCR probes
+        # that dominate latency when Groq has already fallen back to local OCR.
+        if bool(getattr(settings, "TICKET_VISION_LEGACY_FAST_ORIENTATION", True)):
+            return image_pipeline.rotate_crop(crop, axis_hint)
+
         primary_pair = (axis_hint, axis_hint + 2)
 
         best_quarter_turns, best_score = self._best_orientation(crop, primary_pair)
@@ -300,12 +319,11 @@ class TicketScanService:
             roi = image_pipeline.upscale_if_too_small(roi, _ROI_UPSCALE_MIN_DIMENSION)
 
             try:
-                roi_results = self._ocr_strategy.read_text(roi)
+                roi_results = self._ocr_strategy.read_text(roi, field_hint=field_name)
             except Exception:  # noqa: BLE001 -- refinement is best-effort, never fatal to the scan
                 continue
             if not roi_results:
                 continue
-
             roi_parsed = parser.parse({"whole": roi_results}, expected_number_length=expected_number_length)
             roi_confidence = roi_parsed.field_confidences.get(field_name, 0.0)
             roi_value = getattr(roi_parsed.extracted, field_name, None)

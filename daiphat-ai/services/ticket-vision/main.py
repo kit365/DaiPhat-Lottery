@@ -34,7 +34,8 @@ def warn_missing_vision_credentials() -> None:
 
 
 @app.get("/health", tags=["System"])
-def health_check():
+async def health_check():
+    """Async so YOLO/Groq sync work cannot starve the liveness probe."""
     engine = (settings.TICKET_VISION_RECOGNITION_ENGINE or "groq").strip().lower()
     vision_ready = True
     if engine == "groq":
@@ -43,11 +44,35 @@ def health_check():
         vision_ready = bool((settings.GEMINI_API_KEY or "").strip())
     elif engine == "grok":
         vision_ready = bool((settings.GROK_API_KEY or "").strip())
+
+    from infra import llm_quota
+    from infra import llm_circuit
+    from infra.model_manifest import load_model_manifest
+
+    quota = llm_quota.snapshot()
+    circuit = llm_circuit.snapshot()
     return APIResponse.ok(
         data={
             "status": "up",
             "recognitionEngine": engine,
             "visionReady": vision_ready,
+            "llmQuota": {
+                "date": quota.date,
+                "used": quota.used,
+                "limit": quota.limit,
+                "remaining": quota.remaining,
+                "exhausted": quota.exhausted,
+            },
+            "llmCircuit": {
+                "open": circuit.open,
+                "remainingSeconds": circuit.remainingSeconds,
+                "reason": circuit.reason,
+            },
+            "modelVersions": load_model_manifest(),
+            "llmFallbackToLegacy": bool(
+                getattr(settings, "TICKET_VISION_LLM_FALLBACK_TO_LEGACY", True)
+            ),
+            "fieldOcrEnabled": bool(getattr(settings, "TICKET_VISION_FIELD_OCR_ENABLED", True)),
         }
     )
 

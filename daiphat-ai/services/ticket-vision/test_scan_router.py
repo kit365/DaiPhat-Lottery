@@ -1,5 +1,7 @@
 import json
+from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from main import app
@@ -10,12 +12,26 @@ from dto.response.scan_response import (
     ScanResponse,
     TicketScanResult,
 )
+from infra import llm_quota
 from routers.scan import (
     get_gemini_ticket_scan_service,
     get_grok_ticket_scan_service,
     get_groq_ticket_scan_service,
     get_legacy_ticket_scan_service,
 )
+
+
+@pytest.fixture(autouse=True)
+def _isolate_llm_quota(tmp_path: Path, monkeypatch):
+    """Avoid sharing the process-wide daily quota file across tests."""
+    from infra import llm_circuit
+
+    monkeypatch.setattr(llm_quota.settings, "TICKET_VISION_LLM_DAILY_QUOTA", 0)
+    llm_quota.set_quota_dir_for_tests(tmp_path / "quota")
+    llm_circuit.reset_for_tests()
+    yield
+    llm_quota.set_quota_dir_for_tests(None)
+    llm_circuit.reset_for_tests()
 
 
 class FakeLegacyScanService:
@@ -212,20 +228,22 @@ def test_scan_endpoint_rejects_invalid_metadata_json(monkeypatch):
     assert response.json()["success"] is False
 
 
-def test_scan_vision_client_error_returns_soft_ok_empty_tickets(monkeypatch):
-    from infra.vision_extraction import VisionClientError
+def test_scan_vision_client_error_falls_back_to_legacy(monkeypatch):
+    from infra.vision_extraction import VisionApiError
 
     monkeypatch.setattr("routers.scan.settings.TICKET_VISION_RECOGNITION_ENGINE", "groq")
+    monkeypatch.setattr("routers.scan.settings.TICKET_VISION_LLM_FALLBACK_TO_LEGACY", True)
 
     class FailingGroq:
         def scan_image(self, image_bytes, metadata):
-            raise VisionClientError("empty model content")
+            raise VisionApiError("Groq API rate limit exceeded (HTTP 429)", status_code=429)
 
+    fake_legacy = FakeLegacyScanService()
     _override_all(
         FailingGroq(),
         FakeLlmScanService(),
         FakeLlmScanService(),
-        FakeLegacyScanService(),
+        fake_legacy,
     )
     client = TestClient(app)
 
@@ -240,9 +258,81 @@ def test_scan_vision_client_error_returns_soft_ok_empty_tickets(monkeypatch):
     assert response.status_code == 200
     body = response.json()
     assert body["success"] is True
+    assert fake_legacy.called is True
+    assert body["data"]["ticketCount"] == 1
+    assert any("legacy" in w.lower() or "OCR local" in w for w in body["data"]["warnings"])
+
+
+def test_scan_vision_client_error_without_fallback_returns_soft_empty(monkeypatch):
+    from infra.vision_extraction import VisionClientError
+
+    monkeypatch.setattr("routers.scan.settings.TICKET_VISION_RECOGNITION_ENGINE", "groq")
+    monkeypatch.setattr("routers.scan.settings.TICKET_VISION_LLM_FALLBACK_TO_LEGACY", False)
+
+    class FailingGroq:
+        def scan_image(self, image_bytes, metadata):
+            raise VisionClientError("empty model content")
+
+    fake_legacy = FakeLegacyScanService()
+    _override_all(
+        FailingGroq(),
+        FakeLlmScanService(),
+        FakeLlmScanService(),
+        fake_legacy,
+    )
+    client = TestClient(app)
+
+    try:
+        response = client.post(
+            "/v1/scan",
+            files={"file": ("ticket.jpg", b"fake-image-bytes", "image/jpeg")},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert fake_legacy.called is False
     assert body["data"]["ticketCount"] == 0
     assert body["data"]["tickets"] == []
     assert any("Không thể đọc rõ" in w for w in body["data"]["warnings"])
+
+
+def test_scan_empty_llm_result_falls_back_to_legacy(monkeypatch):
+    monkeypatch.setattr("routers.scan.settings.TICKET_VISION_RECOGNITION_ENGINE", "groq")
+    monkeypatch.setattr("routers.scan.settings.TICKET_VISION_LLM_FALLBACK_TO_LEGACY", True)
+
+    class EmptyGroq:
+        def scan_image(self, image_bytes, metadata):
+            return ScanResponse(
+                scanId="empty-scan",
+                ticketCount=0,
+                tickets=[],
+                warnings=["Không nhận diện được vé"],
+            )
+
+    fake_legacy = FakeLegacyScanService()
+    _override_all(
+        EmptyGroq(),
+        FakeLlmScanService(),
+        FakeLlmScanService(),
+        fake_legacy,
+    )
+    client = TestClient(app)
+
+    try:
+        response = client.post(
+            "/v1/scan",
+            files={"file": ("ticket.jpg", b"fake-image-bytes", "image/jpeg")},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert fake_legacy.called is True
+    assert body["data"]["ticketCount"] == 1
 
 
 def test_health_check(monkeypatch):
@@ -251,6 +341,69 @@ def test_health_check(monkeypatch):
     client = TestClient(app)
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.json()["data"]["status"] == "up"
-    assert response.json()["data"]["recognitionEngine"] == "groq"
-    assert response.json()["data"]["visionReady"] is True
+    data = response.json()["data"]
+    assert data["status"] == "up"
+    assert data["recognitionEngine"] == "groq"
+    assert data["visionReady"] is True
+    assert "llmQuota" in data
+    assert "llmCircuit" in data
+    assert "modelVersions" in data
+    assert "yoloVersion" in data["modelVersions"]
+
+
+def test_scan_forces_legacy_when_llm_circuit_open(monkeypatch):
+    from infra import llm_circuit
+
+    monkeypatch.setattr("routers.scan.settings.TICKET_VISION_RECOGNITION_ENGINE", "groq")
+    monkeypatch.setattr(llm_circuit.settings, "TICKET_VISION_LLM_CIRCUIT_COOLDOWN_SECONDS", 120)
+    llm_circuit.trip("Groq TPD exhausted")
+
+    fake_groq = FakeLlmScanService()
+    fake_legacy = FakeLegacyScanService()
+    _override_all(fake_groq, FakeLlmScanService(), FakeLlmScanService(), fake_legacy)
+    client = TestClient(app)
+
+    try:
+        response = client.post(
+            "/v1/scan",
+            files={"file": ("ticket.jpg", b"fake-image-bytes", "image/jpeg")},
+        )
+    finally:
+        app.dependency_overrides.clear()
+        llm_circuit.reset_for_tests()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert fake_groq.called is False
+    assert fake_legacy.called is True
+    assert body["data"]["recognitionEngineUsed"] == "legacy"
+    assert any("local" in w.lower() or "hạn mức" in w.lower() for w in body["data"]["warnings"])
+
+
+def test_scan_forces_legacy_when_daily_llm_quota_exhausted(tmp_path, monkeypatch):
+    monkeypatch.setattr("routers.scan.settings.TICKET_VISION_RECOGNITION_ENGINE", "groq")
+    monkeypatch.setattr(llm_quota.settings, "TICKET_VISION_LLM_DAILY_QUOTA", 1)
+    llm_quota.set_quota_dir_for_tests(tmp_path / "quota-exhausted")
+    # Consume the single allowance.
+    assert not llm_quota.try_consume().exhausted
+
+    fake_groq = FakeLlmScanService()
+    fake_legacy = FakeLegacyScanService()
+    _override_all(fake_groq, FakeLlmScanService(), FakeLlmScanService(), fake_legacy)
+    client = TestClient(app)
+
+    try:
+        response = client.post(
+            "/v1/scan",
+            files={"file": ("ticket.jpg", b"fake-image-bytes", "image/jpeg")},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert fake_groq.called is False
+    assert fake_legacy.called is True
+    assert body["data"]["ticketCount"] == 1
+    assert body["data"]["recognitionEngineUsed"] == "legacy"
+    assert any("hạn mức" in w.lower() or "legacy" in w.lower() for w in body["data"]["warnings"])

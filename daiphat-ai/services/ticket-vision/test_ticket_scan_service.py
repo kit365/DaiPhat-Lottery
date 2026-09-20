@@ -37,7 +37,14 @@ class _MarkerAwareStub(OcrStrategy):
 
     name = "marker-aware-stub"
 
-    def read_text(self, image: np.ndarray, languages: list[str] = DEFAULT_LANGUAGES) -> list[OcrTextResult]:
+    def read_text(
+        self,
+        image: np.ndarray,
+        languages: list[str] = DEFAULT_LANGUAGES,
+        *,
+        field_hint: str | None = None,
+    ) -> list[OcrTextResult]:
+        del field_hint
         marker_is_bright = image[0, 0] > 128 if image.ndim == 2 else bool(image[0, 0].mean() > 128)
         return [OcrTextResult(text="marker", confidence=0.9 if marker_is_bright else 0.1)]
 

@@ -37,7 +37,14 @@ class PaddleOcrStrategy(OcrStrategy):
             self._engine_lang = lang
         return self._engine
 
-    def read_text(self, image: np.ndarray, languages: list[str] = DEFAULT_LANGUAGES) -> list[OcrTextResult]:
+    def read_text(
+        self,
+        image: np.ndarray,
+        languages: list[str] = DEFAULT_LANGUAGES,
+        *,
+        field_hint: str | None = None,
+    ) -> list[OcrTextResult]:
+        del field_hint
         lang = languages[0] if languages else _DEFAULT_LANG
         engine = self._get_engine(lang)
         raw_results = engine.ocr(image, cls=True)
