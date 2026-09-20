@@ -14,16 +14,23 @@ const BASE_URL = '/lottery-tickets';
 
 export const scanTicketImage = async (
     file: File,
-    importBatchLineId?: number | null
+    options?: {
+        importBatchLineId?: number | null;
+        importBatchId?: number | null;
+    }
 ): Promise<ApiResponse<TicketScanResponse>> => {
     const formData = new FormData();
     formData.append('file', file);
+    const params: Record<string, number> = {};
+    if (options?.importBatchLineId != null && Number.isFinite(options.importBatchLineId)) {
+        params.importBatchLineId = options.importBatchLineId;
+    }
+    if (options?.importBatchId != null && Number.isFinite(options.importBatchId)) {
+        params.importBatchId = options.importBatchId;
+    }
     const response = await apiApp.post(`${BASE_URL}/scan`, formData, {
-        params:
-            importBatchLineId != null && Number.isFinite(importBatchLineId)
-                ? { importBatchLineId }
-                : undefined,
-        timeout: 120_000,
+        params: Object.keys(params).length > 0 ? params : undefined,
+        timeout: 200_000,
         skipGlobalErrorToast: true,
     });
     return response.data;

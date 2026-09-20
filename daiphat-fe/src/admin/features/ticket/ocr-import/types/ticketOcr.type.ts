@@ -43,6 +43,14 @@ export interface FieldValidationResult {
     status: OcrFieldValidationStatus;
     message?: string | null;
     expectedValue?: string | null;
+    ruleFailures?: OcrFieldValidationFailure[] | null;
+}
+
+export interface OcrFieldValidationFailure {
+    ruleId?: number | null;
+    ruleType?: string | null;
+    severity?: 'HARD_FAIL' | 'SOFT_WARNING' | string | null;
+    message?: string | null;
 }
 
 export interface OcrFieldDetail {
@@ -53,6 +61,7 @@ export interface OcrFieldDetail {
     validationStatus?: OcrFieldValidationStatus | null;
     validationMessage?: string | null;
     expectedValue?: string | null;
+    validationFailures?: OcrFieldValidationFailure[] | null;
 }
 
 export interface ExtractedTicketFields {
