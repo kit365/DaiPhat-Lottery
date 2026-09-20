@@ -5,6 +5,7 @@ import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.application.dto.request.lotteries.scan.CreateTrainingDatasetExportRequest;
 import com.daiphat.coreapi.application.dto.response.lotteries.scan.AiModelMetricResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.scan.AiModelRegistryResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.scan.OcrRetrainStatusResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.scan.TrainingDatasetExportResponse;
 import com.daiphat.coreapi.application.service.lotteries.AiModelPlatformService;
 import jakarta.validation.Valid;
@@ -55,6 +56,24 @@ public class AiModelPlatformController {
         return ApiResponse.success(
                 "Đã tổng hợp metric AI model.",
                 Map.of("upserted", upserted)
+        );
+    }
+
+    @GetMapping("/ops/retrain-status")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ticket:view', 'station:view')")
+    public ApiResponse<OcrRetrainStatusResponse> retrainStatus(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+    ) {
+        return ApiResponse.success(null, aiModelPlatformService.getRetrainStatus(from, to));
+    }
+
+    @PostMapping("/ops/retrain-check")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ticket:create', 'station:edit', 'station:update')")
+    public ApiResponse<OcrRetrainStatusResponse> retrainCheck() {
+        return ApiResponse.success(
+                "Đã chạy kiểm tra retrain OCR.",
+                aiModelPlatformService.evaluateRetrainAndMaybeExport()
         );
     }
 

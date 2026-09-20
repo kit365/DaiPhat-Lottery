@@ -11,6 +11,7 @@ export enum ConfigType {
     COMPLAINT_SETTING = 'COMPLAINT_SETTING',
     PAYOUT_SETTING = 'PAYOUT_SETTING',
     FORTUNE_SETTING = 'FORTUNE_SETTING',
+    OCR_SCAN = 'OCR_SCAN',
 }
 
 export enum ConfigDataType {
@@ -35,6 +36,7 @@ export const CONFIG_TYPE_LABELS: Record<ConfigType, string> = {
     [ConfigType.COMPLAINT_SETTING]: 'Cấu hình khiếu nại',
     [ConfigType.PAYOUT_SETTING]: 'Cấu hình trả thưởng',
     [ConfigType.FORTUNE_SETTING]: 'Cấu hình gieo quẻ',
+    [ConfigType.OCR_SCAN]: 'Cấu hình OCR quét vé',
 };
 
 export const CONFIG_DATA_TYPE_LABELS: Record<ConfigDataType, string> = {

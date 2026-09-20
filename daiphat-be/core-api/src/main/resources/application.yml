@@ -100,14 +100,19 @@ daiphat:
       # local stack runs both inside the `ai` container — override via
       # DAIPHAT_TICKET_VISION_BASE_URL=http://ai:8090.
       base-url: ${DAIPHAT_TICKET_VISION_BASE_URL:http://localhost:8090}
-      # OCR on a multi-ticket photo takes 3-10s (doc: "Implementation
-      # Considerations & Risks") -- longer read timeout than the chat/fortune
-      # AI calls above. Grok vision may take longer; default 60s in Docker.
+      # OCR: Groq path is usually <30s; legacy EasyOCR after token exhaustion
+      # often needs 60–120s on CPU. Keep headroom above FE scan timeout.
       connect-timeout-ms: ${DAIPHAT_TICKET_VISION_CONNECT_TIMEOUT_MS:5000}
-      read-timeout-ms: ${DAIPHAT_TICKET_VISION_READ_TIMEOUT_MS:60000}
+      read-timeout-ms: ${DAIPHAT_TICKET_VISION_READ_TIMEOUT_MS:180000}
   ocr:
     training-export-dir: ${DAIPHAT_OCR_TRAINING_EXPORT_DIR:./data/ocr-training-exports}
     ai-model-metric-cron: ${DAIPHAT_OCR_AI_MODEL_METRIC_CRON:0 15 2 * * *}
+    retrain:
+      # Phase 4: nightly retrain suggestion from correction metrics.
+      lookback-days: ${DAIPHAT_OCR_RETRAIN_LOOKBACK_DAYS:7}
+      correction-rate-threshold: ${DAIPHAT_OCR_RETRAIN_CORRECTION_RATE_THRESHOLD:0.15}
+      min-corrected-fields: ${DAIPHAT_OCR_RETRAIN_MIN_CORRECTED_FIELDS:50}
+      auto-export-on-suggest: ${DAIPHAT_OCR_RETRAIN_AUTO_EXPORT:false}
   chat:
     ai:
       confidence-threshold: 0.7

@@ -35,6 +35,9 @@ Turn the per-field crops on with:
 TICKET_VISION_LAYOUT_STRATEGY=yolo_field
 ```
 
+Phase 3 also routes `field:serialNumber` / `field:numbers` / `field:drawDate`
+through charset-constrained OCR (see `docs/LOCAL_FIRST_OCR_ROADMAP.md`).
+
 ### LLM / Groq path (YOLO + OCR Template)
 
 Default Groq/Gemini/Grok scans also use `best.pt` when present
@@ -104,14 +107,19 @@ at build time.
 
 ## Switching the detector on
 
-The service stays on the contour MVP until told otherwise:
+Default config prefers YOLO when weights exist:
 
 ```bash
 TICKET_VISION_DETECTOR_STRATEGY=yolov8_obb
+TICKET_VISION_LAYOUT_STRATEGY=yolo_field
+TICKET_VISION_LLM_FALLBACK_TO_LEGACY=true
 ```
 
-Per request, Java can also override it via `ScanMetadata.detectorStrategy`
+Per request, Java can also override detector via `ScanMetadata.detectorStrategy`
 (`"contour"` or `"yolov8_obb"`) — useful for A/B-ing the two detectors on the
 same photos without a redeploy. If the weights or `ultralytics` are missing,
 `TicketDetectorFactory` logs a warning and falls back to contour detection
 rather than failing the scan.
+
+Long-term local-first plan (dataset → retrain → legacy OCR → optional LLM):
+see [`docs/LOCAL_FIRST_OCR_ROADMAP.md`](../docs/LOCAL_FIRST_OCR_ROADMAP.md).

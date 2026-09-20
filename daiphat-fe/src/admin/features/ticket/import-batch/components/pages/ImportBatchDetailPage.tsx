@@ -109,6 +109,14 @@ export const ImportBatchDetailPage = () => {
         return buildImportBatchProgressSegments(batch, resolveStationName);
     }, [batch, providers]);
 
+    const intakeGate = useMemo(() => {
+        if (!batch?.supplierId || !batch.drawDate) {
+            return null;
+        }
+        const supplier = activeSuppliers.find((entry) => entry.id === batch.supplierId);
+        return evaluateIntake(supplier, batch.drawDate);
+    }, [activeSuppliers, batch, evaluateIntake]);
+
     useEffect(() => {
         if (!batch?.id) {
             return;
@@ -136,13 +144,6 @@ export const ImportBatchDetailPage = () => {
     const totalImportedQuantity = batch?.totalImportedQuantity ?? 0;
     const totalImportedCostValue = batch?.totalImportedCostValue ?? 0;
     const canEditBatch = batch ? isImportBatchEditable(batch) : false;
-    const intakeGate = useMemo(() => {
-        if (!batch?.supplierId || !batch.drawDate) {
-            return null;
-        }
-        const supplier = activeSuppliers.find((entry) => entry.id === batch.supplierId);
-        return evaluateIntake(supplier, batch.drawDate);
-    }, [activeSuppliers, batch, evaluateIntake]);
     const showImportTicketsButton = batch ? hasTicketImportEligibleLines(batch) : false;
     const importTicketsBlocked = !!intakeGate?.blocked || !!intakeGate?.notYetAllowed;
     const hasUnsavedDraft = id ? hasUnsavedImportBatchEditDraft(id) : false;

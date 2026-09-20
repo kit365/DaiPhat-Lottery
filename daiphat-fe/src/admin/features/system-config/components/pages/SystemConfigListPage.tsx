@@ -25,6 +25,7 @@ import ReplayOutlinedIcon from '@mui/icons-material/ReplayOutlined';
 import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
 import EmojiEventsOutlinedIcon from '@mui/icons-material/EmojiEventsOutlined';
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
+import DocumentScannerOutlinedIcon from '@mui/icons-material/DocumentScannerOutlined';
 import { toast } from 'react-toastify';
 import { PageHeader } from '../../../../components/ui/PageHeader';
 import { Search } from '../../../../components/ui/Search';
@@ -108,6 +109,12 @@ const TYPE_TABS: Array<{ value: TypeFilter; label: string } & SettingsContentTab
         label: CONFIG_TYPE_LABELS[ConfigType.FORTUNE_SETTING],
         icon: AutoAwesomeOutlinedIcon,
         color: '#4f46e5',
+    },
+    {
+        value: ConfigType.OCR_SCAN,
+        label: CONFIG_TYPE_LABELS[ConfigType.OCR_SCAN],
+        icon: DocumentScannerOutlinedIcon,
+        color: '#0284c7',
     },
 ];
 

@@ -43,6 +43,10 @@ import {
     FortuneCooldownDurationEditor,
     isFortuneCooldownConfig,
 } from './FortuneCooldownDurationEditor';
+import {
+    isOcrTicketScanValidationRulesConfig,
+    OcrValidationRulesEditor,
+} from './OcrValidationRulesEditor';
 import { getConfigDataTypeBadgeClass, getConfigTypeBadgeClass } from '../../utils/systemConfigBadge';
 import { SystemConfigJsonEditor } from './SystemConfigJsonEditor';
 
@@ -64,6 +68,9 @@ const isCommissionTiersConfig = (config: SystemConfigResponse) =>
 
 const isPrizePayoutContractTermsConfig = (config: SystemConfigResponse) =>
     config.configKey === 'PRIZE_PAYOUT_CONTRACT_ADDITIONAL_TERMS';
+
+const isOcrValidationRulesConfig = (config: SystemConfigResponse) =>
+    isOcrTicketScanValidationRulesConfig(config.configKey);
 
 const VENDOR_TIMING_LABELS: Record<string, string> = {
     VENDOR_RETURN_CUTOFF: 'Giờ cuối người bán vé số trả vé trong ngày',
@@ -132,7 +139,9 @@ export const SystemConfigEditDialog = ({
     onSubmit,
     isPending,
 }: SystemConfigEditDialogProps) => {
-    const useWideDialog = Boolean(config && isCommissionTiersConfig(config));
+    const useWideDialog = Boolean(
+        config && (isCommissionTiersConfig(config) || isOcrValidationRulesConfig(config))
+    );
     const [confirmData, setConfirmData] = useState<UpdateSystemConfigFormValues | null>(null);
 
     const schema = config
@@ -248,13 +257,18 @@ export const SystemConfigEditDialog = ({
                                     label={
                                         isCommissionTiersConfig(config)
                                             ? 'Bậc thang %'
-                                            : isFortuneCooldownConfig(config.configKey)
-                                              ? 'Giờ + phút'
-                                              : CONFIG_DATA_TYPE_LABELS[config.dataType] || config.dataType
+                                            : isOcrValidationRulesConfig(config)
+                                              ? 'Luật OCR'
+                                              : isFortuneCooldownConfig(config.configKey)
+                                                ? 'Giờ + phút'
+                                                : CONFIG_DATA_TYPE_LABELS[config.dataType] ||
+                                                  config.dataType
                                     }
                                     modifier={getConfigDataTypeBadgeClass(config.dataType)}
                                 />
-                                {config.unit && !isCommissionTiersConfig(config) && (
+                                {config.unit &&
+                                    !isCommissionTiersConfig(config) &&
+                                    !isOcrValidationRulesConfig(config) && (
                                     <AdminStatusBadge
                                         label={
                                             isFortuneCooldownConfig(config.configKey)
@@ -321,6 +335,18 @@ export const SystemConfigEditDialog = ({
                                         control={control}
                                         render={({ field, fieldState }) => (
                                             <CommissionTiersEditor
+                                                value={field.value}
+                                                onChange={field.onChange}
+                                                error={fieldState.error?.message}
+                                            />
+                                        )}
+                                    />
+                                ) : isOcrValidationRulesConfig(config) ? (
+                                    <Controller
+                                        name="configValue"
+                                        control={control}
+                                        render={({ field, fieldState }) => (
+                                            <OcrValidationRulesEditor
                                                 value={field.value}
                                                 onChange={field.onChange}
                                                 error={fieldState.error?.message}
