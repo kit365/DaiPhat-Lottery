@@ -86,23 +86,29 @@ const DRAW_DATE_EXPIRED_REASON =
 const ALL_LINES_CANCELLED_REASON =
     'The Import Batch has been cancelled because all Lottery Station import batches are no longer valid.';
 
+const OPERATOR_DISCARDED_REASON =
+    'Operator discarded this draft import batch.';
+
 const LINE_DRAW_DATE_EXPIRED_SUFFIX =
     'import has been cancelled because the Draw Date has expired before ticket import was completed.';
 
 const LINE_IMPORT_DEADLINE_PASSED_SUFFIX =
     'import has been cancelled because the same-day import deadline has passed.';
 
-/** Human-readable cancellation reason shown below the detail page title */
+/** Human-readable cancellation reason */
 export const formatImportBatchCancelReason = (cancelReason?: string) => {
     if (!cancelReason?.trim()) return undefined;
     if (cancelReason === IMPORT_DEADLINE_PASSED_REASON) {
-        return 'Tự động hủy vì đã quá giờ chốt nhập lô.';
+        return 'Tự động hủy do đã quá giờ chốt nhập vé trong ngày.';
     }
     if (cancelReason === DRAW_DATE_EXPIRED_REASON) {
-        return 'Tự động hủy vì ngày quay đã qua trong khi phiếu vẫn ở trạng thái nháp.';
+        return 'Tự động hủy do ngày quay thưởng đã qua trong khi phiếu chưa hoàn tất.';
     }
     if (cancelReason === ALL_LINES_CANCELLED_REASON) {
-        return 'Phiếu nhập lô đã bị hủy vì tất cả các dòng nhập lô theo nhà đài đều không còn hiệu lực.';
+        return 'Tự động hủy do các lô vé của nhà đài trong phiếu đã hết hạn thời gian nhập vé.';
+    }
+    if (cancelReason === OPERATOR_DISCARDED_REASON) {
+        return 'Bản nháp phiếu nhập lô đã được hủy.';
     }
     return cancelReason;
 };
@@ -110,15 +116,18 @@ export const formatImportBatchCancelReason = (cancelReason?: string) => {
 /** User-facing alert when a batch is cancelled and ticket import is blocked */
 export const getImportBatchCancelledAlertMessage = (cancelReason?: string) => {
     if (cancelReason === IMPORT_DEADLINE_PASSED_REASON) {
-        return 'Phiếu nhập lô đã bị hủy vì đã quá giờ chốt nhập lô (sau 15:00). Không thể nhập thêm vé vào phiếu này.';
+        return 'Phiếu nhập lô đã tự động hủy do đã quá giờ chốt nhập vé trong ngày (sau 15:00). Không thể tiếp tục nhập thêm vé vào phiếu này.';
     }
     if (cancelReason === DRAW_DATE_EXPIRED_REASON) {
-        return 'Phiếu nhập lô đã bị hủy vì ngày quay đã qua trong khi phiếu vẫn ở trạng thái nháp. Không thể nhập thêm vé vào phiếu này.';
+        return 'Phiếu nhập lô đã tự động hủy do ngày quay thưởng đã qua trong khi phiếu chưa hoàn tất nhập vé. Không thể tiếp tục nhập thêm vé vào phiếu này.';
     }
     if (cancelReason === ALL_LINES_CANCELLED_REASON) {
-        return 'Phiếu nhập lô đã bị hủy vì tất cả các dòng nhập lô theo nhà đài đều không còn hiệu lực. Không thể nhập thêm vé vào phiếu này.';
+        return 'Phiếu nhập lô đã tự động hủy do tất cả các lô vé theo nhà đài đã hết hạn thời gian nhập vé (đã quá giờ chốt hoặc qua ngày quay thưởng). Không thể tiếp tục nhập thêm vé vào phiếu này.';
     }
-    return 'Phiếu nhập lô đã bị hủy. Không thể nhập thêm vé vào phiếu này.';
+    if (cancelReason === OPERATOR_DISCARDED_REASON) {
+        return 'Bản nháp phiếu nhập lô này đã được hủy. Không thể thực hiện nhập vé.';
+    }
+    return 'Phiếu nhập lô đã bị hủy. Không thể tiếp tục nhập thêm vé vào phiếu này.';
 };
 
 export const formatImportBatchLineCancelReason = (cancelReason?: string) => {
@@ -126,13 +135,13 @@ export const formatImportBatchLineCancelReason = (cancelReason?: string) => {
     if (cancelReason.includes(LINE_DRAW_DATE_EXPIRED_SUFFIX)) {
         return cancelReason.replace(
             LINE_DRAW_DATE_EXPIRED_SUFFIX,
-            'đã bị hủy vì ngày quay đã qua trước khi hoàn tất nhập vé.'
+            'đã tự động hủy do ngày quay thưởng đã qua trước khi hoàn tất nhập vé.'
         );
     }
     if (cancelReason.includes(LINE_IMPORT_DEADLINE_PASSED_SUFFIX)) {
         return cancelReason.replace(
             LINE_IMPORT_DEADLINE_PASSED_SUFFIX,
-            'đã bị hủy vì đã quá giờ chốt nhập lô trong ngày.'
+            'đã tự động hủy do đã quá giờ chốt nhập vé trong ngày (sau 15:00).'
         );
     }
     return cancelReason;
@@ -143,7 +152,7 @@ export const getImportBatchLineCancelledAlertMessage = (cancelReason?: string) =
     if (formatted) {
         return `${formatted} Không thể nhập thêm vé cho nhà đài này.`;
     }
-    return 'Dòng nhập lô cho nhà đài này đã bị hủy. Không thể nhập thêm vé.';
+    return 'Lô vé của nhà đài này đã bị hủy. Không thể tiếp tục nhập thêm vé.';
 };
 
 export const IMPORT_BATCH_LINE_PAUSED_ENTRY_MESSAGE =

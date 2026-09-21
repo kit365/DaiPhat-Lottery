@@ -8,10 +8,14 @@ import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { AppToast } from '../../../../../../utils/toast.util';
+import { axiosRequestErrorMessage } from '../../../../../../api/requestError';
 import { ImagePreview } from '../../../../../components/ui/ImagePreview';
 import { uploadImportBatchTicketListImage } from '../../services/importBatchService';
 import { useImportBatchTicketListImageLimits } from '../../hooks/useImportBatchTicketListImageLimits';
 import { getUploadFileCategory } from '../../../../../components/upload/UploadSingleFile';
+
+const TICKET_LIST_UPLOAD_TIMEOUT_MESSAGE =
+    'Tải tệp danh sách vé mất quá nhiều thời gian. Vui lòng thử lại với tệp nhỏ hơn hoặc kiểm tra kết nối mạng.';
 
 interface ImportBatchTicketListImagesFieldProps {
     value?: string[];
@@ -102,11 +106,11 @@ export const ImportBatchTicketListImagesField = ({
                     try {
                         uploaded.push(await uploadImportBatchTicketListImage(file));
                     } catch (err: unknown) {
-                        const message =
-                            (err as { response?: { data?: { message?: string } }; message?: string })
-                                ?.response?.data?.message ||
-                            (err as { message?: string })?.message ||
-                            'Tải tệp danh sách vé nhập thất bại.';
+                        const message = axiosRequestErrorMessage(
+                            err,
+                            'Tải tệp danh sách vé nhập thất bại.',
+                            TICKET_LIST_UPLOAD_TIMEOUT_MESSAGE
+                        );
                         AppToast.error(message);
                     }
                 }

@@ -30,15 +30,37 @@ const DEFAULT_PROXY_TIMEOUT_MS = 120_000;
  */
 const OCR_SCAN_PROXY_TIMEOUT_MS = 210_000;
 
+const isOcrScanPath = (normalized: string): boolean =>
+    normalized === "lottery-tickets/scan" || normalized.endsWith("/lottery-tickets/scan");
+
+const isEvidenceUploadPath = (normalized: string): boolean =>
+    normalized.includes("invoice-evidence/upload") ||
+    normalized.includes("ticket-list-images/upload") ||
+    normalized.endsWith("/upload");
+
 const resolveProxyTimeoutMs = (apiPath: string): number => {
     const normalized = apiPath.replace(/^\/+|\/+$/g, "").toLowerCase();
-    if (
-        normalized === "lottery-tickets/scan" ||
-        normalized.endsWith("/lottery-tickets/scan")
-    ) {
+    if (isOcrScanPath(normalized)) {
         return OCR_SCAN_PROXY_TIMEOUT_MS;
     }
     return DEFAULT_PROXY_TIMEOUT_MS;
+};
+
+const proxyTimeoutMessage = (apiPath: string): string => {
+    const normalized = apiPath.replace(/^\/+|\/+$/g, "").toLowerCase();
+    if (isOcrScanPath(normalized)) {
+        return (
+            "Quét OCR mất quá nhiều thời gian (ảnh nhiều vé hoặc xử lý AI chậm). " +
+            "Vui lòng đợi 10–20 giây rồi quét lại từng ảnh, hoặc tách ảnh nhiều vé thành ảnh riêng."
+        );
+    }
+    if (isEvidenceUploadPath(normalized)) {
+        return (
+            "Tải tệp lên máy chủ mất quá nhiều thời gian. " +
+            "Vui lòng thử lại với ảnh/tệp nhỏ hơn (dưới 5–10MB) hoặc kiểm tra kết nối mạng / Cloudinary."
+        );
+    }
+    return "Yêu cầu tới máy chủ API mất quá nhiều thời gian. Vui lòng thử lại.";
 };
 
 const isAbortError = (error: unknown): boolean => {
@@ -115,14 +137,22 @@ export async function proxyToBackend(
         headers.set(key, value);
     });
 
-    const init: RequestInit = {
+    const init: RequestInit & { duplex?: "half" } = {
         method: req.method,
         headers,
         redirect: "manual",
     };
 
     if (req.method !== "GET" && req.method !== "HEAD") {
-        init.body = await req.arrayBuffer();
+        const contentType = (req.headers.get("content-type") || "").toLowerCase();
+        // Multipart evidence uploads: stream the body so Next does not buffer the
+        // entire file before Spring/Cloudinary starts receiving bytes (cuts latency).
+        if (contentType.includes("multipart/form-data") && req.body) {
+            init.body = req.body;
+            init.duplex = "half";
+        } else {
+            init.body = await req.arrayBuffer();
+        }
     }
 
     const controller = new AbortController();
@@ -136,9 +166,7 @@ export async function proxyToBackend(
             return NextResponse.json(
                 {
                     success: false,
-                    message:
-                        "Quét OCR mất quá nhiều thời gian (ảnh nhiều vé hoặc xử lý AI chậm). " +
-                        "Vui lòng đợi 10–20 giây rồi quét lại từng ảnh, hoặc tách ảnh nhiều vé thành ảnh riêng.",
+                    message: proxyTimeoutMessage(apiPath),
                 },
                 { status: 504 }
             );

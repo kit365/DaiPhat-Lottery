@@ -56,8 +56,8 @@ import { optimizeOcrScanImage } from '../utils/optimizeOcrImage';
 export type OcrWizardStep = 'upload' | 'review' | 'importMode' | 'result';
 export type OcrDraftIntent = 'USE_EXISTING' | 'CREATE_NEW';
 
-/** Space out multi-image Groq calls so free-tier OTPM/RPM limits are less likely. */
-const OCR_INTER_IMAGE_DELAY_MS = 5_000;
+/** Brief pause between multi-image scans to reduce Groq RPM/OTPM collisions. */
+const OCR_INTER_IMAGE_DELAY_MS = 750;
 /** One automatic wait+retry when Groq returns a rate-limit soft-fail. */
 const OCR_RATE_LIMIT_RETRY_DELAY_MS = 20_000;
 const OCR_RATE_LIMIT_MAX_RETRIES = 1;
@@ -944,6 +944,288 @@ export const useOcrImportWizard = ({
         draftIntent,
     ]);
 
+    const scanMoreImages = useCallback(
+        async (files: FileList | File[]) => {
+            const accepted = Array.from(files).filter((file) => file.type.startsWith('image/'));
+            if (accepted.length === 0) {
+                toast.warning('Vui lòng chọn tệp hình ảnh.');
+                return;
+            }
+            if (supplierId == null || supplierId <= 0) {
+                toast.warning('Vui lòng chọn nhà cung cấp trước khi quét.');
+                return;
+            }
+            if (selectedImportBatchId == null || selectedImportBatchId <= 0) {
+                toast.warning('Vui lòng chọn phiếu nhập lô trước khi quét.');
+                return;
+            }
+
+            setScanning(true);
+            const toastId = toast.info(
+                accepted.length === 1
+                    ? 'Đang cắt / nén ảnh để tối ưu OCR…'
+                    : `Đang cắt / nén ${accepted.length} ảnh để tối ưu OCR…`,
+                { autoClose: false }
+            );
+
+            const newQueuedImages: OcrQueuedImage[] = [];
+            for (const file of accepted) {
+                try {
+                    const nextFile = await optimizeOcrScanImage(file);
+                    newQueuedImages.push({
+                        id: newImageId(),
+                        file: nextFile,
+                        previewUrl: URL.createObjectURL(nextFile),
+                        status: 'pending',
+                    });
+                } catch {
+                    newQueuedImages.push({
+                        id: newImageId(),
+                        file,
+                        previewUrl: URL.createObjectURL(file),
+                        status: 'pending',
+                    });
+                }
+            }
+            toast.dismiss(toastId);
+
+            const allImages = [...images, ...newQueuedImages];
+            setImages(allImages);
+
+            const addedRows: OcrReviewRow[] = [];
+            const softLineId = prefillLineOption?.lineId;
+
+            const compactRowsForDraft = (rowsToStore: OcrReviewRow[]): OcrReviewRow[] =>
+                rowsToStore.map((row) => ({
+                    ...row,
+                    croppedImageBase64: isDurableImageUrl(row.croppedImageUrl)
+                        ? null
+                        : row.croppedImageBase64 ?? null,
+                }));
+
+            const startIndex = images.length;
+            for (let i = 0; i < newQueuedImages.length; i += 1) {
+                const targetIndex = startIndex + i;
+                let image = allImages[targetIndex];
+                allImages[targetIndex] = { ...image, status: 'scanning', error: null };
+                setImages([...allImages]);
+                image = allImages[targetIndex];
+
+                if (i > 0) {
+                    await sleep(OCR_INTER_IMAGE_DELAY_MS);
+                }
+
+                let rateLimitRetries = 0;
+                let serviceRetries = 0;
+                let finishedImage = false;
+                while (!finishedImage) {
+                    try {
+                        const scanFile = await optimizeOcrScanImage(image.file);
+                        if (scanFile !== image.file) {
+                            if (image.previewUrl.startsWith('blob:')) {
+                                URL.revokeObjectURL(image.previewUrl);
+                            }
+                            const nextPreview = URL.createObjectURL(scanFile);
+                            allImages[targetIndex] = {
+                                ...allImages[targetIndex],
+                                file: scanFile,
+                                previewUrl: nextPreview,
+                            };
+                            image = allImages[targetIndex];
+                            setImages([...allImages]);
+                        }
+                        const response = await scanTicketImage(image.file, {
+                            importBatchLineId: softLineId ?? undefined,
+                            importBatchId: selectedImportBatchId ?? undefined,
+                        });
+                        const data = response.data;
+                        if (!data) {
+                            throw new Error(response.message || 'Không nhận được kết quả OCR.');
+                        }
+
+                        if (
+                            warningsIndicateRateLimit(data.warnings, response.message) &&
+                            rateLimitRetries < OCR_RATE_LIMIT_MAX_RETRIES
+                        ) {
+                            rateLimitRetries += 1;
+                            toast.info(
+                                `Ảnh ${i + 1}/${newQueuedImages.length}: Groq đang giới hạn tốc độ. Đợi ${Math.round(
+                                    OCR_RATE_LIMIT_RETRY_DELAY_MS / 1000
+                                )}s rồi thử lại lần ${rateLimitRetries}…`
+                            );
+                            await sleep(OCR_RATE_LIMIT_RETRY_DELAY_MS);
+                            continue;
+                        }
+
+                        if (
+                            warningsIndicateBusyOrTimeout(data.warnings, response.message) &&
+                            serviceRetries < OCR_SERVICE_MAX_RETRIES
+                        ) {
+                            serviceRetries += 1;
+                            toast.info(
+                                `Ảnh ${i + 1}/${newQueuedImages.length}: OCR đang bận. Đợi ${Math.round(
+                                    OCR_SERVICE_RETRY_DELAY_MS / 1000
+                                )}s rồi thử lại…`
+                            );
+                            await sleep(OCR_SERVICE_RETRY_DELAY_MS);
+                            continue;
+                        }
+
+                        const durablePreview =
+                            (data.sourceImageUrl && data.sourceImageUrl.trim()) ||
+                            data.tickets?.find((ticket) => ticket.sourceImageUrl)?.sourceImageUrl ||
+                            image.previewUrl;
+                        if (durablePreview !== image.previewUrl && image.previewUrl.startsWith('blob:')) {
+                            URL.revokeObjectURL(image.previewUrl);
+                        }
+                        const tickets = data.tickets ?? [];
+                        const unreadable = isUnreadableScanResult(tickets);
+                        const failureReason = normalizeOcrScanErrorMessage(
+                            data.warnings?.[0] ||
+                                response.message ||
+                                'Không thể đọc rõ thông tin vé từ ảnh này.'
+                        );
+
+                        allImages[targetIndex] = {
+                            ...allImages[targetIndex],
+                            status: unreadable ? 'error' : 'done',
+                            scanId: data.scanId,
+                            imageWidth: data.imageWidth ?? null,
+                            imageHeight: data.imageHeight ?? null,
+                            previewUrl: durablePreview,
+                            error: unreadable ? failureReason : null,
+                        };
+
+                        if (tickets.length === 0 || unreadable) {
+                            addedRows.push(
+                                createFailedReviewRow(
+                                    image.id,
+                                    image.file.name,
+                                    durablePreview,
+                                    failureReason
+                                )
+                            );
+                        } else {
+                            for (const ticket of tickets) {
+                                addedRows.push(
+                                    mapScannedTicketToReviewRow(
+                                        ticket,
+                                        image.id,
+                                        image.file.name,
+                                        data.scanId,
+                                        ticket.sourceImageUrl || durablePreview,
+                                        data.imageWidth,
+                                        data.imageHeight
+                                    )
+                                );
+                            }
+                        }
+                        const friendlyWarnings = normalizeOcrWarningList(data.warnings);
+                        if (friendlyWarnings.length > 0) {
+                            toast.warning(formatOcrWarningsForToast(friendlyWarnings), {
+                                style: { whiteSpace: 'pre-line' },
+                            });
+                        }
+                        finishedImage = true;
+                    } catch (error: unknown) {
+                        const axiosData = (
+                            error as {
+                                response?: { data?: { message?: string; data?: unknown } };
+                                message?: string;
+                            }
+                        )?.response?.data;
+                        const message =
+                            axiosData?.message ||
+                            (error as { message?: string })?.message ||
+                            'Không thể đọc rõ thông tin vé từ ảnh này.';
+                        if (
+                            isOcrRateLimitMessage(message) &&
+                            rateLimitRetries < OCR_RATE_LIMIT_MAX_RETRIES
+                        ) {
+                            rateLimitRetries += 1;
+                            toast.info(
+                                `Ảnh ${i + 1}/${newQueuedImages.length}: ${OCR_RATE_LIMIT_MESSAGE} Đang thử lại…`
+                            );
+                            await sleep(OCR_RATE_LIMIT_RETRY_DELAY_MS);
+                            continue;
+                        }
+                        if (
+                            (isTechnicalOcrErrorMessage(message) ||
+                                warningsIndicateBusyOrTimeout(null, message)) &&
+                            serviceRetries < OCR_SERVICE_MAX_RETRIES
+                        ) {
+                            serviceRetries += 1;
+                            toast.info(
+                                `Ảnh ${i + 1}/${newQueuedImages.length}: OCR tạm thời không phản hồi. Đợi ${Math.round(
+                                    OCR_SERVICE_RETRY_DELAY_MS / 1000
+                                )}s rồi thử lại…`
+                            );
+                            await sleep(OCR_SERVICE_RETRY_DELAY_MS);
+                            continue;
+                        }
+                        const displayMessage = normalizeOcrScanErrorMessage(message);
+                        allImages[targetIndex] = {
+                            ...allImages[targetIndex],
+                            status: 'error',
+                            error: displayMessage,
+                        };
+                        addedRows.push(
+                            createFailedReviewRow(
+                                image.id,
+                                image.file.name,
+                                image.previewUrl,
+                                displayMessage
+                            )
+                        );
+                        toast.error(`${image.file.name}: ${displayMessage}`);
+                        finishedImage = true;
+                    }
+                }
+                setImages([...allImages]);
+            }
+
+            const mergedRows = [...rows, ...addedRows];
+            setRows(mergedRows);
+            setScanning(false);
+            setImages(allImages);
+
+            const draftSnapshot: OcrImportDraft = {
+                step: 'review',
+                importMode,
+                supplierId,
+                invoiceEvidenceUrl,
+                ticketListImageUrl,
+                selectedImportBatchId,
+                forceCreate,
+                draftIntent,
+                rows: compactRowsForDraft(mergedRows),
+                imageMeta: allImages.map((img) => ({
+                    id: img.id,
+                    fileName: img.file.name,
+                    previewUrl: isDurableImageUrl(img.previewUrl) ? img.previewUrl : null,
+                    scanId: img.scanId ?? null,
+                    imageWidth: img.imageWidth ?? null,
+                    imageHeight: img.imageHeight ?? null,
+                })),
+                pendingRestore: false,
+            };
+            writeDraft(draftSnapshot);
+            setSavedDraft(draftSnapshot);
+        },
+        [
+            images,
+            rows,
+            supplierId,
+            selectedImportBatchId,
+            prefillLineOption,
+            importMode,
+            invoiceEvidenceUrl,
+            ticketListImageUrl,
+            forceCreate,
+            draftIntent,
+        ]
+    );
+
     const updateRow = useCallback((key: string, patch: Partial<OcrReviewRow>) => {
         setRows((prev) => {
             const nextRows = prev.map((row) => {
@@ -1339,6 +1621,7 @@ export const useOcrImportWizard = ({
         prefillLineOption,
         images,
         addImages,
+        scanMoreImages,
         removeImage,
         clearImages,
         runScan,
