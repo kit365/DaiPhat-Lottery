@@ -34,6 +34,9 @@ class FallbackOcrStrategy(OcrStrategy):
         self.fallback = fallback
         self.low_confidence_threshold = low_confidence_threshold
         self.enable_fallback = enable_fallback
+        # After a hard init/config failure (e.g. PaddleOCR API mismatch), skip
+        # further fallback attempts for the lifetime of this process.
+        self._fallback_permanently_disabled = False
 
     def read_text(
         self,
@@ -55,7 +58,7 @@ class FallbackOcrStrategy(OcrStrategy):
         if not primary_failed and primary_confidence >= self.low_confidence_threshold:
             return primary_results or []
 
-        if not self.enable_fallback:
+        if not self.enable_fallback or self._fallback_permanently_disabled:
             return primary_results or []
 
         logger.info(
@@ -70,7 +73,14 @@ class FallbackOcrStrategy(OcrStrategy):
         try:
             fallback_results = self.fallback.read_text(image, languages, field_hint=field_hint)
         except Exception as exc:  # noqa: BLE001 -- both engines failing degrades to empty text, not a crash
-            logger.warning("Fallback OCR engine '%s' also failed: %s", self.fallback.name, exc)
+            detail = str(exc)
+            logger.warning("Fallback OCR engine '%s' also failed: %s", self.fallback.name, detail)
+            if _is_permanent_fallback_failure(detail):
+                self._fallback_permanently_disabled = True
+                logger.warning(
+                    "Disabling OCR fallback engine '%s' for this process after permanent failure",
+                    self.fallback.name,
+                )
             return primary_results or []
 
         if primary_results is None:
@@ -80,3 +90,14 @@ class FallbackOcrStrategy(OcrStrategy):
         if fallback_confidence > primary_confidence:
             return fallback_results
         return primary_results
+
+
+def _is_permanent_fallback_failure(detail: str) -> bool:
+    text = (detail or "").lower()
+    return (
+        "unknown argument" in text
+        or "show_log" in text
+        or "init failed" in text
+        or "disabling paddle" in text
+        or "no module named" in text
+    )

@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import json
 import re
+import time
 import uuid
 from datetime import datetime
 from typing import Protocol
 
+import cv2
 import numpy as np
 
 from domain.enums.ticket_status import REQUIRED_FIELDS
@@ -29,11 +31,14 @@ from dto.response.scan_response import (
     ScanResponse,
     TicketScanResult,
 )
+from infra.config import settings
 from infra.logger import logger
 from infra.vision_extraction import (
     TicketBBox,
     TicketExtraction,
     ScanExtractionResult,
+    VisionApiError,
+    VisionClientError,
     build_ticket_extraction_prompt,
     format_price_vnd,
     localize_scan_warnings,
@@ -236,6 +241,7 @@ def resolve_recognition_engine(metadata: ScanMetadata, default_engine: str) -> s
 
 
 def _normalize_numbers(raw: str | None) -> str | None:
+    """Keep OCR digits as-is. Never pad/truncate to force length 6."""
     if not raw:
         return None
     digits = re.sub(r"\D", "", raw)
@@ -555,15 +561,12 @@ def _resolve_bbox(
         else None
     )
 
-    if llm_box and yolo_box and _should_prefer_yolo_ticket(llm_box, yolo_box):
-        return yolo_box, llm_box, matched_index
-    if yolo_box and (llm_box is None or _iou(llm_box, yolo_box) >= 0.12):
-        # Prefer detector geometry whenever it spatially agrees with the LLM.
+    if yolo_box is not None:
+        # Detector geometry is authoritative for Admin crop / multi-ticket layout.
+        # LLM text may invent boxes on background; keep LLM box only as metadata.
         return yolo_box, llm_box, matched_index
     if llm_box:
         return llm_box, llm_box, matched_index
-    if yolo_box:
-        return yolo_box, None, matched_index
 
     if total_tickets == 1:
         x, y, w, h = 0, 0, image_width, image_height
@@ -641,6 +644,93 @@ def _encode_preview_crop(crop: np.ndarray) -> str:
     return image_pipeline.encode_to_base64_png(crop)
 
 
+def _build_ticket_ocr_collage(
+    crops: list[np.ndarray],
+    *,
+    cell_max_height: int = 480,
+    columns: int = 2,
+    label_height: int = 28,
+) -> np.ndarray:
+    """Pack ticket crops into one labeled grid for a single vision API call.
+
+    Admin review still uses per-ticket PNG crops from YOLO boxes — this collage
+    is OCR-only so multi-ticket scans pay one Groq round-trip instead of N.
+    """
+    if not crops:
+        raise ValueError("collage requires at least one crop")
+
+    cols = max(1, min(columns, len(crops)))
+    cells: list[np.ndarray] = []
+    cell_widths: list[int] = []
+    cell_heights: list[int] = []
+
+    for index, crop in enumerate(crops):
+        working = crop
+        h, w = working.shape[:2]
+        if h > cell_max_height and h > 0:
+            scale = cell_max_height / float(h)
+            working = cv2.resize(
+                working,
+                (max(1, int(round(w * scale))), cell_max_height),
+                interpolation=cv2.INTER_AREA,
+            )
+        ch, cw = working.shape[:2]
+        label_bar = np.full((label_height, cw, 3), 32, dtype=np.uint8)
+        cv2.putText(
+            label_bar,
+            f"#{index}",
+            (6, label_height - 8),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.55,
+            (255, 255, 255),
+            1,
+            cv2.LINE_AA,
+        )
+        cell = np.vstack([label_bar, working])
+        cells.append(cell)
+        cell_widths.append(int(cell.shape[1]))
+        cell_heights.append(int(cell.shape[0]))
+
+    rows = (len(cells) + cols - 1) // cols
+    row_heights: list[int] = []
+    col_widths = [0] * cols
+    for row in range(rows):
+        rh = 0
+        for col in range(cols):
+            idx = row * cols + col
+            if idx >= len(cells):
+                break
+            rh = max(rh, cell_heights[idx])
+            col_widths[col] = max(col_widths[col], cell_widths[idx])
+        row_heights.append(rh)
+
+    gap = 8
+    canvas_w = sum(col_widths) + gap * (cols + 1)
+    canvas_h = sum(row_heights) + gap * (rows + 1)
+    canvas = np.full((canvas_h, canvas_w, 3), 245, dtype=np.uint8)
+
+    y = gap
+    for row in range(rows):
+        x = gap
+        for col in range(cols):
+            idx = row * cols + col
+            if idx >= len(cells):
+                break
+            cell = cells[idx]
+            ch, cw = cell.shape[:2]
+            # Pad cell into its grid slot so labels stay left-aligned.
+            slot_w, slot_h = col_widths[col], row_heights[row]
+            if cw != slot_w or ch != slot_h:
+                padded = np.full((slot_h, slot_w, 3), 245, dtype=np.uint8)
+                padded[0:ch, 0:cw] = cell
+                cell = padded
+            canvas[y : y + slot_h, x : x + slot_w] = cell
+            x += slot_w + gap
+        y += row_heights[row] + gap
+
+    return canvas
+
+
 class LlmTicketScanService:
     """Scan tickets via a vision LLM client; Layer-1 validation matches legacy path."""
 
@@ -670,8 +760,15 @@ class LlmTicketScanService:
         self._include_cropped_image = include_cropped_image
 
     def scan_image(self, image_bytes: bytes, metadata: ScanMetadata) -> ScanResponse:
+        stage_ms: dict[str, float] = {}
+        t_all = time.perf_counter()
+
+        t0 = time.perf_counter()
         image_pipeline.guard_file_size(image_bytes, self._max_file_size_mb)
         image = image_pipeline.decode_image(image_bytes)
+        stage_ms["decode"] = (time.perf_counter() - t0) * 1000.0
+
+        t0 = time.perf_counter()
         # Crop empty margins only — keep a pristine full-res copy for Admin review.
         image = image_pipeline.trim_uniform_borders(image, max_trim_ratio=0.18)
         preview_source = image.copy()
@@ -682,15 +779,7 @@ class LlmTicketScanService:
         preview_h, preview_w = preview_source.shape[:2]
         preview_scale_x = preview_w / float(image_width) if image_width else 1.0
         preview_scale_y = preview_h / float(image_height) if image_height else 1.0
-        # Vision LLM still needs a size-bounded JPEG for the API payload.
-        vision_image_bytes = image_pipeline.encode_to_jpeg_bytes_bounded(
-            image,
-            max_bytes=3_000_000,
-            quality_start=95,
-            quality_floor=90,
-            max_dimension=self._max_image_dimension,
-            allow_geometry_shrink=False,
-        )
+        stage_ms["preprocess"] = (time.perf_counter() - t0) * 1000.0
 
         max_tickets = metadata.maxTickets or self._max_tickets_per_image
         max_tickets = min(max_tickets, self._max_tickets_per_image)
@@ -716,9 +805,16 @@ class LlmTicketScanService:
             }
             for s in metadata.activeStations
         ]
-        # YOLO first: detect ticket boxes, then OCR each crop — never OCR the
+        # YOLO first: detect ticket boxes once, then OCR each crop — never OCR the
         # full table background when tickets are already localized.
-        yolo_guidance = build_yolo_llm_guidance(image, max_tickets=max_tickets)
+        t0 = time.perf_counter()
+        # Skip unused JPEG encoding of guidance crops on the per-ticket path.
+        yolo_guidance = build_yolo_llm_guidance(
+            image,
+            max_tickets=max_tickets,
+            encode_crops=False,
+        )
+        stage_ms["yolo_detection"] = (time.perf_counter() - t0) * 1000.0
         ordered_layouts: list = []
         used_per_ticket_ocr = False
 
@@ -727,6 +823,7 @@ class LlmTicketScanService:
                 "Per-ticket OCR path: yolo_tickets=%s (skipping full-frame vision)",
                 yolo_guidance.ticket_count,
             )
+            t0 = time.perf_counter()
             extraction = self._scan_yolo_tickets_independently(
                 yolo_guidance=yolo_guidance,
                 image=image,
@@ -736,9 +833,19 @@ class LlmTicketScanService:
                 preview_scale_x=preview_scale_x,
                 preview_scale_y=preview_scale_y,
             )
+            stage_ms["ocr_request"] = (time.perf_counter() - t0) * 1000.0
             used_per_ticket_ocr = True
         else:
             # No ticket boxes: fall back to full-frame + template field crops.
+            t0 = time.perf_counter()
+            vision_image_bytes = image_pipeline.encode_to_jpeg_bytes_bounded(
+                image,
+                max_bytes=3_000_000,
+                quality_start=95,
+                quality_floor=90,
+                max_dimension=self._max_image_dimension,
+                allow_geometry_shrink=False,
+            )
             layout_hint, layout_crops, ordered_layouts = _build_layout_guidance(
                 metadata,
                 image,
@@ -771,15 +878,19 @@ class LlmTicketScanService:
                 image_height,
                 field_layouts_hint=merged_hint,
             )
+            stage_ms["template_layout"] = (time.perf_counter() - t0) * 1000.0
+            t0 = time.perf_counter()
             extraction = self._vision_client.analyze_ticket_image(
                 vision_image_bytes,
                 prompt,
                 extra_images=merged_crops or None,
             )
+            stage_ms["ocr_request"] = (time.perf_counter() - t0) * 1000.0
 
         # Template alternate-crop retry only for full-frame scans (layouts are
         # normalized to the whole image, not per-ticket crops).
         if not used_per_ticket_ocr:
+            t0 = time.perf_counter()
             extraction = self._retry_weak_fields_with_alternate_layouts(
                 extraction=extraction,
                 metadata=metadata,
@@ -790,6 +901,7 @@ class LlmTicketScanService:
                 stations_payload=stations_payload,
                 max_tickets=max_tickets,
             )
+            stage_ms["ocr_retry"] = (time.perf_counter() - t0) * 1000.0
 
         warnings = list(extraction.warnings)
         if len(extraction.tickets) > max_tickets:
@@ -798,6 +910,7 @@ class LlmTicketScanService:
                 f"chỉ xử lý {max_tickets} vé đầu."
             )
 
+        t0 = time.perf_counter()
         tickets: list[TicketScanResult] = []
         llm_tickets = extraction.tickets[:max_tickets]
         yolo_ticket_boxes = list(yolo_guidance.ticket_boxes or [])
@@ -830,6 +943,7 @@ class LlmTicketScanService:
                     "Failed to map %s ticket #%s", self._provider_label, index
                 )
                 warnings.append(f"Vé #{index + 1}: xử lý thất bại, đã bỏ qua.")
+        stage_ms["map_validate"] = (time.perf_counter() - t0) * 1000.0
 
         warnings = localize_scan_warnings(warnings)
 
@@ -837,6 +951,14 @@ class LlmTicketScanService:
             warnings.append(
                 f"{self._provider_label} không phát hiện vé nào trong ảnh."
             )
+
+        stage_ms["total"] = (time.perf_counter() - t_all) * 1000.0
+        logger.info(
+            "OCR stage timings ms: %s (tickets=%s per_ticket=%s)",
+            {k: int(round(v)) for k, v in stage_ms.items()},
+            len(tickets),
+            used_per_ticket_ocr,
+        )
 
         return ScanResponse(
             scanId=str(uuid.uuid4()),
@@ -858,20 +980,27 @@ class LlmTicketScanService:
         preview_scale_x: float = 1.0,
         preview_scale_y: float = 1.0,
     ):
-        """OCR each YOLO ticket crop independently (no full-frame background).
+        """OCR YOLO ticket crops in one vision call when possible.
 
-        Detection → padded crop from the pristine frame → one vision call per
-        ticket. Coordinates are remapped into the resized full-frame space used
-        by ScanResponse / Admin preview scaling.
+        Detect once → crop each ticket once from the pristine frame → for a
+        single ticket send that crop; for multiple tickets build a labeled
+        collage and send **one** Groq request. Admin review crops remain
+        per-ticket PNG from YOLO boxes (not the collage).
         """
         image_h, image_w = image.shape[:2]
         source = preview_source if preview_source is not None else image
         src_h, src_w = source.shape[:2]
-        tickets: list[TicketExtraction] = []
-        warnings: list[str] = []
+        stations_json = json.dumps(stations_payload, ensure_ascii=False)
 
+        ocr_max_dim = int(settings.TICKET_VISION_OCR_CROP_MAX_DIMENSION)
+        ocr_max_bytes = int(settings.TICKET_VISION_OCR_CROP_MAX_BYTES)
+        collage_cell_h = int(settings.TICKET_VISION_OCR_COLLAGE_CELL_MAX_HEIGHT)
+        collage_cols = int(settings.TICKET_VISION_OCR_COLLAGE_COLUMNS)
+
+        t_crop = time.perf_counter()
+        prepared: list[dict] = []
         for index, (tx, ty, tw, th) in enumerate(yolo_guidance.ticket_boxes or []):
-            if len(tickets) >= max_tickets:
+            if len(prepared) >= max_tickets:
                 break
             yolo_box = BoundingBox(
                 x=tx,
@@ -885,7 +1014,6 @@ class LlmTicketScanService:
                 if preview_source is not None
                 else yolo_box
             )
-            # Slightly generous pad so station/date/price glyphs are not clipped.
             x, y, bw, bh = image_pipeline.expand_bbox(
                 full_box.x,
                 full_box.y,
@@ -898,139 +1026,214 @@ class LlmTicketScanService:
             crop = source[y : y + bh, x : x + bw]
             if crop is None or crop.size == 0:
                 continue
-            try:
-                crop_bytes = image_pipeline.encode_to_jpeg_bytes_bounded(
-                    crop,
-                    max_bytes=2_500_000,
-                    quality_start=98,
-                    quality_floor=95,
-                    allow_geometry_shrink=False,
-                )
-            except Exception:  # noqa: BLE001
-                logger.exception("Failed to encode ticket crop #%s for OCR", index)
-                continue
-
-            crop_h, crop_w = crop.shape[:2]
-            field_hint = (
-                f"This image is a single cropped lottery ticket (YOLO ticket #{index}). "
-                f"Extract exactly one ticket. Ignore any background outside the ticket. "
-                f"bbox/fieldBoxes may use this crop's {crop_w}x{crop_h} space."
+            # Keep a contiguous copy so collage packing cannot see a view into
+            # the full frame after later GC of intermediates.
+            crop = np.ascontiguousarray(crop)
+            prepared.append(
+                {
+                    "index": index,
+                    "yolo_box": yolo_box,
+                    "crop": crop,
+                    "crop_w": int(crop.shape[1]),
+                    "crop_h": int(crop.shape[0]),
+                    "offset_x": int(round(x / preview_scale_x)) if preview_scale_x else x,
+                    "offset_y": int(round(y / preview_scale_y)) if preview_scale_y else y,
+                    "crop_w_frame": int(round(bw / preview_scale_x)) if preview_scale_x else bw,
+                    "crop_h_frame": int(round(bh / preview_scale_y)) if preview_scale_y else bh,
+                }
             )
-            # Attach per-ticket YOLO field crops when available (max 2 extras).
-            extra_images: list[tuple[str, bytes]] = []
-            field_boxes = {}
-            if (
-                getattr(yolo_guidance, "ticket_field_boxes", None)
-                and index < len(yolo_guidance.ticket_field_boxes)
-            ):
-                field_boxes = yolo_guidance.ticket_field_boxes[index] or {}
-            for field_name in ("numbers", "serialNumber", "drawDate", "stationName", "batchCode"):
-                if len(extra_images) >= 2:
-                    break
-                box = field_boxes.get(field_name)
-                if not box:
-                    continue
-                fx, fy, fw, fh = box
-                field_bb = BoundingBox(
-                    x=fx,
-                    y=fy,
-                    width=fw,
-                    height=fh,
-                    corners=[[fx, fy], [fx + fw, fy], [fx + fw, fy + fh], [fx, fy + fh]],
-                )
-                if preview_source is not None:
-                    field_bb = _scale_bbox(field_bb, preview_scale_x, preview_scale_y)
-                px, py, pw, ph = image_pipeline.expand_bbox(
-                    field_bb.x,
-                    field_bb.y,
-                    field_bb.width,
-                    field_bb.height,
-                    src_w,
-                    src_h,
-                    pad_ratio=0.08,
-                )
-                # Prefer field crop relative to the ticket crop when possible.
-                rel_x = max(0, px - x)
-                rel_y = max(0, py - y)
-                if rel_x >= bw or rel_y >= bh:
-                    field_crop = source[py : py + ph, px : px + pw]
-                else:
-                    rw = min(pw, bw - rel_x)
-                    rh = min(ph, bh - rel_y)
-                    field_crop = crop[rel_y : rel_y + rh, rel_x : rel_x + rw]
-                if field_crop is None or field_crop.size == 0:
-                    continue
-                try:
-                    field_bytes = image_pipeline.encode_to_jpeg_bytes_bounded(
-                        field_crop,
-                        max_bytes=900_000,
-                        quality_start=97,
-                        quality_floor=92,
-                        allow_geometry_shrink=False,
-                    )
-                    extra_images.append((f"yolo-field-crop:{field_name}", field_bytes))
-                except Exception:  # noqa: BLE001
-                    continue
+        crop_ms = (time.perf_counter() - t_crop) * 1000.0
 
+        if not prepared:
+            return ScanExtractionResult(tickets=[], warnings=[])
+
+        def _empty_ticket(item: dict) -> TicketExtraction:
+            yolo_box = item["yolo_box"]
+            return TicketExtraction(
+                bbox=TicketBBox(
+                    x=float(yolo_box.x),
+                    y=float(yolo_box.y),
+                    width=float(yolo_box.width),
+                    height=float(yolo_box.height),
+                ),
+                fieldConfidences={},
+            )
+
+        def _pin_yolo_only(ticket: TicketExtraction, yolo_box: BoundingBox) -> TicketExtraction:
+            # Collage / crop-local fieldBoxes are not reliable for Admin overlays;
+            # YOLO field boxes (if any) are applied later in _map_ticket.
+            return ticket.model_copy(
+                update={
+                    "bbox": TicketBBox(
+                        x=float(yolo_box.x),
+                        y=float(yolo_box.y),
+                        width=float(yolo_box.width),
+                        height=float(yolo_box.height),
+                    ),
+                    "fieldBoxes": {},
+                }
+            )
+
+        def _encode_ocr_jpeg(arr: np.ndarray) -> bytes:
+            return image_pipeline.encode_to_jpeg_bytes_bounded(
+                arr,
+                max_bytes=ocr_max_bytes,
+                quality_start=90,
+                quality_floor=80,
+                max_dimension=ocr_max_dim,
+                allow_geometry_shrink=False,
+            )
+
+        warnings: list[str] = []
+        t_ocr = time.perf_counter()
+
+        if len(prepared) == 1:
+            item = prepared[0]
+            try:
+                vision_bytes = _encode_ocr_jpeg(item["crop"])
+            except Exception:  # noqa: BLE001
+                logger.exception("Failed to encode single ticket crop for OCR")
+                return ScanExtractionResult(
+                    tickets=[_empty_ticket(item)],
+                    warnings=[f"Vé #{item['index'] + 1}: OCR thất bại, đã bỏ qua."],
+                )
+            field_hint = (
+                f"This image is a single cropped lottery ticket (YOLO ticket #{item['index']}). "
+                f"Extract exactly one ticket. Ignore any background outside the ticket. "
+                f"numbers MUST be exactly 6 digits as printed — never invent, pad, or truncate. "
+                f"If fewer/more than 6 digits are visible, set numbers to null. "
+                f"Prefer NORMALIZED bbox/fieldBoxes in [0.0, 1.0] relative to this crop "
+                f"({item['crop_w']}x{item['crop_h']})."
+            )
             prompt = build_ticket_extraction_prompt(
-                json.dumps(stations_payload, ensure_ascii=False),
+                stations_json,
                 1,
-                crop_w,
-                crop_h,
+                item["crop_w"],
+                item["crop_h"],
                 field_layouts_hint=field_hint,
             )
             try:
-                crop_result = self._vision_client.analyze_ticket_image(
-                    crop_bytes,
-                    prompt,
-                    extra_images=extra_images or None,
+                crop_result = self._vision_client.analyze_ticket_image(vision_bytes, prompt)
+            except VisionClientError:
+                raise
+            except Exception as exc:  # noqa: BLE001
+                logger.exception("Single-ticket OCR failed for YOLO ticket #%s", item["index"])
+                raise VisionApiError(
+                    f"Single-ticket OCR failed for YOLO ticket #{item['index']}: {exc}"
+                ) from exc
+            llm_ticket = (crop_result.tickets or [None])[0]
+            if llm_ticket is None:
+                tickets = [_empty_ticket(item)]
+                warnings.append(
+                    f"Vé #{item['index'] + 1}: chưa đọc được nội dung từ vùng vé đã phát hiện."
                 )
-            except Exception:  # noqa: BLE001
-                logger.exception("Per-ticket OCR failed for YOLO ticket #%s", index)
-                warnings.append(f"Vé #{index + 1}: OCR thất bại, đã bỏ qua.")
-                continue
-
-            # Remap crop-local coords into resized full-frame space.
-            offset_x = int(round(x / preview_scale_x)) if preview_scale_x else x
-            offset_y = int(round(y / preview_scale_y)) if preview_scale_y else y
-            crop_w_frame = int(round(bw / preview_scale_x)) if preview_scale_x else bw
-            crop_h_frame = int(round(bh / preview_scale_y)) if preview_scale_y else bh
-            added_one = False
-            for ticket in crop_result.tickets or []:
+            else:
                 remapped = _remap_ticket_extraction_from_crop(
-                    ticket,
-                    offset_x=offset_x,
-                    offset_y=offset_y,
-                    crop_width=crop_w_frame,
-                    crop_height=crop_h_frame,
+                    llm_ticket,
+                    offset_x=item["offset_x"],
+                    offset_y=item["offset_y"],
+                    crop_width=item["crop_w_frame"],
+                    crop_height=item["crop_h_frame"],
                     full_width=image_w,
                     full_height=image_h,
-                    fallback_box=yolo_box,
+                    fallback_box=item["yolo_box"],
                 )
-                tickets.append(remapped)
-                added_one = True
-                break
-            if not added_one:
-                # Keep the YOLO box so Admin still gets a review crop even when
-                # the vision model returned no structured ticket.
-                tickets.append(
-                    TicketExtraction(
-                        bbox=TicketBBox(
-                            x=float(yolo_box.x),
-                            y=float(yolo_box.y),
-                            width=float(yolo_box.width),
-                            height=float(yolo_box.height),
-                        ),
-                        fieldConfidences={},
-                    )
-                )
-                warnings.append(
-                    f"Vé #{index + 1}: chưa đọc được nội dung từ vùng vé đã phát hiện."
-                )
+                tickets = [_pin_yolo_only(remapped, item["yolo_box"])]
             for warning in crop_result.warnings or []:
                 if warning and warning not in warnings:
                     warnings.append(warning)
+            logger.info(
+                "Per-ticket OCR: mode=single crops=1 ocr_ms=%s crop_ms=%s",
+                int(round((time.perf_counter() - t_ocr) * 1000.0)),
+                int(round(crop_ms)),
+            )
+            return ScanExtractionResult(tickets=tickets, warnings=warnings)
 
+        # Multi-ticket: one labeled collage → one vision round-trip.
+        try:
+            collage = _build_ticket_ocr_collage(
+                [item["crop"] for item in prepared],
+                cell_max_height=collage_cell_h,
+                columns=collage_cols,
+            )
+            collage_bytes = _encode_ocr_jpeg(collage)
+        except Exception:  # noqa: BLE001
+            logger.exception("Failed to build/encode multi-ticket OCR collage")
+            return ScanExtractionResult(
+                tickets=[_empty_ticket(item) for item in prepared],
+                warnings=["Không tạo được ảnh ghép OCR; vui lòng quét lại."],
+            )
+
+        collage_h, collage_w = collage.shape[:2]
+        cell_lines = "\n".join(
+            f"  - cell #{pos} (label #{item['index']}): ticket index {pos}"
+            for pos, item in enumerate(prepared)
+        )
+        field_hint = (
+            f"COLLAGE MODE: this single image is a labeled grid of {len(prepared)} "
+            f"cropped lottery tickets (labels #0..#{len(prepared) - 1} above each cell).\n"
+            f"Extract exactly ONE ticket from EACH labeled cell. Return tickets[] with "
+            f"length {len(prepared)} in cell order (#0 first).\n"
+            f"Read only inside each cell — ignore the light-gray gaps between cells.\n"
+            f"Field VALUES matter most; bbox/fieldBoxes may be approximate (servers pin "
+            f"ticket boxes from YOLO).\n"
+            f"numbers MUST be exactly 6 digits as printed — never invent, pad, or truncate. "
+            f"If fewer/more than 6 digits are visible, set numbers to null.\n"
+            f"Cells:\n{cell_lines}"
+        )
+        prompt = build_ticket_extraction_prompt(
+            stations_json,
+            len(prepared),
+            collage_w,
+            collage_h,
+            field_layouts_hint=field_hint,
+        )
+        logger.info(
+            "Per-ticket OCR: mode=collage crops=%s collage=%sx%s bytes=%s crop_ms=%s",
+            len(prepared),
+            collage_w,
+            collage_h,
+            len(collage_bytes),
+            int(round(crop_ms)),
+        )
+        try:
+            crop_result = self._vision_client.analyze_ticket_image(collage_bytes, prompt)
+        except VisionClientError:
+            # Propagate so Legacy-first can keep the local OCR result instead of
+            # treating empty YOLO shells as a successful Groq scan.
+            raise
+        except Exception as exc:  # noqa: BLE001
+            logger.exception(
+                "Collage OCR failed for %s tickets",
+                len(prepared),
+            )
+            raise VisionApiError(
+                f"Collage OCR failed for {len(prepared)} tickets: {exc}"
+            ) from exc
+
+        llm_tickets = list(crop_result.tickets or [])
+        tickets: list[TicketExtraction] = []
+        for pos, item in enumerate(prepared):
+            llm_ticket = llm_tickets[pos] if pos < len(llm_tickets) else None
+            if llm_ticket is None:
+                tickets.append(_empty_ticket(item))
+                warnings.append(
+                    f"Vé #{item['index'] + 1}: chưa đọc được nội dung từ vùng vé đã phát hiện."
+                )
+                continue
+            # Values come from collage OCR; geometry is always YOLO-pinned.
+            tickets.append(_pin_yolo_only(llm_ticket, item["yolo_box"]))
+
+        for warning in crop_result.warnings or []:
+            if warning and warning not in warnings:
+                warnings.append(warning)
+
+        logger.info(
+            "Per-ticket OCR done: mode=collage wall_ms=%s tickets=%s returned=%s",
+            int(round((time.perf_counter() - t_ocr) * 1000.0)),
+            len(prepared),
+            len(llm_tickets),
+        )
         return ScanExtractionResult(tickets=tickets[:max_tickets], warnings=warnings)
 
     def _retry_weak_fields_with_alternate_layouts(

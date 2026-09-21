@@ -79,15 +79,61 @@ def _xyxy_to_xywh(box: np.ndarray) -> tuple[int, int, int, int]:
     return px, py, max(1, x2 - x1), max(1, y2 - y1)
 
 
+def _xyxy_iou(a: np.ndarray, b: np.ndarray) -> float:
+    ax1, ay1, ax2, ay2 = (float(v) for v in a)
+    bx1, by1, bx2, by2 = (float(v) for v in b)
+    ix1, iy1 = max(ax1, bx1), max(ay1, by1)
+    ix2, iy2 = min(ax2, bx2), min(ay2, by2)
+    iw, ih = max(0.0, ix2 - ix1), max(0.0, iy2 - iy1)
+    inter = iw * ih
+    if inter <= 0:
+        return 0.0
+    area_a = max(0.0, ax2 - ax1) * max(0.0, ay2 - ay1)
+    area_b = max(0.0, bx2 - bx1) * max(0.0, by2 - by1)
+    union = area_a + area_b - inter
+    return inter / union if union > 0 else 0.0
+
+
+def _nms_ticket_boxes(
+    tickets: list[tuple[float, np.ndarray]],
+    *,
+    iou_threshold: float,
+) -> list[tuple[float, np.ndarray]]:
+    """Keep spatially distinct tickets (high IoU = duplicate of the same ticket)."""
+    kept: list[tuple[float, np.ndarray]] = []
+    for conf, box in sorted(tickets, key=lambda item: item[0], reverse=True):
+        if any(_xyxy_iou(box, other) >= iou_threshold for _, other in kept):
+            continue
+        kept.append((conf, box))
+    return kept
+
+
+def _sort_tickets_reading_order(
+    tickets: list[tuple[float, np.ndarray]],
+) -> list[tuple[float, np.ndarray]]:
+    """Top-to-bottom, then left-to-right — matches Admin review row order."""
+
+    def _key(item: tuple[float, np.ndarray]) -> tuple[float, float]:
+        x1, y1, x2, y2 = (float(v) for v in item[1])
+        return ((y1 + y2) / 2.0, (x1 + x2) / 2.0)
+
+    return sorted(tickets, key=_key)
+
+
 def build_yolo_llm_guidance(
     image: np.ndarray,
     *,
     max_tickets: int,
+    encode_crops: bool = True,
 ) -> YoloLlmGuidance:
     """Run one YOLO inference on the resized scan image; return LLM crops/hints.
 
     Uses the same multi-class ``best.pt`` as the legacy detector/field layout:
     ``Lottery-ticket`` plus mapped field classes. Never raises into the scan.
+
+    When ``encode_crops`` is False (per-ticket OCR path), skip JPEG encoding of
+    ticket/field crops — only boxes are needed and encoding every crop twice
+    wastes CPU on multi-ticket photos.
     """
     if not settings.TICKET_VISION_LLM_YOLO_GUIDANCE:
         return YoloLlmGuidance()
@@ -148,10 +194,15 @@ def build_yolo_llm_guidance(
         field_detections.append((field_name, conf, box))
 
     ticket_boxes.sort(key=lambda item: item[0], reverse=True)
-    # Prefer the ticket-class threshold (stricter than field conf) and drop tiny
-    # background false-positives that are not real lottery tickets.
-    min_ticket_conf = float(settings.TICKET_VISION_YOLO_CONFIDENCE_THRESHOLD)
-    min_ticket_area = max(400.0, float(height * width) * 0.008)
+    # Keep all plausible lottery-ticket boxes. Previous filters (strict conf +
+    # large min-area) dropped real tickets on multi-ticket table photos.
+    min_ticket_conf = float(
+        min(
+            settings.TICKET_VISION_YOLO_CONFIDENCE_THRESHOLD,
+            settings.TICKET_VISION_YOLO_FIELD_CONFIDENCE_THRESHOLD,
+        )
+    )
+    min_ticket_area = max(250.0, float(height * width) * 0.002)
     filtered_tickets: list[tuple[float, np.ndarray]] = []
     for conf, box in ticket_boxes:
         if conf < min_ticket_conf:
@@ -160,8 +211,17 @@ def build_yolo_llm_guidance(
         area = max(0.0, x2 - x1) * max(0.0, y2 - y1)
         if area < min_ticket_area:
             continue
+        # Reject absurd whole-image "tickets" that are mostly background.
+        if area > float(height * width) * 0.85:
+            continue
         filtered_tickets.append((conf, box))
-    ticket_boxes = filtered_tickets[: max(1, max_tickets)]
+
+    filtered_tickets = _nms_ticket_boxes(
+        filtered_tickets,
+        iou_threshold=float(settings.TICKET_VISION_YOLO_IOU_THRESHOLD),
+    )
+    filtered_tickets = _sort_tickets_reading_order(filtered_tickets)
+    ticket_boxes = filtered_tickets[: max(0, max_tickets)]
 
     hint_lines: list[str] = []
     crops: list[tuple[str, bytes]] = []
@@ -172,15 +232,17 @@ def build_yolo_llm_guidance(
     ticket_raw_boxes: list[np.ndarray] = []
 
     for index, (conf, box) in enumerate(ticket_boxes):
-        crop = _padded_crop(image, box, height, width)
-        if crop is None:
-            continue
-        try:
-            crop_bytes = image_pipeline.encode_to_jpeg_bytes(crop, quality=95)
-        except Exception:  # noqa: BLE001
-            logger.exception("Failed to encode YOLO ticket crop #%s", index)
-            continue
         px, py, pw, ph = _xyxy_to_xywh(box)
+        if encode_crops:
+            crop = _padded_crop(image, box, height, width)
+            if crop is None:
+                continue
+            try:
+                crop_bytes = image_pipeline.encode_to_jpeg_bytes(crop, quality=95)
+            except Exception:  # noqa: BLE001
+                logger.exception("Failed to encode YOLO ticket crop #%s", index)
+                continue
+            crops.append((f"{YOLO_TICKET_CROP_PREFIX}{index}", crop_bytes))
         ticket_pixel_boxes.append((px, py, pw, ph))
         ticket_confidences.append(conf)
         ticket_raw_boxes.append(box)
@@ -189,7 +251,6 @@ def build_yolo_llm_guidance(
             f"- ticket #{index} (yolo, conf={conf:.2f}): "
             f"x={px}, y={py}, w={pw}, h={ph}"
         )
-        crops.append((f"{YOLO_TICKET_CROP_PREFIX}{index}", crop_bytes))
 
     # Assign each field detection to the ticket that contains its center.
     # Keep highest-confidence box per (ticket, field).
@@ -220,20 +281,21 @@ def build_yolo_llm_guidance(
             orphan_fields[field_name] = (conf, box)
 
     for field_name, (conf, box) in sorted(orphan_fields.items()):
-        crop = _padded_crop(image, box, height, width)
-        if crop is None:
-            continue
-        try:
-            crop_bytes = image_pipeline.encode_to_jpeg_bytes(crop, quality=95)
-        except Exception:  # noqa: BLE001
-            logger.exception("Failed to encode YOLO field crop %s", field_name)
-            continue
         px, py, pw, ph = _xyxy_to_xywh(box)
+        if encode_crops:
+            crop = _padded_crop(image, box, height, width)
+            if crop is None:
+                continue
+            try:
+                crop_bytes = image_pipeline.encode_to_jpeg_bytes(crop, quality=95)
+            except Exception:  # noqa: BLE001
+                logger.exception("Failed to encode YOLO field crop %s", field_name)
+                continue
+            crops.append((f"{YOLO_FIELD_CROP_PREFIX}{field_name}", crop_bytes))
         hint_lines.append(
             f"- {field_name} (yolo, conf={conf:.2f}): "
             f"x={px}, y={py}, w={pw}, h={ph}"
         )
-        crops.append((f"{YOLO_FIELD_CROP_PREFIX}{field_name}", crop_bytes))
         fields_covered.add(field_name)
 
     if not hint_lines:

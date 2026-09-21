@@ -24,8 +24,9 @@ image bytes
 
 Orchestrated by `domain/scanning/ticket_scan_service.py` (legacy EasyOCR path)
 or `domain/scanning/llm_ticket_scan_service.py` (Groq/Gemini/Grok). Wired by
-`routers/scan.py`, which **auto-falls back to legacy** when the cloud vision
-provider fails or returns no tickets (`TICKET_VISION_LLM_FALLBACK_TO_LEGACY`).
+`routers/scan.py`, which runs **legacy first** by default and only calls the
+cloud LLM when local confidence is low; on token/quota failure it keeps the
+legacy result (`TICKET_VISION_LEGACY_FIRST`).
 
 See [`docs/LOCAL_FIRST_OCR_ROADMAP.md`](docs/LOCAL_FIRST_OCR_ROADMAP.md) for the
 phased plan toward local-first OCR.
