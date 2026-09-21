@@ -219,7 +219,7 @@ Analyze the uploaded image and extract ticket information. Rules:
 - Prefer NORMALIZED coordinates in [0.0, 1.0] (fraction of full image width/height). Absolute pixel coordinates in the {image_width}x{image_height} space are also accepted.
 - List tickets in reading order: top-to-bottom, then left-to-right.
 - Prefer matching station names/codes against this active station list: {stations_json}
-- numbers: digits only, no spaces or punctuation.
+- numbers: digits only, no spaces or punctuation. MUST be exactly 6 digits as printed on the ticket. Never invent, pad with zeros, or truncate to force length 6. If the printed number is not clearly 6 digits, set numbers to null.
 - drawDate: ISO format YYYY-MM-DD when visible. If the date is not clearly readable, use null (do not invent or emit non-ISO strings).
 - serialNumber: the ticket serial as printed. MUST be mostly digits with exactly ONE letter at the beginning OR the end only (examples: "A123456", "123456B", "A424944"). NEVER put a letter in the middle. NEVER put production lot/ký hiệu codes here (reject forms like "4E2", "5D2", "XSCMG997", "08D", "8K4", "26-T05K4").
 - ticketType: printed ticket PRICE as digits when possible (e.g. "10000"), not a product category.

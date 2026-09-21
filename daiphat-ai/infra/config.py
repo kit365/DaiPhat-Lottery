@@ -45,8 +45,16 @@ class Settings(BaseSettings):
     # Recognition engine: "groq" (default), "gemini", "grok" (xAI), or "legacy".
     # Leave unset to resolve from OCR_AI_PROVIDER, else default to groq.
     TICKET_VISION_RECOGNITION_ENGINE: str | None = None
+    # Local-first: always run EasyOCR/PaddleOCR first; call Groq/Gemini/Grok
+    # only when legacy confidence is below the boost threshold. On LLM token
+    # /quota failure, return the legacy result instead of failing the scan.
+    TICKET_VISION_LEGACY_FIRST: bool = True
+    # Min ticket confidence (and COMPLETE-equivalent fields) to skip the LLM.
+    # Defaults to the high status threshold so yellow/red tickets still get AI.
+    TICKET_VISION_LEGACY_SKIP_LLM_MIN_CONFIDENCE: float | None = None
     # When Groq/Gemini/Grok fails (quota, timeout, misconfig) or returns zero
     # tickets, automatically retry with local EasyOCR/PaddleOCR (legacy).
+    # With LEGACY_FIRST=true this mainly covers groq-first rollback mode.
     TICKET_VISION_LLM_FALLBACK_TO_LEGACY: bool = True
     # Optional alias when TICKET_VISION_RECOGNITION_ENGINE is unset: GROQ|GEMINI|GROK|LEGACY.
     OCR_AI_PROVIDER: str = ""
@@ -129,6 +137,16 @@ class Settings(BaseSettings):
     # merge with OCR Template layouts (YOLO wins per field; template fills gaps).
     # Soft-skips when weights are missing. Turn off to force template/full-image only.
     TICKET_VISION_LLM_YOLO_GUIDANCE: bool = True
+    # Per-ticket Groq OCR: batch size (Groq max 3 images/request) and how many
+    # batches may run concurrently. Keep workers low to avoid RPM/OTPM storms.
+    TICKET_VISION_PER_TICKET_OCR_BATCH_SIZE: int = 3
+    TICKET_VISION_PER_TICKET_OCR_WORKERS: int = 2
+    # OCR API JPEG budget for ticket crops (Admin review still uses PNG crops).
+    TICKET_VISION_OCR_CROP_MAX_DIMENSION: int = 1600
+    TICKET_VISION_OCR_CROP_MAX_BYTES: int = 700_000
+    # Multi-ticket: pack crops into one labeled collage (1 Groq call).
+    TICKET_VISION_OCR_COLLAGE_CELL_MAX_HEIGHT: int = 480
+    TICKET_VISION_OCR_COLLAGE_COLUMNS: int = 2
     # Lower than the ticket-detection threshold on purpose: a field box that
     # is slightly off still yields a crop the OCR pass can use, and the
     # parser validates every field value before accepting it, so a spurious

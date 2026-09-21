@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import re
 import time
+from threading import Lock
 from typing import Any
 
 import httpx
@@ -32,6 +33,25 @@ _MAX_RATE_LIMIT_WAIT_SECONDS = 8.0
 # qwen/qwen3.8-27b: docs allow at most 3 images per request
 _MAX_IMAGES_PER_REQUEST = 3
 _MAX_EXTRA_IMAGES = _MAX_IMAGES_PER_REQUEST - 1
+
+# Reuse keep-alive connections across per-ticket / batched OCR calls.
+_http_clients: dict[float, httpx.Client] = {}
+_http_clients_lock = Lock()
+
+
+def _shared_http_client(timeout_seconds: float) -> httpx.Client:
+    with _http_clients_lock:
+        client = _http_clients.get(timeout_seconds)
+        if client is None or client.is_closed:
+            client = httpx.Client(
+                timeout=timeout_seconds,
+                limits=httpx.Limits(
+                    max_connections=6,
+                    max_keepalive_connections=4,
+                ),
+            )
+            _http_clients[timeout_seconds] = client
+        return client
 
 
 class GroqVisionClient:
@@ -181,8 +201,8 @@ class GroqVisionClient:
         last_429_body = ""
         for attempt in range(_RATE_LIMIT_RETRIES + 1):
             try:
-                with httpx.Client(timeout=self._timeout) as client:
-                    response = client.post(url, headers=headers, json=payload)
+                client = _shared_http_client(self._timeout)
+                response = client.post(url, headers=headers, json=payload)
             except httpx.TimeoutException as exc:
                 raise VisionApiError("Groq vision request timed out") from exc
             except httpx.HTTPError as exc:
@@ -261,6 +281,15 @@ class GroqVisionClient:
                     f"Groq vision model '{self._model}' is unavailable. "
                     "Set GROQ_VISION_MODEL to a model your Groq account can access "
                     "(e.g. qwen/qwen3.8-27b).",
+                    status_code=response.status_code,
+                )
+            if (
+                "model_decommissioned" in detail_lower
+                or "has been decommissioned" in detail_lower
+            ):
+                raise VisionApiError(
+                    f"Groq vision model '{self._model}' has been decommissioned. "
+                    "Update GROQ_VISION_MODEL (e.g. qwen/qwen3.8-27b).",
                     status_code=response.status_code,
                 )
             raise VisionApiError(

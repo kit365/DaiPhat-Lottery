@@ -25,15 +25,36 @@ class PaddleOcrStrategy(OcrStrategy):
     def __init__(self) -> None:
         self._engine = None
         self._engine_lang: str | None = None
+        self._init_error: str | None = None
 
     def _get_engine(self, lang: str):
+        if self._init_error is not None:
+            raise RuntimeError(self._init_error)
         if self._engine is None or self._engine_lang != lang:
             from paddleocr import PaddleOCR  # noqa: PLC0415 -- intentional lazy import
 
-            try:
-                self._engine = PaddleOCR(use_angle_cls=True, lang=lang, show_log=False)
-            except TypeError:
-                self._engine = PaddleOCR(use_angle_cls=True, lang=lang)
+            # PaddleOCR API differs across versions: older accepts show_log=,
+            # newer rejects it with ValueError("Unknown argument: show_log").
+            candidates = (
+                {"use_angle_cls": True, "lang": lang, "show_log": False},
+                {"use_angle_cls": True, "lang": lang},
+                {"lang": lang},
+            )
+            last_error: Exception | None = None
+            for kwargs in candidates:
+                try:
+                    self._engine = PaddleOCR(**kwargs)
+                    last_error = None
+                    break
+                except (TypeError, ValueError) as exc:
+                    last_error = exc
+                    continue
+            if self._engine is None:
+                self._init_error = (
+                    f"PaddleOCR init failed ({last_error}); "
+                    "disabling paddle fallback for this process"
+                )
+                raise RuntimeError(self._init_error)
             self._engine_lang = lang
         return self._engine
 
@@ -47,7 +68,11 @@ class PaddleOcrStrategy(OcrStrategy):
         del field_hint
         lang = languages[0] if languages else _DEFAULT_LANG
         engine = self._get_engine(lang)
-        raw_results = engine.ocr(image, cls=True)
+        # Newer PaddleOCR drops cls=; older needs it for angle classification.
+        try:
+            raw_results = engine.ocr(image, cls=True)
+        except TypeError:
+            raw_results = engine.ocr(image)
         height = image.shape[0] or 1
         width = image.shape[1] or 1
 

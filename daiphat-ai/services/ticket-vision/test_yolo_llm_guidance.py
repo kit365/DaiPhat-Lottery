@@ -78,10 +78,10 @@ def test_build_yolo_llm_guidance_returns_ticket_and_field_crops(image, monkeypat
             _FakeResult(
                 _FakeObb(
                     boxes=[
-                        [10, 10, 290, 590],  # ticket
-                        [20, 20, 280, 70],  # station
-                        [30, 300, 270, 360],  # numbers
-                        [40, 500, 260, 540],  # serial
+                        [20, 40, 260, 420],  # ticket (~0.42 of frame)
+                        [30, 50, 250, 100],  # station
+                        [40, 200, 240, 260],  # numbers
+                        [50, 350, 230, 390],  # serial
                     ],
                     cls=[3, 1, 7, 2],
                 )
@@ -100,6 +100,35 @@ def test_build_yolo_llm_guidance_returns_ticket_and_field_crops(image, monkeypat
     assert f"{YOLO_FIELD_CROP_PREFIX}serialNumber" in labels
     assert result.hint is not None
     assert "stationName" in result.hint
+
+
+def test_build_yolo_llm_guidance_skips_crop_encoding_when_disabled(image, monkeypatch):
+    monkeypatch.setattr(guidance_mod.settings, "TICKET_VISION_LLM_YOLO_GUIDANCE", True)
+    monkeypatch.setattr(guidance_mod.yolo_model, "is_available", lambda _path: True)
+    monkeypatch.setattr(
+        guidance_mod.yolo_model,
+        "load_model",
+        lambda _path: _FakeModel(
+            _FakeResult(
+                _FakeObb(
+                    boxes=[
+                        [20, 40, 260, 420],
+                        [30, 50, 250, 100],
+                        [40, 200, 240, 260],
+                    ],
+                    cls=[3, 1, 7],
+                )
+            )
+        ),
+    )
+
+    result = build_yolo_llm_guidance(image, max_tickets=5, encode_crops=False)
+
+    assert result.ticket_count == 1
+    assert result.ticket_boxes
+    assert result.fields_covered == {"stationName", "numbers"}
+    assert result.crops == []
+    assert result.hint is not None
 
 
 def test_build_yolo_llm_guidance_skips_when_disabled(image, monkeypatch):

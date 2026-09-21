@@ -16,17 +16,29 @@ Goal: **YOLO crops fields + local OCR reads text**. Cloud vision LLMs
 
 Defaults in `infra/config.py`:
 
-- `TICKET_VISION_LLM_FALLBACK_TO_LEGACY=true` — Groq/Gemini/Grok errors,
-  misconfiguration, or zero tickets → retry with EasyOCR/PaddleOCR (`legacy`).
+- `TICKET_VISION_LEGACY_FIRST=true` — run EasyOCR/PaddleOCR **first**; call
+  Groq/Gemini/Grok only when legacy confidence is below the high threshold
+  (or tickets are incomplete / missing). On LLM token/quota failure, **keep**
+  the legacy result (no second local pass, no hard fail).
+- `TICKET_VISION_LLM_FALLBACK_TO_LEGACY=true` — used mainly when
+  `TICKET_VISION_LEGACY_FIRST=false` (LLM-first rollback): Groq errors or
+  zero tickets → retry with `legacy`.
 - `TICKET_VISION_DETECTOR_STRATEGY=yolov8_obb` — soft-falls to contour if
   `models/best.pt` missing.
 - `TICKET_VISION_LAYOUT_STRATEGY=yolo_field` — soft-falls to generic bands if
   weights missing.
 
-Still default recognition engine = `groq` when keyed, so quality stays high
-when quota allows; legacy covers outages.
+Configured cloud engine (default `groq`) is the **boost** engine after local
+OCR; high-confidence legacy results skip the cloud call entirely (faster
+multi-ticket scans).
 
-Disable fallback:
+Disable legacy-first (restore LLM-first):
+
+```bash
+TICKET_VISION_LEGACY_FIRST=false
+```
+
+Disable LLM→legacy fallback (LLM-first mode only):
 
 ```bash
 TICKET_VISION_LLM_FALLBACK_TO_LEGACY=false
