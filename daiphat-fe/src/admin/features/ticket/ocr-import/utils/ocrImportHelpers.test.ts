@@ -166,6 +166,8 @@ describe('canConfirmReviewRow & evaluateOcrFieldUiStatus', () => {
     it('blocks rows with missing or invalid numbers', () => {
         expect(canConfirmReviewRow({ ...validRow, numbers: '' } as any)).toBe(false);
         expect(canConfirmReviewRow({ ...validRow, numbers: '12A456' } as any)).toBe(false);
+        expect(canConfirmReviewRow({ ...validRow, numbers: '12345' } as any)).toBe(false);
+        expect(canConfirmReviewRow({ ...validRow, numbers: '1234567' } as any)).toBe(false);
     });
 
     it('blocks rows with missing or invalid serial number', () => {

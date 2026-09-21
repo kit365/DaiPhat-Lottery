@@ -8,9 +8,13 @@ import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import { useCallback, useState } from 'react';
 import { useDropzone, type Accept } from 'react-dropzone';
 import { AppToast } from '../../../../../../utils/toast.util';
+import { axiosRequestErrorMessage } from '../../../../../../api/requestError';
 import { ImagePreview } from '../../../../../components/ui/ImagePreview';
 import { uploadImportBatchInvoiceEvidence } from '../../services/importBatchService';
 import { getUploadFileCategory } from '../../../../../components/upload/UploadSingleFile';
+
+const EVIDENCE_UPLOAD_TIMEOUT_MESSAGE =
+    'Tải tệp biên lai mất quá nhiều thời gian. Vui lòng thử lại với tệp nhỏ hơn hoặc kiểm tra kết nối mạng.';
 
 interface ImportBatchReceiptFieldProps {
     value?: string | null;
@@ -95,11 +99,11 @@ export const ImportBatchReceiptField = ({
                 onChange(uploadedUrl);
                 onErrorChange?.(null);
             } catch (err: unknown) {
-                const message =
-                    (err as { response?: { data?: { message?: string } }; message?: string })
-                        ?.response?.data?.message ||
-                    (err as { message?: string })?.message ||
-                    'Tải tệp biên lai thất bại.';
+                const message = axiosRequestErrorMessage(
+                    err,
+                    'Tải tệp biên lai thất bại.',
+                    EVIDENCE_UPLOAD_TIMEOUT_MESSAGE
+                );
                 AppToast.error(message);
                 onErrorChange?.(message);
             } finally {

@@ -24,6 +24,16 @@ import type {
 
 const BASE_URL = '/import-batches';
 
+/** Evidence uploads hop browser → Next proxy → Spring → Cloudinary. */
+const EVIDENCE_UPLOAD_TIMEOUT_MS = 120_000;
+
+/**
+ * Create/update persist settlement find-or-create + line classification through the
+ * Next proxy. Under concurrent OCR load the default 15s axios timeout aborts first
+ * and surfaces as "timeout of 15000ms exceeded" on Confirm & Save.
+ */
+const IMPORT_BATCH_MUTATION_TIMEOUT_MS = 120_000;
+
 export const getActiveImportBatchDraft = async (): Promise<ImportBatch | null> => {
     try {
         const response = await apiApp.get(`${BASE_URL}/active-draft`, {
@@ -72,6 +82,7 @@ export const createImportBatch = async (
 ): Promise<ApiResponse<ImportBatch>> => {
     const response = await apiApp.post(BASE_URL, payload, {
         skipGlobalErrorToast: true,
+        timeout: IMPORT_BATCH_MUTATION_TIMEOUT_MS,
     });
     return response.data;
 };
@@ -82,6 +93,7 @@ export const updateImportBatch = async (
 ): Promise<ApiResponse<ImportBatch>> => {
     const response = await apiApp.put(`${BASE_URL}/${id}`, payload, {
         skipGlobalErrorToast: true,
+        timeout: IMPORT_BATCH_MUTATION_TIMEOUT_MS,
     });
     return response.data;
 };
@@ -105,9 +117,11 @@ export const attachImportBatchInvoiceEvidence = async (
 export const uploadImportBatchInvoiceEvidence = async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append('file', file);
+    // Multi-hop (browser → Next proxy → Spring → Cloudinary). Keep aligned with
+    // FILE_IMPORT_TIMEOUT_MS / proxy default (120s); 60s was aborting mid-upload.
     const response = await apiApp.post(`${BASE_URL}/invoice-evidence/upload`, formData, {
         ...withAuthHeaders(),
-        timeout: 60_000,
+        timeout: EVIDENCE_UPLOAD_TIMEOUT_MS,
         skipGlobalErrorToast: true,
     });
     const url = response.data?.data?.url;
@@ -122,7 +136,7 @@ export const uploadImportBatchTicketListImage = async (file: File): Promise<stri
     formData.append('file', file);
     const response = await apiApp.post(`${BASE_URL}/ticket-list-images/upload`, formData, {
         ...withAuthHeaders(),
-        timeout: 60_000,
+        timeout: EVIDENCE_UPLOAD_TIMEOUT_MS,
         skipGlobalErrorToast: true,
     });
     const url = response.data?.data?.url;

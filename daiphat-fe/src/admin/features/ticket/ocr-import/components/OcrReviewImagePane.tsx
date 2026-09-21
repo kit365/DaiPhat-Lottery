@@ -42,6 +42,8 @@ type Props = {
     onSelect: (selection: OcrFieldSelection) => void;
     /** Fixed or minimum preview height in px. */
     previewHeight?: number;
+    /** Whether to hide the top header title & zoom button. */
+    hideHeader?: boolean;
 };
 
 const strokeForConfidence = (confidence?: number | null, selected?: boolean): string => {
@@ -158,6 +160,7 @@ export default function OcrReviewImagePane({
     selection,
     onSelect,
     previewHeight = 360,
+    hideHeader = false,
 }: Props) {
     const [zoomOpen, setZoomOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement | null>(null);
@@ -212,28 +215,30 @@ export default function OcrReviewImagePane({
 
     return (
         <Stack spacing={1} sx={{ height: '100%' }}>
-            <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" flexWrap="wrap" useFlexGap>
-                <Stack direction="row" spacing={0.75} alignItems="center">
-                    <Typography variant="caption" fontWeight={800} color="#475569" sx={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                        Ảnh gốc ({ticketCount} vé)
-                    </Typography>
+            {!hideHeader && (
+                <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" flexWrap="wrap" useFlexGap>
+                    <Stack direction="row" spacing={0.75} alignItems="center">
+                        <Typography variant="caption" fontWeight={800} color="#475569" sx={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            Ảnh gốc ({ticketCount} vé)
+                        </Typography>
+                    </Stack>
+                    <Tooltip title="Xem ảnh gốc toàn màn hình" arrow>
+                        <IconButton
+                            size="small"
+                            onClick={() => setZoomOpen(true)}
+                            sx={{
+                                color: '#64748b',
+                                p: 0.35,
+                                border: '1px solid #e2e8f0',
+                                borderRadius: '6px',
+                                '&:hover': { color: '#2563eb', bgcolor: '#eff6ff', borderColor: '#bfdbfe' },
+                            }}
+                        >
+                            <ZoomInOutlinedIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                    </Tooltip>
                 </Stack>
-                <Tooltip title="Xem ảnh gốc toàn màn hình" arrow>
-                    <IconButton
-                        size="small"
-                        onClick={() => setZoomOpen(true)}
-                        sx={{
-                            color: '#64748b',
-                            p: 0.35,
-                            border: '1px solid #e2e8f0',
-                            borderRadius: '6px',
-                            '&:hover': { color: '#2563eb', bgcolor: '#eff6ff', borderColor: '#bfdbfe' },
-                        }}
-                    >
-                        <ZoomInOutlinedIcon sx={{ fontSize: 16 }} />
-                    </IconButton>
-                </Tooltip>
-            </Stack>
+            )}
             <Box
                 ref={containerRef}
                 sx={{

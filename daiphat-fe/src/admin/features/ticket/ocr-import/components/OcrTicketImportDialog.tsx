@@ -883,6 +883,15 @@ export const OcrTicketImportDialog = ({
         onClose();
     };
 
+    const handleNavigateToCreateBatch = () => {
+        wizard.saveDraftForCreateBatch();
+        const createUrl = wizard.supplierId
+            ? `${ROUTES.ADMIN.IMPORT_BATCH.CREATE}?supplierId=${wizard.supplierId}&returnTo=ocr-import&draftKey=${OCR_IMPORT_DRAFT_KEY}`
+            : `${ROUTES.ADMIN.IMPORT_BATCH.CREATE}?returnTo=ocr-import&draftKey=${OCR_IMPORT_DRAFT_KEY}`;
+        router.push(createUrl);
+        onClose();
+    };
+
     const handleScanMoreClick = () => {
         scanMoreFileInputRef.current?.click();
     };
@@ -1521,28 +1530,57 @@ export const OcrTicketImportDialog = ({
                                         <Paper
                                             elevation={0}
                                             sx={{
-                                                p: 2,
+                                                p: 2.25,
                                                 borderRadius: '12px',
                                                 bgcolor: '#fffbeb',
                                                 border: '1px solid #fef08a',
                                                 display: 'flex',
-                                                alignItems: 'center',
-                                                gap: 1.5,
+                                                flexDirection: { xs: 'column', sm: 'row' },
+                                                alignItems: { xs: 'flex-start', sm: 'center' },
+                                                justifyContent: 'space-between',
+                                                gap: 2,
                                             }}
                                         >
-                                            <WarningAmberOutlinedIcon sx={{ color: '#d97706', fontSize: '1.25rem', flexShrink: 0 }} />
-                                            <Box>
-                                                <Typography variant="body2" color="#92400e" fontWeight={600}>
-                                                    {blockedByIntakeCount > 0
-                                                        ? 'Phiếu nhập lô hiện có đã quá thời hạn cho phép nhập lô.'
-                                                        : 'Chưa có phiếu nhập (nháp / đang nhập / đã nhập một phần) đang mở cho nhà cung cấp này.'}
-                                                </Typography>
-                                                {intakeClosedHint && (
-                                                    <Typography variant="caption" color="#a16207" sx={{ display: 'block', mt: 0.25 }}>
-                                                        {intakeClosedHint}
+                                            <Stack direction="row" spacing={1.5} alignItems="flex-start" sx={{ flex: 1 }}>
+                                                <WarningAmberOutlinedIcon sx={{ color: '#d97706', fontSize: '1.4rem', flexShrink: 0, mt: 0.25 }} />
+                                                <Box>
+                                                    <Typography variant="body2" color="#92400e" fontWeight={700} sx={{ lineHeight: 1.4 }}>
+                                                        {blockedByIntakeCount > 0
+                                                            ? 'Phiếu nhập lô hiện có đã quá thời hạn cho phép tiếp nhận vé.'
+                                                            : 'Nhà cung cấp này chưa có phiếu nhập lô nào đang mở để tiếp nhận vé.'}
                                                     </Typography>
-                                                )}
-                                            </Box>
+                                                    <Typography variant="caption" color="#a16207" sx={{ display: 'block', mt: 0.5, lineHeight: 1.4 }}>
+                                                        {intakeClosedHint
+                                                            ? intakeClosedHint
+                                                            : 'Vui lòng khai báo phiếu nhập lô mới cho nhà cung cấp trước khi thực hiện quét và nhập vé vào kho.'}
+                                                    </Typography>
+                                                </Box>
+                                            </Stack>
+
+                                            <Button
+                                                variant="contained"
+                                                size="small"
+                                                startIcon={<AddCircleOutlineIcon />}
+                                                onClick={handleNavigateToCreateBatch}
+                                                sx={{
+                                                    whiteSpace: 'nowrap',
+                                                    fontWeight: 700,
+                                                    fontSize: '0.8rem',
+                                                    textTransform: 'none',
+                                                    borderRadius: '8px',
+                                                    bgcolor: '#d97706',
+                                                    color: '#ffffff',
+                                                    px: 2,
+                                                    py: 0.75,
+                                                    boxShadow: '0 2px 6px rgba(217, 119, 6, 0.25)',
+                                                    '&:hover': {
+                                                        bgcolor: '#b45309',
+                                                    },
+                                                    alignSelf: { xs: 'stretch', sm: 'center' },
+                                                }}
+                                            >
+                                                Khai báo phiếu nhập
+                                            </Button>
                                         </Paper>
                                     ) : (
                                         <Stack spacing={1}>

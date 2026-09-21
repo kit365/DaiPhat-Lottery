@@ -357,6 +357,12 @@ export const evaluateOcrFieldUiStatus = (
         if (!/^\d+$/.test(numbers)) {
             return { status: 'invalid', message: 'Dãy số chỉ được chứa chữ số.' };
         }
+        if (!/^\d{6}$/.test(numbers)) {
+            return {
+                status: 'invalid',
+                message: `Dãy số dự thưởng phải đủ đúng 6 chữ số (ví dụ 123456). Giá trị hiện tại có ${numbers.length} chữ số — hệ thống không tự cắt hoặc thêm số.`,
+            };
+        }
         if (wasEdited) {
             return { status: 'corrected' };
         }

@@ -48,6 +48,8 @@ import { Button as LoadingButton } from '../../../../../components/ui/Button';
 import { Button } from '../../../../../components/ui/Button';
 import { ImportBatchReceiptField } from '../sections/ImportBatchReceiptField';
 import { uploadImportBatchInvoiceEvidence } from '../../services/importBatchService';
+import { axiosRequestErrorMessage } from '../../../../../../api/requestError';
+import { isAxiosError } from 'axios';
 import type { Accept } from 'react-dropzone';
 import { ImportBatchTicketListImagesField } from '../sections/ImportBatchTicketListImagesField';
 import { prefixAdmin, ROUTES } from '../../../../../constants/routes';
@@ -118,6 +120,9 @@ const buildDefaultFormValues = (initialDrawDate?: string): CreateImportBatchForm
     ticketListImageUrls: [],
     lines: [emptyLine()],
 });
+
+const CREATE_IMPORT_BATCH_TIMEOUT_MESSAGE =
+    'Tạo phiếu nhập lô mất quá nhiều thời gian. Vui lòng kiểm tra danh sách phiếu nhập trước khi bấm xác nhận lại.';
 
 export const ImportBatchCreatePage = () => {
     const router = useAdminRouter();
@@ -198,11 +203,11 @@ export const ImportBatchCreatePage = () => {
             setReceiptUploadError(null);
             return url;
         } catch (err: unknown) {
-            const message =
-                (err as { response?: { data?: { message?: string } }; message?: string })?.response?.data
-                    ?.message ||
-                (err as { message?: string })?.message ||
-                'Tải tệp biên lai thất bại.';
+            const message = axiosRequestErrorMessage(
+                err,
+                'Tải tệp biên lai thất bại.',
+                'Tải tệp biên lai mất quá nhiều thời gian. Vui lòng thử lại với tệp nhỏ hơn hoặc kiểm tra kết nối mạng.'
+            );
             setReceiptUploadError(message);
             throw err instanceof Error ? err : new Error(message);
         }
@@ -216,11 +221,11 @@ export const ImportBatchCreatePage = () => {
                     ? await resolveInvoiceEvidenceUrl(formData.invoiceEvidenceUrl, uploadReceipt)
                     : undefined;
         } catch (err: unknown) {
-            const message =
-                (err as { response?: { data?: { message?: string } }; message?: string })?.response?.data
-                    ?.message ||
-                (err as { message?: string })?.message ||
-                'Tải tệp biên lai thất bại.';
+            const message = axiosRequestErrorMessage(
+                err,
+                'Tải tệp biên lai thất bại.',
+                'Tải tệp biên lai mất quá nhiều thời gian. Vui lòng thử lại với tệp nhỏ hơn hoặc kiểm tra kết nối mạng.'
+            );
             throw err instanceof Error ? err : new Error(message);
         }
 
@@ -274,7 +279,12 @@ export const ImportBatchCreatePage = () => {
         }
 
         const localDraft = readLocalImportBatchCreateDraft();
-        const values = localDraft?.values ?? buildDefaultFormValues();
+        const paramSupplierId = searchParams?.get('supplierId') ? Number(searchParams.get('supplierId')) : 0;
+        const defaultValues = buildDefaultFormValues();
+        if (paramSupplierId && !localDraft) {
+            defaultValues.supplierId = paramSupplierId;
+        }
+        const values = localDraft?.values ?? defaultValues;
         const restoredValues: CreateImportBatchFormValues = {
             ...values,
             lines: values.lines?.length > 0 ? values.lines : [emptyLine()],
@@ -287,7 +297,7 @@ export const ImportBatchCreatePage = () => {
         if (localDraft) {
             toast.info('Đã khôi phục bản nháp chỉnh sửa chưa lưu.');
         }
-    }, [isLoadingSuppliers, reset]);
+    }, [isLoadingSuppliers, reset, searchParams]);
 
     const eligibleStationIds = useMemo(
         () => new Set(eligibleStations.map((s) => s.lotteryStationId)),
@@ -614,10 +624,14 @@ export const ImportBatchCreatePage = () => {
             } else {
                 toast.error(res.message || 'Tạo phiếu nhập lô thất bại.');
             }
-        } catch (err: any) {
-            const message =
-                err?.response?.data?.message || err?.message || 'Tạo phiếu nhập lô thất bại.';
-            toast.error(message);
+        } catch (err: unknown) {
+            toast.error(
+                axiosRequestErrorMessage(
+                    err,
+                    'Tạo phiếu nhập lô thất bại.',
+                    CREATE_IMPORT_BATCH_TIMEOUT_MESSAGE
+                )
+            );
         } finally {
             setIsSaving(false);
         }
@@ -639,20 +653,26 @@ export const ImportBatchCreatePage = () => {
             } else {
                 toast.error(res.message || 'Tạo phiếu nhập lô thất bại.');
             }
-        } catch (err: any) {
-            const status = err?.response?.status;
-            const existingBatch = err?.response?.data?.data || null;
+        } catch (err: unknown) {
+            const status = isAxiosError(err) ? err.response?.status : undefined;
+            const existingBatch = isAxiosError(err)
+                ? (err.response?.data as { data?: unknown } | undefined)?.data ?? null
+                : null;
 
             if (status === 409 && existingBatch) {
-                setDuplicateExistingBatch(existingBatch);
+                setDuplicateExistingBatch(existingBatch as ImportBatch);
                 setDuplicateOpen(true);
                 setConfirmOpen(false);
                 return;
             }
 
-            const message =
-                err?.response?.data?.message || err?.message || 'Tạo phiếu nhập lô thất bại.';
-            toast.error(message);
+            toast.error(
+                axiosRequestErrorMessage(
+                    err,
+                    'Tạo phiếu nhập lô thất bại.',
+                    CREATE_IMPORT_BATCH_TIMEOUT_MESSAGE
+                )
+            );
         } finally {
             setIsSaving(false);
         }
