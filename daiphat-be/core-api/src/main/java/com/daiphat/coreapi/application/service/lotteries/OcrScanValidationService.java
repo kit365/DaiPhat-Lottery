@@ -154,18 +154,14 @@ public class OcrScanValidationService {
             }
             fields.put("ticketType", validatePrice(ticketType, contextStation, businessErrors));
         } else {
-            fields.put("numbers", numbers == null
-                    ? FieldValidationResult.unreadable("Không nhận diện được dãy số dự thưởng. " + UNREADABLE_COVERED_HINT)
-                    : FieldValidationResult.uncertain("Chưa xác định nhà đài để kiểm tra dãy số."));
+            // Still enforce exact 6-digit lottery number even before station is chosen.
+            fields.put("numbers", validateNumbers(numbers, null, businessErrors));
             fields.put("serialNumber", serialNumber == null
                     ? FieldValidationResult.unreadable("Không nhận diện được số sê-ri. " + UNREADABLE_COVERED_HINT)
                     : FieldValidationResult.uncertain("Chưa xác định nhà đài để kiểm tra số sê-ri."));
             fields.put("ticketType", ticketType == null
                     ? FieldValidationResult.unreadable("Không nhận diện được mệnh giá trên vé. " + UNREADABLE_COVERED_HINT)
                     : FieldValidationResult.uncertain("Chưa xác định nhà đài để kiểm tra mệnh giá vé."));
-            if (numbers == null) {
-                businessErrors.add(fields.get("numbers").message());
-            }
             if (serialNumber == null) {
                 businessErrors.add(fields.get("serialNumber").message());
             }
@@ -471,28 +467,39 @@ public class OcrScanValidationService {
             businessErrors.add(result.message());
             return result;
         }
-        if (lineStation.getRegion() == null) {
-            FieldValidationResult result = FieldValidationResult.uncertain(
-                    "Nhà đài chưa gắn vùng miền để kiểm tra độ dài dãy số."
-            );
+        // Traditional lottery number: exactly 6 digits. Never pad/truncate OCR output
+        // to force a pass — keep the raw value and mark it invalid.
+        if (!numbers.matches("\\d{6}")) {
+            String message = !numbers.matches("\\d+")
+                    ? "Dãy số dự thưởng chỉ được gồm chữ số và phải đủ đúng 6 chữ số (ví dụ 123456)."
+                    : "Dãy số dự thưởng phải đủ đúng 6 chữ số (ví dụ 123456). "
+                            + "Giá trị OCR '" + numbers + "' có " + numbers.length()
+                            + " chữ số — hệ thống không tự cắt hoặc thêm số.";
+            FieldValidationResult result = FieldValidationResult.mismatched(message, "6 chữ số");
             businessErrors.add(result.message());
             return result;
         }
-        try {
-            LotteryTicketNumber.from(
-                    numbers,
-                    lineStation.getRegion().minLength(),
-                    lineStation.getRegion().maxLength()
-            );
-            return FieldValidationResult.matched(numbers);
-        } catch (DomainException e) {
-            FieldValidationResult result = FieldValidationResult.mismatched(
-                    e.getMessage() != null ? e.getMessage() : "Dãy số dự thưởng không hợp lệ (" + lineStation.getRegion().minLength() + "-" + lineStation.getRegion().maxLength() + " chữ số).",
-                    lineStation.getRegion().minLength() + "-" + lineStation.getRegion().maxLength() + " chữ số"
-            );
-            businessErrors.add(result.message());
-            return result;
+        if (lineStation != null && lineStation.getRegion() != null) {
+            try {
+                LotteryTicketNumber.from(
+                        numbers,
+                        lineStation.getRegion().minLength(),
+                        lineStation.getRegion().maxLength()
+                );
+            } catch (DomainException e) {
+                FieldValidationResult result = FieldValidationResult.mismatched(
+                        e.getMessage() != null ? e.getMessage()
+                                : "Dãy số dự thưởng không hợp lệ ("
+                                + lineStation.getRegion().minLength() + "-"
+                                + lineStation.getRegion().maxLength() + " chữ số).",
+                        lineStation.getRegion().minLength() + "-"
+                                + lineStation.getRegion().maxLength() + " chữ số"
+                );
+                businessErrors.add(result.message());
+                return result;
+            }
         }
+        return FieldValidationResult.matched(numbers);
     }
 
     private FieldValidationResult validateSerial(
