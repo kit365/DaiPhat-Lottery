@@ -287,6 +287,7 @@ export const ImportBatchCreatePage = () => {
         const values = localDraft?.values ?? defaultValues;
         const restoredValues: CreateImportBatchFormValues = {
             ...values,
+            supplierId: (returnToOcrImport && paramSupplierId) ? paramSupplierId : (values.supplierId || paramSupplierId || 0),
             lines: values.lines?.length > 0 ? values.lines : [emptyLine()],
         };
 
@@ -294,10 +295,10 @@ export const ImportBatchCreatePage = () => {
         formInitializedRef.current = true;
         setFormInitialized(true);
 
-        if (localDraft) {
+        if (localDraft && !returnToOcrImport) {
             toast.info('Đã khôi phục bản nháp chỉnh sửa chưa lưu.');
         }
-    }, [isLoadingSuppliers, reset, searchParams]);
+    }, [isLoadingSuppliers, reset, searchParams, returnToOcrImport]);
 
     const eligibleStationIds = useMemo(
         () => new Set(eligibleStations.map((s) => s.lotteryStationId)),
@@ -490,9 +491,9 @@ export const ImportBatchCreatePage = () => {
 
     const selectedStationIdsByRow = useMemo(
         () =>
-            lines.map((_, rowIndex) =>
-                lines
-                    .map((line, index) => (index !== rowIndex ? line.lotteryStationId : 0))
+            (lines ?? []).map((_, rowIndex) =>
+                (lines ?? [])
+                    .map((line, index) => (index !== rowIndex ? Number(line?.lotteryStationId) || 0 : 0))
                     .filter((stationId) => Number(stationId) > 0)
             ),
         [lines]

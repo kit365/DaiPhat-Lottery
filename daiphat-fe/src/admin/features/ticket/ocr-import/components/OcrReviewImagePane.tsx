@@ -1,3 +1,5 @@
+'use client';
+
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import {
     Box,
@@ -13,14 +15,7 @@ import {
 import ZoomInOutlinedIcon from '@mui/icons-material/ZoomInOutlined';
 import CloseIcon from '@mui/icons-material/Close';
 import type { OcrReviewRow, TicketBoundingBox } from '../types/ticketOcr.type';
-import {
-    OCR_FIELD_KEYS,
-    OCR_FIELD_LABELS,
-    buildTicketOverlayLabel,
-    getConfidenceEmphasis,
-    getUnreadableFieldCaption,
-    type OcrFieldKey,
-} from '../utils/ocrImportHelpers';
+import { buildTicketOverlayLabel, type OcrFieldKey } from '../utils/ocrImportHelpers';
 import {
     computeContainedImageRect,
     mapBoxToNaturalPixels,
@@ -40,117 +35,13 @@ type Props = {
     rows: OcrReviewRow[];
     selection: OcrFieldSelection | null;
     onSelect: (selection: OcrFieldSelection) => void;
-    /** Fixed or minimum preview height in px. */
     previewHeight?: number;
-    /** Whether to hide the top header title & zoom button. */
     hideHeader?: boolean;
 };
 
-const strokeForConfidence = (confidence?: number | null, selected?: boolean): string => {
-    if (selected) {
-        return '#2563eb';
-    }
-    switch (getConfidenceEmphasis(confidence)) {
-        case 'low':
-            return '#ef4444';
-        case 'medium':
-            return '#f59e0b';
-        case 'high':
-        default:
-            return '#64748b';
-    }
-};
-
-const fillForConfidence = (confidence?: number | null, selected?: boolean): string => {
-    if (selected) {
-        return 'rgba(37,99,235,0.22)';
-    }
-    switch (getConfidenceEmphasis(confidence)) {
-        case 'low':
-            return 'rgba(239,68,68,0.28)';
-        case 'medium':
-            return 'rgba(245,158,11,0.18)';
-        case 'high':
-        default:
-            return 'rgba(100,116,139,0.06)';
-    }
-};
-
-const strokeForField = (
-    confidence: number | null | undefined,
-    selected: boolean,
-    validationStatus?: string | null
-): string => {
-    if (selected) {
-        return '#2563eb';
-    }
-    if (validationStatus === 'UNREADABLE' || validationStatus === 'NOT_FOUND') {
-        return '#dc2626';
-    }
-    if (validationStatus === 'MISMATCHED') {
-        return '#ef4444';
-    }
-    return strokeForConfidence(confidence, selected);
-};
-
-const fillForField = (
-    confidence: number | null | undefined,
-    selected: boolean,
-    validationStatus?: string | null
-): string => {
-    if (selected) {
-        return 'rgba(37,99,235,0.22)';
-    }
-    if (validationStatus === 'UNREADABLE') {
-        return 'rgba(220,38,38,0.32)';
-    }
-    if (validationStatus === 'MISMATCHED' || validationStatus === 'NOT_FOUND') {
-        return 'rgba(239,68,68,0.28)';
-    }
-    return fillForConfidence(confidence, selected);
-};
-
-const strokeWidthForField = (
-    confidence: number | null | undefined,
-    selected: boolean,
-    imageWidth: number,
-    imageHeight: number,
-    validationStatus?: string | null
-): number => {
-    const base = Math.max(imageWidth, imageHeight);
-    if (selected) {
-        return base * 0.0045;
-    }
-    if (validationStatus === 'UNREADABLE' || validationStatus === 'MISMATCHED') {
-        return base * 0.005;
-    }
-    switch (getConfidenceEmphasis(confidence)) {
-        case 'low':
-            return base * 0.004;
-        case 'medium':
-            return base * 0.003;
-        case 'high':
-        default:
-            return base * 0.002;
-    }
-};
-
-const resolveFieldBox = (row: OcrReviewRow, field: OcrFieldKey): TicketBoundingBox | null => {
-    const fromFields = row.fields?.[field]?.boundingBox;
-    if (fromFields && fromFields.width > 0 && fromFields.height > 0) {
-        return fromFields;
-    }
-    const fromMap = row.fieldBoxes?.[field];
-    if (fromMap && fromMap.width > 0 && fromMap.height > 0) {
-        return fromMap;
-    }
-    return null;
-};
-
 /**
- * Source image with ticket + per-field bounding boxes.
- * Overlay is locked to the object-fit:contain content rect so boxes track
- * responsive resizing and OCR-resized coordinate spaces.
+ * Source photo overlay: ticket bounding boxes only.
+ * Field boxes are drawn on each cropped ticket preview (see OcrCroppedTicketOverlay).
  */
 export default function OcrReviewImagePane({
     previewUrl,
@@ -216,37 +107,44 @@ export default function OcrReviewImagePane({
     return (
         <Stack spacing={1} sx={{ height: '100%' }}>
             {!hideHeader && (
-                <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" flexWrap="wrap" useFlexGap>
-                    <Stack direction="row" spacing={0.75} alignItems="center">
-                        <Typography variant="caption" fontWeight={800} color="#475569" sx={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                            Ảnh gốc ({ticketCount} vé)
+                <Stack
+                    direction="row"
+                    spacing={1}
+                    alignItems="center"
+                    justifyContent="space-between"
+                    flexWrap="wrap"
+                    useFlexGap
+                >
+                    <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                        <Typography variant="subtitle2" fontWeight={800} color="#0f172a" noWrap sx={{ maxWidth: 280 }}>
+                            Ảnh gốc chứa vé: {fileName}
                         </Typography>
+                        <Chip
+                            size="small"
+                            label={`${ticketCount} vé nhận diện`}
+                            color="error"
+                            sx={{ height: 22, fontSize: '0.75rem', fontWeight: 700 }}
+                        />
                     </Stack>
-                    <Tooltip title="Xem ảnh gốc toàn màn hình" arrow>
+                    <Tooltip title="Phóng to ảnh gốc">
                         <IconButton
                             size="small"
                             onClick={() => setZoomOpen(true)}
-                            sx={{
-                                color: '#64748b',
-                                p: 0.35,
-                                border: '1px solid #e2e8f0',
-                                borderRadius: '6px',
-                                '&:hover': { color: '#2563eb', bgcolor: '#eff6ff', borderColor: '#bfdbfe' },
-                            }}
+                            sx={{ color: '#64748b' }}
                         >
-                            <ZoomInOutlinedIcon sx={{ fontSize: 16 }} />
+                            <ZoomInOutlinedIcon fontSize="small" />
                         </IconButton>
                     </Tooltip>
                 </Stack>
             )}
+
             <Box
                 ref={containerRef}
                 sx={{
                     position: 'relative',
                     width: '100%',
-                    flex: 1,
-                    minHeight: previewHeight,
-                    borderRadius: '10px',
+                    height: previewHeight,
+                    borderRadius: '12px',
                     overflow: 'hidden',
                     border: '1px solid #e2e8f0',
                     bgcolor: '#0f172a',
@@ -301,128 +199,50 @@ export default function OcrReviewImagePane({
                                     ? toOverlayBox(row.bbox)
                                     : null;
 
-                            return (
-                                <g key={row.key}>
-                                    {ticketBox && (
-                                        <g style={{ pointerEvents: 'auto', cursor: 'pointer' }}>
-                                            <rect
-                                                x={ticketBox.x}
-                                                y={ticketBox.y}
-                                                width={ticketBox.width}
-                                                height={ticketBox.height}
-                                                fill={
-                                                    ticketSelected
-                                                        ? 'rgba(37,99,235,0.12)'
-                                                        : row.status === 'FAILED'
-                                                          ? 'rgba(239,68,68,0.12)'
-                                                          : 'rgba(0,0,0,0.02)'
-                                                }
-                                                stroke={ticketSelected ? '#2563eb' : ticketStroke}
-                                                strokeWidth={
-                                                    ticketSelected
-                                                        ? Math.max(viewWidth, viewHeight) * 0.0035
-                                                        : Math.max(viewWidth, viewHeight) *
-                                                          (row.status === 'FAILED' ? 0.0035 : 0.002)
-                                                }
-                                                onClick={() =>
-                                                    onSelect({ rowKey: row.key, fieldName: null })
-                                                }
-                                            />
-                                            <text
-                                                x={ticketBox.x + 4}
-                                                y={Math.max(14, ticketBox.y - 6)}
-                                                fill={ticketSelected ? '#1d4ed8' : ticketStroke}
-                                                fontSize={Math.max(12, Math.round(viewWidth * 0.016))}
-                                                fontWeight={700}
-                                                style={{ pointerEvents: 'none' }}
-                                            >
-                                                {row.status === 'FAILED'
-                                                    ? `#${row.ticketIndex + 1} — Không đọc được`
-                                                    : buildTicketOverlayLabel(row)}
-                                            </text>
-                                        </g>
-                                    )}
+                            if (!ticketBox) {
+                                return null;
+                            }
 
-                                    {OCR_FIELD_KEYS.map((fieldName) => {
-                                        const rawBox = resolveFieldBox(row, fieldName);
-                                        if (!rawBox) {
-                                            return null;
+                            return (
+                                <g
+                                    key={row.key}
+                                    style={{ pointerEvents: 'auto', cursor: 'pointer' }}
+                                >
+                                    <rect
+                                        x={ticketBox.x}
+                                        y={ticketBox.y}
+                                        width={ticketBox.width}
+                                        height={ticketBox.height}
+                                        fill={
+                                            ticketSelected
+                                                ? 'rgba(37,99,235,0.12)'
+                                                : row.status === 'FAILED'
+                                                  ? 'rgba(239,68,68,0.12)'
+                                                  : 'rgba(0,0,0,0.02)'
                                         }
-                                        const box = toOverlayBox(rawBox);
-                                        const confidence =
-                                            row.fields?.[fieldName]?.confidence ??
-                                            row.fieldConfidences[fieldName];
-                                        const validationStatus =
-                                            row.fields?.[fieldName]?.validationStatus ??
-                                            row.fieldValidations[fieldName]?.status;
-                                        const selected =
-                                            selection?.rowKey === row.key &&
-                                            selection.fieldName === fieldName;
-                                        const caption =
-                                            validationStatus === 'UNREADABLE'
-                                                ? getUnreadableFieldCaption(
-                                                      fieldName,
-                                                      row.fieldValidations[fieldName]
-                                                  )
-                                                : OCR_FIELD_LABELS[fieldName];
-                                        return (
-                                            <g
-                                                key={`${row.key}-${fieldName}`}
-                                                style={{ pointerEvents: 'auto', cursor: 'pointer' }}
-                                            >
-                                                <rect
-                                                    x={box.x}
-                                                    y={box.y}
-                                                    width={box.width}
-                                                    height={box.height}
-                                                    fill={fillForField(
-                                                        confidence,
-                                                        selected,
-                                                        validationStatus
-                                                    )}
-                                                    stroke={strokeForField(
-                                                        confidence,
-                                                        selected,
-                                                        validationStatus
-                                                    )}
-                                                    strokeWidth={strokeWidthForField(
-                                                        confidence,
-                                                        selected,
-                                                        viewWidth,
-                                                        viewHeight,
-                                                        validationStatus
-                                                    )}
-                                                    strokeDasharray={
-                                                        validationStatus === 'UNREADABLE'
-                                                            ? `${Math.max(viewWidth, viewHeight) * 0.008}`
-                                                            : undefined
-                                                    }
-                                                    onClick={() =>
-                                                        onSelect({ rowKey: row.key, fieldName })
-                                                    }
-                                                />
-                                                <text
-                                                    x={box.x + 2}
-                                                    y={Math.max(10, box.y - 3)}
-                                                    fill={strokeForField(
-                                                        confidence,
-                                                        selected,
-                                                        validationStatus
-                                                    )}
-                                                    fontSize={Math.max(
-                                                        10,
-                                                        Math.round(viewWidth * 0.012)
-                                                    )}
-                                                    fontWeight={600}
-                                                    style={{ pointerEvents: 'none' }}
-                                                >
-                                                    {caption.length > 48
-                                                        ? `${caption.slice(0, 45)}…`
-                                                        : caption}
-                                                </text>
-                                            </g>
-                                        );
-                                    })}
+                                        stroke={ticketSelected ? '#2563eb' : ticketStroke}
+                                        strokeWidth={
+                                            ticketSelected
+                                                ? Math.max(viewWidth, viewHeight) * 0.0035
+                                                : Math.max(viewWidth, viewHeight) *
+                                                  (row.status === 'FAILED' ? 0.0035 : 0.002)
+                                        }
+                                        onClick={() =>
+                                            onSelect({ rowKey: row.key, fieldName: null })
+                                        }
+                                    />
+                                    <text
+                                        x={ticketBox.x + 4}
+                                        y={Math.max(14, ticketBox.y - 6)}
+                                        fill={ticketSelected ? '#1d4ed8' : ticketStroke}
+                                        fontSize={Math.max(12, Math.round(viewWidth * 0.016))}
+                                        fontWeight={700}
+                                        style={{ pointerEvents: 'none' }}
+                                    >
+                                        {row.status === 'FAILED'
+                                            ? `#${row.ticketIndex + 1} — Không đọc được`
+                                            : buildTicketOverlayLabel(row)}
+                                    </text>
                                 </g>
                             );
                         })}

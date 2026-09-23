@@ -28,11 +28,18 @@ export const scanTicketImage = async (
     if (options?.importBatchId != null && Number.isFinite(options.importBatchId)) {
         params.importBatchId = options.importBatchId;
     }
+    const startedAt = performance.now();
     const response = await apiApp.post(`${BASE_URL}/scan`, formData, {
         params: Object.keys(params).length > 0 ? params : undefined,
-        timeout: 200_000,
+        // Align with Next proxy OCR timeout (210s); BE ticket-vision read is 180s.
+        timeout: 210_000,
         skipGlobalErrorToast: true,
     });
+    const elapsedMs = Math.round(performance.now() - startedAt);
+    const ticketCount = response.data?.data?.ticketCount ?? response.data?.data?.tickets?.length ?? 0;
+    console.info(
+        `[OCR timing] upload→response ${elapsedMs}ms file=${file.name} bytes=${file.size} tickets=${ticketCount}`
+    );
     return response.data;
 };
 

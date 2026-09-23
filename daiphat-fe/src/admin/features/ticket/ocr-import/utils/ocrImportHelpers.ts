@@ -539,7 +539,9 @@ export const mapScannedTicketToReviewRow = (
     scanId?: string | null,
     sourcePreviewUrl?: string | null,
     scanImageWidth?: number | null,
-    scanImageHeight?: number | null
+    scanImageHeight?: number | null,
+    scannedAt?: string | null,
+    durationMs?: number | null
 ): OcrReviewRow => {
     const status = (ticket.status ?? 'INCOMPLETE') as ScannedTicketStatus;
     const overall = ticket.overallValidationStatus ?? null;
@@ -595,6 +597,8 @@ export const mapScannedTicketToReviewRow = (
             ticket.resolvedStationId != null &&
             Boolean(ticket.resolvedDrawDate ?? ticket.extracted?.drawDate),
         edited: false,
+        scannedAt: scannedAt ?? null,
+        durationMs: durationMs ?? null,
     };
 };
 
@@ -603,7 +607,9 @@ export const createFailedReviewRow = (
     sourceImageId: string,
     sourceFileName: string,
     sourcePreviewUrl: string | null | undefined,
-    reason?: string | null
+    reason?: string | null,
+    scannedAt?: string | null,
+    durationMs?: number | null
 ): OcrReviewRow => {
     const message = normalizeOcrScanErrorMessage(reason) || OCR_SOFT_FAIL_MESSAGE;
     const unreadable: FieldValidationResult = {
@@ -651,6 +657,8 @@ export const createFailedReviewRow = (
         croppedImageUrl: null,
         selected: false,
         edited: false,
+        scannedAt: scannedAt ?? null,
+        durationMs: durationMs ?? null,
     };
 };
 
@@ -661,6 +669,8 @@ export type OcrReviewImageGroup = {
     rows: OcrReviewRow[];
     imageStatus: 'done' | 'error' | 'pending' | 'scanning';
     imageError?: string | null;
+    scannedAt?: string | null;
+    durationMs?: number | null;
 };
 
 /** Keep every uploaded image on review, even when OCR produced zero rows. */
@@ -671,12 +681,17 @@ export const buildReviewImageGroups = (
         previewUrl: string;
         status: 'pending' | 'scanning' | 'done' | 'error';
         error?: string | null;
+        scannedAt?: string | null;
+        durationMs?: number | null;
     }>,
     rows: OcrReviewRow[]
 ): OcrReviewImageGroup[] => {
     if (images.length > 0) {
         return images.map((image) => {
             const imageRows = rows.filter((row) => row.sourceImageId === image.id);
+            const rowScannedAt = imageRows.find((r) => r.scannedAt)?.scannedAt ?? null;
+            const rowDurationMs = imageRows.find((r) => r.durationMs != null)?.durationMs ?? null;
+
             return {
                 imageId: image.id,
                 fileName: image.file.name,
@@ -684,6 +699,8 @@ export const buildReviewImageGroups = (
                 rows: imageRows,
                 imageStatus: image.status,
                 imageError: image.error ?? null,
+                scannedAt: image.scannedAt ?? rowScannedAt,
+                durationMs: image.durationMs ?? rowDurationMs,
             };
         });
     }
@@ -703,11 +720,19 @@ export const buildReviewImageGroups = (
                 rows: [row],
                 imageStatus: row.status === 'FAILED' ? 'error' : 'done',
                 imageError: row.businessValidationErrors?.[0] ?? null,
+                scannedAt: row.scannedAt ?? null,
+                durationMs: row.durationMs ?? null,
             });
         } else {
             existing.rows.push(row);
             if (!existing.previewUrl && previewUrl) {
                 existing.previewUrl = previewUrl;
+            }
+            if (!existing.scannedAt && row.scannedAt) {
+                existing.scannedAt = row.scannedAt;
+            }
+            if (existing.durationMs == null && row.durationMs != null) {
+                existing.durationMs = row.durationMs;
             }
         }
     }

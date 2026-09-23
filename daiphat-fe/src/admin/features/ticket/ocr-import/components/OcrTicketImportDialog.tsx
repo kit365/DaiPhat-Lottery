@@ -23,6 +23,8 @@ import PhotoLibraryOutlinedIcon from '@mui/icons-material/PhotoLibraryOutlined';
 import RefreshOutlinedIcon from '@mui/icons-material/RefreshOutlined';
 import SearchIcon from '@mui/icons-material/Search';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import AccessTimeOutlinedIcon from '@mui/icons-material/AccessTimeOutlined';
+import TimerOutlinedIcon from '@mui/icons-material/TimerOutlined';
 import {
     Accordion,
     AccordionDetails,
@@ -1226,14 +1228,14 @@ export const OcrTicketImportDialog = ({
                                             />
                                         </Stack>
                                         <Typography variant="body2" color="#475569" sx={{ fontSize: '0.825rem', lineHeight: 1.5 }}>
-                                            Hệ thống cần ít nhất một mẫu vé (template) mặc định được thiết lập cho nhà đài trước khi thực hiện quét. Vui lòng kiểm tra và gán mẫu vé phù hợp.
+                                            Hệ thống cần ít nhất một mẫu vé (template) mặc định được thiết lập cho nhà đài để phục vụ tính năng nhận diện vé. Vui lòng kiểm tra và gán mẫu vé mặc định tại danh sách nhà đài trước khi quét.
                                         </Typography>
                                     </Box>
                                 </Stack>
                                 <Box sx={{ alignSelf: { xs: 'flex-start', sm: 'center' }, flexShrink: 0 }}>
                                     <Button
                                         component={Link}
-                                        href={ROUTES.ADMIN.DASHBOARD.SETTINGS.ROOT}
+                                        href={ROUTES.ADMIN.TICKETS.PROVIDER}
                                         size="small"
                                         variant="outlined"
                                         color="warning"
@@ -2203,7 +2205,7 @@ export const OcrTicketImportDialog = ({
                                                     >
                                                         {image.file.name}
                                                     </Typography>
-                                                    <Box>
+                                                    <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap" sx={{ gap: 0.5 }}>
                                                         {image.status === 'pending' && (
                                                             <Chip
                                                                 size="small"
@@ -2224,9 +2226,10 @@ export const OcrTicketImportDialog = ({
                                                                 sx={{
                                                                     height: 20,
                                                                     fontSize: '0.675rem',
-                                                                    fontWeight: 600,
+                                                                    fontWeight: 700,
                                                                     bgcolor: '#dcfce7',
                                                                     color: '#15803d',
+                                                                    border: '1px solid #bbf7d0',
                                                                 }}
                                                             />
                                                         )}
@@ -2238,7 +2241,7 @@ export const OcrTicketImportDialog = ({
                                                                     sx={{
                                                                         height: 20,
                                                                         fontSize: '0.675rem',
-                                                                        fontWeight: 600,
+                                                                        fontWeight: 700,
                                                                         bgcolor: '#fee2e2',
                                                                         color: '#b91c1c',
                                                                         maxWidth: '100%',
@@ -2246,7 +2249,42 @@ export const OcrTicketImportDialog = ({
                                                                 />
                                                             </Tooltip>
                                                         )}
-                                                    </Box>
+                                                        {image.durationMs != null && (
+                                                            <Chip
+                                                                size="small"
+                                                                icon={<TimerOutlinedIcon sx={{ fontSize: '12px !important', color: '#0284c7 !important' }} />}
+                                                                label={`${(image.durationMs / 1000).toFixed(1)}s`}
+                                                                sx={{
+                                                                    height: 20,
+                                                                    fontSize: '0.675rem',
+                                                                    fontWeight: 700,
+                                                                    bgcolor: '#f0f9ff',
+                                                                    color: '#0284c7',
+                                                                    border: '1px solid #bae6fd',
+                                                                }}
+                                                            />
+                                                        )}
+                                                    </Stack>
+                                                    {image.scannedAt && (
+                                                        <Stack
+                                                            direction="row"
+                                                            spacing={0.5}
+                                                            alignItems="center"
+                                                            title="Thời gian quét hoàn tất"
+                                                            sx={{ color: '#64748b', mt: 0.25 }}
+                                                        >
+                                                            <AccessTimeOutlinedIcon sx={{ fontSize: 13, color: '#94a3b8', flexShrink: 0 }} />
+                                                            <Typography
+                                                                variant="caption"
+                                                                sx={{ fontSize: '0.6875rem', fontWeight: 500, lineHeight: 1.2, color: '#64748b' }}
+                                                                noWrap
+                                                            >
+                                                                {dayjs(image.scannedAt).isValid()
+                                                                    ? dayjs(image.scannedAt).format('HH:mm:ss DD/MM/YYYY')
+                                                                    : image.scannedAt}
+                                                            </Typography>
+                                                        </Stack>
+                                                    )}
                                                 </Box>
                                             </Box>
                                         ))}
@@ -2311,11 +2349,101 @@ export const OcrTicketImportDialog = ({
                             style={{ display: 'none' }}
                             onChange={(e) => {
                                 if (e.target.files && e.target.files.length > 0) {
-                                    void wizard.scanMoreImages(e.target.files);
+                                    void wizard.addImages(e.target.files);
                                     e.target.value = '';
                                 }
                             }}
                         />
+
+                        {wizard.pendingImagesCount > 0 && (
+                            <Paper
+                                elevation={0}
+                                sx={{
+                                    p: 2,
+                                    borderRadius: 2.5,
+                                    bgcolor: '#eff6ff',
+                                    border: '1.5px solid #93c5fd',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    flexWrap: 'wrap',
+                                    gap: 1.5,
+                                }}
+                            >
+                                <Stack direction="row" spacing={1.5} alignItems="center">
+                                    <Box
+                                        sx={{
+                                            width: 40,
+                                            height: 40,
+                                            borderRadius: '10px',
+                                            bgcolor: '#dbeafe',
+                                            color: '#2563eb',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            flexShrink: 0,
+                                        }}
+                                    >
+                                        <DocumentScannerOutlinedIcon />
+                                    </Box>
+                                    <Box>
+                                        <Typography variant="subtitle2" fontWeight={800} color="#1e40af">
+                                            Đã thêm {wizard.pendingImagesCount} ảnh mới chưa quét
+                                        </Typography>
+                                        <Typography variant="body2" color="#3b82f6" sx={{ fontSize: '0.8125rem' }}>
+                                            Nhấn &quot;Tiến hành quét&quot; để AI nhận diện và trích xuất dữ liệu vé từ các ảnh vừa thêm
+                                        </Typography>
+                                    </Box>
+                                </Stack>
+                                <Stack direction="row" spacing={1} alignItems="center">
+                                    <Button
+                                        variant="outlined"
+                                        size="small"
+                                        color="inherit"
+                                        disabled={wizard.scanning}
+                                        onClick={() => {
+                                            wizard.images
+                                                .filter((img) => img.status === 'pending')
+                                                .forEach((img) => wizard.removeImage(img.id));
+                                        }}
+                                        sx={{
+                                            textTransform: 'none',
+                                            fontWeight: 600,
+                                            borderRadius: 1.5,
+                                            borderColor: '#cbd5e1',
+                                            color: '#475569',
+                                            bgcolor: '#ffffff',
+                                            '&:hover': { bgcolor: '#f8fafc' },
+                                        }}
+                                    >
+                                        Hủy ảnh chờ
+                                    </Button>
+                                    <Button
+                                        variant="contained"
+                                        size="medium"
+                                        startIcon={
+                                            wizard.scanning ? (
+                                                <CircularProgress size={16} color="inherit" />
+                                            ) : (
+                                                <DocumentScannerOutlinedIcon />
+                                            )
+                                        }
+                                        disabled={wizard.scanning}
+                                        onClick={() => void wizard.scanPendingImages()}
+                                        sx={{
+                                            textTransform: 'none',
+                                            fontWeight: 800,
+                                            borderRadius: 2,
+                                            px: 2.5,
+                                            bgcolor: '#2563eb',
+                                            '&:hover': { bgcolor: '#1d4ed8' },
+                                        }}
+                                    >
+                                        {wizard.scanning ? 'Đang quét…' : `Tiến hành quét (${wizard.pendingImagesCount} ảnh)`}
+                                    </Button>
+                                </Stack>
+                            </Paper>
+                        )}
 
                         {wizard.selectedImportBatch ? (
                             <ImportBatchReviewSummaryCard
@@ -2511,7 +2639,7 @@ export const OcrTicketImportDialog = ({
                                                 justifyContent="space-between"
                                                 sx={{ mb: 1.5 }}
                                             >
-                                                <Stack direction="row" alignItems="center" spacing={1}>
+                                                <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
                                                     <Typography
                                                         variant="subtitle1"
                                                         fontWeight={800}
@@ -2519,62 +2647,165 @@ export const OcrTicketImportDialog = ({
                                                     >
                                                         Ảnh #{index + 1}: {formatReviewFileName(group.fileName, index)}
                                                     </Typography>
-                                                    <Chip
-                                                        size="small"
-                                                        label={`${group.rows.length} vé nhận diện`}
-                                                        color={group.rows.length > 0 ? 'primary' : 'default'}
-                                                        variant="outlined"
-                                                        sx={{ height: 22, fontSize: '0.75rem', fontWeight: 700 }}
-                                                    />
+                                                    {group.imageStatus === 'pending' ? (
+                                                        <Chip
+                                                            size="small"
+                                                            label="Chờ quét"
+                                                            sx={{
+                                                                height: 22,
+                                                                fontSize: '0.75rem',
+                                                                fontWeight: 700,
+                                                                bgcolor: '#fef3c7',
+                                                                color: '#b45309',
+                                                                border: '1px solid #fde68a',
+                                                            }}
+                                                        />
+                                                    ) : group.imageStatus === 'scanning' ? (
+                                                        <Chip
+                                                            size="small"
+                                                            icon={<CircularProgress size={12} color="inherit" />}
+                                                            label="Đang quét…"
+                                                            sx={{
+                                                                height: 22,
+                                                                fontSize: '0.75rem',
+                                                                fontWeight: 700,
+                                                                bgcolor: '#eff6ff',
+                                                                color: '#2563eb',
+                                                                border: '1px solid #bfdbfe',
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        <Chip
+                                                            size="small"
+                                                            label={`${group.rows.length} vé nhận diện`}
+                                                            color={group.rows.length > 0 ? 'primary' : 'default'}
+                                                            variant="outlined"
+                                                            sx={{ height: 22, fontSize: '0.75rem', fontWeight: 700 }}
+                                                        />
+                                                    )}
+                                                    {group.scannedAt && (
+                                                        <Chip
+                                                            size="small"
+                                                            icon={<AccessTimeOutlinedIcon sx={{ fontSize: '13px !important' }} />}
+                                                            label={dayjs(group.scannedAt).isValid() ? dayjs(group.scannedAt).format('HH:mm:ss DD/MM/YYYY') : group.scannedAt}
+                                                            variant="outlined"
+                                                            sx={{ height: 22, fontSize: '0.7rem', color: 'text.secondary', borderColor: '#e2e8f0' }}
+                                                        />
+                                                    )}
+                                                    {group.durationMs != null && (
+                                                        <Chip
+                                                            size="small"
+                                                            icon={<TimerOutlinedIcon sx={{ fontSize: '13px !important', color: '#0284c7 !important' }} />}
+                                                            label={`${(group.durationMs / 1000).toFixed(1)}s`}
+                                                            variant="outlined"
+                                                            sx={{ height: 22, fontSize: '0.7rem', color: '#0284c7', borderColor: '#bae6fd', bgcolor: '#f0f9ff' }}
+                                                        />
+                                                    )}
                                                 </Stack>
-                                                {group.previewUrl && (
-                                                    <Button
-                                                        size="small"
-                                                        variant="outlined"
-                                                        startIcon={<VisibilityOutlinedIcon />}
-                                                        onClick={() => setActiveSourceImageGroup(group)}
-                                                        sx={{
-                                                            textTransform: 'none',
-                                                            fontWeight: 600,
-                                                            borderRadius: 1.5,
-                                                            fontSize: '0.8125rem',
-                                                        }}
-                                                    >
-                                                        Xem ảnh gốc chứa vé
-                                                    </Button>
-                                                )}
+                                                <Stack direction="row" spacing={1} alignItems="center">
+                                                    {group.imageStatus === 'pending' && (
+                                                        <>
+                                                            <Button
+                                                                size="small"
+                                                                variant="contained"
+                                                                startIcon={
+                                                                    wizard.scanning ? (
+                                                                        <CircularProgress size={13} color="inherit" />
+                                                                    ) : (
+                                                                        <DocumentScannerOutlinedIcon sx={{ fontSize: '0.95rem' }} />
+                                                                    )
+                                                                }
+                                                                disabled={wizard.scanning}
+                                                                onClick={() => void wizard.scanPendingImages()}
+                                                                sx={{
+                                                                    textTransform: 'none',
+                                                                    fontWeight: 700,
+                                                                    borderRadius: 1.5,
+                                                                    fontSize: '0.8125rem',
+                                                                    bgcolor: '#2563eb',
+                                                                    '&:hover': { bgcolor: '#1d4ed8' },
+                                                                }}
+                                                            >
+                                                                {wizard.scanning ? 'Đang quét…' : 'Tiến hành quét'}
+                                                            </Button>
+                                                            <IconButton
+                                                                size="small"
+                                                                color="error"
+                                                                disabled={wizard.scanning}
+                                                                onClick={() => wizard.removeImage(group.imageId)}
+                                                                title="Xóa ảnh chờ"
+                                                                sx={{ p: 0.5 }}
+                                                            >
+                                                                <DeleteOutlineIcon fontSize="small" />
+                                                            </IconButton>
+                                                        </>
+                                                    )}
+                                                    {group.previewUrl && (
+                                                        <Button
+                                                            size="small"
+                                                            variant="outlined"
+                                                            startIcon={<VisibilityOutlinedIcon />}
+                                                            onClick={() => setActiveSourceImageGroup(group)}
+                                                            sx={{
+                                                                textTransform: 'none',
+                                                                fontWeight: 600,
+                                                                borderRadius: 1.5,
+                                                                fontSize: '0.8125rem',
+                                                            }}
+                                                        >
+                                                            Xem ảnh gốc chứa vé
+                                                        </Button>
+                                                    )}
+                                                </Stack>
                                             </Stack>
                                             {/* Danh sách thông tin vé hiển thị toàn chiều rộng (full width) */}
                                             <Box sx={{ width: '100%', minWidth: 0 }}>
-                                                <OcrReviewResultCards
-                                                    rows={group.rows}
-                                                    selection={fieldSelection}
-                                                    stations={stations}
-                                                    stationsForRow={(row) => {
-                                                        const targetDate =
+                                                {group.imageStatus === 'pending' ? (
+                                                    <Paper
+                                                        elevation={0}
+                                                        sx={{
+                                                            p: 2.5,
+                                                            textAlign: 'center',
+                                                            bgcolor: '#f8fafc',
+                                                            border: '1px dashed #cbd5e1',
+                                                            borderRadius: 2,
+                                                        }}
+                                                    >
+                                                        <Typography variant="body2" color="text.secondary">
+                                                            Ảnh đang ở trạng thái chờ. Nhấn nút <strong>&quot;Tiến hành quét&quot;</strong> để AI trích xuất thông tin vé.
+                                                        </Typography>
+                                                    </Paper>
+                                                ) : (
+                                                    <OcrReviewResultCards
+                                                        rows={group.rows}
+                                                        selection={fieldSelection}
+                                                        stations={stations}
+                                                        stationsForRow={(row) => {
+                                                            const targetDate =
+                                                                wizard.selectedImportBatch?.drawDate ||
+                                                                wizard.selectedBatch?.drawDate ||
+                                                                row.drawDate ||
+                                                                dayjs().format('YYYY-MM-DD');
+                                                            const scheduled =
+                                                                wizard.getStationsForDrawDate(targetDate);
+                                                            return scheduled.length > 0
+                                                                ? scheduled
+                                                                : stations;
+                                                        }}
+                                                        validationContextForRow={
+                                                            wizard.getRowValidationContext
+                                                        }
+                                                        batchDrawDate={
                                                             wizard.selectedImportBatch?.drawDate ||
                                                             wizard.selectedBatch?.drawDate ||
-                                                            row.drawDate ||
-                                                            dayjs().format('YYYY-MM-DD');
-                                                        const scheduled =
-                                                            wizard.getStationsForDrawDate(targetDate);
-                                                        return scheduled.length > 0
-                                                            ? scheduled
-                                                            : stations;
-                                                    }}
-                                                    validationContextForRow={
-                                                        wizard.getRowValidationContext
-                                                    }
-                                                    batchDrawDate={
-                                                        wizard.selectedImportBatch?.drawDate ||
-                                                        wizard.selectedBatch?.drawDate ||
-                                                        null
-                                                    }
-                                                    onSelect={setFieldSelection}
-                                                    onToggle={wizard.toggleRow}
-                                                    onUpdate={wizard.updateRow}
-                                                    embedded
-                                                />
+                                                            null
+                                                        }
+                                                        onSelect={setFieldSelection}
+                                                        onToggle={wizard.toggleRow}
+                                                        onUpdate={wizard.updateRow}
+                                                        embedded
+                                                    />
+                                                )}
                                             </Box>
                                         </Box>
                                     ))}
@@ -3140,6 +3371,32 @@ export const OcrTicketImportDialog = ({
                             Hủy
                         </Button>
                         <Box flex={1} />
+                        {wizard.pendingImagesCount > 0 && (
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                startIcon={
+                                    wizard.scanning ? (
+                                        <CircularProgress size={16} color="inherit" />
+                                    ) : (
+                                        <DocumentScannerOutlinedIcon />
+                                    )
+                                }
+                                disabled={wizard.scanning}
+                                onClick={() => void wizard.scanPendingImages()}
+                                sx={{
+                                    textTransform: 'none',
+                                    fontWeight: 700,
+                                    borderRadius: 1.5,
+                                    bgcolor: '#2563eb',
+                                    '&:hover': { bgcolor: '#1d4ed8' },
+                                }}
+                            >
+                                {wizard.scanning
+                                    ? 'Đang quét…'
+                                    : `Tiến hành quét (${wizard.pendingImagesCount} ảnh)`}
+                            </Button>
+                        )}
                         <Button
                             onClick={handleRequestBack}
                             sx={{ textTransform: 'none', fontWeight: 600 }}
@@ -3148,7 +3405,7 @@ export const OcrTicketImportDialog = ({
                         </Button>
                         <Button
                             variant="contained"
-                            disabled={wizard.confirmableCount === 0}
+                            disabled={wizard.confirmableCount === 0 || wizard.pendingImagesCount > 0}
                             onClick={wizard.goToImportMode}
                             sx={{ textTransform: 'none', fontWeight: 700 }}
                         >
@@ -4114,8 +4371,8 @@ export const OcrTicketImportDialog = ({
                                     sx={{
                                         border: '1px solid #e2e8f0',
                                         borderRadius: 2.5,
-                                        overflow: 'hidden',
-                                        maxHeight: 460,
+                                        overflowY: 'auto',
+                                        maxHeight: 520,
                                     }}
                                 >
                                     <Table size="small" stickyHeader>
@@ -4338,13 +4595,7 @@ export const OcrTicketImportDialog = ({
                                         <Button
                                             size="small"
                                             variant="outlined"
-                                            startIcon={
-                                                wizard.scanning ? (
-                                                    <CircularProgress size={14} color="inherit" />
-                                                ) : (
-                                                    <AddPhotoAlternateOutlinedIcon sx={{ fontSize: '1rem' }} />
-                                                )
-                                            }
+                                            startIcon={<AddPhotoAlternateOutlinedIcon sx={{ fontSize: '1rem' }} />}
                                             disabled={wizard.scanning}
                                             onClick={handleScanMoreClick}
                                             sx={{
@@ -4355,15 +4606,97 @@ export const OcrTicketImportDialog = ({
                                                 py: 0.35,
                                                 px: 1.25,
                                                 borderColor: '#cbd5e1',
+                                                color: '#334155',
                                                 '&:hover': {
                                                     borderColor: '#94a3b8',
                                                     bgcolor: '#f1f5f9',
                                                 },
                                             }}
                                         >
-                                            {wizard.scanning ? 'Đang quét…' : '+ Thêm ảnh'}
+                                            + Thêm ảnh
                                         </Button>
                                     </Stack>
+
+                                    {wizard.pendingImagesCount > 0 && (
+                                        <Paper
+                                            elevation={0}
+                                            sx={{
+                                                p: 1.5,
+                                                mb: 1.5,
+                                                borderRadius: 2.5,
+                                                bgcolor: '#f0f7ff',
+                                                border: '1.5px solid #bfdbfe',
+                                                boxShadow: '0 1px 4px rgba(37, 99, 235, 0.08)',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'space-between',
+                                                gap: 1.5,
+                                            }}
+                                        >
+                                            <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0, flex: 1 }}>
+                                                <Box
+                                                    sx={{
+                                                        width: 38,
+                                                        height: 38,
+                                                        borderRadius: '10px',
+                                                        bgcolor: '#dbeafe',
+                                                        color: '#2563eb',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        flexShrink: 0,
+                                                    }}
+                                                >
+                                                    <DocumentScannerOutlinedIcon sx={{ fontSize: '1.25rem' }} />
+                                                </Box>
+                                                <Box sx={{ minWidth: 0 }}>
+                                                    <Typography variant="body2" fontWeight={800} color="#1e40af" noWrap>
+                                                        Có {wizard.pendingImagesCount} ảnh chờ quét
+                                                    </Typography>
+                                                    <Typography variant="caption" color="#64748b" sx={{ fontSize: '0.725rem', display: 'block' }} noWrap>
+                                                        Nhấn &quot;Tiến hành quét&quot; để AI nhận diện
+                                                    </Typography>
+                                                </Box>
+                                            </Stack>
+                                            <Button
+                                                variant="contained"
+                                                size="small"
+                                                startIcon={
+                                                    wizard.scanning ? (
+                                                        <CircularProgress size={14} color="inherit" />
+                                                    ) : (
+                                                        <DocumentScannerOutlinedIcon sx={{ fontSize: '1rem' }} />
+                                                    )
+                                                }
+                                                disabled={wizard.scanning}
+                                                onClick={() => void wizard.scanPendingImages()}
+                                                sx={{
+                                                    textTransform: 'none',
+                                                    fontWeight: 800,
+                                                    fontSize: '0.8125rem',
+                                                    borderRadius: '8px',
+                                                    px: 2,
+                                                    py: 0.65,
+                                                    bgcolor: '#2563eb',
+                                                    color: '#ffffff',
+                                                    boxShadow: '0 2px 6px rgba(37, 99, 235, 0.25)',
+                                                    whiteSpace: 'nowrap',
+                                                    flexShrink: 0,
+                                                    transition: 'all 0.15s ease-in-out',
+                                                    '&:hover': {
+                                                        bgcolor: '#1d4ed8',
+                                                        boxShadow: '0 4px 12px rgba(37, 99, 235, 0.35)',
+                                                        transform: 'translateY(-1px)',
+                                                    },
+                                                    '&:active': {
+                                                        transform: 'translateY(0)',
+                                                    },
+                                                }}
+                                            >
+                                                {wizard.scanning ? 'Đang quét…' : `Tiến hành quét (${wizard.pendingImagesCount})`}
+                                            </Button>
+                                        </Paper>
+                                    )}
 
                                     {wizard.scanning && (
                                         <Paper
@@ -4443,32 +4776,101 @@ export const OcrTicketImportDialog = ({
                                                             </Box>
                                                         )}
                                                         <Box sx={{ minWidth: 0, flex: 1 }}>
-                                                            <Typography
-                                                                variant="body2"
-                                                                fontWeight={700}
-                                                                noWrap
-                                                                title={group.fileName}
-                                                            >
-                                                                Ảnh #{index + 1}: {formatReviewFileName(group.fileName, index)}
-                                                            </Typography>
-                                                            <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mt: 0.5 }} flexWrap="wrap">
-                                                                <Chip
-                                                                    size="small"
-                                                                    label={`${group.rows.length} vé`}
-                                                                    color={group.rows.length > 0 ? 'primary' : 'default'}
-                                                                    variant="outlined"
-                                                                    sx={{ height: 18, fontSize: '0.6875rem', fontWeight: 600 }}
-                                                                />
-                                                                {group.rows.length > 0 && (
-                                                                    <Chip
+                                                            <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+                                                                <Typography
+                                                                    variant="body2"
+                                                                    fontWeight={700}
+                                                                    noWrap
+                                                                    title={group.fileName}
+                                                                >
+                                                                    Ảnh #{index + 1}: {formatReviewFileName(group.fileName, index)}
+                                                                </Typography>
+                                                                {group.imageStatus === 'pending' && (
+                                                                    <IconButton
                                                                         size="small"
-                                                                        label={`${validCount}/${group.rows.length} hợp lệ`}
-                                                                        color={validCount === group.rows.length ? 'success' : 'warning'}
-                                                                        variant="outlined"
-                                                                        sx={{ height: 18, fontSize: '0.6875rem', fontWeight: 600 }}
-                                                                    />
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            wizard.removeImage(group.imageId);
+                                                                        }}
+                                                                        disabled={wizard.scanning}
+                                                                        sx={{ p: 0.25, color: 'text.disabled', '&:hover': { color: 'error.main' } }}
+                                                                        title="Xóa ảnh chờ"
+                                                                    >
+                                                                        <DeleteOutlineIcon sx={{ fontSize: 16 }} />
+                                                                    </IconButton>
                                                                 )}
                                                             </Stack>
+                                                            <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mt: 0.5 }} flexWrap="wrap">
+                                                                {group.imageStatus === 'pending' ? (
+                                                                    <Chip
+                                                                        size="small"
+                                                                        label="Chờ quét"
+                                                                        sx={{
+                                                                            height: 18,
+                                                                            fontSize: '0.6875rem',
+                                                                            fontWeight: 700,
+                                                                            bgcolor: '#fef3c7',
+                                                                            color: '#b45309',
+                                                                            border: '1px solid #fde68a',
+                                                                        }}
+                                                                    />
+                                                                ) : group.imageStatus === 'scanning' ? (
+                                                                    <Chip
+                                                                        size="small"
+                                                                        icon={<CircularProgress size={10} color="inherit" />}
+                                                                        label="Đang quét…"
+                                                                        sx={{
+                                                                            height: 18,
+                                                                            fontSize: '0.6875rem',
+                                                                            fontWeight: 700,
+                                                                            bgcolor: '#eff6ff',
+                                                                            color: '#2563eb',
+                                                                            border: '1px solid #bfdbfe',
+                                                                        }}
+                                                                    />
+                                                                ) : (
+                                                                    <>
+                                                                        <Chip
+                                                                            size="small"
+                                                                            label={`${group.rows.length} vé`}
+                                                                            color={group.rows.length > 0 ? 'primary' : 'default'}
+                                                                            variant="outlined"
+                                                                            sx={{ height: 18, fontSize: '0.6875rem', fontWeight: 600 }}
+                                                                        />
+                                                                        {group.rows.length > 0 && (
+                                                                            <Chip
+                                                                                size="small"
+                                                                                label={`${validCount}/${group.rows.length} hợp lệ`}
+                                                                                color={validCount === group.rows.length ? 'success' : 'warning'}
+                                                                                variant="outlined"
+                                                                                sx={{ height: 18, fontSize: '0.6875rem', fontWeight: 600 }}
+                                                                            />
+                                                                        )}
+                                                                    </>
+                                                                )}
+                                                            </Stack>
+                                                            {(group.scannedAt || group.durationMs != null) && (
+                                                                <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mt: 0.5 }} flexWrap="wrap">
+                                                                    {group.scannedAt && (
+                                                                        <Stack direction="row" spacing={0.35} alignItems="center" title="Giờ quét thành công">
+                                                                            <AccessTimeOutlinedIcon sx={{ fontSize: 13, color: 'text.secondary' }} />
+                                                                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem', fontWeight: 500 }}>
+                                                                                {dayjs(group.scannedAt).isValid()
+                                                                                    ? dayjs(group.scannedAt).format('HH:mm:ss DD/MM/YYYY')
+                                                                                    : group.scannedAt}
+                                                                            </Typography>
+                                                                        </Stack>
+                                                                    )}
+                                                                    {group.durationMs != null && (
+                                                                        <Stack direction="row" spacing={0.35} alignItems="center" title="Thời gian quét (thời lượng xử lý)">
+                                                                            <TimerOutlinedIcon sx={{ fontSize: 13, color: '#0284c7' }} />
+                                                                            <Typography variant="caption" sx={{ fontSize: '0.7rem', fontWeight: 600, color: '#0284c7' }}>
+                                                                                {(group.durationMs / 1000).toFixed(1)}s
+                                                                            </Typography>
+                                                                        </Stack>
+                                                                    )}
+                                                                </Stack>
+                                                            )}
                                                         </Box>
                                                     </Stack>
                                                 </Paper>
@@ -4481,16 +4883,73 @@ export const OcrTicketImportDialog = ({
                                 <Grid size={{ xs: 12, md: 7.5 }}>
                                     {selectedHistoryGroup ? (
                                         <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden', bgcolor: '#f8fafc' }}>
-                                            <Box sx={{ p: 1.5, borderBottom: '1px solid', borderColor: 'divider', bgcolor: '#ffffff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                <Typography variant="subtitle2" fontWeight={700} noWrap sx={{ maxWidth: '70%' }} title={selectedHistoryGroup.fileName}>
-                                                    Ảnh: {selectedHistoryGroup.fileName}
-                                                </Typography>
-                                                <Chip
-                                                    size="small"
-                                                    label={`${selectedHistoryGroup.rows.length} vé nhận diện`}
-                                                    color="primary"
-                                                    sx={{ height: 22, fontSize: '0.75rem', fontWeight: 700 }}
-                                                />
+                                            <Box sx={{ p: 1.5, borderBottom: '1px solid', borderColor: 'divider', bgcolor: '#ffffff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                                                <Box sx={{ minWidth: 0, maxWidth: { xs: '100%', sm: '70%' } }}>
+                                                    <Typography variant="subtitle2" fontWeight={700} noWrap title={selectedHistoryGroup.fileName}>
+                                                        Ảnh: {selectedHistoryGroup.fileName}
+                                                    </Typography>
+                                                    {(selectedHistoryGroup.scannedAt || selectedHistoryGroup.durationMs != null) && (
+                                                        <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mt: 0.35 }} flexWrap="wrap">
+                                                            {selectedHistoryGroup.scannedAt && (
+                                                                <Stack direction="row" spacing={0.5} alignItems="center">
+                                                                    <AccessTimeOutlinedIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                                                                    <Typography variant="caption" color="text.secondary">
+                                                                        {dayjs(selectedHistoryGroup.scannedAt).isValid()
+                                                                            ? dayjs(selectedHistoryGroup.scannedAt).format('HH:mm:ss DD/MM/YYYY')
+                                                                            : selectedHistoryGroup.scannedAt}
+                                                                    </Typography>
+                                                                </Stack>
+                                                            )}
+                                                            {selectedHistoryGroup.durationMs != null && (
+                                                                <Stack direction="row" spacing={0.5} alignItems="center">
+                                                                    <TimerOutlinedIcon sx={{ fontSize: 14, color: '#0284c7' }} />
+                                                                    <Typography variant="caption" sx={{ fontWeight: 600, color: '#0284c7' }}>
+                                                                        Thời gian quét: {(selectedHistoryGroup.durationMs / 1000).toFixed(1)}s
+                                                                    </Typography>
+                                                                </Stack>
+                                                            )}
+                                                        </Stack>
+                                                    )}
+                                                </Box>
+                                                {selectedHistoryGroup.imageStatus === 'pending' ? (
+                                                    <Button
+                                                        size="small"
+                                                        variant="contained"
+                                                        startIcon={
+                                                            wizard.scanning ? (
+                                                                <CircularProgress size={13} color="inherit" />
+                                                            ) : (
+                                                                <DocumentScannerOutlinedIcon sx={{ fontSize: '0.95rem' }} />
+                                                            )
+                                                        }
+                                                        disabled={wizard.scanning}
+                                                        onClick={() => void wizard.scanPendingImages()}
+                                                        sx={{
+                                                            textTransform: 'none',
+                                                            fontWeight: 700,
+                                                            borderRadius: 1.5,
+                                                            bgcolor: '#2563eb',
+                                                            '&:hover': { bgcolor: '#1d4ed8' },
+                                                        }}
+                                                    >
+                                                        {wizard.scanning ? 'Đang quét…' : 'Tiến hành quét'}
+                                                    </Button>
+                                                ) : selectedHistoryGroup.imageStatus === 'scanning' ? (
+                                                    <Chip
+                                                        size="small"
+                                                        icon={<CircularProgress size={12} color="inherit" />}
+                                                        label="Đang quét…"
+                                                        color="primary"
+                                                        sx={{ height: 22, fontSize: '0.75rem', fontWeight: 700 }}
+                                                    />
+                                                ) : (
+                                                    <Chip
+                                                        size="small"
+                                                        label={`${selectedHistoryGroup.rows.length} vé nhận diện`}
+                                                        color="primary"
+                                                        sx={{ height: 22, fontSize: '0.75rem', fontWeight: 700 }}
+                                                    />
+                                                )}
                                             </Box>
                                             <Box sx={{ p: 1.5 }}>
                                                 {selectedHistoryGroup.previewUrl ? (

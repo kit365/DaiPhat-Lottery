@@ -48,6 +48,7 @@ import {
 } from '../utils/ocrImportHelpers';
 import { formatVietnameseErrorMessage } from '../utils/ocrScanErrorMessage';
 import type { OcrFieldSelection } from './OcrReviewImagePane';
+import OcrCroppedTicketOverlay from './OcrCroppedTicketOverlay';
 import { getStationColor } from '../../../station/utils/stationColor';
 
 const formatFieldConfidenceChip = (conf?: number | null) => {
@@ -1317,17 +1318,14 @@ export default function OcrReviewResultCards({
                 </DialogTitle>
                 <DialogContent sx={{ p: 2, bgcolor: '#0f172a', textAlign: 'center' }}>
                     {zoomImage && (
-                        <Box
-                            component="img"
-                            src={zoomImage.url}
+                        <OcrCroppedTicketOverlay
+                            imageUrl={zoomImage.url}
+                            row={zoomImage.row}
+                            selection={selection}
                             alt={zoomImage.title}
-                            sx={{
-                                maxWidth: '100%',
-                                maxHeight: '70vh',
-                                objectFit: 'contain',
-                                borderRadius: '8px',
-                                mx: 'auto',
-                                display: 'block',
+                            maxHeight="70vh"
+                            onSelectField={(fieldName) => {
+                                onSelect({ rowKey: zoomImage.row.key, fieldName });
                             }}
                         />
                     )}
@@ -1532,8 +1530,8 @@ export default function OcrReviewResultCards({
                                                 }
                                                 sx={{
                                                     position: 'relative',
-                                                    width: { xs: '100%', sm: 130 },
-                                                    height: 80,
+                                                    width: { xs: '100%', sm: 200 },
+                                                    height: 160,
                                                     borderRadius: '8px',
                                                     bgcolor: '#0f172a',
                                                     border: '1.5px solid #cbd5e1',
@@ -1545,36 +1543,16 @@ export default function OcrReviewResultCards({
                                                         borderColor: '#2563eb',
                                                         transform: 'scale(1.02)',
                                                         boxShadow: '0 4px 12px rgba(37,99,235,0.15)',
-                                                        '& .zoom-pane-overlay': { opacity: 1 },
                                                     },
                                                 }}
                                             >
-                                                <Box
-                                                    component="img"
-                                                    src={croppedUrl}
+                                                <OcrCroppedTicketOverlay
+                                                    imageUrl={croppedUrl}
+                                                    row={row}
+                                                    selection={selection}
                                                     alt={`Vé #${index + 1}`}
-                                                    sx={{
-                                                        width: '100%',
-                                                        height: '100%',
-                                                        objectFit: 'contain',
-                                                        display: 'block',
-                                                    }}
+                                                    maxHeight={160}
                                                 />
-                                                <Box
-                                                    className="zoom-pane-overlay"
-                                                    sx={{
-                                                        position: 'absolute',
-                                                        inset: 0,
-                                                        bgcolor: 'rgba(15, 23, 42, 0.5)',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        opacity: 0,
-                                                        transition: 'opacity 0.15s',
-                                                    }}
-                                                >
-                                                    <ZoomInOutlinedIcon sx={{ color: '#ffffff', fontSize: 20 }} />
-                                                </Box>
                                             </Box>
                                         </Tooltip>
                                     ) : (

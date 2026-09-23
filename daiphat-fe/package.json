@@ -4,9 +4,9 @@
   "version": "0.0.2",
   "type": "module",
   "scripts": {
-    "dev": "next dev -p 5173",
-    "dev:turbo": "next dev --turbo -p 5173",
-    "build": "next build",
+    "dev": "node scripts/ensure-compiler.mjs && next dev -p 5173",
+    "dev:turbo": "node scripts/ensure-compiler.mjs && next dev --turbo -p 5173",
+    "build": "node scripts/ensure-compiler.mjs && next build",
     "start": "node scripts/start-standalone.mjs",
     "lint": "next lint"
   },

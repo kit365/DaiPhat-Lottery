@@ -21,7 +21,7 @@ import {
     filterPanelStyles,
 } from '../../../../../shared/data-grid';
 import { TicketToolbar } from './TicketToolbar';
-import { columnsConfig, columnsInitialState } from '../configs/column.config';
+import { buildColumnsConfig, columnsInitialState } from '../configs/column.config';
 import { buildCancelSelectColumn } from '../configs/cancelSelectColumn.config';
 import { DATA_GRID_LOCALE_VN } from "@/admin/components/data-grid/localeText.config";
 import type { useTicketInventory } from '../../hooks/useTicketInventory';
@@ -46,9 +46,11 @@ declare module '@mui/x-data-grid' {
 export const TicketList = ({
     ticketHook,
     cancelSelection: externalCancelSelection,
+    cancelLockReason,
 }: {
     ticketHook: ReturnType<typeof useTicketInventory>;
     cancelSelection?: ReturnType<typeof useCancelTicketSelection>;
+    cancelLockReason?: string | null;
 }) => {
     const queryClient = useQueryClient();
     const { settings, setSettings } = useSettings();
@@ -70,10 +72,19 @@ export const TicketList = ({
     const internalCancelSelection = useCancelTicketSelection(tickets);
     const cancelSelection = externalCancelSelection || internalCancelSelection;
 
+    const baseColumns = useMemo(
+        () =>
+            buildColumnsConfig({
+                onCancelTicket: cancelSelection.handleCancelTicket,
+                cancelLockReason,
+            }),
+        [cancelSelection.handleCancelTicket, cancelLockReason]
+    );
+
     const columns = useMemo<GridColDef[]>(
         () => {
             if (!cancelSelection.isCancelMode) {
-                return columnsConfig;
+                return baseColumns;
             }
 
             return [
@@ -84,7 +95,7 @@ export const TicketList = ({
                     onSelectTicket: cancelSelection.handleSelectTicket,
                     getTicketSelectionState: cancelSelection.getTicketSelectionState,
                 }),
-                ...columnsConfig,
+                ...baseColumns,
             ];
         },
         [
@@ -94,6 +105,7 @@ export const TicketList = ({
             cancelSelection.handleSelectAll,
             cancelSelection.handleSelectTicket,
             cancelSelection.getTicketSelectionState,
+            baseColumns,
         ]
     );
 
