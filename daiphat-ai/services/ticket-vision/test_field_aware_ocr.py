@@ -47,8 +47,42 @@ def test_field_aware_uses_specialized_when_confident(blank_image):
     assert specialized.hints == ["serialNumber"]
 
 
-def test_field_aware_falls_back_to_general_on_low_confidence(blank_image):
+def test_field_aware_keeps_specialized_when_above_threshold(blank_image):
+    specialized = _RecordingSpecialized({"serialNumber": HIGH})
+    general = StubOcrStrategy("general", results=BETTER)
+    strategy = FieldAwareOcrStrategy(
+        general=general,
+        specialized=specialized,
+        specialized_fields=frozenset({"serialNumber"}),
+        low_confidence_threshold=0.7,
+    )
+
+    result = strategy.read_text(blank_image, field_hint="serialNumber")
+
+    assert result == HIGH
+    assert general.call_count == 0
+
+
+def test_field_aware_falls_back_to_general_when_specialized_low_conf(blank_image):
     specialized = _RecordingSpecialized({"serialNumber": LOW})
+    general = StubOcrStrategy("general", results=BETTER)
+    strategy = FieldAwareOcrStrategy(
+        general=general,
+        specialized=specialized,
+        specialized_fields=frozenset({"serialNumber"}),
+        low_confidence_threshold=0.7,
+    )
+
+    result = strategy.read_text(blank_image, field_hint="serialNumber")
+
+    assert result == BETTER
+    assert general.call_count == 1
+
+
+def test_field_aware_falls_back_to_general_when_specialized_empty(blank_image):
+    # Empty specialized (ONNX/allowlist blank) must still try general OCR —
+    # otherwise Admin shows correct YOLO boxes with every field UNREADABLE.
+    specialized = _RecordingSpecialized({"serialNumber": []})
     general = StubOcrStrategy("general", results=BETTER)
     strategy = FieldAwareOcrStrategy(
         general=general,
@@ -117,24 +151,32 @@ def test_specialized_supports_known_fields():
     assert strategy.supports("serialNumber")
     assert strategy.supports("numbers")
     assert strategy.supports("drawDate")
+    assert strategy.supports("ticketType")
     assert not strategy.supports("stationName")
     assert not strategy.supports(None)
 
 
-def test_specialized_onnx_missing_soft_skips_to_allowlist(blank_image, monkeypatch):
-    calls: list[dict] = []
+def test_specialized_skips_onnx_when_use_onnx_false(blank_image, tmp_path):
+    calls: list[str] = []
 
-    class _EasyStub(StubOcrStrategy):
-        def read_text(self, image, languages=None, *, field_hint=None, allowlist=None):
-            calls.append({"field_hint": field_hint, "allowlist": allowlist})
-            return HIGH
+    class _Dec:
+        def can_decode(self, field_hint, model_path):
+            return True
 
+        def read_text(self, image, field_hint, model_path):
+            calls.append("onnx")
+            return [OcrTextResult(text="999999", confidence=0.99)]
+
+    onnx_path = tmp_path / "numbers.onnx"
+    onnx_path.write_bytes(b"stub")
+    easy = StubOcrStrategy("easy", results=[OcrTextResult(text="123456", confidence=0.8)])
     strategy = SpecializedFieldOcrStrategy(
-        easyocr=_EasyStub("easy"),  # type: ignore[arg-type]
-        onnx_model_paths={"serialNumber": "models/field_ocr/does_not_exist.onnx"},
+        easyocr=easy,  # type: ignore[arg-type]
+        onnx_model_paths={"numbers": str(onnx_path)},
+        onnx_decoder=_Dec(),  # type: ignore[arg-type]
+        use_onnx=False,
     )
-    result = strategy.read_text(blank_image, field_hint="serialNumber")
-
-    assert result == HIGH
-    assert calls and calls[0]["allowlist"]
-    assert "0" in calls[0]["allowlist"]
+    result = strategy.read_text(blank_image, field_hint="numbers")
+    assert result[0].text == "123456"
+    assert calls == []
+    assert easy.call_count == 1

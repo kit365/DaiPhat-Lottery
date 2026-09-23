@@ -128,16 +128,59 @@ def expand_bbox(
     image_width: int,
     image_height: int,
     *,
-    pad_ratio: float = 0.04,
+    pad_ratio: float = 0.015,
+    min_pad_px: int = 6,
 ) -> tuple[int, int, int, int]:
-    """Expand a ticket/field box outward so edge text is not clipped."""
+    """Expand a ticket/field box slightly so edge glyphs are not clipped.
+
+    Keep padding tight — oversized boxes pull neighboring tickets into the
+    crop and poison station/serial/batch OCR.
+    """
     pad = int(round(min(image_width, image_height) * max(0.0, pad_ratio)))
-    pad = max(pad, 8)
+    pad = max(pad, int(min_pad_px))
+    # Tiny relative grow vs box size (YOLO hugs paper; avoid table bleed).
+    pad = max(pad, int(round(min(w, h) * 0.015)))
+    # Cap so a large ticket cannot grow by more than ~3% of its short side.
+    pad = min(pad, max(int(min_pad_px), int(round(min(w, h) * 0.03))))
     x1 = max(0, x - pad)
     y1 = max(0, y - pad)
     x2 = min(image_width, x + w + pad)
     y2 = min(image_height, y + h + pad)
     return x1, y1, max(1, x2 - x1), max(1, y2 - y1)
+
+
+def expand_region_corners(
+    corners: list[tuple[float, float]] | list,
+    image_width: int,
+    image_height: int,
+    *,
+    pad_ratio: float = 0.02,
+) -> list[tuple[float, float]]:
+    """Push OBB/AABB corners slightly outward from the centroid."""
+    if not corners or len(corners) < 4:
+        return list(corners or [])
+    pts = [(float(p[0]), float(p[1])) for p in corners[:4]]
+    cx = sum(p[0] for p in pts) / 4.0
+    cy = sum(p[1] for p in pts) / 4.0
+    xs = [p[0] for p in pts]
+    ys = [p[1] for p in pts]
+    bw = max(xs) - min(xs)
+    bh = max(ys) - min(ys)
+    pad = max(4.0, min(bw, bh) * max(0.0, pad_ratio))
+    pad = min(pad, min(bw, bh) * 0.03)
+    expanded: list[tuple[float, float]] = []
+    for x, y in pts:
+        dx, dy = x - cx, y - cy
+        norm = max((dx * dx + dy * dy) ** 0.5, 1.0)
+        nx = x + pad * dx / norm
+        ny = y + pad * dy / norm
+        expanded.append(
+            (
+                float(min(max(nx, 0.0), image_width - 1)),
+                float(min(max(ny, 0.0), image_height - 1)),
+            )
+        )
+    return expanded
 
 
 def encode_to_jpeg_bytes(image: np.ndarray, quality: int = 94) -> bytes:
@@ -388,21 +431,101 @@ def sharpen_unsharp_mask(
     return cv2.addWeighted(image, 1.0 + amount, blurred, -amount, 0)
 
 
-def enhance_for_ocr(image: np.ndarray) -> np.ndarray:
-    """Mild OCR prep: lighting normalize only — no denoise / heavy sharpen stack.
+def _ocr_quality_stats(image: np.ndarray) -> tuple[float, float, float]:
+    """Return (mean_brightness, contrast_std, laplacian_sharpness) on grayscale."""
+    gray = to_grayscale(image)
+    mean = float(gray.mean())
+    std = float(gray.std())
+    # Downsample large crops for a cheap sharpness probe.
+    h, w = gray.shape[:2]
+    probe = gray
+    longest = max(h, w)
+    if longest > 480:
+        scale = 480.0 / float(longest)
+        probe = cv2.resize(
+            gray,
+            (max(1, int(w * scale)), max(1, int(h * scale))),
+            interpolation=cv2.INTER_AREA,
+        )
+    sharpness = float(cv2.Laplacian(probe, cv2.CV_64F).var())
+    return mean, std, sharpness
 
-    Aggressive filters previously stacked with JPEG and blurred ticket previews.
+
+def enhance_for_ocr(image: np.ndarray) -> np.ndarray:
+    """Adaptive OCR prep for lottery ticket crops.
+
+    Clear, well-lit crops are left untouched. Only apply lighting normalize,
+    mild sharpen, or light denoise when stats indicate the crop would hurt
+    digit/serial recognition. Never aggressively compress or stack filters.
     """
     if image is None or image.size == 0:
         return image
-    return normalize_lighting(image)
+
+    mean, std, sharpness = _ocr_quality_stats(image)
+    out = image
+    changed = False
+
+    # Too dark, washed out, or flat contrast → gentle LAB CLAHE + midtone lift.
+    if mean < 78.0 or mean > 205.0 or std < 26.0:
+        out = normalize_lighting(out)
+        changed = True
+
+    # Soft / motion-blurred phone crops → light unsharp mask only.
+    if sharpness < 55.0:
+        out = sharpen_unsharp_mask(out, amount=0.40, radius=1.05)
+        changed = True
+
+    # Noisy low-light crops (high grain, soft edges) → mild bilateral keep edges.
+    if std > 55.0 and sharpness < 90.0 and mean < 110.0:
+        out = cv2.bilateralFilter(out, d=5, sigmaColor=35, sigmaSpace=35)
+        changed = True
+
+    if not changed:
+        return image
+    return out
+
+
+# Target short-side heights so thin serial/batch glyphs stay detectable.
+_FIELD_MIN_SHORT_SIDE: dict[str, int] = {
+    "serialNumber": 56,
+    "batchCode": 52,
+    "stationName": 64,
+    "drawDate": 48,
+    "numbers": 72,
+    "ticketType": 48,
+}
+
+
+def prepare_field_crop_for_ocr(image: np.ndarray, field_hint: str | None = None) -> np.ndarray:
+    """Field-crop prep: scale tiny ROIs up, then light lighting/sharpen.
+
+    Whole-ticket ``enhance_for_ocr`` already ran on the parent canvas; field
+    crops still need height for thin letter+digit serials and pink-on-yellow
+    station banners. Avoid stacking another full adaptive stack.
+    """
+    if image is None or image.size == 0:
+        return image
+
+    hint = (field_hint or "").strip()
+    min_side = _FIELD_MIN_SHORT_SIDE.get(hint, 48)
+    out = upscale_if_too_small(image, min_dimension=min_side)
+
+    mean, std, sharpness = _ocr_quality_stats(out)
+    # Station banners (pink/purple on yellow) and batch on pink often need CLAHE.
+    if hint in {"stationName", "batchCode", "drawDate"} or mean < 90.0 or std < 28.0:
+        out = normalize_lighting(out)
+    if sharpness < 70.0:
+        out = sharpen_unsharp_mask(out, amount=0.45, radius=1.0)
+    return out
 
 
 class ProcessedTicketCrop:
     """The two derivatives every detected ticket needs downstream.
 
     preview: color, perspective-warped -- for Admin overlay / Cloudinary.
-    ocr_ready: grayscale + contrast-enhanced for classic OCR engines.
+    ocr_ready: color OCR canvas (adaptive enhance). Grayscale was removed —
+    red digits / white-on-blue dates lose contrast and Paddle/EasyOCR miss
+    fields that look crystal-clear in the Admin preview.
     """
 
     def __init__(self, preview: np.ndarray, ocr_ready: np.ndarray) -> None:
@@ -431,10 +554,10 @@ def process_ticket_crop(source_image: np.ndarray, region: DetectedRegion) -> Pro
 
     # Admin review / durable crop: geometry only — no glare/OCR filters.
     preview = warped
-    # OCR path may upscale tiny crops and normalize lighting separately.
+    # Keep color for OCR — red lottery digits and white-on-blue date panels
+    # are often lost after forced grayscale + CLAHE.
     ocr_source = upscale_if_too_small(warped)
     ocr_source = remove_glare(ocr_source)
-    gray = to_grayscale(ocr_source)
-    ocr_ready = enhance_contrast(gray)
+    ocr_ready = enhance_for_ocr(ocr_source)
 
     return ProcessedTicketCrop(preview=preview, ocr_ready=ocr_ready)

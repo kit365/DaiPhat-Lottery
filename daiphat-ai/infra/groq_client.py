@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import base64
+import contextvars
 import re
 import time
-from threading import Lock
-from typing import Any
+from contextlib import contextmanager
+from threading import Lock, Semaphore
+from typing import Any, Iterator
 
 import httpx
 
@@ -23,20 +25,60 @@ from infra.vision_extraction import (
 # Groq base64 image payloads are capped (docs: ~4MB). Ticket-vision already
 # resizes uploads, but reject oversized payloads early with a clear error.
 _MAX_BASE64_IMAGE_BYTES = 4 * 1024 * 1024
-# Ticket JSON rarely needs 4k tokens; lower reservation reduces OTPM 429s.
-_MAX_COMPLETION_TOKENS = 2048
-# Transient RPM: a couple of short waits, then fail fast so legacy OCR can run
-# inside the Admin/BE timeout budget. Daily TPD/token exhaustion never retries.
-_RATE_LIMIT_RETRIES = 2
+# Free/on_demand OTPM for qwen3.8-27b is often 1000 — never request more.
+_MAX_COMPLETION_TOKENS = 640
+_MAX_COMPLETION_TOKENS_COLLAGE = 900
+_OTPM_SAFE_CEILING = 1000
+# Transient RPM/ITPM/TPM: honor Retry-After up to a bounded wait, then fail
+# soft so legacy OCR can run. Daily TPD never retries.
+_RATE_LIMIT_RETRIES = 3
 _RETRY_AFTER_PATTERN = re.compile(r"try again in ([0-9]+(?:\.[0-9]+)?)s", re.IGNORECASE)
-_MAX_RATE_LIMIT_WAIT_SECONDS = 8.0
+_MAX_RATE_LIMIT_WAIT_SECONDS = 28.0
 # qwen/qwen3.8-27b: docs allow at most 3 images per request
 _MAX_IMAGES_PER_REQUEST = 3
 _MAX_EXTRA_IMAGES = _MAX_IMAGES_PER_REQUEST - 1
 
+# When Legacy already produced a result, do not burn Admin latency on ITPM waits.
+_fail_fast_rate_limit: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    "groq_fail_fast_rate_limit",
+    default=False,
+)
+
+
+@contextmanager
+def fail_fast_rate_limits(enabled: bool = True) -> Iterator[None]:
+    """Context: on ITPM/TPM 429, raise immediately (caller keeps Legacy OCR)."""
+    token = _fail_fast_rate_limit.set(bool(enabled))
+    try:
+        yield
+    finally:
+        _fail_fast_rate_limit.reset(token)
+
 # Reuse keep-alive connections across per-ticket / batched OCR calls.
 _http_clients: dict[float, httpx.Client] = {}
 _http_clients_lock = Lock()
+# Serialize Groq calls: free-tier ITPM (~7000) cannot absorb 3×~4800 parallel.
+_groq_gate_lock = Lock()
+_groq_gate: Semaphore | None = None
+_groq_gate_limit: int = 0
+
+
+def _groq_concurrency() -> int:
+    try:
+        return max(1, int(getattr(settings, "TICKET_VISION_GROQ_MAX_CONCURRENT", 1) or 1))
+    except (TypeError, ValueError):
+        return 1
+
+
+def _acquire_groq_slot() -> Semaphore:
+    """Process-wide gate so parallel ticket OCR cannot stampede ITPM/TPM."""
+    global _groq_gate, _groq_gate_limit
+    limit = _groq_concurrency()
+    with _groq_gate_lock:
+        if _groq_gate is None or _groq_gate_limit != limit:
+            _groq_gate = Semaphore(limit)
+            _groq_gate_limit = limit
+        return _groq_gate
 
 
 def _shared_http_client(timeout_seconds: float) -> httpx.Client:
@@ -109,21 +151,26 @@ class GroqVisionClient:
         attempt_extras = [extras, extras[:1], []]
         last_error: VisionApiError | None = None
         seen: set[int] = set()
-        for candidate in attempt_extras:
-            key = len(candidate)
-            if key in seen:
-                continue
-            seen.add(key)
-            try:
-                return self._analyze_once(image_bytes, prompt, candidate)
-            except VisionApiError as exc:
-                last_error = exc
-                if not _is_request_too_large(exc):
-                    raise
-                logger.warning(
-                    "Groq request too large with %s extra image(s); retrying smaller payload",
-                    key,
-                )
+        gate = _acquire_groq_slot()
+        gate.acquire()
+        try:
+            for candidate in attempt_extras:
+                key = len(candidate)
+                if key in seen:
+                    continue
+                seen.add(key)
+                try:
+                    return self._analyze_once(image_bytes, prompt, candidate)
+                except VisionApiError as exc:
+                    last_error = exc
+                    if not _is_request_too_large(exc):
+                        raise
+                    logger.warning(
+                        "Groq request too large with %s extra image(s); retrying smaller payload",
+                        key,
+                    )
+        finally:
+            gate.release()
         assert last_error is not None
         raise last_error
 
@@ -156,8 +203,14 @@ class GroqVisionClient:
                 }
             )
 
-        # Default Groq vision model is qwen/qwen3.8-27b (account-available).
-        # JSON mode + reasoning_format hidden keeps message.content parseable.
+        # Stay under on_demand OTPM (often 1000). Collage needs more output.
+        max_tokens = (
+            _MAX_COMPLETION_TOKENS_COLLAGE
+            if "COLLAGE MODE" in (prompt or "")
+            else _MAX_COMPLETION_TOKENS
+        )
+        max_tokens = min(max_tokens, _OTPM_SAFE_CEILING - 1)
+
         payload: dict[str, Any] = {
             "model": self._model,
             "messages": [
@@ -168,7 +221,7 @@ class GroqVisionClient:
             ],
             "temperature": 0,
             "response_format": {"type": "json_object"},
-            "max_completion_tokens": _MAX_COMPLETION_TOKENS,
+            "max_completion_tokens": max_tokens,
             "reasoning_format": "hidden",
             "reasoning_effort": "none",
         }
@@ -180,11 +233,12 @@ class GroqVisionClient:
         }
 
         logger.info(
-            "Groq vision request model=%s mime=%s image_bytes=%s extras=%s",
+            "Groq vision request model=%s mime=%s image_bytes=%s extras=%s max_tokens=%s",
             self._model,
             mime,
             len(image_bytes),
             len(extras),
+            max_tokens,
         )
 
         response = self._post_with_rate_limit_retry(url, headers, payload)
@@ -193,7 +247,7 @@ class GroqVisionClient:
     def _post_with_rate_limit_retry(
         self,
         url: str,
-        headers: dict[str, str],
+        headers: dict[str, Any],
         payload: dict[str, Any],
     ) -> httpx.Response:
         from infra import llm_circuit  # noqa: PLC0415 -- avoid import cycle at module load
@@ -212,16 +266,15 @@ class GroqVisionClient:
                 self._raise_for_http_error(response)
                 return response
 
-            last_429_body = response.text[:500]
+            last_429_body = response.text[:800]
             logger.warning(
                 "Groq API rate limit (attempt %s/%s): %s",
                 attempt + 1,
                 _RATE_LIMIT_RETRIES + 1,
-                last_429_body,
+                last_429_body[:500],
             )
 
-            # Daily token / org quota: retrying burns the BE 60–180s budget and
-            # delays local OCR fallback. Fail immediately and trip the circuit.
+            # Daily token / org quota: retrying burns the BE budget.
             if llm_circuit.looks_like_quota_exhaustion(last_429_body):
                 llm_circuit.trip("Groq token/quota exhausted (TPD)")
                 raise VisionApiError(
@@ -229,15 +282,53 @@ class GroqVisionClient:
                     status_code=429,
                 )
 
+            # OTPM: requested max_tokens > org OTPM ceiling — shrink and retry now.
+            if _looks_like_otpm_budget(last_429_body):
+                current = int(payload.get("max_completion_tokens") or _MAX_COMPLETION_TOKENS)
+                reduced = _reduce_max_tokens_for_otpm(last_429_body, current)
+                if reduced < current:
+                    logger.warning(
+                        "Groq OTPM budget: lowering max_completion_tokens %s → %s",
+                        current,
+                        reduced,
+                    )
+                    payload["max_completion_tokens"] = reduced
+                    continue
+                # Already at floor — treat as soft rate limit below.
+
+            # Legacy-first boost: keep the local OCR result instead of waiting
+            # 20–40s for ITPM to refill (Admin upload latency).
+            if _fail_fast_rate_limit.get():
+                soft_seconds = llm_circuit.soft_cooldown_seconds()
+                llm_circuit.trip(
+                    "Groq ITPM/TPM rate limit (fail-fast boost)",
+                    seconds=soft_seconds,
+                )
+                logger.warning(
+                    "Groq fail-fast: returning to caller without Retry-After wait "
+                    "(legacy OCR result should be kept)"
+                )
+                raise VisionApiError(
+                    "Groq API rate limit exceeded (HTTP 429)",
+                    status_code=429,
+                )
+
             if attempt >= _RATE_LIMIT_RETRIES:
                 break
+
             wait_seconds = _parse_retry_after_seconds(last_429_body) or (2.0 * (attempt + 1))
-            # Keep waits short so VisionClientError → legacy still fits Admin timeout.
+            # ITPM/TPM often needs 20–40s; honor up to the soft cap so we do not
+            # burn retries with 8s waits that still fail and trip a 15min circuit.
             wait_seconds = min(max(wait_seconds, 1.0), _MAX_RATE_LIMIT_WAIT_SECONDS)
             logger.info("Waiting %.1fs before Groq retry", wait_seconds)
             time.sleep(wait_seconds)
 
-        llm_circuit.trip("Groq rate limit (RPM) exhausted after short retries")
+        # Transient ITPM/TPM — short soft cooldown, not a 15-minute blackout.
+        soft_seconds = llm_circuit.soft_cooldown_seconds()
+        llm_circuit.trip(
+            "Groq ITPM/TPM rate limit after retries",
+            seconds=soft_seconds,
+        )
         raise VisionApiError(
             "Groq API rate limit exceeded (HTTP 429)",
             status_code=429,
@@ -268,8 +359,7 @@ class GroqVisionClient:
             if (
                 response.status_code == 413
                 or "request too large" in detail_lower
-                or "tokens" in detail_lower
-                and "requested" in detail_lower
+                or ("tokens" in detail_lower and "requested" in detail_lower)
             ):
                 raise VisionApiError(
                     "Groq request too large for input token budget (ITPM). "
@@ -296,6 +386,7 @@ class GroqVisionClient:
                 f"Groq API returned HTTP {response.status_code}",
                 status_code=response.status_code,
             )
+
     def _parse_success_response(self, response: httpx.Response) -> ScanExtractionResult:
         try:
             body = response.json()
@@ -325,6 +416,32 @@ def _parse_retry_after_seconds(error_body: str) -> float | None:
         return float(match.group(1))
     except ValueError:
         return None
+
+
+def _looks_like_otpm_budget(error_body: str) -> bool:
+    text = (error_body or "").lower()
+    return (
+        "output tokens per minute" in text
+        or "(otpm)" in text
+        or "expected output tokens exceed" in text
+        or "reduce max_tokens" in text
+    )
+
+
+def _reduce_max_tokens_for_otpm(error_body: str, current: int) -> int:
+    """Parse 'Limit 1000, Requested 1024' and return a safe completion budget."""
+    limit_match = re.search(
+        r"limit\s+(\d+).*?requested\s+(\d+)",
+        error_body or "",
+        re.IGNORECASE | re.DOTALL,
+    )
+    if limit_match:
+        try:
+            limit = int(limit_match.group(1))
+            return max(256, min(current - 1, limit - 1, _OTPM_SAFE_CEILING - 1))
+        except ValueError:
+            pass
+    return max(256, min(current - 128, _OTPM_SAFE_CEILING - 1))
 
 
 def _is_request_too_large(exc: VisionApiError) -> bool:

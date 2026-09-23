@@ -191,83 +191,29 @@ def build_ticket_extraction_prompt(
     image_height: int,
     field_layouts_hint: str | None = None,
 ) -> str:
+    """Full-frame / fallback prompt — keep short; geometry is optional.
+
+    YOLO crop / collage paths use dedicated lean prompts in
+    ``llm_ticket_scan_service`` (values only, no fieldBoxes schema).
+    """
     layout_section = ""
     if field_layouts_hint:
-        layout_section = f"""
-- Template field layout guidance (pixel ROIs on this image). Prefer reading these fields from the indicated regions; still verify against the full ticket image.
-  When the same fieldName appears more than once, try the lowest priority number first (priority 1 = primary).
-  Only use a higher priority region if the primary read is null, unreadable, or low-confidence.
-  In usedFieldLayouts, record the layout id that ultimately produced each field value.
-{field_layouts_hint}
-- Extra crop images (when provided) are zooms of those regions — use them to improve accuracy for the named fields. Do NOT invent values that are not visible.
-"""
+        layout_section = f"\nLayout/crop hints:\n{field_layouts_hint}\n"
 
-    return f"""You are a lottery ticket OCR assistant for Vietnamese lottery tickets (vé số kiến thiết).
-
-Analyze the uploaded image and extract ticket information. Rules:
-- Only extract values clearly visible in the image. Do NOT guess or invent data.
-- Tickets may overlap or cover each other. Still detect EVERY distinct ticket you can see.
-- For each detected ticket, extract every field independently. If some fields are covered/obscured by another ticket, set ONLY those fields to null with low fieldConfidences (0.0-0.2). Keep and return the ticket with all readable fields.
-- Never omit a ticket from "tickets" just because some fields are unreadable.
-- If a field is unreadable or uncertain, set it to null and use a low fieldConfidences value (0.0-0.4).
-- Add a short Vietnamese warning when fields look covered/obscured, including what to do next
-  (e.g. "Vé #2: số seri bị che — hãy tách vé hoặc chụp lại góc nghiêng để thấy rõ seri.").
-  Warnings MUST be in Vietnamese for Admin operators. Do not write English warnings.
-- Return at most {max_tickets} ticket(s).
-- Image size: {image_width}x{image_height} pixels.
-- All bbox / fieldBoxes MUST use this full-frame coordinate space (x,y = top-left of the whole image — NOT relative to a ticket crop or extra crop image).
-- Prefer NORMALIZED coordinates in [0.0, 1.0] (fraction of full image width/height). Absolute pixel coordinates in the {image_width}x{image_height} space are also accepted.
-- List tickets in reading order: top-to-bottom, then left-to-right.
-- Prefer matching station names/codes against this active station list: {stations_json}
-- numbers: digits only, no spaces or punctuation. MUST be exactly 6 digits as printed on the ticket. Never invent, pad with zeros, or truncate to force length 6. If the printed number is not clearly 6 digits, set numbers to null.
-- drawDate: ISO format YYYY-MM-DD when visible. If the date is not clearly readable, use null (do not invent or emit non-ISO strings).
-- serialNumber: the ticket serial as printed. MUST be mostly digits with exactly ONE letter at the beginning OR the end only (examples: "A123456", "123456B", "A424944"). NEVER put a letter in the middle. NEVER put production lot/ký hiệu codes here (reject forms like "4E2", "5D2", "XSCMG997", "08D", "8K4", "26-T05K4").
-- ticketType: printed ticket PRICE as digits when possible (e.g. "10000"), not a product category.
-- batchCode: production batch / ký hiệu / lô phát hành printed by the lottery issuer on the ticket (alphanumeric lot code such as "08D", "8K4", "4E2", "XSCMG997", "26-T05K4"). NOT a warehouse import-batch code. NOT the serialNumber. Null if not visible.
-- fieldConfidences must include stationName, serialNumber, numbers, drawDate, ticketType, and batchCode (0.0-1.0).
-- fieldBoxes: for each non-null field above, provide a tight bounding box around that printed value inside the ticket. Omit boxes for null/unreadable fields. Do not copy template layout boxes unless they match the actual printed text.
-- usedFieldLayouts: for each non-null extracted field that used a template layout, map fieldName to that layout's id (integer). Omit entries when no layout was used.
-- Also provide ticket-level bbox around the whole ticket region (even when some fields are missing).
+    return f"""Vietnamese lottery ticket OCR. Image {image_width}x{image_height}px.
+Extract up to {max_tickets} ticket(s). Only visible values — never invent.
+Stations (prefer match): {stations_json}
+Fields per ticket: stationName, stationCode, serialNumber, numbers, drawDate, ticketType, batchCode.
+- numbers: digits only; length = station expectedNumberLength when known, else keep as printed (do not pad/truncate).
+- drawDate: YYYY-MM-DD or null.
+- serialNumber: digits + one letter at start OR end (A123456). Not lot codes (08D, 8K4).
+- batchCode: issuer ký hiệu/lô (08D, 8K4) or null. Not serialNumber.
+- ticketType: price digits when visible.
+- fieldConfidences 0..1 for each field above.
+- Omit bbox/fieldBoxes/usedFieldLayouts (server supplies geometry).
+- warnings: short Vietnamese only if a field is covered/unreadable.
 {layout_section}
-Respond with ONLY valid JSON (no markdown prose) matching this schema:
-{{
-  "tickets": [
-    {{
-      "stationName": string | null,
-      "stationCode": string | null,
-      "serialNumber": string | null,
-      "numbers": string | null,
-      "drawDate": string | null,
-      "ticketType": string | null,
-      "batchCode": string | null,
-      "fieldConfidences": {{
-        "stationName": number,
-        "serialNumber": number,
-        "numbers": number,
-        "drawDate": number,
-        "ticketType": number,
-        "batchCode": number
-      }},
-      "bbox": {{ "x": number, "y": number, "width": number, "height": number }} | null,
-      "fieldBoxes": {{
-        "stationName": {{ "x": number, "y": number, "width": number, "height": number }},
-        "serialNumber": {{ "x": number, "y": number, "width": number, "height": number }},
-        "numbers": {{ "x": number, "y": number, "width": number, "height": number }},
-        "drawDate": {{ "x": number, "y": number, "width": number, "height": number }},
-        "ticketType": {{ "x": number, "y": number, "width": number, "height": number }},
-        "batchCode": {{ "x": number, "y": number, "width": number, "height": number }}
-      }},
-      "usedFieldLayouts": {{
-        "stationName": number,
-        "serialNumber": number,
-        "numbers": number,
-        "drawDate": number,
-        "ticketType": number,
-        "batchCode": number
-      }}
-    }}
-  ],
-  "warnings": [string]
-}}
+JSON only:
+{{"tickets":[{{"stationName":string|null,"stationCode":string|null,"serialNumber":string|null,"numbers":string|null,"drawDate":string|null,"ticketType":string|null,"batchCode":string|null,"fieldConfidences":{{"stationName":number,"serialNumber":number,"numbers":number,"drawDate":number,"ticketType":number,"batchCode":number}}}}],"warnings":[string]}}
 """
 

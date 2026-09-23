@@ -38,6 +38,9 @@ class TicketScanResult(BaseModel):
     confidence: float
     extracted: ExtractedTicketFields
     fieldConfidences: dict[str, float] = Field(default_factory=dict)
+    # Crop-local field boxes (pixels of croppedImageBase64), not full-frame.
+    # Source-image Admin overlay draws ticket bbox only; field overlays belong
+    # on the per-ticket crop preview.
     fieldBoxes: dict[str, BoundingBox] = Field(default_factory=dict)
     # fieldName -> ocr_field_layouts.id used for the recognized value.
     usedFieldLayouts: dict[str, int] = Field(default_factory=dict)

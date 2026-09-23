@@ -15,7 +15,12 @@ from domain.scanning.llm_ticket_scan_service import resolve_recognition_engine
 from domain.scanning.ticket_scan_service import TicketScanService
 from domain.validation.format_validator import FormatValidator
 from dto.request.scan_metadata import ScanMetadata
-from dto.response.scan_response import ScanResponse
+from dto.response.scan_response import (
+    ExtractedTicketFields,
+    ScanResponse,
+    TicketScanResult,
+)
+from domain.validation.format_validator import is_valid_serial_number
 from infra.config import settings
 from infra import llm_circuit, llm_quota
 from infra.logger import logger
@@ -26,6 +31,156 @@ router = APIRouter(tags=["Scan"])
 
 _validator = FormatValidator()
 _LLM_ENGINES = frozenset({"groq", "gemini", "grok"})
+
+
+def _bbox_iou(a, b) -> float:
+    if a is None or b is None:
+        return 0.0
+    ax2, ay2 = a.x + a.width, a.y + a.height
+    bx2, by2 = b.x + b.width, b.y + b.height
+    ix1, iy1 = max(a.x, b.x), max(a.y, b.y)
+    ix2, iy2 = min(ax2, bx2), min(ay2, by2)
+    iw, ih = max(0, ix2 - ix1), max(0, iy2 - iy1)
+    inter = iw * ih
+    if inter <= 0:
+        return 0.0
+    union = a.width * a.height + b.width * b.height - inter
+    return inter / union if union > 0 else 0.0
+
+
+def _field_nonempty(value: str | None) -> bool:
+    return bool((value or "").strip())
+
+
+def _numbers_ok(value: str | None) -> bool:
+    text = (value or "").strip()
+    return bool(text) and text.isdigit() and len(text) == 6
+
+
+def _merge_extracted_prefer_grounded(
+    legacy: ExtractedTicketFields | None,
+    llm: ExtractedTicketFields | None,
+) -> ExtractedTicketFields:
+    """Keep local OCR when both sides have a value but disagree.
+
+    Collage LLM boost often swaps stations/numbers across tickets in one
+    photo (HCM crop labeled Tây Ninh / 626621). Prefer grounded legacy
+    readings for core fields; fill gaps from LLM.
+    """
+    base = (llm or ExtractedTicketFields()).model_copy()
+    if legacy is None:
+        return base
+
+    # Numbers: never let LLM overwrite a valid 6-digit local read.
+    if _numbers_ok(legacy.numbers):
+        if not _numbers_ok(base.numbers) or base.numbers != legacy.numbers:
+            base.numbers = legacy.numbers
+
+    # Station: keep local when present (banner OCR + fuzzy match).
+    if _field_nonempty(legacy.stationName):
+        llm_station = (base.stationName or "").strip()
+        legacy_station = (legacy.stationName or "").strip()
+        codes_differ = bool(legacy.stationCode) and bool(base.stationCode) and (
+            legacy.stationCode != base.stationCode
+        )
+        if not llm_station or codes_differ or llm_station != legacy_station:
+            base.stationName = legacy.stationName
+            base.stationCode = legacy.stationCode
+
+    # Date: keep local ISO when LLM invents an unrelated calendar day.
+    if _field_nonempty(legacy.drawDate):
+        if not _field_nonempty(base.drawDate) or base.drawDate != legacy.drawDate:
+            base.drawDate = legacy.drawDate
+
+    if is_valid_serial_number(legacy.serialNumber) and not is_valid_serial_number(base.serialNumber):
+        base.serialNumber = legacy.serialNumber
+
+    if _field_nonempty(legacy.batchCode):
+        if not _field_nonempty(base.batchCode) or base.batchCode != legacy.batchCode:
+            base.batchCode = legacy.batchCode
+
+    if _field_nonempty(legacy.ticketType) and not _field_nonempty(base.ticketType):
+        base.ticketType = legacy.ticketType
+
+    return base
+
+
+def _merge_boost_with_legacy(legacy_result: ScanResponse, llm_result: ScanResponse) -> ScanResponse:
+    """Match tickets by bbox IoU and merge fields so collage mixups don't win."""
+    legacy_tickets = list(legacy_result.tickets or [])
+    llm_tickets = list(llm_result.tickets or [])
+    if not legacy_tickets or not llm_tickets:
+        return llm_result
+
+    used_legacy: set[int] = set()
+    merged_tickets: list[TicketScanResult] = []
+
+    for llm_ticket in llm_tickets:
+        best_i = -1
+        best_iou = 0.0
+        for i, legacy_ticket in enumerate(legacy_tickets):
+            if i in used_legacy:
+                continue
+            iou = _bbox_iou(llm_ticket.bbox, legacy_ticket.bbox)
+            if iou > best_iou:
+                best_iou = iou
+                best_i = i
+        legacy_ticket = legacy_tickets[best_i] if best_i >= 0 and best_iou >= 0.15 else None
+        if best_i >= 0 and legacy_ticket is not None:
+            used_legacy.add(best_i)
+
+        extracted = _merge_extracted_prefer_grounded(
+            legacy_ticket.extracted if legacy_ticket else None,
+            llm_ticket.extracted,
+        )
+        field_boxes = dict(llm_ticket.fieldBoxes or {})
+        if legacy_ticket and legacy_ticket.fieldBoxes:
+            for name, box in legacy_ticket.fieldBoxes.items():
+                field_boxes.setdefault(name, box)
+
+        field_conf = dict(llm_ticket.fieldConfidences or {})
+        if legacy_ticket and legacy_ticket.fieldConfidences:
+            for name, conf in legacy_ticket.fieldConfidences.items():
+                # Keep legacy confidence when we kept the legacy value.
+                legacy_val = getattr(legacy_ticket.extracted, name, None) if legacy_ticket.extracted else None
+                merged_val = getattr(extracted, name, None)
+                if legacy_val and merged_val and str(legacy_val) == str(merged_val):
+                    field_conf[name] = max(float(field_conf.get(name, 0.0)), float(conf or 0.0))
+
+        cropped = llm_ticket.croppedImageBase64 or (
+            legacy_ticket.croppedImageBase64 if legacy_ticket else None
+        )
+        # Prefer the YOLO/legacy crop — it matches the bbox; collage LLM may
+        # attach an unrelated preview.
+        if legacy_ticket and legacy_ticket.croppedImageBase64:
+            cropped = legacy_ticket.croppedImageBase64
+
+        merged_tickets.append(
+            llm_ticket.model_copy(
+                update={
+                    "extracted": extracted,
+                    "fieldBoxes": field_boxes,
+                    "fieldConfidences": field_conf,
+                    "croppedImageBase64": cropped,
+                    "bbox": legacy_ticket.bbox if legacy_ticket else llm_ticket.bbox,
+                }
+            )
+        )
+
+    warnings = list(llm_result.warnings or [])
+    for warning in legacy_result.warnings or []:
+        if warning and warning not in warnings:
+            warnings.append(warning)
+    warnings.append(
+        "Đã kết hợp OCR local với AI (giữ dãy số/nhà đài local khi AI lệch)."
+    )
+    return llm_result.model_copy(
+        update={
+            "tickets": merged_tickets,
+            "ticketCount": len(merged_tickets),
+            "warnings": warnings,
+        }
+    )
 
 
 def _annotate_ops(result: ScanResponse, engine_used: str) -> ScanResponse:
@@ -290,6 +445,23 @@ def _scan_legacy_first(
         )
         return _annotate_ops(legacy_result, "legacy")
 
+    # Avoid a second YOLO + collage round-trip when cloud credentials are missing.
+    if engine == "groq" and not (settings.GROQ_API_KEY or "").strip():
+        return _keep_legacy_result(
+            legacy_result,
+            "GROQ_API_KEY chưa cấu hình — giữ kết quả OCR local (bỏ qua boost).",
+        )
+    if engine == "gemini" and not (settings.GEMINI_API_KEY or "").strip():
+        return _keep_legacy_result(
+            legacy_result,
+            "GEMINI_API_KEY chưa cấu hình — giữ kết quả OCR local (bỏ qua boost).",
+        )
+    if engine == "grok" and not (settings.GROK_API_KEY or "").strip():
+        return _keep_legacy_result(
+            legacy_result,
+            "GROK_API_KEY chưa cấu hình — giữ kết quả OCR local (bỏ qua boost).",
+        )
+
     logger.info(
         "Legacy-first: boosting with %s (tickets=%s statuses=%s legacy_ms=%s)",
         engine,
@@ -329,15 +501,21 @@ def _scan_legacy_first(
 
     try:
         t1 = time.perf_counter()
-        llm_result = _run_engine_scan(
-            engine=engine,
-            image_bytes=image_bytes,
-            scan_metadata=scan_metadata,
-            legacy_service=legacy_service,
-            groq_service=groq_service,
-            gemini_service=gemini_service,
-            grok_service=grok_service,
+        from infra.groq_client import fail_fast_rate_limits  # noqa: PLC0415
+
+        boost_fail_fast = bool(
+            getattr(settings, "TICKET_VISION_GROQ_BOOST_FAIL_FAST", True)
         )
+        with fail_fast_rate_limits(boost_fail_fast):
+            llm_result = _run_engine_scan(
+                engine=engine,
+                image_bytes=image_bytes,
+                scan_metadata=scan_metadata,
+                legacy_service=legacy_service,
+                groq_service=groq_service,
+                gemini_service=gemini_service,
+                grok_service=grok_service,
+            )
         llm_ms = (time.perf_counter() - t1) * 1000.0
         if _llm_result_is_usable(llm_result):
             logger.info(
@@ -346,14 +524,8 @@ def _scan_legacy_first(
                 llm_result.ticketCount,
                 int(round(llm_ms)),
             )
-            merged = list(llm_result.warnings or [])
-            for warning in legacy_result.warnings or []:
-                if warning and warning not in merged:
-                    merged.append(warning)
-            return _annotate_ops(
-                llm_result.model_copy(update={"warnings": merged}),
-                engine,
-            )
+            merged = _merge_boost_with_legacy(legacy_result, llm_result)
+            return _annotate_ops(merged, engine)
         return _keep_legacy_result(
             legacy_result,
             f"{engine} không đọc được nội dung vé; giữ kết quả OCR local.",
@@ -373,7 +545,9 @@ def _scan_legacy_first(
         provider_message = _user_message_for_vision_error(exc)
         status = getattr(exc, "status_code", None)
         detail = str(exc)
-        if status == 429 or llm_circuit.looks_like_quota_exhaustion(detail):
+        # TPD → long circuit. ITPM/TPM already soft-tripped in groq_client
+        # (fail-fast); do not extend to a 15-minute blackout.
+        if llm_circuit.looks_like_quota_exhaustion(detail):
             llm_circuit.trip(detail[:200] or provider_message)
         logger.warning(
             "Legacy-first: %s failed (%s); keeping legacy OCR",
@@ -487,19 +661,20 @@ def _scan_image_sync(
             grok_service=grok_service,
         )
         engine_used = engine
-        if (
-            _should_fallback_to_legacy(engine)
-            and (not result.tickets or result.ticketCount == 0)
-        ):
+        if _should_fallback_to_legacy(engine) and not _llm_result_is_usable(result):
             try:
                 legacy_result = _fallback_to_legacy(
                     engine=engine,
                     image_bytes=image_bytes,
                     scan_metadata=scan_metadata,
                     legacy_service=legacy_service,
-                    reason="không nhận diện được vé qua AI",
+                    reason=(
+                        "không nhận diện được nội dung vé qua AI"
+                        if (result.tickets or result.ticketCount)
+                        else "không nhận diện được vé qua AI"
+                    ),
                 )
-                if legacy_result.tickets:
+                if _llm_result_is_usable(legacy_result) or legacy_result.tickets:
                     merged = list(legacy_result.warnings or [])
                     for warning in result.warnings or []:
                         if warning and warning not in merged:
@@ -586,6 +761,7 @@ async def scan_tickets(
     )
 
     image_bytes = await file.read()
+    t_route = time.perf_counter()
 
     try:
         # Keep the event loop free: EasyOCR/YOLO must not block other /health or scans.
@@ -610,6 +786,16 @@ async def scan_tickets(
             "Không thể đọc rõ thông tin vé từ ảnh này. "
             "Vui lòng kiểm tra lại ảnh hoặc nhập thông tin thủ công."
         )
+
+    route_ms = (time.perf_counter() - t_route) * 1000.0
+    logger.info(
+        "OCR /scan route timings ms: wall=%.0f engine=%s bytes=%s tickets=%s warnings=%s",
+        route_ms,
+        getattr(result, "recognitionEngineUsed", None) or engine,
+        len(image_bytes),
+        getattr(result, "ticketCount", 0),
+        len(getattr(result, "warnings", None) or []),
+    )
 
     message = "Quét vé thành công."
     if result.warnings:

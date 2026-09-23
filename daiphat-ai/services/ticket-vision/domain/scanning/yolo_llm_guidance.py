@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+import cv2
 import numpy as np
 
 from domain.detection import yolo_model
@@ -92,6 +93,51 @@ def _xyxy_iou(a: np.ndarray, b: np.ndarray) -> float:
     area_b = max(0.0, bx2 - bx1) * max(0.0, by2 - by1)
     union = area_a + area_b - inter
     return inter / union if union > 0 else 0.0
+
+
+def _ticket_aspect_ok(width: float, height: float) -> bool:
+    """Paper lottery tickets are roughly portrait rectangles — reject blobs."""
+    w = max(1.0, float(width))
+    h = max(1.0, float(height))
+    aspect = min(w, h) / max(w, h)
+    min_a = float(getattr(settings, "TICKET_VISION_YOLO_TICKET_MIN_ASPECT", 0.28) or 0.28)
+    max_a = float(getattr(settings, "TICKET_VISION_YOLO_TICKET_MAX_ASPECT", 0.72) or 0.72)
+    return min_a <= aspect <= max_a
+
+
+def _crop_looks_like_ticket(image: np.ndarray, box: np.ndarray) -> bool:
+    """Reject dark / near-uniform background crops (wood table, glass, void)."""
+    if not bool(getattr(settings, "TICKET_VISION_YOLO_REJECT_EMPTY_CROPS", True)):
+        return True
+    x1, y1, x2, y2 = (int(round(float(v))) for v in box)
+    h, w = image.shape[:2]
+    x1, y1 = max(0, x1), max(0, y1)
+    x2, y2 = min(w, x2), min(h, y2)
+    if x2 - x1 < 16 or y2 - y1 < 16:
+        return False
+    crop = image[y1:y2, x1:x2]
+    if crop is None or crop.size == 0:
+        return False
+    probe_h, probe_w = crop.shape[:2]
+    scale = min(1.0, 160.0 / float(max(probe_h, probe_w)))
+    if scale < 0.999:
+        crop = cv2.resize(
+            crop,
+            (max(1, int(probe_w * scale)), max(1, int(probe_h * scale))),
+            interpolation=cv2.INTER_AREA,
+        )
+    gray = crop if len(crop.shape) == 2 else cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
+    mean = float(gray.mean())
+    std = float(gray.std())
+    # Table wood / dark void: very dark or almost no contrast.
+    if mean < 28.0 or mean > 245.0:
+        return False
+    if std < 12.0:
+        return False
+    edge = float(cv2.Laplacian(gray, cv2.CV_64F).var())
+    if edge < 18.0:
+        return False
+    return True
 
 
 def _nms_ticket_boxes(
@@ -181,6 +227,7 @@ def build_yolo_llm_guidance(
     # can assign fields to the correct ticket.
     field_detections: list[tuple[str, float, np.ndarray]] = []
     ticket_boxes: list[tuple[float, np.ndarray]] = []
+    unmapped_classes: dict[str, int] = {}
 
     for box, class_id, confidence in zip(boxes, classes, confidences):
         raw_name = str(names.get(int(class_id), "")).strip().lower()
@@ -190,29 +237,47 @@ def build_yolo_llm_guidance(
             continue
         field_name = class_to_field.get(raw_name)
         if field_name is None:
+            if raw_name:
+                unmapped_classes[raw_name] = unmapped_classes.get(raw_name, 0) + 1
             continue
         field_detections.append((field_name, conf, box))
 
     ticket_boxes.sort(key=lambda item: item[0], reverse=True)
-    # Keep all plausible lottery-ticket boxes. Previous filters (strict conf +
-    # large min-area) dropped real tickets on multi-ticket table photos.
     min_ticket_conf = float(
-        min(
+        getattr(
+            settings,
+            "TICKET_VISION_YOLO_TICKET_MIN_CONFIDENCE",
             settings.TICKET_VISION_YOLO_CONFIDENCE_THRESHOLD,
-            settings.TICKET_VISION_YOLO_FIELD_CONFIDENCE_THRESHOLD,
         )
+        or settings.TICKET_VISION_YOLO_CONFIDENCE_THRESHOLD
     )
-    min_ticket_area = max(250.0, float(height * width) * 0.002)
+    min_area_ratio = float(
+        getattr(settings, "TICKET_VISION_YOLO_TICKET_MIN_AREA_RATIO", 0.015) or 0.015
+    )
+    min_ticket_area = max(400.0, float(height * width) * min_area_ratio)
     filtered_tickets: list[tuple[float, np.ndarray]] = []
     for conf, box in ticket_boxes:
         if conf < min_ticket_conf:
             continue
         x1, y1, x2, y2 = (float(v) for v in box)
-        area = max(0.0, x2 - x1) * max(0.0, y2 - y1)
+        bw, bh = max(0.0, x2 - x1), max(0.0, y2 - y1)
+        area = bw * bh
         if area < min_ticket_area:
             continue
         # Reject absurd whole-image "tickets" that are mostly background.
         if area > float(height * width) * 0.85:
+            continue
+        if not _ticket_aspect_ok(bw, bh):
+            continue
+        if not _crop_looks_like_ticket(image, box):
+            logger.info(
+                "YOLO ticket rejected (empty/dark crop) conf=%.2f box=(%.0f,%.0f,%.0f,%.0f)",
+                conf,
+                x1,
+                y1,
+                x2,
+                y2,
+            )
             continue
         filtered_tickets.append((conf, box))
 
@@ -220,8 +285,35 @@ def build_yolo_llm_guidance(
         filtered_tickets,
         iou_threshold=float(settings.TICKET_VISION_YOLO_IOU_THRESHOLD),
     )
+
+    # Prefer tickets that contain at least one field detection (numbers/serial/…).
+    # Background FPs rarely have mapped field boxes inside them.
+    if (
+        bool(getattr(settings, "TICKET_VISION_YOLO_REQUIRE_INNER_FIELD", True))
+        and field_detections
+        and filtered_tickets
+    ):
+        with_fields: list[tuple[float, np.ndarray]] = []
+        without_fields: list[tuple[float, np.ndarray]] = []
+        for conf, box in filtered_tickets:
+            has_field = any(
+                _point_in_xyxy(*_box_center(fbox), box, pad=16.0)
+                for _, _, fbox in field_detections
+            )
+            (with_fields if has_field else without_fields).append((conf, box))
+        if with_fields:
+            if without_fields:
+                logger.info(
+                    "YOLO dropped %s ticket FP(s) without inner field boxes",
+                    len(without_fields),
+                )
+            filtered_tickets = with_fields
+
     filtered_tickets = _sort_tickets_reading_order(filtered_tickets)
     ticket_boxes = filtered_tickets[: max(0, max_tickets)]
+    if not ticket_boxes:
+        logger.info("YOLO guidance: no plausible lottery tickets after FP filters")
+        return YoloLlmGuidance()
 
     hint_lines: list[str] = []
     crops: list[tuple[str, bytes]] = []
@@ -300,6 +392,17 @@ def build_yolo_llm_guidance(
 
     if not hint_lines:
         return YoloLlmGuidance()
+
+    expected_core = ("serialNumber", "numbers", "stationName", "drawDate", "ticketType", "batchCode")
+    missing_fields = [name for name in expected_core if name not in fields_covered]
+    if missing_fields or unmapped_classes:
+        logger.info(
+            "YOLO field coverage: found=%s missing=%s unmapped_classes=%s "
+            "(serial/batch often absent — model recall is weak; local heuristics fill gaps)",
+            sorted(fields_covered),
+            missing_fields,
+            dict(sorted(unmapped_classes.items())) if unmapped_classes else {},
+        )
 
     logger.info(
         "LLM YOLO guidance: tickets=%s fields=%s crops=%s",
