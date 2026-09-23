@@ -9,8 +9,10 @@
 
 export const OCR_UPLOAD_SOFT_MAX_BYTES = 7_500_000; // under ticket-vision ~8MB guard
 export const OCR_UPLOAD_HARD_MAX_BYTES = 45_000_000; // under Spring multipart 50MB
-export const OCR_PREP_JPEG_QUALITY = 0.97;
-export const OCR_PREP_MIN_JPEG_QUALITY = 0.92;
+/** Match ticket-vision TICKET_VISION_MAX_IMAGE_DIMENSION — keeps glyphs readable. */
+export const OCR_PREP_MAX_DIMENSION = 1920;
+export const OCR_PREP_JPEG_QUALITY = 0.95;
+export const OCR_PREP_MIN_JPEG_QUALITY = 0.90;
 
 type TrimBounds = { x: number; y: number; width: number; height: number };
 
@@ -135,7 +137,9 @@ const encodePreparedJpeg = async (
     crop: TrimBounds,
     targetBytes: number
 ): Promise<Blob> => {
-    let scale = 1;
+    const longest = Math.max(crop.width, crop.height);
+    // Downscale oversized phone photos before OCR encode (faster upload + ITPM).
+    let scale = longest > OCR_PREP_MAX_DIMENSION ? OCR_PREP_MAX_DIMENSION / longest : 1;
     let quality = OCR_PREP_JPEG_QUALITY;
     let blob: Blob | null = null;
 
@@ -151,8 +155,8 @@ const encodePreparedJpeg = async (
         }
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
-        // Mild lift only — no blur/sharpen stack.
-        ctx.filter = 'contrast(1.04) brightness(1.02)';
+        // Mild OCR-friendly lift — avoid aggressive filters that blur digits.
+        ctx.filter = 'contrast(1.06) brightness(1.03) saturate(1.02)';
         ctx.drawImage(
             sourceCanvas,
             crop.x,
@@ -170,10 +174,9 @@ const encodePreparedJpeg = async (
             return blob;
         }
         if (quality > OCR_PREP_MIN_JPEG_QUALITY) {
-            quality = Math.max(OCR_PREP_MIN_JPEG_QUALITY, quality - 0.015);
-        } else if (scale > 0.85) {
-            // Last resort: tiny geometry shrink only after quality floor.
-            scale *= 0.95;
+            quality = Math.max(OCR_PREP_MIN_JPEG_QUALITY, quality - 0.02);
+        } else if (scale > 0.72) {
+            scale *= 0.92;
             quality = OCR_PREP_JPEG_QUALITY;
         } else {
             break;
@@ -186,7 +189,7 @@ const encodePreparedJpeg = async (
 };
 
 /**
- * Crop empty margins and apply a light color/contrast lift for OCR.
+ * Crop empty margins, cap resolution, mild contrast — optimized for YOLO + OCR.
  * Uploads stay as JPEG so size stays under BE multipart + ticket-vision limits.
  */
 export const optimizeOcrScanImage = async (file: File): Promise<File> => {
@@ -228,18 +231,23 @@ export const optimizeOcrScanImage = async (file: File): Promise<File> => {
             height: sourceH,
         };
         const didCrop = Boolean(bounds);
-        const alreadySmallJpeg =
-            file.type === 'image/jpeg' && file.size <= OCR_UPLOAD_SOFT_MAX_BYTES;
+        const longest = Math.max(crop.width, crop.height);
+        const needsDownscale = longest > OCR_PREP_MAX_DIMENSION;
+        const alreadyReadyJpeg =
+            file.type === 'image/jpeg' &&
+            file.size <= OCR_UPLOAD_SOFT_MAX_BYTES &&
+            !didCrop &&
+            !needsDownscale;
 
-        // No useful crop and already a small JPEG — keep original bytes (best quality).
-        if (!didCrop && alreadySmallJpeg) {
+        // Sharp, already-sized JPEG with no letterbox — keep original bytes.
+        if (alreadyReadyJpeg) {
             return file;
         }
 
         const targetBytes =
             file.size > OCR_UPLOAD_HARD_MAX_BYTES
                 ? OCR_UPLOAD_SOFT_MAX_BYTES
-                : Math.min(OCR_UPLOAD_SOFT_MAX_BYTES, Math.max(file.size, 1_000_000));
+                : Math.min(OCR_UPLOAD_SOFT_MAX_BYTES, Math.max(file.size, 800_000));
 
         const blob = await encodePreparedJpeg(sourceCanvas, crop, targetBytes);
         return new File([blob], buildPreparedFileName(file.name), {

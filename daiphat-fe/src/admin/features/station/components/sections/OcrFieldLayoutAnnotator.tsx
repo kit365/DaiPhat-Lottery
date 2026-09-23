@@ -203,13 +203,6 @@ export const OcrFieldLayoutAnnotator = ({
                     />
                 );
             })}
-            <Chip
-                label="+ Thêm vùng mới"
-                onClick={() => onSelectLayout?.(null)}
-                variant={selectedLayoutId == null ? 'filled' : 'outlined'}
-                color="default"
-                sx={{ fontWeight: 600, cursor: 'pointer' }}
-            />
         </Stack>
     );
 
@@ -259,7 +252,6 @@ export const OcrFieldLayoutAnnotator = ({
                         margin: '0 auto',
                     }}
                 >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                         key={sampleImageUrl}
                         src={sampleImageUrl}

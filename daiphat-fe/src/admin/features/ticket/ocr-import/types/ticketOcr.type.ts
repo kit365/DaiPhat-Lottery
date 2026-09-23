@@ -235,6 +235,8 @@ export interface OcrQueuedImage {
     scanId?: string | null;
     imageWidth?: number | null;
     imageHeight?: number | null;
+    scannedAt?: string | null;
+    durationMs?: number | null;
 }
 
 export interface OcrReviewRow {
@@ -271,6 +273,8 @@ export interface OcrReviewRow {
     croppedImageUrl?: string | null;
     selected: boolean;
     edited: boolean;
+    scannedAt?: string | null;
+    durationMs?: number | null;
 }
 
 export const OCR_IMPORT_DRAFT_KEY = 'ocrImportDraft';
@@ -282,6 +286,8 @@ export interface OcrImportDraftImageMeta {
     scanId?: string | null;
     imageWidth?: number | null;
     imageHeight?: number | null;
+    scannedAt?: string | null;
+    durationMs?: number | null;
 }
 
 export interface OcrImportDraft {

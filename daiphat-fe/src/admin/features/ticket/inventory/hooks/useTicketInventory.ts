@@ -1,9 +1,7 @@
 "use client";
 
-import { QUERY_KEYS } from '../constants/queryKeys';
-import { useMemo, useState, useEffect } from 'react';
-import { useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { deleteTicket } from '../services/ticketService';
+import { useMemo, useState, useEffect, useCallback } from 'react';
+import { keepPreviousData } from '@tanstack/react-query';
 import { useTickets } from './useTicket';
 import { resolveAvailableTicketQuantity } from '../utils/ticketQuantity';
 import { buildTicketStatusFilterOptions } from '../constants/ticket-status.config';
@@ -25,7 +23,6 @@ export const useTicketInventory = (
     initialFilters?: Partial<ITicketFilters>,
     initialPageSize = 10,
 ) => {
-    const queryClient = useQueryClient();
     const {
         apiPage,
         pageSize,
@@ -138,34 +135,27 @@ export const useTicketInventory = (
         limit: 10,
     };
 
-    const deleteMutation = useMutation({
-        mutationFn: deleteTicket,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKETS] });
-        },
-    });
-
-    const setFilter = (fieldId: string, values: string[]) => {
+    const setFilter = useCallback((fieldId: string, values: string[]) => {
         setFilters((prev) => ({ ...prev, [fieldId]: values }));
         resetPage();
-    };
+    }, [resetPage]);
 
-    const setDateRangeFilter = (drawDateFrom?: string, drawDateTo?: string) => {
+    const setDateRangeFilter = useCallback((drawDateFrom?: string, drawDateTo?: string) => {
         setFilters((prev) => ({ ...prev, drawDateFrom, drawDateTo }));
         resetPage();
-    };
+    }, [resetPage]);
 
-    const setImportBatchLineId = (importBatchLineId: number | null) => {
+    const setImportBatchLineId = useCallback((importBatchLineId: number | null) => {
         setFilters((prev) => ({ ...prev, importBatchLineId }));
         resetPage();
-    };
+    }, [resetPage]);
 
-    const setSearchFilter = (search: string) => {
+    const setSearchFilter = useCallback((search: string) => {
         setFilters((prev) => ({ ...prev, search }));
         resetPage();
-    };
+    }, [resetPage]);
 
-    const clearFilters = () => {
+    const clearFilters = useCallback(() => {
         setFilters({
             status: [],
             batchCode: [],
@@ -177,7 +167,7 @@ export const useTicketInventory = (
             search: '',
         });
         resetPage();
-    };
+    }, [resetPage]);
 
     return {
         tickets,
@@ -193,6 +183,5 @@ export const useTicketInventory = (
         setImportBatchLineId,
         setSearchFilter,
         clearFilters,
-        deleteTicket: deleteMutation.mutate,
     };
 };

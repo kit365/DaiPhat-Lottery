@@ -220,7 +220,6 @@ export const OcrSampleImageCropDialog = ({
                                 opacity: busy || uploading ? 0.85 : 1,
                             }}
                         >
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                                 ref={imageRef}
                                 src={imageSrc}

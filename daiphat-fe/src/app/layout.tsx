@@ -37,6 +37,12 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href={CLIENT_FAVICON} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/* Google Fonts stylesheet: required when SWC is blocked and Babel is used (next/font needs SWC). */}
+        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+        <link
+          href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800;900&family=Public+Sans:wght@400;500;600;700&display=swap"
+          rel="stylesheet"
+        />
       </head>
       <body className="antialiased" suppressHydrationWarning>
         <FontLoader />
