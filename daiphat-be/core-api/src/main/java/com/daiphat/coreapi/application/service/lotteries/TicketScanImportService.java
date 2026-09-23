@@ -70,6 +70,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Orchestrates the camera ticket-scan feature (DP-269, doc section 4 Flow 4):
@@ -163,6 +165,7 @@ public class TicketScanImportService implements TicketScanImportServicePort {
             MultipartFile file,
             UUID operatorId
     ) {
+        long tAll = System.nanoTime();
         ImportBatchLineModel importBatchLine = null;
         ImportBatchModel importBatch = null;
         LotteryStationModel lineStation = null;
@@ -183,8 +186,15 @@ public class TicketScanImportService implements TicketScanImportServicePort {
         } catch (IOException e) {
             throw new DomainException(ErrorCode.TICKET_SCAN_IMAGE_REQUIRED, e.getMessage());
         }
+        long decodeMs = (System.nanoTime() - tAll) / 1_000_000L;
 
-        String sourceImageUrl = uploadOriginalScanImage(imageBytes, file.getOriginalFilename(), file.getContentType());
+        // Upload original to Cloudinary in parallel with ticket-vision OCR so
+        // network I/O does not block the critical recognition path.
+        String originalFilename = file.getOriginalFilename();
+        String contentType = file.getContentType();
+        CompletableFuture<String> sourceUploadFuture = CompletableFuture.supplyAsync(
+                () -> uploadOriginalScanImage(imageBytes, originalFilename, contentType)
+        );
 
         lotteryScanLogServicePort.recordEvent(
                 ScanEventType.SCAN_STARTED, null, null, operatorId, ScanMethod.OCR_SCAN, null,
@@ -206,17 +216,20 @@ public class TicketScanImportService implements TicketScanImportServicePort {
         RemoteScanMetadata metadata = buildScanMetadata(visionStations, preferredStationId, targetDrawDate);
         Long initialTemplateId = metadata.templateId();
 
+        long tVision = System.nanoTime();
         RemoteTicketScanResult remoteResult = ticketVisionPort.scan(
                 imageBytes,
-                file.getOriginalFilename(),
+                originalFilename,
                 metadata
         );
+        long visionMs = (System.nanoTime() - tVision) / 1_000_000L;
 
         // When OCR identifies a station with its own template, optionally re-scan
         // once with those field layouts. Skip when the first pass already looks
         // complete or the image has many tickets — a second full LLM pass often
         // exceeds FE/proxy deadlines without improving readable results.
         Long ocrStationId = peekUnanimousOcrStationId(remoteResult, visionStations);
+        long rescanMs = 0L;
         if (shouldRescanWithStationTemplate(
                 remoteResult, preferredStationId, ocrStationId, initialTemplateId, targetDrawDate
         )) {
@@ -233,13 +246,19 @@ public class TicketScanImportService implements TicketScanImportServicePort {
             if (stationMetadata.templateId() != null
                     && stationMetadata.fieldLayouts() != null
                     && !stationMetadata.fieldLayouts().isEmpty()) {
+                long tRescan = System.nanoTime();
                 remoteResult = ticketVisionPort.scan(
                         imageBytes,
-                        file.getOriginalFilename(),
+                        originalFilename,
                         stationMetadata
                 );
+                rescanMs = (System.nanoTime() - tRescan) / 1_000_000L;
             }
         }
+
+        long tUploadJoin = System.nanoTime();
+        String sourceImageUrl = awaitSourceImageUpload(sourceUploadFuture);
+        long uploadJoinMs = (System.nanoTime() - tUploadJoin) / 1_000_000L;
 
         List<RemoteScannedTicket> remoteTickets =
                 remoteResult.tickets() != null ? remoteResult.tickets() : List.of();
@@ -247,6 +266,7 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                 ? new ArrayList<>(remoteResult.warnings())
                 : new ArrayList<>();
 
+        long tEnrich = System.nanoTime();
         List<ScannedTicketResponse> enrichedTickets = new ArrayList<>();
         for (RemoteScannedTicket remoteTicket : remoteTickets) {
             try {
@@ -257,7 +277,7 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                         remoteResult.scanId(),
                         importBatchLineId,
                         operatorId,
-                        file.getOriginalFilename(),
+                        originalFilename,
                         sourceImageUrl,
                         remoteResult.imageWidth(),
                         remoteResult.imageHeight()
@@ -273,13 +293,26 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                 enrichedTickets.add(softFailedTicket(
                         remoteTicket,
                         remoteResult.scanId(),
-                        file.getOriginalFilename(),
+                        originalFilename,
                         sourceImageUrl,
                         remoteResult.imageWidth(),
                         remoteResult.imageHeight()
                 ));
             }
         }
+        long enrichMs = (System.nanoTime() - tEnrich) / 1_000_000L;
+        long totalMs = (System.nanoTime() - tAll) / 1_000_000L;
+        log.info(
+                "OCR BE stage timings ms: decode+meta={} vision={} rescan={} uploadJoin={} enrich={} total={} tickets={} fileBytes={}",
+                decodeMs,
+                visionMs,
+                rescanMs,
+                uploadJoinMs,
+                enrichMs,
+                totalMs,
+                enrichedTickets.size(),
+                imageBytes.length
+        );
 
         if (enrichedTickets.isEmpty()) {
             ScannedTicketResponse placeholder = unreadableImageTicket(
@@ -1198,6 +1231,23 @@ public class TicketScanImportService implements TicketScanImportServicePort {
             return lotteryTicketServicePort.uploadAsset(uploadRequest).url();
         } catch (Exception e) {
             log.warn("Failed to upload original OCR source image; review resume may lack preview", e);
+            return null;
+        }
+    }
+
+    /**
+     * Join the background Cloudinary upload started before ticket-vision.
+     * Vision usually dominates latency, so this is typically already done.
+     */
+    private String awaitSourceImageUpload(CompletableFuture<String> uploadFuture) {
+        if (uploadFuture == null) {
+            return null;
+        }
+        try {
+            return uploadFuture.get(45, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.warn("OCR source image upload did not finish in time; continuing without durable preview", e);
+            uploadFuture.cancel(true);
             return null;
         }
     }
