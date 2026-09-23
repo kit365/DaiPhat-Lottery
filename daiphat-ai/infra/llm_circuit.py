@@ -33,6 +33,17 @@ def cooldown_seconds() -> int:
         return 900
 
 
+def soft_cooldown_seconds() -> int:
+    """Short cooldown after transient ITPM/TPM — not daily TPD exhaustion."""
+    try:
+        return max(
+            0,
+            int(getattr(settings, "TICKET_VISION_LLM_CIRCUIT_SOFT_COOLDOWN_SECONDS", 45) or 0),
+        )
+    except (TypeError, ValueError):
+        return 45
+
+
 def snapshot() -> LlmCircuitSnapshot:
     with _lock:
         remaining = max(0, int(_open_until - time.monotonic()))
@@ -47,17 +58,17 @@ def is_open() -> bool:
     return snapshot().open
 
 
-def trip(reason: str) -> None:
-    seconds = cooldown_seconds()
-    if seconds <= 0:
+def trip(reason: str, *, seconds: int | None = None) -> None:
+    cooldown = cooldown_seconds() if seconds is None else max(0, int(seconds))
+    if cooldown <= 0:
         return
     global _open_until, _last_reason
     with _lock:
-        _open_until = time.monotonic() + seconds
+        _open_until = time.monotonic() + cooldown
         _last_reason = (reason or "cloud LLM unavailable").strip()[:240]
         logger.warning(
             "LLM circuit OPEN for %ss — subsequent scans skip cloud vision (%s)",
-            seconds,
+            cooldown,
             _last_reason,
         )
 

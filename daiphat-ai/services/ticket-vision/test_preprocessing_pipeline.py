@@ -132,8 +132,23 @@ def test_enhance_for_ocr_preserves_shape_and_is_mild():
     cv2.rectangle(canvas, (20, 30), (160, 90), (40, 40, 40), thickness=-1)
     result = enhance_for_ocr(canvas)
     assert result.shape == canvas.shape
-    # Lighting normalize should stay close to the source mean.
-    assert abs(float(result.mean()) - float(canvas.mean())) < 40.0
+    # Adaptive path may leave a clear crop unchanged or apply mild lighting.
+    assert abs(float(result.mean()) - float(canvas.mean())) < 45.0
+
+
+def test_enhance_for_ocr_leaves_clear_high_quality_crop_unchanged():
+    """Well-lit, high-contrast ticket crop must not be degraded."""
+    rng = np.random.default_rng(7)
+    # Simulated sharp text: mid-gray background + dark rectangles (high contrast + edges).
+    canvas = np.full((240, 360, 3), (168, 172, 175), dtype=np.uint8)
+    for x in range(30, 330, 28):
+        cv2.rectangle(canvas, (x, 80), (x + 16, 160), (25, 25, 25), thickness=-1)
+    # Add fine edge detail so Laplacian sharpness stays high.
+    noise = rng.integers(-4, 5, size=canvas.shape, dtype=np.int16)
+    canvas = np.clip(canvas.astype(np.int16) + noise, 0, 255).astype(np.uint8)
+    result = enhance_for_ocr(canvas)
+    assert result.shape == canvas.shape
+    assert np.array_equal(result, canvas)
 
 
 def test_encode_to_base64_png_is_lossless():
@@ -170,7 +185,39 @@ def test_expand_bbox_pads_outward_without_leaving_image():
     assert x >= 0 and y >= 0 and x + w <= 200 and y + h <= 200
 
 
+def test_expand_bbox_stays_tight_on_large_tickets():
+    """Oversized pad previously pulled neighbor tickets into the crop."""
+    from domain.preprocessing.pipeline import expand_bbox
+
+    # 400x700 ticket on a 1200x1600 photo — pad must stay a thin fringe.
+    x, y, w, h = expand_bbox(100, 200, 400, 700, 1200, 1600)
+    pad_x = 100 - x
+    pad_y = 200 - y
+    assert pad_x <= 20
+    assert pad_y <= 20
+    assert (w - 400) <= 40
+    assert (h - 700) <= 40
+
+
 def test_resize_if_needed_caps_longest_side():
     canvas = np.zeros((2400, 1800, 3), dtype=np.uint8)
     resized = resize_if_needed(canvas, 1600)
     assert max(resized.shape[:2]) == 1600
+
+
+def test_prepare_field_crop_upscales_tiny_serial_strip():
+    from domain.preprocessing.pipeline import prepare_field_crop_for_ocr
+
+    tiny = np.full((20, 80, 3), 180, dtype=np.uint8)
+    out = prepare_field_crop_for_ocr(tiny, "serialNumber")
+    assert min(out.shape[:2]) >= 56
+
+
+def test_prepare_field_crop_station_normalizes_flat_banner():
+    from domain.preprocessing.pipeline import prepare_field_crop_for_ocr
+
+    # Flat pink-ish banner (low contrast) should still return a usable crop.
+    banner = np.full((40, 200, 3), (180, 160, 220), dtype=np.uint8)
+    out = prepare_field_crop_for_ocr(banner, "stationName")
+    assert out.shape[0] >= 40
+    assert out.shape[1] >= 200

@@ -4,9 +4,9 @@ from datetime import date
 
 from dto.response.scan_response import ExtractedTicketFields
 
-# Serial: primarily digits, exactly one letter at the start OR end (e.g. A123456, 123456B).
-# Letters in the middle (X5CM0897, 32TV17, 4E2) are rejected — those belong to batchCode.
+# Serial: letter+digits (A123456) OR digit-only 5–8 (top-left on some stations).
 SERIAL_PATTERN = re.compile(r"^(?:[A-Za-z]\d{4,19}|\d{4,19}[A-Za-z])$")
+DIGIT_SERIAL_PATTERN = re.compile(r"^\d{5,8}$")
 _SERIAL_PATTERN = SERIAL_PATTERN  # backwards-compatible alias
 
 # Lottery number on traditional tickets: exactly 6 digits — never pad/truncate.
@@ -50,7 +50,11 @@ def parse_price_digits(raw: str | None) -> int | None:
 def is_valid_serial_number(value: str | None) -> bool:
     if not value or not str(value).strip():
         return False
-    return bool(SERIAL_PATTERN.match(str(value).strip()))
+    cleaned = str(value).strip()
+    if SERIAL_PATTERN.match(cleaned):
+        return True
+    # Digit-only serials (HCM/BD top-left) — not batch-shaped.
+    return bool(DIGIT_SERIAL_PATTERN.match(cleaned))
 
 
 def is_valid_batch_code(value: str | None) -> bool:
@@ -130,23 +134,29 @@ class FormatValidator:
 
         if not extracted.serialNumber:
             missing.append("serialNumber")
-        elif not SERIAL_PATTERN.match(extracted.serialNumber):
+        elif not is_valid_serial_number(extracted.serialNumber):
             errors.append(
-                "serialNumber không đúng định dạng: chủ yếu là chữ số, đúng 1 chữ cái "
-                "ở đầu hoặc cuối (ví dụ A123456, 123456B). Không chấp nhận chữ cái ở giữa."
+                "serialNumber không đúng định dạng: chữ số + 1 chữ cái ở đầu/cuối "
+                "(A123456), hoặc dãy 5–8 chữ số (sê-ri góc trên). "
+                "Không chấp nhận mã lô có chữ cái ở giữa (4E2, T05K4)."
             )
 
         if not extracted.numbers:
             missing.append("numbers")
         elif not extracted.numbers.isdigit():
             errors.append("numbers phải là chữ số.")
+        elif expected_number_length is not None:
+            # Station-specific length from metadata — never pad/truncate to force a match.
+            if len(extracted.numbers) != expected_number_length:
+                errors.append(
+                    f"numbers phải có đúng {expected_number_length} chữ số cho đài này "
+                    "(không được thiếu/thừa; không tự cắt hoặc thêm số)."
+                )
         elif not _NUMBERS_PATTERN.match(extracted.numbers):
+            # Default VN lottery length when no station expectation was supplied.
             errors.append(
                 "numbers phải đủ đúng 6 chữ số (không được thiếu/thừa; không tự cắt hoặc thêm số)."
             )
-        elif expected_number_length is not None and len(extracted.numbers) != expected_number_length:
-            # Station-specific length when Java/metadata supplies one (still no pad/truncate).
-            errors.append(f"numbers phải có {expected_number_length} chữ số cho đài này.")
 
         if not extracted.drawDate:
             missing.append("drawDate")

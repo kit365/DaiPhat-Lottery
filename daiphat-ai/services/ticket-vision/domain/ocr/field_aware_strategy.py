@@ -16,12 +16,11 @@ def _average_confidence(results: list[OcrTextResult]) -> float:
 
 
 class FieldAwareOcrStrategy(OcrStrategy):
-    """Composite: specialized field reader → general EasyOCR/Paddle fallback.
+    """Composite: specialized field reader → general only on hard failure.
 
-    For regions named ``field:<name>`` (via field_hint), try the specialized
-    engine first. If it raises, returns empty, or scores below
-    ``low_confidence_threshold``, retry with ``general`` and keep the better
-    of the two — same confidence tournament as FallbackOcrStrategy.
+    Specialized already runs ONNX (optional) then charset-constrained EasyOCR.
+    Calling ``general`` again on empty results doubled EasyOCR cost (~2× per
+    field) and was the main cause of 100s+ scans when ONNX returned blank.
     """
 
     name = "field_aware"
@@ -56,46 +55,42 @@ class FieldAwareOcrStrategy(OcrStrategy):
         if not use_specialized:
             return self.general.read_text(image, languages, field_hint=field_hint)
 
-        specialized_results: list[OcrTextResult] | None = None
-        specialized_failed = False
         try:
             specialized_results = self.specialized.read_text(
                 image, languages, field_hint=field_hint
             )
         except Exception as exc:  # noqa: BLE001 -- never fail a scan over specialized OCR
-            specialized_failed = True
             logger.warning(
                 "Specialized field OCR for '%s' failed: %s — falling back to general OCR",
                 field_hint,
                 exc,
             )
+            try:
+                return self.general.read_text(image, languages, field_hint=field_hint)
+            except Exception as general_exc:  # noqa: BLE001
+                logger.warning("General OCR also failed for field '%s': %s", field_hint, general_exc)
+                return []
 
-        specialized_confidence = (
-            _average_confidence(specialized_results) if specialized_results is not None else 0.0
-        )
-        if (
-            not specialized_failed
-            and specialized_results
-            and specialized_confidence >= self.low_confidence_threshold
-        ):
+        if specialized_results and _average_confidence(specialized_results) >= self.low_confidence_threshold:
             return specialized_results
 
-        logger.info(
-            "Field OCR '%s' → general (failed=%s, conf=%.2f < %.2f or empty)",
-            field_hint,
-            specialized_failed,
-            specialized_confidence,
-            self.low_confidence_threshold,
-        )
+        # Empty / low-conf field crops must still try general OCR (Paddle det+rec
+        # or EasyOCR). Skipping this left Admin with correct YOLO boxes but
+        # every field UNREADABLE on clear tickets (e.g. Cà Mau scenic prints).
         try:
             general_results = self.general.read_text(image, languages, field_hint=field_hint)
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("General OCR also failed for field '%s': %s", field_hint, exc)
+        except Exception as general_exc:  # noqa: BLE001
+            logger.warning(
+                "General OCR fallback failed for field '%s': %s",
+                field_hint,
+                general_exc,
+            )
             return specialized_results or []
 
-        if specialized_results is None or not specialized_results:
-            return general_results
-
-        if _average_confidence(general_results) > specialized_confidence:
+        if not specialized_results:
+            return general_results or []
+        if not general_results:
+            return specialized_results
+        if _average_confidence(general_results) > _average_confidence(specialized_results):
             return general_results
         return specialized_results

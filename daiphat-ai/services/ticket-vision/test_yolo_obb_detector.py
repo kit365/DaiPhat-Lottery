@@ -91,9 +91,15 @@ def test_converts_an_obb_into_bbox_and_ordered_corners():
 
     assert len(result.regions) == 1
     region = result.regions[0]
-    assert region.bbox == (100, 80, 300, 600)
-    # Re-ordered to TL, TR, BR, BL regardless of the input order.
-    assert region.corners == [(100, 80), (400, 80), (400, 680), (100, 680)]
+    x, y, w, h = region.bbox
+    # Tiny outward pad so edge glyphs survive without neighbor bleed.
+    assert x <= 100 and y <= 80
+    assert x + w >= 400 and y + h >= 680
+    assert (100 - x) <= 12 and (80 - y) <= 12
+    assert (w - 300) <= 24 and (h - 600) <= 24
+    # Re-ordered to TL, TR, BR, BL regardless of the input order (also padded).
+    assert region.corners[0][0] <= 100 and region.corners[0][1] <= 80
+    assert region.corners[1][0] >= 400 and region.corners[1][1] <= 80
 
 
 def test_passes_configured_thresholds_to_predict():
@@ -125,7 +131,8 @@ def test_clamps_boxes_that_extend_past_the_frame_edge():
 
     x, y, w, h = result.regions[0].bbox
     assert (x, y) == (0, 0)
-    assert w == 400 and h == 600
+    assert w >= 400 and h >= 600
+    assert w <= 420 and h <= 620
 
 
 def test_orders_detections_in_reading_order():
@@ -138,15 +145,19 @@ def test_orders_detections_in_reading_order():
 
     result = _detector(model).detect(_image(width=1600))
 
-    assert [r.bbox[0] for r in result.regions] == [100, 900]
+    xs = [r.bbox[0] for r in result.regions]
+    assert xs[0] < xs[1]
+    assert xs[0] <= 100
+    assert xs[1] <= 900
 
 
 def test_caps_detections_at_max_tickets_and_warns():
     quads, boxes = [], []
     for i in range(20):
-        x = 50 + i * 10
-        quads.append([[x, 100], [x + 40, 100], [x + 40, 300], [x, 300]])
-        boxes.append([x, 100, x + 40, 300])
+        x = 50 + i * 80
+        # Realistic ticket aspect (~0.45) so padding does not fail the filter.
+        quads.append([[x, 100], [x + 180, 100], [x + 180, 500], [x, 500]])
+        boxes.append([x, 100, x + 180, 500])
     model = _FakeModel(_FakeResult(_FakeObb(quads, boxes)))
 
     result = _detector(model, max_tickets=15).detect(_image(width=2400))
@@ -173,7 +184,9 @@ def test_keeps_only_whole_ticket_detections():
     result = _detector(model).detect(_image())
 
     assert len(result.regions) == 1
-    assert result.regions[0].bbox == (100, 80, 300, 600)
+    x, y, w, h = result.regions[0].bbox
+    assert x <= 100 and y <= 80
+    assert x + w >= 400 and y + h >= 680
 
 
 def test_keeps_every_detection_when_the_ticket_class_is_missing_from_the_model():

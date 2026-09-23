@@ -100,6 +100,33 @@ def test_numbers_must_be_exactly_six_digits():
     assert any("6 chữ số" in error for error in result.errors)
 
 
+def test_numbers_respects_station_expected_length_without_padding():
+    """Station metadata length wins over the default 6-digit rule; no inventing digits."""
+    validator = FormatValidator()
+    extracted = ExtractedTicketFields(
+        stationName="Đài 5 số",
+        serialNumber="A012345",
+        numbers="29840",
+        drawDate="2026-08-05",
+    )
+
+    ok = validator.validate(extracted, expected_number_length=5)
+    assert ok.is_valid
+
+    wrong = validator.validate(
+        ExtractedTicketFields(
+            stationName="Đài 5 số",
+            serialNumber="A012345",
+            numbers="298406",
+            drawDate="2026-08-05",
+        ),
+        expected_number_length=5,
+    )
+    assert not wrong.is_valid
+    assert any("5 chữ số" in error for error in wrong.errors)
+    assert wrong.errors and "298406" not in "".join(wrong.errors)  # value not mutated into message needlessly
+
+
 def test_numbers_seven_digits_rejected_without_truncation():
     validator = FormatValidator()
     extracted = ExtractedTicketFields(
