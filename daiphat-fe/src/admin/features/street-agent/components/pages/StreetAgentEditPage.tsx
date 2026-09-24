@@ -24,7 +24,7 @@ import Link from "@/admin/components/navigation/AdminLink";
 import { Button } from "../../../../components/ui/Button";
 import { AdminConfirmDialog } from "../../../../components/ui/AdminConfirmDialog";
 import { StreetAgentProfileForm } from "../sections/StreetAgentProfileForm";
-import { getStreetAgentOnboardingResumePath } from "../../services/streetAgentService";
+import { getStreetAgentOnboardingResumePath, verifyStreetAgentEkyc } from "../../services/streetAgentService";
 import {
     parseCoverageAreaCodes,
     serializeCoverageAreaCodes,
@@ -45,6 +45,9 @@ const defaultValues: UpdateStreetAgentProfileFormValues = {
     phone: "",
     cccd: "",
     imageUrl: "",
+    cccdFrontImageUrl: "",
+    cccdBackImageUrl: "",
+    cccdSelfieImageUrl: "",
     contactAddress: "",
     contactProvince: "",
     contactWard: "",
@@ -60,6 +63,9 @@ const buildBasePayload = (data: UpdateStreetAgentProfileFormValues) => ({
     phone: data.phone,
     cccd: data.cccd,
     imageUrl: data.imageUrl || undefined,
+    cccdFrontImageUrl: data.cccdFrontImageUrl || undefined,
+    cccdBackImageUrl: data.cccdBackImageUrl || undefined,
+    cccdSelfieImageUrl: data.cccdSelfieImageUrl || undefined,
     contactAddress: data.contactAddress || undefined,
     contactProvince: data.contactProvince || undefined,
     contactWard: data.contactWard || undefined,
@@ -75,6 +81,9 @@ const buildPayloadFromProfile = (profile: StreetAgentProfile) => ({
     phone: profile.phone,
     cccd: profile.cccd,
     imageUrl: profile.imageUrl || undefined,
+    cccdFrontImageUrl: profile.cccdFrontImageUrl || undefined,
+    cccdBackImageUrl: profile.cccdBackImageUrl || undefined,
+    cccdSelfieImageUrl: profile.cccdSelfieImageUrl || undefined,
     contactAddress: profile.contactAddress || undefined,
     contactProvince: profile.contactProvince || undefined,
     contactWard: profile.contactWard || undefined,
@@ -101,6 +110,7 @@ export const StreetAgentEditPage = () => {
     const [contractChangeConfirmOpen, setContractChangeConfirmOpen] = useState(false);
     const [pendingContractUpdate, setPendingContractUpdate] = useState<UpdateStreetAgentProfileFormValues | null>(null);
     const [viewSignedOpen, setViewSignedOpen] = useState(false);
+    const [isVerifyingEkyc, setIsVerifyingEkyc] = useState(false);
 
     const { control, handleSubmit, setValue, watch, reset, getValues } = useForm<UpdateStreetAgentProfileFormValues>({
         resolver: zodResolver(updateStreetAgentProfileSchema) as any,
@@ -131,6 +141,9 @@ export const StreetAgentEditPage = () => {
                 phone: profile.phone || "",
                 cccd: profile.cccd || "",
                 imageUrl: profile.imageUrl || "",
+                cccdFrontImageUrl: profile.cccdFrontImageUrl || "",
+                cccdBackImageUrl: profile.cccdBackImageUrl || "",
+                cccdSelfieImageUrl: profile.cccdSelfieImageUrl || "",
                 contactAddress: profile.contactAddress || "",
                 contactProvince: profile.contactProvince || "",
                 contactWard: profile.contactWard || "",
@@ -141,6 +154,46 @@ export const StreetAgentEditPage = () => {
             });
         }
     }, [profile, reset]);
+
+    const handleVerifyEkyc = async () => {
+        if (!id) return;
+        const values = getValues();
+        // Persist image URLs first so verify uses the latest stored paths.
+        update(
+            {
+                id,
+                data: buildBasePayload(values),
+            },
+            {
+                onSuccess: async (response) => {
+                    if (!response.success) {
+                        toast.error(response.message || "Không lưu được ảnh eKYC");
+                        return;
+                    }
+                    try {
+                        setIsVerifyingEkyc(true);
+                        const verifyRes = await verifyStreetAgentEkyc(id);
+                        if (verifyRes.success) {
+                            toast.success(verifyRes.message || "Xác thực eKYC thành công.");
+                            refetch();
+                        } else {
+                            toast.error(verifyRes.message || "Xác thực eKYC thất bại");
+                            refetch();
+                        }
+                    } catch (error: any) {
+                        toast.error(
+                            error?.response?.data?.message ||
+                                error?.message ||
+                                "Xác thực eKYC thất bại"
+                        );
+                        refetch();
+                    } finally {
+                        setIsVerifyingEkyc(false);
+                    }
+                },
+            }
+        );
+    };
 
     const handleOpenFile = () => {
         fileInputRef.current?.click();
@@ -382,6 +435,13 @@ export const StreetAgentEditPage = () => {
                     fileInputRef={fileInputRef}
                     onOpenFile={handleOpenFile}
                     onFileChange={handleFileChange}
+                    profileId={id}
+                    ekycStatus={profile?.ekycStatus}
+                    ekycFailureReason={profile?.ekycFailureReason}
+                    ekycOcrName={profile?.ekycOcrName}
+                    ekycOcrIdNumber={profile?.ekycOcrIdNumber}
+                    onVerifyEkyc={handleVerifyEkyc}
+                    isVerifyingEkyc={isVerifyingEkyc || isPending}
                     statusChip={profile?.status}
                     confidenceScore={profile?.confidenceScore}
                     confidenceTier={profile?.confidenceTier}

@@ -49,6 +49,9 @@ const toFormValues = (profile: StreetAgentProfile): UpdateStreetAgentProfileForm
     phone: profile.phone || "",
     cccd: profile.cccd || "",
     imageUrl: profile.imageUrl || "",
+    cccdFrontImageUrl: profile.cccdFrontImageUrl || "",
+    cccdBackImageUrl: profile.cccdBackImageUrl || "",
+    cccdSelfieImageUrl: profile.cccdSelfieImageUrl || "",
     contactAddress: profile.contactAddress || "",
     contactProvince: profile.contactProvince || "",
     contactWard: profile.contactWard || "",
@@ -159,6 +162,9 @@ export const StreetAgentProfileEditModal = ({
                     phone: data.phone,
                     cccd: data.cccd,
                     imageUrl: data.imageUrl || undefined,
+                    cccdFrontImageUrl: data.cccdFrontImageUrl || undefined,
+                    cccdBackImageUrl: data.cccdBackImageUrl || undefined,
+                    cccdSelfieImageUrl: data.cccdSelfieImageUrl || undefined,
                     contactAddress: data.contactAddress || undefined,
                     contactProvince: data.contactProvince || undefined,
                     contactWard: data.contactWard || undefined,
@@ -263,6 +269,11 @@ export const StreetAgentProfileEditModal = ({
                             fileInputRef={fileInputRef}
                             onOpenFile={handleOpenFile}
                             onFileChange={handleFileChange}
+                            profileId={profileId}
+                            ekycStatus={profile?.ekycStatus}
+                            ekycFailureReason={profile?.ekycFailureReason}
+                            ekycOcrName={profile?.ekycOcrName}
+                            ekycOcrIdNumber={profile?.ekycOcrIdNumber}
                             statusChip={profile?.status}
                             contractDocumentUrl={profile?.contractDocumentUrl}
                             vendorDefaults={vendorDefaults}

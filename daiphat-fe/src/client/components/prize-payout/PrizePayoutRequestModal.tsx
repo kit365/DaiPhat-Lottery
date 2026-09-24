@@ -37,12 +37,16 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
     const [recipientIdNumber, setRecipientIdNumber] = useState('');
     const [frontImageUrl, setFrontImageUrl] = useState('');
     const [backImageUrl, setBackImageUrl] = useState('');
+    const [selfieImageUrl, setSelfieImageUrl] = useState('');
     const [frontPreview, setFrontPreview] = useState('');
     const [backPreview, setBackPreview] = useState('');
+    const [selfiePreview, setSelfiePreview] = useState('');
     const [uploadingFront, setUploadingFront] = useState(false);
     const [uploadingBack, setUploadingBack] = useState(false);
+    const [uploadingSelfie, setUploadingSelfie] = useState(false);
     const frontInputRef = useRef<HTMLInputElement>(null);
     const backInputRef = useRef<HTMLInputElement>(null);
+    const selfieInputRef = useRef<HTMLInputElement>(null);
     const { data: bankAccountsData, isLoading: isLoadingBanks } = useGetBankAccounts(isOpen);
     const createMutation = useCreatePrizePayout();
 
@@ -56,8 +60,10 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
         setRecipientIdNumber('');
         setFrontImageUrl('');
         setBackImageUrl('');
+        setSelfieImageUrl('');
         setFrontPreview('');
         setBackPreview('');
+        setSelfiePreview('');
         setPreviewLoading(true);
         prizePayoutService
             .preview({ orderDetailId: ticket.orderDetailId, serialId: ticket.serialId })
@@ -86,10 +92,10 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
 
     if (!isOpen || typeof document === 'undefined') return null;
 
-    const handleUpload = async (file: File, side: 'front' | 'back') => {
+    const handleUpload = async (file: File, side: 'front' | 'back' | 'selfie') => {
         const maxBytes = CCCD_MAX_MB * 1024 * 1024;
         if (!file.type.startsWith('image/')) {
-            toast.error('Chỉ chấp nhận file ảnh CCCD');
+            toast.error(side === 'selfie' ? 'Chỉ chấp nhận file ảnh selfie' : 'Chỉ chấp nhận file ảnh CCCD');
             return;
         }
         if (file.size > maxBytes) {
@@ -101,30 +107,39 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
         if (side === 'front') {
             setFrontPreview(localPreview);
             setUploadingFront(true);
-        } else {
+        } else if (side === 'back') {
             setBackPreview(localPreview);
             setUploadingBack(true);
+        } else {
+            setSelfiePreview(localPreview);
+            setUploadingSelfie(true);
         }
 
         try {
             const url = await prizePayoutService.uploadRecipientIdImage(file);
             if (side === 'front') {
                 setFrontImageUrl(url);
-            } else {
+            } else if (side === 'back') {
                 setBackImageUrl(url);
+            } else {
+                setSelfieImageUrl(url);
             }
         } catch (error: any) {
-            toast.error(error?.message || 'Tải ảnh CCCD thất bại');
+            toast.error(error?.message || 'Tải ảnh thất bại');
             if (side === 'front') {
                 setFrontPreview('');
                 setFrontImageUrl('');
-            } else {
+            } else if (side === 'back') {
                 setBackPreview('');
                 setBackImageUrl('');
+            } else {
+                setSelfiePreview('');
+                setSelfieImageUrl('');
             }
         } finally {
             if (side === 'front') setUploadingFront(false);
-            else setUploadingBack(false);
+            else if (side === 'back') setUploadingBack(false);
+            else setUploadingSelfie(false);
         }
     };
 
@@ -132,8 +147,10 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
         isValidCccdNumber(recipientIdNumber) &&
         !!frontImageUrl &&
         !!backImageUrl &&
+        !!selfieImageUrl &&
         !uploadingFront &&
-        !uploadingBack;
+        !uploadingBack &&
+        !uploadingSelfie;
 
     const handleSubmit = () => {
         if (bankAccountId === '' || !canContinueIdentity) return;
@@ -145,6 +162,7 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
                 recipientIdNumber: recipientIdNumber.trim(),
                 recipientIdImageUrl: frontImageUrl,
                 recipientIdImageBackUrl: backImageUrl,
+                recipientSelfieUrl: selfieImageUrl,
             },
             {
                 onSuccess: (response) => {
@@ -169,7 +187,7 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
     const canContinueOnline = !stationOfficeOnly && (preview == null || preview.canClaimOnline);
 
     const renderCccdUpload = (
-        side: 'front' | 'back',
+        side: 'front' | 'back' | 'selfie',
         label: string,
         previewUrl: string,
         uploadedUrl: string,
@@ -320,7 +338,7 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
                 ) : step === 2 ? (
                     <div className="p-5 flex flex-col gap-4">
                         <p className="text-[14px] text-[#637381]">
-                            Xác minh danh tính — tải CCCD mặt trước, mặt sau và nhập số CCCD
+                            Xác minh danh tính — tải CCCD mặt trước, mặt sau, selfie và nhập số CCCD
                         </p>
                         <label className="flex flex-col gap-1.5">
                             <span className="text-[13px] font-semibold text-[#212B36]">Số CCCD / CMND *</span>
@@ -361,9 +379,21 @@ export const PrizePayoutRequestModal: React.FC<PrizePayoutRequestModalProps> = (
                                     setBackImageUrl('');
                                 },
                             )}
+                            {renderCccdUpload(
+                                'selfie',
+                                'Ảnh selfie',
+                                selfiePreview,
+                                selfieImageUrl,
+                                uploadingSelfie,
+                                selfieInputRef,
+                                () => {
+                                    setSelfiePreview('');
+                                    setSelfieImageUrl('');
+                                },
+                            )}
                         </div>
                         <p className="text-[12px] text-[#919EAB] m-0">
-                            Ảnh CCCD dùng để nhân viên đối chiếu khi duyệt trả thưởng trực tuyến.
+                            Ảnh dùng để xác thực eKYC (OCR, khuôn mặt, liveness) khi tạo yêu cầu trả thưởng.
                         </p>
                         <div className="flex gap-2">
                             <button

@@ -31,6 +31,8 @@ import {
 import { formatConfidencePoints, formatCurrency, formatVendorHandoverLimit, formatVnd } from "../../utils/format";
 import { useVietnamLocation } from "../../hooks/useVietnamLocation";
 import { AdminDatePicker } from "../../../../components/ui/AdminDatePicker";
+import { UploadSingleFile } from "../../../../components/upload/UploadSingleFile";
+import { uploadStreetAgentEkycImage } from "../../services/streetAgentService";
 
 const fieldSx = {
     "& .MuiOutlinedInput-root": {
@@ -52,6 +54,13 @@ interface StreetAgentProfileFormProps {
     onOpenFile: () => void;
     onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
     mode?: "create" | "edit";
+    profileId?: number | string | null;
+    ekycStatus?: string | null;
+    ekycFailureReason?: string | null;
+    ekycOcrName?: string | null;
+    ekycOcrIdNumber?: string | null;
+    onVerifyEkyc?: () => void;
+    isVerifyingEkyc?: boolean;
     contractCode?: string | null;
     contractDocumentUrl?: string | null;
     contractMaxDailyCap?: number | null;
@@ -169,6 +178,13 @@ export const StreetAgentProfileForm = ({
     onOpenFile,
     onFileChange,
     mode = "create",
+    profileId,
+    ekycStatus,
+    ekycFailureReason,
+    ekycOcrName,
+    ekycOcrIdNumber,
+    onVerifyEkyc,
+    isVerifyingEkyc = false,
     contractCode,
     contractDocumentUrl,
     contractMaxDailyCap,
@@ -460,6 +476,118 @@ export const StreetAgentProfileForm = ({
                                     <TextField {...field} required label="Số CCCD" type="text" slotProps={{ htmlInput: { inputMode: "numeric" } }} fullWidth error={!!fieldState.error} helperText={fieldState.error?.message} sx={fieldSx} />
                                 )}
                             />
+                        </Box>
+
+                        <Box sx={{ mt: 3, pt: 3, borderTop: "1px dashed var(--palette-divider)" }}>
+                            <Stack
+                                direction="row"
+                                alignItems="center"
+                                justifyContent="space-between"
+                                spacing={2}
+                                useFlexGap
+                                flexWrap="wrap"
+                                sx={{ mb: 1.5 }}
+                            >
+                                <Box>
+                                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                                        Xác thực CCCD (eKYC)
+                                    </Typography>
+                                    <Typography variant="caption" sx={{ color: "var(--palette-text-secondary)" }}>
+                                        Tải ảnh CCCD mặt trước, mặt sau và selfie. Sau khi lưu hồ sơ, bấm xác thực.
+                                    </Typography>
+                                </Box>
+                                {ekycStatus ? (
+                                    <Chip
+                                        size="small"
+                                        label={
+                                            ekycStatus === "VERIFIED"
+                                                ? "Đã xác thực"
+                                                : ekycStatus === "FAILED"
+                                                  ? "Thất bại"
+                                                  : "Chờ xác thực"
+                                        }
+                                        sx={{
+                                            ...STATUS_CHIP_SX,
+                                            bgcolor:
+                                                ekycStatus === "VERIFIED"
+                                                    ? "rgba(34, 197, 94, 0.16)"
+                                                    : ekycStatus === "FAILED"
+                                                      ? "rgba(255, 86, 48, 0.16)"
+                                                      : "rgba(255, 171, 0, 0.16)",
+                                            color:
+                                                ekycStatus === "VERIFIED"
+                                                    ? "rgb(17, 141, 87)"
+                                                    : ekycStatus === "FAILED"
+                                                      ? "rgb(183, 29, 24)"
+                                                      : "rgb(183, 110, 0)",
+                                        }}
+                                    />
+                                ) : null}
+                            </Stack>
+                            {ekycFailureReason ? (
+                                <Alert severity="error" sx={{ mb: 1.5, borderRadius: "8px" }}>
+                                    {ekycFailureReason}
+                                </Alert>
+                            ) : null}
+                            {(ekycOcrName || ekycOcrIdNumber) && ekycStatus === "VERIFIED" ? (
+                                <Alert severity="success" sx={{ mb: 1.5, borderRadius: "8px" }}>
+                                    OCR: {ekycOcrName || "—"} · {ekycOcrIdNumber || "—"}
+                                </Alert>
+                            ) : null}
+                            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" }, gap: 2 }}>
+                                <Controller
+                                    name="cccdFrontImageUrl"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <UploadSingleFile
+                                            value={field.value || ""}
+                                            onChange={(url) => field.onChange(url || "")}
+                                            customUpload={uploadStreetAgentEkycImage}
+                                            autoUpload
+                                            label="CCCD mặt trước"
+                                            compact
+                                        />
+                                    )}
+                                />
+                                <Controller
+                                    name="cccdBackImageUrl"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <UploadSingleFile
+                                            value={field.value || ""}
+                                            onChange={(url) => field.onChange(url || "")}
+                                            customUpload={uploadStreetAgentEkycImage}
+                                            autoUpload
+                                            label="CCCD mặt sau"
+                                            compact
+                                        />
+                                    )}
+                                />
+                                <Controller
+                                    name="cccdSelfieImageUrl"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <UploadSingleFile
+                                            value={field.value || ""}
+                                            onChange={(url) => field.onChange(url || "")}
+                                            customUpload={uploadStreetAgentEkycImage}
+                                            autoUpload
+                                            label="Ảnh selfie"
+                                            compact
+                                        />
+                                    )}
+                                />
+                            </Box>
+                            {profileId && onVerifyEkyc ? (
+                                <Button
+                                    variant="outlined"
+                                    onClick={onVerifyEkyc}
+                                    disabled={isVerifyingEkyc}
+                                    sx={{ mt: 2, fontWeight: 700, borderRadius: "8px" }}
+                                >
+                                    {isVerifyingEkyc ? "Đang xác thực…" : "Xác thực eKYC"}
+                                </Button>
+                            ) : null}
                         </Box>
                     </Card>
                 ) : null}
