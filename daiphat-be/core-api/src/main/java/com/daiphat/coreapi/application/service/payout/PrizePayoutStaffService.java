@@ -49,7 +49,10 @@ import com.daiphat.coreapi.shared.util.PersonNameMatchUtils;
 import com.daiphat.coreapi.shared.util.SortUtils;
 import com.daiphat.coreapi.shared.util.StorageFolderConstants;
 import com.daiphat.coreapi.shared.util.StorageUtils;
+import com.daiphat.coreapi.application.service.ekyc.EkycVerificationService;
+import com.daiphat.coreapi.application.dto.ekyc.EkycVerificationResult;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -96,6 +99,10 @@ public class PrizePayoutStaffService implements PrizePayoutStaffServicePort {
     private final StoragePort storagePort;
     private final ApplicationEventPublisher eventPublisher;
     private final LotteryStationServicePort lotteryStationServicePort;
+    private final EkycVerificationService ekycVerificationService;
+
+    @Value("${daiphat.ekyc-ai.prize-payout-required:true}")
+    private boolean prizePayoutEkycRequired;
 
     @Override
     @Transactional(readOnly = true)
@@ -353,6 +360,7 @@ public class PrizePayoutStaffService implements PrizePayoutStaffServicePort {
                 request.recipientIdNumber(),
                 request.recipientIdImageUrl(),
                 request.recipientIdImageBackUrl(),
+                request.recipientSelfieUrl(),
                 request.paymentMethod(),
                 request.cashAmount(),
                 request.manualOwnershipConfirmed(),
@@ -406,16 +414,20 @@ public class PrizePayoutStaffService implements PrizePayoutStaffServicePort {
         if (!recipientIdRaw.matches("\\d{9,12}")) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "Số CCCD/CMND phải có từ 9 đến 12 chữ số.");
         }
-        if (isBlank(request.recipientIdImageUrl()) || isBlank(request.recipientIdImageBackUrl())) {
+        if (isBlank(request.recipientIdImageUrl()) || isBlank(request.recipientIdImageBackUrl())
+                || isBlank(request.recipientSelfieUrl())) {
             throw new DomainException(
                     ErrorCode.PRIZE_PAYOUT_RECIPIENT_IDENTITY_REQUIRED,
-                    "Cần ảnh CCCD mặt trước và mặt sau.");
+                    "Cần ảnh CCCD mặt trước, mặt sau và ảnh selfie.");
         }
         if (!isBlank(request.recipientIdImageUrl())) {
             StorageUtils.validateImageEvidenceUrl(request.recipientIdImageUrl());
         }
         if (!isBlank(request.recipientIdImageBackUrl())) {
             StorageUtils.validateImageEvidenceUrl(request.recipientIdImageBackUrl());
+        }
+        if (!isBlank(request.recipientSelfieUrl())) {
+            StorageUtils.validateImageEvidenceUrl(request.recipientSelfieUrl());
         }
 
         boolean anyManualConfirm = details.stream().anyMatch(d -> {
@@ -444,7 +456,21 @@ public class PrizePayoutStaffService implements PrizePayoutStaffServicePort {
         String recipientIdImageBackUrl = isBlank(request.recipientIdImageBackUrl())
                 ? null
                 : request.recipientIdImageBackUrl().trim();
+        String recipientSelfieUrl = isBlank(request.recipientSelfieUrl())
+                ? null
+                : request.recipientSelfieUrl().trim();
         LocalDateTime recipientIdentityCapturedAt = LocalDateTime.now();
+
+        EkycVerificationResult ekyc = null;
+        if (prizePayoutEkycRequired) {
+            ekyc = ekycVerificationService.verifyFromUrls(
+                    recipientIdImageUrl, recipientIdImageBackUrl, recipientSelfieUrl);
+            ekycVerificationService.requireIdMatch(recipientIdNumber, ekyc);
+            ekycVerificationService.assertVerified(ekyc);
+            if (ekyc.ocrName() != null && !ekyc.ocrName().isBlank()) {
+                recipientFullName = ekyc.ocrName().trim();
+            }
+        }
 
         // Pre-compute per-ticket breakdown so COMBINED cash can be allocated against total net.
         List<PrizePayoutCalculationService.PrizePayoutBreakdown> breakdowns = new ArrayList<>();
@@ -538,6 +564,13 @@ public class PrizePayoutStaffService implements PrizePayoutStaffServicePort {
                     .recipientIdNumber(recipientIdNumber)
                     .recipientIdImageUrl(recipientIdImageUrl)
                     .recipientIdImageBackUrl(recipientIdImageBackUrl)
+                    .recipientSelfieUrl(recipientSelfieUrl)
+                    .ekycStatus(ekyc != null ? ekyc.status() : null)
+                    .ekycFaceDistance(ekyc != null ? ekyc.faceDistance() : null)
+                    .ekycLivenessScore(ekyc != null ? ekyc.livenessScore() : null)
+                    .ekycFailureReason(ekyc != null ? ekyc.failureReason() : null)
+                    .ekycOcrName(ekyc != null ? ekyc.ocrName() : null)
+                    .ekycVerifiedAt(ekyc != null && ekyc.verified() ? LocalDateTime.now() : null)
                     .recipientIdentityCapturedAt(recipientIdentityCapturedAt)
                     .confirmationContractUrl(confirmationContractUrl)
                     .createdBy(staffId != null ? staffId.toString() : null)

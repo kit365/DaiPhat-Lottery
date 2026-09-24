@@ -48,6 +48,37 @@ public class StreetAgentProfileEntity extends BaseEntity {
     @Column(name = "image_url", length = 500)
     private String imageUrl;
 
+    @Column(name = "cccd_front_image_url", length = 500)
+    private String cccdFrontImageUrl;
+
+    @Column(name = "cccd_back_image_url", length = 500)
+    private String cccdBackImageUrl;
+
+    @Column(name = "cccd_selfie_image_url", length = 500)
+    private String cccdSelfieImageUrl;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "ekyc_status", length = 32)
+    private com.daiphat.coreapi.domain.model.enums.ekyc.EkycStatus ekycStatus;
+
+    @Column(name = "ekyc_face_distance")
+    private Double ekycFaceDistance;
+
+    @Column(name = "ekyc_liveness_score")
+    private Double ekycLivenessScore;
+
+    @Column(name = "ekyc_failure_reason", length = 500)
+    private String ekycFailureReason;
+
+    @Column(name = "ekyc_ocr_name", length = 255)
+    private String ekycOcrName;
+
+    @Column(name = "ekyc_ocr_id_number", length = 64)
+    private String ekycOcrIdNumber;
+
+    @Column(name = "ekyc_verified_at")
+    private java.time.LocalDateTime ekycVerifiedAt;
+
     @Column(name = "contact_address", length = 255)
     private String contactAddress;
 

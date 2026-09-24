@@ -124,6 +124,28 @@ public class PrizePayoutRequestEntity {
     @Column(name = "recipient_id_image_back_url", length = 500)
     private String recipientIdImageBackUrl;
 
+    @Column(name = "recipient_selfie_url", length = 500)
+    private String recipientSelfieUrl;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "ekyc_status", length = 32)
+    private com.daiphat.coreapi.domain.model.enums.ekyc.EkycStatus ekycStatus;
+
+    @Column(name = "ekyc_face_distance")
+    private Double ekycFaceDistance;
+
+    @Column(name = "ekyc_liveness_score")
+    private Double ekycLivenessScore;
+
+    @Column(name = "ekyc_failure_reason", length = 500)
+    private String ekycFailureReason;
+
+    @Column(name = "ekyc_ocr_name", length = 255)
+    private String ekycOcrName;
+
+    @Column(name = "ekyc_verified_at")
+    private LocalDateTime ekycVerifiedAt;
+
     @Column(name = "recipient_identity_captured_at")
     private LocalDateTime recipientIdentityCapturedAt;
 

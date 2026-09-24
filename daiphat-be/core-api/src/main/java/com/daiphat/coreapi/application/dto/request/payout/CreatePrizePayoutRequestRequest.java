@@ -10,6 +10,7 @@ public record CreatePrizePayoutRequestRequest(
         @NotNull Long bankAccountId,
         @NotBlank @Size(max = 20) String recipientIdNumber,
         @NotBlank @Size(max = 500) String recipientIdImageUrl,
-        @NotBlank @Size(max = 500) String recipientIdImageBackUrl
+        @NotBlank @Size(max = 500) String recipientIdImageBackUrl,
+        @NotBlank @Size(max = 500) String recipientSelfieUrl
 ) {
 }

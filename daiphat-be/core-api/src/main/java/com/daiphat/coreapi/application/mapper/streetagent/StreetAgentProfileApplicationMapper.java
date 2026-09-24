@@ -30,6 +30,7 @@ public interface StreetAgentProfileApplicationMapper {
     StreetAgentProfileModel toModel(CreateStreetAgentProfileRequest request);
 
     @Mapping(target = "status", expression = "java(model.getStatus() != null ? model.getStatus().getCode() : null)")
+    @Mapping(target = "ekycStatus", expression = "java(model.getEkycStatus() != null ? model.getEkycStatus().name() : null)")
     StreetAgentProfileResponse toResponse(StreetAgentProfileModel model);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
