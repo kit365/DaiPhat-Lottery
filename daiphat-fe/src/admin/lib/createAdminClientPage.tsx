@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import type { ComponentType } from "react";
+import { type ComponentType, Suspense } from "react";
 
 import { PermissionGuard } from "@/admin/components/auth/PermissionGuard";
 import { AdminNavigationComplete } from "@/admin/components/navigation/AdminNavigationComplete";
@@ -27,7 +27,9 @@ function wrapWithNavigationComplete<P extends object>(Component: ComponentType<P
     const Wrapped = (props: P) => (
         <>
             <AdminNavigationComplete />
-            <Component {...props} />
+            <Suspense fallback={<PageContentLoading />}>
+                <Component {...props} />
+            </Suspense>
         </>
     );
     Wrapped.displayName = `WithNavigationComplete(${Component.displayName || Component.name || "Page"})`;
@@ -67,7 +69,9 @@ export function createAdminClientPage(options: AdminClientPageOptions) {
                     fallback={guardFallback}
                 >
                     <AdminNavigationComplete />
-                    <Component {...props} />
+                    <Suspense fallback={<PageContentLoading />}>
+                        <Component {...props} />
+                    </Suspense>
                 </PermissionGuard>
             );
         };
@@ -82,7 +86,9 @@ export function createAdminClientPage(options: AdminClientPageOptions) {
                 permissions={permissions}
                 fallback={guardFallback}
             >
-                <FeaturePage {...props} />
+                <Suspense fallback={<PageContentLoading />}>
+                    <FeaturePage {...props} />
+                </Suspense>
             </PermissionGuard>
         );
     };

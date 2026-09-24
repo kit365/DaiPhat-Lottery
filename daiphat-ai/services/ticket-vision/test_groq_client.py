@@ -73,7 +73,7 @@ def test_groq_client_parses_chat_completions(monkeypatch):
     client = GroqVisionClient(
         api_base_url="https://api.groq.com/openai/v1",
         api_key="test-key",
-        model="qwen/qwen3.6-27b",
+        model="qwen/qwen3.8-27b",
         timeout_seconds=5,
     )
     result = client.analyze_ticket_image(b"\xff\xd8\xffdummy", "extract ticket")
@@ -81,7 +81,40 @@ def test_groq_client_parses_chat_completions(monkeypatch):
     assert result.tickets[0].numbers == "123456"
 
 
+def test_groq_fail_fast_skips_retry_wait(monkeypatch):
+    monkeypatch.setattr("infra.groq_client.time.sleep", lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("no sleep")))
+    from infra import llm_circuit
+    from infra.groq_client import GroqVisionClient, fail_fast_rate_limits
+
+    llm_circuit.reset_for_tests()
+    calls = {"n": 0}
+
+    def fake_post(self, url, headers=None, json=None):  # noqa: A002
+        calls["n"] += 1
+        return _FakeResponse(
+            429,
+            text="Rate limit on input tokens per minute (ITPM): Limit 7000. try again in 40s",
+        )
+
+    monkeypatch.setattr(httpx.Client, "post", fake_post)
+    client = GroqVisionClient(
+        api_base_url="https://api.groq.com/openai/v1",
+        api_key="test-key",
+    )
+    with fail_fast_rate_limits(True):
+        with pytest.raises(VisionApiError, match="rate limit"):
+            client.analyze_ticket_image(b"\xff\xd8\xff", "prompt")
+    assert calls["n"] == 1
+    assert llm_circuit.is_open()
+    llm_circuit.reset_for_tests()
+
+
 def test_groq_client_maps_rate_limit(monkeypatch):
+    monkeypatch.setattr("infra.groq_client.time.sleep", lambda *_args, **_kwargs: None)
+    from infra import llm_circuit
+
+    llm_circuit.reset_for_tests()
+
     def fake_post(self, url, headers=None, json=None):  # noqa: A002
         return _FakeResponse(429, {"error": {"message": "rate limit"}}, text="rate limit")
 
@@ -92,6 +125,107 @@ def test_groq_client_maps_rate_limit(monkeypatch):
     )
     with pytest.raises(VisionApiError, match="rate limit"):
         client.analyze_ticket_image(b"\xff\xd8\xff", "prompt")
+    # Transient ITPM/TPM trips soft circuit (still open, short cooldown).
+    assert llm_circuit.is_open()
+    llm_circuit.reset_for_tests()
+
+
+def test_groq_client_reduces_max_tokens_on_otpm(monkeypatch):
+    monkeypatch.setattr("infra.groq_client.time.sleep", lambda *_args, **_kwargs: None)
+    # Simulate a build that still requested above OTPM, then auto-shrinks.
+    monkeypatch.setattr("infra.groq_client._MAX_COMPLETION_TOKENS_COLLAGE", 1024)
+    monkeypatch.setattr("infra.groq_client._OTPM_SAFE_CEILING", 2000)
+    from infra import llm_circuit
+    import json as json_module
+
+    llm_circuit.reset_for_tests()
+    seen_tokens: list[int] = []
+
+    def fake_post(self, url, headers=None, json=None):  # noqa: A002
+        tokens = int(json["max_completion_tokens"])
+        seen_tokens.append(tokens)
+        if tokens >= 1000:
+            return _FakeResponse(
+                429,
+                text=(
+                    "Request too large for model on output tokens per minute (OTPM): "
+                    "Limit 1000, Requested 1024. reduce max_tokens"
+                ),
+            )
+        extraction = {
+            "tickets": [
+                {
+                    "stationName": "Cà Mau",
+                    "numbers": "123456",
+                    "fieldConfidences": {"numbers": 0.9},
+                }
+            ],
+            "warnings": [],
+        }
+        return _FakeResponse(
+            200,
+            {"choices": [{"message": {"content": json_module.dumps(extraction)}}]},
+        )
+
+    monkeypatch.setattr(httpx.Client, "post", fake_post)
+    client = GroqVisionClient(
+        api_base_url="https://api.groq.com/openai/v1",
+        api_key="test-key",
+    )
+    result = client.analyze_ticket_image(b"\xff\xd8\xff", "COLLAGE MODE extract")
+    assert result.tickets[0].numbers == "123456"
+    assert seen_tokens[0] >= 1000
+    assert all(t < 1000 for t in seen_tokens[1:])
+    llm_circuit.reset_for_tests()
+
+
+def test_groq_collage_max_tokens_stays_under_otpm_ceiling(monkeypatch):
+    import json as json_module
+
+    captured: dict = {}
+
+    def fake_post(self, url, headers=None, json=None):  # noqa: A002
+        captured["max_completion_tokens"] = json["max_completion_tokens"]
+        extraction = {"tickets": [{"numbers": "111111", "fieldConfidences": {}}], "warnings": []}
+        return _FakeResponse(
+            200,
+            {"choices": [{"message": {"content": json_module.dumps(extraction)}}]},
+        )
+
+    monkeypatch.setattr(httpx.Client, "post", fake_post)
+    client = GroqVisionClient(
+        api_base_url="https://api.groq.com/openai/v1",
+        api_key="test-key",
+    )
+    client.analyze_ticket_image(b"\xff\xd8\xff", "COLLAGE MODE extract")
+    assert captured["max_completion_tokens"] < 1000
+
+
+def test_groq_client_fails_fast_on_tpd_quota(monkeypatch):
+    monkeypatch.setattr("infra.groq_client.time.sleep", lambda *_args, **_kwargs: None)
+    from infra import llm_circuit
+
+    llm_circuit.reset_for_tests()
+    calls = {"n": 0}
+
+    def fake_post(self, url, headers=None, json=None):  # noqa: A002
+        calls["n"] += 1
+        return _FakeResponse(
+            429,
+            {"error": {"message": "Rate limit reached for model on tokens per day (TPD)"}},
+            text="Rate limit reached for model on tokens per day (TPD): Limit 100000",
+        )
+
+    monkeypatch.setattr(httpx.Client, "post", fake_post)
+    client = GroqVisionClient(
+        api_base_url="https://api.groq.com/openai/v1",
+        api_key="test-key",
+    )
+    with pytest.raises(VisionApiError, match="quota/token"):
+        client.analyze_ticket_image(b"\xff\xd8\xff", "prompt")
+    assert calls["n"] == 1
+    assert llm_circuit.is_open()
+    llm_circuit.reset_for_tests()
 
 
 def test_groq_client_maps_model_not_found(monkeypatch):

@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -37,6 +38,9 @@ public class OcrScanResultFieldModel {
 
     /** Which ocr_field_layouts row produced the recognized ai_value (nullable). */
     private Long fieldLayoutId;
+
+    /** Configurable template-rule failures for this field. */
+    private List<OcrFieldValidationFailure> validationFailures;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

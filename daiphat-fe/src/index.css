@@ -22,6 +22,11 @@
   --radius-client-xl: 24px;
 }
 
+.font-brand {
+  --font-barlow: "Barlow", sans-serif;
+  --font-public-sans: "Public Sans", sans-serif;
+}
+
 .hero-gradient-base {
   background: linear-gradient(135deg, #B71C1C 0%, #D32F2F 40%, #F57C00 100%);
 }
@@ -33,6 +38,8 @@
 body {
   background-color: #FDFBF7;
   color: #17191F;
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 @layer utilities {

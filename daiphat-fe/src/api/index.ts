@@ -134,6 +134,14 @@ const isAuthRequiredRequest = (url?: string) => {
     return AUTH_REQUIRED_PATHS.some((path) => url.includes(path));
 };
 
+/** OCR scan failures are handled per-image in the wizard — never global "server down" toast. */
+const isOcrScanRequest = (url?: string) => {
+    if (!url) {
+        return false;
+    }
+    return url.includes("/lottery-tickets/scan");
+};
+
 const handleExpiredSession = (showToast: boolean = true) => {
     clearAuthSession();
 
@@ -284,7 +292,7 @@ apiApp.interceptors.response.use(
                 });
             }
 
-            if (skipToast) {
+            if (skipToast || isOcrScanRequest(originalRequest?.url)) {
                 return Promise.reject(error);
             }
 
@@ -322,7 +330,7 @@ apiApp.interceptors.response.use(
                     AppToast.error(message, { toastId: `api-error-default-${message}` });
                     console.warn(`[API Error] ${status}: ${message}`);
             }
-        } else if (!skipToast) {
+        } else if (!skipToast && !isOcrScanRequest(originalRequest?.url)) {
             AppToast.error("Không thể kết nối tới máy chủ. Vui lòng kiểm tra mạng!", {
                 toastId: "api-network-unreachable",
             });

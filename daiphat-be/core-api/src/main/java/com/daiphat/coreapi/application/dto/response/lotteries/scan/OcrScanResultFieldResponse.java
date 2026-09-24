@@ -2,9 +2,11 @@ package com.daiphat.coreapi.application.dto.response.lotteries.scan;
 
 import com.daiphat.coreapi.domain.model.enums.lottery.OcrFieldValidationStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.OcrTemplateFieldName;
+import com.daiphat.coreapi.domain.model.lotteries.OcrFieldValidationFailure;
 import lombok.Builder;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Builder
@@ -23,5 +25,6 @@ public record OcrScanResultFieldResponse(
         String validationMessage,
         String expectedValue,
         String effectiveValue,
-        Long fieldLayoutId
+        Long fieldLayoutId,
+        List<OcrFieldValidationFailure> validationFailures
 ) {}

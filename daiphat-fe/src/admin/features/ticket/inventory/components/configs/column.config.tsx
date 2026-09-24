@@ -12,7 +12,15 @@ import {
 import { getStationColor } from '../../../../station/utils/stationColor';
 import { Box, Typography } from '@mui/material';
 
-export const columnsConfig: GridColDef<ITicket>[] = [
+export interface BuildColumnsConfigOptions {
+    onCancelTicket?: (ticket: any) => void;
+    cancelLockReason?: string | null;
+}
+
+export const buildColumnsConfig = ({
+    onCancelTicket,
+    cancelLockReason,
+}: BuildColumnsConfigOptions = {}): GridColDef<ITicket>[] => [
     {
         field: 'ticket',
         headerName: 'Vé số',
@@ -134,8 +142,16 @@ export const columnsConfig: GridColDef<ITicket>[] = [
         width: 60,
         align: 'center',
         headerAlign: 'center',
-        renderCell: RenderActionsCell,
+        renderCell: (params) => (
+            <RenderActionsCell
+                {...params}
+                onCancelTicket={onCancelTicket}
+                cancelLockReason={cancelLockReason}
+            />
+        ),
     },
 ];
+
+export const columnsConfig = buildColumnsConfig();
 
 export const columnsInitialState = {};

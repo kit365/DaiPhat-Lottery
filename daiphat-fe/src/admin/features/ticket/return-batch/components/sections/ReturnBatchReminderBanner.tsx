@@ -175,42 +175,40 @@ export const ReturnBatchReminderBanner = ({ batches }: ReturnBatchReminderBanner
                         justifyContent: 'space-between',
                         gap: { xs: 1.5, lg: 2 },
                         width: '100%',
+                        overflowX: 'auto',
+                        '&::-webkit-scrollbar': { height: 6 },
+                        '&::-webkit-scrollbar-thumb': { bgcolor: '#cbd5e1', borderRadius: 3 },
                     }}
                 >
                     {/* Left: Info */}
-                    <Box
-                        sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            flexWrap: { xs: 'wrap', sm: 'nowrap' },
-                            gap: 1.25,
-                            flexShrink: 0,
-                            minWidth: { lg: 590 },
-                        }}
-                    >
-                        <Box sx={{ minWidth: { sm: 200 }, flexShrink: 0, display: 'flex', alignItems: 'center' }}>
-                            <Chip
-                                size="small"
-                                label={batchCode}
+                        <Box
+                            sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                flexWrap: { xs: 'wrap', sm: 'nowrap' },
+                                gap: 1.25,
+                                flexShrink: 0,
+                                flex: { lg: 1 },
+                            }}
+                        >
+                        <Box sx={{ minWidth: { sm: 160 }, flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                            <Typography
+                                variant="subtitle2"
                                 onClick={() => router.push(ROUTES.ADMIN.RETURN_BATCH.DETAIL(batch.id))}
                                 sx={{
-                                    fontWeight: 800,
-                                    fontFamily: 'monospace',
-                                    bgcolor: '#0f172a',
-                                    color: '#ffffff',
-                                    fontSize: '0.8rem',
-                                    height: 26,
-                                    borderRadius: '6px',
+                                    fontWeight: 700,
+                                    fontSize: '0.875rem',
+                                    color: 'text.primary',
                                     cursor: 'pointer',
-                                    transition: 'all 0.15s ease',
                                     '&:hover': {
-                                        bgcolor: '#334155',
-                                        transform: 'translateY(-1px)',
-                                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.15)',
+                                        color: 'primary.main',
+                                        textDecoration: 'underline',
                                     },
                                 }}
                                 title={`Xem chi tiết phiếu trả ${batchCode}`}
-                            />
+                            >
+                                {batchCode}
+                            </Typography>
                         </Box>
 
                         <Box sx={{ minWidth: { sm: 135 }, maxWidth: { sm: 155 }, flexShrink: 0 }}>
@@ -256,7 +254,6 @@ export const ReturnBatchReminderBanner = ({ batches }: ReturnBatchReminderBanner
                             flexWrap: { xs: 'wrap', sm: 'nowrap' },
                             gap: { xs: 1.5, sm: 2 },
                             flexShrink: 0,
-                            minWidth: { lg: 390 },
                         }}
                     >
                         <Box sx={{ minWidth: { sm: 120 }, flexShrink: 0 }}>
@@ -343,7 +340,7 @@ export const ReturnBatchReminderBanner = ({ batches }: ReturnBatchReminderBanner
                                     },
                                 }}
                             >
-                                Kiểm tra vé ngay
+                                Kiểm tra ngay
                             </Button>
                         )}
 
@@ -395,7 +392,7 @@ export const ReturnBatchReminderBanner = ({ batches }: ReturnBatchReminderBanner
                                     },
                                 }}
                             >
-                                Bàn giao vé trả
+                                Bàn giao ngay
                             </Button>
                         )}
 

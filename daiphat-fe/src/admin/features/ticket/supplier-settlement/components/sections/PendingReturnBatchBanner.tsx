@@ -3,7 +3,7 @@
 import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import AssignmentReturnOutlinedIcon from '@mui/icons-material/AssignmentReturnOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
-import { Box, Button, Chip, Paper, Stack, Typography } from '@mui/material';
+import { Box, Button, Chip, Stack, Typography, Alert } from '@mui/material';
 import { ROUTES } from '../../../../../constants/routes';
 import type { SettlementOverviewReturnBatch } from '../../types/supplierSettlement.type';
 import {
@@ -77,104 +77,53 @@ export const PendingReturnBatchBanner = ({ pendingBatches }: PendingReturnBatchB
               };
 
     return (
-        <Paper
-            elevation={0}
-            sx={{
-                mb: 2.5,
-                p: { xs: 1.75, sm: 2 },
-                borderRadius: '14px',
-                border: '1px solid #fde68a',
-                bgcolor: '#fffbeb',
-                background: 'linear-gradient(135deg, #fffbeb 0%, #fff7ed 100%)',
-                boxShadow: '0 2px 8px rgba(217, 119, 6, 0.05)',
-                display: 'flex',
-                alignItems: { xs: 'flex-start', sm: 'center' },
-                justifyContent: 'space-between',
-                flexWrap: { xs: 'wrap', md: 'nowrap' },
-                gap: 2,
-            }}
-        >
-            <Stack direction="row" spacing={1.75} alignItems="flex-start" sx={{ flex: 1 }}>
-                <Box
-                    sx={{
-                        width: 42,
-                        height: 42,
-                        borderRadius: '10px',
-                        bgcolor: '#fef3c7',
-                        color: '#d97706',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                        boxShadow: '0 1px 3px rgba(217, 119, 6, 0.12)',
-                    }}
-                >
-                    <AssignmentReturnOutlinedIcon sx={{ fontSize: '1.35rem' }} />
-                </Box>
-
-                <Box sx={{ flex: 1 }}>
-                    <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ mb: 0.5 }}>
-                        <Typography variant="subtitle2" fontWeight={800} color="#0f172a" sx={{ fontSize: '0.925rem' }}>
-                            {guidance.title}
-                        </Typography>
-                        <Chip
-                            size="small"
-                            label={pendingBatches.length === 1 ? code : guidance.chipLabel}
-                            sx={{
-                                bgcolor: '#fef3c7',
-                                color: '#b45309',
-                                fontWeight: 700,
-                                fontSize: '0.725rem',
-                                border: '1px solid #fde68a',
-                                height: 24,
-                            }}
-                        />
-                        {pendingBatches.length === 1 && (
-                            <Chip
-                                size="small"
-                                label={statusLabel}
-                                sx={{
-                                    bgcolor: '#ffffff',
-                                    color: '#92400e',
-                                    fontWeight: 700,
-                                    fontSize: '0.725rem',
-                                    border: '1px solid #fde68a',
-                                    height: 24,
-                                }}
-                            />
-                        )}
-                    </Stack>
-
-                    <Typography variant="body2" color="#475569" sx={{ fontSize: '0.825rem', lineHeight: 1.5 }}>
-                        {guidance.description}
-                    </Typography>
-                </Box>
-            </Stack>
-
-            <Box sx={{ alignSelf: { xs: 'flex-start', sm: 'center' }, flexShrink: 0 }}>
+        <Alert 
+            severity="warning" 
+            sx={{ mb: 2, alignItems: 'center', '& .MuiAlert-message': { flex: 1, p: 0 }, py: 0.5, px: 2 }}
+            action={
                 <Button
-                    size="small"
                     variant="outlined"
                     color="warning"
-                    startIcon={<VisibilityOutlinedIcon sx={{ fontSize: '1rem !important' }} />}
+                    size="small"
                     onClick={() => router.push(resolveReturnBatchPath(primary))}
+                    startIcon={pendingBatches.length === 1 ? <VisibilityOutlinedIcon /> : undefined}
                     sx={{
                         textTransform: 'none',
-                        fontWeight: 700,
-                        borderRadius: '999px',
+                        fontWeight: 600,
+                        borderRadius: '6px',
+                        py: 0.5,
                         px: 1.5,
-                        bgcolor: '#ffffff',
-                        borderColor: '#fde68a',
-                        color: '#b45309',
+                        borderColor: '#f59e0b',
+                        color: '#d97706',
                         '&:hover': {
-                            borderColor: '#fbbf24',
-                            bgcolor: '#fffbeb',
+                            borderColor: '#d97706',
+                            bgcolor: '#fef3c7',
                         },
                     }}
                 >
-                    Xem chi tiết
+                    {pendingBatches.length === 1 ? 'Xem chi tiết' : 'Xử lý phiếu trả'}
                 </Button>
-            </Box>
-        </Paper>
+            }
+        >
+            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                <strong>{guidance.title}</strong>
+                {pendingBatches.length === 1 && (
+                    <Chip
+                        label={code}
+                        size="small"
+                        sx={{
+                            bgcolor: '#fef3c7',
+                            color: '#b45309',
+                            fontWeight: 600,
+                            height: 22,
+                            fontSize: '0.75rem',
+                        }}
+                    />
+                )}
+                <span style={{ fontSize: '0.85rem', color: '#475569' }}>
+                    {guidance.description}
+                </span>
+            </Stack>
+        </Alert>
     );
 };

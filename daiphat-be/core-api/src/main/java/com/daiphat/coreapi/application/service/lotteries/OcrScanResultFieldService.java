@@ -76,6 +76,11 @@ public class OcrScanResultFieldService {
                         .validationStatus(validation != null ? validation.getStatus() : null)
                         .validationMessage(validation != null ? validation.getMessage() : null)
                         .expectedValue(validation != null ? validation.getExpectedValue() : null)
+                        .validationFailures(
+                                validation != null && validation.getRuleFailures() != null
+                                        ? validation.getRuleFailures()
+                                        : null
+                        )
                         .build());
             }
             if (!rows.isEmpty()) {
@@ -329,6 +334,7 @@ public class OcrScanResultFieldService {
                 .expectedValue(model.getExpectedValue())
                 .effectiveValue(model.effectiveValue())
                 .fieldLayoutId(model.getFieldLayoutId())
+                .validationFailures(model.getValidationFailures())
                 .build();
     }
 

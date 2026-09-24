@@ -22,11 +22,14 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -40,6 +43,10 @@ class OcrScanValidationServiceTest {
     private LotteryTicketSerialRepositoryPort lotteryTicketSerialRepositoryPort;
     @Mock
     private LotteryStationNameResolver stationNameResolver;
+    @Mock
+    private OcrTicketScanValidationRulesConfigService validationRulesConfigService;
+    @Mock
+    private OcrConfigurableRuleEvaluator configurableRuleEvaluator;
 
     private OcrScanValidationService service;
     private LotteryStationModel station;
@@ -51,8 +58,11 @@ class OcrScanValidationServiceTest {
                 lotteryStationRepositoryPort,
                 lotteryTicketRepositoryPort,
                 lotteryTicketSerialRepositoryPort,
-                stationNameResolver
+                stationNameResolver,
+                validationRulesConfigService,
+                configurableRuleEvaluator
         );
+        lenient().when(validationRulesConfigService.listActiveRules()).thenReturn(List.of());
         drawDate = LocalDate.of(2026, 8, 24); // Monday
         LotteryRegionModel region = LotteryRegionModel.builder()
                 .id(1L)
@@ -206,8 +216,17 @@ class OcrScanValidationServiceTest {
     }
 
     @Test
-    void stationMismatchAgainstImportLine() {
-        when(lotteryStationRepositoryPort.findAll()).thenReturn(List.of(station));
+    void stationMismatchAgainstImportLineKeepsOcrStationId() {
+        LotteryStationModel other = LotteryStationModel.builder()
+                .id(99L)
+                .name("Đà Lạt")
+                .code("DL")
+                .price(new BigDecimal("10000"))
+                .drawDays(List.of(DayOfWeek.MONDAY, DayOfWeek.SATURDAY))
+                .region(station.getRegion())
+                .isActive(true)
+                .build();
+        when(lotteryStationRepositoryPort.findAll()).thenReturn(List.of(station, other));
         when(stationNameResolver.resolve(anyString(), anyList(), anyMap()))
                 .thenReturn(new LotteryStationNameResolver.Match(
                         99L, "Đà Lạt", LotteryStationNameResolver.MatchKind.EXACT, List.of()
@@ -227,7 +246,51 @@ class OcrScanValidationServiceTest {
 
         assertThat(outcome.fieldValidations().get("stationName").status())
                 .isEqualTo(OcrFieldValidationStatus.MISMATCHED);
+        assertThat(outcome.resolvedStationId()).isEqualTo(99L);
         assertThat(outcome.overallValidationStatus()).isEqualTo(OcrOverallValidationStatus.INVALID);
+    }
+
+    @Test
+    void ocrStationOutsideBatchDrawDayIsKeptWithMismatchWarning() {
+        LotteryStationModel tuesdayOnly = LotteryStationModel.builder()
+                .id(20L)
+                .name("Kiên Giang")
+                .code("KG")
+                .price(new BigDecimal("10000"))
+                .drawDays(List.of(DayOfWeek.TUESDAY))
+                .region(station.getRegion())
+                .isActive(true)
+                .build();
+        when(lotteryStationRepositoryPort.findAll()).thenReturn(List.of(station, tuesdayOnly));
+        when(stationNameResolver.resolve(anyString(), anyList(), anyMap()))
+                .thenReturn(new LotteryStationNameResolver.Match(
+                        20L, "Kiên Giang", LotteryStationNameResolver.MatchKind.EXACT, List.of()
+                ));
+
+        // Batch draw date is Monday; OCR station only draws Tuesday.
+        ExtractedTicketFieldsResponse extracted = new ExtractedTicketFieldsResponse(
+                "Kiên Giang", "KG", "A012345", "123456", drawDate, "10000", null
+        );
+
+        OcrScanValidationService.ValidationOutcome outcome = service.validate(
+                extracted,
+                Map.of(
+                        "stationName", 0.95,
+                        "serialNumber", 0.9,
+                        "numbers", 0.9,
+                        "drawDate", 0.9,
+                        "ticketType", 0.9
+                ),
+                ScannedTicketStatus.COMPLETE,
+                null,
+                drawDate
+        );
+
+        assertThat(outcome.resolvedStationId()).isEqualTo(20L);
+        assertThat(outcome.fieldValidations().get("stationName").status())
+                .isEqualTo(OcrFieldValidationStatus.MISMATCHED);
+        assertThat(outcome.fieldValidations().get("stationName").message())
+                .containsIgnoringCase("Kiên Giang");
     }
 
     @Test
@@ -318,5 +381,24 @@ class OcrScanValidationServiceTest {
         assertThat(OcrScanValidationService.parseMoney("10.000đ")).isEqualByComparingTo("10000");
         assertThat(OcrScanValidationService.parseMoney("20,000 VND")).isEqualByComparingTo("20000");
         assertThat(OcrScanValidationService.formatVnd(new BigDecimal("10000"))).isEqualTo("10.000 VND");
+    }
+
+    @Test
+    void reconcileMovesBatchShapedValuesOutOfSerialNumber() {
+        var moved = OcrScanValidationService.reconcileSerialAndBatchCode("XSCMG997", null);
+        assertThat(moved.serialNumber()).isNull();
+        assertThat(moved.batchCode()).isEqualTo("XSCMG997");
+
+        var midLetter = OcrScanValidationService.reconcileSerialAndBatchCode("4E2", "");
+        assertThat(midLetter.serialNumber()).isNull();
+        assertThat(midLetter.batchCode()).isEqualTo("4E2");
+
+        var keep = OcrScanValidationService.reconcileSerialAndBatchCode("A424944", "08D");
+        assertThat(keep.serialNumber()).isEqualTo("A424944");
+        assertThat(keep.batchCode()).isEqualTo("08D");
+
+        var swap = OcrScanValidationService.reconcileSerialAndBatchCode(null, "A123456");
+        assertThat(swap.serialNumber()).isEqualTo("A123456");
+        assertThat(swap.batchCode()).isNull();
     }
 }

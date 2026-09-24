@@ -928,6 +928,20 @@ public enum SystemConfigEnum {
             "phút",
             "{\"min\":1,\"max\":1440}",
             true
+    ),
+    /**
+     * Global OCR field validation rules applied after Layer-1 format + master-data checks.
+     * JSON array of { fieldName, ruleType, ruleConfig, severity, isActive, sortOrder }.
+     */
+    OCR_TICKET_SCAN_VALIDATION_RULES(
+            ConfigType.OCR_SCAN,
+            DataType.JSON,
+            "[]",
+            "Luật kiểm tra trường khi OCR quét vé (regex, danh sách giá trị, khoảng ngày/số, đối chiếu lịch quay). Áp dụng chung mọi mẫu vé. HARD_FAIL buộc review; SOFT_WARNING chỉ cảnh báo.",
+            "Luật kiểm tra trường OCR",
+            null,
+            "{}",
+            true
     );
 
     private final ConfigType configType;

@@ -594,6 +594,19 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
 
         LotterySupplierModel supplier = lotterySupplierServicePort.getActiveModelById(request.supplierId());
         LocalDateTime now = LocalDateTime.now(clock);
+
+        if (request.resolvedCommitMode() == ImportBatchFileCommitMode.AUTO) {
+            if (request.invoiceEvidenceUrl() == null || request.invoiceEvidenceUrl().isBlank()) {
+                throw new DomainException(ErrorCode.IMPORT_BATCH_INVOICE_REQUIRED);
+            }
+            boolean hasUploadedTicketList = request.ticketListImageUrls() != null
+                    && request.ticketListImageUrls().stream()
+                            .anyMatch(url -> url != null && !url.isBlank());
+            if (!request.shouldUseOriginalFileAsTicketListEvidence() && !hasUploadedTicketList) {
+                throw new DomainException(ErrorCode.IMPORT_BATCH_TICKET_LIST_REQUIRED);
+            }
+        }
+
         ImportBatchFileResolution resolution =
                 resolve(content, fileName, request.mapping(), supplier, operatorId, now, config);
 

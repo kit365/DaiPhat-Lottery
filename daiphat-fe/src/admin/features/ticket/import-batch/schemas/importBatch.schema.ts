@@ -30,7 +30,9 @@ export const createImportBatchSchema = z
             .number()
             .min(1, 'Tổng số lượng khai báo phiếu nhập lô phải lớn hơn 0'),
         invoiceEvidenceUrl: invoiceEvidenceSchema,
-        ticketListImageUrls: z.array(z.string()).optional(),
+        ticketListImageUrls: z
+            .array(z.string())
+            .min(1, 'Vui lòng tải lên ít nhất một ảnh hoặc tệp danh sách vé nhập.'),
         note: z.string().optional(),
         lines: z.array(importBatchLineSchema),
     })

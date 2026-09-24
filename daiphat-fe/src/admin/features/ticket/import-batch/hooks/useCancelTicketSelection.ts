@@ -19,10 +19,13 @@ export type CancelSelectedSerial = {
 
 export type CancelTicketLike = {
     id?: number | string;
+    _id?: number | string;
     status?: string | null;
     numbers?: string;
     stationId?: number | string;
+    providerId?: number | string;
     drawDate?: string;
+    importBatchLineId?: number | string;
     serials?: Array<{
         id: number | string;
         serialNumber?: string;
@@ -43,11 +46,11 @@ const mapCancelableSerial = (
     status: serial.status || '',
     ticketCondition: serial.ticketCondition,
     returnBatchLineId: serial.returnBatchLineId,
-    ticketId: ticket.id,
+    ticketId: ticket.id ?? ticket._id,
     ticketNumbers: ticket.numbers,
     ticketStatus: ticket.status || undefined,
     reservedByOrderId: serial.reservedByOrderId,
-    importBatchLineId: serial.importBatchLineId,
+    importBatchLineId: serial.importBatchLineId ?? ticket.importBatchLineId,
 });
 
 export const useCancelTicketSelection = (tickets: CancelTicketLike[]) => {
@@ -170,6 +173,19 @@ export const useCancelTicketSelection = (tickets: CancelTicketLike[]) => {
         []
     );
 
+    const handleCancelTicket = useCallback(
+        (ticket: CancelTicketLike) => {
+            const cancelable = getTicketCancelableSerials(ticket);
+            if (cancelable.length === 0) {
+                return;
+            }
+            const cancelableOfTicket = cancelable.map((serial) => mapCancelableSerial(ticket, serial));
+            setSelectedSerials(cancelableOfTicket);
+            setIsReportDialogOpen(true);
+        },
+        [getTicketCancelableSerials]
+    );
+
     const clearSelection = useCallback(() => setSelectedSerials([]), []);
 
     const enterCancelMode = useCallback(() => {
@@ -187,13 +203,15 @@ export const useCancelTicketSelection = (tickets: CancelTicketLike[]) => {
 
     const firstSelected = selectedSerials[0];
     const reportDialogProps = useMemo(() => {
-        const sourceTicket = tickets.find((ticket) => String(ticket.id) === String(firstSelected?.ticketId));
+        const sourceTicket = tickets.find(
+            (ticket) => String(ticket.id ?? ticket._id) === String(firstSelected?.ticketId)
+        );
 
         return {
             ticketNumbers: firstSelected?.ticketNumbers || '',
             ticketId: firstSelected?.ticketId,
             importBatchLineId: firstSelected?.importBatchLineId || 0,
-            stationId: sourceTicket?.stationId,
+            stationId: sourceTicket?.stationId ?? sourceTicket?.providerId,
             drawDate: sourceTicket?.drawDate,
         };
     }, [firstSelected, tickets]);
@@ -209,6 +227,7 @@ export const useCancelTicketSelection = (tickets: CancelTicketLike[]) => {
         handleSelectAll,
         handleSelectTicket,
         handleSelectSerial,
+        handleCancelTicket,
         clearSelection,
         enterCancelMode,
         exitCancelMode,

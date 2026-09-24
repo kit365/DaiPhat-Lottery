@@ -42,13 +42,24 @@ export const computeContainedImageRect = (
     };
 };
 
-/** True when box looks like normalized 0..1 fractions of the image. */
+/** True when box looks like normalized 0..1 fractions of the full image. */
 export const isNormalizedBoundingBox = (box: TicketBoundingBox): boolean => {
-    const values = [box.x, box.y, box.width, box.height];
-    if (values.some((v) => !Number.isFinite(v) || v < 0)) {
+    const { x, y, width, height } = box;
+    if (![x, y, width, height].every((v) => Number.isFinite(v) && v >= 0)) {
         return false;
     }
-    return values.every((v) => v <= 1) && box.width > 0 && box.height > 0;
+    if (width <= 0 || height <= 0) {
+        return false;
+    }
+    // Mirror BE `_looks_normalized`: unit-square fractions only.
+    return (
+        x <= 1 &&
+        y <= 1 &&
+        width <= 1 &&
+        height <= 1 &&
+        x + width <= 1.01 &&
+        y + height <= 1.01
+    );
 };
 
 /**

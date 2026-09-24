@@ -18,15 +18,29 @@ FIELD_REGION_PREFIX = "field:"
 DEFAULT_CLASS_TO_FIELD: dict[str, str] = {
     "lottery-station": "stationName",
     "lottery-ticket-serial": "serialNumber",
+    "lottery-serial": "serialNumber",
+    "serial": "serialNumber",
+    "serialnumber": "serialNumber",
+    "ticket-serial": "serialNumber",
     "lotterynumber": "numbers",
+    "lottery-number": "numbers",
+    "lottery_number": "numbers",
     "drawdate": "drawDate",
+    "draw-date": "drawDate",
     "price": "ticketType",
+    "ticket-price": "ticketType",
+    # Optional aliases if a retrain adds a ký hiệu / batch class.
+    "batchcode": "batchCode",
+    "batch-code": "batchCode",
+    "lottery-batch": "batchCode",
+    "ky-hieu": "batchCode",
+    "kyhieu": "batchCode",
 }
 
 # Grown around each field box before OCR: the trained boxes hug the glyphs
 # tightly, and OCR text detectors do better with a little quiet space than
 # with characters flush against the crop edge.
-_FIELD_PADDING_RATIO = 0.08
+_FIELD_PADDING_RATIO = 0.06
 
 
 class YoloFieldLayoutStrategy(TicketLayoutStrategy):

@@ -889,9 +889,8 @@ export const RefundDetailPage = () => {
                                                     <Box
                                                         sx={{
                                                             display: 'flex',
-                                                            justifyContent: 'space-between',
-                                                            flexWrap: 'wrap',
-                                                            gap: 0.5,
+                                                            flexDirection: 'column',
+                                                            gap: 0.25,
                                                         }}
                                                     >
                                                         <Typography

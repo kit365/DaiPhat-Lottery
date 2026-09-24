@@ -3,7 +3,9 @@ import { proxyToBackend } from "@/lib/backend-proxy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+// OCR scan can run YOLO + multi-ticket Groq (~180s BE read timeout).
+// Keep above backend-proxy OCR timeout (210s) so Next does not abort first.
+export const maxDuration = 300;
 
 type ApiCtx = { params: Promise<{ path: string[] }> };
 

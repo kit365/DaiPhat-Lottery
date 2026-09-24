@@ -38,7 +38,7 @@ export const SupplierSettlementToolbar = ({
                 label: 'Trạng thái đối soát',
                 options: [
                     { value: 'OPEN', label: 'Đang mở' },
-                    { value: 'RECEIPT_OVERDUE', label: 'Trễ hạn thanh toán' },
+                    { value: 'RECEIPT_OVERDUE', label: 'Trễ hạn' },
                     { value: 'COMPLETED', label: 'Đã thanh toán' },
                 ],
             },

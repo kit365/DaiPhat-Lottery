@@ -74,14 +74,17 @@ public class LotteryTicketScanController {
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'importBatch:create', 'ticket:create')")
     public ApiResponse<TicketScanResponse> scan(
             @RequestParam(required = false) Long importBatchLineId,
+            @RequestParam(required = false) Long importBatchId,
             @RequestPart("file") MultipartFile file,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal
     ) {
         log.info(
-                "REST request to scan ticket image for import batch line {} by user: {}",
-                importBatchLineId, principal.getUsername()
+                "REST request to scan ticket image lineId={} batchId={} by user: {}",
+                importBatchLineId, importBatchId, principal.getUsername()
         );
-        TicketScanResponse response = ticketScanImportServicePort.scan(importBatchLineId, file, principal.getId());
+        TicketScanResponse response = ticketScanImportServicePort.scan(
+                importBatchLineId, importBatchId, file, principal.getId()
+        );
         return ApiResponse.success("Quét vé thành công.", response);
     }
 
