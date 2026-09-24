@@ -213,6 +213,7 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                 transition: 'background-color 0.8s ease',
                 '& > td': {
                     py: 1.25,
+                    px: 0.5,
                     verticalAlign: 'middle',
                 },
             }}
@@ -277,25 +278,8 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                     />
                 )}
             </TableCell>
-            <TableCell sx={{ width: 110, whiteSpace: 'nowrap' }}>
-                <Typography variant="body2">
-                    {drawDate ? dayjs(drawDate).format('DD/MM/YYYY') : '—'}
-                </Typography>
-            </TableCell>
-            <TableCell align="center" sx={{ width: 140, whiteSpace: 'nowrap' }}>
-                <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                    {batchType ? (
-                        <AdminStatusBadge
-                            label={getBatchTypeLabel(batchType)}
-                            modifier={getBatchTypeBadgeClass(batchType)}
-                        />
-                    ) : (
-                        <Typography variant="caption" color="text.secondary">
-                            Chọn đài
-                        </Typography>
-                    )}
-                </Box>
-            </TableCell>
+
+
             {showStatusColumn && (
                 <TableCell sx={{ width: 120, whiteSpace: 'nowrap' }}>
                     {lineStatus ? (
@@ -319,7 +303,7 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
             )}
             <TableCell align="right" sx={{ width: 130, overflow: 'visible' }}>
                 {readOnly || declareQuantityReadOnly ? (
-                    <Typography variant="body2" sx={{ lineHeight: 1.5, fontWeight: 700, textAlign: 'right' }}>
+                    <Typography variant="body2" sx={{ lineHeight: 1.5, fontWeight: 500, textAlign: 'right' }}>
                         {declareQuantity.toLocaleString('vi-VN')}
                     </Typography>
                 ) : (
@@ -375,7 +359,7 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                                 inputProps={{
                                     inputMode: 'numeric',
                                     min: declareQuantityMin,
-                                    style: { textAlign: 'right', fontWeight: 700 },
+                                    style: { textAlign: 'right', fontWeight: 500 },
                                 }}
                             />
                         )}

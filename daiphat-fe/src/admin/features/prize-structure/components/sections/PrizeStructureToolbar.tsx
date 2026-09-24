@@ -6,7 +6,7 @@ import type { GridDensity } from '@mui/x-data-grid';
 import { Search } from "../../../../components/ui/Search";
 import { JiraFilter } from "../../../../shared/data-grid";
 import { Columns } from "../../../../components/ui/Columns";
-import { ExportButton } from "../../../../components/ui/ExportButton";
+
 import { SettingsList } from "../../../../components/ui/SettingsList";
 
 interface IGridSettings {
@@ -99,7 +99,7 @@ export const PrizeStructureToolbar = ({
                     )}
                 />
                 <Columns />
-                <ExportButton />
+
                 <SettingsList
                     settings={settings}
                     onSettingsChange={onSettingsChange}

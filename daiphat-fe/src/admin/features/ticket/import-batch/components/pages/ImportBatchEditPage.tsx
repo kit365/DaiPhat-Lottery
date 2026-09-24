@@ -1127,15 +1127,7 @@ export const ImportBatchEditPage = () => {
                     }
                     action={
                         <Stack direction="row" spacing={1}>
-                            <Button
-                                variant="text"
-                                startIcon={<FileDownloadOutlinedIcon />}
-                                onClick={() => {
-                                    void handleExport();
-                                }}
-                            >
-                                Xuất tệp
-                            </Button>
+
                             {showImportTicketsButton && (
                                 <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
                                     <Tooltip
@@ -1511,14 +1503,7 @@ export const ImportBatchEditPage = () => {
                                 </Button>
                             </Box>
 
-                            {/* Row limit warning */}
-                            {isAtRowLimit && (
-                                <Box sx={{ px: 3, pt: 2 }}>
-                                    <Alert severity="warning" sx={{ borderRadius: '10px' }}>
-                                        {IMPORT_BATCH_ROW_LIMIT_MESSAGE}
-                                    </Alert>
-                                </Box>
-                            )}
+
 
                             {/* Line quantity adjustment warning */}
                             {lineQuantityAdjustmentActive && (
@@ -1529,140 +1514,6 @@ export const ImportBatchEditPage = () => {
                                 </Box>
                             )}
 
-                            {/* Summary KPI Cards Strip */}
-                            <Box sx={{ px: 3, py: 2.25, bgcolor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                                <Grid container spacing={2}>
-                                    <Grid size={{ xs: 12, sm: 4 }}>
-                                        <Paper
-                                            elevation={0}
-                                            sx={{
-                                                p: 2,
-                                                bgcolor: '#ffffff',
-                                                borderRadius: '12px',
-                                                border: '1px solid #e2e8f0',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: 1.75,
-                                                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
-                                            }}
-                                        >
-                                            <Box
-                                                sx={{
-                                                    width: 44,
-                                                    height: 44,
-                                                    borderRadius: '10px',
-                                                    bgcolor: '#f8fafc',
-                                                    color: '#475569',
-                                                    border: '1px solid #e2e8f0',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    flexShrink: 0,
-                                                }}
-                                            >
-                                                <LocationOnOutlinedIcon sx={{ fontSize: '1.35rem' }} />
-                                            </Box>
-                                            <Box sx={{ minWidth: 0, flex: 1 }}>
-                                                <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: '0.02em' }}>
-                                                    Số nhà đài phân bổ
-                                                </Typography>
-                                                <Typography variant="h6" fontWeight={900} color="#0f172a" sx={{ fontSize: '1.15rem', mt: 0.25 }}>
-                                                    {lines.filter((l) => !l.removed && (l.lotteryStationId ?? 0) > 0).length} / {lines.filter((l) => !l.removed).length}{' '}
-                                                    <Typography component="span" variant="body2" color="#64748b" fontWeight={700}>
-                                                        đài
-                                                    </Typography>
-                                                </Typography>
-                                            </Box>
-                                        </Paper>
-                                    </Grid>
-
-                                    <Grid size={{ xs: 12, sm: 4 }}>
-                                        <Paper
-                                            elevation={0}
-                                            sx={{
-                                                p: 2,
-                                                bgcolor: '#ffffff',
-                                                borderRadius: '12px',
-                                                border: '1px solid #e2e8f0',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: 1.75,
-                                                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
-                                            }}
-                                        >
-                                            <Box
-                                                sx={{
-                                                    width: 44,
-                                                    height: 44,
-                                                    borderRadius: '10px',
-                                                    bgcolor: '#f0f9ff',
-                                                    color: '#0284c7',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    flexShrink: 0,
-                                                }}
-                                            >
-                                                <ConfirmationNumberOutlinedIcon sx={{ fontSize: '1.35rem' }} />
-                                            </Box>
-                                            <Box sx={{ minWidth: 0, flex: 1 }}>
-                                                <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: '0.02em' }}>
-                                                    Tổng số lượng vé phân bổ
-                                                </Typography>
-                                                <Typography variant="h6" fontWeight={900} color="#0284c7" sx={{ fontSize: '1.15rem', mt: 0.25 }}>
-                                                    {totals.totalQty.toLocaleString('vi-VN')}{' '}
-                                                    <Typography component="span" variant="body2" color="#64748b" fontWeight={700}>
-                                                        vé
-                                                    </Typography>
-                                                </Typography>
-                                            </Box>
-                                        </Paper>
-                                    </Grid>
-
-                                    <Grid size={{ xs: 12, sm: 4 }}>
-                                        <Paper
-                                            elevation={0}
-                                            sx={{
-                                                p: 2,
-                                                bgcolor: '#ffffff',
-                                                borderRadius: '12px',
-                                                border: '1px solid #e2e8f0',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: 1.75,
-                                                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
-                                            }}
-                                        >
-                                            <Box
-                                                sx={{
-                                                    width: 44,
-                                                    height: 44,
-                                                    borderRadius: '10px',
-                                                    bgcolor: '#f0fdf4',
-                                                    color: '#16a34a',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    flexShrink: 0,
-                                                }}
-                                            >
-                                                <MonetizationOnOutlinedIcon sx={{ fontSize: '1.35rem' }} />
-                                            </Box>
-                                            <Box sx={{ minWidth: 0, flex: 1 }}>
-                                                <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: '0.02em' }}>
-                                                    Tổng giá trị lô vé nhập
-                                                </Typography>
-                                                <Typography variant="h6" fontWeight={900} color="#15803d" sx={{ fontSize: '1.15rem', mt: 0.25 }}>
-                                                    {formatVnd(totals.totalCost)}{' '}
-                                                    <Typography component="span" variant="body2" color="#166534" fontWeight={700}>
-                                                        VNĐ
-                                                    </Typography>
-                                                </Typography>
-                                            </Box>
-                                        </Paper>
-                                    </Grid>
-                                </Grid>
-                            </Box>
 
                             {/* Blocked stations info */}
                             {blockedStations.length > 0 && (
@@ -1807,15 +1658,13 @@ export const ImportBatchEditPage = () => {
                                                         bgcolor: '#f8fafc',
                                                         borderBottom: '1px solid #e2e8f0',
                                                         py: 1.5,
-                                                        px: 2,
+                                                        px: 0.5,
                                                     },
                                                 }}
                                             >
                                                 <TableCell sx={{ width: showStatusColumn || showProgressColumn ? '20%' : '28%' }}>Nhà đài</TableCell>
-                                                <TableCell sx={{ width: 115, whiteSpace: 'nowrap' }}>
-                                                    Ngày quay
-                                                </TableCell>
-                                                <TableCell align="center" sx={{ width: 140, whiteSpace: 'nowrap' }}>Loại lô</TableCell>
+
+
                                                 {showStatusColumn && (
                                                     <TableCell sx={{ width: 135, whiteSpace: 'nowrap' }}>Trạng thái dòng</TableCell>
                                                 )}
@@ -1912,9 +1761,9 @@ export const ImportBatchEditPage = () => {
                                         </TableBody>
                                         {activeLines.length > 0 && (
                                             <TableFooter sx={{ borderTop: '2px solid #e2e8f0', bgcolor: '#f8fafc' }}>
-                                                <TableRow sx={{ '& td': { py: 1.5, px: 2, fontWeight: 800, fontSize: '0.85rem' } }}>
+                                                <TableRow sx={{ '& td': { py: 1.5, px: 0.5, fontWeight: 800, fontSize: '0.85rem' } }}>
                                                     <TableCell
-                                                        colSpan={3 + (showStatusColumn ? 1 : 0) + (showProgressColumn ? 1 : 0)}
+                                                        colSpan={1 + (showStatusColumn ? 1 : 0) + (showProgressColumn ? 1 : 0)}
                                                         sx={{ color: '#334155' }}
                                                     >
                                                         Tổng cộng ({activeLines.length} đài)
