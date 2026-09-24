@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import CloseIcon from '@mui/icons-material/Close';
 import DocumentScannerOutlinedIcon from '@mui/icons-material/DocumentScannerOutlined';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
@@ -19,6 +19,7 @@ import { IncompleteImportBatchNotification } from '../../../import-batch/compone
 import { ImportBatchFileImportDialog } from '../../../import-batch/components/sections/ImportBatchFileImportDialog';
 import { useCancelTicketSelection } from '../../../import-batch/hooks/useCancelTicketSelection';
 import { useTodayImportIntakeSummary } from '../../../import-batch/hooks/useImportBatchIntakeGate';
+import { getDefaultInitialDrawDate } from '../../../import-batch/utils/importBatchDrawDate';
 import { OcrTicketImportDialog } from '../../../ocr-import/components/OcrTicketImportDialog';
 
 export const TicketListPage = () => {
@@ -26,16 +27,29 @@ export const TicketListPage = () => {
     const [fileImportOpen, setFileImportOpen] = useState(false);
     const [ocrImportOpen, setOcrImportOpen] = useState(false);
     const todayIso = dayjs().format('YYYY-MM-DD');
+    const tomorrowIso = useMemo(() => dayjs().add(1, 'day').format('YYYY-MM-DD'), []);
+
+    const initialDrawDate = useMemo(() => getDefaultInitialDrawDate(), []);
 
     const ticketHook = useTicketInventory({
-        drawDateFrom: todayIso,
-        drawDateTo: todayIso,
+        drawDateFrom: initialDrawDate,
+        drawDateTo: initialDrawDate,
     });
 
     const cancelSelection = useCancelTicketSelection(ticketHook.tickets);
     const hasSelectedSerials = cancelSelection.selectedSerials.length > 0;
 
     const { allBlockedForToday } = useTodayImportIntakeSummary();
+
+    useEffect(() => {
+        if (
+            allBlockedForToday &&
+            ticketHook.filters.drawDateFrom === todayIso &&
+            ticketHook.filters.drawDateTo === todayIso
+        ) {
+            ticketHook.setDateRangeFilter(tomorrowIso, tomorrowIso);
+        }
+    }, [allBlockedForToday, todayIso, tomorrowIso, ticketHook]);
 
     /**
      * Why cancelling is unavailable, or null when it is available.
@@ -228,7 +242,11 @@ export const TicketListPage = () => {
                 </Alert>
             )}
 
-            <TicketList ticketHook={ticketHook} cancelSelection={cancelSelection} />
+            <TicketList
+                ticketHook={ticketHook}
+                cancelSelection={cancelSelection}
+                cancelLockReason={cancelLockReason}
+            />
 
             <ImportBatchFileImportDialog
                 open={fileImportOpen}

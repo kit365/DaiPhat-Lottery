@@ -296,9 +296,6 @@ public class ImportBatchService implements ImportBatchServicePort {
             editableByStation.putIfAbsent(line.getLotteryStationId(), line);
         }
 
-        List<UpdateImportBatchLineRequest> lineUpdates = new ArrayList<>();
-        int totalDeclare = batch.getTotalDeclareQuantity() != null ? batch.getTotalDeclareQuantity() : 0;
-
         for (Map.Entry<Long, Integer> entry : declareByStation.entrySet()) {
             Long stationId = entry.getKey();
             int needed = entry.getValue() != null ? entry.getValue() : 0;
@@ -311,56 +308,18 @@ public class ImportBatchService implements ImportBatchServicePort {
                 int imported = existing.getTotalQuantity() != null ? existing.getTotalQuantity() : 0;
                 int remaining = Math.max(0, currentDeclare - imported);
                 if (needed > remaining) {
-                    int newDeclare = imported + needed;
-                    totalDeclare += (newDeclare - currentDeclare);
-                    lineUpdates.add(UpdateImportBatchLineRequest.builder()
-                            .id(existing.getId())
-                            .lotteryStationId(stationId)
-                            .declareQuantity(newDeclare)
-                            .removed(false)
-                            .build());
+                    throw new DomainException(ErrorCode.IMPORT_BATCH_LINE_QUANTITY_EXCEEDED);
                 }
             } else {
-                totalDeclare += needed;
-                lineUpdates.add(UpdateImportBatchLineRequest.builder()
-                        .id(null)
-                        .lotteryStationId(stationId)
-                        .declareQuantity(needed)
-                        .removed(false)
-                        .build());
+                throw new DomainException(
+                        ErrorCode.INVALID_INPUT,
+                        "Nhà đài #" + stationId
+                                + " chưa có trên phiếu nhập lô. Vui lòng bổ sung dòng nhà đài trên phiếu trước khi nhập."
+                );
             }
         }
 
-        if (!lineUpdates.isEmpty()) {
-            // Preserve unchanged existing lines in the update payload.
-            for (ImportBatchLineModel line : existingLines) {
-                if (line.getDeletedAt() != null) {
-                    continue;
-                }
-                boolean already = lineUpdates.stream()
-                        .anyMatch(u -> line.getId().equals(u.id()));
-                if (!already && line.getStatus() != ImportBatchLineStatus.CANCELLED) {
-                    lineUpdates.add(UpdateImportBatchLineRequest.builder()
-                            .id(line.getId())
-                            .lotteryStationId(line.getLotteryStationId())
-                            .declareQuantity(line.getDeclareQuantity())
-                            .removed(false)
-                            .build());
-                }
-            }
-            update(
-                    importBatchId,
-                    UpdateImportBatchRequest.builder()
-                            .supplierId(batch.getSupplierId())
-                            .totalDeclareQuantity(Math.max(totalDeclare, 1))
-                            .invoiceEvidenceUrl(batch.getInvoiceEvidenceUrl())
-                            .ticketListImageUrls(batch.getTicketListImageUrls())
-                            .lines(lineUpdates)
-                            .build()
-            );
-        }
-
-        List<ImportBatchLineModel> refreshed = importBatchLineRepositoryPort.findByImportBatchId(importBatchId);
+        List<ImportBatchLineModel> refreshed = existingLines;
         Map<Long, Long> stationToLine = new LinkedHashMap<>();
         for (Map.Entry<Long, Integer> entry : declareByStation.entrySet()) {
             Long stationId = entry.getKey();

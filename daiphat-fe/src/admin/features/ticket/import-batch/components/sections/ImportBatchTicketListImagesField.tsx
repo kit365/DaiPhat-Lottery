@@ -2,12 +2,20 @@
 
 import { Box, ButtonBase, CircularProgress, Stack, Typography } from '@mui/material';
 import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import TableChartOutlinedIcon from '@mui/icons-material/TableChartOutlined';
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { AppToast } from '../../../../../../utils/toast.util';
+import { axiosRequestErrorMessage } from '../../../../../../api/requestError';
 import { ImagePreview } from '../../../../../components/ui/ImagePreview';
 import { uploadImportBatchTicketListImage } from '../../services/importBatchService';
 import { useImportBatchTicketListImageLimits } from '../../hooks/useImportBatchTicketListImageLimits';
+import { getUploadFileCategory } from '../../../../../components/upload/UploadSingleFile';
+
+const TICKET_LIST_UPLOAD_TIMEOUT_MESSAGE =
+    'Tải tệp danh sách vé mất quá nhiều thời gian. Vui lòng thử lại với tệp nhỏ hơn hoặc kiểm tra kết nối mạng.';
 
 interface ImportBatchTicketListImagesFieldProps {
     value?: string[];
@@ -21,16 +29,6 @@ interface ImportBatchTicketListImagesFieldProps {
     compact?: boolean;
     required?: boolean;
 }
-
-const isLikelyImageUrl = (url?: string | null, file?: File | null): boolean => {
-    if (file) {
-        return (file.type || '').toLowerCase().startsWith('image/');
-    }
-    if (!url) return false;
-    const path = url.split('?')[0].toLowerCase();
-    if (path.startsWith('blob:')) return false;
-    return /\.(png|jpe?g|gif|webp|bmp)$/i.test(path);
-};
 
 const getFileLabel = (url?: string | null, file?: File | null): string => {
     if (file?.name) return file.name;
@@ -108,11 +106,11 @@ export const ImportBatchTicketListImagesField = ({
                     try {
                         uploaded.push(await uploadImportBatchTicketListImage(file));
                     } catch (err: unknown) {
-                        const message =
-                            (err as { response?: { data?: { message?: string } }; message?: string })
-                                ?.response?.data?.message ||
-                            (err as { message?: string })?.message ||
-                            'Tải tệp danh sách vé nhập thất bại.';
+                        const message = axiosRequestErrorMessage(
+                            err,
+                            'Tải tệp danh sách vé nhập thất bại.',
+                            TICKET_LIST_UPLOAD_TIMEOUT_MESSAGE
+                        );
                         AppToast.error(message);
                     }
                 }
@@ -134,6 +132,8 @@ export const ImportBatchTicketListImagesField = ({
             'application/vnd.ms-excel': ['.xls'],
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
             'application/vnd.ms-excel.sheet.macroEnabled.12': ['.xlsm'],
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+            'application/msword': ['.doc'],
         },
         multiple: true,
         disabled: disabled || isUploading || remaining <= 0,
@@ -192,10 +192,12 @@ export const ImportBatchTicketListImagesField = ({
                 <Box component="ul" sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', m: 0, p: 0, listStyle: 'none' }}>
                     {urls.map((url, idx) => {
                         const file = files[idx];
-                        const isImage = isLikelyImageUrl(url, file);
+                        const category = getUploadFileCategory(file || url);
+                        const fileName = getFileLabel(url, file);
+
                         return (
                             <Box component="li" key={url} sx={{ position: 'relative' }}>
-                                {isImage ? (
+                                {category === 'image' ? (
                                     <ImagePreview
                                         src={url}
                                         alt="Ảnh danh sách vé nhập"
@@ -205,7 +207,7 @@ export const ImportBatchTicketListImagesField = ({
                                             height: 96,
                                             maxWidth: 96,
                                             maxHeight: 96,
-                                            borderRadius: 1,
+                                            borderRadius: '10px',
                                             objectFit: 'cover',
                                             border: '1px solid #e2e8f0',
                                             bgcolor: '#f8fafc',
@@ -217,9 +219,28 @@ export const ImportBatchTicketListImagesField = ({
                                         sx={{
                                             width: 96,
                                             height: 96,
-                                            borderRadius: 1,
-                                            border: '1px solid #e2e8f0',
-                                            bgcolor: '#f8fafc',
+                                            borderRadius: '10px',
+                                            border: '1px solid',
+                                            borderColor:
+                                                category === 'pdf'
+                                                    ? '#fecaca'
+                                                    : category === 'excel'
+                                                      ? '#a7f3d0'
+                                                      : category === 'csv'
+                                                        ? '#99f6e4'
+                                                        : category === 'docx'
+                                                          ? '#bfdbfe'
+                                                          : '#e2e8f0',
+                                            bgcolor:
+                                                category === 'pdf'
+                                                    ? '#fef2f2'
+                                                    : category === 'excel'
+                                                      ? '#ecfdf5'
+                                                      : category === 'csv'
+                                                        ? '#f0fdfa'
+                                                        : category === 'docx'
+                                                          ? '#eff6ff'
+                                                          : '#f8fafc',
                                             display: 'flex',
                                             flexDirection: 'column',
                                             alignItems: 'center',
@@ -227,23 +248,66 @@ export const ImportBatchTicketListImagesField = ({
                                             gap: 0.5,
                                             px: 0.75,
                                             textAlign: 'center',
+                                            transition: 'all 0.15s ease',
+                                            '&:hover': {
+                                                transform: 'translateY(-1px)',
+                                                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                                            },
                                         }}
-                                        title="Mở tệp"
+                                        title={`Mở ${fileName}`}
                                     >
-                                        <InsertDriveFileOutlinedIcon sx={{ color: '#2563eb', fontSize: '1.5rem' }} />
+                                        {category === 'pdf' ? (
+                                            <PictureAsPdfIcon sx={{ color: '#ef4444', fontSize: '1.75rem' }} />
+                                        ) : category === 'excel' ? (
+                                            <TableChartOutlinedIcon sx={{ color: '#10b981', fontSize: '1.75rem' }} />
+                                        ) : category === 'csv' ? (
+                                            <TableChartOutlinedIcon sx={{ color: '#0d9488', fontSize: '1.75rem' }} />
+                                        ) : category === 'docx' ? (
+                                            <DescriptionOutlinedIcon sx={{ color: '#2563eb', fontSize: '1.75rem' }} />
+                                        ) : (
+                                            <InsertDriveFileOutlinedIcon sx={{ color: '#64748b', fontSize: '1.75rem' }} />
+                                        )}
                                         <Typography
                                             variant="caption"
                                             sx={{
-                                                fontSize: '0.62rem',
-                                                fontWeight: 700,
-                                                color: '#0f172a',
+                                                fontSize: '0.65rem',
+                                                fontWeight: 800,
+                                                color:
+                                                    category === 'pdf'
+                                                        ? '#b91c1c'
+                                                        : category === 'excel'
+                                                          ? '#047857'
+                                                          : category === 'csv'
+                                                            ? '#0f766e'
+                                                            : category === 'docx'
+                                                              ? '#1d4ed8'
+                                                              : '#334155',
+                                                letterSpacing: '0.02em',
+                                            }}
+                                        >
+                                            {category === 'pdf'
+                                                ? 'PDF'
+                                                : category === 'excel'
+                                                  ? 'EXCEL'
+                                                  : category === 'csv'
+                                                    ? 'CSV'
+                                                    : category === 'docx'
+                                                      ? 'DOCX'
+                                                      : 'TỆP'}
+                                        </Typography>
+                                        <Typography
+                                            variant="caption"
+                                            sx={{
+                                                fontSize: '0.58rem',
+                                                fontWeight: 600,
+                                                color: '#64748b',
                                                 wordBreak: 'break-all',
-                                                lineHeight: 1.2,
-                                                maxHeight: 36,
+                                                lineHeight: 1.1,
+                                                maxHeight: 24,
                                                 overflow: 'hidden',
                                             }}
                                         >
-                                            {getFileLabel(url, file)}
+                                            {fileName}
                                         </Typography>
                                     </ButtonBase>
                                 )}
@@ -258,14 +322,14 @@ export const ImportBatchTicketListImagesField = ({
                                             top: 4,
                                             right: 4,
                                             color: '#fff',
-                                            bgcolor: '#141a217a',
+                                            bgcolor: 'rgba(15, 23, 42, 0.65)',
                                             borderRadius: '50%',
-                                            padding: '4px',
-                                            zIndex: 1,
-                                            '&:hover': { bgcolor: '#FF5630' },
+                                            padding: '3px',
+                                            zIndex: 2,
+                                            '&:hover': { bgcolor: '#ef4444' },
                                         }}
                                     >
-                                        <svg width="0.75rem" height="0.75rem" viewBox="0 0 24 24">
+                                        <svg width="0.7rem" height="0.7rem" viewBox="0 0 24 24">
                                             <path
                                                 fill="currentColor"
                                                 d="m12 13.414l5.657 5.657a1 1 0 0 0 1.414-1.414L13.414 12l5.657-5.657a1 1 0 0 0-1.414-1.414L12 10.586L6.343 4.929A1 1 0 0 0 4.93 6.343L10.586 12l-5.657 5.657a1 1 0 1 0 1.414 1.414z"

@@ -66,8 +66,12 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Orchestrates the camera ticket-scan feature (DP-269, doc section 4 Flow 4):
@@ -105,7 +109,7 @@ public class TicketScanImportService implements TicketScanImportServicePort {
     private String ticketVisionRecognitionEngine;
 
     @Override
-    public TicketScanResponse scan(Long importBatchLineId, MultipartFile file, UUID operatorId) {
+    public TicketScanResponse scan(Long importBatchLineId, Long importBatchId, MultipartFile file, UUID operatorId) {
         if (file == null || file.isEmpty()) {
             throw new DomainException(ErrorCode.TICKET_SCAN_IMAGE_REQUIRED);
         }
@@ -113,6 +117,55 @@ public class TicketScanImportService implements TicketScanImportServicePort {
             throw new DomainException(ErrorCode.OCR_DEFAULT_TEMPLATE_REQUIRED);
         }
 
+        try {
+            return scanInternal(importBatchLineId, importBatchId, file, operatorId);
+        } catch (DomainException e) {
+            // Validation / business domain errors stay hard failures.
+            throw e;
+        } catch (Exception e) {
+            // Never let a single image's OCR/enrichment crash the Admin scan session
+            // or take down Tomcat with an unhandled 500 mid multi-image upload.
+            log.error(
+                    "OCR scan soft-failed for file={} lineId={} batchId={}",
+                    file.getOriginalFilename(),
+                    importBatchLineId,
+                    importBatchId,
+                    e
+            );
+            String scanId = java.util.UUID.randomUUID().toString();
+            List<String> warnings = List.of(
+                    "Đã xảy ra lỗi khi xử lý OCR cho ảnh này. "
+                            + "Vui lòng quét lại ảnh này; các ảnh khác vẫn có thể tiếp tục."
+            );
+            ScannedTicketResponse placeholder = unreadableImageTicket(
+                    scanId,
+                    importBatchLineId,
+                    operatorId,
+                    file.getOriginalFilename(),
+                    null,
+                    null,
+                    null,
+                    warnings
+            );
+            return TicketScanResponse.builder()
+                    .scanId(scanId)
+                    .ticketCount(1)
+                    .tickets(List.of(placeholder))
+                    .warnings(warnings)
+                    .imageWidth(null)
+                    .imageHeight(null)
+                    .sourceImageUrl(null)
+                    .build();
+        }
+    }
+
+    private TicketScanResponse scanInternal(
+            Long importBatchLineId,
+            Long importBatchId,
+            MultipartFile file,
+            UUID operatorId
+    ) {
+        long tAll = System.nanoTime();
         ImportBatchLineModel importBatchLine = null;
         ImportBatchModel importBatch = null;
         LotteryStationModel lineStation = null;
@@ -122,6 +175,9 @@ public class TicketScanImportService implements TicketScanImportServicePort {
             importBatch = getImportBatchOrThrow(importBatchLine.getImportBatchId());
             lineStation = lotteryStationServicePort.getModelById(importBatchLine.getLotteryStationId());
             targetDrawDate = importBatch.getDrawDate();
+        } else if (importBatchId != null) {
+            importBatch = getImportBatchOrThrow(importBatchId);
+            targetDrawDate = importBatch.getDrawDate();
         }
 
         byte[] imageBytes;
@@ -130,25 +186,79 @@ public class TicketScanImportService implements TicketScanImportServicePort {
         } catch (IOException e) {
             throw new DomainException(ErrorCode.TICKET_SCAN_IMAGE_REQUIRED, e.getMessage());
         }
+        long decodeMs = (System.nanoTime() - tAll) / 1_000_000L;
 
-        String sourceImageUrl = uploadOriginalScanImage(imageBytes, file.getOriginalFilename(), file.getContentType());
+        // Upload original to Cloudinary in parallel with ticket-vision OCR so
+        // network I/O does not block the critical recognition path.
+        String originalFilename = file.getOriginalFilename();
+        String contentType = file.getContentType();
+        CompletableFuture<String> sourceUploadFuture = CompletableFuture.supplyAsync(
+                () -> uploadOriginalScanImage(imageBytes, originalFilename, contentType)
+        );
 
         lotteryScanLogServicePort.recordEvent(
                 ScanEventType.SCAN_STARTED, null, null, operatorId, ScanMethod.OCR_SCAN, null,
                 importBatchLineId != null
                         ? "Import batch line " + importBatchLineId + " (engine=" + ticketVisionRecognitionEngine + ")"
-                        : "OCR scan without import batch (engine=" + ticketVisionRecognitionEngine + ")"
+                        : importBatchId != null
+                            ? "OCR scan batch " + importBatchId + " (engine=" + ticketVisionRecognitionEngine + ")"
+                            : "OCR scan without import batch (engine=" + ticketVisionRecognitionEngine + ")"
         );
 
-        RemoteScanMetadata metadata = lineStation != null
-                ? buildScanMetadata(List.of(lineStation), lineStation.getId(), targetDrawDate)
-                : buildScanMetadata(loadActiveStationsForVision(), null, null);
+        // Always give the vision model the full active station list so OCR can
+        // report the station printed on the ticket. Do not restrict to the
+        // import-batch draw schedule (that silently biased recognition).
+        List<LotteryStationModel> visionStations = loadActiveStationsForVision();
+        // Prefer line station template when scanning a specific import line;
+        // otherwise start with the global default template field layouts.
+        Long preferredStationId = lineStation != null ? lineStation.getId() : null;
 
+        RemoteScanMetadata metadata = buildScanMetadata(visionStations, preferredStationId, targetDrawDate);
+        Long initialTemplateId = metadata.templateId();
+
+        long tVision = System.nanoTime();
         RemoteTicketScanResult remoteResult = ticketVisionPort.scan(
                 imageBytes,
-                file.getOriginalFilename(),
+                originalFilename,
                 metadata
         );
+        long visionMs = (System.nanoTime() - tVision) / 1_000_000L;
+
+        // When OCR identifies a station with its own template, optionally re-scan
+        // once with those field layouts. Skip when the first pass already looks
+        // complete or the image has many tickets — a second full LLM pass often
+        // exceeds FE/proxy deadlines without improving readable results.
+        Long ocrStationId = peekUnanimousOcrStationId(remoteResult, visionStations);
+        long rescanMs = 0L;
+        if (shouldRescanWithStationTemplate(
+                remoteResult, preferredStationId, ocrStationId, initialTemplateId, targetDrawDate
+        )) {
+            Optional<OcrTicketTemplateModel> stationTemplate =
+                    ocrTicketTemplateRepositoryPort.resolveForStation(ocrStationId, targetDrawDate);
+            log.info(
+                    "Re-scanning with station OCR template stationId={} templateId={} (was templateId={})",
+                    ocrStationId,
+                    stationTemplate.map(OcrTicketTemplateModel::getId).orElse(null),
+                    initialTemplateId
+            );
+            RemoteScanMetadata stationMetadata =
+                    buildScanMetadata(visionStations, ocrStationId, targetDrawDate);
+            if (stationMetadata.templateId() != null
+                    && stationMetadata.fieldLayouts() != null
+                    && !stationMetadata.fieldLayouts().isEmpty()) {
+                long tRescan = System.nanoTime();
+                remoteResult = ticketVisionPort.scan(
+                        imageBytes,
+                        originalFilename,
+                        stationMetadata
+                );
+                rescanMs = (System.nanoTime() - tRescan) / 1_000_000L;
+            }
+        }
+
+        long tUploadJoin = System.nanoTime();
+        String sourceImageUrl = awaitSourceImageUpload(sourceUploadFuture);
+        long uploadJoinMs = (System.nanoTime() - tUploadJoin) / 1_000_000L;
 
         List<RemoteScannedTicket> remoteTickets =
                 remoteResult.tickets() != null ? remoteResult.tickets() : List.of();
@@ -156,6 +266,7 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                 ? new ArrayList<>(remoteResult.warnings())
                 : new ArrayList<>();
 
+        long tEnrich = System.nanoTime();
         List<ScannedTicketResponse> enrichedTickets = new ArrayList<>();
         for (RemoteScannedTicket remoteTicket : remoteTickets) {
             try {
@@ -166,7 +277,7 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                         remoteResult.scanId(),
                         importBatchLineId,
                         operatorId,
-                        file.getOriginalFilename(),
+                        originalFilename,
                         sourceImageUrl,
                         remoteResult.imageWidth(),
                         remoteResult.imageHeight()
@@ -182,13 +293,26 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                 enrichedTickets.add(softFailedTicket(
                         remoteTicket,
                         remoteResult.scanId(),
-                        file.getOriginalFilename(),
+                        originalFilename,
                         sourceImageUrl,
                         remoteResult.imageWidth(),
                         remoteResult.imageHeight()
                 ));
             }
         }
+        long enrichMs = (System.nanoTime() - tEnrich) / 1_000_000L;
+        long totalMs = (System.nanoTime() - tAll) / 1_000_000L;
+        log.info(
+                "OCR BE stage timings ms: decode+meta={} vision={} rescan={} uploadJoin={} enrich={} total={} tickets={} fileBytes={}",
+                decodeMs,
+                visionMs,
+                rescanMs,
+                uploadJoinMs,
+                enrichMs,
+                totalMs,
+                enrichedTickets.size(),
+                imageBytes.length
+        );
 
         if (enrichedTickets.isEmpty()) {
             ScannedTicketResponse placeholder = unreadableImageTicket(
@@ -385,13 +509,23 @@ public class TicketScanImportService implements TicketScanImportServicePort {
 
     private StorageResult uploadScannedImage(String base64Image) {
         byte[] imageBytes = Base64.getDecoder().decode(stripDataUrlPrefix(base64Image.trim()));
+        boolean png = isPng(imageBytes);
         UploadRequest uploadRequest = new UploadRequest(
                 imageBytes,
-                "ticket-scan-" + UUID.randomUUID() + ".jpg",
-                "image/jpeg",
+                "ticket-scan-" + UUID.randomUUID() + (png ? ".png" : ".jpg"),
+                png ? "image/png" : "image/jpeg",
                 StorageFolderConstants.TICKET_IMAGE_FOLDER
         );
         return lotteryTicketServicePort.uploadAsset(uploadRequest);
+    }
+
+    private static boolean isPng(byte[] imageBytes) {
+        return imageBytes != null
+                && imageBytes.length >= 8
+                && (imageBytes[0] & 0xFF) == 0x89
+                && imageBytes[1] == 0x50
+                && imageBytes[2] == 0x4E
+                && imageBytes[3] == 0x47;
     }
 
     private String stripDataUrlPrefix(String base64Image) {
@@ -404,8 +538,150 @@ public class TicketScanImportService implements TicketScanImportServicePort {
     private List<LotteryStationModel> loadActiveStationsForVision() {
         return lotteryStationRepositoryPort.findAll().stream()
                 .filter(s -> s.getDeletedAt() == null)
-                .filter(s -> s.isActive())
+                .filter(LotteryStationModel::isActive)
                 .toList();
+    }
+
+    /**
+     * Re-scan only when a different station template would likely improve weak
+     * fields — not on every multi-ticket photo (that doubles LLM latency and
+     * trips the FE/proxy deadline).
+     */
+    private boolean shouldRescanWithStationTemplate(
+            RemoteTicketScanResult remoteResult,
+            Long preferredStationId,
+            Long ocrStationId,
+            Long initialTemplateId,
+            LocalDate drawDate
+    ) {
+        if (ocrStationId == null) {
+            return false;
+        }
+        if (preferredStationId != null && ocrStationId.equals(preferredStationId)) {
+            return false;
+        }
+        if (remoteResult == null || remoteResult.tickets() == null || remoteResult.tickets().isEmpty()) {
+            return false;
+        }
+        // Multi-ticket images already run YOLO crop augmentation; a second full
+        // pass rarely finishes before the Admin UI times out.
+        if (remoteResult.tickets().size() > 1) {
+            return false;
+        }
+        Optional<OcrTicketTemplateModel> stationTemplate =
+                ocrTicketTemplateRepositoryPort.resolveForStation(ocrStationId, drawDate);
+        if (stationTemplate.isEmpty()) {
+            return false;
+        }
+        Long stationTemplateId = stationTemplate.get().getId();
+        if (initialTemplateId != null && initialTemplateId.equals(stationTemplateId)) {
+            return false;
+        }
+        List<RemoteFieldLayoutMetadata> layouts =
+                ocrFieldLayoutRepositoryPort.findByTemplateId(stationTemplateId).stream()
+                        .map(this::toRemoteLayout)
+                        .filter(java.util.Objects::nonNull)
+                        .toList();
+        if (layouts.isEmpty()) {
+            return false;
+        }
+        return firstPassNeedsStationTemplateLayouts(remoteResult);
+    }
+
+    private static boolean firstPassNeedsStationTemplateLayouts(RemoteTicketScanResult remoteResult) {
+        for (RemoteScannedTicket ticket : remoteResult.tickets()) {
+            if (ticket == null) {
+                return true;
+            }
+            if (ticket.missingFields() != null && !ticket.missingFields().isEmpty()) {
+                return true;
+            }
+            var extracted = ticket.extracted();
+            if (extracted == null) {
+                return true;
+            }
+            boolean weakCore =
+                    isBlank(extracted.serialNumber())
+                            || isBlank(extracted.numbers())
+                            || extracted.drawDate() == null
+                            || isBlank(extracted.batchCode());
+            if (weakCore) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    /**
+     * If every OCR ticket in the first pass agrees on one station (by code or name),
+     * return that station id so we can re-scan with its configured field layouts.
+     */
+    private Long peekUnanimousOcrStationId(
+            RemoteTicketScanResult remoteResult,
+            List<LotteryStationModel> stations
+    ) {
+        if (remoteResult == null || remoteResult.tickets() == null || remoteResult.tickets().isEmpty()) {
+            return null;
+        }
+        if (stations == null || stations.isEmpty()) {
+            return null;
+        }
+        Long agreed = null;
+        for (RemoteScannedTicket ticket : remoteResult.tickets()) {
+            if (ticket == null || ticket.extracted() == null) {
+                continue;
+            }
+            Long matched = matchStationId(
+                    ticket.extracted().stationCode(),
+                    ticket.extracted().stationName(),
+                    stations
+            );
+            if (matched == null) {
+                return null;
+            }
+            if (agreed == null) {
+                agreed = matched;
+            } else if (!agreed.equals(matched)) {
+                return null;
+            }
+        }
+        return agreed;
+    }
+
+    private static Long matchStationId(
+            String stationCode,
+            String stationName,
+            List<LotteryStationModel> stations
+    ) {
+        if (stationCode != null && !stationCode.isBlank()) {
+            String code = stationCode.trim();
+            for (LotteryStationModel station : stations) {
+                if (station.getCode() != null && code.equalsIgnoreCase(station.getCode())) {
+                    return station.getId();
+                }
+            }
+        }
+        if (stationName != null && !stationName.isBlank()) {
+            String name = stationName.trim().toLowerCase(Locale.ROOT);
+            for (LotteryStationModel station : stations) {
+                if (station.getName() != null && station.getName().trim().toLowerCase(Locale.ROOT).equals(name)) {
+                    return station.getId();
+                }
+                if (station.getName() != null
+                        && station.getName().toLowerCase(Locale.ROOT).contains(name)) {
+                    return station.getId();
+                }
+                if (station.getName() != null
+                        && name.contains(station.getName().trim().toLowerCase(Locale.ROOT))) {
+                    return station.getId();
+                }
+            }
+        }
+        return null;
     }
 
     private RemoteScanMetadata buildScanMetadata(
@@ -436,22 +712,33 @@ public class TicketScanImportService implements TicketScanImportServicePort {
 
         Long templateId = null;
         List<RemoteFieldLayoutMetadata> fieldLayouts = List.of();
+        OcrTicketTemplateModel template = null;
         if (preferredStationId != null) {
-            OcrTicketTemplateModel template = ocrTicketTemplateRepositoryPort
+            template = ocrTicketTemplateRepositoryPort
                     .resolveForStation(preferredStationId, drawDate)
                     .orElse(null);
-            if (template != null) {
-                templateId = template.getId();
-                fieldLayouts = ocrFieldLayoutRepositoryPort.findByTemplateId(template.getId()).stream()
-                        .map(this::toRemoteLayout)
-                        .filter(java.util.Objects::nonNull)
-                        .toList();
-            }
+        }
+        if (template == null) {
+            // Batch / free-form scans: still guide OCR with the active default template layouts.
+            template = ocrTicketTemplateRepositoryPort.findActiveDefault().orElse(null);
+        }
+        if (template != null) {
+            templateId = template.getId();
+            fieldLayouts = ocrFieldLayoutRepositoryPort.findByTemplateId(template.getId()).stream()
+                    .map(this::toRemoteLayout)
+                    .filter(java.util.Objects::nonNull)
+                    .toList();
+            log.debug(
+                    "OCR scan using templateId={} stationId={} layoutFields={}",
+                    templateId,
+                    template.getStationId(),
+                    fieldLayouts.size()
+            );
         }
 
         return new RemoteScanMetadata(
                 stationMetadata,
-                null,
+                15,
                 null,
                 ticketVisionRecognitionEngine,
                 templateId,
@@ -491,16 +778,25 @@ public class TicketScanImportService implements TicketScanImportServicePort {
             Integer scanImageWidth,
             Integer scanImageHeight
     ) {
-        ExtractedTicketFieldsResponse extracted = remote.extracted();
+        ExtractedTicketFieldsResponse extracted =
+                OcrScanValidationService.reconcileExtractedFields(remote.extracted());
         Integer imageWidth = remote.imageWidth() != null ? remote.imageWidth() : scanImageWidth;
         Integer imageHeight = remote.imageHeight() != null ? remote.imageHeight() : scanImageHeight;
+
+        Long provisionalTemplateId = lineStation != null
+                ? ocrTicketTemplateRepositoryPort
+                        .resolveForStation(lineStation.getId(), targetDrawDate)
+                        .map(t -> t.getId())
+                        .orElse(null)
+                : null;
 
         OcrScanValidationService.ValidationOutcome outcome = ocrScanValidationService.validate(
                 extracted,
                 remote.fieldConfidences(),
                 remote.status(),
                 lineStation,
-                targetDrawDate
+                targetDrawDate,
+                provisionalTemplateId
         );
 
         Map<String, OcrFieldDetailResponse> fields = buildFieldDetails(
@@ -510,9 +806,8 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                 outcome.fieldValidations()
         );
 
-        Long resolvedStationId = outcome.resolvedStationId() != null
-                ? outcome.resolvedStationId()
-                : (lineStation != null ? lineStation.getId() : null);
+        // Only the station OCR resolved — never substitute the import-batch/line station.
+        Long resolvedStationId = outcome.resolvedStationId();
         LocalDate resolvedDrawDate = outcome.resolvedDrawDate() != null
                 ? outcome.resolvedDrawDate()
                 : targetDrawDate;
@@ -569,6 +864,9 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                 .duplicate(outcome.duplicate())
                 .resolvedStationId(resolvedStationId)
                 .resolvedDrawDate(resolvedDrawDate)
+                // Always return the pristine crop bytes for Admin review (crop-only PNG).
+                // CDN URL is a durable fallback; do not drop base64 or the UI may show a
+                // re-encoded / transformed delivery URL instead of the original crop.
                 .croppedImageBase64(remote.croppedImageBase64())
                 .croppedImageUrl(croppedImageUrl)
                 .ocrScanResultId(ocrScanResultId)
@@ -604,7 +902,9 @@ public class TicketScanImportService implements TicketScanImportServicePort {
         }
         Integer imageWidth = remote.imageWidth() != null ? remote.imageWidth() : scanImageWidth;
         Integer imageHeight = remote.imageHeight() != null ? remote.imageHeight() : scanImageHeight;
-        boolean hasAnyField = hasAnyExtractedValue(remote.extracted());
+        ExtractedTicketFieldsResponse extracted =
+                OcrScanValidationService.reconcileExtractedFields(remote.extracted());
+        boolean hasAnyField = hasAnyExtractedValue(extracted);
         ScannedTicketStatus status = hasAnyField ? ScannedTicketStatus.PARTIAL : ScannedTicketStatus.FAILED;
         String croppedImageUrl = uploadCroppedScanImage(
                 remote.croppedImageBase64(),
@@ -616,7 +916,7 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                 .bbox(remote.bbox())
                 .status(status)
                 .confidence(remote.confidence())
-                .extracted(remote.extracted())
+                .extracted(extracted)
                 .fieldConfidences(remote.fieldConfidences())
                 .fieldBoxes(remote.fieldBoxes())
                 .overallValidationStatus(OcrOverallValidationStatus.NEEDS_REVIEW)
@@ -707,6 +1007,7 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                             .validationStatus(entry.getValue().status())
                             .validationMessage(entry.getValue().message())
                             .expectedValue(null)
+                            .validationFailures(entry.getValue().ruleFailures())
                             .build()
             );
         }
@@ -805,6 +1106,7 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                             .validationStatus(validation != null ? validation.status() : null)
                             .validationMessage(validation != null ? validation.message() : null)
                             .expectedValue(validation != null ? validation.expectedValue() : null)
+                            .validationFailures(validation != null ? validation.ruleFailures() : null)
                             .build()
             );
         }
@@ -929,6 +1231,23 @@ public class TicketScanImportService implements TicketScanImportServicePort {
             return lotteryTicketServicePort.uploadAsset(uploadRequest).url();
         } catch (Exception e) {
             log.warn("Failed to upload original OCR source image; review resume may lack preview", e);
+            return null;
+        }
+    }
+
+    /**
+     * Join the background Cloudinary upload started before ticket-vision.
+     * Vision usually dominates latency, so this is typically already done.
+     */
+    private String awaitSourceImageUpload(CompletableFuture<String> uploadFuture) {
+        if (uploadFuture == null) {
+            return null;
+        }
+        try {
+            return uploadFuture.get(45, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.warn("OCR source image upload did not finish in time; continuing without durable preview", e);
+            uploadFuture.cancel(true);
             return null;
         }
     }

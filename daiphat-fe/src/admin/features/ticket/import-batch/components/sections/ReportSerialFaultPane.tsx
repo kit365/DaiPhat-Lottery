@@ -58,6 +58,7 @@ import {
     SAME_CURRENT_REPLACEMENT_SERIAL_MESSAGE,
 } from '../../utils/serialIncidentWorkflow';
 import { AppToast } from '../../../../../../utils/toast.util';
+import { AdminLuckyDisplay } from '@/shared/lucky-number';
 import { UploadSingleFile } from '../../../../../components/upload/UploadSingleFile';
 import {
     TicketIncidentRefundStep,
@@ -552,6 +553,20 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
         }
     }, [cancelMode, currentTicketId]);
 
+    const handleToggleSerialInScope = (serialId: string | number) => {
+        setForms((prev) => {
+            const current = prev[serialId];
+            if (!current) return prev;
+            return {
+                ...prev,
+                [serialId]: {
+                    ...current,
+                    selected: !current.selected,
+                },
+            };
+        });
+    };
+
     const applyScopeMode = (mode: 'TICKET' | 'SERIAL') => {
         setCancelMode(mode);
         if (mode === 'TICKET') {
@@ -560,10 +575,9 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                 const next = { ...prev };
                 serials.forEach((s) => {
                     if (!next[s.id]) return;
-                    const numKey = s.ticketNumbers || ticketNumbers || 'Vé số';
                     next[s.id] = {
                         ...next[s.id],
-                        selected: numKey === currentTicketNumbers && isSerialIncidentEligible(s),
+                        selected: isSerialIncidentEligible(s),
                     };
                 });
                 return next;
@@ -1329,13 +1343,17 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                         onSyncOrderDrafts={(drafts) => setRefundDraftByOrderId(drafts)}
                     />
                 ) : workflowStep === 'SCOPE' ? (
-                <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '100%', py: 1 }}>
-                    <Typography variant="subtitle1" fontWeight={800} color="#0f172a" sx={{ mb: 0.5 }}>
-                        Chọn phạm vi báo sự cố
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
-                        Chỉ chọn một cách xử lý. Sau đó tiếp tục để nhập thông tin sự cố.
-                    </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, py: 1 }}>
+                    <Box>
+                        <Typography variant="subtitle1" fontWeight={800} color="#0f172a" sx={{ mb: 0.5 }}>
+                            Chọn phạm vi báo sự cố
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            Chỉ chọn một cách xử lý. Sau đó tiếp tục để nhập thông tin sự cố.
+                        </Typography>
+                    </Box>
+
+                    {/* Scope Options Cards */}
                     <Grid container spacing={1.5}>
                         <Grid size={{ xs: 12, sm: 6 }}>
                             <Paper
@@ -1348,8 +1366,8 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                     transition: 'all 0.15s ease',
                                     bgcolor: scopeMode === 'TICKET' ? '#f0fdf4' : '#ffffff',
                                     borderColor: scopeMode === 'TICKET' ? '#16a34a' : '#e2e8f0',
-                                    borderWidth: scopeMode === 'TICKET' ? '1.5px' : '1px',
-                                    boxShadow: scopeMode === 'TICKET' ? '0 2px 8px rgba(22, 163, 74, 0.08)' : 'none',
+                                    borderWidth: scopeMode === 'TICKET' ? '2px' : '1px',
+                                    boxShadow: scopeMode === 'TICKET' ? '0 4px 12px rgba(22, 163, 74, 0.12)' : 'none',
                                     '&:hover': {
                                         borderColor: scopeMode === 'TICKET' ? '#16a34a' : '#cbd5e1',
                                         bgcolor: scopeMode === 'TICKET' ? '#f0fdf4' : '#f8fafc',
@@ -1390,8 +1408,8 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                     transition: 'all 0.15s ease',
                                     bgcolor: scopeMode === 'SERIAL' ? '#eff6ff' : '#ffffff',
                                     borderColor: scopeMode === 'SERIAL' ? '#2563eb' : '#e2e8f0',
-                                    borderWidth: scopeMode === 'SERIAL' ? '1.5px' : '1px',
-                                    boxShadow: scopeMode === 'SERIAL' ? '0 2px 8px rgba(37, 99, 235, 0.08)' : 'none',
+                                    borderWidth: scopeMode === 'SERIAL' ? '2px' : '1px',
+                                    boxShadow: scopeMode === 'SERIAL' ? '0 4px 12px rgba(37, 99, 235, 0.12)' : 'none',
                                     '&:hover': {
                                         borderColor: scopeMode === 'SERIAL' ? '#2563eb' : '#cbd5e1',
                                         bgcolor: scopeMode === 'SERIAL' ? '#eff6ff' : '#f8fafc',
@@ -1422,6 +1440,331 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                             </Paper>
                         </Grid>
                     </Grid>
+
+                    {/* Scope Dynamic Visual Preview Banner */}
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                            gap: 1,
+                            px: 2,
+                            py: 1.25,
+                            borderRadius: '10px',
+                            bgcolor: scopeMode === 'TICKET' ? '#f0fdf4' : '#eff6ff',
+                            border: `1px solid ${scopeMode === 'TICKET' ? '#bbf7d0' : '#bfdbfe'}`,
+                            color: scopeMode === 'TICKET' ? '#15803d' : '#1d4ed8',
+                        }}
+                    >
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                            {scopeMode === 'TICKET' ? (
+                                <ConfirmationNumberOutlinedIcon sx={{ fontSize: '20px' }} />
+                            ) : (
+                                <StyleOutlinedIcon sx={{ fontSize: '20px' }} />
+                            )}
+                            <Typography variant="body2" fontWeight={700} sx={{ fontSize: '0.8125rem' }}>
+                                {scopeMode === 'TICKET'
+                                    ? 'Phạm vi: Báo sự cố toàn bộ dãy số (Làm nổi bật khung dãy vé số)'
+                                    : 'Phạm vi: Báo sự cố theo từng sê-ri (Làm nổi bật các thẻ sê-ri được chọn)'}
+                            </Typography>
+                        </Stack>
+                        <Stack direction="row" spacing={1}>
+                            <Chip
+                                label={`${groups.length} dãy vé`}
+                                size="small"
+                                sx={{
+                                    height: 22,
+                                    fontSize: '0.7rem',
+                                    fontWeight: 700,
+                                    bgcolor: scopeMode === 'TICKET' ? '#dcfce7' : '#dbeafe',
+                                    color: scopeMode === 'TICKET' ? '#15803d' : '#1d4ed8',
+                                }}
+                            />
+                            <Chip
+                                label={`${serials.length} sê-ri`}
+                                size="small"
+                                sx={{
+                                    height: 22,
+                                    fontSize: '0.7rem',
+                                    fontWeight: 700,
+                                    bgcolor: scopeMode === 'TICKET' ? '#dcfce7' : '#dbeafe',
+                                    color: scopeMode === 'TICKET' ? '#15803d' : '#1d4ed8',
+                                }}
+                            />
+                        </Stack>
+                    </Box>
+
+                    {/* Ticket and Serial List Section */}
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <Typography variant="subtitle2" fontWeight={800} color="#334155" sx={{ textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: '0.75rem' }}>
+                            Danh sách thông tin vé & sê-ri áp dụng
+                        </Typography>
+
+                        {groups.map((group) => {
+                            const groupSelectedCount = group.serials.filter(s => forms[s.id]?.selected && isSerialIncidentEligible(s)).length;
+                            const groupEligibleCount = group.serials.filter(s => isSerialIncidentEligible(s)).length;
+
+                            return (
+                                <Paper
+                                    key={group.ticketNumbers}
+                                    variant="outlined"
+                                    sx={{
+                                        p: 2,
+                                        borderRadius: '14px',
+                                        transition: 'all 0.2s ease',
+                                        bgcolor: scopeMode === 'TICKET' ? '#f0fdf4' : '#ffffff',
+                                        borderColor: scopeMode === 'TICKET' ? '#16a34a' : '#cbd5e1',
+                                        borderWidth: scopeMode === 'TICKET' ? '2px' : '1px',
+                                        boxShadow: scopeMode === 'TICKET' ? '0 4px 16px rgba(22, 163, 74, 0.12)' : '0 1px 3px rgba(0,0,0,0.04)',
+                                    }}
+                                >
+                                    {/* Ticket Header */}
+                                    <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1} sx={{ mb: 1.5 }}>
+                                        <Stack direction="row" alignItems="center" spacing={1.25}>
+                                            <Box
+                                                sx={{
+                                                    width: 34,
+                                                    height: 34,
+                                                    borderRadius: '8px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    bgcolor: scopeMode === 'TICKET' ? '#16a34a' : '#f1f5f9',
+                                                    color: scopeMode === 'TICKET' ? '#ffffff' : '#475569',
+                                                }}
+                                            >
+                                                <ConfirmationNumberOutlinedIcon sx={{ fontSize: '18px' }} />
+                                            </Box>
+                                            <Box>
+                                                <Stack direction="row" alignItems="center" spacing={1}>
+                                                    <Typography variant="caption" fontWeight={700} color={scopeMode === 'TICKET' ? '#15803d' : '#64748b'}>
+                                                        Dãy số vé:
+                                                    </Typography>
+                                                    <AdminLuckyDisplay
+                                                        value={group.ticketNumbers}
+                                                        ticket
+                                                        sx={{
+                                                            fontSize: '1.15rem',
+                                                            letterSpacing: '0.08em',
+                                                            color: scopeMode === 'TICKET' ? '#15803d' : '#0f172a',
+                                                            fontWeight: 900,
+                                                        }}
+                                                    />
+                                                    <TicketStatusChip status={group.ticketStatus} />
+                                                </Stack>
+                                            </Box>
+                                        </Stack>
+
+                                        {scopeMode === 'TICKET' ? (
+                                            <Chip
+                                                icon={<CheckCircleRoundedIcon sx={{ fontSize: '16px !important', color: '#16a34a !important' }} />}
+                                                label={`Nổi bật: Báo toàn bộ dãy (${group.serials.length} sê-ri)`}
+                                                size="small"
+                                                sx={{
+                                                    fontWeight: 800,
+                                                    fontSize: '0.75rem',
+                                                    height: 26,
+                                                    bgcolor: '#dcfce7',
+                                                    color: '#15803d',
+                                                    border: '1px solid #86efac',
+                                                }}
+                                            />
+                                        ) : (
+                                            <Chip
+                                                icon={<StyleOutlinedIcon sx={{ fontSize: '14px !important', color: '#2563eb !important' }} />}
+                                                label={`Nổi bật sê-ri (${groupSelectedCount}/${groupEligibleCount} được chọn)`}
+                                                size="small"
+                                                sx={{
+                                                    fontWeight: 800,
+                                                    fontSize: '0.75rem',
+                                                    height: 26,
+                                                    bgcolor: '#eff6ff',
+                                                    color: '#1d4ed8',
+                                                    border: '1px solid #bfdbfe',
+                                                }}
+                                            />
+                                        )}
+                                    </Stack>
+
+                                    {/* Subtitle description */}
+                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5, fontSize: '0.75rem' }}>
+                                        {scopeMode === 'TICKET'
+                                            ? `Áp dụng báo sự cố đồng thời cho toàn bộ ${group.serials.length} sê-ri thuộc dãy số ${group.ticketNumbers}.`
+                                            : `Nhấn vào từng thẻ sê-ri bên dưới để chọn hoặc bỏ chọn sê-ri cần báo sự cố.`}
+                                    </Typography>
+
+                                    {/* Serials List */}
+                                    {scopeMode === 'TICKET' ? (
+                                        <Box
+                                            sx={{
+                                                p: 1.25,
+                                                borderRadius: '10px',
+                                                bgcolor: '#ffffff',
+                                                border: '1px solid #dcfce7',
+                                            }}
+                                        >
+                                            <Typography variant="caption" fontWeight={700} color="#15803d" sx={{ display: 'block', mb: 1, textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: '0.68rem' }}>
+                                                Các sê-ri trong dãy ({group.serials.length} sê-ri):
+                                            </Typography>
+                                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                                {group.serials.map((s) => (
+                                                    <Box
+                                                        key={s.id}
+                                                        sx={{
+                                                            display: 'inline-flex',
+                                                            alignItems: 'center',
+                                                            gap: 0.75,
+                                                            px: 1.25,
+                                                            py: 0.6,
+                                                            borderRadius: '8px',
+                                                            bgcolor: '#f0fdf4',
+                                                            border: '1px solid #bbf7d0',
+                                                        }}
+                                                    >
+                                                        <CheckCircleRoundedIcon sx={{ fontSize: '15px', color: '#16a34a' }} />
+                                                        <Typography
+                                                            variant="caption"
+                                                            fontWeight={800}
+                                                            sx={{
+                                                                fontFamily: 'monospace',
+                                                                fontSize: '0.825rem',
+                                                                color: '#15803d',
+                                                            }}
+                                                        >
+                                                            {s.serialNumber || s.id}
+                                                        </Typography>
+                                                        <SerialStatusChip status={s.status} ticketCondition={s.ticketCondition} />
+                                                        {s.reservedByOrderId && (
+                                                            <Chip
+                                                                label={`Đơn #${s.reservedByOrderId}`}
+                                                                size="small"
+                                                                sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700, bgcolor: '#fef3c7', color: '#92400e' }}
+                                                            />
+                                                        )}
+                                                    </Box>
+                                                ))}
+                                            </Box>
+                                        </Box>
+                                    ) : (
+                                        <Box
+                                            sx={{
+                                                p: 1.25,
+                                                borderRadius: '10px',
+                                                bgcolor: '#f8fafc',
+                                                border: '1px solid #e2e8f0',
+                                            }}
+                                        >
+                                            <Typography variant="caption" fontWeight={700} color="#64748b" sx={{ display: 'block', mb: 1, textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: '0.68rem' }}>
+                                                Chọn sê-ri cần báo sự cố:
+                                            </Typography>
+                                            <Grid container spacing={1}>
+                                                {group.serials.map((s) => {
+                                                    const isEligible = isSerialIncidentEligible(s);
+                                                    const isSelected = Boolean(forms[s.id]?.selected) && isEligible;
+
+                                                    return (
+                                                        <Grid key={s.id} size={{ xs: 12, sm: 6, md: 4 }}>
+                                                            <Paper
+                                                                variant="outlined"
+                                                                onClick={() => isEligible && handleToggleSerialInScope(s.id)}
+                                                                sx={{
+                                                                    p: 1.25,
+                                                                    borderRadius: '10px',
+                                                                    cursor: isEligible ? 'pointer' : 'not-allowed',
+                                                                    transition: 'all 0.15s ease',
+                                                                    bgcolor: isSelected ? '#eff6ff' : '#ffffff',
+                                                                    borderColor: isSelected ? '#2563eb' : '#e2e8f0',
+                                                                    borderWidth: isSelected ? '2px' : '1px',
+                                                                    boxShadow: isSelected ? '0 3px 10px rgba(37, 99, 235, 0.14)' : 'none',
+                                                                    opacity: isEligible ? 1 : 0.6,
+                                                                    '&:hover': isEligible ? {
+                                                                        borderColor: '#2563eb',
+                                                                        bgcolor: isSelected ? '#eff6ff' : '#f0f9ff',
+                                                                    } : {},
+                                                                }}
+                                                            >
+                                                                <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+                                                                    <Stack direction="row" alignItems="center" spacing={1}>
+                                                                        <Box
+                                                                            sx={{
+                                                                                width: 24,
+                                                                                height: 24,
+                                                                                borderRadius: '6px',
+                                                                                display: 'flex',
+                                                                                alignItems: 'center',
+                                                                                justifyContent: 'center',
+                                                                                bgcolor: isSelected ? '#2563eb' : '#f1f5f9',
+                                                                                color: isSelected ? '#ffffff' : '#94a3b8',
+                                                                            }}
+                                                                        >
+                                                                            {isSelected ? (
+                                                                                <CheckCircleRoundedIcon sx={{ fontSize: '16px' }} />
+                                                                            ) : (
+                                                                                <StyleOutlinedIcon sx={{ fontSize: '14px' }} />
+                                                                            )}
+                                                                        </Box>
+                                                                        <Typography
+                                                                            variant="body2"
+                                                                            fontWeight={800}
+                                                                            sx={{
+                                                                                fontFamily: 'monospace',
+                                                                                fontSize: '0.9rem',
+                                                                                color: isSelected ? '#1d4ed8' : '#334155',
+                                                                            }}
+                                                                        >
+                                                                            {s.serialNumber || s.id}
+                                                                        </Typography>
+                                                                    </Stack>
+
+                                                                    {isSelected ? (
+                                                                        <Chip
+                                                                            label="Được chọn"
+                                                                            size="small"
+                                                                            sx={{
+                                                                                height: 20,
+                                                                                fontSize: '0.65rem',
+                                                                                fontWeight: 800,
+                                                                                bgcolor: '#2563eb',
+                                                                                color: '#ffffff',
+                                                                            }}
+                                                                        />
+                                                                    ) : (
+                                                                        <Chip
+                                                                            label={isEligible ? 'Chưa chọn' : 'Không khả dụng'}
+                                                                            size="small"
+                                                                            sx={{
+                                                                                height: 20,
+                                                                                fontSize: '0.65rem',
+                                                                                fontWeight: 600,
+                                                                                bgcolor: '#f1f5f9',
+                                                                                color: '#64748b',
+                                                                            }}
+                                                                        />
+                                                                    )}
+                                                                </Stack>
+
+                                                                <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 0.75 }}>
+                                                                    <SerialStatusChip status={s.status} ticketCondition={s.ticketCondition} />
+                                                                    {s.reservedByOrderId && (
+                                                                        <Chip
+                                                                            label={`Đơn #${s.reservedByOrderId}`}
+                                                                            size="small"
+                                                                            sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700, bgcolor: '#fef3c7', color: '#92400e' }}
+                                                                        />
+                                                                    )}
+                                                                </Stack>
+                                                            </Paper>
+                                                        </Grid>
+                                                    );
+                                                })}
+                                            </Grid>
+                                        </Box>
+                                    )}
+                                </Paper>
+                            );
+                        })}
+                    </Box>
                 </Box>
                 ) : (
                 <>

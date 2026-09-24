@@ -1,7 +1,10 @@
 package com.daiphat.coreapi.application.dto.response.lotteries.scan;
 
 import com.daiphat.coreapi.domain.model.enums.lottery.OcrFieldValidationStatus;
+import com.daiphat.coreapi.domain.model.lotteries.OcrFieldValidationFailure;
 import lombok.Builder;
+
+import java.util.List;
 
 /**
  * One OCR field with recognition confidence, location, and optional system validation.
@@ -15,6 +18,7 @@ public record OcrFieldDetailResponse(
         TicketBoundingBoxResponse boundingBox,
         OcrFieldValidationStatus validationStatus,
         String validationMessage,
-        String expectedValue
+        String expectedValue,
+        List<OcrFieldValidationFailure> validationFailures
 ) {
 }

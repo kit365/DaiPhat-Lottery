@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.infrastructure.scheduler;
 
+import com.daiphat.coreapi.application.dto.response.lotteries.scan.OcrRetrainStatusResponse;
 import com.daiphat.coreapi.application.service.lotteries.AiModelPlatformService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +24,11 @@ public class AiModelMetricAggregationScheduler {
             log.info("Aggregated {} AI model metric rows for {}", upserted, yesterday);
         } else {
             log.debug("No AI model metrics to aggregate for {}", yesterday);
+        }
+        // Phase 4: after metrics land, evaluate whether YOLO/field OCR should be retrained.
+        OcrRetrainStatusResponse retrain = aiModelPlatformService.evaluateRetrainAndMaybeExport();
+        if (retrain.retrainSuggested()) {
+            log.warn("Nightly OCR retrain check: {}", retrain.reason());
         }
     }
 }

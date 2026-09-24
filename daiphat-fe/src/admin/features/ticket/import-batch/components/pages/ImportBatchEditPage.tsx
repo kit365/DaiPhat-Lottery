@@ -5,6 +5,7 @@ import { useRouteParams } from "@/hooks/useRouteParams";
 import {
     Alert,
     Box,
+    ButtonBase,
     Chip,
     FormControl,
     Grid,
@@ -17,6 +18,7 @@ import {
     TableBody,
     TableCell,
     TableContainer,
+    TableFooter,
     TableHead,
     TableRow,
     TextField,
@@ -30,6 +32,11 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import ConfirmationNumberOutlinedIcon from '@mui/icons-material/ConfirmationNumberOutlined';
+import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
+import MonetizationOnOutlinedIcon from '@mui/icons-material/MonetizationOnOutlined';
+import StorefrontOutlinedIcon from '@mui/icons-material/StorefrontOutlined';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import ArrowForwardOutlinedIcon from '@mui/icons-material/ArrowForwardOutlined';
 import { PageHeader } from '../../../../../components/ui/PageHeader';
 import { SpinnerLoading } from '../../../../../components/ui/SpinnerLoading';
 import { CollapsibleCard } from '../../../../../components/ui/CollapsibleCard';
@@ -335,6 +342,14 @@ export const ImportBatchEditPage = () => {
         getValues,
         formSnapshot,
     });
+
+    const intakeGate = useMemo(() => {
+        if (!batch?.supplierId || !batch?.drawDate) {
+            return null;
+        }
+        const supplier = activeSuppliers.find((entry) => entry.id === batch.supplierId);
+        return evaluateIntake(supplier, batch.drawDate);
+    }, [activeSuppliers, batch?.drawDate, batch?.supplierId, evaluateIntake]);
 
     const { isAtRowLimit, canAddRow } = useMemo(
         () => computeImportBatchRowLimit(eligibleStations, lines),
@@ -1091,13 +1106,6 @@ export const ImportBatchEditPage = () => {
     }
 
     const batchCodeLabel = formatImportBatchHeaderCode(batch.batchCode, batch.id);
-    const intakeGate = useMemo(() => {
-        if (!batch.supplierId || !batch.drawDate) {
-            return null;
-        }
-        const supplier = activeSuppliers.find((entry) => entry.id === batch.supplierId);
-        return evaluateIntake(supplier, batch.drawDate);
-    }, [activeSuppliers, batch, evaluateIntake]);
     const showImportTicketsButton = hasTicketImportEligibleLines(batch);
     const importTicketsBlocked = !!intakeGate?.blocked || !!intakeGate?.notYetAllowed;
 
@@ -1441,7 +1449,7 @@ export const ImportBatchEditPage = () => {
                             <Box
                                 sx={{
                                     px: 3,
-                                    py: 2,
+                                    py: 2.25,
                                     borderBottom: '1px solid #f1f5f9',
                                     bgcolor: '#f8fafc',
                                     display: 'flex',
@@ -1451,14 +1459,31 @@ export const ImportBatchEditPage = () => {
                                     flexWrap: 'wrap',
                                 }}
                             >
-                                <Box>
-                                    <Typography variant="subtitle1" fontWeight={800} color="#0f172a">
-                                        Phân bổ số lượng nhập theo từng nhà đài
-                                    </Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                        Chọn nhà đài và phân bổ số lượng vé nhập tương ứng cho kỳ quay
-                                    </Typography>
-                                </Box>
+                                <Stack direction="row" spacing={1.75} alignItems="center">
+                                    <Box
+                                        sx={{
+                                            width: 42,
+                                            height: 42,
+                                            borderRadius: '10px',
+                                            bgcolor: '#e0f2fe',
+                                            color: '#0284c7',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            flexShrink: 0,
+                                        }}
+                                    >
+                                        <StorefrontOutlinedIcon sx={{ fontSize: '1.4rem' }} />
+                                    </Box>
+                                    <Box>
+                                        <Typography variant="subtitle1" fontWeight={800} color="#0f172a">
+                                            Phân bổ số lượng nhập theo từng nhà đài
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary">
+                                            Chọn nhà đài và phân bổ số lượng vé nhập tương ứng cho kỳ quay
+                                        </Typography>
+                                    </Box>
+                                </Stack>
                                 <Button
                                     variant="outlined"
                                     size="small"
@@ -1474,6 +1499,12 @@ export const ImportBatchEditPage = () => {
                                         fontWeight: 700,
                                         textTransform: 'none',
                                         fontSize: '0.8125rem',
+                                        borderColor: '#cbd5e1',
+                                        color: '#0f172a',
+                                        '&:hover': {
+                                            borderColor: '#94a3b8',
+                                            bgcolor: '#f1f5f9',
+                                        },
                                     }}
                                 >
                                     Thêm nhà đài
@@ -1499,100 +1530,301 @@ export const ImportBatchEditPage = () => {
                             )}
 
                             {/* Summary KPI Cards Strip */}
-                            <Box sx={{ px: 3, py: 2, bgcolor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                            <Box sx={{ px: 3, py: 2.25, bgcolor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                                 <Grid container spacing={2}>
                                     <Grid size={{ xs: 12, sm: 4 }}>
-                                        <Box sx={{ p: 1.5, bgcolor: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                                            <Typography variant="caption" color="text.secondary" fontWeight={600} display="block">
-                                                Số nhà đài phân bổ
-                                            </Typography>
-                                            <Typography variant="h6" fontWeight={800} color="#0f172a" sx={{ fontSize: '1.1rem', mt: 0.25 }}>
-                                                {lines.filter((l) => !l.removed && (l.lotteryStationId ?? 0) > 0).length} / {lines.filter((l) => !l.removed).length} đài
-                                            </Typography>
-                                        </Box>
-                                    </Grid>
-
-                                    <Grid size={{ xs: 12, sm: 4 }}>
-                                        <Box sx={{ p: 1.5, bgcolor: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                                            <Typography variant="caption" color="text.secondary" fontWeight={600} display="block">
-                                                Tổng số lượng vé phân bổ
-                                            </Typography>
-                                            <Typography variant="h6" fontWeight={800} color="#0284c7" sx={{ fontSize: '1.1rem', mt: 0.25 }}>
-                                                {totals.totalQty.toLocaleString('vi-VN')}{' '}
-                                                <Typography component="span" variant="body2" color="text.secondary" fontWeight={600}>
-                                                    vé
+                                        <Paper
+                                            elevation={0}
+                                            sx={{
+                                                p: 2,
+                                                bgcolor: '#ffffff',
+                                                borderRadius: '12px',
+                                                border: '1px solid #e2e8f0',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 1.75,
+                                                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
+                                            }}
+                                        >
+                                            <Box
+                                                sx={{
+                                                    width: 44,
+                                                    height: 44,
+                                                    borderRadius: '10px',
+                                                    bgcolor: '#f8fafc',
+                                                    color: '#475569',
+                                                    border: '1px solid #e2e8f0',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    flexShrink: 0,
+                                                }}
+                                            >
+                                                <LocationOnOutlinedIcon sx={{ fontSize: '1.35rem' }} />
+                                            </Box>
+                                            <Box sx={{ minWidth: 0, flex: 1 }}>
+                                                <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                                                    Số nhà đài phân bổ
                                                 </Typography>
-                                            </Typography>
-                                        </Box>
+                                                <Typography variant="h6" fontWeight={900} color="#0f172a" sx={{ fontSize: '1.15rem', mt: 0.25 }}>
+                                                    {lines.filter((l) => !l.removed && (l.lotteryStationId ?? 0) > 0).length} / {lines.filter((l) => !l.removed).length}{' '}
+                                                    <Typography component="span" variant="body2" color="#64748b" fontWeight={700}>
+                                                        đài
+                                                    </Typography>
+                                                </Typography>
+                                            </Box>
+                                        </Paper>
                                     </Grid>
 
                                     <Grid size={{ xs: 12, sm: 4 }}>
-                                        <Box sx={{ p: 1.5, bgcolor: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                                            <Typography variant="caption" color="text.secondary" fontWeight={600} display="block">
-                                                Tổng giá trị lô vé nhập
-                                            </Typography>
-                                            <Typography variant="h6" fontWeight={800} color="#16a34a" sx={{ fontSize: '1.1rem', mt: 0.25 }}>
-                                                {formatVnd(totals.totalCost)}
-                                            </Typography>
-                                        </Box>
+                                        <Paper
+                                            elevation={0}
+                                            sx={{
+                                                p: 2,
+                                                bgcolor: '#ffffff',
+                                                borderRadius: '12px',
+                                                border: '1px solid #e2e8f0',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 1.75,
+                                                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
+                                            }}
+                                        >
+                                            <Box
+                                                sx={{
+                                                    width: 44,
+                                                    height: 44,
+                                                    borderRadius: '10px',
+                                                    bgcolor: '#f0f9ff',
+                                                    color: '#0284c7',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    flexShrink: 0,
+                                                }}
+                                            >
+                                                <ConfirmationNumberOutlinedIcon sx={{ fontSize: '1.35rem' }} />
+                                            </Box>
+                                            <Box sx={{ minWidth: 0, flex: 1 }}>
+                                                <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                                                    Tổng số lượng vé phân bổ
+                                                </Typography>
+                                                <Typography variant="h6" fontWeight={900} color="#0284c7" sx={{ fontSize: '1.15rem', mt: 0.25 }}>
+                                                    {totals.totalQty.toLocaleString('vi-VN')}{' '}
+                                                    <Typography component="span" variant="body2" color="#64748b" fontWeight={700}>
+                                                        vé
+                                                    </Typography>
+                                                </Typography>
+                                            </Box>
+                                        </Paper>
+                                    </Grid>
+
+                                    <Grid size={{ xs: 12, sm: 4 }}>
+                                        <Paper
+                                            elevation={0}
+                                            sx={{
+                                                p: 2,
+                                                bgcolor: '#ffffff',
+                                                borderRadius: '12px',
+                                                border: '1px solid #e2e8f0',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 1.75,
+                                                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
+                                            }}
+                                        >
+                                            <Box
+                                                sx={{
+                                                    width: 44,
+                                                    height: 44,
+                                                    borderRadius: '10px',
+                                                    bgcolor: '#f0fdf4',
+                                                    color: '#16a34a',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    flexShrink: 0,
+                                                }}
+                                            >
+                                                <MonetizationOnOutlinedIcon sx={{ fontSize: '1.35rem' }} />
+                                            </Box>
+                                            <Box sx={{ minWidth: 0, flex: 1 }}>
+                                                <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                                                    Tổng giá trị lô vé nhập
+                                                </Typography>
+                                                <Typography variant="h6" fontWeight={900} color="#15803d" sx={{ fontSize: '1.15rem', mt: 0.25 }}>
+                                                    {formatVnd(totals.totalCost)}{' '}
+                                                    <Typography component="span" variant="body2" color="#166534" fontWeight={700}>
+                                                        VNĐ
+                                                    </Typography>
+                                                </Typography>
+                                            </Box>
+                                        </Paper>
                                     </Grid>
                                 </Grid>
                             </Box>
 
                             {/* Blocked stations info */}
                             {blockedStations.length > 0 && (
-                                <Box sx={{ px: 3, pt: 2 }}>
-                                    <Alert severity="info" sx={{ borderRadius: '10px' }}>
-                                        <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                                            Một số nhà đài đã có phiếu nhập nháp:
-                                        </Typography>
-                                        {blockedStations.map((station) => (
-                                            <Typography
-                                                key={station.lotteryStationId}
-                                                variant="body2"
-                                            >
-                                                {station.name}
-                                                {station.existingDraftBatchId
-                                                    ? ` — phiếu #${station.existingDraftBatchId}`
-                                                    : ''}
+                                <Box sx={{ px: 3, pt: 2.5 }}>
+                                    <Box
+                                        sx={{
+                                            p: 2,
+                                            borderRadius: '12px',
+                                            bgcolor: '#f0f9ff',
+                                            border: '1px solid #bae6fd',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            gap: 1.25,
+                                        }}
+                                    >
+                                        <Stack direction="row" spacing={1} alignItems="center">
+                                            <InfoOutlinedIcon sx={{ color: '#0284c7', fontSize: '1.25rem' }} />
+                                            <Typography variant="body2" fontWeight={700} color="#0369a1">
+                                                Một số nhà đài trong kỳ quay này đã có phiếu nhập nháp:
                                             </Typography>
-                                        ))}
-                                    </Alert>
+                                        </Stack>
+
+                                        <Typography variant="caption" color="#0369a1" sx={{ mt: -0.5, opacity: 0.9 }}>
+                                            Các nhà đài dưới đây đã được tạo phiếu nhập trước đó. Bạn có thể mở phiếu nháp hiện có để tiếp tục xử lý:
+                                        </Typography>
+
+                                        <Box
+                                            sx={{
+                                                display: 'grid',
+                                                gridTemplateColumns: {
+                                                    xs: '1fr',
+                                                    sm: 'repeat(auto-fill, minmax(280px, 1fr))',
+                                                },
+                                                gap: 1.25,
+                                                mt: 0.25,
+                                            }}
+                                        >
+                                            {blockedStations.map((station) => (
+                                                <Paper
+                                                    key={station.lotteryStationId}
+                                                    elevation={0}
+                                                    sx={{
+                                                        p: 1.25,
+                                                        px: 1.5,
+                                                        borderRadius: '10px',
+                                                        border: '1px solid #bae6fd',
+                                                        bgcolor: '#ffffff',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'space-between',
+                                                        gap: 1.25,
+                                                        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
+                                                    }}
+                                                >
+                                                    <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0, flex: 1 }}>
+                                                        <Box
+                                                            sx={{
+                                                                width: 8,
+                                                                height: 8,
+                                                                borderRadius: '50%',
+                                                                bgcolor: '#0284c7',
+                                                                flexShrink: 0,
+                                                            }}
+                                                        />
+                                                        <Typography
+                                                            variant="body2"
+                                                            fontWeight={700}
+                                                            color="#0f172a"
+                                                            noWrap
+                                                            title={station.name}
+                                                        >
+                                                            {station.name}
+                                                        </Typography>
+                                                    </Stack>
+
+                                                    {station.existingDraftBatchId && (
+                                                        <Stack direction="row" spacing={1} alignItems="center" sx={{ flexShrink: 0 }}>
+                                                            <Chip
+                                                                size="small"
+                                                                label={`Phiếu #${station.existingDraftBatchId}`}
+                                                                sx={{
+                                                                    height: 22,
+                                                                    fontSize: '0.725rem',
+                                                                    fontWeight: 700,
+                                                                    fontFamily: 'monospace',
+                                                                    bgcolor: '#f0f9ff',
+                                                                    color: '#0369a1',
+                                                                    border: '1px solid #e0f2fe',
+                                                                }}
+                                                            />
+                                                            <ButtonBase
+                                                                onClick={() =>
+                                                                    router.push(
+                                                                        ROUTES.ADMIN.IMPORT_BATCH.DETAIL(
+                                                                            station.existingDraftBatchId!
+                                                                        )
+                                                                    )
+                                                                }
+                                                                sx={{
+                                                                    height: 24,
+                                                                    px: 1,
+                                                                    fontSize: '0.725rem',
+                                                                    fontWeight: 700,
+                                                                    borderRadius: '6px',
+                                                                    color: '#0284c7',
+                                                                    bgcolor: '#f0f9ff',
+                                                                    border: '1px solid #bae6fd',
+                                                                    display: 'inline-flex',
+                                                                    alignItems: 'center',
+                                                                    gap: 0.5,
+                                                                    transition: 'all 0.15s ease',
+                                                                    '&:hover': {
+                                                                        bgcolor: '#e0f2fe',
+                                                                        borderColor: '#7dd3fc',
+                                                                        color: '#0369a1',
+                                                                    },
+                                                                }}
+                                                            >
+                                                                <span>Xem phiếu</span>
+                                                                <ArrowForwardOutlinedIcon sx={{ fontSize: '0.85rem' }} />
+                                                            </ButtonBase>
+                                                        </Stack>
+                                                    )}
+                                                </Paper>
+                                            ))}
+                                        </Box>
+                                    </Box>
                                 </Box>
                             )}
 
                             {/* Table */}
                             <Box sx={{ px: 0 }}>
-                                <TableContainer>
+                                <TableContainer sx={{ padding: '0 !important' }}>
                                     <Table size="small" sx={{ tableLayout: 'fixed', width: '100%' }}>
                                         <TableHead>
                                             <TableRow
                                                 sx={{
                                                     '& .MuiTableCell-head': {
-                                                        fontWeight: 700,
+                                                        fontWeight: 800,
                                                         fontSize: '0.8125rem',
-                                                        color: '#64748b',
+                                                        color: '#475569',
                                                         bgcolor: '#f8fafc',
                                                         borderBottom: '1px solid #e2e8f0',
-                                                        py: 1.25,
+                                                        py: 1.5,
                                                         px: 2,
                                                     },
                                                 }}
                                             >
                                                 <TableCell sx={{ width: showStatusColumn || showProgressColumn ? '20%' : '28%' }}>Nhà đài</TableCell>
-                                                <TableCell sx={{ width: 110, whiteSpace: 'nowrap' }}>
+                                                <TableCell sx={{ width: 115, whiteSpace: 'nowrap' }}>
                                                     Ngày quay
                                                 </TableCell>
                                                 <TableCell align="center" sx={{ width: 140, whiteSpace: 'nowrap' }}>Loại lô</TableCell>
                                                 {showStatusColumn && (
-                                                    <TableCell sx={{ width: 120, whiteSpace: 'nowrap' }}>Trạng thái dòng</TableCell>
+                                                    <TableCell sx={{ width: 135, whiteSpace: 'nowrap' }}>Trạng thái dòng</TableCell>
                                                 )}
                                                 {showProgressColumn && (
-                                                    <TableCell sx={{ width: 108, whiteSpace: 'nowrap' }}>Tiến độ nhập</TableCell>
+                                                    <TableCell sx={{ width: 115, whiteSpace: 'nowrap' }}>Tiến độ nhập</TableCell>
                                                 )}
-                                                <TableCell sx={{ width: 120 }}>SL phân bổ</TableCell>
-                                                <TableCell align="center" sx={{ width: 130 }}>Giá vốn</TableCell>
-                                                <TableCell align="right" sx={{ width: 130, whiteSpace: 'nowrap' }}>
+                                                <TableCell align="right" sx={{ width: 130 }}>SL phân bổ</TableCell>
+                                                <TableCell align="right" sx={{ width: 130 }}>Đơn giá vốn</TableCell>
+                                                <TableCell align="right" sx={{ width: 140, whiteSpace: 'nowrap' }}>
                                                     Tổng giá vốn
                                                 </TableCell>
                                                 <TableCell align="center" width={260} />
@@ -1637,7 +1869,7 @@ export const ImportBatchEditPage = () => {
                                                         lotteryStationId={line?.lotteryStationId ?? 0}
                                                         resolvedBatchType={line?.resolvedBatchType}
                                                         selectedStationIdsInOtherRows={
-                                                            selectedStationIdsByRow[index] ?? []
+                                                             selectedStationIdsByRow[index] ?? []
                                                         }
                                                         canRemove={canRemove}
                                                         onRemove={() => handleRemoveLine(index)}
@@ -1678,6 +1910,28 @@ export const ImportBatchEditPage = () => {
                                                 );
                                             })}
                                         </TableBody>
+                                        {activeLines.length > 0 && (
+                                            <TableFooter sx={{ borderTop: '2px solid #e2e8f0', bgcolor: '#f8fafc' }}>
+                                                <TableRow sx={{ '& td': { py: 1.5, px: 2, fontWeight: 800, fontSize: '0.85rem' } }}>
+                                                    <TableCell
+                                                        colSpan={3 + (showStatusColumn ? 1 : 0) + (showProgressColumn ? 1 : 0)}
+                                                        sx={{ color: '#334155' }}
+                                                    >
+                                                        Tổng cộng ({activeLines.length} đài)
+                                                    </TableCell>
+                                                    <TableCell align="right" sx={{ color: '#0284c7' }}>
+                                                        {totals.totalQty.toLocaleString('vi-VN')} vé
+                                                    </TableCell>
+                                                    <TableCell align="right" sx={{ color: 'text.secondary', fontWeight: 600 }}>
+                                                        —
+                                                    </TableCell>
+                                                    <TableCell align="right" sx={{ color: '#15803d' }}>
+                                                        {formatVnd(totals.totalCost)}
+                                                    </TableCell>
+                                                    <TableCell />
+                                                </TableRow>
+                                            </TableFooter>
+                                        )}
                                     </Table>
                                 </TableContainer>
                             </Box>

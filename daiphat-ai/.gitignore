@@ -22,6 +22,10 @@ htmlcov/
 *.onnx
 data/raw/
 data/labeled/
+data/llm_quota/
+services/ticket-vision/data/llm_quota/
+data/field_ocr_dataset/
+services/ticket-vision/data/field_ocr_dataset/
 models/*.pt
 models/**/*.pt
 

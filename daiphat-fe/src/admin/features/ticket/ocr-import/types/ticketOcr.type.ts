@@ -43,6 +43,14 @@ export interface FieldValidationResult {
     status: OcrFieldValidationStatus;
     message?: string | null;
     expectedValue?: string | null;
+    ruleFailures?: OcrFieldValidationFailure[] | null;
+}
+
+export interface OcrFieldValidationFailure {
+    ruleId?: number | null;
+    ruleType?: string | null;
+    severity?: 'HARD_FAIL' | 'SOFT_WARNING' | string | null;
+    message?: string | null;
 }
 
 export interface OcrFieldDetail {
@@ -53,6 +61,7 @@ export interface OcrFieldDetail {
     validationStatus?: OcrFieldValidationStatus | null;
     validationMessage?: string | null;
     expectedValue?: string | null;
+    validationFailures?: OcrFieldValidationFailure[] | null;
 }
 
 export interface ExtractedTicketFields {
@@ -226,6 +235,8 @@ export interface OcrQueuedImage {
     scanId?: string | null;
     imageWidth?: number | null;
     imageHeight?: number | null;
+    scannedAt?: string | null;
+    durationMs?: number | null;
 }
 
 export interface OcrReviewRow {
@@ -262,6 +273,8 @@ export interface OcrReviewRow {
     croppedImageUrl?: string | null;
     selected: boolean;
     edited: boolean;
+    scannedAt?: string | null;
+    durationMs?: number | null;
 }
 
 export const OCR_IMPORT_DRAFT_KEY = 'ocrImportDraft';
@@ -273,6 +286,8 @@ export interface OcrImportDraftImageMeta {
     scanId?: string | null;
     imageWidth?: number | null;
     imageHeight?: number | null;
+    scannedAt?: string | null;
+    durationMs?: number | null;
 }
 
 export interface OcrImportDraft {

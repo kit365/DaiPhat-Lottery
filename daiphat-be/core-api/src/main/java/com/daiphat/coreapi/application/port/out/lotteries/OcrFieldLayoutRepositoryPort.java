@@ -23,4 +23,7 @@ public interface OcrFieldLayoutRepositoryPort {
     );
 
     int findMaxPriority(Long templateId, OcrTemplateFieldName fieldName);
+
+    /** Physically removes all layouts for a template (including soft-deleted rows). */
+    int hardDeleteByTemplateId(Long templateId);
 }

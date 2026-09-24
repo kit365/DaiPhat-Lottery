@@ -78,6 +78,7 @@ class TicketScanImportServiceSoftFailTest {
         operatorId = UUID.fromString("22222222-2222-2222-2222-222222222222");
         ReflectionTestUtils.setField(service, "ticketVisionRecognitionEngine", "groq");
         when(ocrTicketTemplateRepositoryPort.existsActiveDefault()).thenReturn(true);
+        when(ocrTicketTemplateRepositoryPort.findActiveDefault()).thenReturn(java.util.Optional.empty());
         when(lotteryStationRepositoryPort.findAll()).thenReturn(List.of(
                 LotteryStationModel.builder().id(1L).name("HCM").code("HCM").build()
         ));
@@ -105,7 +106,7 @@ class TicketScanImportServiceSoftFailTest {
                 "file", "blurry.jpg", "image/jpeg", new byte[]{1, 2, 3}
         );
 
-        TicketScanResponse response = service.scan(null, file, operatorId);
+        TicketScanResponse response = service.scan(null, null, file, operatorId);
 
         assertThat(response.scanId()).isEqualTo("scan-empty");
         assertThat(response.ticketCount()).isEqualTo(1);

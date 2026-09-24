@@ -60,7 +60,12 @@ class _FakeModel:
 
 @pytest.fixture
 def image() -> np.ndarray:
-    return np.zeros((600, 300, 3), dtype=np.uint8)
+    # Mid-tone canvas with structure so empty-crop filter keeps real boxes.
+    canvas = np.full((600, 300, 3), (170, 165, 160), dtype=np.uint8)
+    canvas[50:450, 30:270] = (220, 80, 60)
+    for y in range(80, 420, 24):
+        canvas[y : y + 8, 50:250] = (30, 30, 30)
+    return canvas
 
 
 def test_default_class_mapping_covers_required_fields():
@@ -68,8 +73,31 @@ def test_default_class_mapping_covers_required_fields():
     assert {"stationName", "serialNumber", "numbers", "drawDate"}.issubset(mapped)
 
 
+def test_build_yolo_llm_guidance_rejects_dark_background_false_positive(monkeypatch):
+    monkeypatch.setattr(guidance_mod.settings, "TICKET_VISION_LLM_YOLO_GUIDANCE", True)
+    monkeypatch.setattr(guidance_mod.settings, "TICKET_VISION_YOLO_REQUIRE_INNER_FIELD", False)
+    monkeypatch.setattr(guidance_mod.yolo_model, "is_available", lambda _path: True)
+    dark = np.zeros((600, 300, 3), dtype=np.uint8)
+    monkeypatch.setattr(
+        guidance_mod.yolo_model,
+        "load_model",
+        lambda _path: _FakeModel(
+            _FakeResult(
+                _FakeObb(
+                    boxes=[[20, 40, 260, 420]],
+                    cls=[3],
+                    conf=[0.9],
+                )
+            )
+        ),
+    )
+    result = build_yolo_llm_guidance(dark, max_tickets=5, encode_crops=False)
+    assert result.ticket_count == 0
+
+
 def test_build_yolo_llm_guidance_returns_ticket_and_field_crops(image, monkeypatch):
     monkeypatch.setattr(guidance_mod.settings, "TICKET_VISION_LLM_YOLO_GUIDANCE", True)
+    monkeypatch.setattr(guidance_mod.settings, "TICKET_VISION_YOLO_TICKET_MIN_CONFIDENCE", 0.35)
     monkeypatch.setattr(guidance_mod.yolo_model, "is_available", lambda _path: True)
     monkeypatch.setattr(
         guidance_mod.yolo_model,
@@ -78,10 +106,10 @@ def test_build_yolo_llm_guidance_returns_ticket_and_field_crops(image, monkeypat
             _FakeResult(
                 _FakeObb(
                     boxes=[
-                        [10, 10, 290, 590],  # ticket
-                        [20, 20, 280, 70],  # station
-                        [30, 300, 270, 360],  # numbers
-                        [40, 500, 260, 540],  # serial
+                        [20, 40, 260, 420],  # ticket (~0.42 of frame)
+                        [30, 50, 250, 100],  # station
+                        [40, 200, 240, 260],  # numbers
+                        [50, 350, 230, 390],  # serial
                     ],
                     cls=[3, 1, 7, 2],
                 )
@@ -100,6 +128,36 @@ def test_build_yolo_llm_guidance_returns_ticket_and_field_crops(image, monkeypat
     assert f"{YOLO_FIELD_CROP_PREFIX}serialNumber" in labels
     assert result.hint is not None
     assert "stationName" in result.hint
+
+
+def test_build_yolo_llm_guidance_skips_crop_encoding_when_disabled(image, monkeypatch):
+    monkeypatch.setattr(guidance_mod.settings, "TICKET_VISION_LLM_YOLO_GUIDANCE", True)
+    monkeypatch.setattr(guidance_mod.settings, "TICKET_VISION_YOLO_TICKET_MIN_CONFIDENCE", 0.35)
+    monkeypatch.setattr(guidance_mod.yolo_model, "is_available", lambda _path: True)
+    monkeypatch.setattr(
+        guidance_mod.yolo_model,
+        "load_model",
+        lambda _path: _FakeModel(
+            _FakeResult(
+                _FakeObb(
+                    boxes=[
+                        [20, 40, 260, 420],
+                        [30, 50, 250, 100],
+                        [40, 200, 240, 260],
+                    ],
+                    cls=[3, 1, 7],
+                )
+            )
+        ),
+    )
+
+    result = build_yolo_llm_guidance(image, max_tickets=5, encode_crops=False)
+
+    assert result.ticket_count == 1
+    assert result.ticket_boxes
+    assert result.fields_covered == {"stationName", "numbers"}
+    assert result.crops == []
+    assert result.hint is not None
 
 
 def test_build_yolo_llm_guidance_skips_when_disabled(image, monkeypatch):
@@ -159,7 +217,7 @@ def test_merge_rule_a_template_only_when_yolo_empty():
     assert "OCR template field layouts" in hint
 
 
-def test_limit_vision_extra_images_skips_ticket_prefers_numbers():
+def test_limit_vision_extra_images_single_ticket_prefers_fields():
     crops = [
         (f"{YOLO_TICKET_CROP_PREFIX}0", b"ticket"),
         (f"{YOLO_FIELD_CROP_PREFIX}drawDate", b"date"),
@@ -167,12 +225,28 @@ def test_limit_vision_extra_images_skips_ticket_prefers_numbers():
         (f"{YOLO_FIELD_CROP_PREFIX}serialNumber", b"serial"),
         (f"{YOLO_FIELD_CROP_PREFIX}stationName", b"station"),
     ]
-    limited = limit_vision_extra_images(crops)
+    limited = limit_vision_extra_images(crops, prefer_ticket_crops=False)
     assert len(limited) == GROQ_MAX_EXTRA_IMAGES
     labels = [label for label, _ in limited]
     assert f"{YOLO_TICKET_CROP_PREFIX}0" not in labels
     assert f"{YOLO_FIELD_CROP_PREFIX}numbers" in labels
     assert f"{YOLO_FIELD_CROP_PREFIX}serialNumber" in labels
+
+
+def test_limit_vision_extra_images_multi_ticket_prefers_ticket_crops():
+    crops = [
+        (f"{YOLO_TICKET_CROP_PREFIX}0", b"ticket0"),
+        (f"{YOLO_TICKET_CROP_PREFIX}1", b"ticket1"),
+        (f"{YOLO_TICKET_CROP_PREFIX}2", b"ticket2"),
+        (f"{YOLO_FIELD_CROP_PREFIX}numbers", b"numbers"),
+        (f"{YOLO_FIELD_CROP_PREFIX}serialNumber", b"serial"),
+    ]
+    limited = limit_vision_extra_images(crops, prefer_ticket_crops=True)
+    assert len(limited) == GROQ_MAX_EXTRA_IMAGES
+    labels = [label for label, _ in limited]
+    assert f"{YOLO_TICKET_CROP_PREFIX}0" in labels
+    assert f"{YOLO_TICKET_CROP_PREFIX}1" in labels
+    assert f"{YOLO_FIELD_CROP_PREFIX}numbers" not in labels
 
 
 def test_limit_vision_extra_images_fields_only_prioritizes_numbers():

@@ -59,4 +59,9 @@ public class OcrFieldLayoutRepositoryAdapter implements OcrFieldLayoutRepository
     public int findMaxPriority(Long templateId, OcrTemplateFieldName fieldName) {
         return repository.findMaxPriorityByTemplateIdAndFieldName(templateId, fieldName);
     }
+
+    @Override
+    public int hardDeleteByTemplateId(Long templateId) {
+        return repository.hardDeleteByTemplateId(templateId);
+    }
 }

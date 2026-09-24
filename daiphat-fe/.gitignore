@@ -2,6 +2,7 @@ node_modules/
 .next/
 tsconfig.tsbuildinfo
 *.log
+.babelrc
 
 # Claude Code local overrides
 .claude/settings.local.json

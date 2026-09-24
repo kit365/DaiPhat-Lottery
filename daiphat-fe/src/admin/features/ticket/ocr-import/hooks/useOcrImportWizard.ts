@@ -41,16 +41,76 @@ import {
 import {
     normalizeOcrScanErrorMessage,
     normalizeOcrWarningList,
+    formatOcrWarningsForToast,
+    isOcrRateLimitMessage,
+    isTechnicalOcrErrorMessage,
+    OCR_RATE_LIMIT_MESSAGE,
+    OCR_SERVICE_UNAVAILABLE_MESSAGE,
 } from '../utils/ocrScanErrorMessage';
+import {
+    checkOcrImportQuantity,
+    type ImportQuantityCheck,
+} from '../utils/ocrImportQuantity';
+import { optimizeOcrScanImage } from '../utils/optimizeOcrImage';
 
 export type OcrWizardStep = 'upload' | 'review' | 'importMode' | 'result';
 export type OcrDraftIntent = 'USE_EXISTING' | 'CREATE_NEW';
+
+/** Brief pause between multi-image scans to reduce Groq RPM/OTPM collisions. */
+const OCR_INTER_IMAGE_DELAY_MS = 100;
+/** One automatic wait+retry when Groq returns a rate-limit soft-fail. */
+const OCR_RATE_LIMIT_RETRY_DELAY_MS = 20_000;
+const OCR_RATE_LIMIT_MAX_RETRIES = 1;
+/** OCR worker can be briefly busy (YOLO/Groq); retry once before surfacing outage. */
+const OCR_SERVICE_RETRY_DELAY_MS = 8_000;
+const OCR_SERVICE_MAX_RETRIES = 1;
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+const isUnreadableScanResult = (
+    tickets: { status?: string | null; extracted?: { numbers?: string | null; serialNumber?: string | null } | null }[]
+): boolean => {
+    if (tickets.length === 0) {
+        return true;
+    }
+    return tickets.every((ticket) => {
+        if (ticket.status !== 'FAILED') {
+            return false;
+        }
+        const numbers = ticket.extracted?.numbers?.trim();
+        const serial = ticket.extracted?.serialNumber?.trim();
+        return !numbers && !serial;
+    });
+};
+
+const warningsIndicateRateLimit = (warnings?: string[] | null, message?: string | null): boolean => {
+    if (isOcrRateLimitMessage(message)) {
+        return true;
+    }
+    return (warnings ?? []).some((warning) => isOcrRateLimitMessage(warning));
+};
+
+const warningsIndicateBusyOrTimeout = (
+    warnings?: string[] | null,
+    message?: string | null
+): boolean => {
+    const texts = [...(warnings ?? []), message ?? ''].filter(Boolean);
+    return texts.some((text) => {
+        const lower = text.toLowerCase();
+        return (
+            lower.includes('phản hồi quá chậm') ||
+            lower.includes('đang bận') ||
+            lower.includes('timed out') ||
+            lower.includes('timeout')
+        );
+    });
+};
 
 type UseOcrImportWizardArgs = {
     open: boolean;
     prefillBatch?: ImportBatch | null;
     prefillLine?: ImportBatchLine | null;
-    /** Re-open after create-batch return; restore draft at importMode. */
+    /** Re-open after create-batch return; restore draft (upload if no rows, else confirm step). */
     restoreFromDraft?: boolean;
     restoreSelectedImportBatchId?: number | null;
     onDraftRestored?: () => void;
@@ -130,6 +190,8 @@ const rebuildImagesFromDraft = (
             scanId: meta.scanId ?? rowMatch?.scanId ?? null,
             imageWidth: meta.imageWidth ?? rowMatch?.imageWidth ?? null,
             imageHeight: meta.imageHeight ?? rowMatch?.imageHeight ?? null,
+            scannedAt: meta.scannedAt ?? rowMatch?.scannedAt ?? null,
+            durationMs: meta.durationMs ?? rowMatch?.durationMs ?? null,
         });
     }
 
@@ -152,6 +214,8 @@ const rebuildImagesFromDraft = (
             scanId: row.scanId ?? null,
             imageWidth: row.imageWidth ?? null,
             imageHeight: row.imageHeight ?? null,
+            scannedAt: row.scannedAt ?? null,
+            durationMs: row.durationMs ?? null,
         });
     }
 
@@ -233,14 +297,15 @@ export const useOcrImportWizard = ({
     const [scanLogs, setScanLogs] = useState<LotteryScanLog[]>([]);
     const [loadingLogs, setLoadingLogs] = useState(false);
 
-    const [importMode, setImportMode] = useState<OcrConfirmImportMode>('AUTO');
-    const [draftIntent, setDraftIntent] = useState<OcrDraftIntent>('CREATE_NEW');
-    const [supplierId, setSupplierId] = useState<number | null>(null);
+    const [importMode] = useState<OcrConfirmImportMode>('MANUAL');
+    const [draftIntent, setDraftIntent] = useState<OcrDraftIntent>('USE_EXISTING');
+    const [supplierId, setSupplierIdState] = useState<number | null>(null);
     const [invoiceEvidenceUrl, setInvoiceEvidenceUrl] = useState('');
     const [ticketListImageUrl, setTicketListImageUrl] = useState('');
     const [selectedImportBatchId, setSelectedImportBatchId] = useState<number | null>(null);
     const [forceCreate, setForceCreate] = useState(false);
     const [discardingBatchId, setDiscardingBatchId] = useState<number | null>(null);
+    const [importBatches, setImportBatches] = useState<ImportBatch[]>([]);
     const [stationsByDrawDate, setStationsByDrawDate] = useState<
         Record<string, { id: number; name: string; code?: string; price?: number }[]>
     >({});
@@ -264,6 +329,28 @@ export const useOcrImportWizard = ({
         [batchOptions, selectedImportBatchId]
     );
 
+    const selectedImportBatch = useMemo(
+        () => importBatches.find((batch) => batch.id === selectedImportBatchId) ?? null,
+        [importBatches, selectedImportBatchId]
+    );
+
+    const setSupplierId = useCallback(
+        (next: number | null) => {
+            setSupplierIdState(next);
+            setSelectedImportBatchId((prev) => {
+                if (prev == null) {
+                    return null;
+                }
+                const batch = batchOptions.find((option) => option.id === prev);
+                if (!batch || (next != null && batch.supplierId !== next)) {
+                    return null;
+                }
+                return prev;
+            });
+        },
+        [batchOptions]
+    );
+
     const reset = useCallback(() => {
         setStep('upload');
         setImages((prev) => {
@@ -275,14 +362,14 @@ export const useOcrImportWizard = ({
         setConfirming(false);
         setImportResult(null);
         setScanLogs([]);
-        setImportMode('AUTO');
-        setDraftIntent(prefillBatch?.id ? 'USE_EXISTING' : 'CREATE_NEW');
-        setSupplierId(prefillBatch?.supplierId ?? null);
+        setDraftIntent('USE_EXISTING');
+        setSupplierIdState(prefillBatch?.supplierId ?? null);
         setInvoiceEvidenceUrl('');
         setTicketListImageUrl('');
         setSelectedImportBatchId(prefillBatch?.id ?? null);
         setForceCreate(false);
         setPrefillLineOption(null);
+        setImportBatches([]);
         setStationsByDrawDate({});
         setStationPriceById(new Map());
         // Keep restoredRef / savedDraft intact so "xem lại kết quả cũ" still works after reopen.
@@ -307,6 +394,7 @@ export const useOcrImportWizard = ({
             }
 
             const batches = Array.from(byId.values());
+            setImportBatches(batches);
             setBatchOptions(collectOcrBatchOptions(batches));
 
             if (prefillBatch && prefillLine) {
@@ -327,19 +415,11 @@ export const useOcrImportWizard = ({
 
     const applyDraft = useCallback(
         (draft: OcrImportDraft, overrideBatchId?: number | null, targetStep?: OcrWizardStep) => {
-            setImportMode(draft.importMode ?? 'AUTO');
-            setDraftIntent(
-                draft.draftIntent ??
-                    (draft.selectedImportBatchId || draft.importMode === 'MANUAL'
-                        ? 'USE_EXISTING'
-                        : 'CREATE_NEW')
-            );
-            setSupplierId(draft.supplierId ?? null);
+            setDraftIntent(draft.draftIntent ?? 'USE_EXISTING');
+            setSupplierIdState(draft.supplierId ?? null);
             setInvoiceEvidenceUrl(draft.invoiceEvidenceUrl ?? '');
             setTicketListImageUrl(draft.ticketListImageUrl ?? '');
-            setSelectedImportBatchId(
-                overrideBatchId ?? draft.selectedImportBatchId ?? null
-            );
+            setSelectedImportBatchId(overrideBatchId ?? draft.selectedImportBatchId ?? null);
             setForceCreate(Boolean(draft.forceCreate));
             const nextRows = (draft.rows ?? []).map((row) => ({
                 ...row,
@@ -373,20 +453,37 @@ export const useOcrImportWizard = ({
 
         if (restoreFromDraft) {
             const draft = readDraft();
-            if (draft && draft.rows && draft.rows.length > 0) {
-                applyDraft(draft, restoreSelectedImportBatchId, 'importMode');
+            if (draft) {
+                const hasRows = Array.isArray(draft.rows) && draft.rows.length > 0;
+                const targetStep: OcrWizardStep = hasRows
+                    ? draft.step === 'review'
+                        ? 'review'
+                        : 'importMode'
+                    : 'upload';
+                applyDraft(draft, restoreSelectedImportBatchId, targetStep);
                 writeDraft({
                     ...draft,
                     pendingRestore: false,
+                    importMode: 'MANUAL',
+                    draftIntent: 'USE_EXISTING',
                     selectedImportBatchId:
                         restoreSelectedImportBatchId ?? draft.selectedImportBatchId,
-                    step: 'importMode',
+                    step: targetStep,
                 });
-                setSavedDraft(null);
+                setSavedDraft(hasRows ? draft : null);
                 onDraftRestoredRef.current?.();
                 void loadBatchOptions();
                 return;
             }
+
+            reset();
+            if (restoreSelectedImportBatchId != null && restoreSelectedImportBatchId > 0) {
+                setSelectedImportBatchId(restoreSelectedImportBatchId);
+                setDraftIntent('USE_EXISTING');
+            }
+            onDraftRestoredRef.current?.();
+            void loadBatchOptions();
+            return;
         }
 
         reset();
@@ -394,7 +491,10 @@ export const useOcrImportWizard = ({
         if (draft && Array.isArray(draft.rows) && draft.rows.length > 0) {
             setSavedDraft(draft);
             if (draft.supplierId != null) {
-                setSupplierId(draft.supplierId);
+                setSupplierIdState(draft.supplierId);
+            }
+            if (draft.selectedImportBatchId != null) {
+                setSelectedImportBatchId(draft.selectedImportBatchId);
             }
         } else {
             setSavedDraft(null);
@@ -402,6 +502,17 @@ export const useOcrImportWizard = ({
         void loadBatchOptions();
         // Intentionally depend on `open` primarily; restore flags are read on first open only.
     }, [open]);
+
+    // After batches load, sync supplier from selected batch (e.g. return from create).
+    useEffect(() => {
+        if (selectedImportBatchId == null) {
+            return;
+        }
+        const match = batchOptions.find((option) => option.id === selectedImportBatchId);
+        if (match?.supplierId != null && supplierId !== match.supplierId) {
+            setSupplierIdState(match.supplierId);
+        }
+    }, [batchOptions, selectedImportBatchId, supplierId]);
 
     const resumePreviousScan = useCallback(() => {
         const resumeFromDraft = async () => {
@@ -480,6 +591,8 @@ export const useOcrImportWizard = ({
                 scanId: image.scanId ?? null,
                 imageWidth: image.imageWidth ?? null,
                 imageHeight: image.imageHeight ?? null,
+                scannedAt: image.scannedAt ?? null,
+                durationMs: image.durationMs ?? null,
             })),
             pendingRestore: true,
             ...overrides,
@@ -513,34 +626,58 @@ export const useOcrImportWizard = ({
     const saveDraftForCreateBatch = useCallback(() => {
         writeDraft(
             buildDraftSnapshot({
-                step: 'importMode',
+                step: step === 'result' ? 'upload' : step,
                 importMode: 'MANUAL',
                 draftIntent: 'USE_EXISTING',
                 pendingRestore: true,
             })
         );
-    }, [buildDraftSnapshot]);
+    }, [buildDraftSnapshot, step]);
 
     const clearDraft = useCallback(() => {
         clearDraftStorage();
         setSavedDraft(null);
     }, []);
 
-    const addImages = useCallback((files: FileList | File[]) => {
+    const addImages = useCallback(async (files: FileList | File[]) => {
         const accepted = Array.from(files).filter((file) => file.type.startsWith('image/'));
         if (accepted.length === 0) {
             toast.warning('Vui lòng chọn tệp hình ảnh.');
             return;
         }
-        setImages((prev) => [
-            ...prev,
-            ...accepted.map((file) => ({
-                id: newImageId(),
-                file,
-                previewUrl: URL.createObjectURL(file),
-                status: 'pending' as const,
-            })),
-        ]);
+        const toastId = toast.info(
+            accepted.length === 1
+                ? 'Đang cắt / nén ảnh để tối ưu OCR…'
+                : `Đang cắt / nén ${accepted.length} ảnh để tối ưu OCR…`,
+            { autoClose: false }
+        );
+        try {
+            const optimized: Array<{ id: string; file: File; previewUrl: string; status: 'pending' }> =
+                [];
+            for (const file of accepted) {
+                const nextFile = await optimizeOcrScanImage(file);
+                optimized.push({
+                    id: newImageId(),
+                    file: nextFile,
+                    previewUrl: URL.createObjectURL(nextFile),
+                    status: 'pending',
+                });
+            }
+            setImages((prev) => [...prev, ...optimized]);
+        } catch {
+            toast.warning('Không tối ưu được ảnh; sẽ dùng ảnh gốc để quét.');
+            setImages((prev) => [
+                ...prev,
+                ...accepted.map((file) => ({
+                    id: newImageId(),
+                    file,
+                    previewUrl: URL.createObjectURL(file),
+                    status: 'pending' as const,
+                })),
+            ]);
+        } finally {
+            toast.dismiss(toastId);
+        }
     }, []);
 
     const removeImage = useCallback((imageId: string) => {
@@ -562,14 +699,39 @@ export const useOcrImportWizard = ({
         setRows([]);
     }, []);
 
-    const runScan = useCallback(async () => {
-        if (images.length === 0) {
-            toast.warning('Vui lòng thêm ít nhất một ảnh vé.');
+    const hasAutoCreateEvidence = useMemo(
+        () => Boolean(invoiceEvidenceUrl.trim() && ticketListImageUrl.trim()),
+        [invoiceEvidenceUrl, ticketListImageUrl]
+    );
+
+    const scanPendingImages = useCallback(async () => {
+        if (supplierId == null || supplierId <= 0) {
+            toast.warning('Vui lòng chọn nhà cung cấp trước khi quét.');
+            return;
+        }
+        if (selectedImportBatchId == null || selectedImportBatchId <= 0) {
+            toast.warning('Vui lòng chọn phiếu nhập lô trước khi quét.');
+            return;
+        }
+
+        const pendingIndices: number[] = [];
+        images.forEach((img, idx) => {
+            if (img.status === 'pending') {
+                pendingIndices.push(idx);
+            }
+        });
+
+        if (pendingIndices.length === 0) {
+            if (images.length === 0) {
+                toast.warning('Vui lòng thêm ít nhất một ảnh vé.');
+            } else {
+                toast.info('Tất cả các ảnh đều đã được quét hoàn tất.');
+            }
             return;
         }
 
         setScanning(true);
-            const nextRows: OcrReviewRow[] = [];
+        const addedRows: OcrReviewRow[] = [];
         const nextImages = [...images];
         const softLineId = prefillLineOption?.lineId;
 
@@ -582,98 +744,205 @@ export const useOcrImportWizard = ({
                     : row.croppedImageBase64 ?? null,
             }));
 
-        for (let index = 0; index < nextImages.length; index += 1) {
-            const image = nextImages[index];
-            nextImages[index] = { ...image, status: 'scanning', error: null };
+        for (let i = 0; i < pendingIndices.length; i += 1) {
+            const targetIndex = pendingIndices[i];
+            let image = nextImages[targetIndex];
+            nextImages[targetIndex] = { ...image, status: 'scanning', error: null };
             setImages([...nextImages]);
+            image = nextImages[targetIndex];
 
-            try {
-                const response = await scanTicketImage(image.file, softLineId ?? undefined);
-                const data = response.data;
-                if (!data) {
-                    throw new Error(response.message || 'Không nhận được kết quả OCR.');
-                }
-                const durablePreview =
-                    (data.sourceImageUrl && data.sourceImageUrl.trim()) ||
-                    data.tickets?.find((ticket) => ticket.sourceImageUrl)?.sourceImageUrl ||
-                    image.previewUrl;
-                if (durablePreview !== image.previewUrl && image.previewUrl.startsWith('blob:')) {
-                    URL.revokeObjectURL(image.previewUrl);
-                }
-                nextImages[index] = {
-                    ...nextImages[index],
-                    status: 'done',
-                    scanId: data.scanId,
-                    imageWidth: data.imageWidth ?? null,
-                    imageHeight: data.imageHeight ?? null,
-                    previewUrl: durablePreview,
-                    error: null,
-                };
-                const tickets = data.tickets ?? [];
-                if (tickets.length === 0) {
-                    const reason = normalizeOcrScanErrorMessage(
+            if (i > 0) {
+                await sleep(OCR_INTER_IMAGE_DELAY_MS);
+            }
+
+            let rateLimitRetries = 0;
+            let serviceRetries = 0;
+            let finishedImage = false;
+            const scanStartTime = Date.now();
+            while (!finishedImage) {
+                try {
+                    // Re-optimize right before upload in case drafts restored large originals.
+                    const scanFile = await optimizeOcrScanImage(image.file);
+                    if (scanFile !== image.file) {
+                        if (image.previewUrl.startsWith('blob:')) {
+                            URL.revokeObjectURL(image.previewUrl);
+                        }
+                        const nextPreview = URL.createObjectURL(scanFile);
+                        nextImages[targetIndex] = {
+                            ...nextImages[targetIndex],
+                            file: scanFile,
+                            previewUrl: nextPreview,
+                        };
+                        image = nextImages[targetIndex];
+                        setImages([...nextImages]);
+                    }
+                    const response = await scanTicketImage(image.file, {
+                        importBatchLineId: softLineId ?? undefined,
+                        importBatchId: selectedImportBatchId ?? undefined,
+                    });
+                    const data = response.data;
+                    if (!data) {
+                        throw new Error(response.message || 'Không nhận được kết quả OCR.');
+                    }
+
+                    if (
+                        warningsIndicateRateLimit(data.warnings, response.message) &&
+                        rateLimitRetries < OCR_RATE_LIMIT_MAX_RETRIES
+                    ) {
+                        rateLimitRetries += 1;
+                        toast.info(
+                            `Ảnh ${i + 1}/${pendingIndices.length}: Groq đang giới hạn tốc độ. Đợi ${Math.round(
+                                OCR_RATE_LIMIT_RETRY_DELAY_MS / 1000
+                            )}s rồi thử lại lần ${rateLimitRetries}…`
+                        );
+                        await sleep(OCR_RATE_LIMIT_RETRY_DELAY_MS);
+                        continue;
+                    }
+
+                    if (
+                        warningsIndicateBusyOrTimeout(data.warnings, response.message) &&
+                        serviceRetries < OCR_SERVICE_MAX_RETRIES
+                    ) {
+                        serviceRetries += 1;
+                        toast.info(
+                            `Ảnh ${i + 1}/${pendingIndices.length}: OCR đang bận. Đợi ${Math.round(
+                                OCR_SERVICE_RETRY_DELAY_MS / 1000
+                            )}s rồi thử lại…`
+                        );
+                        await sleep(OCR_SERVICE_RETRY_DELAY_MS);
+                        continue;
+                    }
+
+                    const scanDurationMs = Date.now() - scanStartTime;
+                    const scannedAtIso = new Date().toISOString();
+
+                    const durablePreview =
+                        (data.sourceImageUrl && data.sourceImageUrl.trim()) ||
+                        data.tickets?.find((ticket) => ticket.sourceImageUrl)?.sourceImageUrl ||
+                        image.previewUrl;
+                    if (durablePreview !== image.previewUrl && image.previewUrl.startsWith('blob:')) {
+                        URL.revokeObjectURL(image.previewUrl);
+                    }
+                    const tickets = data.tickets ?? [];
+                    const unreadable = isUnreadableScanResult(tickets);
+                    const failureReason = normalizeOcrScanErrorMessage(
                         data.warnings?.[0] ||
                             response.message ||
                             'Không thể đọc rõ thông tin vé từ ảnh này.'
                     );
-                    nextRows.push(
+
+                    nextImages[targetIndex] = {
+                        ...nextImages[targetIndex],
+                        status: unreadable ? 'error' : 'done',
+                        scanId: data.scanId,
+                        imageWidth: data.imageWidth ?? null,
+                        imageHeight: data.imageHeight ?? null,
+                        previewUrl: durablePreview,
+                        error: unreadable ? failureReason : null,
+                        scannedAt: scannedAtIso,
+                        durationMs: scanDurationMs,
+                    };
+
+                    if (tickets.length === 0 || unreadable) {
+                        addedRows.push(
+                            createFailedReviewRow(
+                                image.id,
+                                image.file.name,
+                                durablePreview,
+                                failureReason,
+                                scannedAtIso,
+                                scanDurationMs
+                            )
+                        );
+                    } else {
+                        for (const ticket of tickets) {
+                            addedRows.push(
+                                mapScannedTicketToReviewRow(
+                                    ticket,
+                                    image.id,
+                                    image.file.name,
+                                    data.scanId,
+                                    ticket.sourceImageUrl || durablePreview,
+                                    data.imageWidth,
+                                    data.imageHeight,
+                                    scannedAtIso,
+                                    scanDurationMs
+                                )
+                            );
+                        }
+                    }
+                    const friendlyWarnings = normalizeOcrWarningList(data.warnings);
+                    if (friendlyWarnings.length > 0) {
+                        toast.warning(formatOcrWarningsForToast(friendlyWarnings), {
+                            style: { whiteSpace: 'pre-line' },
+                        });
+                    }
+                    finishedImage = true;
+                } catch (error: unknown) {
+                    const axiosData = (
+                        error as {
+                            response?: { data?: { message?: string; data?: unknown } };
+                            message?: string;
+                        }
+                    )?.response?.data;
+                    const message =
+                        axiosData?.message ||
+                        (error as { message?: string })?.message ||
+                        'Không thể đọc rõ thông tin vé từ ảnh này.';
+                    if (
+                        isOcrRateLimitMessage(message) &&
+                        rateLimitRetries < OCR_RATE_LIMIT_MAX_RETRIES
+                    ) {
+                        rateLimitRetries += 1;
+                        toast.info(
+                            `Ảnh ${i + 1}/${pendingIndices.length}: ${OCR_RATE_LIMIT_MESSAGE} Đang thử lại…`
+                        );
+                        await sleep(OCR_RATE_LIMIT_RETRY_DELAY_MS);
+                        continue;
+                    }
+                    if (
+                        (isTechnicalOcrErrorMessage(message) ||
+                            warningsIndicateBusyOrTimeout(null, message)) &&
+                        serviceRetries < OCR_SERVICE_MAX_RETRIES
+                    ) {
+                        serviceRetries += 1;
+                        toast.info(
+                            `Ảnh ${i + 1}/${pendingIndices.length}: OCR tạm thời không phản hồi. Đợi ${Math.round(
+                                OCR_SERVICE_RETRY_DELAY_MS / 1000
+                            )}s rồi thử lại…`
+                        );
+                        await sleep(OCR_SERVICE_RETRY_DELAY_MS);
+                        continue;
+                    }
+                    const scanDurationMs = Date.now() - scanStartTime;
+                    const scannedAtIso = new Date().toISOString();
+                    const displayMessage = normalizeOcrScanErrorMessage(message);
+                    nextImages[targetIndex] = {
+                        ...nextImages[targetIndex],
+                        status: 'error',
+                        error: displayMessage,
+                        scannedAt: scannedAtIso,
+                        durationMs: scanDurationMs,
+                    };
+                    addedRows.push(
                         createFailedReviewRow(
                             image.id,
                             image.file.name,
-                            durablePreview,
-                            reason
+                            image.previewUrl,
+                            displayMessage,
+                            scannedAtIso,
+                            scanDurationMs
                         )
                     );
-                } else {
-                    for (const ticket of tickets) {
-                        nextRows.push(
-                            mapScannedTicketToReviewRow(
-                                ticket,
-                                image.id,
-                                image.file.name,
-                                data.scanId,
-                                ticket.sourceImageUrl || durablePreview,
-                                data.imageWidth,
-                                data.imageHeight
-                            )
-                        );
-                    }
+                    toast.error(`${image.file.name}: ${displayMessage}`);
+                    finishedImage = true;
                 }
-                const friendlyWarnings = normalizeOcrWarningList(data.warnings);
-                if (friendlyWarnings.length > 0) {
-                    toast.warning(friendlyWarnings.join(' · '));
-                }
-            } catch (error: unknown) {
-                const axiosData = (
-                    error as {
-                        response?: { data?: { message?: string; data?: unknown } };
-                        message?: string;
-                    }
-                )?.response?.data;
-                const message =
-                    axiosData?.message ||
-                    (error as { message?: string })?.message ||
-                    'Không thể đọc rõ thông tin vé từ ảnh này.';
-                const displayMessage = normalizeOcrScanErrorMessage(message);
-                nextImages[index] = {
-                    ...nextImages[index],
-                    status: 'error',
-                    error: displayMessage,
-                };
-                nextRows.push(
-                    createFailedReviewRow(
-                        image.id,
-                        image.file.name,
-                        image.previewUrl,
-                        displayMessage
-                    )
-                );
-                toast.error(`${image.file.name}: ${displayMessage}`);
-            }
+            } // while retry
             setImages([...nextImages]);
         }
 
-        setRows(nextRows);
+        const mergedRows = [...rows, ...addedRows];
+        setRows(mergedRows);
         setScanning(false);
         setStep('review');
         setImages(nextImages);
@@ -686,7 +955,7 @@ export const useOcrImportWizard = ({
             selectedImportBatchId,
             forceCreate,
             draftIntent,
-            rows: compactRowsForDraft(nextRows),
+            rows: compactRowsForDraft(mergedRows),
             imageMeta: nextImages.map((img) => ({
                 id: img.id,
                 fileName: img.file.name,
@@ -694,6 +963,8 @@ export const useOcrImportWizard = ({
                 scanId: img.scanId ?? null,
                 imageWidth: img.imageWidth ?? null,
                 imageHeight: img.imageHeight ?? null,
+                scannedAt: img.scannedAt ?? null,
+                durationMs: img.durationMs ?? null,
             })),
             pendingRestore: false,
         };
@@ -701,6 +972,7 @@ export const useOcrImportWizard = ({
         setSavedDraft(draftSnapshot);
     }, [
         images,
+        rows,
         prefillLineOption,
         importMode,
         supplierId,
@@ -710,6 +982,15 @@ export const useOcrImportWizard = ({
         forceCreate,
         draftIntent,
     ]);
+
+    const runScan = scanPendingImages;
+
+    const scanMoreImages = useCallback(
+        async (files: FileList | File[]) => {
+            await addImages(files);
+        },
+        [addImages]
+    );
 
     const updateRow = useCallback((key: string, patch: Partial<OcrReviewRow>) => {
         setRows((prev) => {
@@ -895,6 +1176,11 @@ export const useOcrImportWizard = ({
     );
 
     const goToImportMode = useCallback(() => {
+        if (selectedImportBatchId == null || selectedImportBatchId <= 0) {
+            toast.warning('Vui lòng chọn phiếu nhập lô ở bước tải ảnh trước khi tiếp tục.');
+            setStep('upload');
+            return;
+        }
         const selectedRows = rows.filter((row) => row.selected && isRowConfirmable(row));
         if (selectedRows.length === 0) {
             toast.warning(
@@ -902,11 +1188,16 @@ export const useOcrImportWizard = ({
             );
             return;
         }
-        const snapshot = buildDraftSnapshot({ step: 'importMode', pendingRestore: false });
+        const snapshot = buildDraftSnapshot({
+            step: 'importMode',
+            importMode: 'MANUAL',
+            draftIntent: 'USE_EXISTING',
+            pendingRestore: false,
+        });
         writeDraft(snapshot);
         setSavedDraft(snapshot);
         setStep('importMode');
-    }, [rows, isRowConfirmable, buildDraftSnapshot]);
+    }, [rows, isRowConfirmable, buildDraftSnapshot, selectedImportBatchId]);
 
     const loadScanLogs = useCallback(async () => {
         const ocrIds = rows
@@ -946,41 +1237,34 @@ export const useOcrImportWizard = ({
         (row) => row.selected && isRowConfirmable(row)
     ).length;
 
+    const getImportQuantityCheck = useCallback((): ImportQuantityCheck => {
+        return checkOcrImportQuantity(rows, selectedImportBatch, isRowConfirmable);
+    }, [rows, selectedImportBatch, isRowConfirmable]);
+
     const canConfirmImport = useMemo(() => {
         if (confirmableCount === 0) {
             return false;
         }
-        if (draftIntent === 'USE_EXISTING') {
-            return selectedImportBatchId != null && selectedImportBatchId > 0;
-        }
-        if (importMode === 'AUTO') {
-            return supplierId != null && supplierId > 0;
-        }
         return selectedImportBatchId != null && selectedImportBatchId > 0;
-    }, [
-        confirmableCount,
-        draftIntent,
-        importMode,
-        supplierId,
-        selectedImportBatchId,
-    ]);
+    }, [confirmableCount, selectedImportBatchId]);
 
     const selectDraftBatch = useCallback((batchId: number | null) => {
         setDraftIntent('USE_EXISTING');
-        setImportMode('MANUAL');
         setSelectedImportBatchId(batchId);
         setForceCreate(false);
-    }, []);
+        if (batchId != null) {
+            const match = batchOptions.find((option) => option.id === batchId);
+            if (match?.supplierId != null) {
+                setSupplierIdState(match.supplierId);
+            }
+        }
+    }, [batchOptions]);
 
     const chooseCreateNewBatch = useCallback(() => {
-        setDraftIntent('CREATE_NEW');
+        setDraftIntent('USE_EXISTING');
         setSelectedImportBatchId(null);
-        setForceCreate(true);
-        if (importMode === 'MANUAL') {
-            // Keep MANUAL so user can create via link; AUTO is default for net-new warehouse receipts.
-            setImportMode('AUTO');
-        }
-    }, [importMode]);
+        setForceCreate(false);
+    }, []);
 
     const discardDraftBatch = useCallback(
         async (batchId: number) => {
@@ -1006,88 +1290,86 @@ export const useOcrImportWizard = ({
         [loadBatchOptions, selectedImportBatchId]
     );
 
-    const confirmImport = useCallback(async () => {
-        const selectedRows = rows.filter((row) => row.selected && isRowConfirmable(row));
-        if (selectedRows.length === 0) {
-            toast.warning('Chọn ít nhất một vé hợp lệ để nhập.');
-            return;
-        }
+    const confirmImport = useCallback(
+        async (options?: { acknowledgeShortfall?: boolean }): Promise<'OK' | 'OVER' | 'SHORTFALL' | 'BLOCKED'> => {
+            const selectedRows = rows.filter((row) => row.selected && isRowConfirmable(row));
+            if (selectedRows.length === 0) {
+                toast.warning('Chọn ít nhất một vé hợp lệ để nhập.');
+                return 'BLOCKED';
+            }
 
-        const effectiveMode: OcrConfirmImportMode =
-            draftIntent === 'USE_EXISTING' ? 'MANUAL' : importMode;
+            if (selectedImportBatchId == null || selectedImportBatchId <= 0) {
+                toast.warning('Vui lòng chọn phiếu nhập lô để tiếp tục gắn vé.');
+                setStep('upload');
+                return 'BLOCKED';
+            }
 
-        if (effectiveMode === 'AUTO' && (supplierId == null || supplierId <= 0)) {
-            toast.warning('Vui lòng chọn nhà cung cấp cho chế độ tự động.');
-            return;
-        }
-        if (
-            effectiveMode === 'MANUAL' &&
-            (selectedImportBatchId == null || selectedImportBatchId <= 0)
-        ) {
-            toast.warning('Vui lòng chọn phiếu nhập nháp để tiếp tục gắn vé.');
-            return;
-        }
+            const quantityCheck = checkOcrImportQuantity(
+                rows,
+                selectedImportBatch,
+                isRowConfirmable
+            );
+            if (quantityCheck.isOverCapacity) {
+                const stationHint =
+                    quantityCheck.stationExcesses.length > 0
+                        ? quantityCheck.stationExcesses
+                              .map(
+                                  (item) =>
+                                      `${item.stationName}: chọn ${item.selected}, còn ${item.remaining}`
+                              )
+                              .join('; ')
+                        : null;
+                toast.error(
+                    stationHint
+                        ? `Số vé chọn vượt chỗ còn lại trên phiếu. Bỏ bớt vé trước khi nhập. (${stationHint})`
+                        : `Đã chọn ${quantityCheck.selectedCount} vé nhưng phiếu chỉ còn ${quantityCheck.remainingCapacity} chỗ. Vui lòng bỏ bớt ${quantityCheck.excessCount} vé trước khi nhập.`
+                );
+                return 'OVER';
+            }
+            if (quantityCheck.isShortfall && !options?.acknowledgeShortfall) {
+                return 'SHORTFALL';
+            }
 
-        setConfirming(true);
-        try {
-            const response = await confirmOcrImport({
-                mode: effectiveMode,
-                supplierId: effectiveMode === 'AUTO' ? supplierId : undefined,
-                invoiceEvidenceUrl:
-                    effectiveMode === 'AUTO' && invoiceEvidenceUrl.trim()
-                        ? invoiceEvidenceUrl.trim()
-                        : undefined,
-                ticketListImageUrls:
-                    effectiveMode === 'AUTO' && ticketListImageUrl.trim()
-                        ? [ticketListImageUrl.trim()]
-                        : undefined,
-                forceCreate:
-                    effectiveMode === 'AUTO'
-                        ? draftIntent === 'CREATE_NEW'
-                            ? true
-                            : forceCreate
-                        : undefined,
-                importBatchId: effectiveMode === 'MANUAL' ? selectedImportBatchId : undefined,
-                tickets: selectedRows.map((row) => ({
+            setConfirming(true);
+            try {
+                const tickets = selectedRows.map((row) => ({
                     numbers: row.numbers.trim(),
                     serialNumber: row.serialNumber.trim(),
                     stationId: row.stationId!,
                     drawDate: dayjs(row.drawDate).format('YYYY-MM-DD'),
                     ticketImageBase64: row.croppedImageBase64 ?? null,
                     ocrScanResultId: row.ocrScanResultId ?? null,
-                })),
-            });
-            const data = response.data;
-            if (!data) {
-                throw new Error(response.message || 'Nhập vé thất bại.');
+                }));
+                const response = await confirmOcrImport({
+                    mode: 'MANUAL',
+                    importBatchId: selectedImportBatchId,
+                    tickets,
+                });
+                const data = response.data;
+                if (!data) {
+                    throw new Error(response.message || 'Nhập vé thất bại.');
+                }
+                setImportResult(data);
+                setStep('result');
+                clearDraftStorage();
+                toast.success(
+                    `Đã nhập ${data.successCount}/${data.totalRequested} vé (trùng: ${data.duplicateCount}, lỗi: ${data.failedCount}).`
+                );
+                return 'OK';
+            } catch (error: unknown) {
+                const message =
+                    (error as { response?: { data?: { message?: string } }; message?: string })
+                        ?.response?.data?.message ||
+                    (error as { message?: string })?.message ||
+                    'Nhập vé từ OCR thất bại.';
+                toast.error(message);
+                return 'BLOCKED';
+            } finally {
+                setConfirming(false);
             }
-            setImportResult(data);
-            setStep('result');
-            clearDraftStorage();
-            toast.success(
-                `Đã nhập ${data.successCount}/${data.totalRequested} vé (trùng: ${data.duplicateCount}, lỗi: ${data.failedCount}).`
-            );
-        } catch (error: unknown) {
-            const message =
-                (error as { response?: { data?: { message?: string } }; message?: string })
-                    ?.response?.data?.message ||
-                (error as { message?: string })?.message ||
-                'Nhập vé từ OCR thất bại.';
-            toast.error(message);
-        } finally {
-            setConfirming(false);
-        }
-    }, [
-        rows,
-        isRowConfirmable,
-        draftIntent,
-        importMode,
-        supplierId,
-        invoiceEvidenceUrl,
-        ticketListImageUrl,
-        forceCreate,
-        selectedImportBatchId,
-    ]);
+        },
+        [rows, isRowConfirmable, selectedImportBatchId, selectedImportBatch]
+    );
 
     const previousScanRowsCount = rows.length > 0 ? rows.length : (savedDraft?.rows?.length ?? 0);
     const hasPreviousScan = previousScanRowsCount > 0;
@@ -1105,9 +1387,12 @@ export const useOcrImportWizard = ({
         prefillLineOption,
         images,
         addImages,
+        scanMoreImages,
         removeImage,
         clearImages,
         runScan,
+        scanPendingImages,
+        pendingImagesCount: images.filter((img) => img.status === 'pending').length,
         scanning,
         rows,
         updateRow,
@@ -1116,7 +1401,6 @@ export const useOcrImportWizard = ({
         confirmableCount,
         goToImportMode,
         importMode,
-        setImportMode,
         draftIntent,
         setDraftIntent,
         selectDraftBatch,
@@ -1129,12 +1413,15 @@ export const useOcrImportWizard = ({
         setInvoiceEvidenceUrl,
         ticketListImageUrl,
         setTicketListImageUrl,
+        hasAutoCreateEvidence,
         selectedImportBatchId,
         setSelectedImportBatchId,
         selectedBatch,
+        selectedImportBatch,
         forceCreate,
         setForceCreate,
         canConfirmImport,
+        getImportQuantityCheck,
         confirmImport,
         confirming,
         importResult,

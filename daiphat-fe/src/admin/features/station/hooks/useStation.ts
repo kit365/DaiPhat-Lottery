@@ -19,6 +19,7 @@ import {
     previewSyncStations,
     confirmSyncStations,
 } from '../services/stationService';
+import { getOcrTemplateDefaultReady } from '../services/ocrTemplateService';
 import { QUERY_KEYS } from '../constants/queryKeys';
 import { publicStationsQueryKeys, QUERY_KEYS as SHARED_QUERY_KEYS } from '@/constants/queryKeys';
 import {
@@ -164,3 +165,12 @@ export const useConfirmSyncStations = () => {
         },
     });
 };
+
+export const useOcrTemplateDefaultReady = () => {
+    return useQuery({
+        queryKey: ['ocr-template-default-ready'],
+        queryFn: getOcrTemplateDefaultReady,
+        staleTime: 30_000,
+    });
+};
+

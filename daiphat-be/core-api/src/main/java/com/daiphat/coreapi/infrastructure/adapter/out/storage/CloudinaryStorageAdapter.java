@@ -84,6 +84,9 @@ public class CloudinaryStorageAdapter implements StoragePort {
             );
         } catch (IOException e) {
             throw new DomainException(ErrorCode.IMAGE_UPLOAD_FAILED, e);
+        } catch (RuntimeException e) {
+            // Cloudinary SDK may wrap network/timeout failures as RuntimeException.
+            throw new DomainException(ErrorCode.IMAGE_UPLOAD_FAILED, e);
         }
     }
 

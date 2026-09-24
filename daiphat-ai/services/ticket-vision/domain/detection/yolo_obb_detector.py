@@ -4,6 +4,7 @@ from domain.detection import yolo_model
 from domain.detection.base import DetectedRegion, DetectionResult, TicketDetectorStrategy
 from domain.detection.ordering import cap_to_max_tickets, order_corners, sort_reading_order
 from domain.detection.yolo_model import YoloWeightsUnavailableError  # noqa: F401 -- re-exported
+from infra.config import settings
 from infra.logger import logger
 
 
@@ -115,6 +116,7 @@ class YoloObbTicketDetector(TicketDetectorStrategy):
         keep = self._ticket_class_mask(obb, getattr(prediction, "names", None))
 
         height, width = image.shape[:2]
+        image_area = float(height * width)
         regions: list[DetectedRegion] = []
         for quad, box, is_ticket in zip(quads, boxes, keep):
             if not is_ticket:
@@ -126,14 +128,46 @@ class YoloObbTicketDetector(TicketDetectorStrategy):
             x2, y2 = min(x2, width), min(y2, height)
             if x2 - x1 <= 0 or y2 - y1 <= 0:
                 continue
+            # Drop tiny / ridiculous false positives (table scraps, glass blobs).
+            area_ratio = ((x2 - x1) * (y2 - y1)) / image_area
+            if area_ratio < float(
+                getattr(settings, "TICKET_VISION_YOLO_TICKET_MIN_AREA_RATIO", 0.015) or 0.015
+            ):
+                continue
+            bw, bh = float(x2 - x1), float(y2 - y1)
+            aspect = min(bw, bh) / max(bw, bh)
+            min_a = float(getattr(settings, "TICKET_VISION_YOLO_TICKET_MIN_ASPECT", 0.28) or 0.28)
+            max_a = float(getattr(settings, "TICKET_VISION_YOLO_TICKET_MAX_ASPECT", 0.72) or 0.72)
+            if not (min_a <= aspect <= max_a):
+                continue
+
+            # The OBB's own point order follows the box's rotation,
+            # not image-space TL/TR/BL/BR -- re-order it or the
+            # perspective warp yields rotated/mirrored crops.
+            ordered = order_corners(np.asarray(quad, dtype="float32"))
+            from domain.preprocessing import pipeline as image_pipeline  # noqa: PLC0415
+
+            x1, y1, bw_i, bh_i = image_pipeline.expand_bbox(
+                x1,
+                y1,
+                max(1, x2 - x1),
+                max(1, y2 - y1),
+                width,
+                height,
+                pad_ratio=0.015,
+                min_pad_px=6,
+            )
+            expanded_corners = image_pipeline.expand_region_corners(
+                [(float(p[0]), float(p[1])) for p in ordered],
+                width,
+                height,
+                pad_ratio=0.02,
+            )
 
             regions.append(
                 DetectedRegion(
-                    bbox=(x1, y1, x2 - x1, y2 - y1),
-                    # The OBB's own point order follows the box's rotation,
-                    # not image-space TL/TR/BR/BL -- re-order it or the
-                    # perspective warp yields rotated/mirrored crops.
-                    corners=order_corners(np.asarray(quad, dtype="float32")),
+                    bbox=(x1, y1, bw_i, bh_i),
+                    corners=expanded_corners,
                 )
             )
 

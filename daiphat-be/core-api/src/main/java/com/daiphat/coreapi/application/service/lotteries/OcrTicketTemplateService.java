@@ -13,6 +13,7 @@ import com.daiphat.coreapi.application.port.in.lotteries.OcrTicketTemplateServic
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryStationRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.OcrFieldLayoutRepositoryPort;
+import com.daiphat.coreapi.application.port.out.lotteries.OcrFieldValidationRuleRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.OcrTicketTemplateRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
@@ -39,6 +40,7 @@ public class OcrTicketTemplateService implements OcrTicketTemplateServicePort {
 
     private final OcrTicketTemplateRepositoryPort templateRepositoryPort;
     private final OcrFieldLayoutRepositoryPort fieldLayoutRepositoryPort;
+    private final OcrFieldValidationRuleRepositoryPort validationRuleRepositoryPort;
     private final LotteryStationRepositoryPort lotteryStationRepositoryPort;
     private final StoragePort storagePort;
 
@@ -126,6 +128,9 @@ public class OcrTicketTemplateService implements OcrTicketTemplateServicePort {
         OcrTicketTemplateModel model = getTemplateOrThrow(id);
         StorageUtils.validateOcrTemplateSampleImage(request);
 
+        // Replacing the sample invalidates existing tags — purge hard to avoid junk rows.
+        purgeSampleArtifacts(model);
+
         StorageResult result = storagePort.upload(new UploadRequest(
                 request.data(),
                 request.fileName(),
@@ -135,6 +140,48 @@ public class OcrTicketTemplateService implements OcrTicketTemplateServicePort {
 
         model.setSampleImageUrl(result.url());
         return toTemplateResponse(templateRepositoryPort.save(model));
+    }
+
+    @Override
+    @Transactional
+    public OcrTicketTemplateResponse clearSampleImage(Long id) {
+        OcrTicketTemplateModel model = getTemplateOrThrow(id);
+        purgeSampleArtifacts(model);
+        model.setSampleImageUrl(null);
+        return toTemplateResponse(templateRepositoryPort.save(model));
+    }
+
+    /**
+     * Hard-deletes field layouts (and leftover template-scoped validation rules),
+     * then removes the previous sample image from object storage when possible.
+     */
+    private void purgeSampleArtifacts(OcrTicketTemplateModel model) {
+        Long templateId = model.getId();
+        int rulesRemoved = validationRuleRepositoryPort.hardDeleteByTemplateId(templateId);
+        int layoutsRemoved = fieldLayoutRepositoryPort.hardDeleteByTemplateId(templateId);
+        if (rulesRemoved > 0 || layoutsRemoved > 0) {
+            log.info(
+                    "Hard-deleted OCR sample artifacts templateId={} layouts={} rules={}",
+                    templateId,
+                    layoutsRemoved,
+                    rulesRemoved
+            );
+        }
+        deleteStoredUrlQuietly(model.getSampleImageUrl());
+    }
+
+    private void deleteStoredUrlQuietly(String url) {
+        if (!StringUtils.hasText(url)) {
+            return;
+        }
+        try {
+            String key = StorageUtils.extractStorageKeyFromUrl(url);
+            if (key != null && !key.isBlank()) {
+                storagePort.delete(key);
+            }
+        } catch (Exception ex) {
+            log.warn("Failed to hard-delete OCR sample image url={}: {}", url, ex.getMessage());
+        }
     }
 
     @Override

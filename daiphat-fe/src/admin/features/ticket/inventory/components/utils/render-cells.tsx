@@ -4,17 +4,17 @@ import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { Box, Link, Typography, Stack } from '@mui/material';
 import { GridRenderCellParams } from '@mui/x-data-grid';
 import { prefixAdmin } from '../../../../../constants/routes';
-import { useTicketInventory } from '../../hooks/useTicketInventory';
-import { toast } from 'react-toastify';
 import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
-import { confirmDelete } from '../../../../../utils/swal';
+import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
 import { useStations } from '../../../../station/hooks/useStation';
 import { formatImportBatchCode } from '../../../import-batch/utils/importBatchCode';
 import { getTicketStatusLabel, normalizeTicketStatus } from '../../constants/ticket-status.config';
 import { AdminRowActionsMenu } from '../../../../../components/ui/AdminRowActionsMenu';
 import { AdminStatusBadge } from '../../../../../components/ui/AdminStatusBadge';
 import { AdminLuckyDisplay } from '@/shared/lucky-number';
+import { isTicketSelectableForCancel } from '../../../import-batch/utils/cancelTicketSelection';
+import { isSerialIncidentEligible } from '../../../import-batch/utils/serialIncidentWorkflow';
 
 dayjs.locale('vi');
 
@@ -159,30 +159,43 @@ export const RenderTicketConditionCell = (params: GridRenderCellParams) => {
     return <AdminStatusBadge label={label} modifier={modifier} />;
 };
 
-export const RenderActionsCell = (params: GridRenderCellParams) => {
+export interface RenderActionsCellProps extends GridRenderCellParams {
+    onCancelTicket?: (ticket: any) => void;
+    cancelLockReason?: string | null;
+}
+
+export const RenderActionsCell = (params: RenderActionsCellProps) => {
     const router = useAdminRouter();
-    const { deleteTicket } = useTicketInventory();
     const id = params.row.id || params.row._id;
+    const { onCancelTicket, cancelLockReason } = params;
 
     const handleEdit = () => {
         router.push(`/${prefixAdmin}/ticket/edit/${id}`);
     };
 
-    const handleDelete = () => {
-        confirmDelete('Bạn có chắc chắn muốn xóa vé số này?', () => {
-            deleteTicket(id, {
-                onSuccess: (res: any) => {
-                    if (res.success) {
-                        toast.success(res.message || 'Thao tác thành công');
-                    } else {
-                        toast.error(res.message || 'Thao tác thất bại');
-                    }
-                },
-                onError: (err: any) => {
-                    toast.error(err.response?.data?.message || err.message || 'Thao tác không thành công');
-                },
-            });
-        });
+    const isSelectable = isTicketSelectableForCancel(params.row.status);
+    const cancelableSerials = (params.row.serials || []).filter((serial: any) => isSerialIncidentEligible(serial));
+    const hasCancelableSerials = cancelableSerials.length > 0;
+
+    let cancelDisabled = false;
+    let cancelDisabledTitle: string | undefined = undefined;
+
+    if (cancelLockReason) {
+        cancelDisabled = true;
+        cancelDisabledTitle = cancelLockReason;
+    } else if (!isSelectable) {
+        cancelDisabled = true;
+        cancelDisabledTitle = `Vé ở trạng thái "${params.row.statusDisplayName || params.row.status || 'không hợp lệ'}" không thể hủy`;
+    } else if (Array.isArray(params.row.serials) && params.row.serials.length > 0 && !hasCancelableSerials) {
+        cancelDisabled = true;
+        cancelDisabledTitle = 'Vé không còn sê-ri hợp lệ để hủy';
+    }
+
+    const handleCancel = () => {
+        if (cancelDisabled) return;
+        if (onCancelTicket) {
+            onCancelTicket(params.row);
+        }
     };
 
     return (
@@ -201,10 +214,12 @@ export const RenderActionsCell = (params: GridRenderCellParams) => {
                     onClick: handleEdit,
                 },
                 {
-                    id: 'delete',
-                    label: 'Xóa',
-                    icon: 'delete',
-                    onClick: handleDelete,
+                    id: 'cancel',
+                    label: 'Hủy vé',
+                    icon: <ReportProblemOutlinedIcon fontSize="small" />,
+                    onClick: handleCancel,
+                    disabled: cancelDisabled,
+                    disabledTitle: cancelDisabledTitle,
                     danger: true,
                 },
             ]}
