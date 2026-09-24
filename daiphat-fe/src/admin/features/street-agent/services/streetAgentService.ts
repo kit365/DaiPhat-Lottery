@@ -139,3 +139,21 @@ export const uploadStreetAgentSignedContract = async (
     const response = await apiApp.post(`${BASE_URL}/${id}/contract/signed-document`, formData);
     return response.data;
 };
+
+export const uploadStreetAgentEkycImage = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiApp.post(`${BASE_URL}/ekyc/upload`, formData);
+    const url = response.data?.data?.url;
+    if (!url) {
+        throw new Error(response.data?.message || 'Không nhận được URL ảnh eKYC từ server');
+    }
+    return url;
+};
+
+export const verifyStreetAgentEkyc = async (
+    id: number | string
+): Promise<ApiResponse<StreetAgentProfile>> => {
+    const response = await apiApp.post(`${BASE_URL}/${id}/ekyc/verify`);
+    return response.data;
+};

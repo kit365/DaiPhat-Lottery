@@ -64,6 +64,13 @@ export interface PrizePayoutRequestResponse {
     recipientIdNumber?: string;
     recipientIdImageUrl?: string;
     recipientIdImageBackUrl?: string;
+    recipientSelfieUrl?: string;
+    ekycStatus?: string;
+    ekycFaceDistance?: number;
+    ekycLivenessScore?: number;
+    ekycFailureReason?: string;
+    ekycOcrName?: string;
+    ekycVerifiedAt?: string;
     recipientIdentityCapturedAt?: string;
     status: PrizePayoutRequestStatus;
     rejectCount?: number;
@@ -197,6 +204,7 @@ export interface CreatePrizePayoutRequest {
     recipientIdNumber: string;
     recipientIdImageUrl: string;
     recipientIdImageBackUrl: string;
+    recipientSelfieUrl: string;
 }
 
 export interface CreateStaffPrizePayoutRequest {
@@ -212,6 +220,7 @@ export interface CreateStaffPrizePayoutRequest {
     recipientIdNumber?: string;
     recipientIdImageUrl?: string;
     recipientIdImageBackUrl?: string;
+    recipientSelfieUrl?: string;
     paymentMethod: PrizePayoutPaymentMethod;
     cashAmount?: number;
     manualOwnershipConfirmed?: boolean;
@@ -230,6 +239,7 @@ export interface CreateStaffPrizePayoutBatchRequest {
     recipientIdNumber?: string;
     recipientIdImageUrl?: string;
     recipientIdImageBackUrl?: string;
+    recipientSelfieUrl?: string;
     paymentMethod: PrizePayoutPaymentMethod;
     cashAmount?: number;
     manualOwnershipConfirmed?: boolean;

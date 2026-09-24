@@ -15,6 +15,7 @@ export type PrizePayoutCreateDraft = {
     recipientIdNumber: string;
     recipientIdImageUrl: string;
     recipientIdImageBackUrl: string;
+    recipientSelfieUrl: string;
     manualConfirmed: boolean;
     paymentMethod: PrizePayoutPaymentMethod;
     cashAmount: string;

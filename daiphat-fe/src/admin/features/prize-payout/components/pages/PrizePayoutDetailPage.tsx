@@ -508,7 +508,9 @@ export const PrizePayoutDetailPage = () => {
                                 {(detail.recipientFullName ||
                                     detail.recipientIdNumber ||
                                     detail.recipientIdImageUrl ||
-                                    detail.recipientIdImageBackUrl) && (
+                                    detail.recipientIdImageBackUrl ||
+                                    detail.recipientSelfieUrl ||
+                                    detail.ekycStatus) && (
                                     <>
                                         {detail.recipientFullName ? (
                                             <Grid size={{ xs: 12, sm: 6 }}>
@@ -522,10 +524,23 @@ export const PrizePayoutDetailPage = () => {
                                                 <FieldValue>{detail.recipientIdNumber}</FieldValue>
                                             </Grid>
                                         ) : null}
-                                        {detail.recipientIdImageUrl || detail.recipientIdImageBackUrl ? (
+                                        {detail.ekycStatus ? (
                                             <Grid size={{ xs: 12 }}>
-                                                <FieldLabel>Ảnh CCCD</FieldLabel>
-                                                <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
+                                                <FieldLabel>eKYC</FieldLabel>
+                                                <FieldValue>
+                                                    {detail.ekycStatus === 'VERIFIED'
+                                                        ? 'Đã xác thực'
+                                                        : detail.ekycStatus === 'FAILED'
+                                                          ? `Thất bại${detail.ekycFailureReason ? `: ${detail.ekycFailureReason}` : ''}`
+                                                          : detail.ekycStatus}
+                                                    {detail.ekycOcrName ? ` · OCR: ${detail.ekycOcrName}` : ''}
+                                                </FieldValue>
+                                            </Grid>
+                                        ) : null}
+                                        {detail.recipientIdImageUrl || detail.recipientIdImageBackUrl || detail.recipientSelfieUrl ? (
+                                            <Grid size={{ xs: 12 }}>
+                                                <FieldLabel>Ảnh CCCD / selfie</FieldLabel>
+                                                <Stack direction="row" spacing={2} sx={{ mt: 1 }} flexWrap="wrap" useFlexGap>
                                                     {detail.recipientIdImageUrl && (
                                                         <Box>
                                                             <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block', mb: 0.75 }}>
@@ -548,6 +563,19 @@ export const PrizePayoutDetailPage = () => {
                                                                 compact
                                                                 imageUrl={detail.recipientIdImageBackUrl}
                                                                 title="CCCD mặt sau"
+                                                                showCaption={false}
+                                                            />
+                                                        </Box>
+                                                    )}
+                                                    {detail.recipientSelfieUrl && (
+                                                        <Box>
+                                                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block', mb: 0.75 }}>
+                                                                Selfie
+                                                            </Typography>
+                                                            <TransferEvidencePreview
+                                                                compact
+                                                                imageUrl={detail.recipientSelfieUrl}
+                                                                title="Selfie"
                                                                 showCaption={false}
                                                             />
                                                         </Box>

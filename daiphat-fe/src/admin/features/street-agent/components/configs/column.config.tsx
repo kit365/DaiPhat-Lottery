@@ -99,6 +99,40 @@ export const getColumnsConfig = (
         valueFormatter: (value) => value || "—",
     },
     {
+        field: "ekycStatus",
+        headerName: "eKYC",
+        width: 120,
+        headerAlign: "center",
+        align: "center",
+        renderCell: (params: GridRenderCellParams) => {
+            const status = (params.value as string) || null;
+            const label =
+                status === "VERIFIED"
+                    ? "Đã xác thực"
+                    : status === "FAILED"
+                      ? "Thất bại"
+                      : status === "PENDING"
+                        ? "Chờ XT"
+                        : "—";
+            return (
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", height: "100%" }}>
+                    <AdminStatusBadge
+                        label={label}
+                        modifier={
+                            status === "VERIFIED"
+                                ? "admin-status-badge--success"
+                                : status === "FAILED"
+                                  ? "admin-status-badge--draft"
+                                  : status === "PENDING"
+                                    ? "admin-status-badge--pending"
+                                    : "admin-status-badge--draft"
+                        }
+                    />
+                </Box>
+            );
+        },
+    },
+    {
         field: "status",
         headerName: "Trạng thái",
         width: 120,

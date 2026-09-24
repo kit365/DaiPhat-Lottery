@@ -15,6 +15,16 @@ export interface StreetAgentProfile {
     phone: string;
     cccd: string;
     imageUrl?: string;
+    cccdFrontImageUrl?: string | null;
+    cccdBackImageUrl?: string | null;
+    cccdSelfieImageUrl?: string | null;
+    ekycStatus?: string | null;
+    ekycFaceDistance?: number | null;
+    ekycLivenessScore?: number | null;
+    ekycFailureReason?: string | null;
+    ekycOcrName?: string | null;
+    ekycOcrIdNumber?: string | null;
+    ekycVerifiedAt?: string | null;
     contactAddress?: string;
     contactProvince?: string;
     contactWard?: string;
@@ -56,6 +66,9 @@ export interface CreateStreetAgentProfilePayload {
     phone: string;
     cccd: string;
     imageUrl?: string;
+    cccdFrontImageUrl?: string;
+    cccdBackImageUrl?: string;
+    cccdSelfieImageUrl?: string;
     contactAddress?: string;
     contactProvince?: string;
     contactWard?: string;
