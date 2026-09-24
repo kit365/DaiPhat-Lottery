@@ -19,6 +19,26 @@ def _minimal_jpeg_bytes(width: int = 120, height: int = 80) -> bytes:
     return buffer.tobytes()
 
 
+def _jpeg_with_ticket_rects(
+    width: int,
+    height: int,
+    boxes: list[tuple[int, int, int, int]],
+) -> bytes:
+    """Dark canvas with bright ticket-like rectangles for YOLO crop FP filters."""
+    image = np.zeros((height, width, 3), dtype=np.uint8)
+    for x, y, w, h in boxes:
+        cv2.rectangle(image, (x, y), (x + w, y + h), (220, 220, 220), thickness=-1)
+        # Add light texture so empty-crop rejection (std / Laplacian) keeps them.
+        roi = image[y : y + h, x : x + w]
+        noise = np.random.default_rng(0).integers(0, 40, size=roi.shape, dtype=np.uint8)
+        image[y : y + h, x : x + w] = np.clip(roi.astype(np.int16) - noise, 40, 255).astype(
+            np.uint8
+        )
+    ok, buffer = cv2.imencode(".jpg", image)
+    assert ok
+    return buffer.tobytes()
+
+
 class FakeVisionClient:
     def __init__(self, result: ScanExtractionResult) -> None:
         self._result = result
@@ -236,7 +256,17 @@ def test_per_ticket_ocr_uses_single_collage_call(monkeypatch):
         include_cropped_image=False,
     )
     result = service.scan_image(
-        _minimal_jpeg_bytes(width=240, height=460),
+        _jpeg_with_ticket_rects(
+            width=240,
+            height=460,
+            boxes=[
+                (10, 10, 80, 120),
+                (100, 10, 80, 120),
+                (10, 160, 80, 120),
+                (100, 160, 80, 120),
+                (50, 300, 80, 120),
+            ],
+        ),
         ScanMetadata(
             activeStations=[
                 StationMetadata(name="TP. Hồ Chí Minh", code="HCM", expectedNumberLength=6)

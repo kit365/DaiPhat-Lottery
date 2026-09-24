@@ -224,8 +224,10 @@ def test_field_region_formats_the_denomination(sample_stations):
 def test_field_region_clears_the_stale_refinement_position(sample_stations):
     # ROI refinement re-crops using field_positions; a position from the
     # whole-ticket pass no longer describes where this value came from.
+    # When the field crop agrees with (or completes) the whole-ticket value,
+    # the field binding wins and must drop the stale whole-ticket position.
     ocr = {
-        "whole": [_line("A123456", 0.8)],
+        "whole": [_line("298407", 0.8)],
         f"{FIELD_REGION_PREFIX}numbers": [_line("298407", 0.9)],
     }
 
@@ -233,3 +235,16 @@ def test_field_region_clears_the_stale_refinement_position(sample_stations):
 
     assert parsed.extracted.numbers == "298407"
     assert "numbers" not in parsed.field_positions
+
+
+def test_field_region_defers_to_whole_ticket_when_both_complete_disagree(sample_stations):
+    # YOLO numbers boxes are often slightly off; prefer the whole-ticket
+    # 6-digit read over a conflicting complete field crop.
+    ocr = {
+        "whole": [_line("A123456", 0.8)],
+        f"{FIELD_REGION_PREFIX}numbers": [_line("298407", 0.9)],
+    }
+
+    parsed = _parser(sample_stations).parse(ocr)
+
+    assert parsed.extracted.numbers == "123456"

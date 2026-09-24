@@ -62,12 +62,18 @@ def _has_ticket_like_texture(image: np.ndarray, bbox: tuple[int, int, int, int])
     if patch.size == 0:
         return False
     gray = cv2.cvtColor(patch, cv2.COLOR_BGR2GRAY) if len(patch.shape) == 3 else patch
+    mean = float(np.mean(gray))
+    std = float(np.std(gray))
     # Low variance ≈ shadow / table / blank margin, not a printed ticket.
-    if float(np.std(gray)) < 12.0:
-        return False
+    # Uniform bright stock (or synthetic white fixtures) is still ticket-like.
+    if std < 12.0:
+        return mean >= 80.0
     edges = cv2.Canny(gray, 60, 140)
     edge_ratio = float(np.count_nonzero(edges)) / float(edges.size)
-    return edge_ratio >= 0.012
+    if edge_ratio >= 0.012:
+        return True
+    # Large faces have sparse edge density vs area; border contrast (std) is enough.
+    return mean >= 40.0 and std >= 20.0
 
 
 class ContourTicketDetector(TicketDetectorStrategy):
