@@ -660,6 +660,22 @@ public enum ErrorCode {
             "SAG_033",
             "Chưa cấu hình giờ Đại Phát cần nhận lại vé cho một hoặc nhiều vé đã chọn, nên không thể xác nhận bàn giao.",
             HttpStatus.CONFLICT),
+    STREET_AGENT_EKYC_REQUIRED(
+            "SAG_034",
+            "Vui lòng hoàn tất xác thực CCCD (eKYC) trước khi kích hoạt hồ sơ.",
+            HttpStatus.BAD_REQUEST),
+    STREET_AGENT_EKYC_IMAGES_REQUIRED(
+            "SAG_035",
+            "Cần ảnh CCCD mặt trước, mặt sau và ảnh selfie để xác thực eKYC.",
+            HttpStatus.BAD_REQUEST),
+
+    // eKYC (CCCD) — shared Street Agent + Prize Payout
+    EKYC_INVALID_DOCUMENTS("EKYC_001", "Ảnh CCCD / selfie không hợp lệ hoặc bị thiếu.", HttpStatus.BAD_REQUEST),
+    EKYC_AI_UNAVAILABLE("EKYC_002", "Dịch vụ xác thực CCCD tạm thời không khả dụng.", HttpStatus.SERVICE_UNAVAILABLE),
+    EKYC_LIVENESS_FAILED("EKYC_003", "Xác thực sống (liveness) thất bại. Vui lòng chụp lại selfie.", HttpStatus.BAD_REQUEST),
+    EKYC_FACE_MISMATCH("EKYC_004", "Khuôn mặt selfie không khớp ảnh CCCD.", HttpStatus.BAD_REQUEST),
+    EKYC_OCR_FAILED("EKYC_005", "Không đọc được thông tin từ ảnh CCCD. Vui lòng chụp lại rõ hơn.", HttpStatus.BAD_REQUEST),
+    EKYC_ID_MISMATCH("EKYC_006", "Số CCCD trên ảnh không khớp số CCCD đã nhập.", HttpStatus.BAD_REQUEST),
 
     // Support Ticket Errors
     TICKET_NOT_FOUND("TKT_001", "Yêu cầu hỗ trợ không tồn tại.", HttpStatus.NOT_FOUND),
