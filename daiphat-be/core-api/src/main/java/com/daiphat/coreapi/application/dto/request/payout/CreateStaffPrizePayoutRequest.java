@@ -17,6 +17,7 @@ public record CreateStaffPrizePayoutRequest(
         @Size(max = 20) String recipientIdNumber,
         @Size(max = 500) String recipientIdImageUrl,
         @Size(max = 500) String recipientIdImageBackUrl,
+        @Size(max = 500) String recipientSelfieUrl,
         @NotNull PrizePayoutPaymentMethod paymentMethod,
         java.math.BigDecimal cashAmount,
         Boolean manualOwnershipConfirmed,

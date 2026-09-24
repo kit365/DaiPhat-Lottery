@@ -63,7 +63,11 @@ public record UpdateStreetAgentProfileRequest(
         String contractDocumentUrl,
 
         @jakarta.validation.constraints.Min(value = 1, message = "Trần hạn mức hợp đồng phải lớn hơn 0")
-        Integer contractMaxDailyCap
+        Integer contractMaxDailyCap,
+
+        @Size(max = 500) String cccdFrontImageUrl,
+        @Size(max = 500) String cccdBackImageUrl,
+        @Size(max = 500) String cccdSelfieImageUrl
 ) {
     /** @deprecated deposit adjustments use the audited transaction endpoint. */
     @Deprecated public UpdateStreetAgentProfileRequest(
@@ -87,7 +91,7 @@ public record UpdateStreetAgentProfileRequest(
     ) {
         this(firstName, lastName, phone, cccd, imageUrl, contactAddress, contactProvince,
                 contactWard, coverageArea, commissionRate, contractStartDate, contractEndDate,
-                status, null, null, null);
+                status, null, null, null, null, null, null);
     }
 
     /** Source compatibility for server-side callers during the API transition. */
@@ -113,6 +117,6 @@ public record UpdateStreetAgentProfileRequest(
             String contractCode, String contractDocumentUrl, Integer legacyContractDailyCap) {
         this(firstName, lastName, phone, cccd, imageUrl, contactAddress, contactProvince,
                 contactWard, coverageArea, commissionRate, contractStartDate, contractEndDate,
-                status, contractCode, contractDocumentUrl, legacyContractDailyCap);
+                status, contractCode, contractDocumentUrl, legacyContractDailyCap, null, null, null);
     }
 }

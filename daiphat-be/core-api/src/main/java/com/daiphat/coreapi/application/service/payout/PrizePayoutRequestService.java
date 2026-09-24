@@ -32,7 +32,10 @@ import com.daiphat.coreapi.shared.util.PersonNameMatchUtils;
 import com.daiphat.coreapi.shared.util.SortUtils;
 import com.daiphat.coreapi.shared.util.StorageFolderConstants;
 import com.daiphat.coreapi.shared.util.StorageUtils;
+import com.daiphat.coreapi.application.dto.ekyc.EkycVerificationResult;
+import com.daiphat.coreapi.application.service.ekyc.EkycVerificationService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -71,6 +74,10 @@ public class PrizePayoutRequestService implements PrizePayoutRequestServicePort 
     private final UserRepository userRepository;
     private final StoragePort storagePort;
     private final ApplicationEventPublisher eventPublisher;
+    private final EkycVerificationService ekycVerificationService;
+
+    @Value("${daiphat.ekyc-ai.prize-payout-required:true}")
+    private boolean prizePayoutEkycRequired;
 
     @Override
     @Transactional
@@ -97,6 +104,16 @@ public class PrizePayoutRequestService implements PrizePayoutRequestServicePort 
                 request.recipientIdImageUrl(), "Ảnh CCCD mặt trước");
         String recipientIdImageBackUrl = requireOnlineRecipientIdImageUrl(
                 request.recipientIdImageBackUrl(), "Ảnh CCCD mặt sau");
+        String recipientSelfieUrl = requireOnlineRecipientIdImageUrl(
+                request.recipientSelfieUrl(), "Ảnh selfie");
+
+        EkycVerificationResult ekyc = null;
+        if (prizePayoutEkycRequired) {
+            ekyc = ekycVerificationService.verifyFromUrls(
+                    recipientIdImageUrl, recipientIdImageBackUrl, recipientSelfieUrl);
+            ekycVerificationService.requireIdMatch(recipientIdNumber, ekyc);
+            ekycVerificationService.assertVerified(ekyc);
+        }
 
         PrizePayoutCalculationService.PrizePayoutBreakdown breakdown =
                 prizePayoutCalculationService.calculate(match.prizeAmount());
@@ -122,9 +139,17 @@ public class PrizePayoutRequestService implements PrizePayoutRequestServicePort 
                 .bankName(bankAccount.getBankName())
                 .bankAccountNumber(bankAccount.getBankAccountNo())
                 .accountHolderName(bankAccount.getBankAccountName())
+                .recipientFullName(ekyc != null && ekyc.ocrName() != null ? ekyc.ocrName() : null)
                 .recipientIdNumber(recipientIdNumber)
                 .recipientIdImageUrl(recipientIdImageUrl)
                 .recipientIdImageBackUrl(recipientIdImageBackUrl)
+                .recipientSelfieUrl(recipientSelfieUrl)
+                .ekycStatus(ekyc != null ? ekyc.status() : null)
+                .ekycFaceDistance(ekyc != null ? ekyc.faceDistance() : null)
+                .ekycLivenessScore(ekyc != null ? ekyc.livenessScore() : null)
+                .ekycFailureReason(ekyc != null ? ekyc.failureReason() : null)
+                .ekycOcrName(ekyc != null ? ekyc.ocrName() : null)
+                .ekycVerifiedAt(ekyc != null && ekyc.verified() ? LocalDateTime.now() : null)
                 .recipientIdentityCapturedAt(LocalDateTime.now())
                 .build();
         model.initializeForCreate();

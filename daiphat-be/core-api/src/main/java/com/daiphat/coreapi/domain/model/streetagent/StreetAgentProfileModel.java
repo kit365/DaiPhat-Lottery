@@ -27,6 +27,16 @@ public class StreetAgentProfileModel {
     private String phone;
     private String cccd;
     private String imageUrl;
+    private String cccdFrontImageUrl;
+    private String cccdBackImageUrl;
+    private String cccdSelfieImageUrl;
+    private com.daiphat.coreapi.domain.model.enums.ekyc.EkycStatus ekycStatus;
+    private Double ekycFaceDistance;
+    private Double ekycLivenessScore;
+    private String ekycFailureReason;
+    private String ekycOcrName;
+    private String ekycOcrIdNumber;
+    private LocalDateTime ekycVerifiedAt;
     private String contactAddress;
     private String contactProvince;
     private String contactWard;

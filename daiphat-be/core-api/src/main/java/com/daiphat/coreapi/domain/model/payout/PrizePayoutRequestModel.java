@@ -56,6 +56,13 @@ public class PrizePayoutRequestModel {
     private String recipientIdNumber;
     private String recipientIdImageUrl;
     private String recipientIdImageBackUrl;
+    private String recipientSelfieUrl;
+    private com.daiphat.coreapi.domain.model.enums.ekyc.EkycStatus ekycStatus;
+    private Double ekycFaceDistance;
+    private Double ekycLivenessScore;
+    private String ekycFailureReason;
+    private String ekycOcrName;
+    private LocalDateTime ekycVerifiedAt;
     private LocalDateTime recipientIdentityCapturedAt;
 
     @Builder.Default

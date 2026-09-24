@@ -8,6 +8,7 @@ import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutLookupResp
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutPreviewResponse;
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutRequestResponse;
 import com.daiphat.coreapi.application.mapper.payout.PrizePayoutApplicationMapper;
+import com.daiphat.coreapi.application.service.ekyc.EkycVerificationService;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRepositoryPort;
@@ -77,6 +78,7 @@ class PrizePayoutStaffServiceCreateInPersonTest {
     @Mock private StoragePort storagePort;
     @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private LotteryStationServicePort lotteryStationServicePort;
+    @Mock private EkycVerificationService ekycVerificationService;
 
     @InjectMocks
     private PrizePayoutStaffService staffService;
@@ -98,7 +100,7 @@ class PrizePayoutStaffServiceCreateInPersonTest {
             String recipientImage) {
         return new CreateStaffPrizePayoutRequest(
                 20L, 10L, null, null, null, null, null, null,
-                recipientName, recipientId, recipientImage, recipientImage,
+                recipientName, recipientId, recipientImage, recipientImage, recipientImage,
                 PrizePayoutPaymentMethod.CASH, null, manualConfirm, null,
                 "https://cdn.example/contract.jpg", null);
     }
@@ -190,7 +192,7 @@ class PrizePayoutStaffServiceCreateInPersonTest {
                 null, null,
                 null, null, null, false, null, null, null, null,
                 null, null, null, null,
-                null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null, null,
                 PrizePayoutRequestStatus.PENDING, 0, 3, false, false, false, true,
                 null, null, null, null, null, staffId.toString(), null, null, null, null);
         lenient().when(prizePayoutApplicationMapper.toResponse(
@@ -306,6 +308,7 @@ class PrizePayoutStaffServiceCreateInPersonTest {
                                 new CreateStaffPrizePayoutBatchRequest.BatchItem(21L)),
                         null, null, null, null,
                         "Tran Van C", "012345678901", "https://cdn.example/cccd.jpg", "https://cdn.example/cccd-back.jpg",
+                        "https://cdn.example/selfie.jpg",
                         PrizePayoutPaymentMethod.CASH, null, true, null,
                         "https://cdn.example/contract.jpg", null));
 
@@ -417,6 +420,7 @@ class PrizePayoutStaffServiceCreateInPersonTest {
                         20L, 10L, null, null, null,
                         "Vietcombank", "0123456789", "TRAN VAN C",
                         "Tran Van C", "012345678901", "https://cdn.example/cccd.jpg", "https://cdn.example/cccd-back.jpg",
+                        "https://cdn.example/selfie.jpg",
                         PrizePayoutPaymentMethod.COMBINED, new BigDecimal("2000000"),
                         true, "https://cdn.example/transfer.jpg", "https://cdn.example/contract.jpg", null));
 
@@ -440,6 +444,7 @@ class PrizePayoutStaffServiceCreateInPersonTest {
                         new CreateStaffPrizePayoutRequest(
                                 20L, 10L, null, null, null, null, null, null,
                                 "Tran Van C", "012345678901", "https://cdn.example/cccd.jpg", "https://cdn.example/cccd-back.jpg",
+                                "https://cdn.example/selfie.jpg",
                                 PrizePayoutPaymentMethod.COMBINED, BigDecimal.ZERO,
                                 true, null, "https://cdn.example/contract.jpg", null)));
         assertEquals(ErrorCode.INVALID_INPUT, ex.getErrorCode());
@@ -454,6 +459,7 @@ class PrizePayoutStaffServiceCreateInPersonTest {
                         new CreateStaffPrizePayoutRequest(
                                 20L, 10L, null, null, null, null, null, null,
                                 "Tran Van C", "012345678901", "https://cdn.example/cccd.jpg", "https://cdn.example/cccd-back.jpg",
+                                "https://cdn.example/selfie.jpg",
                                 PrizePayoutPaymentMethod.COMBINED, new BigDecimal("123"),
                                 true, null, "https://cdn.example/contract.jpg", null)));
         assertEquals(ErrorCode.INVALID_INPUT, ex.getErrorCode());

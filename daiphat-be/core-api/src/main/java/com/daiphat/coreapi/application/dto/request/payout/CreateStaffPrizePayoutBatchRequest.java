@@ -18,6 +18,7 @@ public record CreateStaffPrizePayoutBatchRequest(
         @Size(max = 20) String recipientIdNumber,
         @Size(max = 500) String recipientIdImageUrl,
         @Size(max = 500) String recipientIdImageBackUrl,
+        @Size(max = 500) String recipientSelfieUrl,
         @NotNull PrizePayoutPaymentMethod paymentMethod,
         /** Total cash portion across the batch when paymentMethod is COMBINED. */
         java.math.BigDecimal cashAmount,

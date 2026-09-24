@@ -65,8 +65,41 @@ public record CreateStreetAgentProfileRequest(
         String contractDocumentUrl,
 
         @jakarta.validation.constraints.Min(value = 1, message = "Hạn mức hợp đồng phải lớn hơn 0")
-        Integer contractMaxDailyCap
+        Integer contractMaxDailyCap,
+
+        @Size(max = 500, message = "URL ảnh CCCD mặt trước không vượt quá 500 ký tự")
+        String cccdFrontImageUrl,
+
+        @Size(max = 500, message = "URL ảnh CCCD mặt sau không vượt quá 500 ký tự")
+        String cccdBackImageUrl,
+
+        @Size(max = 500, message = "URL ảnh selfie không vượt quá 500 ký tự")
+        String cccdSelfieImageUrl
 ) {
+    /** Compatibility: create without eKYC image URLs. */
+    public CreateStreetAgentProfileRequest(
+            String email,
+            String firstName,
+            String lastName,
+            String phone,
+            String cccd,
+            String imageUrl,
+            String contactAddress,
+            String contactProvince,
+            String contactWard,
+            String coverageArea,
+            BigDecimal commissionRate,
+            LocalDate contractStartDate,
+            LocalDate contractEndDate,
+            String contractCode,
+            String contractDocumentUrl,
+            Integer contractMaxDailyCap
+    ) {
+        this(email, firstName, lastName, phone, cccd, imageUrl, contactAddress, contactProvince,
+                contactWard, coverageArea, commissionRate, contractStartDate, contractEndDate,
+                contractCode, contractDocumentUrl, contractMaxDailyCap, null, null, null);
+    }
+
     public CreateStreetAgentProfileRequest(
             String firstName, String lastName, String phone, String cccd, String imageUrl,
             String contactAddress, String contactProvince, String coverageArea,
@@ -85,7 +118,7 @@ public record CreateStreetAgentProfileRequest(
     ) {
         this(null, firstName, lastName, phone, cccd, imageUrl, contactAddress, contactProvince,
                 contactWard, coverageArea, commissionRate, contractStartDate, contractEndDate,
-                (String) null, null, null);
+                (String) null, null, null, null, null, null);
     }
 
     /** Source compatibility for server-side callers during the API transition. */
@@ -98,7 +131,7 @@ public record CreateStreetAgentProfileRequest(
             Integer legacyContractDailyCap) {
         this(null, firstName, lastName, phone, cccd, imageUrl, contactAddress, contactProvince, null,
                 coverageArea, commissionRate, contractStartDate, contractEndDate, contractCode,
-                contractDocumentUrl, legacyContractDailyCap);
+                contractDocumentUrl, legacyContractDailyCap, null, null, null);
     }
 
 }
