@@ -172,23 +172,6 @@ export const ImportBatchDetailPage = () => {
                 action={
                     batch ? (
                         <Stack direction="row" spacing={1.5} alignItems="center">
-                            <Button
-                                variant="outlined"
-                                startIcon={<FileDownloadOutlinedIcon />}
-                                onClick={handleExport}
-                                sx={{
-                                    textTransform: 'none',
-                                    fontWeight: 700,
-                                    borderRadius: '10px',
-                                    borderColor: '#cbd5e1',
-                                    color: '#475569',
-                                    bgcolor: '#ffffff',
-                                    '&:hover': { bgcolor: '#f8fafc', borderColor: '#94a3b8' },
-                                }}
-                            >
-                                Xuất tệp
-                            </Button>
-
                             {canEditBatch && can(PERMISSIONS.IMPORT_BATCH.CREATE) && (
                                 <Button
                                     variant="outlined"

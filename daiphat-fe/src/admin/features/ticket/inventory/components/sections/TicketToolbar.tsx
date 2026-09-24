@@ -5,7 +5,7 @@ import { useMemo, type Dispatch, type SetStateAction } from 'react';
 import { IGridSettings, JiraFilter } from '../../../../../shared/data-grid';
 import { Search } from '../../../../../components/ui/Search';
 import { Columns } from '../../../../../components/ui/Columns';
-import { ExportButton } from '../../../../../components/ui/ExportButton';
+
 import { SettingsList } from '../../../../../components/ui/SettingsList';
 import { DateRangePicker } from '../../../../../components/ui/DateRangePicker';
 import { useStations } from '../../../../station/hooks/useStation';
@@ -119,7 +119,7 @@ export const TicketToolbar = ({
                     )}
                 />
                 <Columns />
-                <ExportButton />
+
                 <SettingsList settings={settings} onSettingsChange={onSettingsChange} />
             </Box>
         </Toolbar>

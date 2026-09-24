@@ -29,7 +29,7 @@ import { LazyDataGrid, dataGridContainerStyles, dataGridStyles } from '@/admin/s
 import { DATA_GRID_LOCALE_VN } from "@/admin/components/data-grid/localeText.config";
 import { ROUTES } from '@/admin/constants/routes';
 import {
-    useExportStreetAgentReport,
+
     useStreetAgentReportAgents,
     useStreetAgentReportOverview,
     useStreetAgentReportStations,
@@ -172,7 +172,7 @@ export const StreetAgentReportPage = () => {
     const overviewQuery = useStreetAgentReportOverview(reportParams);
     const agentsQuery = useStreetAgentReportAgents(agentParams);
     const stationsQuery = useStreetAgentReportStations(stationParams);
-    const exportMutation = useExportStreetAgentReport();
+
 
     const resetTablePage = () => {
         setAgentTable((current) => ({ ...current, page: 0 }));
@@ -205,12 +205,6 @@ export const StreetAgentReportPage = () => {
         resetTablePage();
     };
 
-    const handleExport = () => {
-        exportMutation.mutate(reportParams, {
-            onSuccess: () => toast.success('Đã xuất báo cáo Excel.'),
-            onError: (error: Error) => toast.error(error.message || 'Xuất báo cáo thất bại.'),
-        });
-    };
 
     const agentColumns = useMemo<GridColDef<StreetAgentReportAgent>[]>(() => [
         {
@@ -273,19 +267,7 @@ export const StreetAgentReportPage = () => {
                     { label: 'Người bán vé số', to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
                     { label: 'Báo cáo người bán vé' },
                 ]}
-                action={
-                    <Button
-                        variant="contained"
-                        className="btn-primary-admin"
-                        startIcon={<DownloadOutlinedIcon />}
-                        disabled={!hasValidRange}
-                        loading={exportMutation.isPending}
-                        loadingLabel="Đang xuất..."
-                        onClick={handleExport}
-                    >
-                        Xuất Excel
-                    </Button>
-                }
+
             />
 
             <Stack spacing={2} sx={{ mb: 2.5 }}>

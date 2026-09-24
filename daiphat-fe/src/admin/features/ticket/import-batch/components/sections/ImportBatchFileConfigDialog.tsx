@@ -122,21 +122,6 @@ export const ImportBatchFileConfigDialog = ({
                 }}
             >
                 <Stack direction="row" spacing={1.75} alignItems="center">
-                    <Box
-                        sx={{
-                            width: 44,
-                            height: 44,
-                            borderRadius: '12px',
-                            bgcolor: '#f1f5f9',
-                            color: '#334155',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            border: '1px solid #e2e8f0',
-                        }}
-                    >
-                        <TuneOutlinedIcon fontSize="medium" />
-                    </Box>
                     <Box>
                         <Typography variant="h6" fontWeight={800} sx={{ color: '#0f172a', lineHeight: 1.2 }}>
                             Quy tắc & Cấu hình đọc tệp
@@ -157,7 +142,7 @@ export const ImportBatchFileConfigDialog = ({
                 </IconButton>
             </DialogTitle>
 
-            <DialogContent sx={{ p: { xs: 2.5, md: 3.5 }, bgcolor: '#f8fafc' }}>
+            <DialogContent sx={{ p: { xs: 2.5, md: 3.5 }, pt: { xs: 2.5, md: 3.5 }, bgcolor: '#f8fafc' }}>
                 {loading && (
                     <Stack alignItems="center" justifyContent="center" py={8} spacing={2}>
                         <CircularProgress size={36} sx={{ color: '#FF3030' }} />
@@ -175,23 +160,7 @@ export const ImportBatchFileConfigDialog = ({
 
                 {config && !loading && (
                     <Stack spacing={3}>
-                        {/* Notice Card */}
-                        <Box
-                            sx={{
-                                p: 2,
-                                borderRadius: '14px',
-                                bgcolor: '#eff6ff',
-                                border: '1px solid #bfdbfe',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 1.5,
-                            }}
-                        >
-                            <InfoOutlinedIcon sx={{ color: '#2563eb', fontSize: 20 }} />
-                            <Typography variant="body2" color="#1e40af" sx={{ fontSize: '0.875rem' }}>
-                                Các thông số bên dưới có thể tuỳ chỉnh tại <b>Cài đặt hệ thống</b> → mục <b>Cấu hình nhập vé</b> (khoá <code>{config.configKey}</code>).
-                            </Typography>
-                        </Box>
+
 
                         {/* Parameter Grid Tiles */}
                         <Paper
@@ -429,7 +398,6 @@ export const ImportBatchFileConfigDialog = ({
                             }}
                         >
                             <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
-                                <LockOutlinedIcon fontSize="small" sx={{ color: '#64748b' }} />
                                 <Typography variant="subtitle2" fontWeight={800} color="#0f172a">
                                     Quy tắc nghiệp vụ cố định
                                 </Typography>
@@ -463,17 +431,16 @@ export const ImportBatchFileConfigDialog = ({
                 }}
             >
                 <Button
-                    variant="contained"
+                    variant="outlined"
                     onClick={onClose}
                     sx={{
                         borderRadius: '10px',
                         textTransform: 'none',
                         fontWeight: 700,
                         px: 3,
-                        bgcolor: '#FF3030',
-                        color: '#ffffff',
-                        boxShadow: '0 2px 8px rgba(255, 48, 48, 0.25)',
-                        '&:hover': { bgcolor: '#e02828' },
+                        borderColor: '#0f172a',
+                        color: '#0f172a',
+                        '&:hover': { bgcolor: '#f1f5f9', borderColor: '#0f172a' },
                     }}
                 >
                     Đóng

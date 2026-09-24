@@ -6,7 +6,7 @@ import dayjs from "dayjs";
 import SearchIcon from '@mui/icons-material/Search';
 import { Search } from '../../../../components/ui/Search';
 import { Columns } from '../../../../components/ui/Columns';
-import { ExportButton } from '../../../../components/ui/ExportButton';
+
 import { SettingsList } from '../../../../components/ui/SettingsList';
 import { AdminDatePicker } from '../../../../components/ui/AdminDatePicker';
 import { adminCountBadgeSx, getMetricChipSx } from '@/admin/utils/badge';
@@ -379,7 +379,7 @@ export const DrawResultToolbar = ({
                 </Popover>
 
                 <Columns />
-                <ExportButton />
+
                 <SettingsList
                     settings={settings}
                     onSettingsChange={onSettingsChange as any}
