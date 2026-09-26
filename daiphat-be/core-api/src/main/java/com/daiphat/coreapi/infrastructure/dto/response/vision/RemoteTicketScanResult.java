@@ -6,7 +6,7 @@ import java.util.List;
 
 /**
  * Raw wire shape of ticket-vision's ScanResponse
- * (services/ticket-vision/dto/response/scan_response.py:ScanResponse).
+ * (daiphat-ai/ai-ticket-ocr/dto/response/scan_response.py:ScanResponse).
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record RemoteTicketScanResult(

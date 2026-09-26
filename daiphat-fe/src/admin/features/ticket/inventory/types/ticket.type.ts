@@ -9,4 +9,5 @@ export interface ITicket {
     createdAt: Date;
     status: string;
     statusDisplayName: string;
+    cancelReason?: string | null;
 }

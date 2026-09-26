@@ -1,0 +1,37 @@
+name: AI Ticket OCR CI
+
+on:
+  pull_request:
+    paths:
+      - "daiphat-ai/ai-ticket-ocr/**"
+      - ".github/workflows/ai-ticket-ocr-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-ticket-ocr-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: AI Ticket OCR
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: daiphat-ai/ai-ticket-ocr
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: daiphat-ai/ai-ticket-ocr/requirements.txt
+      - name: Install dependencies
+        # EasyOCR/PaddleOCR pull in torch/paddlepaddle, so this step is slow.
+        run: pip install -r requirements.txt pytest
+      - name: Test
+        env:
+          PYTHONPATH: .
+        run: pytest -q

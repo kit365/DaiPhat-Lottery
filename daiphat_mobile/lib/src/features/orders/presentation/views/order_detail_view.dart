@@ -16,7 +16,7 @@ import 'package:daiphat_mobile/src/features/bank_accounts/presentation/providers
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/profile_iconography.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
-import 'package:daiphat_mobile/src/shared/utils/ticket_number_utils.dart';
+import 'package:daiphat_mobile/src/shared/widgets/ticket_number_display.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import '../viewmodels/order_detail_viewmodel.dart';
 
@@ -289,6 +289,8 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
             _buildPaymentCard(order),
             const SizedBox(height: 14),
             _buildRefundSection(order),
+            const SizedBox(height: 14),
+            _buildGuarantees(),
           ],
         ),
       ),
@@ -809,160 +811,170 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
 
     final province = item.lotteryTicket?.province;
     final drawDate = item.lotteryTicket?.drawDate;
+    final ticketType = item.lotteryTicket?.ticketType;
     final symbol = item.lotteryTicket?.symbol;
-    final rawNumbers = item.lotteryTicket?.numbers;
-    final numbers = normalizeTicketNumber(rawNumbers);
-
-    final stationName = province != null && province.trim().isNotEmpty
-        ? (province.trim().startsWith('Xổ số')
-            ? province.trim()
-            : 'Xổ số ${province.trim()}')
-        : 'Vé Xổ Số Kiến Thiết';
+    final numbers = item.lotteryTicket?.numbers;
 
     return Container(
-      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.surfacePrimary,
-        borderRadius: BorderRadius.circular(14),
+        color: AppColors.surfaceSoft,
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.borderLight),
-        boxShadow: const [
-          BoxShadow(
-            color: AppColors.shadowLight,
-            blurRadius: 6,
-            offset: Offset(0, 2),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header: Station name + Status badge
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  stationName,
-                  style: AppTypography.mainWith(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textMain,
+          // Header: province + status
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    ProfileIconography.ticket,
+                    color: AppColors.primary,
+                    size: 18,
                   ),
                 ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 9,
-                  vertical: 3.5,
-                ),
-                decoration: BoxDecoration(
-                  color: ticketStatusColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: ticketStatusColor.withValues(alpha: 0.25),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    province != null && province.trim().isNotEmpty
+                        ? 'Xổ số $province'
+                        : ticketType != null && ticketType.trim().isNotEmpty
+                        ? 'Vé số $ticketType'
+                        : 'Vé Xổ Số Kiến Thiết',
+                    style: AppTypography.mainWith(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textMain,
+                    ),
                   ),
                 ),
-                child: Text(
-                  ticketStatusLabel,
-                  style: AppTypography.mainWith(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: ticketStatusColor,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
                   ),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          // Center: Large Lottery Number + Price
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                numbers.isEmpty ? '—' : numbers,
-                style: AppTypography.lotteryPrize(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 2.0,
-                  color: AppColors.ticketNumberForeground,
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    'Giá vé',
+                  decoration: BoxDecoration(
+                    color: ticketStatusColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: ticketStatusColor.withValues(alpha: 0.25),
+                    ),
+                  ),
+                  child: Text(
+                    ticketStatusLabel,
                     style: AppTypography.mainWith(
                       fontSize: 11,
-                      color: AppColors.textMuted,
+                      fontWeight: FontWeight.w700,
+                      color: ticketStatusColor,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    AppFormatters.formatCurrency(item.price),
-                    style: AppTypography.mainWith(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
 
-          const SizedBox(height: 10),
           const Divider(height: 1, color: AppColors.borderLight),
-          const SizedBox(height: 8),
 
-          // Footer: Draw date & clean symbol
-          Row(
-            children: [
-              if (drawDate != null && drawDate.trim().isNotEmpty) ...[
-                const Icon(
-                  Icons.calendar_today_outlined,
-                  size: 13,
-                  color: AppColors.textMuted,
-                ),
-                const SizedBox(width: 5),
-                Text(
-                  'Kỳ quay: ${_formatDrawDate(drawDate)}',
-                  style: AppTypography.mainWith(
-                    fontSize: 12,
-                    color: AppColors.textMuted,
-                    fontWeight: FontWeight.w500,
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Left: ticket details
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (numbers != null && numbers.trim().isNotEmpty) ...[
+                        TicketNumberDisplay.compact(value: numbers),
+                        const SizedBox(height: 10),
+                      ],
+                      if (symbol != null)
+                        _ticketDetail(
+                          Icons.tag_rounded,
+                          'Mã vé: $symbol',
+                          bold: true,
+                          color: AppColors.ticketMetadataForeground,
+                        ),
+                      if (drawDate != null) ...[
+                        const SizedBox(height: 6),
+                        _ticketDetail(
+                          Icons.calendar_today_outlined,
+                          'Ngày xổ: ${_formatDrawDate(drawDate)}',
+                        ),
+                      ],
+                      if (ticketType != null) ...[
+                        const SizedBox(height: 6),
+                        _ticketDetail(Icons.category_outlined, ticketType),
+                      ],
+                    ],
                   ),
                 ),
-              ],
-              if (symbol != null &&
-                  symbol.trim().isNotEmpty &&
-                  !_isInternalSymbol(symbol)) ...[
-                const Spacer(),
-                Text(
-                  'Ký hiệu: $symbol',
-                  style: AppTypography.mainWith(
-                    fontSize: 11.5,
-                    color: AppColors.textMuted,
-                    fontWeight: FontWeight.w500,
-                  ),
+                // Right: price
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      'Giá vé',
+                      style: AppTypography.mainWith(
+                        fontSize: 11,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      AppFormatters.formatCurrency(item.price),
+                      style: AppTypography.mainWith(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.ticketNumberForeground,
+                      ),
+                    ),
+                  ],
                 ),
               ],
-            ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  bool _isInternalSymbol(String s) {
-    final upper = s.toUpperCase();
-    return upper.contains('SEED') ||
-        upper.contains('SETTLE') ||
-        upper.contains('AVAILABLE') ||
-        s.length > 15;
+  Widget _ticketDetail(
+    IconData icon,
+    String text, {
+    bool bold = false,
+    Color? color,
+  }) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 13,
+          color: color ?? AppColors.ticketMetadataForeground,
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            text,
+            style: AppTypography.mainWith(
+              fontSize: 13,
+              fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
+              color: color ?? AppColors.ticketMetadataForeground,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   String _formatDrawDate(String raw) {
@@ -978,30 +990,14 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
     if (orderStatus == 'PENDING_PAYMENT') return 'Chờ thanh toán';
     if (orderStatus == 'CANCELLED') return 'Đã hủy';
     switch (ticketStatus) {
-      case 'PROXY_HOLDING':
-      case 'HOLDING':
-        return 'Đại lý giữ hộ';
-      case 'HANDED_OVER':
-        return 'Đã nhận vé';
-      case 'HANDOVER_IN_PROGRESS':
-        return 'Đang giao vé';
       case 'ACTIVE':
-      case 'SOLD':
         return 'Đã mua xong';
-      case 'RESERVED':
-        return 'Đang giữ chỗ';
-      case 'PENDING':
-        return 'Chờ xử lý';
       case 'REFUND_PENDING':
         return 'Chờ hoàn tiền';
       case 'REFUNDED':
         return 'Đã hoàn tiền';
-      case 'REJECTED_BY_CUSTOMER':
-        return 'Khách từ chối';
-      case 'EXPIRED':
-        return 'Đã hết hạn';
       default:
-        return 'Đã mua xong';
+        return ticketStatus;
     }
   }
 
@@ -1011,23 +1007,14 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
     }
     if (orderStatus == 'CANCELLED') return AppColors.contentMuted;
     switch (ticketStatus) {
-      case 'PROXY_HOLDING':
-      case 'HOLDING':
-      case 'HANDED_OVER':
       case 'ACTIVE':
-      case 'SOLD':
         return AppColors.statusSuccessForeground;
-      case 'HANDOVER_IN_PROGRESS':
-      case 'RESERVED':
-      case 'PENDING':
       case 'REFUND_PENDING':
         return AppColors.statusWarningForeground;
       case 'REFUNDED':
-      case 'REJECTED_BY_CUSTOMER':
-      case 'EXPIRED':
         return AppColors.textMuted;
       default:
-        return AppColors.statusSuccessForeground;
+        return AppColors.textMuted;
     }
   }
 
@@ -1042,91 +1029,181 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
     final ticketCount = order.orderDetails?.length ?? 0;
 
     return _card(
-      icon: Icons.receipt_long_outlined,
+      icon: Icons.receipt_outlined,
       title: 'Chi tiết thanh toán',
       child: Column(
         children: [
-          _infoRow(
-            'Phương thức',
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.qr_code_rounded,
-                  size: 16,
-                  color: AppColors.primary,
+          // payment method
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Phương thức',
+                      style: AppTypography.mainWith(
+                        fontSize: 12,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceSoft,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.borderLight),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: AppColors.surfacePrimary,
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: AppColors.borderLight),
+                            ),
+                            child: const Icon(
+                              Icons.qr_code_rounded,
+                              size: 16,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Chuyển khoản QR',
+                            style: AppTypography.mainWith(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textMain,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 6),
-                Text(
-                  'Chuyển khoản VietQR',
-                  style: AppTypography.mainWith(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textMain,
+              ),
+              const SizedBox(width: 16),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Trạng thái',
+                    style: AppTypography.mainWith(
+                      fontSize: 12,
+                      color: AppColors.textMuted,
+                    ),
                   ),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: txStatusColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      txStatusLabel,
+                      style: AppTypography.mainWith(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: txStatusColor,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+          const Divider(color: AppColors.borderLight),
+          const SizedBox(height: 16),
+
+          // cost breakdown
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceSoft,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.borderLight),
+            ),
+            child: Column(
+              children: [
+                _costRow('Số lượng vé', '$ticketCount vé'),
+                const SizedBox(height: 10),
+                _costRow(
+                  'Tạm tính',
+                  AppFormatters.formatCurrency(order.totalAmount),
+                ),
+                const SizedBox(height: 10),
+                _costRow(
+                  'Phí dịch vụ',
+                  'Miễn phí',
+                  valueColor: AppColors.statusSuccessForeground,
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Divider(color: AppColors.borderLight, height: 1),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Tổng thanh toán',
+                      style: AppTypography.mainWith(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textMain,
+                      ),
+                    ),
+                    Text(
+                      AppFormatters.formatCurrency(order.totalAmount),
+                      style: AppTypography.mainWith(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 12),
-          _infoRow(
-            'Trạng thái',
-            trailing: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 4,
-              ),
-              decoration: BoxDecoration(
-                color: txStatusColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: txStatusColor.withValues(alpha: 0.25),
-                ),
-              ),
-              child: Text(
-                txStatusLabel,
-                style: AppTypography.mainWith(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: txStatusColor,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          _infoRow('Số lượng vé', value: '$ticketCount vé'),
-          const SizedBox(height: 12),
-          _infoRow(
-            'Tạm tính',
-            value: AppFormatters.formatCurrency(order.totalAmount),
-          ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            child: Divider(color: AppColors.borderLight, height: 1),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Tổng thanh toán',
-                style: AppTypography.mainWith(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textMain,
-                ),
-              ),
-              Text(
-                AppFormatters.formatCurrency(order.totalAmount),
-                style: AppTypography.mainWith(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.primary,
-                ),
-              ),
-            ],
-          ),
         ],
       ),
+    );
+  }
+
+  Widget _costRow(String label, String value, {Color? valueColor}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: AppTypography.mainWith(
+            fontSize: 13,
+            color: AppColors.textMuted,
+          ),
+        ),
+        Text(
+          value,
+          style: AppTypography.mainWith(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: valueColor ?? AppColors.textMain,
+          ),
+        ),
+      ],
     );
   }
 
@@ -1161,6 +1238,86 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
       default:
         return AppColors.textMuted;
     }
+  }
+
+  // ── Guarantees ───────────────────────────────────────────────────────────
+
+  Widget _buildGuarantees() {
+    final items = [
+      (
+        Icons.shield_outlined,
+        AppColors.statusSuccessForeground,
+        'Bảo mật thông tin',
+        'Cam kết bảo mật tuyệt đối',
+      ),
+      (
+        ProfileIconography.support,
+        AppColors.primary,
+        'Hỗ trợ 24/7',
+        '1900 636 555',
+      ),
+      (
+        Icons.verified_user_outlined,
+        AppColors.primary,
+        'Giao dịch an toàn',
+        'Được bảo vệ bởi hệ thống',
+      ),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surfacePrimary,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(
+            color: AppColors.shadowLight,
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: items
+            .map(
+              (e) => Expanded(
+                child: Column(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: e.$2.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(e.$1, color: e.$2, size: 20),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      e.$3,
+                      style: AppTypography.mainWith(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textMain,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      e.$4,
+                      style: AppTypography.mainWith(
+                        fontSize: 10,
+                        color: AppColors.textMuted,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            )
+            .toList(),
+      ),
+    );
   }
 
   // ── Hủy đơn & hoàn tiền (khớp web OrderDetailTab) ─────────────────────────
@@ -1746,12 +1903,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
     );
   }
 
-  Widget _infoRow(
-    String label, {
-    String? value,
-    Widget? trailing,
-    Color? valueColor,
-  }) {
+  Widget _infoRow(String label, {String? value, Widget? trailing}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -1768,7 +1920,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
               style: AppTypography.mainWith(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: valueColor ?? AppColors.textMain,
+                color: AppColors.textMain,
               ),
               textAlign: TextAlign.end,
             ),

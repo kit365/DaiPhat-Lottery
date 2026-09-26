@@ -60,7 +60,6 @@ class _NotificationViewState extends State<NotificationView> {
     if (!item.isRead) await _viewModel.markAsRead(item.id);
 
     final route = resolveNotificationRoute(
-      notificationType: item.type,
       referenceType: item.referenceType,
       referenceId: item.referenceId,
     );
@@ -77,11 +76,7 @@ class _NotificationViewState extends State<NotificationView> {
     }
 
     if (!mounted) return;
-    if (isShellTabRoute(route)) {
-      context.go(route);
-    } else {
-      context.push(route);
-    }
+    context.push(route);
   }
 
   Future<void> _confirmDeleteRead() async {

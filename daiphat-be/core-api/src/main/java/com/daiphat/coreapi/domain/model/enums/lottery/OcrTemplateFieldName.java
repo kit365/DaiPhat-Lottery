@@ -10,5 +10,15 @@ public enum OcrTemplateFieldName {
     drawDate,
     ticketType,
     batchCode,
-    price
+    price,
+    /**
+     * Outline of the paper ticket on the template sample image. Not an OCR
+     * value: ticket-vision maps the YOLO-detected ticket onto this frame and
+     * locates every other field relative to it.
+     */
+    ticketFrame;
+
+    public boolean isTicketFrame() {
+        return this == ticketFrame;
+    }
 }

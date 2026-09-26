@@ -12,7 +12,7 @@ import {
     Divider,
 } from '@mui/material';
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
-import { OCR_TEMPLATE_FIELD_OPTIONS } from './OcrFieldLayoutAnnotator';
+import { OCR_TEMPLATE_FIELD_OPTIONS, TICKET_FRAME_FIELD } from './OcrFieldLayoutAnnotator';
 import type {
     OcrFieldLayout,
     OcrTemplateFieldName,
@@ -62,17 +62,19 @@ export const OcrTaggedRegionsList = ({
     }, [layouts]);
 
     const stats = useMemo(() => {
-        const totalFields = OCR_TEMPLATE_FIELD_OPTIONS.length;
-        const coveredFields = OCR_TEMPLATE_FIELD_OPTIONS.filter(
+        const ocrFields = OCR_TEMPLATE_FIELD_OPTIONS.filter((opt) => opt.value !== TICKET_FRAME_FIELD);
+        const totalFields = ocrFields.length;
+        const coveredFields = ocrFields.filter(
             (opt) => (groupedLayouts.get(opt.value)?.length ?? 0) > 0
         ).length;
         return {
             totalFields,
             coveredFields,
-            totalRegions: layouts.length,
+            totalRegions: layouts.filter((l) => l.fieldName !== TICKET_FRAME_FIELD).length,
+            hasFrame: (groupedLayouts.get(TICKET_FRAME_FIELD)?.length ?? 0) > 0,
             isComplete: coveredFields === totalFields,
         };
-    }, [groupedLayouts, layouts.length]);
+    }, [groupedLayouts, layouts]);
 
     const visibleGroups = useMemo(() => {
         if (filterField === 'ALL') {
@@ -98,6 +100,7 @@ export const OcrTaggedRegionsList = ({
                 <Typography variant="caption" color="text.secondary">
                     {stats.coveredFields}/{stats.totalFields} trường
                     {stats.isComplete ? ' — đủ trường bắt buộc' : ''}
+                    {stats.hasFrame ? ' • có khung vé' : ' • chưa có khung vé'}
                 </Typography>
             </Stack>
 
@@ -182,7 +185,10 @@ export const OcrTaggedRegionsList = ({
                                             }}
                                         >
                                             <Typography variant="body2" sx={{ flex: 1, minWidth: 0 }}>
-                                                Ưu tiên #{layout.priority ?? 1} · x {formatPercent(layout.boundingBox.x)} · y{' '}
+                                                {layout.fieldName === TICKET_FRAME_FIELD
+                                                    ? 'Vùng tham chiếu'
+                                                    : `Ưu tiên #${layout.priority ?? 1}`}{' '}
+                                                · x {formatPercent(layout.boundingBox.x)} · y{' '}
                                                 {formatPercent(layout.boundingBox.y)} · {formatPercent(layout.boundingBox.width)} ×{' '}
                                                 {formatPercent(layout.boundingBox.height)}
                                             </Typography>

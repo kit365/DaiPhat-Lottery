@@ -1,0 +1,49 @@
+name: AI eKYC CI
+
+on:
+  pull_request:
+    paths:
+      - "daiphat-ai/ai-ekyc/**"
+      - ".github/workflows/ai-ekyc-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-ekyc-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: AI eKYC
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: daiphat-ai/ai-ekyc
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          # Matches the ai-ekyc Dockerfile base image.
+          python-version: "3.10"
+      - name: Install test dependencies
+        # The CCCD parser tests are stdlib-only; PaddleOCR/InsightFace are
+        # only exercised by the image build below.
+        run: pip install pytest
+      - name: Compile sources
+        run: python -m compileall -q app
+      - name: Test
+        env:
+          PYTHONPATH: .
+        run: pytest -q
+      - uses: docker/setup-buildx-action@v4
+      - name: Build image
+        uses: docker/build-push-action@v7
+        with:
+          context: ./daiphat-ai/ai-ekyc
+          file: ./daiphat-ai/ai-ekyc/Dockerfile
+          platforms: linux/amd64
+          push: false
+          cache-from: type=gha,scope=ai-ekyc
+          cache-to: type=gha,scope=ai-ekyc,mode=max

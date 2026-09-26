@@ -36,6 +36,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.SimpleTransactionStatus;
 
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -97,6 +99,8 @@ class SupplierSettlementServiceTest {
     private Clock clock;
     @Mock
     private SupplierSettlementDiscrepancyInventoryHelper discrepancyInventoryHelper;
+    @Mock
+    private PlatformTransactionManager transactionManager;
 
     @InjectMocks
     private SupplierSettlementService supplierSettlementService;
@@ -120,6 +124,30 @@ class SupplierSettlementServiceTest {
         Instant instant = date.atTime(time).atZone(ZONE).toInstant();
         lenient().when(clock.instant()).thenReturn(instant);
         lenient().when(clock.getZone()).thenReturn(ZONE);
+    }
+
+    @Test
+    @DisplayName("updateExpiredSettlements: one short transaction per settlement, a failure does not stop the scan")
+    void updateExpiredSettlements_usesOneTransactionPerSettlement() {
+        SupplierSettlementModel failing = SupplierSettlementModel.builder()
+                .id(1L)
+                .status(SupplierSettlementStatus.OPEN)
+                .build();
+        SupplierSettlementModel healthy = SupplierSettlementModel.builder()
+                .id(2L)
+                .status(SupplierSettlementStatus.RECEIPT_OVERDUE)
+                .build();
+        when(supplierSettlementRepositoryPort.findByStatuses(any())).thenReturn(List.of(failing, healthy));
+        when(supplierSettlementRepositoryPort.findById(1L)).thenThrow(new IllegalStateException("boom"));
+        when(supplierSettlementRepositoryPort.findById(2L)).thenReturn(Optional.empty());
+        when(transactionManager.getTransaction(any())).thenAnswer(invocation -> new SimpleTransactionStatus());
+
+        int updated = supplierSettlementService.updateExpiredSettlements();
+
+        assertThat(updated).isZero();
+        verify(transactionManager, times(2)).getTransaction(any());
+        verify(transactionManager, times(1)).rollback(any());
+        verify(transactionManager, times(1)).commit(any());
     }
 
     @Test

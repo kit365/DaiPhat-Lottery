@@ -113,6 +113,7 @@ public class LotteryStationService implements LotteryStationServicePort {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public LotteryStationResponse getById(Long id) {
         LotteryStationModel model = getProductOrThrow(id);
         recalculateInventory(model);
@@ -120,6 +121,7 @@ public class LotteryStationService implements LotteryStationServicePort {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public LotteryStationModel getModelById(Long id) {
         LotteryStationModel model = getProductOrThrow(id);
         recalculateInventory(model);
@@ -127,6 +129,7 @@ public class LotteryStationService implements LotteryStationServicePort {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Optional<LotteryStationModel> findModelById(Long id) {
         return lotteryStationRepositoryPort.findById(id)
                 .map(model -> {
@@ -136,11 +139,13 @@ public class LotteryStationService implements LotteryStationServicePort {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<LotteryStationModel> getScheduleModelsByDrawDate(LocalDate drawDate) {
         return findStationsMatchingDrawDate(drawDate);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public PageResponse<LotteryStationResponse> getAll(
             int page, int size, String search,
             String status, String type, String region, String drawDay,
@@ -217,6 +222,7 @@ public class LotteryStationService implements LotteryStationServicePort {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<LotteryStationResponse> getByDrawDate(LocalDate drawDate) {
         return findStationsMatchingDrawDate(drawDate).stream()
                 .peek(this::recalculateInventory)
@@ -225,16 +231,19 @@ public class LotteryStationService implements LotteryStationServicePort {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<LotteryStationResponse> getDrawingToday() {
         return getByDrawDate(LocalDate.now());
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<LotteryStationResponse> getDrawingTomorrow() {
         return getByDrawDate(LocalDate.now().plusDays(1));
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<LotteryStationSchedulePublicResponse> getPublicSchedule(
             String region,
             Long stationId,

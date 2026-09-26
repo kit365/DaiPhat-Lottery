@@ -8,6 +8,7 @@ import com.daiphat.coreapi.application.port.out.lotteries.OcrFieldValidationRule
 import com.daiphat.coreapi.application.port.out.lotteries.OcrTicketTemplateRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.lottery.OcrTemplateFieldName;
 import com.daiphat.coreapi.domain.model.enums.lottery.OcrValidationRuleSeverity;
 import com.daiphat.coreapi.domain.model.enums.lottery.OcrValidationRuleType;
 import com.daiphat.coreapi.domain.model.lotteries.OcrFieldValidationRuleModel;
@@ -41,6 +42,7 @@ public class OcrFieldValidationRuleService {
     @Transactional
     public OcrFieldValidationRuleResponse create(Long templateId, CreateOcrFieldValidationRuleRequest request) {
         requireTemplate(templateId);
+        rejectTicketFrame(request.fieldName());
         validateConfig(request.ruleType(), request.ruleConfig());
         if (request.fieldLayoutId() != null) {
             requireLayoutBelongsToTemplate(templateId, request.fieldLayoutId());
@@ -85,6 +87,7 @@ public class OcrFieldValidationRuleService {
             existing.setFieldLayoutId(request.fieldLayoutId());
         }
         if (request.fieldName() != null) {
+            rejectTicketFrame(request.fieldName());
             existing.setFieldName(request.fieldName());
         }
         existing.setRuleType(ruleType);
@@ -99,6 +102,15 @@ public class OcrFieldValidationRuleService {
             existing.setSortOrder(request.sortOrder());
         }
         return toResponse(ruleRepositoryPort.save(existing));
+    }
+
+    private static void rejectTicketFrame(OcrTemplateFieldName fieldName) {
+        if (fieldName != null && fieldName.isTicketFrame()) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Khung vé chỉ dùng để định vị, không áp dụng quy tắc kiểm tra OCR."
+            );
+        }
     }
 
     @Transactional

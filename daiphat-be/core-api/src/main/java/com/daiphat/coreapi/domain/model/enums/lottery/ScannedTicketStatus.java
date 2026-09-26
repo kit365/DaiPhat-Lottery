@@ -2,7 +2,7 @@ package com.daiphat.coreapi.domain.model.enums.lottery;
 
 /**
  * Mirrors the ticket-vision Python service's TicketStatus enum
- * (services/ticket-vision/domain/enums/ticket_status.py) for the mobile
+ * (daiphat-ai/ai-ticket-ocr/domain/enums/ticket_status.py) for the mobile
  * bounding-box overlay color: green/yellow/red/amber-partial.
  *
  * <p>Python's status is format/confidence-only (Layer 1). Java may
