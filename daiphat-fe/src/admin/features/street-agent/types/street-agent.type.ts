@@ -13,8 +13,23 @@ export interface StreetAgentProfile {
     firstName: string;
     lastName: string;
     phone: string;
-    cccd: string;
+    /** Set only from CCCD OCR after eKYC verification; never entered manually. */
+    cccd?: string | null;
     imageUrl?: string;
+    cccdFrontImageUrl?: string | null;
+    cccdBackImageUrl?: string | null;
+    ekycStatus?: string | null;
+    ekycFailureReason?: string | null;
+    ekycOcrName?: string | null;
+    ekycOcrIdNumber?: string | null;
+    ekycOcrDob?: string | null;
+    ekycOcrGender?: string | null;
+    ekycOcrNationality?: string | null;
+    ekycOcrPlaceOfBirth?: string | null;
+    ekycOcrPlaceOfResidence?: string | null;
+    ekycOcrIssueDate?: string | null;
+    ekycOcrExpiryDate?: string | null;
+    ekycVerifiedAt?: string | null;
     contactAddress?: string;
     contactProvince?: string;
     contactWard?: string;
@@ -54,8 +69,9 @@ export interface CreateStreetAgentProfilePayload {
     firstName: string;
     lastName: string;
     phone: string;
-    cccd: string;
     imageUrl?: string;
+    cccdFrontImageUrl?: string;
+    cccdBackImageUrl?: string;
     contactAddress?: string;
     contactProvince?: string;
     contactWard?: string;

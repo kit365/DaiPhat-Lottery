@@ -152,7 +152,10 @@ export const prizePayoutAdminApi = {
         try {
             const formData = new FormData();
             formData.append('file', file);
-            const response = await apiApp.post(`${STAFF_BASE}/transfer-evidence/upload`, formData);
+            const response = await apiApp.post(`${STAFF_BASE}/transfer-evidence/upload`, formData, {
+                skipGlobalErrorToast: true,
+                timeout: 120_000,
+            } as any);
             const url = response.data?.data?.url;
             if (!url) {
                 throw new Error(response.data?.message || 'Không nhận được URL ảnh từ server');
@@ -166,7 +169,10 @@ export const prizePayoutAdminApi = {
     uploadRecipientIdImage: async (file: File): Promise<string> => {
         const formData = new FormData();
         formData.append('file', file);
-        const response = await apiApp.post(`${STAFF_BASE}/recipient-id/upload`, formData);
+        const response = await apiApp.post(`${STAFF_BASE}/recipient-id/upload`, formData, {
+            skipGlobalErrorToast: true,
+            timeout: 120_000,
+        } as any);
         const url = response.data?.data?.url;
         if (!url) {
             throw new Error(response.data?.message || 'Không nhận được URL ảnh từ server');
@@ -177,7 +183,10 @@ export const prizePayoutAdminApi = {
     uploadConfirmationContract: async (file: File): Promise<string> => {
         const formData = new FormData();
         formData.append('file', file);
-        const response = await apiApp.post(`${STAFF_BASE}/confirmation-contract/upload`, formData);
+        const response = await apiApp.post(`${STAFF_BASE}/confirmation-contract/upload`, formData, {
+            skipGlobalErrorToast: true,
+            timeout: 120_000,
+        } as any);
         const url = response.data?.data?.url;
         if (!url) {
             throw new Error(response.data?.message || 'Không nhận được URL ảnh từ server');
@@ -188,7 +197,8 @@ export const prizePayoutAdminApi = {
     openConfirmationContractPreview: async (payload: {
         orderDetailIds: number[];
         recipientFullName: string;
-        recipientIdNumber: string;
+        recipientIdImageUrl: string;
+        recipientIdImageBackUrl: string;
     }): Promise<void> => {
         const response = await apiApp.post(`${STAFF_BASE}/confirmation-contract/preview`, payload, blobRequestConfig());
         await openPdfBlob(response.data as Blob, 'hop-dong-xac-nhan-tra-thuong.pdf');

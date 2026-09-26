@@ -139,3 +139,39 @@ export const uploadStreetAgentSignedContract = async (
     const response = await apiApp.post(`${BASE_URL}/${id}/contract/signed-document`, formData);
     return response.data;
 };
+
+export const uploadStreetAgentEkycImage = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiApp.post(`${BASE_URL}/ekyc/upload`, formData);
+    const url = response.data?.data?.url;
+    if (!url) {
+        throw new Error(response.data?.message || 'Không nhận được URL ảnh eKYC từ server');
+    }
+    return url;
+};
+
+/**
+ * Verify downloads both CCCD images and runs OCR on the server, which can exceed the global 15s axios
+ * timeout. Kept at the Next proxy's default (120s); callers show their own error toast.
+ */
+const EKYC_VERIFY_TIMEOUT_MS = 120_000;
+
+export const verifyStreetAgentEkyc = async (
+    id: number | string
+): Promise<ApiResponse<StreetAgentProfile>> => {
+    try {
+        const response = await apiApp.post(`${BASE_URL}/${id}/ekyc/verify`, undefined, {
+            skipGlobalErrorToast: true,
+            timeout: EKYC_VERIFY_TIMEOUT_MS,
+        } as Parameters<typeof apiApp.post>[2] & { skipGlobalErrorToast?: boolean });
+        return response.data;
+    } catch (error: any) {
+        if (!error?.response) {
+            throw new Error(
+                'Máy chủ xử lý ảnh CCCD quá lâu hoặc mất kết nối. Vui lòng tải lại hồ sơ để xem kết quả trước khi xác thực lại.'
+            );
+        }
+        throw error;
+    }
+};

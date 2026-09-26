@@ -41,7 +41,7 @@ import {
     serializeCoverageAreaCodes,
 } from "../../constants/coverageAreas";
 import { useVendorSettingsDefaults } from "../../hooks/useVendorSettingsDefaults";
-import { openStreetAgentContractPrint } from "../../services/streetAgentService";
+import { openStreetAgentContractPrint, verifyStreetAgentEkyc } from "../../services/streetAgentService";
 import { StreetAgentProfile } from "../../types/street-agent.type";
 import { ContractDocumentViewerDialog } from "../ContractDocumentViewerDialog";
 import { StreetAgentProfileEditModal } from "../StreetAgentProfileEditModal";
@@ -70,8 +70,9 @@ const defaultValues: CreateStreetAgentProfileFormValues = {
     firstName: "",
     lastName: "",
     phone: "",
-    cccd: "",
     imageUrl: "",
+    cccdFrontImageUrl: "",
+    cccdBackImageUrl: "",
     contactAddress: "",
     contactProvince: "",
     contactWard: "",
@@ -85,8 +86,9 @@ const toFormValues = (profile: StreetAgentProfile): CreateStreetAgentProfileForm
     firstName: profile.firstName || "",
     lastName: profile.lastName || "",
     phone: profile.phone || "",
-    cccd: profile.cccd || "",
     imageUrl: profile.imageUrl || "",
+    cccdFrontImageUrl: profile.cccdFrontImageUrl || "",
+    cccdBackImageUrl: profile.cccdBackImageUrl || "",
     contactAddress: profile.contactAddress || "",
     contactProvince: profile.contactProvince || "",
     contactWard: profile.contactWard || "",
@@ -124,6 +126,7 @@ export const StreetAgentCreatePage = () => {
     const [saveSignedConfirmOpen, setSaveSignedConfirmOpen] = useState(false);
     const [viewSignedOpen, setViewSignedOpen] = useState(false);
     const [editProfileOpen, setEditProfileOpen] = useState(false);
+    const [isVerifyingEkyc, setIsVerifyingEkyc] = useState(false);
 
     const { control, handleSubmit, setValue, watch, reset } = useForm<CreateStreetAgentProfileFormValues>({
         resolver: zodResolver(createStreetAgentProfileSchema) as any,
@@ -225,8 +228,9 @@ export const StreetAgentCreatePage = () => {
             firstName: data.firstName,
             lastName: data.lastName,
             phone: data.phone,
-            cccd: data.cccd,
             imageUrl: data.imageUrl || undefined,
+            cccdFrontImageUrl: data.cccdFrontImageUrl || undefined,
+            cccdBackImageUrl: data.cccdBackImageUrl || undefined,
             contactAddress: data.contactAddress || undefined,
             contactProvince: data.contactProvince || undefined,
             contactWard: data.contactWard || undefined,
@@ -237,15 +241,35 @@ export const StreetAgentCreatePage = () => {
         };
 
         create(payload, {
-            onSuccess: (response) => {
+            onSuccess: async (response) => {
                 if (!response.success || !response.data) {
                     toast.error(response.message || "Tạo hồ sơ thất bại");
                     return;
                 }
+                let profile = response.data;
+                const hasEkycImages = !!data.cccdFrontImageUrl && !!data.cccdBackImageUrl;
+                if (hasEkycImages) {
+                    try {
+                        setIsVerifyingEkyc(true);
+                        const verifyRes = await verifyStreetAgentEkyc(profile.id);
+                        if (verifyRes.success && verifyRes.data) {
+                            profile = verifyRes.data;
+                            toast.success(verifyRes.message || "Xác thực eKYC thành công.");
+                        }
+                    } catch (error: any) {
+                        toast.error(
+                            error?.response?.data?.message ||
+                                error?.message ||
+                                "Xác thực eKYC thất bại — có thể thử lại sau khi lưu."
+                        );
+                    } finally {
+                        setIsVerifyingEkyc(false);
+                    }
+                }
                 toast.success(response.message || "Đã lưu hồ sơ PENDING và tạo mã hợp đồng.");
-                setCreatedProfile(response.data);
+                setCreatedProfile(profile);
                 setActiveStep(1);
-                setSearchParams({ resumeId: String(response.data.id) }, { replace: true });
+                setSearchParams({ resumeId: String(profile.id) }, { replace: true });
             },
         });
     };
@@ -368,6 +392,20 @@ export const StreetAgentCreatePage = () => {
                         fileInputRef={fileInputRef}
                         onOpenFile={handleOpenFile}
                         onFileChange={handleFileChange}
+                        profileId={profileId}
+                        ekycStatus={profile?.ekycStatus}
+                        ekycFailureReason={profile?.ekycFailureReason}
+                        ekycOcrName={profile?.ekycOcrName}
+                        ekycOcrIdNumber={profile?.ekycOcrIdNumber}
+                        ekycOcrDob={profile?.ekycOcrDob}
+                        ekycOcrGender={profile?.ekycOcrGender}
+                        ekycOcrNationality={profile?.ekycOcrNationality}
+                        ekycOcrPlaceOfBirth={profile?.ekycOcrPlaceOfBirth}
+                        ekycOcrPlaceOfResidence={profile?.ekycOcrPlaceOfResidence}
+                        ekycOcrIssueDate={profile?.ekycOcrIssueDate}
+                        ekycOcrExpiryDate={profile?.ekycOcrExpiryDate}
+                        profileCccd={profile?.cccd}
+                        isVerifyingEkyc={isVerifyingEkyc}
                         depositBalance={0}
                         statusChip="PENDING"
                         contractMaxDailyCap={profile?.contractMaxDailyCap}
@@ -379,7 +417,7 @@ export const StreetAgentCreatePage = () => {
                         footer={
                             <Button
                                 type="submit"
-                                loading={isCreating}
+                                loading={isCreating || isVerifyingEkyc}
                                 label="Lưu thông tin & tạo hợp đồng"
                                 loadingLabel="Đang lưu..."
                             />

@@ -3,9 +3,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { prizePayoutService } from '../services/prizePayoutService';
 import { QUERY_KEYS } from '../../constants/queryKeys';
+import { ApiResponse } from '../../types/api.type';
 import {
     CreatePrizePayoutRequest,
     GetMyPrizePayoutsParams,
+    PrizePayoutRequestResponse,
     PrizePayoutRequestStatus,
 } from '../../types/prize-payout.type';
 import { AppToast as toast } from '../../utils/toast.util';
@@ -87,10 +89,51 @@ export const useMyPrizePayoutPendingCount = () => {
     });
 };
 
+const RECOVERY_LOOKUP_ATTEMPTS = 3;
+const RECOVERY_LOOKUP_DELAY_MS = 2_000;
+
+/** Timeouts/network drops and 400/5xx can hide a request the server already committed (e.g. a retry after timeout). */
+const mayHaveBeenCommitted = (error: any): boolean => {
+    const status = error?.response?.status;
+    return status == null || status === 400 || status >= 500;
+};
+
+const findCommittedRequest = async (
+    data: CreatePrizePayoutRequest,
+    serverMayStillBeWorking: boolean
+): Promise<PrizePayoutRequestResponse | null> => {
+    const attempts = serverMayStillBeWorking ? RECOVERY_LOOKUP_ATTEMPTS : 1;
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+        if (attempt > 0) {
+            await new Promise((resolve) => setTimeout(resolve, RECOVERY_LOOKUP_DELAY_MS));
+        }
+        try {
+            const existing = await prizePayoutService.findActiveRequestForTicket(data);
+            if (existing) return existing;
+        } catch {
+            // The original create error is more useful to the user than a failed lookup.
+        }
+    }
+    return null;
+};
+
 export const useCreatePrizePayout = () => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: (data: CreatePrizePayoutRequest) => prizePayoutService.create(data),
+        mutationFn: async (data: CreatePrizePayoutRequest): Promise<ApiResponse<PrizePayoutRequestResponse>> => {
+            try {
+                return await prizePayoutService.create(data);
+            } catch (error: any) {
+                if (!mayHaveBeenCommitted(error)) throw error;
+                const existing = await findCommittedRequest(data, error?.response == null);
+                if (!existing) throw error;
+                return {
+                    success: true,
+                    message: 'Yêu cầu trả thưởng cho vé này đã được ghi nhận.',
+                    data: existing,
+                };
+            }
+        },
         onSuccess: (response) => {
             if (response.success) {
                 toast.success(response.message || 'Yêu cầu đã gửi');
@@ -102,6 +145,12 @@ export const useCreatePrizePayout = () => {
             }
         },
         onError: (error: any) => {
+            if (error?.response == null) {
+                toast.error(
+                    'Máy chủ xử lý ảnh CCCD quá lâu hoặc mất kết nối. Vui lòng kiểm tra mục Yêu cầu trả thưởng trước khi gửi lại.'
+                );
+                return;
+            }
             toast.error(error?.response?.data?.message || error.message || 'Lỗi kết nối');
         },
     });

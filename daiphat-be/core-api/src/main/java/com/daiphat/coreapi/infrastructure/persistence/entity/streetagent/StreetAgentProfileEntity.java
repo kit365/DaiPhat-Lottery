@@ -42,11 +42,63 @@ public class StreetAgentProfileEntity extends BaseEntity {
     @Column(nullable = false, unique = true, length = 20)
     private String phone;
 
-    @Column(nullable = false, unique = true, length = 20)
+    @Column(length = 20)
     private String cccd;
 
     @Column(name = "image_url", length = 500)
     private String imageUrl;
+
+    @Column(name = "cccd_front_image_url", length = 500)
+    private String cccdFrontImageUrl;
+
+    @Column(name = "cccd_back_image_url", length = 500)
+    private String cccdBackImageUrl;
+
+    @Column(name = "cccd_selfie_image_url", length = 500)
+    private String cccdSelfieImageUrl;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "ekyc_status", length = 32)
+    private com.daiphat.coreapi.domain.model.enums.ekyc.EkycStatus ekycStatus;
+
+    @Column(name = "ekyc_face_distance")
+    private Double ekycFaceDistance;
+
+    @Column(name = "ekyc_liveness_score")
+    private Double ekycLivenessScore;
+
+    @Column(name = "ekyc_failure_reason", length = 500)
+    private String ekycFailureReason;
+
+    @Column(name = "ekyc_ocr_name", length = 255)
+    private String ekycOcrName;
+
+    @Column(name = "ekyc_ocr_id_number", length = 64)
+    private String ekycOcrIdNumber;
+
+    @Column(name = "ekyc_ocr_dob", length = 32)
+    private String ekycOcrDob;
+
+    @Column(name = "ekyc_ocr_gender", length = 32)
+    private String ekycOcrGender;
+
+    @Column(name = "ekyc_ocr_nationality", length = 100)
+    private String ekycOcrNationality;
+
+    @Column(name = "ekyc_ocr_place_of_birth", length = 500)
+    private String ekycOcrPlaceOfBirth;
+
+    @Column(name = "ekyc_ocr_place_of_residence", length = 500)
+    private String ekycOcrPlaceOfResidence;
+
+    @Column(name = "ekyc_ocr_issue_date", length = 64)
+    private String ekycOcrIssueDate;
+
+    @Column(name = "ekyc_ocr_expiry_date", length = 64)
+    private String ekycOcrExpiryDate;
+
+    @Column(name = "ekyc_verified_at")
+    private java.time.LocalDateTime ekycVerifiedAt;
 
     @Column(name = "contact_address", length = 255)
     private String contactAddress;

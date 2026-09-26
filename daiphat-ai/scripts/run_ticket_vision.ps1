@@ -29,7 +29,20 @@ if (-not (Test-Path $VenvPython)) {
 & $VenvPython -m pip install -q -r (Join-Path $ServiceDir "requirements.txt")
 
 $env:PYTHONPATH = "$RootDir;$ServiceDir"
+# Avoid PaddleOCR vs protobuf 4+/5+ descriptor crash on Windows.
+$env:PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION = "python"
 $Reload = if ($env:TICKET_VISION_RELOAD -eq "1") { $true } else { $false }
+
+$existingConn = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue | Where-Object { $_.State -eq 'Listen' }
+if ($existingConn) {
+    $pids = $existingConn | Select-Object -ExpandProperty OwningProcess -Unique
+    Write-Host "Cổng $Port đang bị chiếm bởi tiến trình (PID: $($pids -join ', ')). Đang đóng tiến trình cũ..." -ForegroundColor Yellow
+    foreach ($p in $pids) {
+        Stop-Process -Id $p -Force -ErrorAction SilentlyContinue
+    }
+    Start-Sleep -Milliseconds 800
+}
+
 Write-Host "Starting ticket-vision on http://127.0.0.1:$Port (health: /health, docs: /docs)"
 if ($Reload) {
     Write-Host "Reload enabled (TICKET_VISION_RELOAD=1). Prefer restart without reload if OCR hangs."

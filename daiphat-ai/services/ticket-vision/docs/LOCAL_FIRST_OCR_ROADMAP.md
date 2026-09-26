@@ -14,31 +14,28 @@ Goal: **YOLO crops fields + local OCR reads text**. Cloud vision LLMs
 
 ## Phase 2 — what ships now
 
-Defaults in `infra/config.py`:
+Defaults in `infra/config.py` (Admin OCR production path):
 
-- `TICKET_VISION_LEGACY_FIRST=true` — run EasyOCR/PaddleOCR **first**; call
-  Groq/Gemini/Grok only when legacy confidence is below the high threshold
-  (or tickets are incomplete / missing). On LLM token/quota failure, **keep**
-  the legacy result (no second local pass, no hard fail).
-- `TICKET_VISION_LLM_FALLBACK_TO_LEGACY=true` — used mainly when
-  `TICKET_VISION_LEGACY_FIRST=false` (LLM-first rollback): Groq errors or
-  zero tickets → retry with `legacy`.
+- `TICKET_VISION_RECOGNITION_ENGINE=groq` — cloud vision is the primary reader.
+- `TICKET_VISION_LEGACY_FIRST=false` — **do not** run EasyOCR before every
+  Groq call (that path made multi-ticket scans time out).
+- `TICKET_VISION_LLM_FALLBACK_TO_LEGACY=true` — on Groq token/quota/rate-limit
+  /timeout/empty result, automatically run local EasyOCR/PaddleOCR and return
+  that result instead of failing the scan.
+- Multi-ticket Groq path: YOLO detect once → crop tickets → one labeled
+  collage → **one** vision request (not N full-frame calls).
 - `TICKET_VISION_DETECTOR_STRATEGY=yolov8_obb` — soft-falls to contour if
   `models/best.pt` missing.
 - `TICKET_VISION_LAYOUT_STRATEGY=yolo_field` — soft-falls to generic bands if
   weights missing.
 
-Configured cloud engine (default `groq`) is the **boost** engine after local
-OCR; high-confidence legacy results skip the cloud call entirely (faster
-multi-ticket scans).
-
-Disable legacy-first (restore LLM-first):
+Optional local-first experiment (slower; not the Admin default):
 
 ```bash
-TICKET_VISION_LEGACY_FIRST=false
+TICKET_VISION_LEGACY_FIRST=true
 ```
 
-Disable LLM→legacy fallback (LLM-first mode only):
+Disable LLM→legacy fallback (not recommended for Admin):
 
 ```bash
 TICKET_VISION_LLM_FALLBACK_TO_LEGACY=false
@@ -112,9 +109,10 @@ Ships now (no fine-tuned CRNN required yet):
   still low.
 - **Config** (`infra/config.py`):
   - `TICKET_VISION_FIELD_OCR_ENABLED=true`
-  - `TICKET_VISION_FIELD_OCR_FIELDS=serialNumber,numbers,drawDate`
-  - Optional ONNX paths under `models/field_ocr/*.onnx` (soft-skip until a
-    decoder is registered — see `models/field_ocr/README.md`).
+  - `TICKET_VISION_FIELD_OCR_FIELDS=serialNumber,numbers,drawDate,ticketType`
+  - ONNX CRNN+CTC under `models/field_ocr/*.onnx` (+ `.charset.json` sidecar).
+    Decoder: `domain/ocr/onnx_field_decoder.py`. Export:
+    `python scripts/export_field_ocr_onnx.py --fields numbers,drawDate --epochs 8`
 - **Dataset builder** (train later):
 
 ```bash
@@ -127,8 +125,8 @@ python scripts/build_field_ocr_dataset.py \
 ```
 
 Prefer Admin corrections (`correctedOnly: true` on the export). After you
-have enough labelled crops, fine-tune CRNN/Paddle/TrOCR, drop ONNX under
-`models/field_ocr/`, and register a decoder.
+have enough labelled crops, run `scripts/export_field_ocr_onnx.py` to train a
+tiny CRNN and drop ONNX + charset sidecars under `models/field_ocr/`.
 
 ## Related code
 

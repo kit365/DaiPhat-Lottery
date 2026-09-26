@@ -3,8 +3,14 @@ import { ApiResponse } from '../../../../../types/api.type';
 
 const BASE_URL = `/lottery-tickets`;
 
-export const getTickets = async (params?: any): Promise<ApiResponse<any>> => {
-    const response = await apiApp.get(BASE_URL, { 
+export type TicketListRequestConfig = {
+    timeout?: number;
+    skipGlobalErrorToast?: boolean;
+};
+
+export const getTickets = async (params?: any, requestConfig?: TicketListRequestConfig): Promise<ApiResponse<any>> => {
+    const response = await apiApp.get(BASE_URL, {
+        ...requestConfig,
         params: {
             page: params?.page || 1,
             size: params?.limit || 10,
