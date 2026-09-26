@@ -24,6 +24,8 @@ class ChatState {
     this.hasMoreTimeline = false,
     this.errorMessage,
     this.showWelcome = true,
+    this.isCancellingStaff = false,
+    this.isDisconnectingStaff = false,
   });
 
   final bool isLoading;
@@ -40,6 +42,15 @@ class ChatState {
   final bool hasMoreTimeline;
   final String? errorMessage;
   final bool showWelcome;
+  final bool isCancellingStaff;
+  final bool isDisconnectingStaff;
+
+  bool get showWaitingForStaff =>
+      conversationStatus == ConversationStatus.waitingForOperator;
+
+  bool get showChattingWithStaff =>
+      conversationStatus == ConversationStatus.active ||
+      conversationStatus == ConversationStatus.waitingForCustomer;
 
   List<UiChatMessage> get visibleMessages {
     final merged = mergeTimelineWithOverlay(
@@ -70,6 +81,8 @@ class ChatState {
     bool? hasMoreTimeline,
     String? errorMessage,
     bool? showWelcome,
+    bool? isCancellingStaff,
+    bool? isDisconnectingStaff,
     bool clearConversation = false,
     bool clearStatusBanner = false,
     bool clearError = false,
@@ -97,6 +110,8 @@ class ChatState {
       hasMoreTimeline: hasMoreTimeline ?? this.hasMoreTimeline,
       errorMessage: clearError ? null : errorMessage ?? this.errorMessage,
       showWelcome: showWelcome ?? this.showWelcome,
+      isCancellingStaff: isCancellingStaff ?? this.isCancellingStaff,
+      isDisconnectingStaff: isDisconnectingStaff ?? this.isDisconnectingStaff,
     );
   }
 }
@@ -337,6 +352,64 @@ class ChatViewModel extends Notifier<ChatState> {
     }
   }
 
+  Future<void> cancelStaffRequest() async {
+    final conversationId = state.conversationId;
+    if (conversationId == null ||
+        state.isCancellingStaff ||
+        state.isSending ||
+        !state.showWaitingForStaff) {
+      return;
+    }
+
+    state = state.copyWith(isCancellingStaff: true, clearError: true);
+    try {
+      final detail = await _chat.cancelStaffRequest(conversationId);
+      if (!ref.mounted) return;
+      if (detail == null) {
+        throw Exception('Không thể huỷ yêu cầu gặp nhân viên.');
+      }
+      _applyConversation(detail.conversation);
+      state = state.copyWith(statusBanner: 'Đã huỷ yêu cầu gặp nhân viên.');
+      await _loadTimeline(reset: true);
+    } catch (error) {
+      if (ref.mounted) state = state.copyWith(errorMessage: error.toString());
+    } finally {
+      if (ref.mounted) {
+        state = state.copyWith(isCancellingStaff: false);
+        _refreshQuickReplies();
+      }
+    }
+  }
+
+  Future<void> disconnectStaff() async {
+    final conversationId = state.conversationId;
+    if (conversationId == null ||
+        state.isDisconnectingStaff ||
+        state.isSending ||
+        !state.showChattingWithStaff) {
+      return;
+    }
+
+    state = state.copyWith(isDisconnectingStaff: true, clearError: true);
+    try {
+      final detail = await _chat.disconnectStaff(conversationId);
+      if (!ref.mounted) return;
+      if (detail == null) {
+        throw Exception('Không thể ngắt kết nối với nhân viên.');
+      }
+      _applyConversation(detail.conversation);
+      state = state.copyWith(statusBanner: 'Đã ngắt kết nối với nhân viên.');
+      await _loadTimeline(reset: true);
+    } catch (error) {
+      if (ref.mounted) state = state.copyWith(errorMessage: error.toString());
+    } finally {
+      if (ref.mounted) {
+        state = state.copyWith(isDisconnectingStaff: false);
+        _refreshQuickReplies();
+      }
+    }
+  }
+
   Future<ConversationDetailModel?> _loadStoredConversation() async {
     final lastId = await _chat.readLastConversationId();
     if (lastId == null) return null;
@@ -436,9 +509,24 @@ class ChatViewModel extends Notifier<ChatState> {
       return;
     }
 
+    final previousStatus = state.conversationStatus;
+    final wasWithStaff =
+        previousStatus == ConversationStatus.active ||
+        previousStatus == ConversationStatus.waitingForCustomer;
+    // An ESCALATED(WAITING) event published after commit can arrive after the
+    // staff has already taken the conversation; it must not undo that.
+    final isStaleEscalation =
+        event.eventType == 'CONVERSATION_ESCALATED' &&
+        event.status == ConversationStatus.waitingForOperator &&
+        wasWithStaff;
+
     state = state.copyWith(
-      conversationStatus: event.status ?? state.conversationStatus,
-      statusBanner: _bannerForEvent(event.eventType),
+      conversationStatus: isStaleEscalation
+          ? previousStatus
+          : event.status ?? previousStatus,
+      statusBanner: isStaleEscalation
+          ? state.statusBanner
+          : _bannerForEvent(event.eventType, previousStatus: previousStatus),
     );
 
     // The backend emits MESSAGE_READ after the detail/read endpoints update
@@ -481,12 +569,23 @@ class ChatViewModel extends Notifier<ChatState> {
     _refreshQuickReplies();
   }
 
-  String? _bannerForEvent(String eventType) {
+  String? _bannerForEvent(
+    String eventType, {
+    required ConversationStatus? previousStatus,
+  }) {
     return switch (eventType) {
       'CONVERSATION_ESCALATED' => 'Đang chờ nhân viên hỗ trợ...',
       'CONVERSATION_TAKEN' ||
       'CONVERSATION_ASSIGNED' => 'Nhân viên Đại Phát đang hỗ trợ bạn.',
-      'CONVERSATION_STAFF_REQUEST_CANCELLED' => 'Đã huỷ yêu cầu gặp nhân viên.',
+      'CONVERSATION_STAFF_REQUEST_CANCELLED' => switch (previousStatus) {
+        ConversationStatus.active ||
+        ConversationStatus.waitingForCustomer =>
+          'Đã ngắt kết nối với nhân viên.',
+        ConversationStatus.waitingForOperator =>
+          'Đã huỷ yêu cầu gặp nhân viên.',
+        // Already applied locally by cancelStaffRequest/disconnectStaff.
+        _ => state.statusBanner,
+      },
       'CONVERSATION_CLOSED' => 'Phiên chat đã kết thúc.',
       _ => state.statusBanner,
     };

@@ -203,8 +203,8 @@ class _LoginViewState extends State<LoginView> {
                                     // Email
                                     _buildInput(
                                       controller: _usernameController,
-                                      labelText: 'Email hoặc số điện thoại',
-                                      hintText: 'Nhập email hoặc số điện thoại',
+                                      labelText: 'Email / Tên đăng nhập',
+                                      hintText: 'Nhập email hoặc tên đăng nhập',
                                       prefixIcon: Icons.person_outline_rounded,
                                       keyboardType: TextInputType.emailAddress,
                                       autofillHints: const [

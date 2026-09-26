@@ -26,6 +26,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -134,13 +135,47 @@ public class SouthernLotteryStationSeedInitializer implements ApplicationRunner 
             }
         }
 
+        int deactivated = deactivateNonCatalogStations(byName.values());
+
         log.info(
-                "Southern lottery station seed finished: {} created, {} refreshed, {} skipped (catalog size={}).",
+                "Southern lottery station seed finished: {} created, {} refreshed, {} skipped, {} non-catalog deactivated (catalog size={}).",
                 created,
                 updated,
                 skipped,
+                deactivated,
                 SouthernLotteryStationCatalog.stations().size()
         );
+    }
+
+    /**
+     * Soft-disable leftover fake/test stations so they never appear beside the
+     * real 21 Miền Nam names in UI / seed inventory.
+     */
+    private int deactivateNonCatalogStations(Collection<LotteryStationModel> stations) {
+        int deactivated = 0;
+        for (LotteryStationModel station : stations) {
+            if (station == null || station.isDeleted() || !station.isActive()) {
+                continue;
+            }
+            if (SouthernStationSeedSupport.isCanonicalSouthernName(station.getName())) {
+                continue;
+            }
+            try {
+                writeTx.executeWithoutResult(status -> {
+                    station.setActive(false);
+                    lotteryStationRepositoryPort.save(station);
+                });
+                deactivated++;
+                log.info("Deactivated non-catalog lottery station '{}' (id={}).", station.getName(), station.getId());
+            } catch (RuntimeException ex) {
+                log.warn(
+                        "Could not deactivate non-catalog station '{}': {}",
+                        station.getName(),
+                        ex.getMessage()
+                );
+            }
+        }
+        return deactivated;
     }
 
     private Long createStation(SouthernLotteryStationCatalog.StationSeed seed) {

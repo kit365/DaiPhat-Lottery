@@ -64,8 +64,7 @@ import java.util.stream.Collectors;
 public class LotteryReturnBatchSeedInitializer implements ApplicationRunner {
 
     private static final String SYSTEM_ACTOR = "return-batch-seed";
-    private static final String NOTE_PREFIX = "SEED-RETURN-";
-    private static final List<String> IMPORT_BATCH_CODE_PREFIXES = List.of("PN-SEED-", "PN-STATUS-");
+    private static final String NOTE_PREFIX = SeedDocumentCodes.RETURN_NOTE_PREFIX;
 
     private final ImportBatchRepository importBatchRepository;
     private final ImportBatchLineRepository importBatchLineRepository;
@@ -103,6 +102,7 @@ public class LotteryReturnBatchSeedInitializer implements ApplicationRunner {
         int batchCount = 0;
         int lineCount = 0;
         Set<Long> settlementIds = new LinkedHashSet<>();
+        int returnSequence = SeedDocumentCodes.LANE_RETURN_MAIN;
 
         for (Map.Entry<SupplierDrawKey, List<ImportBatchEntity>> entry : bySupplierDraw.entrySet()) {
             List<ImportBatchEntity> importBatches = entry.getValue();
@@ -112,7 +112,7 @@ public class LotteryReturnBatchSeedInitializer implements ApplicationRunner {
             LotterySupplierEntity supplier = importBatches.get(0).getSupplier();
             LocalDate drawDate = entry.getKey().drawDate();
 
-            Result created = upsertReturnBatch(supplier, drawDate, importBatches, now);
+            Result created = upsertReturnBatch(supplier, drawDate, importBatches, now, returnSequence++);
             batchCount++;
             lineCount += created.lineCount();
             if (created.settlementId() != null) {
@@ -145,8 +145,15 @@ public class LotteryReturnBatchSeedInitializer implements ApplicationRunner {
 
     private List<ImportBatchEntity> loadSeedImportBatches() {
         Map<Long, ImportBatchEntity> byId = new LinkedHashMap<>();
-        for (String prefix : IMPORT_BATCH_CODE_PREFIXES) {
-            for (ImportBatchEntity batch : importBatchRepository.findByBatchCodeStartingWithAndDeletedAtIsNull(prefix)) {
+        for (ImportBatchEntity batch : importBatchRepository
+                .findByNoteStartingWithAndDeletedAtIsNull(SeedDocumentCodes.IMPORT_NOTE_PREFIX)) {
+            if (batch.getId() != null) {
+                byId.putIfAbsent(batch.getId(), batch);
+            }
+        }
+        for (String legacyPrefix : SeedDocumentCodes.LEGACY_IMPORT_HEADER_PREFIXES) {
+            for (ImportBatchEntity batch : importBatchRepository
+                    .findByBatchCodeStartingWithAndDeletedAtIsNull(legacyPrefix)) {
                 if (batch.getId() != null) {
                     byId.putIfAbsent(batch.getId(), batch);
                 }
@@ -156,8 +163,13 @@ public class LotteryReturnBatchSeedInitializer implements ApplicationRunner {
     }
 
     private void resetPreviousSeedReturnBatches() {
-        List<ReturnBatchEntity> seedBatches =
-                returnBatchRepository.findByNoteStartingWithAndDeletedAtIsNull(NOTE_PREFIX);
+        List<ReturnBatchEntity> seedBatches = new ArrayList<>(
+                returnBatchRepository.findByNoteStartingWithAndDeletedAtIsNull(NOTE_PREFIX)
+        );
+        // Legacy settlement-scenario notes before note unification.
+        seedBatches.addAll(
+                returnBatchRepository.findByNoteStartingWithAndDeletedAtIsNull("SEED-RETURN-SETTLE-")
+        );
         if (seedBatches.isEmpty()) {
             return;
         }
@@ -196,7 +208,8 @@ public class LotteryReturnBatchSeedInitializer implements ApplicationRunner {
             LotterySupplierEntity supplier,
             LocalDate drawDate,
             List<ImportBatchEntity> importBatches,
-            LocalDateTime now
+            LocalDateTime now,
+            int returnSequence
     ) {
         SupplierSettlementEntity settlement = ensureSettlement(supplier, drawDate, now);
 
@@ -211,6 +224,8 @@ public class LotteryReturnBatchSeedInitializer implements ApplicationRunner {
         }
 
         Optional<ReturnBatchEntity> existingOpt = findSeedTargetReturnBatch(supplier.getId(), drawDate);
+        String batchCode = SeedDocumentCodes.returnBatch(drawDate, returnSequence);
+        String note = SeedDocumentCodes.returnNote(supplier.getCode(), drawDate);
 
         ReturnBatchEntity batch;
         if (existingOpt.isPresent()) {
@@ -230,10 +245,8 @@ public class LotteryReturnBatchSeedInitializer implements ApplicationRunner {
                 returnBatchLineRepository.flush();
             }
             batch.setSupplierSettlementId(settlement.getId());
-            batch.setNote(NOTE_PREFIX + supplier.getCode() + "-" + drawDate);
-            if (batch.getBatchCode() == null || batch.getBatchCode().isBlank()) {
-                batch.setBatchCode("PT-" + drawDate.format(java.time.format.DateTimeFormatter.BASIC_ISO_DATE) + "-" + String.format("%04d", batch.getId() != null ? batch.getId() : 1));
-            }
+            batch.setNote(note);
+            batch.setBatchCode(batchCode);
             batch.setStatus(ReturnBatchStatus.PENDING_INSPECTION);
             batch.setDeliveryMode(null);
             batch.setReturnedAt(null);
@@ -243,11 +256,11 @@ public class LotteryReturnBatchSeedInitializer implements ApplicationRunner {
             batch.setLastModifiedBy(SYSTEM_ACTOR);
         } else {
             batch = ReturnBatchEntity.builder()
-                    .batchCode("PT-" + drawDate.format(java.time.format.DateTimeFormatter.BASIC_ISO_DATE) + "-000" + (drawDate.getDayOfMonth() % 9 + 1))
+                    .batchCode(batchCode)
                     .lotterySupplier(supplier)
                     .drawDate(drawDate)
                     .supplierSettlementId(settlement.getId())
-                    .note(NOTE_PREFIX + supplier.getCode() + "-" + drawDate)
+                    .note(note)
                     .status(ReturnBatchStatus.PENDING_INSPECTION)
                     .totalQuantity(0)
                     .totalReturnValue(BigDecimal.ZERO.setScale(ImportCostCalculator.COST_SCALE))

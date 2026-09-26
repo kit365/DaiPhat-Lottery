@@ -16,13 +16,16 @@ void main() {
       expect(route, '/buy-ticket');
     });
 
-    test('routes LOTTERY_STATION with no notificationType to /buy-ticket for backward compatibility', () {
-      final route = resolveNotificationRoute(
-        referenceType: 'LOTTERY_STATION',
-        referenceId: '123',
-      );
-      expect(route, '/buy-ticket');
-    });
+    test(
+      'routes LOTTERY_STATION with no notificationType to /buy-ticket for backward compatibility',
+      () {
+        final route = resolveNotificationRoute(
+          referenceType: 'LOTTERY_STATION',
+          referenceId: '123',
+        );
+        expect(route, '/buy-ticket');
+      },
+    );
 
     test('routes LOTTERY_STATION DRAW_RESULT to /check-ticket', () {
       final route = resolveNotificationRoute(
@@ -75,9 +78,18 @@ void main() {
     });
 
     test('returns null when referenceId is empty or type is unknown', () {
-      expect(resolveNotificationRoute(referenceType: 'ORDER', referenceId: ''), isNull);
-      expect(resolveNotificationRoute(referenceType: 'UNKNOWN', referenceId: '123'), isNull);
-      expect(resolveNotificationRoute(referenceType: null, referenceId: null), isNull);
+      expect(
+        resolveNotificationRoute(referenceType: 'ORDER', referenceId: ''),
+        isNull,
+      );
+      expect(
+        resolveNotificationRoute(referenceType: 'UNKNOWN', referenceId: '123'),
+        isNull,
+      );
+      expect(
+        resolveNotificationRoute(referenceType: null, referenceId: null),
+        isNull,
+      );
     });
   });
 
@@ -85,45 +97,68 @@ void main() {
     test('identifies all StatefulShellRoute tab branches as shell routes', () {
       expect(isShellTabRoute('/'), isTrue);
       expect(isShellTabRoute('/buy-ticket'), isTrue);
-      expect(isShellTabRoute('/check-ticket'), isTrue);
       expect(isShellTabRoute('/utilities-2'), isTrue);
+      expect(isShellTabRoute('/notifications'), isTrue);
       expect(isShellTabRoute('/profile'), isTrue);
       expect(isShellTabRoute('/utilities'), isTrue);
     });
 
     test('handles routes with query parameters', () {
-      expect(isShellTabRoute('/buy-ticket?station=HCM&drawDate=2026-09-19'), isTrue);
-      expect(isShellTabRoute('/check-ticket?date=2026-09-19'), isTrue);
+      expect(
+        isShellTabRoute('/buy-ticket?station=HCM&drawDate=2026-09-19'),
+        isTrue,
+      );
+    });
+
+    test('check ticket is a pushed utility page, not a tab', () {
+      expect(isShellTabRoute('/check-ticket'), isFalse);
+      expect(isShellTabRoute('/check-ticket?date=2026-09-19'), isFalse);
     });
 
     test('returns false for pushed sub-pages and root navigator routes', () {
-      expect(isShellTabRoute('/profile/orders/12345678-1234-1234-1234-123456789abc'), isFalse);
+      expect(
+        isShellTabRoute('/profile/orders/12345678-1234-1234-1234-123456789abc'),
+        isFalse,
+      );
       expect(isShellTabRoute('/profile/refunds/456'), isFalse);
       expect(isShellTabRoute('/profile/prize-payouts/789'), isFalse);
       expect(isShellTabRoute('/profile/complaints/101'), isFalse);
-      expect(isShellTabRoute('/notifications'), isFalse);
       expect(isShellTabRoute('/chat'), isFalse);
     });
   });
 
   group('Navigation safety checks', () {
-    test('notification_view uses context.go for shell tab routes and context.push for detail routes', () {
-      final viewSource = _readSource(
-        'lib/src/features/notifications/presentation/views/notification_view.dart',
-      );
+    test(
+      'notification_view uses context.go for shell tab routes and context.push for detail routes',
+      () {
+        final viewSource = _readSource(
+          'lib/src/features/notifications/presentation/views/notification_view.dart',
+        );
 
-      expect(viewSource, contains('if (isShellTabRoute(route)) {'));
-      expect(viewSource, contains('context.go(route);'));
-      expect(viewSource, contains('context.push(route);'));
-    });
+        expect(viewSource, contains('if (isShellTabRoute(route)) {'));
+        expect(viewSource, contains('context.go(route);'));
+        expect(viewSource, contains('context.push(route);'));
+      },
+    );
 
-    test('chat_screen navigates to buyTicket using context.go to prevent duplicate GlobalKey crash', () {
-      final chatSource = _readSource(
-        'lib/src/features/chat/presentation/views/chat_screen.dart',
-      );
+    test(
+      'chat_screen navigates to buyTicket using context.go to prevent duplicate GlobalKey crash',
+      () {
+        final chatSource = _readSource(
+          'lib/src/features/chat/presentation/views/chat_screen.dart',
+        );
 
-      expect(chatSource, contains("context.go('\${AppRoute.buyTicket.path}?\$query');"));
-      expect(chatSource, isNot(contains("context.push('\${AppRoute.buyTicket.path}?\$query');")));
-    });
+        expect(
+          chatSource,
+          contains("context.go('\${AppRoute.buyTicket.path}?\$query');"),
+        );
+        expect(
+          chatSource,
+          isNot(
+            contains("context.push('\${AppRoute.buyTicket.path}?\$query');"),
+          ),
+        );
+      },
+    );
   });
 }

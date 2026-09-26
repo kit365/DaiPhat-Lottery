@@ -12,6 +12,7 @@ import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:daiphat_mobile/src/features/schedule/domain/entities/lottery_station_schedule.dart';
 import 'package:daiphat_mobile/src/features/schedule/presentation/providers/schedule_providers.dart';
 import '../viewmodels/home_viewmodel.dart';
+import 'widgets/check_ticket_shortcut.dart';
 import 'widgets/home_blog_section.dart';
 import 'widgets/home_header.dart';
 import 'widgets/home_title_date.dart';
@@ -477,10 +478,7 @@ class _HomeContentState extends ConsumerState<_HomeContent>
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
                 SliverToBoxAdapter(
-                  child: HomeHeader(
-                    loginViewModel: widget.loginViewModel,
-                    notificationViewModel: widget.notificationViewModel,
-                  ),
+                  child: HomeHeader(loginViewModel: widget.loginViewModel),
                 ),
                 const SliverToBoxAdapter(child: SizedBox(height: 24)),
                 SliverToBoxAdapter(
@@ -575,6 +573,8 @@ class _HomeContentState extends ConsumerState<_HomeContent>
                       isWaitingForResults: isWaitingForResults,
                     ),
                   ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                  const SliverToBoxAdapter(child: CheckTicketShortcut()),
                   const SliverToBoxAdapter(child: SizedBox(height: 24)),
                   SliverToBoxAdapter(
                     child: LotoCard(
