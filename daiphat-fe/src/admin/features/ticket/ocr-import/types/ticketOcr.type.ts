@@ -83,6 +83,8 @@ export interface ScannedTicket {
     extracted?: ExtractedTicketFields | null;
     fieldConfidences?: Record<string, number> | null;
     fieldBoxes?: Record<string, TicketBoundingBox> | null;
+    /** Template field regions on the original image (same space as `bbox`). */
+    sourceFieldBoxes?: Record<string, TicketBoundingBox> | null;
     fieldValidations?: Record<string, FieldValidationResult> | null;
     fields?: Record<string, OcrFieldDetail> | null;
     overallValidationStatus?: OcrOverallValidationStatus | null;
@@ -262,6 +264,8 @@ export interface OcrReviewRow {
     batchCode?: string | null;
     fieldConfidences: Record<string, number>;
     fieldBoxes: Record<string, TicketBoundingBox>;
+    /** Template field regions on the original image (same space as `bbox`). */
+    sourceFieldBoxes?: Record<string, TicketBoundingBox>;
     fieldValidations: Record<string, FieldValidationResult>;
     fields: Record<string, OcrFieldDetail>;
     overallValidationStatus?: OcrOverallValidationStatus | null;

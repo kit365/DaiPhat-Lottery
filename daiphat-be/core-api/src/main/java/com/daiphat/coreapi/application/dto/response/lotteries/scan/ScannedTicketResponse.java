@@ -21,6 +21,10 @@ import java.util.Map;
  * {@code resolvedStationId}, {@code resolvedDrawDate}, {@code fieldValidations},
  * {@code overallValidationStatus} and {@code adjustedConfidence} are added by
  * Java Layer-2 business validation.
+ *
+ * <p>{@code fieldBoxes} are in cropped-ticket pixels; {@code sourceFieldBoxes}
+ * are the same template regions in original-image pixels (the {@code bbox}
+ * space), with {@code corners} tracing the possibly tilted region.
  */
 @Builder
 public record ScannedTicketResponse(
@@ -32,6 +36,7 @@ public record ScannedTicketResponse(
         ExtractedTicketFieldsResponse extracted,
         Map<String, Double> fieldConfidences,
         Map<String, TicketBoundingBoxResponse> fieldBoxes,
+        Map<String, TicketBoundingBoxResponse> sourceFieldBoxes,
         Map<String, FieldValidationResult> fieldValidations,
         Map<String, OcrFieldDetailResponse> fields,
         OcrOverallValidationStatus overallValidationStatus,
