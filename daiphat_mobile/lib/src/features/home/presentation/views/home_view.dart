@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:shimmer/shimmer.dart';
 
 import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/login_viewmodel.dart';
@@ -8,11 +9,14 @@ import 'package:daiphat_mobile/src/features/home/presentation/providers/lottery_
 import 'package:daiphat_mobile/src/features/notifications/presentation/viewmodels/notification_viewmodel.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
+import 'package:daiphat_mobile/src/features/schedule/domain/entities/lottery_station_schedule.dart';
+import 'package:daiphat_mobile/src/features/schedule/presentation/providers/schedule_providers.dart';
 import '../viewmodels/home_viewmodel.dart';
 import 'widgets/home_blog_section.dart';
 import 'widgets/home_header.dart';
 import 'widgets/home_title_date.dart';
 import 'widgets/loto_card.dart';
+import 'widgets/lottery_countdown_banner.dart';
 import 'widgets/lottery_date_picker_dialog.dart';
 import 'widgets/province_chips.dart';
 import 'widgets/results_card.dart';
@@ -79,11 +83,14 @@ class _HomeContentState extends ConsumerState<_HomeContent>
 
     setState(() {
       if (lookup.drawDate != null) {
-        _date = DateTime(
+        final now = DateTime.now();
+        final today = DateTime(now.year, now.month, now.day);
+        final drawDate = DateTime(
           lookup.drawDate!.year,
           lookup.drawDate!.month,
           lookup.drawDate!.day,
         );
+        _date = drawDate.isAfter(today) ? today : drawDate;
       }
       _pendingStationName = lookup.stationName?.trim();
       _pendingStationId = lookup.stationId;
@@ -106,7 +113,13 @@ class _HomeContentState extends ConsumerState<_HomeContent>
   }
 
   Future<void> _pickDate() async {
-    final picked = await LotteryDatePickerDialog.show(context, _date);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final picked = await LotteryDatePickerDialog.show(
+      context,
+      _date,
+      lastDate: today,
+    );
     if (picked != null) {
       setState(() => _date = picked);
     }
@@ -214,6 +227,23 @@ class _HomeContentState extends ConsumerState<_HomeContent>
     return buf.toString().replaceAll(RegExp(r'\s+'), ' ');
   }
 
+  String normalizeProvinceName(String stationName) {
+    return _normalizeProvinceLabel(stationName);
+  }
+
+  String weekdayLabel(DateTime date) {
+    const weekdays = [
+      'Thứ 2',
+      'Thứ 3',
+      'Thứ 4',
+      'Thứ 5',
+      'Thứ 6',
+      'Thứ 7',
+      'Chủ nhật',
+    ];
+    return weekdays[date.weekday - 1];
+  }
+
   void _applyPendingStationLookup(HomeLotteryData data) {
     final hasPending =
         (_pendingStationName != null && _pendingStationName!.isNotEmpty) ||
@@ -309,15 +339,65 @@ class _HomeContentState extends ConsumerState<_HomeContent>
     bool isContentLoading = false,
     String? errorMessage,
   }) {
+    final scheduleAsync = ref.watch(lotteryScheduleProvider);
+    final scheduleStations = scheduleAsync.maybeWhen(
+      data: (stations) => stations,
+      orElse: () => const <LotteryStationSchedule>[],
+    );
+
+    const scheduleDayOrder = [
+      'MONDAY',
+      'TUESDAY',
+      'WEDNESDAY',
+      'THURSDAY',
+      'FRIDAY',
+      'SATURDAY',
+      'SUNDAY',
+    ];
+    final dayId = scheduleDayOrder[normalizedDate.weekday - 1];
+    final scheduledForDay = scheduleStations
+        .where((s) => s.drawDays.contains(dayId))
+        .toList();
+
+    final placeholderResults =
+        data.results.isEmpty && scheduledForDay.isNotEmpty
+            ? scheduledForDay.map((station) {
+                return LotteryResult(
+                  id: 0,
+                  stationId: station.stationId,
+                  province: normalizeProvinceName(station.stationName),
+                  dateLabel: DateFormat('dd/MM/yyyy').format(normalizedDate),
+                  dayOfWeek: weekdayLabel(normalizedDate),
+                  drawDate: normalizedDate,
+                  status: 'PENDING',
+                  prizes: const LotteryPrizes(),
+                );
+              }).toList()
+            : const <LotteryResult>[];
+
+    final effectiveResults =
+        data.results.isNotEmpty ? data.results : placeholderResults;
+
+    final allProvinces =
+        data.availableProvinces.isNotEmpty
+            ? data.availableProvinces
+            : effectiveResults.map((r) => r.province).toSet().toList();
+
     if ((_pendingStationName != null && _pendingStationName!.isNotEmpty) ||
         _pendingStationId != null) {
-      _applyPendingStationLookup(data);
+      _applyPendingStationLookup(
+        HomeLotteryData(
+          results: effectiveResults,
+          availableProvinces: allProvinces,
+          isWaitingForResults: data.isWaitingForResults,
+        ),
+      );
     }
 
-    final allProvinces = data.availableProvinces;
-    final invalidSelections = _selectedProvinces
-        .where((province) => !allProvinces.contains(province))
-        .toList();
+    final invalidSelections =
+        _selectedProvinces
+            .where((province) => !allProvinces.contains(province))
+            .toList();
 
     if (invalidSelections.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -326,13 +406,42 @@ class _HomeContentState extends ConsumerState<_HomeContent>
       });
     }
 
-    final displayProvinces = _selectedProvinces.isEmpty
-        ? allProvinces
-        : allProvinces.where(_selectedProvinces.contains).toList();
+    final displayProvinces =
+        _selectedProvinces.isEmpty
+            ? allProvinces
+            : allProvinces.where(_selectedProvinces.contains).toList();
 
-    final displayResults = data.results
-        .where((result) => displayProvinces.contains(result.province))
-        .toList();
+    final displayResults =
+        effectiveResults
+            .where((result) => displayProvinces.contains(result.province))
+            .toList();
+
+    final activeDrawTime = scheduleAsync.maybeWhen(
+      data: (stations) {
+        if (_selectedProvinces.isNotEmpty) {
+          final matched = stations.where(
+            (s) => _selectedProvinces.contains(s.stationName),
+          );
+          if (matched.isNotEmpty && matched.first.drawTime.trim().isNotEmpty) {
+            return matched.first.drawTime.trim();
+          }
+        }
+        return '16:15';
+      },
+      orElse: () => '16:15',
+    );
+
+    final hasResults = effectiveResults.any(
+      (r) =>
+          r.prizes.special.trim().isNotEmpty ||
+          r.prizeRows.any(
+            (row) => row.values.any((v) => v.trim().isNotEmpty && v != '--'),
+          ),
+    );
+
+    final isWaitingForResults =
+        data.isWaitingForResults ||
+        (effectiveResults.isNotEmpty && !hasResults);
 
     return Stack(
       children: [
@@ -440,6 +549,22 @@ class _HomeContentState extends ConsumerState<_HomeContent>
                   )
                 else ...[
                   SliverToBoxAdapter(
+                    child: LotteryCountdownBanner(
+                      date: _date,
+                      selectedProvinces: _selectedProvinces.toList(),
+                      allAvailableProvinces: allProvinces,
+                      drawTime: activeDrawTime,
+                      isWaitingForResults: isWaitingForResults,
+                      hasResults: hasResults,
+                      onRefresh: () async {
+                        ref.invalidate(homeLotteryProvider(normalizedDate));
+                        await ref.read(
+                          homeLotteryProvider(normalizedDate).future,
+                        );
+                      },
+                    ),
+                  ),
+                  SliverToBoxAdapter(
                     child: ResultsCard(
                       results: displayResults,
                       displayProvinces: displayProvinces,
@@ -447,14 +572,14 @@ class _HomeContentState extends ConsumerState<_HomeContent>
                       selLabel: _selectedProvinces.length == 1
                           ? _selectedProvinces.first
                           : null,
-                      isWaitingForResults: data.isWaitingForResults,
+                      isWaitingForResults: isWaitingForResults,
                     ),
                   ),
                   const SliverToBoxAdapter(child: SizedBox(height: 24)),
                   SliverToBoxAdapter(
                     child: LotoCard(
                       provinces: allProvinces,
-                      results: data.results,
+                      results: effectiveResults,
                     ),
                   ),
                   const SliverToBoxAdapter(child: SizedBox(height: 24)),

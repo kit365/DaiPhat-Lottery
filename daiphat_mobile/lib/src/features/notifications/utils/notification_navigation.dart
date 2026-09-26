@@ -1,3 +1,5 @@
+import '../../../app/routing/app_routes.dart';
+
 final _uuidPattern = RegExp(
   r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
   caseSensitive: false,
@@ -5,14 +7,24 @@ final _uuidPattern = RegExp(
 
 /// Resolves the in-app destination for a notification, mirroring the web
 /// client. Returns `null` when the notification is not actionable.
-String? resolveNotificationRoute({String? referenceType, String? referenceId}) {
-  final type = referenceType?.toUpperCase();
+String? resolveNotificationRoute({
+  String? notificationType,
+  String? referenceType,
+  String? referenceId,
+}) {
+  final refType = referenceType?.toUpperCase();
+  final nType = notificationType?.toUpperCase();
   final id = referenceId?.trim();
 
-  if (type == 'LOTTERY_STATION') return '/buy-ticket';
-  if (type == null || id == null || id.isEmpty) return null;
+  if (refType == 'LOTTERY_STATION') {
+    if (nType == 'DRAW_RESULT' || nType == 'RESULT') {
+      return AppRoute.checkTicket.path;
+    }
+    return AppRoute.buyTicket.path;
+  }
+  if (refType == null || id == null || id.isEmpty) return null;
 
-  switch (type) {
+  switch (refType) {
     case 'ORDER':
       // Legacy payloads sent a numeric refund id under the ORDER type.
       return _uuidPattern.hasMatch(id)
@@ -28,6 +40,19 @@ String? resolveNotificationRoute({String? referenceType, String? referenceId}) {
     default:
       return null;
   }
+}
+
+/// Checks whether a target route path corresponds to a StatefulShellRoute tab branch.
+/// Shell tab branches cannot be pushed via `context.push()` (which would duplicate
+/// the shell and rootNavigatorKey); they must be navigated to via `context.go()`.
+bool isShellTabRoute(String route) {
+  final cleanPath = Uri.tryParse(route)?.path ?? route;
+  return cleanPath == AppRoute.home.path ||
+      cleanPath == AppRoute.buyTicket.path ||
+      cleanPath == AppRoute.checkTicket.path ||
+      cleanPath == AppRoute.utilitiesTwo.path ||
+      cleanPath == AppRoute.profile.path ||
+      cleanPath == AppRoute.utilities.path;
 }
 
 bool notificationNeedsReferenceCheck(String? referenceType) {

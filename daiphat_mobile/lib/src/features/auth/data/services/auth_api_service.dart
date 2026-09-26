@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
+import 'package:mime/mime.dart';
 
 import 'package:daiphat_mobile/src/shared/network/api_client.dart';
 import 'package:daiphat_mobile/src/shared/network/api_exception.dart';
@@ -191,8 +194,16 @@ class AuthApiService {
   }
 
   Future<User> uploadMyAvatar(String filePath) async {
+    final mimeType = lookupMimeType(filePath) ?? 'image/jpeg';
+    final mediaType = DioMediaType.parse(mimeType);
+    final fileName = filePath.split(Platform.pathSeparator).last;
+
     final formData = FormData.fromMap({
-      'file': await MultipartFile.fromFile(filePath),
+      'file': await MultipartFile.fromFile(
+        filePath,
+        filename: fileName,
+        contentType: mediaType,
+      ),
     });
 
     final response = await _apiClient.post(
