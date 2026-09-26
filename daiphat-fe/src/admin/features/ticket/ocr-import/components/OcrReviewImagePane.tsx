@@ -15,11 +15,20 @@ import {
 import ZoomInOutlinedIcon from '@mui/icons-material/ZoomInOutlined';
 import CloseIcon from '@mui/icons-material/Close';
 import type { OcrReviewRow, TicketBoundingBox } from '../types/ticketOcr.type';
-import { buildTicketOverlayLabel, type OcrFieldKey } from '../utils/ocrImportHelpers';
 import {
+    buildTicketOverlayLabel,
+    OCR_FIELD_KEYS,
+    OCR_FIELD_LABELS,
+    type OcrFieldKey,
+} from '../utils/ocrImportHelpers';
+import {
+    boxPolygonPoints,
     computeContainedImageRect,
+    fillForField,
     mapBoxToNaturalPixels,
     resolveCoordSize,
+    resolveSourceFieldBox,
+    strokeForField,
     type ContainedImageRect,
 } from '../utils/ocrBboxOverlay';
 
@@ -40,8 +49,9 @@ type Props = {
 };
 
 /**
- * Source photo overlay: ticket bounding boxes only.
- * Field boxes are drawn on each cropped ticket preview (see OcrCroppedTicketOverlay).
+ * Source photo overlay: ticket bounding boxes plus each ticket's template field
+ * regions (`sourceFieldBoxes`) as they lie on the original photo. Field captions
+ * are shown for the selected ticket only, to keep crowded photos readable.
  */
 export default function OcrReviewImagePane({
     previewUrl,
@@ -202,6 +212,8 @@ export default function OcrReviewImagePane({
                             if (!ticketBox) {
                                 return null;
                             }
+                            const rowFocused = selection?.rowKey === row.key;
+                            const strokeUnit = Math.max(viewWidth, viewHeight);
 
                             return (
                                 <g
@@ -243,6 +255,51 @@ export default function OcrReviewImagePane({
                                             ? `#${row.ticketIndex + 1} — Không đọc được`
                                             : buildTicketOverlayLabel(row)}
                                     </text>
+                                    {OCR_FIELD_KEYS.map((fieldName) => {
+                                        const source = resolveSourceFieldBox(row, fieldName);
+                                        if (!source) {
+                                            return null;
+                                        }
+                                        const box = toOverlayBox(source);
+                                        const confidence =
+                                            row.fields?.[fieldName]?.confidence ??
+                                            row.fieldConfidences[fieldName];
+                                        const validationStatus =
+                                            row.fields?.[fieldName]?.validationStatus ??
+                                            row.fieldValidations[fieldName]?.status;
+                                        const selected =
+                                            rowFocused && selection?.fieldName === fieldName;
+                                        const stroke = strokeForField(
+                                            confidence,
+                                            selected,
+                                            validationStatus
+                                        );
+                                        return (
+                                            <g key={fieldName}>
+                                                <polygon
+                                                    points={boxPolygonPoints(box)}
+                                                    fill={fillForField(confidence, selected, validationStatus)}
+                                                    stroke={stroke}
+                                                    strokeWidth={strokeUnit * (selected ? 0.003 : 0.0015)}
+                                                    onClick={() =>
+                                                        onSelect({ rowKey: row.key, fieldName })
+                                                    }
+                                                />
+                                                {rowFocused && (
+                                                    <text
+                                                        x={box.x + 2}
+                                                        y={Math.max(10, box.y - 3)}
+                                                        fill={stroke}
+                                                        fontSize={Math.max(10, Math.round(viewWidth * 0.011))}
+                                                        fontWeight={700}
+                                                        style={{ pointerEvents: 'none' }}
+                                                    >
+                                                        {OCR_FIELD_LABELS[fieldName]}
+                                                    </text>
+                                                )}
+                                            </g>
+                                        );
+                                    })}
                                 </g>
                             );
                         })}

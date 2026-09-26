@@ -1246,16 +1246,17 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         List<LotteryTicketSerialModel> allSerials = lotteryTicketSerialService.findAllByTicketId(ticketId);
         int totalSerialCount = (int) allSerials.stream().filter(LotteryTicketSerialModel::isVisibleInventory).count();
         int soldSerialCount = (int) lotteryTicketSerialService.countByStatuses(ticketId, SOLD_SERIAL_STATUSES);
-        int faultySerialCount = (int) allSerials.stream()
+        List<LotteryTicketSerialModel> faultySerials = allSerials.stream()
                 .filter(LotteryTicketSerialModel::isVisibleInventory)
                 .filter(serial -> serial.getTicketCondition() != null && serial.getTicketCondition().isIncidentReported())
-                .count();
+                .toList();
         ticket.syncAggregateState(
                 (int) availableSerialCount,
                 totalSerialCount,
                 soldSerialCount,
-                faultySerialCount,
-                cutoffTime);
+                faultySerials.size(),
+                cutoffTime,
+                LotteryTicketModel.buildAllSerialsFaultyReason(faultySerials));
         LotteryTicketModel saved = lotteryTicketRepositoryPort.save(ticket);
         syncStationInventory(saved.getStationId());
         return saved;

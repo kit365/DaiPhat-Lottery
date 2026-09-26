@@ -49,6 +49,7 @@ import com.daiphat.coreapi.domain.model.lotteries.OcrTicketTemplateModel;
 import com.daiphat.coreapi.infrastructure.dto.request.vision.RemoteFieldLayoutMetadata;
 import com.daiphat.coreapi.infrastructure.dto.request.vision.RemoteScanMetadata;
 import com.daiphat.coreapi.infrastructure.dto.request.vision.RemoteStationMetadata;
+import com.daiphat.coreapi.infrastructure.dto.request.vision.RemoteStationTemplateMetadata;
 import com.daiphat.coreapi.infrastructure.dto.response.vision.RemoteScannedTicket;
 import com.daiphat.coreapi.infrastructure.dto.response.vision.RemoteTicketScanResult;
 import com.daiphat.coreapi.shared.util.ImportBatchDraftExpiryService;
@@ -213,7 +214,10 @@ public class TicketScanImportService implements TicketScanImportServicePort {
         // otherwise start with the global default template field layouts.
         Long preferredStationId = lineStation != null ? lineStation.getId() : null;
 
-        RemoteScanMetadata metadata = buildScanMetadata(visionStations, preferredStationId, targetDrawDate);
+        List<RemoteStationTemplateMetadata> stationTemplates =
+                buildStationTemplates(visionStations, targetDrawDate);
+        RemoteScanMetadata metadata = buildScanMetadata(
+                visionStations, preferredStationId, targetDrawDate, stationTemplates);
         Long initialTemplateId = metadata.templateId();
 
         long tVision = System.nanoTime();
@@ -242,7 +246,7 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                     initialTemplateId
             );
             RemoteScanMetadata stationMetadata =
-                    buildScanMetadata(visionStations, ocrStationId, targetDrawDate);
+                    buildScanMetadata(visionStations, ocrStationId, targetDrawDate, stationTemplates);
             if (stationMetadata.templateId() != null
                     && stationMetadata.fieldLayouts() != null
                     && !stationMetadata.fieldLayouts().isEmpty()) {
@@ -684,10 +688,56 @@ public class TicketScanImportService implements TicketScanImportServicePort {
         return null;
     }
 
+    /**
+     * Resolve the effective OCR template for every active station so the legacy
+     * local OCR can locate fields after reading the station name from the ticket.
+     * Stations without an active template are omitted.
+     */
+    private List<RemoteStationTemplateMetadata> buildStationTemplates(
+            List<LotteryStationModel> stations,
+            LocalDate drawDate
+    ) {
+        if (stations == null || stations.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, List<RemoteFieldLayoutMetadata>> layoutsByTemplateId = new LinkedHashMap<>();
+        List<RemoteStationTemplateMetadata> result = new ArrayList<>();
+        for (LotteryStationModel station : stations) {
+            if (station == null || station.getId() == null) {
+                continue;
+            }
+            try {
+                OcrTicketTemplateModel template = ocrTicketTemplateRepositoryPort
+                        .resolveForStation(station.getId(), drawDate)
+                        .orElse(null);
+                if (template == null || template.getId() == null) {
+                    continue;
+                }
+                List<RemoteFieldLayoutMetadata> layouts = layoutsByTemplateId.computeIfAbsent(
+                        template.getId(),
+                        id -> ocrFieldLayoutRepositoryPort.findByTemplateId(id).stream()
+                                .map(this::toRemoteLayout)
+                                .filter(java.util.Objects::nonNull)
+                                .toList()
+                );
+                if (layouts.isEmpty()) {
+                    continue;
+                }
+                result.add(new RemoteStationTemplateMetadata(
+                        station.getId(), template.getId(), layouts, template.getSampleImageUrl()));
+            } catch (Exception e) {
+                log.warn("Skipping OCR template for stationId={}: {}", station.getId(), e.getMessage());
+            }
+        }
+        log.debug("OCR scan station templates resolved={} of stations={}", result.size(), stations.size());
+        return result;
+    }
+
     private RemoteScanMetadata buildScanMetadata(
             List<LotteryStationModel> stations,
             Long preferredStationId,
-            LocalDate drawDate
+            LocalDate drawDate,
+            List<RemoteStationTemplateMetadata> stationTemplates
     ) {
         List<RemoteStationMetadata> stationMetadata = stations.stream()
                 .map(station -> {
@@ -742,7 +792,8 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                 null,
                 ticketVisionRecognitionEngine,
                 templateId,
-                fieldLayouts
+                fieldLayouts,
+                stationTemplates != null ? stationTemplates : List.of()
         );
     }
 
@@ -855,6 +906,7 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                 .extracted(extracted)
                 .fieldConfidences(remote.fieldConfidences())
                 .fieldBoxes(remote.fieldBoxes())
+                .sourceFieldBoxes(remote.sourceFieldBoxes())
                 .fieldValidations(outcome.fieldValidations())
                 .fields(fields)
                 .overallValidationStatus(outcome.overallValidationStatus())
@@ -919,6 +971,7 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                 .extracted(extracted)
                 .fieldConfidences(remote.fieldConfidences())
                 .fieldBoxes(remote.fieldBoxes())
+                .sourceFieldBoxes(remote.sourceFieldBoxes())
                 .overallValidationStatus(OcrOverallValidationStatus.NEEDS_REVIEW)
                 .missingFields(remote.missingFields())
                 .validationErrors(remote.validationErrors())

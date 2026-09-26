@@ -38,6 +38,16 @@ jobs:
           REDIS_PASSWORD: ci-only-redis-password
         run: docker compose -f docker-compose.prod.yml config --quiet
 
+      - name: Validate managed AI Compose stack
+        run: |
+          # Slot env files are created on the VPS by scripts/deploy-ai.sh.
+          for name in chatbot ocr ekyc; do
+            mkdir -p ".ai-deploy/$name"
+            install -m 600 /dev/null ".ai-deploy/$name/blue.env"
+            install -m 600 /dev/null ".ai-deploy/$name/green.env"
+          done
+          docker compose -f docker-compose.ai.yml --profile slots --profile routers config --quiet
+
       - name: Validate infrastructure shell scripts
         run: find scripts daiphat-be/infra -type f -name '*.sh' -print0 | xargs -0 -r -n1 bash -n
 

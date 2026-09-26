@@ -82,7 +82,11 @@ export const getStations = async (
           })()
         : undefined;
 
-    const response = await apiApp.get(BASE_URL, { params: requestParams });
+    const response = await apiApp.get(BASE_URL, {
+        params: requestParams,
+        timeout: 45_000,
+        skipGlobalErrorToast: true,
+    });
     const result = response.data?.data;
     const recordList = (result?.recordList || []).map(mapStation);
 
@@ -113,7 +117,9 @@ export const getStations = async (
 export const getStationById = async (
     id: string | number
 ): Promise<ApiResponse<Station>> => {
-    const response = await apiApp.get(`${BASE_URL}/${id}`);
+    const response = await apiApp.get(`${BASE_URL}/${id}`, {
+        timeout: 30_000,
+    });
     const item = response.data?.data;
     if (item) {
         Object.assign(item, mapStation(item));
@@ -207,13 +213,17 @@ export const deleteStation = async (
 };
 
 export const getStationsToday = async (): Promise<Station[]> => {
-    const response = await apiApp.get(`${BASE_URL}/schedule/today`);
+    const response = await apiApp.get(`${BASE_URL}/schedule/today`, {
+        timeout: 30_000,
+    });
     const result = response.data?.data || [];
     return result.map(mapStation);
 };
 
 export const getStationsTomorrow = async (): Promise<Station[]> => {
-    const response = await apiApp.get(`${BASE_URL}/schedule/tomorrow`);
+    const response = await apiApp.get(`${BASE_URL}/schedule/tomorrow`, {
+        timeout: 30_000,
+    });
     const result = response.data?.data || [];
     return result.map(mapStation);
 };
@@ -229,6 +239,7 @@ export const getStationsByDrawDate = async (
         drawDates.map((value) =>
             apiApp.get(`${BASE_URL}/schedule`, {
                 params: { drawDate: value },
+                timeout: 30_000,
             })
         )
     );

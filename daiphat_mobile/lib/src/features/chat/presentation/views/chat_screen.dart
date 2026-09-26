@@ -943,7 +943,7 @@ class _TicketSuggestCard extends StatelessWidget {
                             '${entry.key}=${Uri.encodeComponent(entry.value)}',
                       )
                       .join('&');
-                  context.go('${AppRoute.buyTicket.path}?$query');
+                  context.push('${AppRoute.buyTicket.path}?$query');
                 },
                 style: TextButton.styleFrom(
                   foregroundColor: AppColors.surfacePrimary,

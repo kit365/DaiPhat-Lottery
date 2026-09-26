@@ -41,7 +41,7 @@ jobs:
           COMPONENT: ${{ inputs.component }}
         run: |
           set -euo pipefail
-          [[ "$COMPONENT" =~ ^(backend|frontend|ai|ticket-vision)$ ]]
+          [[ "$COMPONENT" =~ ^(backend|frontend|ai-chatbot|ai-ticket-ocr|ai-ekyc)$ ]]
 
       - name: Checkout selected source
         uses: actions/checkout@v4
@@ -69,8 +69,9 @@ jobs:
           case "$COMPONENT" in
             backend) repository=daiphat-be ;;
             frontend) repository=daiphat-fe ;;
-            ai) repository=daiphat-ai ;;
-            ticket-vision) repository=daiphat-ticket-vision ;;
+            ai-chatbot) repository=daiphat-ai-chatbot ;;
+            ai-ticket-ocr) repository=daiphat-ai-ticket-ocr ;;
+            ai-ekyc) repository=daiphat-ai-ekyc ;;
           esac
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
           echo "channel=$channel" >> "$GITHUB_OUTPUT"
@@ -134,38 +135,38 @@ jobs:
           cache-from: type=registry,ref=docker.io/${{ secrets.DOCKER_USERNAME }}/daiphat-fe:buildcache
           cache-to: type=registry,ref=docker.io/${{ secrets.DOCKER_USERNAME }}/daiphat-fe:buildcache,mode=max
 
-      - name: Build and push AI
+      - name: Build and push AI Chatbot
         id: build-chatbot
-        if: ${{ inputs.existing_image == '' && inputs.component == 'ai' }}
+        if: ${{ inputs.existing_image == '' && inputs.component == 'ai-chatbot' }}
         uses: docker/build-push-action@v7
         with:
-          context: ./daiphat-ai
-          file: ./daiphat-ai/Dockerfile
+          context: ./daiphat-ai/ai-chatbot
+          file: ./daiphat-ai/ai-chatbot/Dockerfile
           platforms: linux/amd64
           push: true
           tags: ${{ env.IMAGE }}
           labels: org.opencontainers.image.revision=${{ steps.source.outputs.sha }}
-          cache-from: type=registry,ref=docker.io/${{ secrets.DOCKER_USERNAME }}/daiphat-ai:buildcache
-          cache-to: type=registry,ref=docker.io/${{ secrets.DOCKER_USERNAME }}/daiphat-ai:buildcache,mode=max
+          cache-from: type=registry,ref=docker.io/${{ secrets.DOCKER_USERNAME }}/daiphat-ai-chatbot:buildcache
+          cache-to: type=registry,ref=docker.io/${{ secrets.DOCKER_USERNAME }}/daiphat-ai-chatbot:buildcache,mode=max
 
-      - name: Fetch ticket-vision model weights
-        if: ${{ inputs.existing_image == '' && inputs.component == 'ticket-vision' }}
+      - name: Fetch AI Ticket OCR model weights
+        if: ${{ inputs.existing_image == '' && inputs.component == 'ai-ticket-ocr' }}
         env:
           WEIGHTS_URL: ${{ secrets.TICKET_VISION_WEIGHTS_URL }}
           WEIGHTS_SHA256: ${{ vars.TICKET_VISION_WEIGHTS_SHA256 }}
         run: |
           set -euo pipefail
           test -n "$WEIGHTS_URL" || { echo "TICKET_VISION_WEIGHTS_URL is required for OCR builds." >&2; exit 1; }
-          mkdir -p daiphat-ai/services/ticket-vision/models
-          curl -fsSL "$WEIGHTS_URL" -o daiphat-ai/services/ticket-vision/models/best.pt
+          mkdir -p daiphat-ai/ai-ticket-ocr/models
+          curl -fsSL "$WEIGHTS_URL" -o daiphat-ai/ai-ticket-ocr/models/best.pt
           test -n "$WEIGHTS_SHA256" || { echo "TICKET_VISION_WEIGHTS_SHA256 is required." >&2; exit 1; }
-          printf '%s  %s\n' "$WEIGHTS_SHA256" daiphat-ai/services/ticket-vision/models/best.pt | sha256sum --check --status
+          printf '%s  %s\n' "$WEIGHTS_SHA256" daiphat-ai/ai-ticket-ocr/models/best.pt | sha256sum --check --status
           # A wrong URL that returns an HTML error page would otherwise be
           # baked in as "weights" and only fail at first scan.
           python - <<'PY'
           import sys
           from pathlib import Path
-          weights = Path("daiphat-ai/services/ticket-vision/models/best.pt")
+          weights = Path("daiphat-ai/ai-ticket-ocr/models/best.pt")
           size = weights.stat().st_size
           if size < 1_000_000:
               sys.exit(f"Downloaded weights are implausibly small ({size} bytes); check TICKET_VISION_WEIGHTS_URL.")
@@ -174,25 +175,39 @@ jobs:
           print(f"Weights OK: {size} bytes")
           PY
 
-      - name: Build and push ticket-vision
+      - name: Build and push AI Ticket OCR
         id: build-ocr
-        if: ${{ inputs.existing_image == '' && inputs.component == 'ticket-vision' }}
+        if: ${{ inputs.existing_image == '' && inputs.component == 'ai-ticket-ocr' }}
         uses: docker/build-push-action@v7
         with:
-          context: ./daiphat-ai
-          file: ./daiphat-ai/services/ticket-vision/Dockerfile
+          context: ./daiphat-ai/ai-ticket-ocr
+          file: ./daiphat-ai/ai-ticket-ocr/Dockerfile
           platforms: linux/amd64
           push: true
           tags: ${{ env.IMAGE }}
           labels: org.opencontainers.image.revision=${{ steps.source.outputs.sha }}
-          cache-from: type=registry,ref=docker.io/${{ secrets.DOCKER_USERNAME }}/daiphat-ticket-vision:buildcache
-          cache-to: type=registry,ref=docker.io/${{ secrets.DOCKER_USERNAME }}/daiphat-ticket-vision:buildcache,mode=max
+          cache-from: type=registry,ref=docker.io/${{ secrets.DOCKER_USERNAME }}/daiphat-ai-ticket-ocr:buildcache
+          cache-to: type=registry,ref=docker.io/${{ secrets.DOCKER_USERNAME }}/daiphat-ai-ticket-ocr:buildcache,mode=max
+
+      - name: Build and push AI eKYC
+        id: build-ekyc
+        if: ${{ inputs.existing_image == '' && inputs.component == 'ai-ekyc' }}
+        uses: docker/build-push-action@v7
+        with:
+          context: ./daiphat-ai/ai-ekyc
+          file: ./daiphat-ai/ai-ekyc/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.IMAGE }}
+          labels: org.opencontainers.image.revision=${{ steps.source.outputs.sha }}
+          cache-from: type=registry,ref=docker.io/${{ secrets.DOCKER_USERNAME }}/daiphat-ai-ekyc:buildcache
+          cache-to: type=registry,ref=docker.io/${{ secrets.DOCKER_USERNAME }}/daiphat-ai-ekyc:buildcache,mode=max
 
       - name: Resolve deployment digest
         id: image
         env:
           EXISTING_IMAGE: ${{ inputs.existing_image }}
-          BUILT_DIGEST: ${{ steps.build-backend.outputs.digest || steps.build-frontend.outputs.digest || steps.build-chatbot.outputs.digest || steps.build-ocr.outputs.digest }}
+          BUILT_DIGEST: ${{ steps.build-backend.outputs.digest || steps.build-frontend.outputs.digest || steps.build-chatbot.outputs.digest || steps.build-ocr.outputs.digest || steps.build-ekyc.outputs.digest }}
         run: |
           set -euo pipefail
           if [[ -n "$EXISTING_IMAGE" ]]; then
@@ -221,9 +236,13 @@ jobs:
           set -euo pipefail
           umask 077
           test -n "$ENV_FILE_CONTENT"
-          if [[ "$COMPONENT" == ai || "$COMPONENT" == ticket-vision ]]; then
-            if [[ "$COMPONENT" == ai ]]; then
+          if [[ "$COMPONENT" == ai-* ]]; then
+            if [[ "$COMPONENT" == ai-chatbot ]]; then
               printf '%s\n' "$ENV_FILE_CONTENT" | awk '/^AI_[A-Z0-9_]*=/' > .ai-runtime.env
+            elif [[ "$COMPONENT" == ai-ekyc ]]; then
+              printf '%s\n' "$ENV_FILE_CONTENT" | awk '/^(KYC_AI_|EKYC_VISION_|AI_)[A-Z0-9_]*=/' > .ai-runtime.env
+              # ai-ekyc skips API-key auth entirely when KYC_AI_API_KEY is empty.
+              grep -q '^KYC_AI_API_KEY=.' .ai-runtime.env || { echo "KYC_AI_API_KEY is required for ai-ekyc." >&2; exit 1; }
             else
               printf '%s\n' "$ENV_FILE_CONTENT" | awk '/^(GROQ_|GEMINI_|GROK_|TICKET_VISION_|AI_)[A-Z0-9_]*=|^OCR_AI_PROVIDER=/' > .ai-runtime.env
             fi
@@ -286,7 +305,7 @@ jobs:
           set -euo pipefail
           archive_name="component-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.tar.gz"
           echo "DEPLOY_ARCHIVE=$archive_name" >> "$GITHUB_ENV"
-          if [[ "$COMPONENT" == ai || "$COMPONENT" == ticket-vision ]]; then
+          if [[ "$COMPONENT" == ai-* ]]; then
             files=(docker-compose.ai.yml scripts/deploy-ai.sh .ai-runtime.env)
           else
             files=(docker-compose.prod.yml daiphat-be/infra/backup scripts/deploy-component.sh scripts/vps-preflight.sh .env.prod .dozzle/users.yml)
@@ -312,8 +331,9 @@ jobs:
           case "$COMPONENT" in
             backend) repository=daiphat-be ;;
             frontend) repository=daiphat-fe ;;
-            ai) repository=daiphat-ai ;;
-            ticket-vision) repository=daiphat-ticket-vision ;;
+            ai-chatbot) repository=daiphat-ai-chatbot ;;
+            ai-ticket-ocr) repository=daiphat-ai-ticket-ocr ;;
+            ai-ekyc) repository=daiphat-ai-ekyc ;;
           esac
           if [[ -n "$EXISTING_IMAGE" ]]; then
             image="$EXISTING_IMAGE"
@@ -333,7 +353,7 @@ jobs:
               tar -xzf "$VPS_DEPLOY_PATH/.incoming/$DEPLOY_ARCHIVE" -C "$VPS_DEPLOY_PATH"
               rm -f "$VPS_DEPLOY_PATH/.incoming/$DEPLOY_ARCHIVE"
               cd "$VPS_DEPLOY_PATH"
-              if [ "$COMPONENT" = ai ] || [ "$COMPONENT" = ticket-vision ]; then
+              if [ "$COMPONENT" = ai-chatbot ] || [ "$COMPONENT" = ai-ticket-ocr ] || [ "$COMPONENT" = ai-ekyc ]; then
                 chmod 700 scripts/deploy-ai.sh
                 scripts/deploy-ai.sh "$COMPONENT" "$image" "$SOURCE_SHA"
               else
@@ -378,8 +398,9 @@ jobs:
           case "$COMPONENT" in
             backend) repository=daiphat-be ;;
             frontend) repository=daiphat-fe ;;
-            ai) repository=daiphat-ai ;;
-            ticket-vision) repository=daiphat-ticket-vision ;;
+            ai-chatbot) repository=daiphat-ai-chatbot ;;
+            ai-ticket-ocr) repository=daiphat-ai-ticket-ocr ;;
+            ai-ekyc) repository=daiphat-ai-ekyc ;;
           esac
           if [[ -n "$EXISTING_IMAGE" ]]; then
             image="$EXISTING_IMAGE"

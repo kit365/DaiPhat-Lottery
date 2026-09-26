@@ -12,7 +12,7 @@ def git(*args):
 def infrastructure_compose(text):
     # Strip only known AI-owned blocks from this repository's two-space YAML.
     text = re.sub(r"^  (?:ai|ticket-vision):\n(?:^(?: {3,}.*|\s*|\s*#.*)\n)*", "", text, flags=re.M)
-    text = re.sub(r"^\s+DAIPHAT_(?:AI_BASE_URL|TICKET_VISION_[A-Z_]+):.*$", "", text, flags=re.M)
+    text = re.sub(r"^\s+DAIPHAT_(?:AI_BASE_URL|TICKET_VISION_[A-Z_]+|EKYC_AI_[A-Z_]+):.*$", "", text, flags=re.M)
     text = re.sub(r"^  ticket_vision_model_cache:.*$", "", text, flags=re.M)
     return "\n".join(line.strip() for line in text.splitlines() if line.strip() and not line.lstrip().startswith("#"))
 

@@ -1,0 +1,128 @@
+name: AI Chatbot Deploy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "daiphat-ai/ai-chatbot/**"
+      - "docker-compose.ai.yml"
+      - "docker-compose.prod.yml"
+      - "scripts/deploy-ai.sh"
+      - ".github/workflows/ai-chatbot-deploy.yml"
+      - ".github/workflows/component-deploy.yml"
+      - ".github/scripts/select-ai-deploy.py"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Build a new image or deploy an existing immutable digest
+        required: true
+        default: build-and-deploy
+        type: choice
+        options:
+          - build-and-deploy
+          - deploy-existing
+      source_ref:
+        description: Git ref whose exact commit will be deployed
+        required: true
+        default: main
+        type: string
+      image_digest:
+        description: Existing image (docker.io/...@sha256:...) when mode is deploy-existing
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-chatbot-deploy
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      source_sha: ${{ steps.source.outputs.sha }}
+      release_channel: ${{ steps.source.outputs.release_channel }}
+      deploy: ${{ steps.select.outputs.deploy }}
+      existing_image: ${{ steps.existing.outputs.image }}
+    steps:
+      - name: Checkout selected source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.source_ref || github.sha }}
+          fetch-depth: 0
+
+      - name: Resolve exact source commit
+        id: source
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          SOURCE_REF: ${{ inputs.source_ref }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            source_sha=$(git rev-parse HEAD)
+            if [[ "$SOURCE_REF" == "main" ]]; then
+              release_channel=prod
+            else
+              release_channel=candidate
+            fi
+          else
+            source_sha="$GITHUB_SHA"
+            release_channel=prod
+          fi
+          {
+            printf 'sha=%s\n' "$source_sha"
+            printf 'release_channel=%s\n' "$release_channel"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Decide whether AI Chatbot changed
+        id: select
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ "$BEFORE_SHA" =~ ^0+$ ]]; then
+            changed_files=$(git ls-tree -r --name-only "$SOURCE_SHA")
+          else
+            changed_files=$(git diff --name-only "$BEFORE_SHA" "$SOURCE_SHA")
+          fi
+          printf '%s\n' "$changed_files" \
+            | python3 .github/scripts/select-ai-deploy.py --service ai-chatbot
+
+      - name: Validate existing image input
+        id: existing
+        env:
+          MODE: ${{ inputs.mode }}
+          IMAGE_DIGEST: ${{ inputs.image_digest }}
+        run: |
+          set -euo pipefail
+          if [[ "${MODE:-build-and-deploy}" != deploy-existing ]]; then
+            echo "image=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          [[ "$IMAGE_DIGEST" =~ ^docker\.io/[a-z0-9._/-]+@sha256:[0-9a-f]{64}$ ]] || {
+            echo "image_digest must be a full Docker image digest" >&2
+            exit 1
+          }
+          echo "image=$IMAGE_DIGEST" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    name: AI Chatbot
+    needs: resolve
+    if: ${{ needs.resolve.outputs.deploy == 'true' }}
+    uses: ./.github/workflows/component-deploy.yml
+    with:
+      component: ai-chatbot
+      source_ref: ${{ needs.resolve.outputs.source_sha }}
+      release_channel: ${{ needs.resolve.outputs.release_channel }}
+      existing_image: ${{ needs.resolve.outputs.existing_image }}
+    secrets: inherit

@@ -13,12 +13,12 @@ spec.loader.exec_module(publish)
 
 class PublishSafetyTests(unittest.TestCase):
     def test_context_excludes_secrets_fixtures_and_generated_data(self):
-        for name in ['infra/.env', 'infra/.env.prod', 'services/ticket-vision/fixtures/ticket.jpg',
-                     'services/ticket-vision/test_scan_router.py', 'infra/__pycache__/config.pyc',
-                     'services/ticket-vision/models/unreviewed.pt', 'infra/key.pem']:
+        for name in ['infra/.env', 'infra/.env.prod', 'fixtures/ticket.jpg',
+                     'test_scan_router.py', 'infra/__pycache__/config.pyc',
+                     'models/unreviewed.pt', 'infra/key.pem', 'data/llm_quota/usage.json']:
             self.assertFalse(publish.allowed_source(name), name)
         self.assertTrue(publish.allowed_source('infra/config.py'))
-        self.assertTrue(publish.allowed_source('services/ticket-vision/Dockerfile'))
+        self.assertTrue(publish.allowed_source('Dockerfile'))
 
     def test_credential_detection_does_not_print_the_value(self):
         secret = b'gsk_' + b'A' * 40

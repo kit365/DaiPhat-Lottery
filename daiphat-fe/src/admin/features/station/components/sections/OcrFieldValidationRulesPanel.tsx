@@ -26,7 +26,7 @@ import {
     type OcrValidationRuleSeverity,
     type OcrValidationRuleType,
 } from '../../services/ocrTemplateService';
-import { OCR_TEMPLATE_FIELD_OPTIONS } from './OcrFieldLayoutAnnotator';
+import { OCR_TEMPLATE_FIELD_OPTIONS, TICKET_FRAME_FIELD } from './OcrFieldLayoutAnnotator';
 
 type Props = {
     templateId: number;
@@ -178,7 +178,7 @@ export const OcrFieldValidationRulesPanel = ({ templateId }: Props) => {
                         value={fieldName}
                         onChange={(e) => setFieldName(e.target.value as OcrTemplateFieldName)}
                     >
-                        {OCR_TEMPLATE_FIELD_OPTIONS.map((opt) => (
+                        {OCR_TEMPLATE_FIELD_OPTIONS.filter((opt) => opt.value !== TICKET_FRAME_FIELD).map((opt) => (
                             <MenuItem key={opt.value} value={opt.value}>
                                 {opt.label}
                             </MenuItem>

@@ -39,9 +39,9 @@ class ApiClient {
               receiveTimeout: const Duration(seconds: 15),
               sendTimeout: const Duration(seconds: 15),
               headers: const {
+                'Content-Type': 'application/json',
                 'Accept': 'application/json',
               },
-              contentType: Headers.jsonContentType,
             ),
           ),
       _cookieJar = cookieJar {
@@ -172,7 +172,8 @@ class ApiClient {
         queryParameters: queryParameters,
         options: Options(
           extra: {'includeAuth': includeAuth},
-          contentType: isMultipart ? 'multipart/form-data' : null,
+          // Clear default JSON Content-Type so Dio can set multipart boundary.
+          headers: isMultipart ? <String, dynamic>{Headers.contentTypeHeader: null} : null,
         ),
       ),
     );
@@ -184,16 +185,12 @@ class ApiClient {
     Map<String, dynamic>? queryParameters,
     bool includeAuth = true,
   }) async {
-    final isMultipart = data is FormData;
     return _send(
       () => _dio.put<Map<String, dynamic>>(
         path,
         data: data,
         queryParameters: queryParameters,
-        options: Options(
-          extra: {'includeAuth': includeAuth},
-          contentType: isMultipart ? 'multipart/form-data' : null,
-        ),
+        options: Options(extra: {'includeAuth': includeAuth}),
       ),
     );
   }
@@ -204,16 +201,12 @@ class ApiClient {
     Map<String, dynamic>? queryParameters,
     bool includeAuth = true,
   }) async {
-    final isMultipart = data is FormData;
     return _send(
       () => _dio.patch<Map<String, dynamic>>(
         path,
         data: data,
         queryParameters: queryParameters,
-        options: Options(
-          extra: {'includeAuth': includeAuth},
-          contentType: isMultipart ? 'multipart/form-data' : null,
-        ),
+        options: Options(extra: {'includeAuth': includeAuth}),
       ),
     );
   }
@@ -242,13 +235,8 @@ class ApiClient {
       return _normalizeResponse(response.data);
     } on DioException catch (error) {
       throw _mapDioException(error);
-    } catch (e) {
-      if (e is ApiException) rethrow;
-      throw ApiException(
-        e is Error || e is Exception
-            ? e.toString().replaceFirst('Exception: ', '')
-            : 'Không thể kết nối đến máy chủ.',
-      );
+    } catch (_) {
+      throw const ApiException('Không thể kết nối đến máy chủ.');
     }
   }
 

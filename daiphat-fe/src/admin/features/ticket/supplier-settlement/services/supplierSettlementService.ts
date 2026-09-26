@@ -18,6 +18,8 @@ import type {
 import type { SupplierSettlementReconciliationPhase } from '../types/supplierSettlement.type';
 
 const BASE_URL = '/supplier-settlements';
+// The overview recalculates settlement totals server-side, so it can exceed the global 15s timeout.
+const OVERVIEW_TIMEOUT_MS = 60_000;
 
 export const getSupplierSettlements = async (
     params?: SupplierSettlementListParams
@@ -38,7 +40,7 @@ export const getSupplierSettlementById = async (
 export const getSupplierSettlementOverview = async (
     id: number | string
 ): Promise<ApiResponse<SupplierSettlementOverview>> => {
-    const response = await apiApp.get(`${BASE_URL}/${id}/overview`);
+    const response = await apiApp.get(`${BASE_URL}/${id}/overview`, { timeout: OVERVIEW_TIMEOUT_MS });
     return response.data;
 };
 

@@ -12,6 +12,7 @@ public record RemoteScanMetadata(
         String detectorStrategy,
         String recognitionEngine,
         Long templateId,
-        List<RemoteFieldLayoutMetadata> fieldLayouts
+        List<RemoteFieldLayoutMetadata> fieldLayouts,
+        List<RemoteStationTemplateMetadata> stationTemplates
 ) {
 }
