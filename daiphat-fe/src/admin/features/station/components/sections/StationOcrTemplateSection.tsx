@@ -468,12 +468,22 @@ export const StationOcrTemplateSection = ({
                                         },
                                     }}
                                 >
-                                    <InputLabel id="ocr-template-select-label" sx={{ fontSize: '0.875rem' }}>
+                                    <InputLabel
+                                        id="ocr-template-select-label"
+                                        shrink
+                                        sx={{
+                                            fontSize: '0.875rem',
+                                            bgcolor: '#ffffff',
+                                            px: 0.75,
+                                            borderRadius: '4px',
+                                        }}
+                                    >
                                         Danh sách mẫu vé
                                     </InputLabel>
                                     <Select
                                         labelId="ocr-template-select-label"
                                         label="Danh sách mẫu vé"
+                                        notched
                                         value={selectedTemplateId}
                                         displayEmpty
                                         onChange={(e) => {
@@ -484,7 +494,7 @@ export const StationOcrTemplateSection = ({
                                             if (!value) {
                                                 return (
                                                     <Typography color="text.secondary" sx={{ fontStyle: 'italic', fontSize: '0.875rem' }}>
-                                                        — Chưa chọn mẫu vé —
+                                                        {templates.length === 0 ? '— Chưa có mẫu vé nào —' : '— Chưa chọn mẫu vé —'}
                                                     </Typography>
                                                 );
                                             }
@@ -529,7 +539,7 @@ export const StationOcrTemplateSection = ({
                                     >
                                         <MenuItem value="">
                                             <Typography color="text.secondary" sx={{ fontStyle: 'italic', fontSize: '0.875rem' }}>
-                                                — Chưa chọn mẫu vé —
+                                                {templates.length === 0 ? '— Chưa có mẫu vé nào —' : '— Chưa chọn mẫu vé —'}
                                             </Typography>
                                         </MenuItem>
                                         {templates.map((t) => (
@@ -657,7 +667,7 @@ export const StationOcrTemplateSection = ({
                         </Box>
 
                         {/* 3. Inline Creation Box */}
-                        {(isCreateOpen || templates.length === 0) && (
+                        {isCreateOpen && (
                             <Paper
                                 elevation={0}
                                 sx={{
@@ -694,19 +704,17 @@ export const StationOcrTemplateSection = ({
                                                 </Typography>
                                             </Box>
                                         </Stack>
-                                        {templates.length > 0 && (
-                                            <IconButton
-                                                size="small"
-                                                onClick={() => {
-                                                    setIsCreateOpen(false);
-                                                    setNewName('');
-                                                }}
-                                                sx={{ color: '#64748b', '&:hover': { color: '#1e293b', bgcolor: '#e0e7ff' } }}
-                                                title="Đóng form"
-                                            >
-                                                <CloseRoundedIcon sx={{ fontSize: '1.15rem' }} />
-                                            </IconButton>
-                                        )}
+                                        <IconButton
+                                            size="small"
+                                            onClick={() => {
+                                                setIsCreateOpen(false);
+                                                setNewName('');
+                                            }}
+                                            sx={{ color: '#64748b', '&:hover': { color: '#1e293b', bgcolor: '#e0e7ff' } }}
+                                            title="Đóng form"
+                                        >
+                                            <CloseRoundedIcon sx={{ fontSize: '1.15rem' }} />
+                                        </IconButton>
                                     </Stack>
 
                                     <Stack
@@ -784,34 +792,32 @@ export const StationOcrTemplateSection = ({
                                             >
                                                 Tạo mẫu
                                             </Button>
-                                            {templates.length > 0 && (
-                                                <Button
-                                                    variant="outlined"
-                                                    onClick={() => {
-                                                        setIsCreateOpen(false);
-                                                        setNewName('');
-                                                    }}
-                                                    disabled={loading}
-                                                    sx={{
-                                                        height: 40,
-                                                        whiteSpace: 'nowrap',
-                                                        borderRadius: '10px',
-                                                        fontWeight: 700,
-                                                        textTransform: 'none',
-                                                        px: 2,
-                                                        borderColor: '#cbd5e1',
-                                                        color: '#64748b',
-                                                        bgcolor: '#ffffff',
-                                                        '&:hover': {
-                                                            borderColor: '#94a3b8',
-                                                            bgcolor: '#f8fafc',
-                                                            color: '#334155',
-                                                        },
-                                                    }}
-                                                >
-                                                    Hủy
-                                                </Button>
-                                            )}
+                                            <Button
+                                                variant="outlined"
+                                                onClick={() => {
+                                                    setIsCreateOpen(false);
+                                                    setNewName('');
+                                                }}
+                                                disabled={loading}
+                                                sx={{
+                                                    height: 40,
+                                                    whiteSpace: 'nowrap',
+                                                    borderRadius: '10px',
+                                                    fontWeight: 700,
+                                                    textTransform: 'none',
+                                                    px: 2,
+                                                    borderColor: '#cbd5e1',
+                                                    color: '#64748b',
+                                                    bgcolor: '#ffffff',
+                                                    '&:hover': {
+                                                        borderColor: '#94a3b8',
+                                                        bgcolor: '#f8fafc',
+                                                        color: '#334155',
+                                                    },
+                                                }}
+                                            >
+                                                Hủy
+                                            </Button>
                                         </Stack>
                                     </Stack>
                                 </Stack>

@@ -6,11 +6,9 @@ const streetAgentProfileBaseSchema = z.object({
     firstName: z.string().min(1, "Vui lòng nhập tên").max(100, "Tên không vượt quá 100 ký tự"),
     lastName: z.string().min(1, "Vui lòng nhập họ").max(100, "Họ không vượt quá 100 ký tự"),
     phone: z.string().regex(phoneRegex, "Số điện thoại không hợp lệ hoặc không thuộc nhà mạng hỗ trợ"),
-    cccd: z.string().regex(/^[0-9]{9,12}$/, "Số CCCD không hợp lệ"),
     imageUrl: z.string().optional().nullable(),
     cccdFrontImageUrl: z.string().optional().nullable(),
     cccdBackImageUrl: z.string().optional().nullable(),
-    cccdSelfieImageUrl: z.string().optional().nullable(),
     contactAddress: z.string().max(255, "Địa chỉ không vượt quá 255 ký tự").optional(),
     contactProvince: z.string().max(100, "Tỉnh/thành không vượt quá 100 ký tự").optional(),
     contactWard: z.string().max(100, "Phường/xã không vượt quá 100 ký tự").optional(),
@@ -48,6 +46,20 @@ export const createStreetAgentProfileSchema = streetAgentProfileBaseSchema
                 code: z.ZodIssueCode.custom,
                 message: "Vui lòng chọn ngày kết thúc hợp đồng",
                 path: ["contractEndDate"],
+            });
+        }
+        if (!data.cccdFrontImageUrl?.trim()) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Vui lòng tải ảnh CCCD mặt trước",
+                path: ["cccdFrontImageUrl"],
+            });
+        }
+        if (!data.cccdBackImageUrl?.trim()) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Vui lòng tải ảnh CCCD mặt sau",
+                path: ["cccdBackImageUrl"],
             });
         }
     })

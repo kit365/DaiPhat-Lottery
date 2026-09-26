@@ -70,6 +70,14 @@ export interface PrizePayoutRequestResponse {
     ekycLivenessScore?: number;
     ekycFailureReason?: string;
     ekycOcrName?: string;
+    ekycOcrIdNumber?: string;
+    ekycOcrDob?: string;
+    ekycOcrGender?: string;
+    ekycOcrNationality?: string;
+    ekycOcrPlaceOfBirth?: string;
+    ekycOcrPlaceOfResidence?: string;
+    ekycOcrIssueDate?: string;
+    ekycOcrExpiryDate?: string;
     ekycVerifiedAt?: string;
     recipientIdentityCapturedAt?: string;
     status: PrizePayoutRequestStatus;
@@ -201,10 +209,8 @@ export interface CreatePrizePayoutRequest {
     orderDetailId?: number;
     serialId?: number;
     bankAccountId: number;
-    recipientIdNumber: string;
     recipientIdImageUrl: string;
     recipientIdImageBackUrl: string;
-    recipientSelfieUrl: string;
 }
 
 export interface CreateStaffPrizePayoutRequest {
@@ -217,10 +223,8 @@ export interface CreateStaffPrizePayoutRequest {
     bankAccountNumber?: string;
     accountHolderName?: string;
     recipientFullName?: string;
-    recipientIdNumber?: string;
     recipientIdImageUrl?: string;
     recipientIdImageBackUrl?: string;
-    recipientSelfieUrl?: string;
     paymentMethod: PrizePayoutPaymentMethod;
     cashAmount?: number;
     manualOwnershipConfirmed?: boolean;
@@ -236,10 +240,8 @@ export interface CreateStaffPrizePayoutBatchRequest {
     bankAccountNumber?: string;
     accountHolderName?: string;
     recipientFullName?: string;
-    recipientIdNumber?: string;
     recipientIdImageUrl?: string;
     recipientIdImageBackUrl?: string;
-    recipientSelfieUrl?: string;
     paymentMethod: PrizePayoutPaymentMethod;
     cashAmount?: number;
     manualOwnershipConfirmed?: boolean;
