@@ -136,6 +136,25 @@ class PrizePayoutTicketOriginResolverTest {
     }
 
     @Test
+    void resolveOwnedDetail_staleOrderDetailId_asksCustomerToReload() {
+        when(orderDetailRepository.findById(999L)).thenReturn(Optional.empty());
+        DomainException ex = assertThrows(
+                DomainException.class,
+                () -> eligibilityService.resolveOwnedDetail(UUID.randomUUID(), 999L, null));
+        assertEquals(ErrorCode.ORDER_DETAIL_NOT_FOUND, ex.getErrorCode());
+        assertEquals(PrizePayoutRequestModel.CUSTOMER_TICKET_NOT_FOUND_MESSAGE, ex.getInternalMessage());
+    }
+
+    @Test
+    void resolveDetail_staffLookup_keepsOutOfScopeMessage() {
+        when(orderDetailRepository.findById(999L)).thenReturn(Optional.empty());
+        DomainException ex = assertThrows(
+                DomainException.class,
+                () -> eligibilityService.resolveDetail(999L, null));
+        assertEquals(PrizePayoutRequestModel.OUT_OF_SCOPE_TICKET_MESSAGE, ex.getInternalMessage());
+    }
+
+    @Test
     void resolveDetail_bySerialId_usesPayoutEligibleQuery() {
         when(orderDetailRepository.findPayoutEligibleBySerialId(10L)).thenReturn(Optional.of(detail));
         assertEquals(detail, eligibilityService.resolveDetail(null, 10L));

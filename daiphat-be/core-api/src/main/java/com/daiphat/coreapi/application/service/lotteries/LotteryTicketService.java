@@ -322,6 +322,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             int size
     ) {
         Map<Long, String> stationNameCache = new HashMap<>();
+        Map<Long, String> batchCodeCache = new HashMap<>();
         List<Long> ticketIds = tickets.stream().map(LotteryTicketModel::getId).toList();
         Map<Long, LotteryTicketSerialModel> representativeByTicketId =
                 lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(ticketIds);
@@ -340,6 +341,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                             ticket,
                             representativeByTicketId.get(ticket.getId()),
                             stationNameCache,
+                            batchCodeCache,
                             serialQuantityByTicketId.getOrDefault(ticket.getId(), 0L).intValue()
                     );
                 })
@@ -394,6 +396,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                 );
 
         Map<Long, String> stationNameCache = new HashMap<>();
+        Map<Long, String> batchCodeCache = new HashMap<>();
         List<Long> ticketIds = ticketPage.getContent().stream().map(LotteryTicketModel::getId).toList();
         Map<Long, LotteryTicketSerialModel> serialsByTicketId =
                 lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(ticketIds);
@@ -404,6 +407,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                         ticket,
                         serialsByTicketId.get(ticket.getId()),
                         stationNameCache,
+                        batchCodeCache,
                         serialQuantityByTicketId.getOrDefault(ticket.getId(), 0L).intValue()
                 ))
                 .toList();
@@ -836,6 +840,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             LotteryTicketModel model,
             LotteryTicketSerialModel serial,
             Map<Long, String> stationNameCache,
+            Map<Long, String> batchCodeCache,
             int serialQuantity
     ) {
         String stationName = resolveStationName(model.getStationId(), stationNameCache);
@@ -843,9 +848,21 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                 model,
                 serial,
                 stationName,
-                resolveBatchCode(serial),
+                resolveBatchCode(serial, batchCodeCache),
                 serialQuantity
         );
+    }
+
+    /** List pages share a handful of import batch lines across hundreds of tickets; look each line up once. */
+    private String resolveBatchCode(LotteryTicketSerialModel serial, Map<Long, String> batchCodeCache) {
+        if (serial == null || serial.getImportBatchLineId() == null) {
+            return null;
+        }
+        Long lineId = serial.getImportBatchLineId();
+        if (!batchCodeCache.containsKey(lineId)) {
+            batchCodeCache.put(lineId, resolveBatchCodeForSerial(serial));
+        }
+        return batchCodeCache.get(lineId);
     }
 
     private String resolveBatchCode(LotteryTicketSerialModel serial) {

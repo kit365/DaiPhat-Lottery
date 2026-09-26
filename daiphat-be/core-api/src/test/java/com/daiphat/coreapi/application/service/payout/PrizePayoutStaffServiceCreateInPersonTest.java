@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.application.service.payout;
 
+import com.daiphat.coreapi.application.dto.ekyc.EkycVerificationResult;
 import com.daiphat.coreapi.application.dto.request.payout.CompletePrizePayoutRequest;
 import com.daiphat.coreapi.application.dto.request.payout.CreateStaffPrizePayoutBatchRequest;
 import com.daiphat.coreapi.application.dto.request.payout.CreateStaffPrizePayoutRequest;
@@ -9,6 +10,7 @@ import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutPreviewRes
 import com.daiphat.coreapi.application.dto.response.payout.PrizePayoutRequestResponse;
 import com.daiphat.coreapi.application.mapper.payout.PrizePayoutApplicationMapper;
 import com.daiphat.coreapi.application.service.ekyc.EkycVerificationService;
+import com.daiphat.coreapi.domain.model.enums.ekyc.EkycStatus;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRepositoryPort;
@@ -96,11 +98,10 @@ class PrizePayoutStaffServiceCreateInPersonTest {
     private static CreateStaffPrizePayoutRequest cashRequest(
             Boolean manualConfirm,
             String recipientName,
-            String recipientId,
             String recipientImage) {
         return new CreateStaffPrizePayoutRequest(
                 20L, 10L, null, null, null, null, null, null,
-                recipientName, recipientId, recipientImage, recipientImage, recipientImage,
+                recipientName, recipientImage, recipientImage,
                 PrizePayoutPaymentMethod.CASH, null, manualConfirm, null,
                 "https://cdn.example/contract.jpg", null);
     }
@@ -192,12 +193,24 @@ class PrizePayoutStaffServiceCreateInPersonTest {
                 null, null,
                 null, null, null, false, null, null, null, null,
                 null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null,
+                null, null, null, null, null,
+                null, null, null, null, null, null, null, null,
+                null, null,
                 PrizePayoutRequestStatus.PENDING, 0, 3, false, false, false, true,
                 null, null, null, null, null, staffId.toString(), null, null, null, null);
         lenient().when(prizePayoutApplicationMapper.toResponse(
                         any(), any(), any(), any(), any(), any(), anyBoolean(), anyBoolean(), anyBoolean(), anyBoolean(), anyBoolean()))
                 .thenReturn(dummyResponse);
+
+        EkycVerificationResult ocrOk = new EkycVerificationResult(
+                EkycStatus.VERIFIED, "Tran Van C", "012345678901",
+                "01/01/1990", "Nam", "Việt Nam", "Hà Nội", "Hà Nội",
+                "01/01/2021", "01/01/2031",
+                null, null, null, null);
+        lenient().when(ekycVerificationService.verifyIdCardOcrOnlyFromUrls(any(), any())).thenReturn(ocrOk);
+        lenient().doNothing().when(ekycVerificationService).assertVerified(any());
+        lenient().when(ekycVerificationService.requireOcrIdNumber(any())).thenReturn("012345678901");
     }
 
     @Test
@@ -209,7 +222,7 @@ class PrizePayoutStaffServiceCreateInPersonTest {
 
         DomainException ex = assertThrows(
                 DomainException.class,
-                () -> staffService.createInPerson(staffId, cashRequest(true, "A", "012345678901", "https://cdn.example/a.jpg")));
+                () -> staffService.createInPerson(staffId, cashRequest(true, "A", "https://cdn.example/a.jpg")));
         assertEquals(ErrorCode.PRIZE_PAYOUT_NOT_ELIGIBLE, ex.getErrorCode());
         verify(prizePayoutRequestRepositoryPort, never()).save(any());
     }
@@ -218,7 +231,7 @@ class PrizePayoutStaffServiceCreateInPersonTest {
     void createInPerson_offlineWithoutCustomer_missingManualConfirm_fails() {
         DomainException ex = assertThrows(
                 DomainException.class,
-                () -> staffService.createInPerson(staffId, cashRequest(false, "A", "1", "https://cdn.example/a.jpg")));
+                () -> staffService.createInPerson(staffId, cashRequest(false, "A", "https://cdn.example/a.jpg")));
         assertEquals(ErrorCode.INVALID_INPUT, ex.getErrorCode());
         verify(prizePayoutRequestRepositoryPort, never()).save(any());
     }
@@ -227,7 +240,7 @@ class PrizePayoutStaffServiceCreateInPersonTest {
     void createInPerson_missingNameOrCccd_fails() {
         DomainException ex = assertThrows(
                 DomainException.class,
-                () -> staffService.createInPerson(staffId, cashRequest(true, null, null, null)));
+                () -> staffService.createInPerson(staffId, cashRequest(true, null, null)));
         assertEquals(ErrorCode.PRIZE_PAYOUT_RECIPIENT_IDENTITY_REQUIRED, ex.getErrorCode());
     }
 
@@ -235,7 +248,7 @@ class PrizePayoutStaffServiceCreateInPersonTest {
     void createInPerson_manualOnly_missingImage_fails() {
         DomainException ex = assertThrows(
                 DomainException.class,
-                () -> staffService.createInPerson(staffId, cashRequest(true, "Tran Van C", "012345678901", null)));
+                () -> staffService.createInPerson(staffId, cashRequest(true, "Tran Van C", null)));
         assertEquals(ErrorCode.PRIZE_PAYOUT_RECIPIENT_IDENTITY_REQUIRED, ex.getErrorCode());
     }
 
@@ -243,7 +256,7 @@ class PrizePayoutStaffServiceCreateInPersonTest {
     void createInPerson_manualOnly_withIdentity_completesImmediately() {
         staffService.createInPerson(
                 staffId,
-                cashRequest(true, "Tran Van C", "012345678901", "https://cdn.example/cccd.jpg"));
+                cashRequest(true, "Tran Van C", "https://cdn.example/cccd.jpg"));
 
         ArgumentCaptor<PrizePayoutRequestModel> captor = ArgumentCaptor.forClass(PrizePayoutRequestModel.class);
         verify(prizePayoutRequestRepositoryPort, atLeastOnce()).save(captor.capture());
@@ -267,7 +280,7 @@ class PrizePayoutStaffServiceCreateInPersonTest {
 
         staffService.createInPerson(
                 staffId,
-                cashRequest(false, "Nguyen Van A", "012345678901", "https://cdn.example/cccd.jpg"));
+                cashRequest(false, "Nguyen Van A", "https://cdn.example/cccd.jpg"));
 
         verify(prizePayoutRequestRepositoryPort, atLeastOnce()).save(any());
         verify(prizePayoutSerialLockService).markPaidOut(10L);
@@ -279,7 +292,7 @@ class PrizePayoutStaffServiceCreateInPersonTest {
 
         DomainException ex = assertThrows(
                 DomainException.class,
-                () -> staffService.createInPerson(staffId, cashRequest(false, "Nguyen Van A", "012345678901", null)));
+                () -> staffService.createInPerson(staffId, cashRequest(false, "Nguyen Van A", null)));
         assertEquals(ErrorCode.PRIZE_PAYOUT_RECIPIENT_IDENTITY_REQUIRED, ex.getErrorCode());
     }
 
@@ -307,8 +320,7 @@ class PrizePayoutStaffServiceCreateInPersonTest {
                                 new CreateStaffPrizePayoutBatchRequest.BatchItem(20L),
                                 new CreateStaffPrizePayoutBatchRequest.BatchItem(21L)),
                         null, null, null, null,
-                        "Tran Van C", "012345678901", "https://cdn.example/cccd.jpg", "https://cdn.example/cccd-back.jpg",
-                        "https://cdn.example/selfie.jpg",
+                        "Tran Van C", "https://cdn.example/cccd.jpg", "https://cdn.example/cccd-back.jpg",
                         PrizePayoutPaymentMethod.CASH, null, true, null,
                         "https://cdn.example/contract.jpg", null));
 
@@ -419,8 +431,7 @@ class PrizePayoutStaffServiceCreateInPersonTest {
                 new CreateStaffPrizePayoutRequest(
                         20L, 10L, null, null, null,
                         "Vietcombank", "0123456789", "TRAN VAN C",
-                        "Tran Van C", "012345678901", "https://cdn.example/cccd.jpg", "https://cdn.example/cccd-back.jpg",
-                        "https://cdn.example/selfie.jpg",
+                        "Tran Van C", "https://cdn.example/cccd.jpg", "https://cdn.example/cccd-back.jpg",
                         PrizePayoutPaymentMethod.COMBINED, new BigDecimal("2000000"),
                         true, "https://cdn.example/transfer.jpg", "https://cdn.example/contract.jpg", null));
 
@@ -443,8 +454,7 @@ class PrizePayoutStaffServiceCreateInPersonTest {
                         staffId,
                         new CreateStaffPrizePayoutRequest(
                                 20L, 10L, null, null, null, null, null, null,
-                                "Tran Van C", "012345678901", "https://cdn.example/cccd.jpg", "https://cdn.example/cccd-back.jpg",
-                                "https://cdn.example/selfie.jpg",
+                                "Tran Van C", "https://cdn.example/cccd.jpg", "https://cdn.example/cccd-back.jpg",
                                 PrizePayoutPaymentMethod.COMBINED, BigDecimal.ZERO,
                                 true, null, "https://cdn.example/contract.jpg", null)));
         assertEquals(ErrorCode.INVALID_INPUT, ex.getErrorCode());
@@ -458,8 +468,7 @@ class PrizePayoutStaffServiceCreateInPersonTest {
                         staffId,
                         new CreateStaffPrizePayoutRequest(
                                 20L, 10L, null, null, null, null, null, null,
-                                "Tran Van C", "012345678901", "https://cdn.example/cccd.jpg", "https://cdn.example/cccd-back.jpg",
-                                "https://cdn.example/selfie.jpg",
+                                "Tran Van C", "https://cdn.example/cccd.jpg", "https://cdn.example/cccd-back.jpg",
                                 PrizePayoutPaymentMethod.COMBINED, new BigDecimal("123"),
                                 true, null, "https://cdn.example/contract.jpg", null)));
         assertEquals(ErrorCode.INVALID_INPUT, ex.getErrorCode());

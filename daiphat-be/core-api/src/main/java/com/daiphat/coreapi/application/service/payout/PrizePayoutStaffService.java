@@ -357,10 +357,8 @@ public class PrizePayoutStaffService implements PrizePayoutStaffServicePort {
                 request.bankAccountNumber(),
                 request.accountHolderName(),
                 request.recipientFullName(),
-                request.recipientIdNumber(),
                 request.recipientIdImageUrl(),
                 request.recipientIdImageBackUrl(),
-                request.recipientSelfieUrl(),
                 request.paymentMethod(),
                 request.cashAmount(),
                 request.manualOwnershipConfirmed(),
@@ -405,30 +403,17 @@ public class PrizePayoutStaffService implements PrizePayoutStaffServicePort {
             details.add(detail);
         }
 
-        // Shared recipient identity: always capture both CCCD images for audit.
-
-        if (isBlank(request.recipientFullName()) || isBlank(request.recipientIdNumber())) {
+        // Shared recipient identity: CCCD images required; number comes from OCR only.
+        if (isBlank(request.recipientFullName())) {
             throw new DomainException(ErrorCode.PRIZE_PAYOUT_RECIPIENT_IDENTITY_REQUIRED);
         }
-        String recipientIdRaw = request.recipientIdNumber().trim();
-        if (!recipientIdRaw.matches("\\d{9,12}")) {
-            throw new DomainException(ErrorCode.INVALID_INPUT, "Số CCCD/CMND phải có từ 9 đến 12 chữ số.");
-        }
-        if (isBlank(request.recipientIdImageUrl()) || isBlank(request.recipientIdImageBackUrl())
-                || isBlank(request.recipientSelfieUrl())) {
+        if (isBlank(request.recipientIdImageUrl()) || isBlank(request.recipientIdImageBackUrl())) {
             throw new DomainException(
                     ErrorCode.PRIZE_PAYOUT_RECIPIENT_IDENTITY_REQUIRED,
-                    "Cần ảnh CCCD mặt trước, mặt sau và ảnh selfie.");
+                    "Cần ảnh CCCD mặt trước và mặt sau.");
         }
-        if (!isBlank(request.recipientIdImageUrl())) {
-            StorageUtils.validateImageEvidenceUrl(request.recipientIdImageUrl());
-        }
-        if (!isBlank(request.recipientIdImageBackUrl())) {
-            StorageUtils.validateImageEvidenceUrl(request.recipientIdImageBackUrl());
-        }
-        if (!isBlank(request.recipientSelfieUrl())) {
-            StorageUtils.validateImageEvidenceUrl(request.recipientSelfieUrl());
-        }
+        StorageUtils.validateImageEvidenceUrl(request.recipientIdImageUrl());
+        StorageUtils.validateImageEvidenceUrl(request.recipientIdImageBackUrl());
 
         boolean anyManualConfirm = details.stream().anyMatch(d -> {
             PrizePayoutEligibilityService.OwnershipVerificationContext ownership =
@@ -449,27 +434,18 @@ public class PrizePayoutStaffService implements PrizePayoutStaffServicePort {
         PrizePayoutPaymentMethod requestedMethod = request.paymentMethod();
         String confirmationContractUrl = request.confirmationContractUrl().trim();
         String recipientFullName = request.recipientFullName().trim();
-        String recipientIdNumber = request.recipientIdNumber().trim();
-        String recipientIdImageUrl = isBlank(request.recipientIdImageUrl())
-                ? null
-                : request.recipientIdImageUrl().trim();
-        String recipientIdImageBackUrl = isBlank(request.recipientIdImageBackUrl())
-                ? null
-                : request.recipientIdImageBackUrl().trim();
-        String recipientSelfieUrl = isBlank(request.recipientSelfieUrl())
-                ? null
-                : request.recipientSelfieUrl().trim();
+        String recipientIdImageUrl = request.recipientIdImageUrl().trim();
+        String recipientIdImageBackUrl = request.recipientIdImageBackUrl().trim();
         LocalDateTime recipientIdentityCapturedAt = LocalDateTime.now();
 
-        EkycVerificationResult ekyc = null;
+        EkycVerificationResult ekyc = ekycVerificationService.verifyIdCardOcrOnlyFromUrls(
+                recipientIdImageUrl, recipientIdImageBackUrl);
         if (prizePayoutEkycRequired) {
-            ekyc = ekycVerificationService.verifyFromUrls(
-                    recipientIdImageUrl, recipientIdImageBackUrl, recipientSelfieUrl);
-            ekycVerificationService.requireIdMatch(recipientIdNumber, ekyc);
             ekycVerificationService.assertVerified(ekyc);
-            if (ekyc.ocrName() != null && !ekyc.ocrName().isBlank()) {
-                recipientFullName = ekyc.ocrName().trim();
-            }
+        }
+        String recipientIdNumber = ekycVerificationService.requireOcrIdNumber(ekyc);
+        if (ekyc.ocrName() != null && !ekyc.ocrName().isBlank()) {
+            recipientFullName = ekyc.ocrName().trim();
         }
 
         // Pre-compute per-ticket breakdown so COMBINED cash can be allocated against total net.
@@ -564,12 +540,20 @@ public class PrizePayoutStaffService implements PrizePayoutStaffServicePort {
                     .recipientIdNumber(recipientIdNumber)
                     .recipientIdImageUrl(recipientIdImageUrl)
                     .recipientIdImageBackUrl(recipientIdImageBackUrl)
-                    .recipientSelfieUrl(recipientSelfieUrl)
+                    .recipientSelfieUrl(null)
                     .ekycStatus(ekyc != null ? ekyc.status() : null)
-                    .ekycFaceDistance(ekyc != null ? ekyc.faceDistance() : null)
-                    .ekycLivenessScore(ekyc != null ? ekyc.livenessScore() : null)
+                    .ekycFaceDistance(null)
+                    .ekycLivenessScore(null)
                     .ekycFailureReason(ekyc != null ? ekyc.failureReason() : null)
                     .ekycOcrName(ekyc != null ? ekyc.ocrName() : null)
+                    .ekycOcrIdNumber(ekyc != null ? ekyc.ocrIdNumber() : null)
+                    .ekycOcrDob(ekyc != null ? ekyc.ocrDob() : null)
+                    .ekycOcrGender(ekyc != null ? ekyc.ocrGender() : null)
+                    .ekycOcrNationality(ekyc != null ? ekyc.ocrNationality() : null)
+                    .ekycOcrPlaceOfBirth(ekyc != null ? ekyc.ocrPlaceOfBirthRegistration() : null)
+                    .ekycOcrPlaceOfResidence(ekyc != null ? ekyc.ocrPlaceOfResidence() : null)
+                    .ekycOcrIssueDate(ekyc != null ? ekyc.ocrIssueDate() : null)
+                    .ekycOcrExpiryDate(ekyc != null ? ekyc.ocrExpiryDate() : null)
                     .ekycVerifiedAt(ekyc != null && ekyc.verified() ? LocalDateTime.now() : null)
                     .recipientIdentityCapturedAt(recipientIdentityCapturedAt)
                     .confirmationContractUrl(confirmationContractUrl)

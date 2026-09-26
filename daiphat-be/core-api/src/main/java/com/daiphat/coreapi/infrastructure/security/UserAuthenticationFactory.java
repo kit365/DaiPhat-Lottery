@@ -35,6 +35,10 @@ public class UserAuthenticationFactory {
                 }
             });
         }
+        if ("ROLE_ADMIN".equals(user.getRole().getCode())) {
+            java.util.Arrays.stream(com.daiphat.coreapi.domain.model.enums.auth.AppPermission.values())
+                    .forEach(p -> authorities.add(new SimpleGrantedAuthority(p.getCode())));
+        }
 
         return authorities;
     }

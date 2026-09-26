@@ -27,6 +27,10 @@ public class PrizePayoutRequestModel {
     public static final String OUT_OF_SCOPE_TICKET_MESSAGE =
             "Không tìm thấy vé trong hệ thống DaiPhat — vé ngoài phạm vi hỗ trợ";
 
+    public static final String CUSTOMER_TICKET_NOT_FOUND_MESSAGE =
+            "Không tìm thấy vé này trong tài khoản của bạn. Danh sách vé có thể đã được cập nhật — "
+                    + "vui lòng tải lại trang và thử lại.";
+
     private Long id;
     private String requestCode;
     private UUID customerId;
@@ -62,6 +66,14 @@ public class PrizePayoutRequestModel {
     private Double ekycLivenessScore;
     private String ekycFailureReason;
     private String ekycOcrName;
+    private String ekycOcrIdNumber;
+    private String ekycOcrDob;
+    private String ekycOcrGender;
+    private String ekycOcrNationality;
+    private String ekycOcrPlaceOfBirth;
+    private String ekycOcrPlaceOfResidence;
+    private String ekycOcrIssueDate;
+    private String ekycOcrExpiryDate;
     private LocalDateTime ekycVerifiedAt;
     private LocalDateTime recipientIdentityCapturedAt;
 
