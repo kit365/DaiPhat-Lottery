@@ -583,22 +583,7 @@ export const StationOcrTemplateSection = ({
                                 </FormControl>
 
                                 {/* Set as Default Action */}
-                                {selectedTemplate?.isDefault ? (
-                                    <Chip
-                                        icon={<StarRoundedIcon sx={{ '&&': { color: '#16a34a', fontSize: '1.1rem' } }} />}
-                                        label="Đang là mặc định"
-                                        sx={{
-                                            bgcolor: '#dcfce7',
-                                            color: '#15803d',
-                                            fontWeight: 700,
-                                            height: 40,
-                                            px: 1.5,
-                                            borderRadius: '10px',
-                                            border: '1px solid #bbf7d0',
-                                            fontSize: '0.85rem',
-                                        }}
-                                    />
-                                ) : (
+                                {selectedTemplate?.isDefault ? null : (
                                     <Button
                                         variant="outlined"
                                         startIcon={<StarBorderRoundedIcon sx={{ fontSize: '1.15rem' }} />}

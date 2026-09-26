@@ -131,37 +131,11 @@ export const returnBatchColumnsConfig: GridColDef[] = [
                 rowIndex = 0;
             }
             const sttNumber = page * pageSize + rowIndex + 1;
-            const theme = getReturnBatchStatusColorTheme(params.row.status);
             return (
                 <div className="flex h-full w-full min-w-0 items-center justify-center">
-                    <Tooltip title={`Trạng thái: ${theme.label}`} arrow placement="right">
-                        <Box
-                            sx={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                minWidth: 28,
-                                height: 26,
-                                px: 0.75,
-                                borderRadius: '6px',
-                                bgcolor: theme.bg,
-                                color: theme.text,
-                                border: `1.5px solid ${theme.border}`,
-                                fontWeight: 800,
-                                fontSize: '0.8125rem',
-                                fontFamily: 'monospace',
-                                cursor: 'default',
-                                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
-                                transition: 'all 0.15s ease',
-                                '&:hover': {
-                                    transform: 'scale(1.08)',
-                                    boxShadow: `0 2px 6px ${theme.border}`,
-                                },
-                            }}
-                        >
-                            {sttNumber}
-                        </Box>
-                    </Tooltip>
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a' }}>
+                        {sttNumber}
+                    </Typography>
                 </div>
             );
         },
@@ -208,18 +182,7 @@ export const returnBatchColumnsConfig: GridColDef[] = [
             </CellTextCenter>
         ),
     },
-    {
-        field: 'returnedBy',
-        headerName: 'Người thực hiện',
-        flex: 1,
-        minWidth: 140,
-        sortable: true,
-        renderCell: (params: GridRenderCellParams<ReturnBatch>) => (
-            <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-                <span className="admin-cell-text">{params.row.returnedBy || '—'}</span>
-            </Box>
-        ),
-    },
+
     {
         field: 'totalQuantity',
         headerName: 'Số lượng',

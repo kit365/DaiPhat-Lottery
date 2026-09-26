@@ -173,9 +173,7 @@ export const SupplierSidebarPanel = ({
                         <Typography variant="body2" fontWeight={800} color="#0f172a">
                             {Number(values.paymentTermDays) === 0 ? 'Trong ngày' : `${values.paymentTermDays ?? 0} ngày`}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                            {Number(values.paymentTermDays) === 0 ? 'Quyết toán ngày' : 'Gối đầu theo kỳ'}
-                        </Typography>
+
                     </Box>
                 </Box>
             </Paper>
@@ -220,11 +218,7 @@ export const SupplierSidebarPanel = ({
                     />
                 </Stack>
 
-                <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
-                    {values.isActive
-                        ? 'Nhà cung cấp đang được phép tạo phiếu nhập vé và đối soát.'
-                        : 'Nhà cung cấp bị tạm dừng giao dịch và tạo phiếu mới.'}
-                </Typography>
+
 
                 <Box sx={{ mb: 2 }}>
                     <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.75 }}>
@@ -236,7 +230,7 @@ export const SupplierSidebarPanel = ({
                             fontWeight={800}
                             color={isReady ? '#16a34a' : '#ea580c'}
                         >
-                            {metCount}/{totalConditions} điều kiện ({progressPercent}%)
+                            {metCount}/{totalConditions}
                         </Typography>
                     </Stack>
                     <LinearProgress

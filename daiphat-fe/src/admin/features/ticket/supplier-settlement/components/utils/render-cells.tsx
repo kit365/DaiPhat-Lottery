@@ -29,23 +29,10 @@ export const RenderSettlementCodeCell = (params: GridRenderCellParams) => {
                 }}
                 underline="hover"
                 sx={{
-                    fontFamily: 'monospace',
                     fontWeight: 700,
-                    fontSize: '0.8125rem',
+                    fontSize: '0.875rem',
                     color: isExpired ? '#b91c1c' : '#0f172a',
-                    bgcolor: isExpired ? '#fee2e2' : '#f8fafc',
-                    border: `1px solid ${isExpired ? '#fca5a5' : '#e2e8f0'}`,
-                    borderRadius: '6px',
-                    px: 1,
-                    py: 0.35,
-                    lineHeight: 1.2,
                     display: 'inline-block',
-                    transition: 'all 0.15s ease',
-                    '&:hover': {
-                        bgcolor: isExpired ? '#fecaca' : '#f1f5f9',
-                        borderColor: isExpired ? '#f87171' : '#cbd5e1',
-                        transform: 'translateY(-1px)',
-                    },
                 }}
                 title={`Xem chi tiết đối soát ${code}`}
             >

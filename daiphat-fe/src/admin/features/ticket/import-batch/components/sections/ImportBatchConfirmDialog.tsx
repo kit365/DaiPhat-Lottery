@@ -768,9 +768,7 @@ export const ImportBatchConfirmDialog = ({
                                             <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.8rem', py: 1.25 }}>
                                                 Nhà đài
                                             </TableCell>
-                                            <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.8rem', py: 1.25, textAlign: 'center' }}>
-                                                Loại lô
-                                            </TableCell>
+
                                             <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.8rem', py: 1.25, textAlign: 'right' }}>
                                                 Số lượng
                                             </TableCell>
@@ -799,9 +797,7 @@ export const ImportBatchConfirmDialog = ({
                                                     <TableCell sx={{ fontWeight: 700, color: '#0f172a', fontSize: '0.875rem', py: 1.25 }}>
                                                         {line.stationName || '—'}
                                                     </TableCell>
-                                                    <TableCell sx={{ textAlign: 'center', py: 1.25 }}>
-                                                        {renderBatchTypeChip(line.batchType)}
-                                                    </TableCell>
+
                                                     <TableCell sx={{ textAlign: 'right', fontWeight: 600, color: '#0f172a', fontSize: '0.875rem', py: 1.25 }}>
                                                         {line.declareQuantity.toLocaleString('vi-VN')} vé
                                                     </TableCell>
@@ -817,7 +813,7 @@ export const ImportBatchConfirmDialog = ({
                                     </TableBody>
                                     <TableFooter sx={{ bgcolor: '#f8fafc' }}>
                                         <TableRow sx={{ '& td': { borderTop: '2px solid #e2e8f0', borderBottom: 0 } }}>
-                                            <TableCell colSpan={3} sx={{ fontWeight: 800, color: '#0f172a', fontSize: '0.875rem', py: 1.25 }}>
+                                            <TableCell colSpan={2} sx={{ fontWeight: 800, color: '#0f172a', fontSize: '0.875rem', py: 1.25 }}>
                                                 Tổng cộng ({lines.length} nhà đài)
                                             </TableCell>
                                             <TableCell sx={{ textAlign: 'right', fontWeight: 800, color: '#0f172a', fontSize: '0.95rem', py: 1.25 }}>

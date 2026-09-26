@@ -2,7 +2,7 @@ import { Toolbar } from "@mui/material";
 import { SelectMulti } from "../../../../components/ui/SelectMulti";
 import { Search } from "../../../../components/ui/Search";
 import { useBlogCategoryStatuses } from "../../hooks/useBlogCategory";
-import { ExportImport } from "../../../../components/ui/ExportImport";
+
 
 interface BlogCategoryToolbarProps {
     search: string;
@@ -31,7 +31,7 @@ export const BlogCategoryToolbar = ({ search, onSearchChange, status, onStatusCh
                             onChange={onSearchChange}
                         />
                     </div>
-                    <ExportImport />
+    
                 </div>
             </div>
         </Toolbar>

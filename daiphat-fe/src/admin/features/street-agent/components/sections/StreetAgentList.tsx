@@ -17,7 +17,7 @@ import { useStreetAgentProfileStatusCounts, useStreetAgentProfiles } from "../..
 import { ROUTES } from "../../../../constants/routes";
 import { STATUS_OPTIONS } from "../configs/constants";
 import { Search } from "../../../../components/ui/Search";
-import { ExportImport } from "../../../../components/ui/ExportImport";
+
 import { getTabBadgeStyles } from "../../../../utils/badge";
 import { dataGridStyles } from "../../../../shared/data-grid";
 import { getStreetAgentOnboardingResumePath } from "../../services/streetAgentService";
@@ -146,7 +146,7 @@ export const StreetAgentList = () => {
                 </Box>
 
                 <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
-                    <ExportImport />
+
                 </Box>
             </Box>
 
