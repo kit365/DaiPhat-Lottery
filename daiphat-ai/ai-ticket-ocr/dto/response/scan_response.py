@@ -42,6 +42,9 @@ class TicketScanResult(BaseModel):
     # Source-image Admin overlay draws ticket bbox only; field overlays belong
     # on the per-ticket crop preview.
     fieldBoxes: dict[str, BoundingBox] = Field(default_factory=dict)
+    # The same field regions on the uploaded photo, in ``bbox`` coordinates
+    # (ScanResponse.imageWidth/imageHeight); ``corners`` hold the exact quad.
+    sourceFieldBoxes: dict[str, BoundingBox] = Field(default_factory=dict)
     # fieldName -> ocr_field_layouts.id used for the recognized value.
     usedFieldLayouts: dict[str, int] = Field(default_factory=dict)
     missingFields: list[str] = Field(default_factory=list)

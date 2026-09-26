@@ -33,6 +33,17 @@ def test_parses_a_complete_ticket(sample_stations):
     assert result.field_confidences["drawDate"] == 0.9
 
 
+def test_station_confidence_is_a_fraction_without_ranking_bonuses(sample_stations):
+    # Centred header banner: ranking bonuses used to push this above 1.0,
+    # which the Admin UI then showed as "1%".
+    parser = _parser(sample_stations)
+    result = parser.parse(
+        {"whole": [OcrTextResult(text="XO SO KIEN THIET CAN THO", confidence=0.95, x_center=0.45, y_center=0.05)]}
+    )
+    assert result.extracted.stationName == "Cần Thơ"
+    assert result.field_confidences["stationName"] == 0.95
+
+
 def test_rejects_year_as_lottery_number(sample_stations):
     parser = _parser(sample_stations)
     ocr_by_region = {
@@ -447,6 +458,13 @@ def test_draw_date_field_accepts_dropped_separators(sample_stations):
     assert parser.normalise_field("drawDate", [OcrTextResult(text="23082026", confidence=0.9)]) == "2026-08-23"
     assert parser.normalise_field("drawDate", [OcrTextResult(text="99999999", confidence=0.9)]) is None
     assert parser.normalise_field("numbers", [OcrTextResult(text="23-08-26", confidence=0.9)]) is None
+
+
+def test_batch_field_drops_printed_label_glued_to_code(sample_stations):
+    parser = _parser(sample_stations)
+    assert parser.normalise_field("batchCode", [OcrTextResult(text="Vé8K4", confidence=0.9)]) == "8K4"
+    assert parser.normalise_field("batchCode", [OcrTextResult(text="05K22", confidence=0.9)]) == "05K22"
+    assert parser.normalise_field("batchCode", [OcrTextResult(text="L040", confidence=0.9)]) == "L040"
 
 
 def test_template_fields_ignore_whole_ticket_guesses(sample_stations):

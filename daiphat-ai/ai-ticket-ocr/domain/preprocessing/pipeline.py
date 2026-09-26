@@ -528,18 +528,29 @@ class ProcessedTicketCrop:
     fields that look crystal-clear in the Admin preview.
     """
 
-    def __init__(self, preview: np.ndarray, ocr_ready: np.ndarray) -> None:
+    def __init__(
+        self,
+        preview: np.ndarray,
+        ocr_ready: np.ndarray,
+        source_quad: list[tuple[float, float]] | None = None,
+    ) -> None:
         self.preview = preview
         self.ocr_ready = ocr_ready
+        # Upload pixels under the crop's TL, TR, BR, BL corners, when known.
+        self.source_quad = source_quad
 
 
 def rotate_crop(crop: ProcessedTicketCrop, quarter_turns: int) -> ProcessedTicketCrop:
     """Rotate both derivatives of a crop together, keeping them in sync."""
-    if quarter_turns % 4 == 0:
+    turns = quarter_turns % 4
+    if turns == 0:
         return crop
+    quad = crop.source_quad
     return ProcessedTicketCrop(
-        preview=rotate_quarter_turns(crop.preview, quarter_turns),
-        ocr_ready=rotate_quarter_turns(crop.ocr_ready, quarter_turns),
+        preview=rotate_quarter_turns(crop.preview, turns),
+        ocr_ready=rotate_quarter_turns(crop.ocr_ready, turns),
+        # A clockwise turn moves the old bottom-left corner to the top-left.
+        source_quad=(quad[-turns:] + quad[:-turns]) if quad else None,
     )
 
 

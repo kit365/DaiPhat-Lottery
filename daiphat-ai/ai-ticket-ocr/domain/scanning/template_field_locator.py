@@ -1,14 +1,17 @@
 """Locate ticket fields with a station's OCR template (legacy local path).
 
-Region coordinates are normalized 0..1 relative to the upright,
-perspective-warped ticket — the paper outline — which is also the space
-``OcrTextResult.x_center / y_center`` use when OCR runs on that ticket.
-
 Admin draws template boxes on a sample photo that usually includes desk
-background. The ``ticketFrame`` box marks the ticket on that photo; field
-boxes are re-expressed relative to the paper edges found inside it (or to
-the frame itself when the sample photo is unavailable). Without a frame the
-sample photo is assumed to be a tight ticket crop.
+background; the ``ticketFrame`` box marks the ticket on that photo and field
+boxes whose centre lies outside it are ignored.
+
+Regions are normalized 0..1 in one of two spaces:
+
+* the sample photo itself (``frame_relative=False``), when the sample is
+  registered onto the upload (see ``template_registration``);
+* the upright ticket outline, when it is not: boxes are re-expressed
+  relative to the paper edges found inside the frame (or to the frame when
+  the sample photo is unavailable). Without a frame the sample photo is
+  assumed to be a tight ticket crop.
 
 Template regions are the source of truth: nothing here moves them based on
 what OCR read.
@@ -129,13 +132,17 @@ def template_paper_quad(
 
 
 def regions_from_layouts(
-    layouts: list[FieldLayoutMetadata], paper_quad: Quad | None = None
+    layouts: list[FieldLayoutMetadata],
+    paper_quad: Quad | None = None,
+    *,
+    frame_relative: bool = True,
 ) -> list[TemplateRegion]:
     """Valid field boxes sorted by (field, priority). Lower priority first.
 
-    With a ticket frame, boxes whose centre lies outside the frame are dropped
-    and the rest are expressed relative to ``paper_quad`` (the paper edges on
-    the sample photo) when given, else relative to the frame.
+    With a ticket frame, boxes whose centre lies outside the frame are dropped.
+    When ``frame_relative`` the rest are expressed relative to ``paper_quad``
+    (the paper edges on the sample photo) when given, else relative to the
+    frame; otherwise they stay in sample-photo coordinates.
     """
     frame = template_frame(layouts)
     regions: list[TemplateRegion] = []
@@ -150,9 +157,9 @@ def regions_from_layouts(
         if frame is not None:
             if not frame.contains_center(x, y, w, h):
                 continue
-            if paper_quad is not None:
+            if frame_relative and paper_quad is not None:
                 x, y, w, h = paper_outline.box_relative_to_quad(paper_quad, x, y, w, h)
-            else:
+            elif frame_relative:
                 x, y, w, h = frame.to_frame(x, y, w, h)
         x0, y0 = max(0.0, x), max(0.0, y)
         x1, y1 = min(1.0, x + w), min(1.0, y + h)
@@ -201,30 +208,23 @@ def _contains_with_margin(region: TemplateRegion, x: float, y: float) -> bool:
     )
 
 
-def _normalized_distance(region: TemplateRegion, x: float, y: float) -> float:
-    cx, cy = region.center
-    return ((x - cx) / max(region.width, 1e-3)) ** 2 + ((y - cy) / max(region.height, 1e-3)) ** 2
-
-
-def assign_lines_to_regions(
-    lines: list[OcrTextResult],
+def lines_by_region(
+    located: list[tuple[OcrTextResult, float, float]],
     regions: list[TemplateRegion],
-) -> dict[str, list[OcrTextResult]]:
-    """Bind whole-ticket OCR lines to template fields by line centre.
+) -> dict[TemplateRegion, list[OcrTextResult]]:
+    """Whole-ticket OCR lines whose centre (in region space) falls in each region.
 
-    A line inside several (grown) regions goes to the one whose centre is
-    closest relative to its size. Raw text is kept untouched.
+    ``located`` pairs each line with its centre in the regions' space. A line
+    may belong to several regions: templates mark the same printed text for
+    more than one field (e.g. ``A 424944`` as both serial and number).
+    Raw text is kept untouched.
     """
-    assigned: dict[str, list[OcrTextResult]] = {}
-    if not regions:
-        return assigned
-    for line in lines or []:
-        hits = [r for r in regions if _contains_with_margin(r, line.x_center, line.y_center)]
-        if not hits:
-            continue
-        owner = min(hits, key=lambda r: (_normalized_distance(r, line.x_center, line.y_center), r.priority))
-        assigned.setdefault(owner.field_name, []).append(line)
-    return assigned
+    grouped: dict[TemplateRegion, list[OcrTextResult]] = {}
+    for line, x, y in located or []:
+        for region in regions or []:
+            if _contains_with_margin(region, x, y):
+                grouped.setdefault(region, []).append(line)
+    return grouped
 
 
 def region_to_pixels(

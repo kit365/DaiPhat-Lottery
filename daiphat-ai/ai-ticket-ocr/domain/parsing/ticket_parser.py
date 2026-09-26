@@ -58,6 +58,8 @@ _BATCH_PREFERRED = re.compile(
     r"|\d{1,2}-[A-Z]\d{1,3}[A-Z]?\d*"  # 26-T05K4
     r")$"
 )
+# A short printed label glued to the code ("Vé 8K4" read as "VÉ8K4").
+_BATCH_LABELLED = re.compile(r"^[^\W\d_]{1,3}(\d{1,2}[A-Z]\d{1,4})$")
 # Prize / slogan OCR often becomes fake batch codes (2TY from "2 tỷ").
 _BATCH_JUNK = frozenset(
     {
@@ -122,6 +124,18 @@ def _is_plausible_batch_token(token: str) -> bool:
     if ambiguous >= 2 and letters >= 3:
         return False
     return letters <= 3 and digits <= 5 and 3 <= len(cleaned) <= 8
+
+
+def is_preferred_batch_code(value: str | None) -> bool:
+    """True for the structured ký hiệu shapes issuers print (8K4, L040, 26-T05K4)."""
+    return bool(value) and bool(_BATCH_PREFERRED.match(value.strip().upper()))
+
+
+def _without_batch_label(token: str) -> str:
+    if _BATCH_PREFERRED.match(token):
+        return token
+    labelled = _BATCH_LABELLED.match(token)
+    return labelled.group(1) if labelled else token
 
 
 def _serial_joins_from_text(text: str) -> list[str]:
@@ -534,7 +548,7 @@ class TicketParser:
         if field_name == "batchCode":
             for result in sorted(results, key=lambda r: -r.confidence):
                 for token in _tokenize(result.text):
-                    cleaned = token.strip().upper()
+                    cleaned = _without_batch_label(token.strip().upper())
                     if _is_plausible_batch_token(cleaned):
                         return cleaned
                 collapsed = re.sub(r"\s+", "", result.text.strip()).upper()
@@ -639,6 +653,13 @@ class TicketParser:
                 positions["stationName"] = (best_line.position, best_line.x_center)
 
     def _best_station_match(self, lines: list[_Line]):
+        """(confidence, station, line) of the best-ranked station line.
+
+        Lines are ranked with position bonuses (header, centred) that can push
+        the rank above 1; the returned confidence is match quality times OCR
+        certainty, a 0..1 value.
+        """
+        best_rank = 0.0
         best_confidence = 0.0
         best_station = None
         best_line = None
@@ -665,8 +686,9 @@ class TicketParser:
                 + header_bonus
                 + center_bonus
             )
-            if combined > best_confidence:
-                best_confidence = combined
+            if combined > best_rank:
+                best_rank = combined
+                best_confidence = min(1.0, max(0.0, result.score * float(line.confidence)))
                 best_station = result.station
                 best_line = line
         return best_confidence, best_station, best_line

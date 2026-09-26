@@ -3,18 +3,20 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Callable
 
+import cv2
 import numpy as np
 
 from domain.detection.base import DetectedRegion, TicketDetectorStrategy
 from domain.layouts.factory import LayoutStrategyFactory
 from domain.layouts.yolo_field_layout import FIELD_REGION_PREFIX
 from domain.ocr.base import OcrStrategy
-from domain.parsing.ticket_parser import ParsedTicket, TicketParser
+from domain.parsing.ticket_parser import ParsedTicket, TicketParser, is_preferred_batch_code
 from domain.preprocessing import pipeline as image_pipeline
 from domain.preprocessing.pipeline import ProcessedTicketCrop
 from domain.ocr.base import OcrTextResult
 from domain.scanning import paper_outline
 from domain.scanning import template_field_locator as template_locator
+from domain.scanning import template_registration
 from domain.scanning.status_resolver import resolve_status
 from domain.scanning.yolo_llm_guidance import build_yolo_llm_guidance
 from domain.stations.default_aliases import DEFAULT_STATIONS
@@ -52,7 +54,17 @@ _REVIEW_JPEG_QUALITY = 88
 # text well enough to be assigned to template boxes (Paddle det side = 960).
 _TEMPLATE_WHOLE_MAX_DIMENSION = 960
 _TEMPLATE_TRUST_CONFIDENCE = 0.80
-_TEMPLATE_FIELD_PAD_RATIO = 0.06
+_TEMPLATE_FIELD_PAD_RATIO = 0.08
+# A template region this much taller than wide holds vertical print.
+_VERTICAL_TEXT_ASPECT = 1.3
+# Ranking a field's readings across its regions: confidence of the lines that
+# produced the value, adjusted for priority, line count, shape and agreement.
+_PRIORITY_PENALTY = 0.05
+_MULTI_LINE_PENALTY = 0.05
+_LETTERED_SERIAL_BONUS = 0.15
+_FULL_NUMBER_BONUS = 0.10
+_PREFERRED_BATCH_BONUS = 0.10
+_AGREEMENT_BONUS = 0.10
 
 DetectorProvider = Callable[[str | None, int | None], TicketDetectorStrategy]
 
@@ -225,6 +237,147 @@ def _ocr_score(lines: list[OcrTextResult]) -> float:
     return sum(float(line.confidence) for line in lines or [])
 
 
+@dataclass
+class _FieldReading:
+    value: str
+    lines: list[OcrTextResult]
+    region: "template_locator.TemplateRegion"
+    origin: str
+    score: float
+
+
+def _line_groups(lines: list[OcrTextResult]) -> list[list[OcrTextResult]]:
+    """Each line alone, neighbouring pairs in reading order, then all together.
+
+    A region's margin can catch a neighbour's print (the price beside the
+    serial); judging lines separately keeps it from gluing onto the value,
+    while the joins still recover a value OCR split in two.
+    """
+    ordered = sorted(lines, key=lambda line: (line.x_center, line.y_center))
+    groups = [[line] for line in ordered]
+    if len(ordered) > 2:
+        groups.extend(ordered[i : i + 2] for i in range(len(ordered) - 1))
+    if len(ordered) > 1:
+        groups.append(ordered)
+    return groups
+
+
+def _has_expected_shape(field_name: str, value: str, expected_length: int | None) -> bool:
+    if field_name == "serialNumber":
+        return any(ch.isalpha() for ch in value)
+    if field_name == "numbers":
+        return len(value) == (expected_length or 6)
+    if field_name == "batchCode":
+        return is_preferred_batch_code(value)
+    return True
+
+
+def _reading_score(
+    field_name: str,
+    value: str,
+    lines: list[OcrTextResult],
+    priority: int,
+    expected_length: int | None,
+) -> float:
+    score = (
+        min(float(line.confidence) for line in lines)
+        - _PRIORITY_PENALTY * (priority - 1)
+        - _MULTI_LINE_PENALTY * (len(lines) - 1)
+    )
+    if _has_expected_shape(field_name, value, expected_length):
+        score += {
+            "serialNumber": _LETTERED_SERIAL_BONUS,
+            "numbers": _FULL_NUMBER_BONUS,
+            "batchCode": _PREFERRED_BATCH_BONUS,
+        }.get(field_name, 0.0)
+    return score
+
+
+def _is_decisive(reading: _FieldReading, field_name: str, expected_length: int | None) -> bool:
+    """One confident line with the field's expected shape: no need to read further."""
+    return (
+        len(reading.lines) == 1
+        and float(reading.lines[0].confidence) >= _TEMPLATE_TRUST_CONFIDENCE
+        and _has_expected_shape(field_name, reading.value, expected_length)
+    )
+
+
+_UNIT_SQUARE = np.float32([[0, 0], [1, 0], [1, 1], [0, 1]])
+
+
+def _unit_square_to(quad: list[tuple[float, float]]) -> np.ndarray:
+    return cv2.getPerspectiveTransform(_UNIT_SQUARE, np.float32(quad))
+
+
+@dataclass
+class _TemplatePlacement:
+    """A template's regions and where they lie on the upload.
+
+    ``to_upload`` maps region space (see template_field_locator) to upload
+    pixels: the registered sample photo, or the upright ticket outline.
+    """
+
+    regions: list[template_locator.TemplateRegion]
+    to_upload: np.ndarray
+    method: str
+
+    def upload_quad(
+        self, region: template_locator.TemplateRegion, *, pad_ratio: float = 0.0
+    ) -> list[tuple[float, float]]:
+        pad_x, pad_y = region.width * pad_ratio, region.height * pad_ratio
+        x0, y0 = region.x - pad_x, region.y - pad_y
+        x1, y1 = region.x + region.width + pad_x, region.y + region.height + pad_y
+        return template_registration.project(
+            self.to_upload, [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
+        )
+
+    def locate_crop_lines(
+        self, lines: list[OcrTextResult], crop: ProcessedTicketCrop
+    ) -> list[tuple[OcrTextResult, float, float]]:
+        """Whole-ticket line centres (crop-normalized) → region space."""
+        if not lines or crop.source_quad is None:
+            return []
+        crop_to_region = np.linalg.inv(self.to_upload) @ _unit_square_to(crop.source_quad)
+        centres = template_registration.project(
+            crop_to_region, [(line.x_center, line.y_center) for line in lines]
+        )
+        return [(line, x, y) for line, (x, y) in zip(lines, centres)]
+
+
+def _quad_to_crop_box(
+    quad: list[tuple[float, float]], crop: ProcessedTicketCrop, width: int, height: int
+) -> tuple[int, int, int, int] | None:
+    """Upload quad → axis-aligned box in crop pixels (``width`` x ``height``)."""
+    if crop.source_quad is None:
+        return None
+    upload_to_crop = np.linalg.inv(_unit_square_to(crop.source_quad))
+    points = template_registration.project(upload_to_crop, quad)
+    x0 = max(0.0, min(p[0] for p in points))
+    y0 = max(0.0, min(p[1] for p in points))
+    x1 = min(1.0, max(p[0] for p in points))
+    y1 = min(1.0, max(p[1] for p in points))
+    if x1 <= x0 or y1 <= y0:
+        return None
+    x, y = int(round(x0 * width)), int(round(y0 * height))
+    return x, y, max(1, int(round(x1 * width)) - x), max(1, int(round(y1 * height)) - y)
+
+
+def _quad_to_bounding_box(quad: list[tuple[float, float]], scale: float) -> BoundingBox:
+    """Upload quad → box in detector-image coordinates (the ticket ``bbox`` space)."""
+    points = [(x / scale, y / scale) for x, y in quad]
+    x0 = max(0, int(np.floor(min(p[0] for p in points))))
+    y0 = max(0, int(np.floor(min(p[1] for p in points))))
+    x1 = int(np.ceil(max(p[0] for p in points)))
+    y1 = int(np.ceil(max(p[1] for p in points)))
+    return BoundingBox(
+        x=x0,
+        y=y0,
+        width=max(1, x1 - x0),
+        height=max(1, y1 - y0),
+        corners=[[int(round(x)), int(round(y))] for x, y in points],
+    )
+
+
 def _map_box_to_ticket_local(
     field_box: tuple[int, int, int, int],
     ticket_box: tuple[int, int, int, int],
@@ -263,6 +416,7 @@ class TicketScanService:
     ) -> None:
         self._sample_loader = template_sample_loader or load_sample_image
         self._paper_quad_cache: dict = {}
+        self._sample_features_cache: dict = {}
         self._detector_provider = detector_provider
         self._ocr_strategy = ocr_strategy
         self._validator = validator
@@ -817,6 +971,11 @@ class TicketScanService:
             if by < int(ch * 0.45):
                 crop_local_boxes["batchCode"] = _heuristic_batch_box(0, 0, cw, ch)
 
+        # Confidences are 0..1 fractions on the wire; clients scale them to %.
+        parsed.field_confidences = {
+            name: min(1.0, max(0.0, float(value)))
+            for name, value in parsed.field_confidences.items()
+        }
         validation = self._validator.validate(parsed.extracted, expected_number_length=expected_length)
         status, confidence = resolve_status(
             parsed.field_confidences,
@@ -877,14 +1036,17 @@ class TicketScanService:
         source: np.ndarray | None = None,
         source_scale: float = 1.0,
     ) -> TicketScanResult:
-        """YOLO ticket → paper outline on the original upload → station → template fields.
+        """YOLO ticket → station → template placed on the original upload → fields.
 
         ``region`` is in ``image`` (detector-sized) pixels; ``source`` is the
         original upload, ``source_scale`` its size relative to ``image``.
-        Field boxes are the template regions as configured: OCR reads inside
-        them but never moves them.
+        YOLO only locates the ticket; field regions are projected onto the
+        original pixels and OCR reads them there. Field boxes are the template
+        regions as configured: OCR reads inside them but never moves them.
         """
-        crop, snapped = self._template_ticket_crop(image, region, source, source_scale)
+        upload = source if source is not None else image
+        scale = source_scale if source is not None else 1.0
+        crop = self._template_ticket_crop(image, region, source, source_scale)
         crop = self._correct_orientation(crop)
         whole_lines, station_parsed = self._read_whole_ticket(crop, parser)
 
@@ -918,13 +1080,8 @@ class TicketScanService:
         station_id = _station_id_for(ctx.stations, station_code, station_name)
 
         template = template_locator.select_station_template(station_id, ctx.station_templates)
-        paper_quad = self._template_paper_quad(template) if template is not None else None
-        regions = (
-            template_locator.regions_from_layouts(list(template.fieldLayouts), paper_quad)
-            if template is not None
-            else []
-        )
-        if not regions:
+        placement = self._place_template(template, crop, upload) if template is not None else None
+        if placement is None or not placement.regions:
             logger.info(
                 "Ticket #%s: no OCR template for station=%s (id=%s) — generic layout",
                 index,
@@ -953,74 +1110,53 @@ class TicketScanService:
             )
 
         expected_length = expected_lengths_by_code.get(station_code) if station_code else None
-        frame = template_locator.template_frame(list(template.fieldLayouts))
-        if frame is None:
-            logger.info(
-                "Ticket #%s: template %s has no ticketFrame — boxes treated as "
-                "relative to the whole sample photo",
-                index,
-                template.templateId,
-            )
-        grouped = template_locator.group_by_field(regions)
-        assigned = template_locator.assign_lines_to_regions(whole_lines, regions)
+        grouped = template_locator.group_by_field(placement.regions)
+        in_region = template_locator.lines_by_region(
+            placement.locate_crop_lines(whole_lines, crop), placement.regions
+        )
 
         ch, cw = crop.ocr_ready.shape[:2]
         ocr_results_by_region: dict[str, list] = {"whole": whole_lines, **extra_regions}
         crop_local_boxes: dict[str, tuple[int, int, int, int]] = {}
+        source_field_boxes: dict[str, BoundingBox] = {}
         used_layouts: dict[str, int] = {}
         from_whole: list[str] = []
-        from_crop: list[str] = []
+        from_upload: list[str] = []
 
         for field_name in _FIELD_OCR_ORDER:
             field_regions = grouped.get(field_name)
             if not field_regions:
                 continue
-            key = f"{FIELD_REGION_PREFIX}{field_name}"
             used_region = field_regions[0]
 
             if not (field_name == "stationName" and station_name):
-                assigned_lines = assigned.get(field_name) or []
-                if assigned_lines and self._template_lines_trusted(
-                    parser, field_name, assigned_lines, expected_length
-                ):
-                    ocr_results_by_region[key] = assigned_lines
-                    from_whole.append(field_name)
-                else:
-                    # Weak / missing in the whole-ticket read: charset-constrained
-                    # read of each template box in priority order.
-                    chosen: list | None = None
-                    for field_region in field_regions:
-                        lines = self._ocr_template_field(
-                            crop, field_region, field_name, parser, expected_length
-                        )
-                        if lines and parser.normalise_field(field_name, lines, expected_length) is not None:
-                            chosen, used_region = lines, field_region
-                            break
-                    if chosen is None and assigned_lines:
-                        chosen = assigned_lines
-                    if chosen:
-                        ocr_results_by_region[key] = chosen
-                        from_crop.append(field_name)
+                lines, used_region, origin = self._read_template_field(
+                    upload, placement, field_name, field_regions, in_region, parser, expected_length
+                )
+                if lines:
+                    ocr_results_by_region[f"{FIELD_REGION_PREFIX}{field_name}"] = lines
+                    read_from = from_whole if origin == "whole" else from_upload
+                    read_from.append(f"{field_name}#{used_region.priority}")
 
-            box = template_locator.region_to_pixels(used_region, cw, ch)
+            quad = placement.upload_quad(used_region)
+            box = _quad_to_crop_box(quad, crop, cw, ch)
             if box is not None:
                 crop_local_boxes[field_name] = box
+            source_field_boxes[field_name] = _quad_to_bounding_box(quad, scale)
             if used_region.layout_id is not None:
                 used_layouts[field_name] = used_region.layout_id
 
         logger.info(
-            "Ticket #%s template OCR: station=%s id=%s templateId=%s frame=%s "
-            "samplePaper=%s ticketPaper=%s whole_lines=%s fields_from_whole=%s fields_reocr=%s",
+            "Ticket #%s template OCR: station=%s id=%s templateId=%s placement=%s "
+            "whole_lines=%s fields_from_whole=%s fields_from_upload=%s",
             index,
             station_name,
             station_id,
             template.templateId,
-            frame is not None,
-            paper_quad is not None,
-            snapped,
+            placement.method,
             len(whole_lines),
             from_whole,
-            from_crop,
+            from_upload,
         )
 
         result = self._finalize_ticket(
@@ -1034,7 +1170,9 @@ class TicketScanService:
             retarget_batch_box=False,
             template_fields=frozenset(grouped),
         )
-        return result.model_copy(update={"usedFieldLayouts": used_layouts})
+        return result.model_copy(
+            update={"usedFieldLayouts": used_layouts, "sourceFieldBoxes": source_field_boxes}
+        )
 
     def _template_ticket_crop(
         self,
@@ -1042,12 +1180,13 @@ class TicketScanService:
         region: DetectedRegion,
         source: np.ndarray | None,
         source_scale: float,
-    ) -> tuple[ProcessedTicketCrop, bool]:
-        """Rectify the ticket out of the original upload along its paper edges.
+    ) -> ProcessedTicketCrop:
+        """Rectify the YOLO ticket outline out of the original upload.
 
-        ``preview`` keeps the original pixels (what OCR reads and Admin sees);
-        ``ocr_ready`` is the enhanced copy used only when the original read
-        comes up empty. Returns whether the outline was snapped to the paper.
+        Used for the whole-ticket read (station + text positions). ``preview``
+        keeps the original pixels; ``ocr_ready`` is the enhanced copy used only
+        when the original read comes up empty. ``source_quad`` records where
+        the crop lies on the upload.
         """
         src = source if source is not None else image
         scale = source_scale if source is not None else 1.0
@@ -1061,18 +1200,95 @@ class TicketScanService:
                 ((x + w) * scale, (y + h) * scale),
                 (x * scale, (y + h) * scale),
             ]
-        snapped = None
-        if bool(getattr(settings, "TICKET_VISION_TEMPLATE_PAPER_SNAP", True)):
-            snapped = paper_outline.refine_paper_quad(src, quad)
-        corners = [(int(round(x)), int(round(y))) for x, y in (snapped or quad)]
-        warped = image_pipeline.perspective_warp(src, corners)
+        warped = image_pipeline.perspective_warp(src, quad)
         preview = image_pipeline.resize_if_needed(
             warped, int(getattr(settings, "TICKET_VISION_TEMPLATE_CANVAS_MAX_DIMENSION", 2400))
         )
         ocr_source = image_pipeline.resize_if_needed(preview, self._max_image_dimension)
         ocr_source = image_pipeline.remove_glare(image_pipeline.upscale_if_too_small(ocr_source))
         ocr_ready = image_pipeline.enhance_for_ocr(ocr_source)
-        return ProcessedTicketCrop(preview=preview, ocr_ready=ocr_ready), snapped is not None
+        return ProcessedTicketCrop(preview=preview, ocr_ready=ocr_ready, source_quad=quad)
+
+    def _place_template(
+        self,
+        template: StationTemplateMetadata,
+        crop: ProcessedTicketCrop,
+        upload: np.ndarray,
+    ) -> _TemplatePlacement | None:
+        """Where the template's regions lie on the upload.
+
+        Preferred: the sample photo registered onto the upload, regions kept
+        in sample-photo coordinates. Fallback: regions relative to the sample
+        paper, laid onto the ticket's paper outline (or the YOLO outline).
+        """
+        if crop.source_quad is None:
+            return None
+        layouts = list(template.fieldLayouts)
+        to_upload = self._register_template(template, upload, crop.source_quad)
+        if to_upload is not None:
+            return _TemplatePlacement(
+                regions=template_locator.regions_from_layouts(layouts, frame_relative=False),
+                to_upload=to_upload,
+                method="registered",
+            )
+        regions = template_locator.regions_from_layouts(layouts, self._template_paper_quad(template))
+        outline, snapped = self._ticket_outline(upload, crop.source_quad)
+        return _TemplatePlacement(
+            regions=regions,
+            to_upload=_unit_square_to(outline),
+            method="paper" if snapped else "outline",
+        )
+
+    def _register_template(
+        self,
+        template: StationTemplateMetadata,
+        upload: np.ndarray,
+        ticket_quad: list[tuple[float, float]],
+    ) -> np.ndarray | None:
+        """Homography: sample-photo normalized coords → upload pixels, or None."""
+        if not bool(getattr(settings, "TICKET_VISION_TEMPLATE_REGISTRATION", True)):
+            return None
+        features = self._template_features(template)
+        if features is None:
+            return None
+        matrix = template_registration.register(features, upload, ticket_quad)
+        if matrix is None:
+            return None
+        return matrix @ np.diag([float(features.photo_width), float(features.photo_height), 1.0])
+
+    def _template_features(
+        self, template: StationTemplateMetadata
+    ) -> template_registration.SampleFeatures | None:
+        """Features of the ticket on the template sample photo, cached per template."""
+        if not template.sampleImageUrl:
+            return None
+        frame = template_locator.template_frame(list(template.fieldLayouts))
+        key = (template.templateId, template.sampleImageUrl, frame)
+        if key not in self._sample_features_cache:
+            sample = self._sample_loader(template.sampleImageUrl)
+            if sample is None:
+                return None
+            box = (frame.x, frame.y, frame.width, frame.height) if frame else (0.0, 0.0, 1.0, 1.0)
+            self._sample_features_cache[key] = template_registration.sample_features(sample, box)
+        return self._sample_features_cache[key]
+
+    @staticmethod
+    def _ticket_outline(
+        upload: np.ndarray, quad: list[tuple[float, float]]
+    ) -> tuple[list[tuple[float, float]], bool]:
+        """Paper edges near the YOLO outline, in the outline's corner order."""
+        if not bool(getattr(settings, "TICKET_VISION_TEMPLATE_PAPER_SNAP", True)):
+            return quad, False
+        snapped = paper_outline.refine_paper_quad(upload, quad)
+        if snapped is None:
+            return quad, False
+        # Keep the upright ticket orientation the outline carries.
+        rolls = [snapped[r:] + snapped[:r] for r in range(4)]
+        best = min(
+            rolls,
+            key=lambda cand: sum(float(np.hypot(a[0] - b[0], a[1] - b[1])) for a, b in zip(cand, quad)),
+        )
+        return best, True
 
     def _template_paper_quad(self, template: StationTemplateMetadata):
         """Paper edges on the template sample photo, cached per template."""
@@ -1115,43 +1331,119 @@ class TicketScanService:
             max_dimension=_TEMPLATE_WHOLE_MAX_DIMENSION,
         )
 
-    def _ocr_template_field(
+    def _read_template_field(
         self,
-        crop: ProcessedTicketCrop,
+        upload: np.ndarray,
+        placement: _TemplatePlacement,
+        field_name: str,
+        field_regions: list[template_locator.TemplateRegion],
+        in_region: dict[template_locator.TemplateRegion, list[OcrTextResult]],
+        parser: TicketParser,
+        expected_length: int | None,
+    ) -> tuple[list, template_locator.TemplateRegion, str]:
+        """Best reading of one field across its template regions.
+
+        The whole-ticket lines inside each region are judged first (free),
+        then OCR of each region cut from the upload. A decisive reading ends
+        the search; otherwise the best-scoring one wins, so a stylized,
+        low-confidence print in region #1 cannot beat a clean copy of the
+        same value in region #2. Returned lines are only those that produced
+        the value.
+        """
+        readings: list[_FieldReading] = []
+
+        def consider(lines: list, region: template_locator.TemplateRegion, origin: str):
+            decisive: _FieldReading | None = None
+            for group in _line_groups(lines):
+                value = parser.normalise_field(field_name, group, expected_length)
+                if value is None:
+                    continue
+                reading = _FieldReading(
+                    value,
+                    group,
+                    region,
+                    origin,
+                    _reading_score(field_name, value, group, region.priority, expected_length),
+                )
+                readings.append(reading)
+                if _is_decisive(reading, field_name, expected_length) and (
+                    decisive is None or reading.score > decisive.score
+                ):
+                    decisive = reading
+            return decisive
+
+        for region in field_regions:
+            decisive = consider(in_region.get(region) or [], region, "whole")
+            if decisive is not None:
+                return decisive.lines, decisive.region, decisive.origin
+        for region in field_regions:
+            lines = self._ocr_upload_region(
+                upload, placement, region, field_name, parser, expected_length
+            )
+            decisive = consider(lines, region, "upload")
+            if decisive is not None:
+                return decisive.lines, decisive.region, decisive.origin
+        if not readings:
+            return [], field_regions[0], "none"
+
+        def agreed_score(reading: _FieldReading) -> float:
+            others = {
+                (other.region, other.origin)
+                for other in readings
+                if other.value == reading.value
+                and (other.region, other.origin) != (reading.region, reading.origin)
+            }
+            return reading.score + _AGREEMENT_BONUS * len(others)
+
+        best = max(readings, key=agreed_score)
+        return best.lines, best.region, best.origin
+
+    def _ocr_upload_region(
+        self,
+        upload: np.ndarray,
+        placement: _TemplatePlacement,
         region: template_locator.TemplateRegion,
         field_name: str,
         parser: TicketParser,
         expected_length: int | None,
     ) -> list:
-        """Read one template box: original pixels first, enhanced copy as retry.
+        """OCR one template region rectified straight out of the upload.
 
-        The crop is padded slightly so edge glyphs survive; the padding is an
-        OCR margin only and never reaches the returned field box.
+        The cut is padded slightly so edge glyphs survive; the padding is an
+        OCR margin only and never reaches the returned field box. Tall regions
+        hold vertical print (serial along the ticket edge) and are read after
+        a quarter turn either way. Original pixels first, enhanced as retry.
         """
+        quad = placement.upload_quad(region, pad_ratio=_TEMPLATE_FIELD_PAD_RATIO)
+        patch = image_pipeline.perspective_warp(upload, quad)
+        if patch is None or patch.size == 0 or min(patch.shape[:2]) < 4:
+            return []
+        turns = (1, 3) if patch.shape[0] > patch.shape[1] * _VERTICAL_TEXT_ASPECT else (0,)
         fallback: list = []
-        for canvas in (crop.preview, crop.ocr_ready):
-            if canvas is None or canvas.size == 0:
-                continue
-            height, width = canvas.shape[:2]
-            px = template_locator.region_to_pixels(region, width, height)
-            if px is None:
-                continue
-            fx, fy, fw, fh = image_pipeline.expand_bbox(
-                px[0], px[1], px[2], px[3], width, height,
-                pad_ratio=_TEMPLATE_FIELD_PAD_RATIO,
-                min_pad_px=4,
-            )
-            field_crop = canvas[fy : fy + fh, fx : fx + fw]
-            if field_crop.size == 0:
-                continue
-            lines = self._ocr_region(
-                image_pipeline.upscale_if_too_small(field_crop),
-                field_hint=field_name,
-                already_enhanced=True,
-            )
-            if lines and parser.normalise_field(field_name, lines, expected_length) is not None:
-                return lines
-            fallback = fallback or lines
+        for enhanced in (False, True):
+            canvas = patch
+            if enhanced:
+                canvas = image_pipeline.enhance_for_ocr(
+                    image_pipeline.remove_glare(image_pipeline.upscale_if_too_small(patch))
+                )
+            best: list | None = None
+            for quarter_turns in turns:
+                lines = self._ocr_region(
+                    image_pipeline.upscale_if_too_small(
+                        image_pipeline.rotate_quarter_turns(canvas, quarter_turns)
+                    ),
+                    field_hint=field_name,
+                    already_enhanced=True,
+                )
+                if not lines:
+                    continue
+                if parser.normalise_field(field_name, lines, expected_length) is None:
+                    fallback = fallback or lines
+                    continue
+                if best is None or _ocr_score(lines) > _ocr_score(best):
+                    best = lines
+            if best is not None:
+                return best
         return fallback
 
     def _probe_station_banner(
@@ -1183,25 +1475,6 @@ class TicketScanService:
             if name:
                 return name, lines
         return None, []
-
-    @staticmethod
-    def _template_lines_trusted(
-        parser: TicketParser,
-        field_name: str,
-        lines: list[OcrTextResult],
-        expected_length: int | None,
-    ) -> bool:
-        """Whole-ticket lines inside the template box are good enough to skip re-OCR."""
-        if max(float(line.confidence) for line in lines) < _TEMPLATE_TRUST_CONFIDENCE:
-            return False
-        value = parser.normalise_field(field_name, lines, expected_length)
-        if value is None:
-            return False
-        # Digit-only serial reads usually dropped the letter — the allowlist
-        # crop recovers it.
-        if field_name == "serialNumber" and not any(ch.isalpha() for ch in value):
-            return False
-        return True
 
     def _correct_orientation(self, crop: ProcessedTicketCrop) -> ProcessedTicketCrop:
         axis_hint = image_pipeline.dominant_text_axis(crop.ocr_ready)

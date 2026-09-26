@@ -247,9 +247,12 @@ class Settings(BaseSettings):
     TICKET_VISION_LEGACY_TEMPLATE_STRATEGY: bool = True
     # YOLO field-class boxes (serial/date/…) are unreliable — opt-in fallback.
     TICKET_VISION_LEGACY_USE_YOLO_FIELDS: bool = False
-    # Snap the template ticketFrame (on the sample photo) and the YOLO ticket
-    # box (on the upload) to the paper edges, so template field boxes keep
-    # their position on the paper even when the frame was drawn loosely.
+    # Match the template sample photo onto the upload (image features) and
+    # project field boxes through that homography into original pixels.
+    TICKET_VISION_TEMPLATE_REGISTRATION: bool = True
+    # Fallback when registration fails: snap the template ticketFrame (on the
+    # sample photo) and the YOLO ticket box (on the upload) to the paper
+    # edges, so field boxes keep their position on the paper.
     TICKET_VISION_TEMPLATE_PAPER_SNAP: bool = True
     TICKET_VISION_TEMPLATE_SAMPLE_TIMEOUT_SECONDS: float = 6.0
     # Template path warps the ticket from the original upload (not the

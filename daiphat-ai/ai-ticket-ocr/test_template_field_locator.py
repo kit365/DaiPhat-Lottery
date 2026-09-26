@@ -153,23 +153,25 @@ def test_regions_are_relative_to_sample_paper_not_loose_frame():
 # --- assignment -------------------------------------------------------------------
 
 
-def test_assign_lines_to_regions_by_centre_keeps_raw_text():
-    regions = [
-        locator.TemplateRegion("numbers", 1, 0.1, 0.45, 0.8, 0.2),
-        locator.TemplateRegion("drawDate", 1, 0.05, 0.75, 0.5, 0.1),
-        locator.TemplateRegion("serialNumber", 1, 0.1, 0.30, 0.8, 0.1),
-    ]
+def _located(lines):
+    return [(line, line.x_center, line.y_center) for line in lines]
+
+
+def test_lines_by_region_uses_centres_and_keeps_raw_text():
+    numbers = locator.TemplateRegion("numbers", 1, 0.1, 0.45, 0.8, 0.2)
+    draw_date = locator.TemplateRegion("drawDate", 1, 0.05, 0.75, 0.5, 0.1)
+    serial = locator.TemplateRegion("serialNumber", 1, 0.1, 0.30, 0.8, 0.1)
     lines = [
         _line("1 2 3 4 5 6", 0.5, 0.55),
         _line("05/08/2026", 0.3, 0.80),
         _line("188435 S", 0.5, 0.34),
         _line("Giải đặc biệt", 0.9, 0.02),  # outside every region
     ]
-    assigned = locator.assign_lines_to_regions(lines, regions)
-    assert [r.text for r in assigned["numbers"]] == ["1 2 3 4 5 6"]
-    assert [r.text for r in assigned["drawDate"]] == ["05/08/2026"]
-    assert [r.text for r in assigned["serialNumber"]] == ["188435 S"]
-    assert sum(len(v) for v in assigned.values()) == 3
+    grouped = locator.lines_by_region(_located(lines), [numbers, draw_date, serial])
+    assert [r.text for r in grouped[numbers]] == ["1 2 3 4 5 6"]
+    assert [r.text for r in grouped[draw_date]] == ["05/08/2026"]
+    assert [r.text for r in grouped[serial]] == ["188435 S"]
+    assert sum(len(v) for v in grouped.values()) == 3
 
 
 def test_large_region_does_not_swallow_neighbouring_text():
@@ -180,17 +182,16 @@ def test_large_region_does_not_swallow_neighbouring_text():
         _line("23-08-2026", 0.12, 0.90),
         _line("Vé 8K4", 0.14, 0.72),
     ]
-    assigned = locator.assign_lines_to_regions(lines, [numbers])
-    assert [r.text for r in assigned["numbers"]] == ["4 2 4 9 4 4"]
+    grouped = locator.lines_by_region(_located(lines), [numbers])
+    assert [r.text for r in grouped[numbers]] == ["4 2 4 9 4 4"]
 
 
-def test_overlapping_regions_assign_to_nearest_centre():
-    regions = [
-        locator.TemplateRegion("serialNumber", 1, 0.1, 0.30, 0.8, 0.12),
-        locator.TemplateRegion("numbers", 1, 0.1, 0.40, 0.8, 0.2),
-    ]
-    assigned = locator.assign_lines_to_regions([_line("654321", 0.5, 0.49)], regions)
-    assert list(assigned) == ["numbers"]
+def test_text_marked_for_several_fields_belongs_to_each_region():
+    # Kiên Giang: "A 424944" top-right is marked as both serial and number.
+    serial = locator.TemplateRegion("serialNumber", 3, 0.64, 0.51, 0.2, 0.04)
+    numbers = locator.TemplateRegion("numbers", 2, 0.68, 0.51, 0.16, 0.04)
+    grouped = locator.lines_by_region(_located([_line("A424944", 0.75, 0.53)]), [serial, numbers])
+    assert set(grouped) == {serial, numbers}
 
 
 # --- metadata ---------------------------------------------------------------------
@@ -416,12 +417,99 @@ def test_template_path_maps_sample_paper_onto_scanned_paper(sample_stations):
 
     assert result.extracted.drawDate == "2026-08-05"
     assert result.usedFieldLayouts == {"stationName": 31, "drawDate": 32}
-    date_box = result.fieldBoxes["drawDate"]
-    # Paper warp ≈ 1200x600: the box lands on paper-relative (0.70, 0.40, 0.20, 0.10).
-    assert date_box.x == pytest.approx(0.70 * 1200, abs=20)
-    assert date_box.y == pytest.approx(0.40 * 600, abs=12)
-    assert date_box.width == pytest.approx(0.20 * 1200, abs=20)
-    assert date_box.height == pytest.approx(0.10 * 600, abs=12)
+    # Scanned paper spans (400..1600, 500..1100) on the upload; the box lands on
+    # paper-relative (0.70, 0.40, 0.20, 0.10), reported in detector (half) pixels.
+    date_box = result.sourceFieldBoxes["drawDate"]
+    assert date_box.x == pytest.approx((400 + 0.70 * 1200) / 2, abs=10)
+    assert date_box.y == pytest.approx((500 + 0.40 * 600) / 2, abs=6)
+    assert date_box.width == pytest.approx(0.20 * 1200 / 2, abs=10)
+    assert date_box.height == pytest.approx(0.10 * 600 / 2, abs=6)
+    assert len(date_box.corners) == 4
+
+
+def _textured_ticket(width=600, height=300):
+    rng = np.random.default_rng(11)
+    ticket = cv2.resize(
+        rng.integers(0, 255, size=(height // 6, width // 6, 3), dtype=np.uint8),
+        (width, height),
+        interpolation=cv2.INTER_NEAREST,
+    )
+    for i in range(12):
+        cv2.putText(ticket, f"{i * 7919 % 100000:05d}", (20 + 45 * (i % 12), 40 + 20 * (i % 11)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+    return ticket
+
+
+def _place(ticket, quad, size):
+    th, tw = ticket.shape[:2]
+    src = np.float32([[0, 0], [tw, 0], [tw, th], [0, th]])
+    matrix = cv2.getPerspectiveTransform(src, np.float32(quad))
+    background = np.full((size[0], size[1], 3), 110, dtype=np.uint8)
+    warped = cv2.warpPerspective(ticket, matrix, (size[1], size[0]))
+    mask = cv2.warpPerspective(np.full((th, tw), 255, np.uint8), matrix, (size[1], size[0]))
+    background[mask > 0] = warped[mask > 0]
+    return background
+
+
+def test_template_regions_follow_the_registered_sample_onto_the_original(sample_stations):
+    ticket = _textured_ticket()
+    sample_quad = [(300, 300), (900, 300), (900, 600), (300, 600)]
+    sample = _place(ticket, sample_quad, (900, 1200))
+    sh, sw = 900, 1200
+
+    def on_sample(fx, fy, fw, fh):
+        return (300 + fx * 600) / sw, (300 + fy * 300) / sh, fw * 600 / sw, fh * 300 / sh
+
+    template = StationTemplateMetadata(
+        stationId=2,
+        templateId=28,
+        sampleImageUrl="https://example.test/textured.jpg",
+        fieldLayouts=[
+            _layout("ticketFrame", 250 / sw, 270 / sh, 700 / sw, 360 / sh),
+            _layout("drawDate", *on_sample(0.70, 0.40, 0.20, 0.10), layout_id=51),
+        ],
+    )
+    # Upload: tilted, scaled copy; the YOLO outline is loose around it.
+    scan_quad = [(420, 520), (1580, 480), (1600, 1080), (400, 1110)]
+    upload = _place(ticket, scan_quad, (1600, 2000))
+    yolo_quad = [(380, 450), (1640, 450), (1640, 1140), (380, 1140)]
+    region = DetectedRegion(bbox=(380, 450, 1260, 690), corners=yolo_quad)
+
+    ocr = _FieldHintOcr(whole=[_line("Cần Thơ", 0.5, 0.12)], by_field={"drawDate": [_line("05/08/2026", 0.5, 0.5)]})
+    service = TicketScanService(
+        detector_provider=None,
+        ocr_strategy=ocr,
+        validator=FormatValidator(),
+        max_file_size_mb=10,
+        max_image_dimension=1920,
+        station_fuzzy_threshold=80,
+        high_confidence_threshold=0.9,
+        low_confidence_threshold=0.5,
+        include_cropped_image=False,
+        template_sample_loader=lambda url: sample,
+    )
+    parser = TicketParser(StationMatcher(sample_stations), station_fuzzy_threshold=80)
+    ctx = _TemplateContext(stations=sample_stations, station_templates=[template])
+    registrations = []
+    register = service._register_template
+    service._register_template = lambda *args: registrations.append(register(*args)) or registrations[-1]
+
+    result = service._scan_one_region_with_template(
+        upload, region, 0, parser, {}, ctx, fallback_region=region, fallback_field_boxes={}
+    )
+
+    assert registrations and registrations[0] is not None
+    assert result.extracted.drawDate == "2026-08-05"
+    th, tw = ticket.shape[:2]
+    to_scan = cv2.getPerspectiveTransform(
+        np.float32([[0, 0], [tw, 0], [tw, th], [0, th]]), np.float32(scan_quad)
+    )
+    expected = cv2.perspectiveTransform(
+        np.float32([[[0.70 * tw, 0.40 * th]], [[0.90 * tw, 0.40 * th]], [[0.90 * tw, 0.50 * th]], [[0.70 * tw, 0.50 * th]]]),
+        to_scan,
+    ).reshape(-1, 2)
+    corners = np.float32(result.sourceFieldBoxes["drawDate"].corners)
+    assert np.abs(corners - expected).max() <= 6
 
 
 def test_template_boxes_are_the_source_of_truth(sample_stations):
@@ -464,6 +552,49 @@ def test_template_boxes_are_the_source_of_truth(sample_stations):
     assert result.extracted.batchCode == "8K4"
     assert result.extracted.serialNumber == "A424944"
     assert [hint for hint in ocr.calls if hint is not None] == []
+
+
+def test_clean_copy_in_later_priority_beats_stylized_first_region(sample_stations):
+    # Kiên Giang: big stylized digits (#1) read badly; "A 424944" top-right
+    # is also marked for the number (#2) and the serial (#2), beside the price.
+    template = StationTemplateMetadata(
+        stationId=2,
+        templateId=27,
+        fieldLayouts=[
+            _layout("stationName", 0.25, 0.03, 0.45, 0.12),
+            _layout("ticketType", 0.72, 0.03, 0.2, 0.12),
+            _layout("numbers", 0.23, 0.55, 0.62, 0.43, priority=1, layout_id=41),
+            _layout("numbers", 0.66, 0.16, 0.24, 0.12, priority=2, layout_id=42),
+            _layout("serialNumber", 0.02, 0.20, 0.10, 0.40, priority=1, layout_id=43),
+            _layout("serialNumber", 0.62, 0.14, 0.30, 0.14, priority=2, layout_id=44),
+            _layout("batchCode", 0.72, 0.30, 0.2, 0.08, priority=1, layout_id=45),
+            _layout("batchCode", 0.05, 0.62, 0.15, 0.08, priority=2, layout_id=46),
+        ],
+    )
+    whole = [
+        _line("Cần Thơ", 0.45, 0.08),
+        _line("10.000", 0.80, 0.14, conf=0.9),  # price, inside the serial margin
+        _line("A424944", 0.78, 0.22, conf=0.99),
+        _line("SK4", 0.82, 0.34, conf=0.84),  # "8K4" misread
+        _line("Vé8K4", 0.12, 0.66, conf=0.88),
+        _line("192190121", 0.55, 0.78, conf=0.55),
+    ]
+    ocr = _FieldHintOcr(whole=whole, by_field={})
+    service = _service(ocr)
+    parser = TicketParser(StationMatcher(sample_stations), station_fuzzy_threshold=80)
+    image, region = _ticket_region(w=800, h=400)
+    ctx = _TemplateContext(stations=sample_stations, station_templates=[template])
+
+    result = service._scan_one_region_with_template(
+        image, region, 0, parser, {}, ctx, fallback_region=region, fallback_field_boxes={}
+    )
+
+    assert result.extracted.numbers == "424944"
+    assert result.extracted.serialNumber == "A424944"
+    assert result.extracted.batchCode == "8K4"
+    assert result.usedFieldLayouts["numbers"] == 42
+    assert result.usedFieldLayouts["serialNumber"] == 44
+    assert result.usedFieldLayouts["batchCode"] == 46
 
 
 def test_template_field_left_empty_rather_than_guessed_elsewhere(sample_stations):
