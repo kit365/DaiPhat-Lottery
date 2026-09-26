@@ -22,6 +22,7 @@ import OpenInFullRoundedIcon from '@mui/icons-material/OpenInFullRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import FitScreenRoundedIcon from '@mui/icons-material/FitScreenRounded';
 import CropFreeRoundedIcon from '@mui/icons-material/CropFreeRounded';
+import { AdminStatusBadge } from '@/admin/components/ui/AdminStatusBadge';
 import type {
     OcrFieldLayout,
     OcrNormalizedBoundingBox,
@@ -37,13 +38,40 @@ export const OCR_TEMPLATE_FIELD_OPTIONS: {
     color: string;
 }[] = [
     { value: 'ticketFrame', label: 'Khung vé', color: '#0f766e' },
-    { value: 'stationName', label: 'Nhà đài', color: '#2563eb' },
-    { value: 'numbers', label: 'Dãy số', color: '#059669' },
+    { value: 'stationName', label: 'Nhà đài', color: '#059669' },
+    { value: 'numbers', label: 'Dãy số', color: '#2563eb' },
     { value: 'serialNumber', label: 'Số serial', color: '#d97706' },
     { value: 'drawDate', label: 'Ngày xổ', color: '#7c3aed' },
-    { value: 'batchCode', label: 'Mã lô', color: '#db2777' },
+    { value: 'batchCode', label: 'Mã lô', color: '#dc2626' },
     { value: 'price', label: 'Giá vé', color: '#4f46e5' },
 ];
+
+export const getOcrFieldBadgeModifier = (fieldName: string): string => {
+    switch (fieldName) {
+        case 'ticketFrame':
+            return 'admin-status-badge--teal';
+        case 'stationName':
+        case 'STATION':
+            return 'admin-status-badge--success';
+        case 'numbers':
+        case 'NUMBERS':
+            return 'admin-status-badge--active';
+        case 'serialNumber':
+        case 'SERIAL_NUMBER':
+            return 'admin-status-badge--pending';
+        case 'drawDate':
+        case 'DRAW_DATE':
+            return 'admin-status-badge--purple';
+        case 'batchCode':
+        case 'BATCH_CODE':
+            return 'admin-status-badge--inactive';
+        case 'price':
+        case 'PRICE':
+            return 'admin-status-badge--draft';
+        default:
+            return 'admin-status-badge--draft';
+    }
+};
 
 /** Labels for display (includes legacy fields no longer offered for new tags). */
 const FIELD_LABELS: Partial<Record<OcrTemplateFieldName, string>> = {
@@ -213,28 +241,28 @@ export const OcrFieldLayoutAnnotator = ({
         <Stack direction="row" flexWrap="wrap" gap={1} alignItems="center">
             {OCR_TEMPLATE_FIELD_OPTIONS.map((opt) => {
                 const count = layouts.filter((l) => l.fieldName === opt.value).length;
+                const badgeLabel = count > 0 ? `${opt.label} (${count})` : opt.label;
+                const isSelected = selectedField === opt.value;
                 return (
-                    <Chip
+                    <Box
                         key={opt.value}
-                        label={count > 0 ? `${opt.label} (${count})` : opt.label}
                         onClick={() => {
                             onSelectField(opt.value);
                             onSelectLayout?.(null);
                         }}
-                        variant={selectedField === opt.value ? 'filled' : 'outlined'}
                         sx={{
-                            borderColor: opt.color,
-                            bgcolor:
-                                selectedField === opt.value
-                                    ? `${opt.color}22`
-                                    : count > 0
-                                      ? `${opt.color}14`
-                                      : undefined,
-                            color: opt.color,
-                            fontWeight: selectedField === opt.value ? 700 : 500,
                             cursor: 'pointer',
+                            opacity: isSelected ? 1 : 0.7,
+                            transform: isSelected ? 'scale(1.05)' : 'scale(1)',
+                            transition: 'all 0.15s ease',
+                            '&:hover': { opacity: 1 },
                         }}
-                    />
+                    >
+                        <AdminStatusBadge
+                            label={badgeLabel}
+                            modifier={`${getOcrFieldBadgeModifier(opt.value)} ${isSelected ? 'admin-status-badge--selected' : ''}`}
+                        />
+                    </Box>
                 );
             })}
         </Stack>
@@ -469,6 +497,105 @@ export const OcrFieldLayoutAnnotator = ({
                         />
                     )}
                 </Box>
+
+                {/* Floating Overlay Controls on top of image (top-right) */}
+                <Paper
+                    elevation={4}
+                    sx={{
+                        position: 'absolute',
+                        top: 16,
+                        right: 16,
+                        zIndex: 30,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        p: 0.5,
+                        px: 1,
+                        borderRadius: '10px',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        bgcolor: 'background.paper',
+                        boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+                        gap: 0.5,
+                        whiteSpace: 'nowrap',
+                    }}
+                >
+                    <Tooltip title="Thu nhỏ (Zoom Out)">
+                        <span>
+                            <IconButton
+                                size="small"
+                                disabled={currentZoom <= 0.75}
+                                onClick={() => {
+                                    const setter = isModal ? setModalZoom : setZoom;
+                                    setter((z) => Math.max(0.75, Number((z - 0.25).toFixed(2))));
+                                }}
+                                sx={{ p: 0.5 }}
+                            >
+                                <ZoomOutRoundedIcon fontSize="small" />
+                            </IconButton>
+                        </span>
+                    </Tooltip>
+
+                    <Typography variant="caption" sx={{ minWidth: 42, textAlign: 'center', fontWeight: 700, px: 0.5 }}>
+                        {Math.round(currentZoom * 100)}%
+                    </Typography>
+
+                    <Tooltip title="Phóng to (Zoom In)">
+                        <span>
+                            <IconButton
+                                size="small"
+                                disabled={currentZoom >= (isModal ? 3.5 : 2.5)}
+                                onClick={() => {
+                                    const setter = isModal ? setModalZoom : setZoom;
+                                    setter((z) => Math.min(isModal ? 3.5 : 2.5, Number((z + 0.25).toFixed(2))));
+                                }}
+                                sx={{ p: 0.5 }}
+                            >
+                                <ZoomInRoundedIcon fontSize="small" />
+                            </IconButton>
+                        </span>
+                    </Tooltip>
+
+                    <Tooltip title="Đặt lại kích thước chuẩn (100%)">
+                        <span>
+                            <IconButton
+                                size="small"
+                                onClick={() => {
+                                    const setter = isModal ? setModalZoom : setZoom;
+                                    setter(1);
+                                }}
+                                sx={{ p: 0.5, color: currentZoom === 1 ? 'text.disabled' : 'primary.main' }}
+                            >
+                                <RestartAltRoundedIcon fontSize="small" />
+                            </IconButton>
+                        </span>
+                    </Tooltip>
+
+                    {!isModal && (
+                        <>
+                            <Divider orientation="vertical" flexItem sx={{ mx: 0.5, my: 0.5 }} />
+
+                            <Tooltip title="Phóng to toàn màn hình">
+                                <IconButton
+                                    size="small"
+                                    onClick={() => {
+                                        setModalZoom(1.5);
+                                        setOpenFullscreen(true);
+                                    }}
+                                    sx={{
+                                        p: 0.5,
+                                        color: 'primary.main',
+                                        bgcolor: 'primary.50',
+                                        '&:hover': {
+                                            bgcolor: 'primary.100',
+                                        },
+                                    }}
+                                >
+                                    <OpenInFullRoundedIcon fontSize="small" />
+                                </IconButton>
+                            </Tooltip>
+                        </>
+                    )}
+                </Paper>
             </Box>
         );
     };
@@ -488,14 +615,15 @@ export const OcrFieldLayoutAnnotator = ({
                 gap: 2,
             }}
         >
-            {/* 1. Header: Title on Left, Zoom & Fullscreen Controls on Right */}
+            {/* 1. Header: Title on Left */}
             <Stack
-                direction={{ xs: 'column', sm: 'row' }}
+                direction="row"
                 justifyContent="space-between"
-                alignItems={{ xs: 'flex-start', sm: 'center' }}
+                alignItems="center"
                 gap={1.5}
+                flexWrap="nowrap"
             >
-                <Stack direction="row" alignItems="center" gap={1}>
+                <Stack direction="row" alignItems="center" gap={1} flexWrap="nowrap">
                     <Box
                         sx={{
                             width: 32,
@@ -506,113 +634,18 @@ export const OcrFieldLayoutAnnotator = ({
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
+                            flexShrink: 0,
                         }}
                     >
                         <CropFreeRoundedIcon sx={{ fontSize: 18 }} />
                     </Box>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary', whiteSpace: 'nowrap' }}>
                         Không gian gắn vùng OCR
                     </Typography>
-                    <Chip
-                        size="small"
+                    <AdminStatusBadge
                         label={`Đang chọn: ${labelForField(selectedField)}`}
-                        sx={{
-                            height: 22,
-                            fontSize: '0.75rem',
-                            fontWeight: 700,
-                            bgcolor: `${colorForField(selectedField)}20`,
-                            color: colorForField(selectedField),
-                            border: '1px solid',
-                            borderColor: `${colorForField(selectedField)}40`,
-                        }}
+                        modifier={getOcrFieldBadgeModifier(selectedField)}
                     />
-                </Stack>
-
-                {/* Right: Zoom & Fullscreen Toolbar */}
-                <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap">
-                    <Paper
-                        elevation={0}
-                        sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            p: 0.25,
-                            px: 0.5,
-                            borderRadius: '8px',
-                            border: '1px solid',
-                            borderColor: 'divider',
-                            bgcolor: 'action.hover',
-                        }}
-                    >
-                        <Tooltip title="Thu nhỏ (Zoom Out)">
-                            <span>
-                                <IconButton
-                                    size="small"
-                                    disabled={zoom <= 0.75}
-                                    onClick={() => setZoom((z) => Math.max(0.75, Number((z - 0.25).toFixed(2))))}
-                                    sx={{ p: 0.4 }}
-                                >
-                                    <ZoomOutRoundedIcon fontSize="small" />
-                                </IconButton>
-                            </span>
-                        </Tooltip>
-
-                        <Typography variant="caption" sx={{ minWidth: 42, textAlign: 'center', fontWeight: 700 }}>
-                            {Math.round(zoom * 100)}%
-                        </Typography>
-
-                        <Tooltip title="Phóng to (Zoom In)">
-                            <span>
-                                <IconButton
-                                    size="small"
-                                    disabled={zoom >= 2.5}
-                                    onClick={() => setZoom((z) => Math.min(2.5, Number((z + 0.25).toFixed(2))))}
-                                    sx={{ p: 0.4 }}
-                                >
-                                    <ZoomInRoundedIcon fontSize="small" />
-                                </IconButton>
-                            </span>
-                        </Tooltip>
-
-                        <Tooltip title="Đặt lại kích thước chuẩn (100%)">
-                            <span>
-                                <IconButton
-                                    size="small"
-                                    onClick={() => setZoom(1)}
-                                    sx={{ p: 0.4, color: zoom === 1 ? 'text.disabled' : 'primary.main' }}
-                                >
-                                    <RestartAltRoundedIcon fontSize="small" />
-                                </IconButton>
-                            </span>
-                        </Tooltip>
-                    </Paper>
-
-                    <Tooltip title="Mở ảnh to toàn màn hình để zoom & đánh tags chuẩn xác">
-                        <Button
-                            size="small"
-                            variant="outlined"
-                            startIcon={<OpenInFullRoundedIcon sx={{ fontSize: '15px !important' }} />}
-                            onClick={() => {
-                                setModalZoom(1.5);
-                                setOpenFullscreen(true);
-                            }}
-                            sx={{
-                                textTransform: 'none',
-                                borderRadius: '8px',
-                                fontSize: '0.75rem',
-                                py: 0.4,
-                                px: 1.2,
-                                borderColor: 'divider',
-                                color: 'text.primary',
-                                '&:hover': {
-                                    borderColor: 'primary.main',
-                                    color: 'primary.main',
-                                    bgcolor: 'primary.50',
-                                },
-                            }}
-                        >
-                            Phóng to toàn màn hình
-                        </Button>
-                    </Tooltip>
                 </Stack>
             </Stack>
 
@@ -644,7 +677,7 @@ export const OcrFieldLayoutAnnotator = ({
                 )}
             </Stack>
 
-            {/* 3. Centered Canvas Viewport */}
+            {/* 3. Centered Canvas Viewport with floating overlay zoom controls */}
             {renderCanvas(false)}
 
             {/* 4. Fullscreen / High Precision Tagging Dialog */}
