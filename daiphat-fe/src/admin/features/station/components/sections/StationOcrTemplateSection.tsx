@@ -138,7 +138,7 @@ export const StationOcrTemplateSection = ({
             }
             toast.success(res.message || 'Đã tạo mẫu vé OCR.');
             
-            let finalTemplateId = res.data?.id;
+            const finalTemplateId = res.data?.id;
 
             // If user provided a cropped image in the modal, upload it immediately
             if (finalTemplateId && data.sampleImage) {
