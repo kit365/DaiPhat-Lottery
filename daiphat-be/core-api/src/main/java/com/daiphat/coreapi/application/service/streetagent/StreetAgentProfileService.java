@@ -20,6 +20,7 @@ import com.daiphat.coreapi.application.port.out.streetagent.StreetAgentProfileRe
 import com.daiphat.coreapi.application.service.ekyc.EkycVerificationService;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.ekyc.EkycStatus;
 import com.daiphat.coreapi.domain.model.enums.streetagent.StreetAgentProfileStatus;
 import com.daiphat.coreapi.domain.model.streetagent.StreetAgentProfileModel;
 import com.daiphat.coreapi.domain.service.streetagent.VendorDailyCapCalculator;
@@ -171,9 +172,6 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
         if (streetAgentProfileRepositoryPort.existsByPhone(request.phone())) {
             throw new DomainException(ErrorCode.STREET_AGENT_PROFILE_PHONE_EXISTED);
         }
-        if (streetAgentProfileRepositoryPort.existsByCccd(request.cccd())) {
-            throw new DomainException(ErrorCode.STREET_AGENT_PROFILE_CCCD_EXISTED);
-        }
         validateContractDates(request);
 
         StreetAgentProfileModel model = streetAgentProfileApplicationMapper.toModel(request);
@@ -200,6 +198,7 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
         if (streetAgentEkycRequired) {
             // New profiles must pass eKYC before ACTIVE; null remains legacy-only.
             model.setEkycStatus(com.daiphat.coreapi.domain.model.enums.ekyc.EkycStatus.PENDING);
+            requireEkycImagesForCreate(request);
         }
         generateContractCodeIfNeeded(model);
         synchronizeOperationalStatus(model, false);
@@ -220,15 +219,13 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
         if (streetAgentProfileRepositoryPort.existsByPhoneAndIdNot(request.phone(), id)) {
             throw new DomainException(ErrorCode.STREET_AGENT_PROFILE_PHONE_EXISTED);
         }
-        if (streetAgentProfileRepositoryPort.existsByCccdAndIdNot(request.cccd(), id)) {
-            throw new DomainException(ErrorCode.STREET_AGENT_PROFILE_CCCD_EXISTED);
-        }
         validateContractDates(request.contractStartDate(), request.contractEndDate());
 
         boolean contractTermsChanged = profile.hasSignedContractTermsChanged(
                 request.contractStartDate(),
                 request.contractEndDate(),
                 request.contractMaxDailyCap());
+        boolean ekycInputsChanged = hasEkycInputsChanged(profile, request);
         streetAgentProfileApplicationMapper.updateModel(profile, request);
         if (contractTermsChanged) {
             // A signature is valid only for the exact terms that were signed.  Clear it
@@ -236,6 +233,9 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
             // keep the profile out of vendor allocation until the new file is uploaded.
             profile.requireContractResign();
             regenerateContractCode(profile);
+        }
+        if (ekycInputsChanged) {
+            profile.clearEkycVerification();
         }
         generateContractCodeIfNeeded(profile);
         synchronizeOperationalStatus(profile, true);
@@ -291,8 +291,13 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
         ));
     }
 
+    /**
+     * Runs Street Agent eKYC as CCCD OCR only (front + back, all 9 fields required)
+     * and persists the outcome (including FAILED). On success, sets profile CCCD from OCR.
+     * DomainException must not roll back that persistence.
+     */
     @Override
-    @Transactional
+    @Transactional(noRollbackFor = DomainException.class)
     public StreetAgentProfileResponse verifyEkyc(Long id) {
         if (ekycVerificationService == null) {
             throw new DomainException(ErrorCode.EKYC_AI_UNAVAILABLE);
@@ -300,20 +305,29 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
         StreetAgentProfileModel profile = streetAgentProfileRepositoryPort.findById(id)
                 .orElseThrow(() -> new DomainException(ErrorCode.STREET_AGENT_PROFILE_NOT_FOUND));
         if (!StringUtils.hasText(profile.getCccdFrontImageUrl())
-                || !StringUtils.hasText(profile.getCccdBackImageUrl())
-                || !StringUtils.hasText(profile.getCccdSelfieImageUrl())) {
+                || !StringUtils.hasText(profile.getCccdBackImageUrl())) {
             throw new DomainException(ErrorCode.STREET_AGENT_EKYC_IMAGES_REQUIRED);
         }
 
-        EkycVerificationResult result = ekycVerificationService.verifyFromUrls(
+        EkycVerificationResult result = ekycVerificationService.verifyIdCardOcrOnlyFromUrls(
                 profile.getCccdFrontImageUrl(),
-                profile.getCccdBackImageUrl(),
-                profile.getCccdSelfieImageUrl()
+                profile.getCccdBackImageUrl()
         );
         applyEkycResult(profile, result);
-        if (result.verified() && StringUtils.hasText(result.ocrIdNumber())) {
-            ekycVerificationService.requireIdMatch(profile.getCccd(), result);
+        if (result.verified()) {
+            String ocrId = ekycVerificationService.requireOcrIdNumber(result);
+            if (streetAgentProfileRepositoryPort.existsByCccdAndIdNot(ocrId, id)) {
+                profile.setEkycStatus(EkycStatus.FAILED);
+                profile.setEkycVerifiedAt(null);
+                profile.setEkycFailureReason("Số CCCD từ OCR đã tồn tại trên hồ sơ khác");
+                profile.setCccd(null);
+                synchronizeOperationalStatus(profile, true);
+                streetAgentProfileRepositoryPort.save(profile);
+                throw new DomainException(ErrorCode.STREET_AGENT_PROFILE_CCCD_EXISTED);
+            }
+            profile.setCccd(ocrId);
         }
+        synchronizeOperationalStatus(profile, true);
         StreetAgentProfileModel saved = streetAgentProfileRepositoryPort.save(profile);
         ekycVerificationService.assertVerified(result);
         return toResponse(saved);
@@ -326,9 +340,42 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
         profile.setEkycFailureReason(result.failureReason());
         profile.setEkycOcrName(result.ocrName());
         profile.setEkycOcrIdNumber(result.ocrIdNumber());
+        profile.setEkycOcrDob(result.ocrDob());
+        profile.setEkycOcrGender(result.ocrGender());
+        profile.setEkycOcrNationality(result.ocrNationality());
+        profile.setEkycOcrPlaceOfBirth(result.ocrPlaceOfBirthRegistration());
+        profile.setEkycOcrPlaceOfResidence(result.ocrPlaceOfResidence());
+        profile.setEkycOcrIssueDate(result.ocrIssueDate());
+        profile.setEkycOcrExpiryDate(result.ocrExpiryDate());
         if (result.verified()) {
             profile.setEkycVerifiedAt(java.time.LocalDateTime.now());
+        } else {
+            profile.setEkycVerifiedAt(null);
         }
+    }
+
+    private boolean hasEkycInputsChanged(
+            StreetAgentProfileModel profile, UpdateStreetAgentProfileRequest request) {
+        return imageUrlChanged(profile.getCccdFrontImageUrl(), request.cccdFrontImageUrl())
+                || imageUrlChanged(profile.getCccdBackImageUrl(), request.cccdBackImageUrl());
+    }
+
+    /**
+     * Null/blank on the request means "leave unchanged" (MapStruct IGNORE); only non-blank
+     * values that differ from the stored URL count as a change.
+     */
+    private boolean imageUrlChanged(String current, String next) {
+        if (!StringUtils.hasText(next)) {
+            return false;
+        }
+        return !Objects.equals(normalizeText(current), normalizeText(next));
+    }
+
+    private static String normalizeText(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        return value.trim();
     }
 
     private StreetAgentProfileResponse toResponse(StreetAgentProfileModel profile) {
@@ -400,6 +447,15 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
             return true;
         }
         return profile.getEkycStatus() == com.daiphat.coreapi.domain.model.enums.ekyc.EkycStatus.VERIFIED;
+    }
+
+    private void requireEkycImagesForCreate(CreateStreetAgentProfileRequest request) {
+        if (!StringUtils.hasText(request.cccdFrontImageUrl())
+                || !StringUtils.hasText(request.cccdBackImageUrl())) {
+            throw new DomainException(ErrorCode.STREET_AGENT_EKYC_IMAGES_REQUIRED);
+        }
+        StorageUtils.validateImageEvidenceUrl(request.cccdFrontImageUrl());
+        StorageUtils.validateImageEvidenceUrl(request.cccdBackImageUrl());
     }
 
     private void validateContractDates(CreateStreetAgentProfileRequest request) {

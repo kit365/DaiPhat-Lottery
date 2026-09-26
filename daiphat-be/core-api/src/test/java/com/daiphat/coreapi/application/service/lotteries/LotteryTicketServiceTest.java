@@ -400,6 +400,30 @@ class LotteryTicketServiceTest {
     }
 
     @Test
+    @DisplayName("GET_ALL: vé cùng dòng lô nhập chỉ tra mã lô một lần (lọc theo ngày quay hôm nay)")
+    void getAll_sharedImportBatchLine_resolvesBatchCodeOnce() {
+        LocalDate today = LocalDate.now();
+        LotteryTicketModel ticketA = LotteryTicketModel.builder().id(3001L).stationId(PRODUCT_ID).numbers("300001").drawDate(today).status(LotteryTicketStatus.IN_STOCK).build();
+        LotteryTicketModel ticketB = LotteryTicketModel.builder().id(3002L).stationId(PRODUCT_ID).numbers("300002").drawDate(today).status(LotteryTicketStatus.IN_STOCK).build();
+        LotteryTicketSerialModel serialA = LotteryTicketSerialModel.builder().id(4001L).ticketId(3001L).importBatchLineId(IMPORT_BATCH_LINE_ID).build();
+        LotteryTicketSerialModel serialB = LotteryTicketSerialModel.builder().id(4002L).ticketId(3002L).importBatchLineId(IMPORT_BATCH_LINE_ID).build();
+
+        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), any(), any(), any(), eq(today), eq(today), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(ticketA, ticketB), PageRequest.of(0, 1000), 2));
+        when(lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(anyList()))
+                .thenReturn(Map.of(3001L, serialA, 3002L, serialB));
+        when(lotteryStationServicePort.findModelById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+
+        PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
+                1, 1000, null, null, null, null, today, today, null, null, "createdAt", "desc", false);
+
+        assertThat(response.getRecordList()).hasSize(2);
+        verify(importBatchLineRepositoryPort, times(1)).findById(IMPORT_BATCH_LINE_ID);
+        verify(lotteryTicketApplicationMapper).toResponse(eq(ticketA), eq(serialA), eq(PRODUCT_NAME), eq(BATCH_CODE), anyInt());
+        verify(lotteryTicketApplicationMapper).toResponse(eq(ticketB), eq(serialB), eq(PRODUCT_NAME), eq(BATCH_CODE), anyInt());
+    }
+
+    @Test
     void getAll_withStatusFilter_returnsFilteredTickets() {
         Page<LotteryTicketModel> ticketPage = new PageImpl<>(
                 List.of(existingModel),

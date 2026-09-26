@@ -173,6 +173,10 @@ public enum ErrorCode {
             "ORD_056",
             "Giải Đặc Biệt phải đến Văn phòng Đại diện Đài để xác minh, đóng thuế và nhận tiền qua ngân hàng.",
             HttpStatus.BAD_REQUEST),
+    PRIZE_PAYOUT_TICKET_BUSY(
+            "ORD_059",
+            "Vé đang được hệ thống cập nhật nên chưa thể ghi nhận yêu cầu trả thưởng. Vui lòng tải lại trang và thử lại sau ít phút.",
+            HttpStatus.CONFLICT),
     PRIZE_CLAIM_EXPORT_NOT_READY(
             "ORD_057",
             "Phiếu nộp chưa sẵn sàng xuất. Vui lòng xác nhận kiểm tra trước khi xuất phiếu.",
@@ -666,7 +670,7 @@ public enum ErrorCode {
             HttpStatus.BAD_REQUEST),
     STREET_AGENT_EKYC_IMAGES_REQUIRED(
             "SAG_035",
-            "Cần ảnh CCCD mặt trước, mặt sau và ảnh selfie để xác thực eKYC.",
+            "Cần ảnh CCCD mặt trước và mặt sau để xác thực eKYC.",
             HttpStatus.BAD_REQUEST),
 
     // eKYC (CCCD) — shared Street Agent + Prize Payout

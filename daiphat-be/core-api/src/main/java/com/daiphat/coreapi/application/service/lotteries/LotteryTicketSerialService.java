@@ -395,10 +395,13 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
         validateShelfStillOpen(serial);
 
         if (serial.isTerminalIncidentStatus()) {
-            throw new DomainException(
-                    ErrorCode.LOTTERY_TICKET_INVALID_STATUS,
-                    "Sê-ri ở trạng thái " + serial.getStatus().getDisplayName()
-                            + " không thể báo sự cố (chỉ đọc để tra cứu).");
+            TicketCondition reportedCondition = serial.getTicketCondition();
+            String reason = reportedCondition != null && reportedCondition.isIncidentReported()
+                    ? "Sê-ri đã được ghi nhận \"" + reportedCondition.getDisplayName()
+                            + "\" trước đó, không thể hủy hoặc báo sự cố lại."
+                    : "Sê-ri ở trạng thái " + serial.getStatus().getDisplayName()
+                            + " không thể báo sự cố (chỉ đọc để tra cứu).";
+            throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS, reason);
         }
 
         validateIncidentRequest(serial, request);

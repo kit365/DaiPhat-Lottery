@@ -36,6 +36,13 @@ public class StreetAgentProfileModel {
     private String ekycFailureReason;
     private String ekycOcrName;
     private String ekycOcrIdNumber;
+    private String ekycOcrDob;
+    private String ekycOcrGender;
+    private String ekycOcrNationality;
+    private String ekycOcrPlaceOfBirth;
+    private String ekycOcrPlaceOfResidence;
+    private String ekycOcrIssueDate;
+    private String ekycOcrExpiryDate;
     private LocalDateTime ekycVerifiedAt;
     private String contactAddress;
     private String contactProvince;
@@ -123,6 +130,25 @@ public class StreetAgentProfileModel {
         if (this.status != StreetAgentProfileStatus.INACTIVE) {
             this.status = StreetAgentProfileStatus.PENDING;
         }
+    }
+
+    /** Clears prior eKYC outcome when CCCD evidence images change. */
+    public void clearEkycVerification() {
+        this.ekycStatus = com.daiphat.coreapi.domain.model.enums.ekyc.EkycStatus.PENDING;
+        this.ekycFaceDistance = null;
+        this.ekycLivenessScore = null;
+        this.ekycFailureReason = null;
+        this.ekycOcrName = null;
+        this.ekycOcrIdNumber = null;
+        this.ekycOcrDob = null;
+        this.ekycOcrGender = null;
+        this.ekycOcrNationality = null;
+        this.ekycOcrPlaceOfBirth = null;
+        this.ekycOcrPlaceOfResidence = null;
+        this.ekycOcrIssueDate = null;
+        this.ekycOcrExpiryDate = null;
+        this.ekycVerifiedAt = null;
+        this.cccd = null;
     }
 
     public boolean hasValidContractDailyCap() {

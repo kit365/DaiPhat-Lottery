@@ -143,6 +143,30 @@ public class PrizePayoutRequestEntity {
     @Column(name = "ekyc_ocr_name", length = 255)
     private String ekycOcrName;
 
+    @Column(name = "ekyc_ocr_id_number", length = 64)
+    private String ekycOcrIdNumber;
+
+    @Column(name = "ekyc_ocr_dob", length = 32)
+    private String ekycOcrDob;
+
+    @Column(name = "ekyc_ocr_gender", length = 32)
+    private String ekycOcrGender;
+
+    @Column(name = "ekyc_ocr_nationality", length = 100)
+    private String ekycOcrNationality;
+
+    @Column(name = "ekyc_ocr_place_of_birth", length = 500)
+    private String ekycOcrPlaceOfBirth;
+
+    @Column(name = "ekyc_ocr_place_of_residence", length = 500)
+    private String ekycOcrPlaceOfResidence;
+
+    @Column(name = "ekyc_ocr_issue_date", length = 64)
+    private String ekycOcrIssueDate;
+
+    @Column(name = "ekyc_ocr_expiry_date", length = 64)
+    private String ekycOcrExpiryDate;
+
     @Column(name = "ekyc_verified_at")
     private LocalDateTime ekycVerifiedAt;
 

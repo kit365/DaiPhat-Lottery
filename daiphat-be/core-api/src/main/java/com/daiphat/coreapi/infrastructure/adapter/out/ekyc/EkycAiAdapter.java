@@ -24,6 +24,8 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -116,18 +118,134 @@ public class EkycAiAdapter implements EkycAiPort {
                     }
                 }
         );
+
+        JsonNode merged = root.path("merged");
         JsonNode front = root.path("front");
-        JsonNode fields = front.path("fields");
-        boolean valid = front.path("is_valid").asBoolean(true) && !fields.isMissingNode();
+        JsonNode back = root.path("back");
+        JsonNode frontFields = front.path("fields");
+        JsonNode backFields = back.path("fields");
+
+        // Prefer server-side merged payload; otherwise merge front/back locally.
+        JsonNode fields = !merged.isMissingNode() && merged.isObject()
+                ? merged
+                : mergeFields(frontFields, backFields);
+
+        boolean frontValid = front.path("is_valid").asBoolean(true);
+        boolean backValid = back.isMissingNode() || back.isNull() || back.path("is_valid").asBoolean(true);
+        boolean valid = frontValid && backValid && !fields.isMissingNode();
+
+        String id = firstText(fields, "personal_identification_number", "id_number");
+        String name = firstText(fields, "full_name", "name");
+        String dob = firstText(fields, "date_of_birth", "dob");
+        String gender = firstText(fields, "gender");
+        String nationality = firstText(fields, "nationality");
+        String placeOfBirth = firstText(fields, "place_of_birth_registration");
+        String residence = firstText(fields, "place_of_residence", "address");
+        String issueDate = firstText(fields, "issue_date");
+        String expiryDate = firstText(fields, "expiry_date");
+
+        String error = textOrNull(front, "error");
+        if (error == null) {
+            error = textOrNull(back, "error");
+        }
+
+        Map<String, String> fieldSides = new HashMap<>();
+        fields.path("field_sides").fields().forEachRemaining(entry -> {
+            String side = entry.getValue().asText(null);
+            if ("front".equals(side) || "back".equals(side)) {
+                fieldSides.put(entry.getKey(), side);
+            }
+        });
+
         return new EkycOcrResult(
                 valid,
-                textOrNull(fields, "name"),
-                textOrNull(fields, "id_number"),
-                textOrNull(fields, "dob"),
-                textOrNull(fields, "address"),
-                textOrNull(fields, "expiry_date"),
-                textOrNull(front, "error")
+                name,
+                id,
+                dob,
+                gender,
+                nationality,
+                placeOfBirth,
+                residence,
+                issueDate,
+                expiryDate,
+                error,
+                fieldSides
         );
+    }
+
+    /**
+     * Front-first for demographics; back-first for issue/expiry.
+     */
+    private static JsonNode mergeFields(JsonNode frontFields, JsonNode backFields) {
+        com.fasterxml.jackson.databind.node.ObjectNode out =
+                com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.objectNode();
+        putFrontFirst(out, frontFields, backFields,
+                "personal_identification_number", "id_number");
+        putFrontFirst(out, frontFields, backFields, "full_name", "name");
+        putFrontFirst(out, frontFields, backFields, "date_of_birth", "dob");
+        putFrontFirst(out, frontFields, backFields, "gender");
+        putFrontFirst(out, frontFields, backFields, "nationality");
+        putFrontFirst(out, frontFields, backFields, "place_of_birth_registration");
+        putFrontFirst(out, frontFields, backFields, "place_of_residence", "address");
+        putBackFirst(out, frontFields, backFields, "issue_date");
+        putBackFirst(out, frontFields, backFields, "expiry_date");
+        // legacy mirrors
+        if (out.has("personal_identification_number")) {
+            out.put("id_number", out.get("personal_identification_number").asText());
+        }
+        if (out.has("full_name")) {
+            out.put("name", out.get("full_name").asText());
+        }
+        if (out.has("date_of_birth")) {
+            out.put("dob", out.get("date_of_birth").asText());
+        }
+        if (out.has("place_of_residence")) {
+            out.put("address", out.get("place_of_residence").asText());
+        }
+        return out;
+    }
+
+    private static void putFrontFirst(
+            com.fasterxml.jackson.databind.node.ObjectNode out,
+            JsonNode front,
+            JsonNode back,
+            String... keys
+    ) {
+        String value = firstText(front, keys);
+        if (value == null) {
+            value = firstText(back, keys);
+        }
+        if (value != null) {
+            out.put(keys[0], value);
+        }
+    }
+
+    private static void putBackFirst(
+            com.fasterxml.jackson.databind.node.ObjectNode out,
+            JsonNode front,
+            JsonNode back,
+            String... keys
+    ) {
+        String value = firstText(back, keys);
+        if (value == null) {
+            value = firstText(front, keys);
+        }
+        if (value != null) {
+            out.put(keys[0], value);
+        }
+    }
+
+    private static String firstText(JsonNode node, String... keys) {
+        if (node == null || node.isMissingNode() || node.isNull()) {
+            return null;
+        }
+        for (String key : keys) {
+            String value = textOrNull(node, key);
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
     }
 
     @FunctionalInterface
