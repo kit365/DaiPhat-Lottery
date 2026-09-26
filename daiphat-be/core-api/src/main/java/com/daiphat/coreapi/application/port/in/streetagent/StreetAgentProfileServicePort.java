@@ -4,6 +4,7 @@ import com.daiphat.coreapi.application.dto.request.streetagent.CreateStreetAgent
 import com.daiphat.coreapi.application.dto.request.streetagent.UpdateStreetAgentProfileRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.streetagent.StreetAgentProfileResponse;
+import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 
 public interface StreetAgentProfileServicePort {
@@ -14,4 +15,6 @@ public interface StreetAgentProfileServicePort {
     StreetAgentProfileResponse update(Long id, UpdateStreetAgentProfileRequest request);
     void delete(Long id);
     StreetAgentProfileResponse uploadSignedContractDocument(Long id, UploadRequest request);
+    StorageResult uploadEkycImage(UploadRequest request);
+    StreetAgentProfileResponse verifyEkyc(Long id);
 }

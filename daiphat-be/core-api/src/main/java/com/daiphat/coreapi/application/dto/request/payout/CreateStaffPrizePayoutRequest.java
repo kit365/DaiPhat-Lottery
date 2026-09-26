@@ -14,7 +14,6 @@ public record CreateStaffPrizePayoutRequest(
         @Size(max = 50) String bankAccountNumber,
         @Size(max = 200) String accountHolderName,
         @Size(max = 200) String recipientFullName,
-        @Size(max = 20) String recipientIdNumber,
         @Size(max = 500) String recipientIdImageUrl,
         @Size(max = 500) String recipientIdImageBackUrl,
         @NotNull PrizePayoutPaymentMethod paymentMethod,

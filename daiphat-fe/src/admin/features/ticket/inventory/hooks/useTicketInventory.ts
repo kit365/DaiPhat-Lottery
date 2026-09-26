@@ -18,6 +18,16 @@ interface ITicketFilters {
     search?: string;
 }
 
+/**
+ * Status options come from a wide (up to 1000 tickets) background query. A busy draw date can take
+ * longer than the global 15s timeout; failing it must not raise the "cannot reach server" toast
+ * while the visible page loaded fine.
+ */
+const STATUS_DISCOVERY_REQUEST_CONFIG = {
+    timeout: 60_000,
+    skipGlobalErrorToast: true,
+};
+
 /** Controller cho trang kho vé (filter/pagination nội bộ). List theo params → dùng `useTickets`. */
 export const useTicketInventory = (
     initialFilters?: Partial<ITicketFilters>,
@@ -78,9 +88,11 @@ export const useTicketInventory = (
         ]
     );
 
-    const { data: statusDiscoveryData } = useTickets(statusDiscoveryParams, {
-        placeholderData: keepPreviousData,
-    });
+    const { data: statusDiscoveryData } = useTickets(
+        statusDiscoveryParams,
+        { placeholderData: keepPreviousData },
+        STATUS_DISCOVERY_REQUEST_CONFIG
+    );
 
     const { data, isLoading, error } = useTickets(queryParams, {
         placeholderData: keepPreviousData,

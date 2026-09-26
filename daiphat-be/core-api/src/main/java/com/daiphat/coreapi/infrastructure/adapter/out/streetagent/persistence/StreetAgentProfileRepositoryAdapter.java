@@ -56,6 +56,9 @@ public class StreetAgentProfileRepositoryAdapter implements StreetAgentProfileRe
 
     @Override
     public boolean existsByCccd(String cccd) {
+        if (cccd == null || cccd.isBlank()) {
+            return false;
+        }
         return streetAgentProfileRepository.existsByCccdAndDeletedAtIsNull(cccd);
     }
 
@@ -66,6 +69,9 @@ public class StreetAgentProfileRepositoryAdapter implements StreetAgentProfileRe
 
     @Override
     public boolean existsByCccdAndIdNot(String cccd, Long id) {
+        if (cccd == null || cccd.isBlank()) {
+            return false;
+        }
         return streetAgentProfileRepository.existsByCccdAndIdNotAndDeletedAtIsNull(cccd, id);
     }
 

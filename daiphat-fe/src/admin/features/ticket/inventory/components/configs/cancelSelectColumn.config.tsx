@@ -1,6 +1,7 @@
 import { Box, Checkbox, Tooltip } from '@mui/material';
 import { GridColDef } from '@mui/x-data-grid';
 import type { CancelSelectedSerial, CancelTicketLike } from '../../../import-batch/hooks/useCancelTicketSelection';
+import { getTicketCancelIneligibleReason } from '../../../import-batch/utils/cancelTicketSelection';
 
 export type CancelSelectColumnParams = {
     selectedSerials: CancelSelectedSerial[];
@@ -22,7 +23,7 @@ const checkboxCellSx = {
     width: '100%',
 };
 
-const INELIGIBLE_TICKET_HINT = 'Vé hết hạn hoặc đã hủy — không thể chọn';
+const INELIGIBLE_TICKET_HINT = 'Vé không có sê-ri đủ điều kiện hủy — không thể chọn';
 
 export const buildCancelSelectColumn = ({
     selectedSerials,
@@ -114,7 +115,7 @@ export const buildCancelSelectColumn = ({
                 {isSelectable ? (
                     rowCheckbox
                 ) : (
-                    <Tooltip title={INELIGIBLE_TICKET_HINT} arrow>
+                    <Tooltip title={getTicketCancelIneligibleReason(ticket) ?? INELIGIBLE_TICKET_HINT} arrow>
                         <span>{rowCheckbox}</span>
                     </Tooltip>
                 )}

@@ -1,9 +1,12 @@
 package com.daiphat.coreapi.application.service.streetagent;
 
+import com.daiphat.coreapi.application.dto.ekyc.EkycVerificationResult;
 import com.daiphat.coreapi.application.dto.request.streetagent.CreateStreetAgentProfileRequest;
 import com.daiphat.coreapi.application.dto.request.streetagent.UpdateStreetAgentProfileRequest;
+import com.daiphat.coreapi.application.dto.request.user.CreateUserRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.streetagent.StreetAgentProfileResponse;
+import com.daiphat.coreapi.application.dto.response.user.UserResponse;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.application.generator.streetagent.StreetAgentContractCodeGenerator;
@@ -12,36 +15,40 @@ import com.daiphat.coreapi.application.policy.streetagent.VendorAllocationPolicy
 import com.daiphat.coreapi.application.policy.streetagent.VendorConfidencePolicyResolver;
 import com.daiphat.coreapi.application.port.in.streetagent.StreetAgentProfileServicePort;
 import com.daiphat.coreapi.application.port.in.user.UserServicePort;
-import com.daiphat.coreapi.application.dto.request.user.CreateUserRequest;
-import com.daiphat.coreapi.application.dto.response.user.UserResponse;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.port.out.streetagent.StreetAgentProfileRepositoryPort;
+import com.daiphat.coreapi.application.service.ekyc.EkycVerificationService;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.ekyc.EkycStatus;
 import com.daiphat.coreapi.domain.model.enums.streetagent.StreetAgentProfileStatus;
 import com.daiphat.coreapi.domain.model.streetagent.StreetAgentProfileModel;
 import com.daiphat.coreapi.domain.service.streetagent.VendorDailyCapCalculator;
+import com.daiphat.coreapi.shared.time.VietnamClock;
 import com.daiphat.coreapi.shared.util.PageableUtils;
 import com.daiphat.coreapi.shared.util.SortUtils;
 import com.daiphat.coreapi.shared.util.StatusCountKeys;
 import com.daiphat.coreapi.shared.util.StorageFolderConstants;
-import com.daiphat.coreapi.shared.time.VietnamClock;
+import com.daiphat.coreapi.shared.util.StorageUtils;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.Locale;
-import java.time.Clock;
 
 @Service
 @Slf4j
@@ -62,6 +69,10 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
     private final VendorAllocationPolicyResolver vendorAllocationPolicyResolver;
     private final StreetAgentContractCodeGenerator streetAgentContractCodeGenerator;
     private final VietnamClock vietnamClock;
+    private final EkycVerificationService ekycVerificationService;
+
+    @Value("${daiphat.ekyc-ai.street-agent-required:true}")
+    private boolean streetAgentEkycRequired;
 
     @Autowired
     public StreetAgentProfileService(
@@ -72,7 +83,8 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
             UserServicePort userServicePort,
             VendorAllocationPolicyResolver vendorAllocationPolicyResolver,
             StreetAgentContractCodeGenerator streetAgentContractCodeGenerator,
-            VietnamClock vietnamClock) {
+            VietnamClock vietnamClock,
+            EkycVerificationService ekycVerificationService) {
         this.streetAgentProfileRepositoryPort = streetAgentProfileRepositoryPort;
         this.streetAgentProfileApplicationMapper = streetAgentProfileApplicationMapper;
         this.storagePort = storagePort;
@@ -81,6 +93,7 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
         this.vendorAllocationPolicyResolver = vendorAllocationPolicyResolver;
         this.streetAgentContractCodeGenerator = streetAgentContractCodeGenerator;
         this.vietnamClock = vietnamClock;
+        this.ekycVerificationService = ekycVerificationService;
     }
 
     /** Compatibility constructor for tests and legacy bootstrap code. */
@@ -94,7 +107,8 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
         this(streetAgentProfileRepositoryPort, streetAgentProfileApplicationMapper, storagePort,
                 vendorConfidencePolicyResolver, userServicePort, new VendorAllocationPolicyResolver(systemConfigRepositoryPort),
                 new StreetAgentContractCodeGenerator(new VietnamClock(Clock.systemUTC())),
-                new VietnamClock(Clock.systemUTC()));
+                new VietnamClock(Clock.systemUTC()),
+                null);
     }
 
     /** Compatibility constructor for focused unit tests that do not exercise cap projection. */
@@ -110,6 +124,7 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
         this.vendorAllocationPolicyResolver = null;
         this.vietnamClock = new VietnamClock(Clock.systemUTC());
         this.streetAgentContractCodeGenerator = new StreetAgentContractCodeGenerator(vietnamClock);
+        this.ekycVerificationService = null;
     }
 
     @Override
@@ -157,9 +172,6 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
         if (streetAgentProfileRepositoryPort.existsByPhone(request.phone())) {
             throw new DomainException(ErrorCode.STREET_AGENT_PROFILE_PHONE_EXISTED);
         }
-        if (streetAgentProfileRepositoryPort.existsByCccd(request.cccd())) {
-            throw new DomainException(ErrorCode.STREET_AGENT_PROFILE_CCCD_EXISTED);
-        }
         validateContractDates(request);
 
         StreetAgentProfileModel model = streetAgentProfileApplicationMapper.toModel(request);
@@ -183,6 +195,11 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
                     : configuredContractCap);
         }
         model.setDepositBalance(BigDecimal.ZERO);
+        if (streetAgentEkycRequired) {
+            // New profiles must pass eKYC before ACTIVE; null remains legacy-only.
+            model.setEkycStatus(com.daiphat.coreapi.domain.model.enums.ekyc.EkycStatus.PENDING);
+            requireEkycImagesForCreate(request);
+        }
         generateContractCodeIfNeeded(model);
         synchronizeOperationalStatus(model, false);
 
@@ -202,15 +219,13 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
         if (streetAgentProfileRepositoryPort.existsByPhoneAndIdNot(request.phone(), id)) {
             throw new DomainException(ErrorCode.STREET_AGENT_PROFILE_PHONE_EXISTED);
         }
-        if (streetAgentProfileRepositoryPort.existsByCccdAndIdNot(request.cccd(), id)) {
-            throw new DomainException(ErrorCode.STREET_AGENT_PROFILE_CCCD_EXISTED);
-        }
         validateContractDates(request.contractStartDate(), request.contractEndDate());
 
         boolean contractTermsChanged = profile.hasSignedContractTermsChanged(
                 request.contractStartDate(),
                 request.contractEndDate(),
                 request.contractMaxDailyCap());
+        boolean ekycInputsChanged = hasEkycInputsChanged(profile, request);
         streetAgentProfileApplicationMapper.updateModel(profile, request);
         if (contractTermsChanged) {
             // A signature is valid only for the exact terms that were signed.  Clear it
@@ -218,6 +233,9 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
             // keep the profile out of vendor allocation until the new file is uploaded.
             profile.requireContractResign();
             regenerateContractCode(profile);
+        }
+        if (ekycInputsChanged) {
+            profile.clearEkycVerification();
         }
         generateContractCodeIfNeeded(profile);
         synchronizeOperationalStatus(profile, true);
@@ -259,6 +277,105 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
         StreetAgentProfileModel saved = streetAgentProfileRepositoryPort.save(profile);
         log.info("Uploaded signed contract document for street agent profile id: {}", id);
         return toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public StorageResult uploadEkycImage(UploadRequest request) {
+        StorageUtils.validateImageUpload(request);
+        return storagePort.upload(new UploadRequest(
+                request.data(),
+                request.fileName(),
+                request.contentType(),
+                StorageFolderConstants.STREET_AGENT_EKYC_FOLDER
+        ));
+    }
+
+    /**
+     * Runs Street Agent eKYC as CCCD OCR only (front + back, all 9 fields required)
+     * and persists the outcome (including FAILED). On success, sets profile CCCD from OCR.
+     * DomainException must not roll back that persistence.
+     */
+    @Override
+    @Transactional(noRollbackFor = DomainException.class)
+    public StreetAgentProfileResponse verifyEkyc(Long id) {
+        if (ekycVerificationService == null) {
+            throw new DomainException(ErrorCode.EKYC_AI_UNAVAILABLE);
+        }
+        StreetAgentProfileModel profile = streetAgentProfileRepositoryPort.findById(id)
+                .orElseThrow(() -> new DomainException(ErrorCode.STREET_AGENT_PROFILE_NOT_FOUND));
+        if (!StringUtils.hasText(profile.getCccdFrontImageUrl())
+                || !StringUtils.hasText(profile.getCccdBackImageUrl())) {
+            throw new DomainException(ErrorCode.STREET_AGENT_EKYC_IMAGES_REQUIRED);
+        }
+
+        EkycVerificationResult result = ekycVerificationService.verifyIdCardOcrOnlyFromUrls(
+                profile.getCccdFrontImageUrl(),
+                profile.getCccdBackImageUrl()
+        );
+        applyEkycResult(profile, result);
+        if (result.verified()) {
+            String ocrId = ekycVerificationService.requireOcrIdNumber(result);
+            if (streetAgentProfileRepositoryPort.existsByCccdAndIdNot(ocrId, id)) {
+                profile.setEkycStatus(EkycStatus.FAILED);
+                profile.setEkycVerifiedAt(null);
+                profile.setEkycFailureReason("Số CCCD từ OCR đã tồn tại trên hồ sơ khác");
+                profile.setCccd(null);
+                synchronizeOperationalStatus(profile, true);
+                streetAgentProfileRepositoryPort.save(profile);
+                throw new DomainException(ErrorCode.STREET_AGENT_PROFILE_CCCD_EXISTED);
+            }
+            profile.setCccd(ocrId);
+        }
+        synchronizeOperationalStatus(profile, true);
+        StreetAgentProfileModel saved = streetAgentProfileRepositoryPort.save(profile);
+        ekycVerificationService.assertVerified(result);
+        return toResponse(saved);
+    }
+
+    private void applyEkycResult(StreetAgentProfileModel profile, EkycVerificationResult result) {
+        profile.setEkycStatus(result.status());
+        profile.setEkycFaceDistance(result.faceDistance());
+        profile.setEkycLivenessScore(result.livenessScore());
+        profile.setEkycFailureReason(result.failureReason());
+        profile.setEkycOcrName(result.ocrName());
+        profile.setEkycOcrIdNumber(result.ocrIdNumber());
+        profile.setEkycOcrDob(result.ocrDob());
+        profile.setEkycOcrGender(result.ocrGender());
+        profile.setEkycOcrNationality(result.ocrNationality());
+        profile.setEkycOcrPlaceOfBirth(result.ocrPlaceOfBirthRegistration());
+        profile.setEkycOcrPlaceOfResidence(result.ocrPlaceOfResidence());
+        profile.setEkycOcrIssueDate(result.ocrIssueDate());
+        profile.setEkycOcrExpiryDate(result.ocrExpiryDate());
+        if (result.verified()) {
+            profile.setEkycVerifiedAt(java.time.LocalDateTime.now());
+        } else {
+            profile.setEkycVerifiedAt(null);
+        }
+    }
+
+    private boolean hasEkycInputsChanged(
+            StreetAgentProfileModel profile, UpdateStreetAgentProfileRequest request) {
+        return imageUrlChanged(profile.getCccdFrontImageUrl(), request.cccdFrontImageUrl())
+                || imageUrlChanged(profile.getCccdBackImageUrl(), request.cccdBackImageUrl());
+    }
+
+    /**
+     * Null/blank on the request means "leave unchanged" (MapStruct IGNORE); only non-blank
+     * values that differ from the stored URL count as a change.
+     */
+    private boolean imageUrlChanged(String current, String next) {
+        if (!StringUtils.hasText(next)) {
+            return false;
+        }
+        return !Objects.equals(normalizeText(current), normalizeText(next));
+    }
+
+    private static String normalizeText(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        return value.trim();
     }
 
     private StreetAgentProfileResponse toResponse(StreetAgentProfileModel profile) {
@@ -311,9 +428,34 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
         if (preserveExplicitInactiveStatus && profile.getStatus() == StreetAgentProfileStatus.INACTIVE) {
             return;
         }
-        profile.setStatus(profile.isVendorAllocationEligible(vietnamClock.today())
+        boolean eligible = profile.isVendorAllocationEligible(vietnamClock.today())
+                && isEkycReadyForActive(profile);
+        profile.setStatus(eligible
                 ? StreetAgentProfileStatus.ACTIVE
                 : StreetAgentProfileStatus.PENDING);
+    }
+
+    /**
+     * When eKYC is required, new profiles (PENDING/FAILED) cannot become ACTIVE until VERIFIED.
+     * Legacy rows with null ekyc_status remain eligible (grandfathered).
+     */
+    private boolean isEkycReadyForActive(StreetAgentProfileModel profile) {
+        if (!streetAgentEkycRequired) {
+            return true;
+        }
+        if (profile.getEkycStatus() == null) {
+            return true;
+        }
+        return profile.getEkycStatus() == com.daiphat.coreapi.domain.model.enums.ekyc.EkycStatus.VERIFIED;
+    }
+
+    private void requireEkycImagesForCreate(CreateStreetAgentProfileRequest request) {
+        if (!StringUtils.hasText(request.cccdFrontImageUrl())
+                || !StringUtils.hasText(request.cccdBackImageUrl())) {
+            throw new DomainException(ErrorCode.STREET_AGENT_EKYC_IMAGES_REQUIRED);
+        }
+        StorageUtils.validateImageEvidenceUrl(request.cccdFrontImageUrl());
+        StorageUtils.validateImageEvidenceUrl(request.cccdBackImageUrl());
     }
 
     private void validateContractDates(CreateStreetAgentProfileRequest request) {
