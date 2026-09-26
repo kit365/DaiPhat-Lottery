@@ -407,7 +407,7 @@ def test_template_path_maps_sample_paper_onto_scanned_paper(sample_stations):
 
     # Detector coords at half scale; the template path warps from the original.
     half = DetectedRegion(
-        bbox=tuple(v // 2 for v in region.bbox), corners=[(x / 2, y / 2) for x, y in yolo_quad]
+        bbox=tuple(v // 2 for v in region.bbox), corners=[(x // 2, y // 2) for x, y in yolo_quad]
     )
     result = service._scan_one_region_with_template(
         cv2.resize(upload, None, fx=0.5, fy=0.5), half, 0, parser, {}, ctx,

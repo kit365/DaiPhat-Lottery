@@ -138,7 +138,11 @@ class TicketScanImportServiceSoftFailTest {
         ));
         when(ocrTicketTemplateRepositoryPort.resolveForStation(any(), any())).thenAnswer(inv ->
                 Long.valueOf(1L).equals(inv.getArgument(0))
-                        ? Optional.of(OcrTicketTemplateModel.builder().id(11L).stationId(1L).build())
+                        ? Optional.of(OcrTicketTemplateModel.builder()
+                                .id(11L)
+                                .stationId(1L)
+                                .sampleImageUrl("https://cdn.test/kg-sample.jpg")
+                                .build())
                         : Optional.empty());
         when(ocrFieldLayoutRepositoryPort.findByTemplateId(11L)).thenReturn(List.of(
                 OcrFieldLayoutModel.builder()
@@ -165,6 +169,7 @@ class TicketScanImportServiceSoftFailTest {
         assertThat(templates).hasSize(1);
         assertThat(templates.getFirst().stationId()).isEqualTo(1L);
         assertThat(templates.getFirst().templateId()).isEqualTo(11L);
+        assertThat(templates.getFirst().sampleImageUrl()).isEqualTo("https://cdn.test/kg-sample.jpg");
         assertThat(templates.getFirst().fieldLayouts())
                 .singleElement()
                 .satisfies(layout -> {

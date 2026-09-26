@@ -31,13 +31,23 @@ during boost, the already-computed Legacy result is returned immediately
 only to force Groq-first (burns free-tier ITPM quickly).
 
 Legacy field location (`TICKET_VISION_LEGACY_TEMPLATE_STRATEGY=true`, default):
-YOLO only frames each ticket (OBB → perspective warp), PaddleOCR reads the
-whole ticket to find the station, and that station's OCR template
-(`ScanMetadata.stationTemplates`, sent by core-api) locates the fields —
-aligned on where the station name / lottery number were actually read.
-Fields the whole-ticket read already covers confidently are not re-OCR'd.
-Stations without a template use the generic heuristic layout. YOLO field-class
-boxes are ignored unless `TICKET_VISION_LEGACY_USE_YOLO_FIELDS=true`.
+YOLO detects each ticket on the detector-sized copy of the upload; its outline
+is scaled back to the **original upload**, snapped to the paper edges and
+rectified from the original pixels, which is what OCR reads. PaddleOCR reads
+the whole ticket to find the station, and that station's OCR template
+(`ScanMetadata.stationTemplates`, sent by core-api) locates the fields.
+
+The template is the source of truth for field positions. Field boxes are
+expressed relative to the paper edges found inside the template's
+`ticketFrame` on its sample photo (`sampleImageUrl`; falls back to the frame
+itself when the photo is unavailable), and the same paper-edge snap is applied
+to the YOLO outline (`TICKET_VISION_TEMPLATE_PAPER_SNAP`). OCR reads inside the
+configured boxes but never moves them: the returned `fieldBoxes` are the exact
+template regions (the priority layout that produced the value, reported in
+`usedFieldLayouts`). Fields the whole-ticket read already covers confidently
+are not re-OCR'd. Stations without a template use the generic heuristic
+layout. YOLO field-class boxes are ignored unless
+`TICKET_VISION_LEGACY_USE_YOLO_FIELDS=true`.
 
 See [`docs/LOCAL_FIRST_OCR_ROADMAP.md`](docs/LOCAL_FIRST_OCR_ROADMAP.md) for the
 phased plan toward fully local OCR.
