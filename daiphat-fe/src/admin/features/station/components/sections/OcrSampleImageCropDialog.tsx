@@ -10,7 +10,9 @@ import {
     DialogTitle,
     Stack,
     Typography,
+    IconButton,
 } from '@mui/material';
+import RotateRightIcon from '@mui/icons-material/RotateRight';
 import { toast } from 'react-toastify';
 
 type DragState = {
@@ -59,6 +61,11 @@ export const OcrSampleImageCropDialog = ({
     } | null>(null);
     const [busy, setBusy] = useState(false);
     const [loadError, setLoadError] = useState(false);
+    const [localImageSrc, setLocalImageSrc] = useState<string | null>(null);
+
+    useEffect(() => {
+        setLocalImageSrc(imageSrc);
+    }, [imageSrc]);
 
     useEffect(() => {
         if (!open) {
@@ -130,6 +137,34 @@ export const OcrSampleImageCropDialog = ({
         setCrop({ x: 0, y: 0, width: 1, height: 1 });
     };
 
+    const handleRotate = async () => {
+        if (!imageRef.current || !localImageSrc) return;
+        setBusy(true);
+        try {
+            const img = imageRef.current;
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalHeight;
+            canvas.height = img.naturalWidth;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) throw new Error('Cannot get canvas context');
+            
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            ctx.rotate((90 * Math.PI) / 180);
+            ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+            
+            const blob = await new Promise<Blob | null>(r => canvas.toBlob(r, mimeType || 'image/jpeg', 0.95));
+            if (blob) {
+                const newUrl = URL.createObjectURL(blob);
+                setLocalImageSrc(newUrl);
+                setCrop(null); // Reset crop box because dimensions changed
+            }
+        } catch (e: any) {
+            toast.error('Lỗi khi xoay ảnh.');
+        } finally {
+            setBusy(false);
+        }
+    };
+
     const handleConfirm = async () => {
         const img = imageRef.current;
         const box = crop ?? (draftBox && draftBox.width > 0.02 && draftBox.height > 0.02 ? draftBox : null);
@@ -193,7 +228,18 @@ export const OcrSampleImageCropDialog = ({
                         Kéo chuột trên ảnh để chọn vùng vé cần giữ lại (loại bỏ nền thừa).
                         Có thể dùng toàn ảnh nếu không cần crop.
                     </Typography>
-                    {!imageSrc || loadError ? (
+                    <Stack direction="row" justifyContent="flex-end">
+                        <Button 
+                            variant="outlined" 
+                            size="small" 
+                            startIcon={<RotateRightIcon />} 
+                            onClick={() => void handleRotate()}
+                            disabled={busy || uploading || !localImageSrc}
+                        >
+                            Xoay 90°
+                        </Button>
+                    </Stack>
+                    {!localImageSrc || loadError ? (
                         <Typography variant="body2" color="error">
                             Không tải được ảnh để crop. Hãy chọn lại tệp ảnh.
                         </Typography>
@@ -222,7 +268,7 @@ export const OcrSampleImageCropDialog = ({
                         >
                             <img
                                 ref={imageRef}
-                                src={imageSrc}
+                                src={localImageSrc}
                                 alt="Ảnh mẫu cần crop"
                                 draggable={false}
                                 onError={() => setLoadError(true)}
