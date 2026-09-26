@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.deps import require_api_key
 from app.services import ocr_service
+from app.utils.id_parser import merge_id_card_fields
 
 _log = logging.getLogger(__name__)
 router = APIRouter(
@@ -21,7 +22,10 @@ router = APIRouter(
 @router.post(
     "/ocr/id-card",
     summary="OCR CMND/CCCD",
-    response_description="JSON gồm `front` (luôn có) và `back` (null nếu không gửi mặt sau).",
+    response_description=(
+        "JSON gồm `front`, `back` (null nếu không gửi mặt sau), và `merged` "
+        "(9 trường CCCD đã gộp front/back)."
+    ),
 )
 async def ocr_id_card(
     front: UploadFile = File(
@@ -71,4 +75,10 @@ async def ocr_id_card(
             except Exception as e:
                 _log.warning("OCR back failed: %s", e)
 
-    return JSONResponse({"front": front_result, "back": back_result})
+    front_fields = (front_result or {}).get("fields") if isinstance(front_result, dict) else None
+    back_fields = (back_result or {}).get("fields") if isinstance(back_result, dict) else None
+    layouts = [r.get("card_layout") for r in (front_result, back_result) if isinstance(r, dict)]
+    layout = "cccd_2024" if "cccd_2024" in layouts else next((l for l in layouts if l), None)
+    merged = merge_id_card_fields(front_fields, back_fields, layout)
+
+    return JSONResponse({"front": front_result, "back": back_result, "merged": merged})

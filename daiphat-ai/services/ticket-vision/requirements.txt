@@ -30,6 +30,8 @@ rapidfuzz>=3.6.1
 easyocr>=1.7.1
 paddleocr>=2.7.3
 paddlepaddle>=2.6.1
+# PaddleOCR / paddlepaddle on Windows require protobuf<=3.20.2.
+protobuf>=3.20.0,<=3.20.2
 # Pure-Python BiDi (0.6+ ships a Rust .pyd that Windows Smart App Control /
 # WDAC often blocks → PaddleX/EasyOCR warmup fails with "Application Control
 # policy has blocked this file"). 0.4.2 is enough for LTR Vietnamese OCR;
