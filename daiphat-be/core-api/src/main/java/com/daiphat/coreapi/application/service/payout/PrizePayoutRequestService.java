@@ -32,12 +32,20 @@ import com.daiphat.coreapi.shared.util.PersonNameMatchUtils;
 import com.daiphat.coreapi.shared.util.SortUtils;
 import com.daiphat.coreapi.shared.util.StorageFolderConstants;
 import com.daiphat.coreapi.shared.util.StorageUtils;
+import com.daiphat.coreapi.application.dto.ekyc.EkycVerificationResult;
+import com.daiphat.coreapi.application.service.ekyc.EkycVerificationService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.PessimisticLockingFailureException;
+import org.springframework.dao.QueryTimeoutException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionTimedOutException;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -60,6 +68,7 @@ public class PrizePayoutRequestService implements PrizePayoutRequestServicePort 
             PrizePayoutRequestStatus.MANUAL_RESOLUTION, "Cần xử lý tại đại lý",
             PrizePayoutRequestStatus.CANCELLED, "Đã hủy"
     );
+    private static final int CREATE_WRITE_TIMEOUT_SECONDS = 15;
 
     private final PrizePayoutRequestRepositoryPort prizePayoutRequestRepositoryPort;
     private final UserBankAccountRepositoryPort userBankAccountRepositoryPort;
@@ -71,10 +80,50 @@ public class PrizePayoutRequestService implements PrizePayoutRequestServicePort 
     private final UserRepository userRepository;
     private final StoragePort storagePort;
     private final ApplicationEventPublisher eventPublisher;
+    private final EkycVerificationService ekycVerificationService;
+    private final PlatformTransactionManager transactionManager;
+
+    @Value("${daiphat.ekyc-ai.prize-payout-required:true}")
+    private boolean prizePayoutEkycRequired;
+
+    private record ValidatedCreate(
+            OrderDetailEntity detail,
+            LotteryTicketSerialEntity serial,
+            PrizePayoutEligibilityService.PrizeMatchContext match,
+            UserBankAccountModel bankAccount,
+            String recipientIdImageUrl,
+            String recipientIdImageBackUrl
+    ) {
+    }
 
     @Override
-    @Transactional
     public PrizePayoutRequestResponse create(UUID customerId, CreatePrizePayoutRequestRequest request) {
+        TransactionTemplate readTx = new TransactionTemplate(transactionManager);
+        readTx.setReadOnly(true);
+        ValidatedCreate validated = readTx.execute(status -> validateCreate(customerId, request));
+
+        // Image download + OCR takes seconds to minutes; holding a DB transaction across it would pin a
+        // pooled connection for the whole call.
+        // CCCD number comes only from OCR (never from the request body).
+        EkycVerificationResult ekyc = ekycVerificationService.verifyIdCardOcrOnlyFromUrls(
+                validated.recipientIdImageUrl(), validated.recipientIdImageBackUrl());
+        if (prizePayoutEkycRequired) {
+            ekycVerificationService.assertVerified(ekyc);
+        }
+        String recipientIdNumber = ekycVerificationService.requireOcrIdNumber(ekyc);
+
+        // Without a timeout the insert waits indefinitely on row locks held by another transaction on the
+        // same order/serial (e.g. local seed reset), long after the client has given up.
+        TransactionTemplate writeTx = new TransactionTemplate(transactionManager);
+        writeTx.setTimeout(CREATE_WRITE_TIMEOUT_SECONDS);
+        try {
+            return writeTx.execute(status -> persistCreate(customerId, request, ekyc, recipientIdNumber));
+        } catch (QueryTimeoutException | PessimisticLockingFailureException | TransactionTimedOutException ex) {
+            throw new DomainException(ErrorCode.PRIZE_PAYOUT_TICKET_BUSY, ex);
+        }
+    }
+
+    private ValidatedCreate validateCreate(UUID customerId, CreatePrizePayoutRequestRequest request) {
         OrderDetailEntity detail = prizePayoutEligibilityService.resolveOwnedDetail(
                 customerId, request.orderDetailId(), request.serialId());
         LotteryTicketSerialEntity serial = detail.getLotteryTicketSerial();
@@ -92,11 +141,26 @@ public class PrizePayoutRequestService implements PrizePayoutRequestServicePort 
             throw new DomainException(ErrorCode.PRIZE_PAYOUT_BANK_ACCOUNT_MISMATCH);
         }
 
-        String recipientIdNumber = requireOnlineRecipientIdNumber(request.recipientIdNumber());
         String recipientIdImageUrl = requireOnlineRecipientIdImageUrl(
                 request.recipientIdImageUrl(), "Ảnh CCCD mặt trước");
         String recipientIdImageBackUrl = requireOnlineRecipientIdImageUrl(
                 request.recipientIdImageBackUrl(), "Ảnh CCCD mặt sau");
+        return new ValidatedCreate(detail, serial, match, bankAccount, recipientIdImageUrl, recipientIdImageBackUrl);
+    }
+
+    private PrizePayoutRequestResponse persistCreate(
+            UUID customerId,
+            CreatePrizePayoutRequestRequest request,
+            EkycVerificationResult ekyc,
+            String recipientIdNumber) {
+        // Re-validate inside the write transaction: ticket state may have changed during OCR.
+        ValidatedCreate validated = validateCreate(customerId, request);
+        OrderDetailEntity detail = validated.detail();
+        LotteryTicketSerialEntity serial = validated.serial();
+        PrizePayoutEligibilityService.PrizeMatchContext match = validated.match();
+        UserBankAccountModel bankAccount = validated.bankAccount();
+        String recipientIdImageUrl = validated.recipientIdImageUrl();
+        String recipientIdImageBackUrl = validated.recipientIdImageBackUrl();
 
         PrizePayoutCalculationService.PrizePayoutBreakdown breakdown =
                 prizePayoutCalculationService.calculate(match.prizeAmount());
@@ -122,9 +186,25 @@ public class PrizePayoutRequestService implements PrizePayoutRequestServicePort 
                 .bankName(bankAccount.getBankName())
                 .bankAccountNumber(bankAccount.getBankAccountNo())
                 .accountHolderName(bankAccount.getBankAccountName())
+                .recipientFullName(ekyc.ocrName() != null ? ekyc.ocrName() : null)
                 .recipientIdNumber(recipientIdNumber)
                 .recipientIdImageUrl(recipientIdImageUrl)
                 .recipientIdImageBackUrl(recipientIdImageBackUrl)
+                .recipientSelfieUrl(null)
+                .ekycStatus(ekyc.status())
+                .ekycFaceDistance(null)
+                .ekycLivenessScore(null)
+                .ekycFailureReason(ekyc.failureReason())
+                .ekycOcrName(ekyc.ocrName())
+                .ekycOcrIdNumber(ekyc.ocrIdNumber())
+                .ekycOcrDob(ekyc.ocrDob())
+                .ekycOcrGender(ekyc.ocrGender())
+                .ekycOcrNationality(ekyc.ocrNationality())
+                .ekycOcrPlaceOfBirth(ekyc.ocrPlaceOfBirthRegistration())
+                .ekycOcrPlaceOfResidence(ekyc.ocrPlaceOfResidence())
+                .ekycOcrIssueDate(ekyc.ocrIssueDate())
+                .ekycOcrExpiryDate(ekyc.ocrExpiryDate())
+                .ekycVerifiedAt(ekyc.verified() ? LocalDateTime.now() : null)
                 .recipientIdentityCapturedAt(LocalDateTime.now())
                 .build();
         model.initializeForCreate();
@@ -369,19 +449,6 @@ public class PrizePayoutRequestService implements PrizePayoutRequestServicePort 
                 customer.getFirstName(),
                 customer.getLastName(),
                 customer.getUsername());
-    }
-
-    private String requireOnlineRecipientIdNumber(String raw) {
-        if (raw == null || raw.isBlank()) {
-            throw new DomainException(ErrorCode.PRIZE_PAYOUT_RECIPIENT_IDENTITY_REQUIRED);
-        }
-        String trimmed = raw.trim();
-        if (!trimmed.matches("\\d{9,12}")) {
-            throw new DomainException(
-                    ErrorCode.PRIZE_PAYOUT_RECIPIENT_IDENTITY_REQUIRED,
-                    "Số CCCD/CMND phải có từ 9 đến 12 chữ số.");
-        }
-        return trimmed;
     }
 
     private String requireOnlineRecipientIdImageUrl(String raw, String label) {

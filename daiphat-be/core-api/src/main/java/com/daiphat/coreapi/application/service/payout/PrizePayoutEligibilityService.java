@@ -169,7 +169,18 @@ public class PrizePayoutEligibilityService {
 
     @Transactional(readOnly = true)
     public OrderDetailEntity resolveOwnedDetail(UUID customerId, Long orderDetailId, Long serialId) {
-        OrderDetailEntity detail = resolveDetail(orderDetailId, serialId, null, null, null);
+        OrderDetailEntity detail;
+        try {
+            detail = resolveDetail(orderDetailId, serialId, null, null, null);
+        } catch (DomainException ex) {
+            // Customers only pick from their own ticket list, so a miss means a stale id, not a foreign ticket.
+            if (ex.getErrorCode() != ErrorCode.ORDER_DETAIL_NOT_FOUND) {
+                throw ex;
+            }
+            throw new DomainException(
+                    ErrorCode.ORDER_DETAIL_NOT_FOUND,
+                    PrizePayoutRequestModel.CUSTOMER_TICKET_NOT_FOUND_MESSAGE);
+        }
         OrderEntity order = detail.getOrder();
         if (order == null || order.getUser() == null || !order.getUser().getId().equals(customerId)) {
             throw new DomainException(ErrorCode.PRIZE_PAYOUT_ACCESS_DENIED);
@@ -281,10 +292,17 @@ public class PrizePayoutEligibilityService {
             OrderDetailEntity detail,
             LotteryTicketSerialEntity serial,
             BigDecimal grossAmount) {
+        return resolveClaimChannel(detail, serial, grossAmount, prizePayoutCalculationService.resolveOnlineMaxAmount());
+    }
+
+    public PrizePayoutChannel resolveClaimChannel(
+            OrderDetailEntity detail,
+            LotteryTicketSerialEntity serial,
+            BigDecimal grossAmount,
+            BigDecimal onlineMax) {
         OrderEntity order = detail.getOrder();
         boolean onlineOrder = order != null && order.getOrderType() == OrderType.ONLINE;
         boolean agentHeld = ONLINE_HELD_SERIAL_STATUSES.contains(serial.getStatus());
-        BigDecimal onlineMax = prizePayoutCalculationService.resolveOnlineMaxAmount();
         boolean withinOnlineCap = grossAmount != null
                 && onlineMax != null
                 && grossAmount.compareTo(onlineMax) <= 0;
@@ -331,13 +349,25 @@ public class PrizePayoutEligibilityService {
         if (serialId == null) {
             return false;
         }
+        return isOnlineClaimLocked(serialId, resolveMaxOnlineRejectRetry());
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isOnlineClaimLocked(Long serialId, int maxOnlineRejectRetry) {
+        if (serialId == null) {
+            return false;
+        }
         if (prizePayoutRequestRepositoryPort.existsBySerialIdAndChannelAndStatus(
                 serialId, PrizePayoutChannel.ONLINE, PrizePayoutRequestStatus.MANUAL_RESOLUTION)) {
             return true;
         }
         long rejectAttempts = prizePayoutRequestRepositoryPort.countBySerialIdAndChannelAndStatuses(
                 serialId, PrizePayoutChannel.ONLINE, ONLINE_REJECT_LOCK_STATUSES);
-        return rejectAttempts >= resolveMaxOnlineRejectRetry();
+        return rejectAttempts >= maxOnlineRejectRetry;
+    }
+
+    public BigDecimal resolveOnlineMaxAmount() {
+        return prizePayoutCalculationService.resolveOnlineMaxAmount();
     }
 
     public int resolveMaxOnlineRejectRetry() {

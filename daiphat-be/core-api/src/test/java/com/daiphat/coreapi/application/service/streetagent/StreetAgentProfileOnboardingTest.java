@@ -62,7 +62,6 @@ class StreetAgentProfileOnboardingTest {
         StreetAgentProfileResponse response = StreetAgentProfileResponse.builder().id(1L).build();
 
         when(profileRepository.existsByPhone("0901234567")).thenReturn(false);
-        when(profileRepository.existsByCccd("079123456789")).thenReturn(false);
         when(profileMapper.toModel(request)).thenReturn(model);
         when(systemConfigRepository.findActiveByConfigKey(any())).thenReturn(Optional.empty());
         when(userService.createInternalStreetAgent(any())).thenReturn(UserResponse.builder().id(userId).build());
@@ -96,7 +95,6 @@ class StreetAgentProfileOnboardingTest {
         UUID userId = UUID.randomUUID();
 
         when(profileRepository.existsByPhone("0901234568")).thenReturn(false);
-        when(profileRepository.existsByCccd("079123456780")).thenReturn(false);
         when(profileMapper.toModel(request)).thenReturn(model);
         when(systemConfigRepository.findActiveByConfigKey(any())).thenReturn(Optional.empty());
         when(userService.createInternalStreetAgent(any())).thenReturn(UserResponse.builder().id(userId).build());

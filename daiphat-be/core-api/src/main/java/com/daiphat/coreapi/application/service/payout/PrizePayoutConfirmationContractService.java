@@ -3,6 +3,7 @@ package com.daiphat.coreapi.application.service.payout;
 import com.daiphat.coreapi.application.dto.document.ContractPdfDocument;
 import com.daiphat.coreapi.application.dto.document.PrizePayoutConfirmationContractTemplateData;
 import com.daiphat.coreapi.application.dto.document.PrizePayoutConfirmationContractTemplateData.TicketLine;
+import com.daiphat.coreapi.application.dto.ekyc.EkycVerificationResult;
 import com.daiphat.coreapi.application.dto.request.payout.PreviewPrizePayoutConfirmationContractRequest;
 import com.daiphat.coreapi.application.port.in.payout.PrizePayoutConfirmationContractServicePort;
 import com.daiphat.coreapi.application.port.out.contract.ContractRepositoryPort;
@@ -11,6 +12,7 @@ import com.daiphat.coreapi.application.port.out.document.PrizePayoutConfirmation
 import com.daiphat.coreapi.application.port.out.payout.PrizePayoutRequestRepositoryPort;
 import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
 import com.daiphat.coreapi.application.service.contract.ContractArticleInterpolator;
+import com.daiphat.coreapi.application.service.ekyc.EkycVerificationService;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.contract.ContractModel;
@@ -52,6 +54,7 @@ public class PrizePayoutConfirmationContractService implements PrizePayoutConfir
     private final PrizePayoutConfirmationContractHtmlRendererPort htmlRendererPort;
     private final ContractPdfRendererPort contractPdfRendererPort;
     private final VietnamClock vietnamClock;
+    private final EkycVerificationService ekycVerificationService;
 
     @Override
     @Transactional(readOnly = true)
@@ -60,7 +63,20 @@ public class PrizePayoutConfirmationContractService implements PrizePayoutConfir
             throw new DomainException(ErrorCode.PRIZE_PAYOUT_CONTRACT_INCOMPLETE);
         }
         String recipientName = trim(request.recipientFullName());
-        String recipientId = trim(request.recipientIdNumber());
+        if (blank(recipientName)
+                || blank(request.recipientIdImageUrl())
+                || blank(request.recipientIdImageBackUrl())) {
+            throw new DomainException(ErrorCode.PRIZE_PAYOUT_CONTRACT_INCOMPLETE);
+        }
+
+        EkycVerificationResult ekyc = ekycVerificationService.verifyIdCardOcrOnlyFromUrls(
+                request.recipientIdImageUrl().trim(),
+                request.recipientIdImageBackUrl().trim());
+        ekycVerificationService.assertVerified(ekyc);
+        String recipientId = ekycVerificationService.requireOcrIdNumber(ekyc);
+        if (!blank(ekyc.ocrName())) {
+            recipientName = ekyc.ocrName().trim();
+        }
         requireRecipient(recipientName, recipientId);
 
         LinkedHashSet<Long> detailIds = new LinkedHashSet<>(request.orderDetailIds());

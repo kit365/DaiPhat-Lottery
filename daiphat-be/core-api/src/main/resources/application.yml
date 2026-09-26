@@ -104,6 +104,17 @@ daiphat:
       # often needs 60–120s on CPU. Keep headroom above FE scan timeout.
       connect-timeout-ms: ${DAIPHAT_TICKET_VISION_CONNECT_TIMEOUT_MS:5000}
       read-timeout-ms: ${DAIPHAT_TICKET_VISION_READ_TIMEOUT_MS:180000}
+  ekyc-ai:
+    # Fail closed in prod; set required=false for local/CI without ekyc-vision.
+    street-agent-required: ${DAIPHAT_EKYC_STREET_AGENT_REQUIRED:true}
+    prize-payout-required: ${DAIPHAT_EKYC_PRIZE_PAYOUT_REQUIRED:true}
+    face-distance-threshold: ${DAIPHAT_EKYC_FACE_DISTANCE_THRESHOLD:0.55}
+    liveness-min-score: ${DAIPHAT_EKYC_LIVENESS_MIN_SCORE:0.08}
+    service:
+      base-url: ${DAIPHAT_EKYC_AI_BASE_URL:http://localhost:8091}
+      api-key: ${DAIPHAT_EKYC_AI_API_KEY:dev-kyc-ai-secret}
+      connect-timeout-ms: ${DAIPHAT_EKYC_AI_CONNECT_TIMEOUT_MS:5000}
+      read-timeout-ms: ${DAIPHAT_EKYC_AI_READ_TIMEOUT_MS:120000}
   ocr:
     training-export-dir: ${DAIPHAT_OCR_TRAINING_EXPORT_DIR:./data/ocr-training-exports}
     ai-model-metric-cron: ${DAIPHAT_OCR_AI_MODEL_METRIC_CRON:0 15 2 * * *}

@@ -197,6 +197,20 @@ public class GlobalExceptionAdvice {
             }
         }
 
+        if (errorCode == ErrorCode.EKYC_OCR_FAILED) {
+            if (exception.getData() instanceof Map<?, ?> dataMap) {
+                Object labels = dataMap.get("missingFieldLabels");
+                if (labels instanceof List<?> labelList && !labelList.isEmpty()) {
+                    return "Không đọc được thông tin từ ảnh CCCD (Thiếu/không rõ: "
+                            + String.join(", ", labelList.stream().map(Object::toString).toList())
+                            + "). Vui lòng chụp lại rõ hơn.";
+                }
+            }
+            if (exception.getInternalMessage() != null && !exception.getInternalMessage().isBlank()) {
+                return exception.getInternalMessage();
+            }
+        }
+
         if (exception.getInternalMessage() == null || exception.getInternalMessage().isBlank()) {
             return exception.getMessage();
         }

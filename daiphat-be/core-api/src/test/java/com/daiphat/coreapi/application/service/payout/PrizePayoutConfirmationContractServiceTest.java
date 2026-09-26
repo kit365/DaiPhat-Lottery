@@ -1,14 +1,17 @@
 package com.daiphat.coreapi.application.service.payout;
 
 import com.daiphat.coreapi.application.dto.document.ContractPdfDocument;
+import com.daiphat.coreapi.application.dto.ekyc.EkycVerificationResult;
 import com.daiphat.coreapi.application.dto.request.payout.PreviewPrizePayoutConfirmationContractRequest;
 import com.daiphat.coreapi.application.port.out.contract.ContractRepositoryPort;
 import com.daiphat.coreapi.application.port.out.document.ContractPdfRendererPort;
 import com.daiphat.coreapi.application.port.out.payout.PrizePayoutRequestRepositoryPort;
 import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
+import com.daiphat.coreapi.application.service.ekyc.EkycVerificationService;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.contract.ContractType;
+import com.daiphat.coreapi.domain.model.enums.ekyc.EkycStatus;
 import com.daiphat.coreapi.domain.model.enums.order.TicketDrawResultStatus;
 import com.daiphat.coreapi.domain.model.enums.settings.SystemConfigEnum;
 import com.daiphat.coreapi.domain.model.settings.SystemConfigModel;
@@ -60,6 +63,8 @@ class PrizePayoutConfirmationContractServiceTest {
     private ContractRepositoryPort contractRepositoryPort;
     @Mock
     private ContractPdfRendererPort contractPdfRendererPort;
+    @Mock
+    private EkycVerificationService ekycVerificationService;
 
     private PrizePayoutConfirmationContractService service;
 
@@ -73,7 +78,8 @@ class PrizePayoutConfirmationContractServiceTest {
                 contractRepositoryPort,
                 new ThymeleafPrizePayoutConfirmationContractHtmlRenderer(templateEngine()),
                 contractPdfRendererPort,
-                new VietnamClock(Clock.fixed(Instant.parse("2026-08-15T03:00:00Z"), ZoneOffset.UTC))
+                new VietnamClock(Clock.fixed(Instant.parse("2026-08-15T03:00:00Z"), ZoneOffset.UTC)),
+                ekycVerificationService
         );
     }
 
@@ -132,8 +138,21 @@ class PrizePayoutConfirmationContractServiceTest {
         byte[] pdf = "%PDF-1.7".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
         when(contractPdfRendererPort.renderPdf(anyString())).thenReturn(pdf);
 
+        EkycVerificationResult ocr = new EkycVerificationResult(
+                EkycStatus.VERIFIED, "Nguyễn Văn A", "079123456789",
+                "01/01/1990", "Nam", "Việt Nam", "Hà Nội", "Hà Nội",
+                "01/01/2021", "01/01/2031",
+                null, null, null, null);
+        when(ekycVerificationService.verifyIdCardOcrOnlyFromUrls(
+                "https://cdn.example/front.jpg", "https://cdn.example/back.jpg")).thenReturn(ocr);
+        doNothing().when(ekycVerificationService).assertVerified(ocr);
+        when(ekycVerificationService.requireOcrIdNumber(ocr)).thenReturn("079123456789");
+
         ContractPdfDocument result = service.generatePreviewPdf(new PreviewPrizePayoutConfirmationContractRequest(
-                List.of(20L), "Nguyễn Văn A", "079123456789"));
+                List.of(20L),
+                "Nguyễn Văn A",
+                "https://cdn.example/front.jpg",
+                "https://cdn.example/back.jpg"));
 
         ArgumentCaptor<String> htmlCaptor = ArgumentCaptor.forClass(String.class);
         verify(contractPdfRendererPort).renderPdf(htmlCaptor.capture());
@@ -157,10 +176,11 @@ class PrizePayoutConfirmationContractServiceTest {
     }
 
     @Test
-    @DisplayName("từ chối sinh PDF khi thiếu CCCD người nhận")
+    @DisplayName("từ chối sinh PDF khi thiếu ảnh CCCD người nhận")
     void generatePreviewPdf_rejectsIncompleteRecipient() {
         assertThatThrownBy(() -> service.generatePreviewPdf(
-                new PreviewPrizePayoutConfirmationContractRequest(List.of(20L), "Nguyễn Văn A", "123")))
+                new PreviewPrizePayoutConfirmationContractRequest(
+                        List.of(20L), "Nguyễn Văn A", "", "")))
                 .isInstanceOf(DomainException.class)
                 .satisfies(error -> assertThat(((DomainException) error).getErrorCode())
                         .isEqualTo(ErrorCode.PRIZE_PAYOUT_CONTRACT_INCOMPLETE));
