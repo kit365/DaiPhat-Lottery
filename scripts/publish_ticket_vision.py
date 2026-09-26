@@ -24,9 +24,10 @@ import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / '.local/ocr-publish'
-SERVICE = 'services/ticket-vision'
-DEFAULT_REPOSITORY = 'docker.io/kitops365/daiphat-ticket-vision'
-SOURCE_ROOTS = ('contracts', 'infra', 'libs', SERVICE)
+SERVICE_DIR = 'daiphat-ai/ai-ticket-ocr'
+DEFAULT_REPOSITORY = 'docker.io/kitops365/daiphat-ai-ticket-ocr'
+REPOSITORY_PATTERN = r'docker\.io/[a-z0-9_-]+/daiphat-ai-ticket-ocr'
+IMAGE_MODEL = 'app/models/best.pt'
 TOKEN_PATTERNS = [
     re.compile(rb'-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----\s+[A-Za-z0-9+/]{40,}'),
     re.compile(rb'\bgsk_[A-Za-z0-9]{24,}'),
@@ -84,7 +85,7 @@ def require(condition, message):
 
 def validate_identity(state):
     require(bool(re.fullmatch('[a-f0-9]{40}', state.get('commit', ''))), 'Invalid commit identity')
-    require(bool(re.fullmatch(r'docker\.io/[a-z0-9_-]+/daiphat-ticket-vision', state.get('repository', ''))), 'Invalid repository identity')
+    require(bool(re.fullmatch(REPOSITORY_PATTERN, state.get('repository', ''))), 'Invalid repository identity')
     require(state.get('tag') == 'candidate-' + state['commit'], 'Invalid candidate tag identity')
     require(state.get('image') == state['repository'] + ':' + state['tag'], 'Invalid image identity')
     require(state.get('platform') == 'linux/amd64', 'Invalid platform identity')
@@ -178,16 +179,14 @@ def allowed_source(name):
 
 def source_context(sha, destination, model):
     # git archive is from the selected commit, not the dirty working directory.
-    archive = subprocess.check_output(['git', 'archive', sha, 'daiphat-ai'], cwd=ROOT)
+    archive = subprocess.check_output(['git', 'archive', sha, SERVICE_DIR], cwd=ROOT)
     with tarfile.open(fileobj=io.BytesIO(archive)) as source:
         for entry in source:
             if not entry.isfile():
                 if entry.issym() or entry.islnk():
                     raise RuntimeError(f'Symlinks are not accepted in publish context: {entry.name}')
                 continue
-            relative = str(PurePosixPath(entry.name).relative_to('daiphat-ai'))
-            if relative != '.dockerignore' and not any(relative.startswith(prefix + '/') for prefix in SOURCE_ROOTS):
-                continue
+            relative = str(PurePosixPath(entry.name).relative_to(SERVICE_DIR))
             if not allowed_source(relative):
                 continue
             data = source.extractfile(entry).read()
@@ -196,7 +195,7 @@ def source_context(sha, destination, model):
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(data)
             target.chmod(entry.mode & 0o777)
-    target = destination / SERVICE / 'models/best.pt'
+    target = destination / 'models/best.pt'
     target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(model, target)
     return {str(p.relative_to(destination)): digest_file(p) for p in sorted(destination.rglob('*')) if p.is_file()}
@@ -247,7 +246,7 @@ def build(args):
     command(['docker', 'buildx', 'build', '--platform', state['platform'], '--load',
              '--label', f'org.opencontainers.image.revision={state["commit"]}',
              '--label', f'com.daiphat.yolo.sha256={state["model_sha256"]}',
-             '--tag', state['image'], '--file', str(context / SERVICE / 'Dockerfile'), str(context)],
+             '--tag', state['image'], '--file', str(context / 'Dockerfile'), str(context)],
             log=output / 'build.log')
     info = json.loads(command(['docker', 'image', 'inspect', state['image']]))[0]
     state.update(image_id=info['Id'], image_bytes=info['Size'], build_seconds=time.monotonic()-started,
@@ -281,7 +280,7 @@ def audit_layers(image_id, output, expected_model):
                         app_area = name.startswith(('app/', 'tmp/', 'root/', 'cache/'))
                         if app_area and any(p.startswith('.env') or p in {'.venv', '.git', '.aws', '.ssh', '.cache'} for p in parts):
                             raise RuntimeError(f'Forbidden file in image layer: {name}')
-                        if name == 'app/services/ticket-vision/models/best.pt':
+                        if name == IMAGE_MODEL:
                             if hashlib.file_digest(layer.extractfile(member), 'sha256').hexdigest() != expected_model:
                                 raise RuntimeError('Unexpected model in image layer')
                         elif name.startswith('app/') and not allowed_source(name):
@@ -335,7 +334,7 @@ def verify(args):
             "check=lambda ok,msg: None if ok else (_ for _ in ()).throw(RuntimeError(msg)); "
             "check(os.getuid()!=0,'root process'); "
             "p=Path('/cache/.publish-probe'); p.write_text('ok'); p.unlink(); "
-            "w=Path('/app/services/ticket-vision/models/best.pt'); "
+            f"w=Path('/{IMAGE_MODEL}'); "
             f"check(hashlib.sha256(w.read_bytes()).hexdigest()=='{state['model_sha256']}','model checksum'); "
             "r=YOLO(str(w)).predict(np.zeros((640,640,3),dtype=np.uint8),device='cpu',verbose=False); "
             "check(len(r)==1 and r[0].obb is not None,'OBB inference failed'); print('AMD64 model inference and cache: PASS')")
@@ -405,11 +404,11 @@ def main():
     parser.add_argument('action', choices=['prepare', 'build', 'verify', 'push', 'confirm'])
     parser.add_argument('--repository', default=DEFAULT_REPOSITORY)
     parser.add_argument('--ref', default='HEAD')
-    parser.add_argument('--model', type=Path, default=ROOT / 'daiphat-ai' / SERVICE / 'models/best.pt')
+    parser.add_argument('--model', type=Path, default=ROOT / SERVICE_DIR / 'models/best.pt')
     parser.add_argument('--release', type=Path)
     args = parser.parse_args()
-    if not re.fullmatch(r'docker\.io/[a-z0-9_-]+/daiphat-ticket-vision', args.repository):
-        parser.error('Expected docker.io/<namespace>/daiphat-ticket-vision')
+    if not re.fullmatch(REPOSITORY_PATTERN, args.repository):
+        parser.error('Expected docker.io/<namespace>/daiphat-ai-ticket-ocr')
     if args.action != 'prepare' and args.release is None:
         parser.error('--release is required')
     try:

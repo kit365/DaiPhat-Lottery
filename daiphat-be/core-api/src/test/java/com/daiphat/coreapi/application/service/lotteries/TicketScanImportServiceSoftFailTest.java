@@ -15,12 +15,19 @@ import com.daiphat.coreapi.application.port.out.lotteries.AiModelRegistryReposit
 import com.daiphat.coreapi.application.port.out.vision.TicketVisionPort;
 import com.daiphat.coreapi.domain.model.enums.lottery.ScannedTicketStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
+import com.daiphat.coreapi.domain.model.enums.lottery.OcrTemplateFieldName;
+import com.daiphat.coreapi.domain.model.lotteries.OcrFieldLayoutModel;
+import com.daiphat.coreapi.domain.model.lotteries.OcrNormalizedBoundingBox;
 import com.daiphat.coreapi.domain.model.lotteries.OcrScanResultModel;
+import com.daiphat.coreapi.domain.model.lotteries.OcrTicketTemplateModel;
+import com.daiphat.coreapi.infrastructure.dto.request.vision.RemoteScanMetadata;
+import com.daiphat.coreapi.infrastructure.dto.request.vision.RemoteStationTemplateMetadata;
 import com.daiphat.coreapi.infrastructure.dto.response.vision.RemoteTicketScanResult;
 import com.daiphat.coreapi.shared.util.ImportBatchDraftExpiryService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -28,10 +35,12 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -119,5 +128,48 @@ class TicketScanImportServiceSoftFailTest {
         assertThat(response.tickets().getFirst().fieldValidations())
                 .containsKey("serialNumber");
         assertThat(response.tickets().getFirst().ocrScanResultId()).isEqualTo(99L);
+    }
+
+    @Test
+    void scanMetadataCarriesTemplatesForEveryStationThatHasOne() {
+        when(lotteryStationRepositoryPort.findAll()).thenReturn(List.of(
+                LotteryStationModel.builder().id(1L).name("HCM").code("HCM").isActive(true).build(),
+                LotteryStationModel.builder().id(2L).name("Cần Thơ").code("CTH").isActive(true).build()
+        ));
+        when(ocrTicketTemplateRepositoryPort.resolveForStation(any(), any())).thenAnswer(inv ->
+                Long.valueOf(1L).equals(inv.getArgument(0))
+                        ? Optional.of(OcrTicketTemplateModel.builder().id(11L).stationId(1L).build())
+                        : Optional.empty());
+        when(ocrFieldLayoutRepositoryPort.findByTemplateId(11L)).thenReturn(List.of(
+                OcrFieldLayoutModel.builder()
+                        .id(5L)
+                        .templateId(11L)
+                        .fieldName(OcrTemplateFieldName.numbers)
+                        .boundingBox(new OcrNormalizedBoundingBox(0.1, 0.4, 0.8, 0.2))
+                        .priority(1)
+                        .required(true)
+                        .build()
+        ));
+        when(ticketVisionPort.scan(any(), any(), any())).thenReturn(
+                new RemoteTicketScanResult("scan-meta", 0, List.of(), List.of(), 800, 600)
+        );
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "ticket.jpg", "image/jpeg", new byte[]{1, 2, 3}
+        );
+        service.scan(null, null, file, operatorId);
+
+        ArgumentCaptor<RemoteScanMetadata> captor = ArgumentCaptor.forClass(RemoteScanMetadata.class);
+        verify(ticketVisionPort).scan(any(), any(), captor.capture());
+        List<RemoteStationTemplateMetadata> templates = captor.getValue().stationTemplates();
+        assertThat(templates).hasSize(1);
+        assertThat(templates.getFirst().stationId()).isEqualTo(1L);
+        assertThat(templates.getFirst().templateId()).isEqualTo(11L);
+        assertThat(templates.getFirst().fieldLayouts())
+                .singleElement()
+                .satisfies(layout -> {
+                    assertThat(layout.fieldName()).isEqualTo("numbers");
+                    assertThat(layout.y()).isEqualTo(0.4);
+                });
     }
 }

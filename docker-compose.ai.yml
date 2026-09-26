@@ -48,6 +48,30 @@ x-ocr: &ocr
     start_period: 30s
     retries: 18
 
+x-ekyc: &ekyc
+  restart: unless-stopped
+  profiles: [slots]
+  logging:
+    driver: json-file
+    options: {max-size: "10m", max-file: "3"}
+  mem_limit: ${EKYC_VISION_MEMORY_LIMIT:-2g}
+  cpus: ${EKYC_VISION_CPU_LIMIT:-1}
+  networks: [production]
+  environment:
+    INSIGHTFACE_HOME: /cache/insightface
+    OMP_NUM_THREADS: ${EKYC_VISION_CPU_THREADS:-1}
+    OPENBLAS_NUM_THREADS: ${EKYC_VISION_CPU_THREADS:-1}
+    MKL_NUM_THREADS: ${EKYC_VISION_CPU_THREADS:-1}
+    TZ: Asia/Ho_Chi_Minh
+  labels:
+    dev.dozzle.group: AI
+  healthcheck:
+    test: [CMD, python, -c, "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=3)); assert d.get('status') == 'UP'"]
+    interval: 10s
+    timeout: 5s
+    start_period: 30s
+    retries: 18
+
 x-router: &router
   image: "${AI_PROXY_IMAGE:-nginx:stable-alpine}"
   restart: unless-stopped
@@ -65,37 +89,74 @@ x-router: &router
     timeout: 5s
     retries: 6
 
+# Service keys (chatbot-*, ocr-*, ekyc-*) and network aliases are deployment
+# state used by scripts/deploy-ai.sh and the backend; container_name and
+# dev.dozzle.name carry the display names.
 services:
   chatbot-blue:
     <<: *chatbot
-    image: "${CHATBOT_BLUE_IMAGE:-docker.io/kitops365/daiphat-ai:prod}"
+    container_name: daiphat-ai-chatbot-blue
+    image: "${CHATBOT_BLUE_IMAGE:-docker.io/kitops365/daiphat-ai-chatbot:prod}"
     env_file: ./.ai-deploy/chatbot/blue.env
+    labels: {dev.dozzle.group: AI, dev.dozzle.name: AI Chatbot (blue)}
   chatbot-green:
     <<: *chatbot
-    image: "${CHATBOT_GREEN_IMAGE:-docker.io/kitops365/daiphat-ai:prod}"
+    container_name: daiphat-ai-chatbot-green
+    image: "${CHATBOT_GREEN_IMAGE:-docker.io/kitops365/daiphat-ai-chatbot:prod}"
     env_file: ./.ai-deploy/chatbot/green.env
+    labels: {dev.dozzle.group: AI, dev.dozzle.name: AI Chatbot (green)}
   ocr-blue:
     <<: *ocr
-    image: "${OCR_BLUE_IMAGE:-docker.io/kitops365/daiphat-ticket-vision:prod}"
+    container_name: daiphat-ai-ticket-ocr-blue
+    image: "${OCR_BLUE_IMAGE:-docker.io/kitops365/daiphat-ai-ticket-ocr:prod}"
     env_file: ./.ai-deploy/ocr/blue.env
     volumes: ["ocr_blue_cache:/cache"]
+    labels: {dev.dozzle.group: AI, dev.dozzle.name: AI Ticket OCR (blue)}
   ocr-green:
     <<: *ocr
-    image: "${OCR_GREEN_IMAGE:-docker.io/kitops365/daiphat-ticket-vision:prod}"
+    container_name: daiphat-ai-ticket-ocr-green
+    image: "${OCR_GREEN_IMAGE:-docker.io/kitops365/daiphat-ai-ticket-ocr:prod}"
     env_file: ./.ai-deploy/ocr/green.env
     volumes: ["ocr_green_cache:/cache"]
+    labels: {dev.dozzle.group: AI, dev.dozzle.name: AI Ticket OCR (green)}
+  ekyc-blue:
+    <<: *ekyc
+    container_name: daiphat-ai-ekyc-blue
+    image: "${EKYC_BLUE_IMAGE:-docker.io/kitops365/daiphat-ai-ekyc:prod}"
+    env_file: ./.ai-deploy/ekyc/blue.env
+    volumes: ["ekyc_blue_cache:/cache"]
+    labels: {dev.dozzle.group: AI, dev.dozzle.name: AI eKYC (blue)}
+  ekyc-green:
+    <<: *ekyc
+    container_name: daiphat-ai-ekyc-green
+    image: "${EKYC_GREEN_IMAGE:-docker.io/kitops365/daiphat-ai-ekyc:prod}"
+    env_file: ./.ai-deploy/ekyc/green.env
+    volumes: ["ekyc_green_cache:/cache"]
+    labels: {dev.dozzle.group: AI, dev.dozzle.name: AI eKYC (green)}
   chatbot-router:
     <<: *router
+    container_name: daiphat-ai-chatbot-gateway
     volumes: ["./.ai-deploy/chatbot/nginx:/etc/nginx/conf.d:ro"]
+    labels: {dev.dozzle.group: AI, dev.dozzle.name: AI Chatbot Gateway}
     networks:
       production:
         aliases: [ai-gateway]
   ocr-router:
     <<: *router
+    container_name: daiphat-ai-ticket-ocr-gateway
     volumes: ["./.ai-deploy/ocr/nginx:/etc/nginx/conf.d:ro"]
+    labels: {dev.dozzle.group: AI, dev.dozzle.name: AI Ticket OCR Gateway}
     networks:
       production:
         aliases: [ticket-vision]
+  ekyc-router:
+    <<: *router
+    container_name: daiphat-ai-ekyc-gateway
+    volumes: ["./.ai-deploy/ekyc/nginx:/etc/nginx/conf.d:ro"]
+    labels: {dev.dozzle.group: AI, dev.dozzle.name: AI eKYC Gateway}
+    networks:
+      production:
+        aliases: [ekyc-vision]
 
 networks:
   production:
@@ -105,3 +166,5 @@ networks:
 volumes:
   ocr_blue_cache:
   ocr_green_cache:
+  ekyc_blue_cache:
+  ekyc_green_cache:

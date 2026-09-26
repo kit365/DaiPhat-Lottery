@@ -28,11 +28,15 @@ import type {
     OcrTemplateFieldName,
 } from '../../services/ocrTemplateService';
 
+/** Ticket outline on the sample photo — OCR locates fields relative to it. */
+export const TICKET_FRAME_FIELD: OcrTemplateFieldName = 'ticketFrame';
+
 export const OCR_TEMPLATE_FIELD_OPTIONS: {
     value: OcrTemplateFieldName;
     label: string;
     color: string;
 }[] = [
+    { value: 'ticketFrame', label: 'Khung vé', color: '#0f766e' },
     { value: 'stationName', label: 'Nhà đài', color: '#2563eb' },
     { value: 'numbers', label: 'Dãy số', color: '#059669' },
     { value: 'serialNumber', label: 'Số serial', color: '#d97706' },
@@ -50,6 +54,26 @@ const FIELD_LABELS: Partial<Record<OcrTemplateFieldName, string>> = {
     ticketType: 'Loại vé',
     batchCode: 'Mã lô',
     price: 'Giá vé',
+    ticketFrame: 'Khung vé',
+};
+
+/** Mirrors core-api: centre inside the frame and ≥60% of the box area inside. */
+export const isInsideTicketFrame = (
+    box: OcrNormalizedBoundingBox,
+    frame: OcrNormalizedBoundingBox
+): boolean => {
+    const tol = 0.005;
+    const fx0 = frame.x - tol;
+    const fy0 = frame.y - tol;
+    const fx1 = frame.x + frame.width + tol;
+    const fy1 = frame.y + frame.height + tol;
+    const cx = box.x + box.width / 2;
+    const cy = box.y + box.height / 2;
+    if (cx < fx0 || cx > fx1 || cy < fy0 || cy > fy1) return false;
+    const ix = Math.max(0, Math.min(box.x + box.width, fx1) - Math.max(box.x, fx0));
+    const iy = Math.max(0, Math.min(box.y + box.height, fy1) - Math.max(box.y, fy0));
+    const area = box.width * box.height;
+    return area > 0 && (ix * iy) / area >= 0.6;
 };
 
 const colorForField = (fieldName: OcrTemplateFieldName): string =>
@@ -105,6 +129,16 @@ export const OcrFieldLayoutAnnotator = ({
     const [zoom, setZoom] = useState<number>(1);
     const [modalZoom, setModalZoom] = useState<number>(1.25);
     const [openFullscreen, setOpenFullscreen] = useState<boolean>(false);
+
+    const frameLayout = layouts.find((l) => l.fieldName === TICKET_FRAME_FIELD) ?? null;
+    const fieldLayouts = layouts.filter((l) => l.fieldName !== TICKET_FRAME_FIELD);
+    const outsideFrameIds = new Set(
+        frameLayout
+            ? fieldLayouts
+                  .filter((l) => !isInsideTicketFrame(l.boundingBox, frameLayout.boundingBox))
+                  .map((l) => l.id)
+            : []
+    );
 
     const toNormalized = useCallback(
         (clientX: number, clientY: number, targetEl: HTMLDivElement | null): { x: number; y: number } | null => {
@@ -284,9 +318,66 @@ export const OcrFieldLayoutAnnotator = ({
                         </Box>
                     )}
 
+                    {/* Ticket frame: dims the desk around the ticket. The body ignores
+                        pointer events so field boxes can still be dragged inside it. */}
+                    {frameLayout && !imageIssue && (() => {
+                        const color = colorForField(TICKET_FRAME_FIELD);
+                        const selected = selectedLayoutId === frameLayout.id;
+                        const hovered = hoveredLayoutId === frameLayout.id;
+                        return (
+                            <Box
+                                key={frameLayout.id}
+                                sx={{
+                                    position: 'absolute',
+                                    left: `${frameLayout.boundingBox.x * 100}%`,
+                                    top: `${frameLayout.boundingBox.y * 100}%`,
+                                    width: `${frameLayout.boundingBox.width * 100}%`,
+                                    height: `${frameLayout.boundingBox.height * 100}%`,
+                                    border: `${selected || hovered ? 3 : 2}px dashed ${color}`,
+                                    boxShadow: '0 0 0 9999px rgba(15, 23, 42, 0.35)',
+                                    boxSizing: 'border-box',
+                                    borderRadius: '4px',
+                                    pointerEvents: 'none',
+                                    zIndex: 0,
+                                }}
+                            >
+                                <Typography
+                                    variant="caption"
+                                    onMouseEnter={() => onHoverLayout?.(frameLayout.id)}
+                                    onMouseLeave={() => onHoverLayout?.(null)}
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onSelectField(TICKET_FRAME_FIELD);
+                                        onSelectLayout?.(frameLayout);
+                                    }}
+                                    sx={{
+                                        position: 'absolute',
+                                        top: 0,
+                                        right: 0,
+                                        px: 0.75,
+                                        py: 0.15,
+                                        bgcolor: color,
+                                        color: '#fff',
+                                        fontSize: 10,
+                                        fontWeight: 700,
+                                        lineHeight: 1.3,
+                                        whiteSpace: 'nowrap',
+                                        borderBottomLeftRadius: '4px',
+                                        pointerEvents: 'auto',
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    {labelForField(TICKET_FRAME_FIELD)}
+                                </Typography>
+                            </Box>
+                        );
+                    })()}
+
                     {/* Bounding Boxes */}
-                    {layouts.map((layout) => {
-                        const color = colorForField(layout.fieldName);
+                    {fieldLayouts.map((layout) => {
+                        const outside = outsideFrameIds.has(layout.id);
+                        const color = outside ? '#dc2626' : colorForField(layout.fieldName);
                         const selected = selectedLayoutId === layout.id;
                         const hovered = hoveredLayoutId === layout.id;
                         return (
@@ -330,7 +421,7 @@ export const OcrFieldLayoutAnnotator = ({
                                     transition: 'all 0.15s ease-in-out',
                                     zIndex: selected ? 10 : hovered ? 9 : 1,
                                 }}
-                                title={`${labelForField(layout.fieldName)}${layout.priority != null ? ` #${layout.priority}` : ''}`}
+                                title={`${labelForField(layout.fieldName)}${layout.priority != null ? ` #${layout.priority}` : ''}${outside ? ' — nằm ngoài khung vé' : ''}`}
                             >
                                 <Typography
                                     variant="caption"
@@ -355,6 +446,7 @@ export const OcrFieldLayoutAnnotator = ({
                                 >
                                     {labelForField(layout.fieldName)}
                                     {layout.priority != null ? ` #${layout.priority}` : ''}
+                                    {outside ? ' · ngoài khung' : ''}
                                 </Typography>
                             </Box>
                         );
@@ -529,12 +621,27 @@ export const OcrFieldLayoutAnnotator = ({
             {/* 2. Field Selection Toolbar & Helper */}
             <Stack gap={1}>
                 <Typography variant="caption" color="text.secondary">
-                    {selectedLayoutId != null
-                        ? `Đang sửa vùng đã chọn (#${layouts.find((l) => l.id === selectedLayoutId)?.priority ?? '?'}). Kéo trên ảnh để cập nhật lại vị trí.`
-                        : `Chọn loại trường dưới đây, sau đó kéo chuột trên ảnh vé để tạo vùng nhận dạng OCR:`}
+                    {selectedField === TICKET_FRAME_FIELD
+                        ? frameLayout
+                            ? 'Kéo lại trên ảnh để chỉnh Khung vé. Khung phải bao sát mép tờ vé và bao trọn các vùng trường đã gắn.'
+                            : 'Kéo khung bao sát mép tờ vé (không gồm nền bàn). Khi quét, YOLO nhận diện khung vé thật và các vùng trường được định vị tương đối theo khung này.'
+                        : selectedLayoutId != null
+                          ? `Đang sửa vùng đã chọn (#${layouts.find((l) => l.id === selectedLayoutId)?.priority ?? '?'}). Kéo trên ảnh để cập nhật lại vị trí.`
+                          : `Chọn loại trường dưới đây, sau đó kéo chuột trên ảnh vé để tạo vùng nhận dạng OCR:`}
                 </Typography>
 
                 {renderFieldToolbar()}
+
+                {!frameLayout && !disabled && (
+                    <Typography variant="caption" sx={{ color: 'warning.dark', fontWeight: 600 }}>
+                        Chưa đánh dấu Khung vé. Nên gắn Khung vé trước để OCR định vị chính xác các trường khi ảnh mẫu có nền xung quanh.
+                    </Typography>
+                )}
+                {outsideFrameIds.size > 0 && (
+                    <Typography variant="caption" sx={{ color: 'error.main', fontWeight: 600 }}>
+                        {outsideFrameIds.size} vùng trường nằm ngoài Khung vé và sẽ bị bỏ qua khi quét. Hãy kéo lại các vùng này bên trong khung.
+                    </Typography>
+                )}
             </Stack>
 
             {/* 3. Centered Canvas Viewport */}

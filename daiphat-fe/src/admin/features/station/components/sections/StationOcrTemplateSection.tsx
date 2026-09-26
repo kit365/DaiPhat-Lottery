@@ -49,6 +49,7 @@ import {
 import {
     OCR_TEMPLATE_FIELD_OPTIONS,
     OcrFieldLayoutAnnotator,
+    TICKET_FRAME_FIELD,
 } from './OcrFieldLayoutAnnotator';
 import { OcrTaggedRegionsList } from './OcrTaggedRegionsList';
 
@@ -91,6 +92,8 @@ export const StationOcrTemplateSection = ({
 
     const selectedTemplate =
         templates.find((t) => String(t.id) === selectedTemplateId) ?? null;
+    const ticketFrameLayout = layouts.find((l) => l.fieldName === TICKET_FRAME_FIELD) ?? null;
+    const fieldLayoutCount = layouts.filter((l) => l.fieldName !== TICKET_FRAME_FIELD).length;
 
     const reloadLayouts = useCallback(async (templateId: number) => {
         try {
@@ -309,10 +312,13 @@ export const StationOcrTemplateSection = ({
         if (!selectedTemplateId) return;
         setSavingLayout(true);
         const templateId = Number(selectedTemplateId);
-        const existing =
-            selectedLayoutId != null
-                ? layouts.find((l) => l.id === selectedLayoutId && l.fieldName === fieldName)
-                : undefined;
+        const isFrame = fieldName === TICKET_FRAME_FIELD;
+        // A template has a single ticket frame: re-dragging always moves it.
+        const existing = isFrame
+            ? ticketFrameLayout ?? undefined
+            : selectedLayoutId != null
+              ? layouts.find((l) => l.id === selectedLayoutId && l.fieldName === fieldName)
+              : undefined;
         try {
             if (existing) {
                 const res = await updateOcrFieldLayout(templateId, existing.id, {
@@ -323,7 +329,9 @@ export const StationOcrTemplateSection = ({
                     return;
                 }
                 toast.success(
-                    `Đã cập nhật vùng: ${fieldLabel(fieldName)} (ưu tiên #${existing.priority})`
+                    isFrame
+                        ? 'Đã cập nhật Khung vé.'
+                        : `Đã cập nhật vùng: ${fieldLabel(fieldName)} (ưu tiên #${existing.priority})`
                 );
                 setSelectedLayoutId(existing.id);
             } else {
@@ -336,7 +344,7 @@ export const StationOcrTemplateSection = ({
                             : fieldName === 'price'
                               ? 'DECIMAL'
                               : 'STRING',
-                    isRequired: true,
+                    isRequired: !isFrame,
                 });
                 if (!res.success) {
                     toast.error(res.message || 'Lưu vùng thất bại.');
@@ -344,7 +352,9 @@ export const StationOcrTemplateSection = ({
                 }
                 const priority = res.data?.priority ?? '?';
                 toast.success(
-                    `Đã thêm vùng: ${fieldLabel(fieldName)} (ưu tiên #${priority}). Kéo tiếp để thêm vùng dự phòng.`
+                    isFrame
+                        ? 'Đã đánh dấu Khung vé. Các vùng trường sẽ được định vị theo khung này khi quét.'
+                        : `Đã thêm vùng: ${fieldLabel(fieldName)} (ưu tiên #${priority}). Kéo tiếp để thêm vùng dự phòng.`
                 );
                 setSelectedLayoutId(null);
             }
@@ -907,7 +917,9 @@ export const StationOcrTemplateSection = ({
                                         </Stack>
                                         <Typography variant="caption" color="text.secondary">
                                             {selectedTemplate.sampleImageUrl
-                                                ? `Đã tải ảnh mẫu • ${layouts.length} vùng trường đã đánh dấu`
+                                                ? `Đã tải ảnh mẫu • ${fieldLayoutCount} vùng trường đã đánh dấu • ${
+                                                      ticketFrameLayout ? 'Đã có khung vé' : 'Chưa có khung vé'
+                                                  }`
                                                 : 'Chưa có ảnh mẫu'}
                                         </Typography>
                                     </Box>

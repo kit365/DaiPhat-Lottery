@@ -10,7 +10,7 @@ import java.util.Map;
 
 /**
  * Raw wire shape of one entry in ticket-vision's ScanResponse.tickets[]
- * (services/ticket-vision/dto/response/scan_response.py:TicketScanResult).
+ * (daiphat-ai/ai-ticket-ocr/dto/response/scan_response.py:TicketScanResult).
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record RemoteScannedTicket(

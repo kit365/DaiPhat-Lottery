@@ -12,8 +12,11 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Getter
 @Setter
@@ -24,6 +27,8 @@ public class LotteryTicketModel {
 
     public static final String ALL_SERIALS_FAULTY_STATUS_REASON =
             "Dãy vé không còn hiệu lực: tất cả sê-ri vật lý đã được báo hỏng hoặc thất lạc.";
+    public static final String ALL_SERIALS_FAULTY_REASON_PREFIX = "Dãy vé đã hủy: ";
+    private static final int STATUS_REASON_MAX_LENGTH = 500;
 
     private Long id;
     private Long stationId;
@@ -125,6 +130,21 @@ public class LotteryTicketModel {
             int faultySerialCount,
             LocalTime cutoffTime
     ) {
+        syncAggregateState(availableSerialCount, totalSerialCount, soldSerialCount, faultySerialCount, cutoffTime, null);
+    }
+
+    /**
+     * @param allFaultyReason cancel reason stored in {@code statusReason} when every visible serial
+     *                        is faulty; falls back to {@link #ALL_SERIALS_FAULTY_STATUS_REASON} when blank.
+     */
+    public void syncAggregateState(
+            int availableSerialCount,
+            int totalSerialCount,
+            int soldSerialCount,
+            int faultySerialCount,
+            LocalTime cutoffTime,
+            String allFaultyReason
+    ) {
         // Display quantity = every non-deleted, non-VOIDED serial linked to this lottery number.
         this.quantity = totalSerialCount;
         // IMPORTING belongs to the import-batch flow and cannot be derived from serials,
@@ -143,10 +163,53 @@ public class LotteryTicketModel {
         if (faultySerialCount == totalSerialCount
                 && totalSerialCount > 0
                 && resolvedStatus == LotteryTicketStatus.SOLD_OUT) {
-            this.statusReason = ALL_SERIALS_FAULTY_STATUS_REASON;
-        } else if (ALL_SERIALS_FAULTY_STATUS_REASON.equals(this.statusReason)) {
+            this.statusReason = allFaultyReason != null && !allFaultyReason.isBlank()
+                    ? allFaultyReason
+                    : ALL_SERIALS_FAULTY_STATUS_REASON;
+        } else if (isSystemCancelReason(this.statusReason)) {
             this.statusReason = null;
         }
+    }
+
+    /**
+     * Builds the ticket cancel reason from the serials' incident reasons, grouped by condition and reason.
+     * Returns {@code null} when no serial is given.
+     */
+    public static String buildAllSerialsFaultyReason(List<LotteryTicketSerialModel> faultySerials) {
+        if (faultySerials == null || faultySerials.isEmpty()) {
+            return null;
+        }
+        Map<String, Integer> groups = new LinkedHashMap<>();
+        for (LotteryTicketSerialModel serial : faultySerials) {
+            String condition = serial.getTicketCondition() != null
+                    ? serial.getTicketCondition().getDisplayName()
+                    : "Sự cố";
+            String reason = serial.getDamagedReason() != null ? serial.getDamagedReason().trim() : "";
+            String key = reason.isEmpty() ? condition : condition + ": " + reason;
+            groups.merge(key, 1, Integer::sum);
+        }
+
+        int total = faultySerials.size();
+        String text;
+        if (groups.size() == 1) {
+            text = ALL_SERIALS_FAULTY_REASON_PREFIX + "toàn bộ " + total + " sê-ri được báo "
+                    + groups.keySet().iterator().next() + ".";
+        } else {
+            String details = groups.entrySet().stream()
+                    .map(entry -> entry.getKey() + " (" + entry.getValue() + " sê-ri)")
+                    .collect(Collectors.joining("; "));
+            text = ALL_SERIALS_FAULTY_REASON_PREFIX + "toàn bộ " + total + " sê-ri được báo sự cố - "
+                    + details + ".";
+        }
+        return text.length() > STATUS_REASON_MAX_LENGTH
+                ? text.substring(0, STATUS_REASON_MAX_LENGTH - 3) + "..."
+                : text;
+    }
+
+    private static boolean isSystemCancelReason(String reason) {
+        return reason != null
+                && (ALL_SERIALS_FAULTY_STATUS_REASON.equals(reason)
+                || reason.startsWith(ALL_SERIALS_FAULTY_REASON_PREFIX));
     }
 
     public void validateDrawDate(LocalDate drawDate) {

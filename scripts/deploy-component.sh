@@ -8,10 +8,9 @@ deploy_sha=${3:-}
 case "$component" in
     backend) image_var=BACKEND_IMAGE ;;
     frontend) image_var=FRONTEND_IMAGE ;;
-    ai) image_var=AI_IMAGE ;;
-    ticket-vision) image_var=TICKET_VISION_IMAGE ;;
+    ai-chatbot|ai-ticket-ocr|ai-ekyc) image_var= ;;
     *)
-        echo "Usage: $0 <backend|frontend|ai|ticket-vision> <immutable-image> <deploy-sha>" >&2
+        echo "Usage: $0 <backend|frontend|ai-chatbot|ai-ticket-ocr|ai-ekyc> <immutable-image> <deploy-sha>" >&2
         exit 1
         ;;
 esac
@@ -26,7 +25,7 @@ deploy_root=$(cd "$script_dir/.." && pwd)
 cd "$deploy_root"
 
 # Unified AI deployment owns slot state and must never take the legacy recreate path.
-if [[ "$component" == ai || "$component" == ticket-vision ]]; then
+if [[ "$component" == ai-* ]]; then
     exec bash "$script_dir/deploy-ai.sh" "$component" "$image" "$deploy_sha"
 fi
 
