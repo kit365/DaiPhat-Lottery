@@ -39,7 +39,6 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -67,13 +66,9 @@ import java.util.Set;
 public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
 
     private static final String SYSTEM_ACTOR = SharedSeedConstants.INVENTORY_ACTOR;
-    private static final String SUPPLIER_CODE = "MINH_CHINH";
-    private static final String SUPPLIER_NAME = "Minh Chính";
-    private static final String HEADER_CODE_PREFIX = SharedSeedConstants.IMPORT_BATCH_PREFIX;
-    private static final String LINE_CODE_PREFIX = SharedSeedConstants.IMPORT_LINE_PREFIX;
+    private static final String SUPPLIER_CODE = SharedSeedConstants.SUPPLIER_MINH_CHINH_CODE;
     static final String SERIAL_PREFIX = SharedSeedConstants.INVENTORY_SERIAL_PREFIX;
     private static final BigDecimal DEFAULT_IMPORT_COST = BigDecimal.valueOf(10_000);
-    private static final DateTimeFormatter BASIC_DATE = DateTimeFormatter.BASIC_ISO_DATE;
     private static final int MIN_TICKETS_PER_BATCH = 100;
     private static final int MAX_TICKETS_PER_BATCH = 200;
     private static final int NUMBER_CURSOR_START = 800_000;
@@ -135,6 +130,7 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
     private final LotteryTicketSerialRepository lotteryTicketSerialRepository;
     private final LotterySerialSeedCleanup lotterySerialSeedCleanup;
     private final SeedAccountResolver seedAccountResolver;
+    private final SeedSupplierSupport seedSupplierSupport;
     private final Clock clock;
 
     @Value("${daiphat.lottery.seed.tickets-per-batch:150}")
@@ -165,7 +161,9 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
 
         resetPreviousSeedData();
 
-        LotterySupplierEntity supplier = ensureSupplier(now);
+        seedSupplierSupport.retireDemoSuppliers(now);
+        LotterySupplierEntity supplier = seedSupplierSupport.ensureMinhChinh(now);
+        seedSupplierSupport.ensureMinhNgoc(now);
         List<BatchPlan> plans = buildBatchPlans(today, now);
         if (plans.isEmpty()) {
             log.warn("Skip import-batch seed: no batch plans for current schedule.");
@@ -177,7 +175,8 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
         int lineCount = 0;
         int ticketCount = 0;
 
-        for (BatchPlan plan : plans) {
+        for (int planIndex = 0; planIndex < plans.size(); planIndex++) {
+            BatchPlan plan = plans.get(planIndex);
             List<LotteryStationEntity> stations = findIssuersForDrawDate(plan.drawDate());
             if (stations.isEmpty()) {
                 log.info(
@@ -188,13 +187,15 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
                 continue;
             }
 
+            int headerSeq = SeedDocumentCodes.LANE_IMPORT_MAIN + planIndex;
             ImportBatchEntity batch = importBatchRepository.save(
-                    createBatch(supplier, operator, plan, stations.size(), now)
+                    createBatch(supplier, operator, plan, stations.size(), now, headerSeq)
             );
 
             List<ImportBatchLineEntity> lines = new ArrayList<>();
-            for (LotteryStationEntity station : stations) {
-                lines.add(createLine(batch, station, plan, now, 0));
+            for (int stationIndex = 0; stationIndex < stations.size(); stationIndex++) {
+                int lineSeq = SeedDocumentCodes.LANE_IMPORT_LINE_MAIN + planIndex * 40 + stationIndex;
+                lines.add(createLine(batch, stations.get(stationIndex), plan, now, 0, lineSeq));
             }
             batch.getLines().clear();
             batch.getLines().addAll(lines);
@@ -340,8 +341,21 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
     }
 
     private void resetPreviousSeedData() {
-        List<ImportBatchEntity> seedBatches =
-                importBatchRepository.findByBatchCodeStartingWithAndDeletedAtIsNull(HEADER_CODE_PREFIX);
+        Map<Long, ImportBatchEntity> seedBatchesById = new HashMap<>();
+        for (ImportBatchEntity batch : importBatchRepository
+                .findByNoteStartingWithAndDeletedAtIsNull(SeedDocumentCodes.IMPORT_NOTE_PREFIX + "MAIN")) {
+            if (batch.getId() != null) {
+                seedBatchesById.put(batch.getId(), batch);
+            }
+        }
+        // Legacy mã phiếu before SeedDocumentCodes unification.
+        for (ImportBatchEntity batch : importBatchRepository
+                .findByBatchCodeStartingWithAndDeletedAtIsNull(SharedSeedConstants.IMPORT_BATCH_PREFIX)) {
+            if (batch.getId() != null) {
+                seedBatchesById.putIfAbsent(batch.getId(), batch);
+            }
+        }
+        List<ImportBatchEntity> seedBatches = new ArrayList<>(seedBatchesById.values());
 
         Set<Long> lineIds = new HashSet<>();
         for (ImportBatchEntity batch : seedBatches) {
@@ -422,53 +436,9 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
         }
     }
 
-    private LotterySupplierEntity ensureSupplier(LocalDateTime now) {
-        return lotterySupplierRepository.findByCodeIgnoreCaseAndDeletedAtIsNull(SUPPLIER_CODE)
-                .map(existing -> {
-                    existing.setName(SUPPLIER_NAME);
-                    existing.setType(LotterySupplierType.DISTRIBUTOR);
-                    existing.setContactName(SUPPLIER_NAME);
-                    existing.setContactPhone("0909123456");
-                    existing.setContactEmail("minhchinh@seed.local");
-                    existing.setAddress("123 Nguyen Hue, Quan 1, TP.HCM");
-                    existing.setTaxCode("0312345678");
-                    existing.setPaymentTermDays(0);
-                    existing.setDefaultImportCost(DEFAULT_IMPORT_COST);
-                    existing.setImportAllowFrom(LocalTime.of(8, 0));
-                    existing.setReturnCutOffTime(LocalTime.of(14, 30));
-                    existing.setPaymentCutOffTime(LocalTime.of(18, 0));
-                    existing.setActive(true);
-                    existing.setUpdatedAt(now);
-                    existing.setLastModifiedBy(SYSTEM_ACTOR);
-                    return lotterySupplierRepository.save(existing);
-                })
-                .orElseGet(() -> lotterySupplierRepository.save(
-                        LotterySupplierEntity.builder()
-                                .name(SUPPLIER_NAME)
-                                .code(SUPPLIER_CODE)
-                                .type(LotterySupplierType.DISTRIBUTOR)
-                                .contactName(SUPPLIER_NAME)
-                                .contactPhone("0909123456")
-                                .contactEmail("minhchinh@seed.local")
-                                .address("123 Nguyen Hue, Quan 1, TP.HCM")
-                                .taxCode("0312345678")
-                                .paymentTermDays(0)
-                                .defaultImportCost(DEFAULT_IMPORT_COST)
-                                .importAllowFrom(LocalTime.of(8, 0))
-                                .returnCutOffTime(LocalTime.of(14, 30))
-                                .paymentCutOffTime(LocalTime.of(18, 0))
-                                .isActive(true)
-                                .createdAt(now)
-                                .updatedAt(now)
-                                .createdBy(SYSTEM_ACTOR)
-                                .lastModifiedBy(SYSTEM_ACTOR)
-                                .build()
-                ));
-    }
-
     private List<LotteryStationEntity> findIssuersForDrawDate(LocalDate drawDate) {
         DayOfWeek day = drawDate.getDayOfWeek();
-        return lotteryStationRepository.findAll().stream()
+        return SouthernStationSeedSupport.filterCanonical(lotteryStationRepository.findAll()).stream()
                 .filter(station -> station.getDeletedAt() == null)
                 .filter(LotteryStationEntity::isActive)
                 .filter(station -> station.getDrawDays() != null && station.getDrawDays().contains(day))
@@ -484,14 +454,10 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
             UserEntity operator,
             BatchPlan plan,
             int stationCount,
-            LocalDateTime now
+            LocalDateTime now,
+            int headerSequence
     ) {
-        String headerCode = HEADER_CODE_PREFIX
-                + plan.drawDate().format(BASIC_DATE)
-                + "-"
-                + plan.batchType().name()
-                + "-"
-                + plan.suffix();
+        String headerCode = SeedDocumentCodes.importHeader(plan.drawDate(), headerSequence);
         LocalDateTime importedAt = plan.importedAt();
 
         return ImportBatchEntity.builder()
@@ -514,7 +480,7 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
                 .totalImportedCostValue(BigDecimal.ZERO)
                 .submittedAt(importedAt)
                 .completedAt(importedAt.plusMinutes(30))
-                .note("Seed import batch (" + plan.batchType().name() + ") for draw " + plan.drawDate())
+                .note(SeedDocumentCodes.importNote("MAIN-" + plan.batchType().name(), plan.drawDate()))
                 .createdAt(importedAt)
                 .updatedAt(now)
                 .createdBy(SYSTEM_ACTOR)
@@ -527,17 +493,15 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
             LotteryStationEntity station,
             BatchPlan plan,
             LocalDateTime now,
-            int declareQty
+            int declareQty,
+            int lineSequence
     ) {
-        String stationCode = ImportBatchCodeHelper.toStationCode(station.getName());
-        String lineCode = LINE_CODE_PREFIX
-                + plan.drawDate().format(BASIC_DATE)
-                + "-"
-                + stationCode
-                + "-"
-                + ImportBatchCodeHelper.toTypeCode(plan.batchType())
-                + "-"
-                + plan.suffix();
+        String lineCode = SeedDocumentCodes.importLine(
+                plan.drawDate(),
+                station.getName(),
+                plan.batchType(),
+                lineSequence
+        );
 
         return ImportBatchLineEntity.builder()
                 .importBatch(batch)
@@ -590,11 +554,11 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
             );
             String numbers = String.format("%06d", Math.floorMod(numberValue, 1_000_000));
             String ticketSeedKey = SERIAL_PREFIX
-                    + plan.drawDate().format(BASIC_DATE)
+                    + SeedDocumentCodes.dateToken(plan.drawDate())
                     + "-"
                     + station.getId()
                     + "-"
-                    + ImportBatchCodeHelper.toTypeCode(line.getBatchType())
+                    + SeedDocumentCodes.toTypeCode(line.getBatchType())
                     + "-"
                     + String.format("%03d", index + 1);
 
@@ -854,37 +818,5 @@ public class LotteryImportBatchSeedInitializer implements ApplicationRunner {
             TicketCondition ticketCondition,
             LotteryTicketSerialFaultedBy faultedBy
     ) {
-    }
-
-    private static final class ImportBatchCodeHelper {
-        private ImportBatchCodeHelper() {
-        }
-
-        static String toStationCode(String stationName) {
-            if (stationName == null || stationName.isBlank()) {
-                return "STATION";
-            }
-            String normalized = java.text.Normalizer.normalize(stationName.trim(), java.text.Normalizer.Form.NFD)
-                    .replaceAll("\\p{M}+", "")
-                    .replace('đ', 'd')
-                    .replace('Đ', 'D')
-                    .replaceAll("[^A-Za-z0-9]+", "")
-                    .toUpperCase(java.util.Locale.ROOT);
-            if (normalized.isBlank()) {
-                return "STATION";
-            }
-            return normalized.length() > 16 ? normalized.substring(0, 16) : normalized;
-        }
-
-        static String toTypeCode(ImportBatchType batchType) {
-            if (batchType == null) {
-                return "UNK";
-            }
-            return switch (batchType) {
-                case NEW -> "NEW";
-                case SUPPLEMENTARY -> "SUPP";
-                case ADJUSTMENT -> "ADJ";
-            };
-        }
     }
 }

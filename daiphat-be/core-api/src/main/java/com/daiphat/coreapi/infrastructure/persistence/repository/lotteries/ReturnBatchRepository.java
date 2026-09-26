@@ -44,6 +44,8 @@ public interface ReturnBatchRepository
 
     List<ReturnBatchEntity> findByNoteStartingWithAndDeletedAtIsNull(String notePrefix);
 
+    List<ReturnBatchEntity> findByCreatedByAndDeletedAtIsNull(String createdBy);
+
     @Query("""
             SELECT DISTINCT rb FROM ReturnBatchEntity rb
             LEFT JOIN FETCH rb.lotterySupplier

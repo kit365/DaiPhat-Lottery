@@ -81,10 +81,12 @@ public class OrderSeedInitializer implements ApplicationRunner {
     private static final String PAYMENT_REF_PREFIX = "PAYOS-SEED-";
     private static final String SYSTEM_ACTOR = "order-seed";
     private static final String DEFAULT_SEED_PHONE = "0900000000";
-    private static final String SHARED_SUPPLIER_CODE = "MINH_CHINH";
+    private static final String SHARED_SUPPLIER_CODE = SharedSeedConstants.SUPPLIER_MINH_CHINH_CODE;
     private static final BigDecimal DEFAULT_IMPORT_COST = BigDecimal.valueOf(10_000);
     /** Sellable inventory per station/date for browsing & purchase flows. */
     private static final int AVAILABLE_TICKET_BATCH_SIZE = 12;
+    /** Completed / paid member orders — enough lines for win & payout-request demos. */
+    private static final int MEMBER_ORDER_TICKET_COUNT = 8;
     private static final int SERIALS_PER_TICKET = 10;
     private static final int PAYMENT_TTL_MINUTES = 10;
 
@@ -225,7 +227,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
 
     private List<LotteryStationEntity> findStationsForDrawDate(LocalDate drawDate) {
         DayOfWeek day = drawDate.getDayOfWeek();
-        return lotteryStationRepository.findAll().stream()
+        return SouthernStationSeedSupport.filterCanonical(lotteryStationRepository.findAll()).stream()
                 .filter(station -> station.getDeletedAt() == null)
                 .filter(LotteryStationEntity::isActive)
                 .filter(station -> station.getDrawDays() != null && station.getDrawDays().contains(day))
@@ -357,25 +359,28 @@ public class OrderSeedInitializer implements ApplicationRunner {
             LotteryStationEntity station,
             SeedTime time
     ) {
-        LotteryTicketSerialEntity ticketSerial = createSeedTicketSerial(
-                station, operator, "SEED-ONLINE-002", "234567",
+        List<LotteryTicketSerialEntity> serials = createMemberOrderSerials(
+                station, operator, "SEED-ONLINE-002", 234_567,
                 LotteryTicketStatus.SOLD_OUT, LotteryTicketSerialStatus.SOLD, time
         );
 
         LocalDateTime paidAt = time.minutesAgo(1);
+        BigDecimal total = station.getPrice().multiply(BigDecimal.valueOf(serials.size()));
         OrderEntity order = buildOrder(
-                member, "ORD-SEED-ONLINE-002", OrderType.ONLINE, station.getPrice(),
+                member, "ORD-SEED-ONLINE-002", OrderType.ONLINE, total,
                 OrderStatus.PAID, paidAt
         );
         order.setExpectedPickupAt(time.minutesFromNow(120));
 
-        OrderDetailEntity detail = buildDetail(order, ticketSerial, station.getPrice(), OrderDetailStatus.PROXY_HOLDING, paidAt);
+        List<OrderDetailEntity> details = buildDetails(
+                order, serials, station.getPrice(), OrderDetailStatus.PROXY_HOLDING, paidAt
+        );
         TransactionEntity transaction = buildOnlineTransaction(
-                order, station.getPrice(), TransactionStatus.COMPLETED,
+                order, total, TransactionStatus.COMPLETED,
                 paymentRefFor("ONLINE-002"), "Seed online paid order", paidAt, paidAt
         );
 
-        attachAggregate(order, detail, transaction);
+        attachAggregate(order, details, transaction);
         orderRepository.save(order);
     }
 
@@ -385,25 +390,28 @@ public class OrderSeedInitializer implements ApplicationRunner {
             LotteryStationEntity station,
             SeedTime time
     ) {
-        LotteryTicketSerialEntity ticketSerial = createSeedTicketSerial(
-                station, operator, "SEED-ONLINE-003", "345678",
+        List<LotteryTicketSerialEntity> serials = createMemberOrderSerials(
+                station, operator, "SEED-ONLINE-003", 345_678,
                 LotteryTicketStatus.SOLD_OUT, LotteryTicketSerialStatus.SOLD, time
         );
 
         LocalDateTime paidAt = time.minutesAgo(10);
+        BigDecimal total = station.getPrice().multiply(BigDecimal.valueOf(serials.size()));
         OrderEntity order = buildOrder(
-                member, "ORD-SEED-ONLINE-003", OrderType.ONLINE, station.getPrice(),
+                member, "ORD-SEED-ONLINE-003", OrderType.ONLINE, total,
                 OrderStatus.PREPARING, paidAt
         );
         order.setExpectedPickupAt(time.minutesFromNow(90));
 
-        OrderDetailEntity detail = buildDetail(order, ticketSerial, station.getPrice(), OrderDetailStatus.PROXY_HOLDING, paidAt);
+        List<OrderDetailEntity> details = buildDetails(
+                order, serials, station.getPrice(), OrderDetailStatus.PROXY_HOLDING, paidAt
+        );
         TransactionEntity transaction = buildOnlineTransaction(
-                order, station.getPrice(), TransactionStatus.COMPLETED,
+                order, total, TransactionStatus.COMPLETED,
                 paymentRefFor("ONLINE-003"), "Seed online preparing order", paidAt, paidAt
         );
 
-        attachAggregate(order, detail, transaction);
+        attachAggregate(order, details, transaction);
         orderRepository.save(order);
     }
 
@@ -505,25 +513,28 @@ public class OrderSeedInitializer implements ApplicationRunner {
             LotteryStationEntity station,
             SeedTime time
     ) {
-        LotteryTicketSerialEntity ticketSerial = createSeedTicketSerial(
-                station, operator, "SEED-ONLINE-004", "456789",
+        List<LotteryTicketSerialEntity> serials = createMemberOrderSerials(
+                station, operator, "SEED-ONLINE-004", 456_789,
                 LotteryTicketStatus.SOLD_OUT, LotteryTicketSerialStatus.SOLD, time
         );
 
         LocalDateTime paidAt = time.minutesAgo(25);
+        BigDecimal total = station.getPrice().multiply(BigDecimal.valueOf(serials.size()));
         OrderEntity order = buildOrder(
-                member, "ORD-SEED-ONLINE-004", OrderType.ONLINE, station.getPrice(),
+                member, "ORD-SEED-ONLINE-004", OrderType.ONLINE, total,
                 OrderStatus.PENDING_PICKUP, paidAt
         );
         order.setExpectedPickupAt(time.minutesFromNow(30));
 
-        OrderDetailEntity detail = buildDetail(order, ticketSerial, station.getPrice(), OrderDetailStatus.PROXY_HOLDING, paidAt);
+        List<OrderDetailEntity> details = buildDetails(
+                order, serials, station.getPrice(), OrderDetailStatus.PROXY_HOLDING, paidAt
+        );
         TransactionEntity transaction = buildOnlineTransaction(
-                order, station.getPrice(), TransactionStatus.COMPLETED,
+                order, total, TransactionStatus.COMPLETED,
                 paymentRefFor("ONLINE-004"), "Seed online pending pickup order", paidAt, paidAt
         );
 
-        attachAggregate(order, detail, transaction);
+        attachAggregate(order, details, transaction);
         orderRepository.save(order);
     }
 
@@ -533,28 +544,31 @@ public class OrderSeedInitializer implements ApplicationRunner {
             LotteryStationEntity station,
             SeedTime time
     ) {
-        LotteryTicketSerialEntity ticketSerial = createSeedTicketSerial(
-                station, operator, "SEED-ONLINE-005", "567890",
+        List<LotteryTicketSerialEntity> serials = createMemberOrderSerials(
+                station, operator, "SEED-ONLINE-005", 567_890,
                 LotteryTicketStatus.SOLD_OUT, LotteryTicketSerialStatus.SOLD, time
         );
 
         LocalDateTime paidAt = time.minutesAgo(45);
         LocalDateTime pickedUpAt = time.minutesAgo(5);
+        BigDecimal total = station.getPrice().multiply(BigDecimal.valueOf(serials.size()));
         OrderEntity order = buildOrder(
-                member, "ORD-SEED-ONLINE-005", OrderType.ONLINE, station.getPrice(),
+                member, "ORD-SEED-ONLINE-005", OrderType.ONLINE, total,
                 OrderStatus.COMPLETED, paidAt
         );
         order.setExpectedPickupAt(time.minutesAgo(15));
         order.setActualPickedUpAt(pickedUpAt);
         order.setPickedUpBy(operator);
 
-        OrderDetailEntity detail = buildDetail(order, ticketSerial, station.getPrice(), OrderDetailStatus.PROXY_HOLDING, paidAt);
+        List<OrderDetailEntity> details = buildDetails(
+                order, serials, station.getPrice(), OrderDetailStatus.PROXY_HOLDING, paidAt
+        );
         TransactionEntity transaction = buildOnlineTransaction(
-                order, station.getPrice(), TransactionStatus.COMPLETED,
+                order, total, TransactionStatus.COMPLETED,
                 paymentRefFor("ONLINE-005"), "Seed online completed order", paidAt, paidAt
         );
 
-        attachAggregate(order, detail, transaction);
+        attachAggregate(order, details, transaction);
         orderRepository.save(order);
     }
 
@@ -564,29 +578,32 @@ public class OrderSeedInitializer implements ApplicationRunner {
             LotteryStationEntity station,
             SeedTime time
     ) {
-        LotteryTicketSerialEntity ticketSerial = createSeedTicketSerial(
-                station, operator, "SEED-DIRECT-001", "223344",
+        List<LotteryTicketSerialEntity> serials = createMemberOrderSerials(
+                station, operator, "SEED-DIRECT-001", 223_344,
                 LotteryTicketStatus.SOLD_OUT, LotteryTicketSerialStatus.SOLD, time
         );
 
         LocalDateTime completedAt = time.base();
+        BigDecimal total = station.getPrice().multiply(BigDecimal.valueOf(serials.size()));
         OrderEntity order = buildOrder(
-                member, "ORD-SEED-DIRECT-001", OrderType.DIRECT, station.getPrice(),
+                member, "ORD-SEED-DIRECT-001", OrderType.DIRECT, total,
                 OrderStatus.COMPLETED, completedAt
         );
         order.setActualPickedUpAt(completedAt);
         order.setPickedUpBy(operator);
 
-        OrderDetailEntity detail = buildDetail(order, ticketSerial, station.getPrice(), OrderDetailStatus.PROXY_HOLDING, completedAt);
+        List<OrderDetailEntity> details = buildDetails(
+                order, serials, station.getPrice(), OrderDetailStatus.PROXY_HOLDING, completedAt
+        );
         TransactionEntity transaction = buildTransaction(
-                order, station.getPrice(), TransactionType.OFFLINE, TransactionStatus.COMPLETED,
+                order, total, TransactionType.OFFLINE, TransactionStatus.COMPLETED,
                 null, "Seed direct completed payment", completedAt
         );
         transaction.setPaidAt(completedAt);
         transaction.setCodCollectedAt(completedAt);
         transaction.setCodCollectedBy(operator);
 
-        attachAggregate(order, detail, transaction);
+        attachAggregate(order, details, transaction);
         orderRepository.save(order);
     }
 
@@ -858,10 +875,13 @@ public class OrderSeedInitializer implements ApplicationRunner {
                             "Order seed requires supplier " + SHARED_SUPPLIER_CODE
                     ));
 
-            String headerCode = SharedSeedConstants.ORDER_AVAILABLE_BATCH_PREFIX
-                    + drawDate.format(DateTimeFormatter.BASIC_ISO_DATE)
-                    + "-S"
-                    + station.getId();
+            int stationSeq = station.getId() != null
+                    ? Math.toIntExact(Math.min(station.getId(), 900))
+                    : 1;
+            String headerCode = SeedDocumentCodes.importHeader(
+                    drawDate,
+                    SeedDocumentCodes.LANE_IMPORT_ORDER_AVAILABLE + stationSeq
+            );
             ImportBatchEntity batch = importBatchRepository
                     .findByBatchCodeAndDeletedAtIsNull(headerCode)
                     .orElseGet(() -> importBatchRepository.save(ImportBatchEntity.builder()
@@ -873,17 +893,19 @@ public class OrderSeedInitializer implements ApplicationRunner {
                             .importedAt(importedAt)
                             .completedAt(importedAt)
                             .status(ImportBatchStatus.IMPORTED)
-                            .note("Order-seed sellable inventory linked for vendor cutoff.")
+                            .note(SeedDocumentCodes.importNote("ORDER", drawDate))
                             .createdBy(SYSTEM_ACTOR)
                             .lastModifiedBy(SYSTEM_ACTOR)
                             .createdAt(importedAt)
                             .updatedAt(importedAt)
                             .build()));
 
-            String lineCode = SharedSeedConstants.ORDER_AVAILABLE_LINE_PREFIX
-                    + drawDate.format(DateTimeFormatter.BASIC_ISO_DATE)
-                    + "-S"
-                    + station.getId();
+            String lineCode = SeedDocumentCodes.importLine(
+                    drawDate,
+                    station.getName(),
+                    ImportBatchType.NEW,
+                    SeedDocumentCodes.LANE_IMPORT_LINE_ORDER_AVAILABLE + stationSeq
+            );
             BigDecimal importCost = station.getPrice() != null ? station.getPrice() : DEFAULT_IMPORT_COST;
             ImportBatchLineEntity line = importBatchLineRepository
                     .findByBatchCodeAndDeletedAtIsNull(lineCode)
@@ -920,7 +942,8 @@ public class OrderSeedInitializer implements ApplicationRunner {
     }
 
     private LotteryStationEntity findSeedStation(LocalDate drawDate) {
-        List<LotteryStationEntity> activeStations = lotteryStationRepository.findAll().stream()
+        List<LotteryStationEntity> activeStations = SouthernStationSeedSupport
+                .filterCanonical(lotteryStationRepository.findAll()).stream()
                 .filter(station -> station.getDeletedAt() == null)
                 .filter(LotteryStationEntity::isActive)
                 .sorted((a, b) -> String.CASE_INSENSITIVE_ORDER.compare(
@@ -939,6 +962,40 @@ public class OrderSeedInitializer implements ApplicationRunner {
                 && drawDate != null
                 && station.getDrawDays() != null
                 && station.getDrawDays().contains(drawDate.getDayOfWeek());
+    }
+
+    private List<LotteryTicketSerialEntity> createMemberOrderSerials(
+            LotteryStationEntity station,
+            UserEntity operator,
+            String serialPrefix,
+            int numberBase,
+            LotteryTicketStatus ticketStatus,
+            LotteryTicketSerialStatus serialStatus,
+            SeedTime time
+    ) {
+        List<LotteryTicketSerialEntity> serials = new ArrayList<>(MEMBER_ORDER_TICKET_COUNT);
+        for (int i = 1; i <= MEMBER_ORDER_TICKET_COUNT; i++) {
+            String serialNumber = serialPrefix + "-" + String.format("%02d", i);
+            String numbers = String.format("%06d", Math.floorMod(numberBase + i * 1_117, 1_000_000));
+            serials.add(createSeedTicketSerial(
+                    station, operator, serialNumber, numbers, ticketStatus, serialStatus, time
+            ));
+        }
+        return serials;
+    }
+
+    private List<OrderDetailEntity> buildDetails(
+            OrderEntity order,
+            List<LotteryTicketSerialEntity> serials,
+            BigDecimal unitPrice,
+            OrderDetailStatus status,
+            LocalDateTime timestamp
+    ) {
+        List<OrderDetailEntity> details = new ArrayList<>(serials.size());
+        for (LotteryTicketSerialEntity serial : serials) {
+            details.add(buildDetail(order, serial, unitPrice, status, timestamp));
+        }
+        return details;
     }
 
     private LotteryTicketSerialEntity createSeedTicketSerial(

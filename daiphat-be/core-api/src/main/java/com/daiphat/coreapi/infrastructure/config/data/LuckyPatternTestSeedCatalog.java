@@ -6,12 +6,12 @@ import com.daiphat.coreapi.domain.model.enums.streetagent.LuckyPatternType;
 import java.util.List;
 
 /**
- * Dev-only catalog of lucky patterns and sample ticket numbers for local vendor tests.
+ * Lucky patterns and matching ticket numbers for vendor allocation checks.
  */
 public final class LuckyPatternTestSeedCatalog {
 
-    public static final String SEED_MARKER = "LUCKY_TEST_SEED";
-    public static final String SERIAL_PREFIX = "LUCKY-TEST-";
+    public static final String SEED_MARKER = SharedSeedConstants.LUCKY_SEED_MARKER;
+    public static final String SERIAL_PREFIX = SharedSeedConstants.LUCKY_SERIAL_PREFIX;
 
     private LuckyPatternTestSeedCatalog() {
     }
@@ -36,8 +36,8 @@ public final class LuckyPatternTestSeedCatalog {
     public static List<PatternSeed> patterns() {
         return List.of(
                 new PatternSeed(
-                        "[DEV] Lộc phát exact",
-                        "Local fixture — khớp chính xác 686868.",
+                        "Lộc phát",
+                        "Khớp chính xác 686868.",
                         LuckyPatternType.EXACT,
                         "686868",
                         null,
@@ -47,8 +47,8 @@ public final class LuckyPatternTestSeedCatalog {
                         100
                 ),
                 new PatternSeed(
-                        "[DEV] Đuôi 68",
-                        "Local fixture — khớp đuôi 68.",
+                        "Đuôi 68",
+                        "Khớp đuôi 68.",
                         LuckyPatternType.DIGIT_MATCH,
                         null,
                         "68",
@@ -58,8 +58,8 @@ public final class LuckyPatternTestSeedCatalog {
                         80
                 ),
                 new PatternSeed(
-                        "[DEV] Đầu 39",
-                        "Local fixture — khớp đầu 39.",
+                        "Đầu 39",
+                        "Khớp đầu 39.",
                         LuckyPatternType.DIGIT_MATCH,
                         null,
                         "39",
