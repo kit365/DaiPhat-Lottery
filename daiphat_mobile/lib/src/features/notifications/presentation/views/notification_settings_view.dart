@@ -25,7 +25,8 @@ class _NotificationSettingsViewState
   void initState() {
     super.initState();
     _viewModel = NotificationSettingsViewModel(
-      ref.read(notificationSettingServiceProvider),
+      ref.read(getMyNotificationSettingsProvider),
+      ref.read(upsertNotificationSettingProvider),
     );
   }
 

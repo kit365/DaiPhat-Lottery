@@ -10,11 +10,17 @@ import java.util.UUID;
 public interface TicketScanImportServicePort {
 
     /**
-     * Calls ticket-vision, then runs Layer-2 business validation against
-     * the given import batch line's station/draw date. Nothing is
-     * persisted -- doc section 4: "Returns scan results (without saving)".
+     * Calls ticket-vision, then runs Layer-2 business validation.
+     * Prefer {@code importBatchLineId} when scanning against a draft line;
+     * otherwise pass {@code importBatchId} so draw-date / template context
+     * from the selected phiếu nhập lô is applied.
      */
-    TicketScanResponse scan(Long importBatchLineId, MultipartFile file, UUID operatorId);
+    TicketScanResponse scan(
+            Long importBatchLineId,
+            Long importBatchId,
+            MultipartFile file,
+            UUID operatorId
+    );
 
     /**
      * Persists the mobile user's confirmed/corrected tickets against the

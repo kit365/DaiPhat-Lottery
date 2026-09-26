@@ -165,10 +165,10 @@ const PaymentTermField = ({
                     />
                     <Box>
                         <Typography variant="body2" fontWeight={700} color={isSameDay ? '#0f172a' : 'text.secondary'}>
-                            Trong ngày (0 ngày)
+                            Trong ngày
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                            Thanh toán dứt điểm khi kết thúc đối soát
+                            Thanh toán khi kết thúc đối soát
                         </Typography>
                     </Box>
                 </Paper>
@@ -205,7 +205,7 @@ const PaymentTermField = ({
                             Theo kỳ hạn
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                            Gối đầu thanh toán sau số ngày cố định
+                            Thanh toán sau số ngày cố định
                         </Typography>
                     </Box>
                     <TextField
@@ -707,8 +707,6 @@ export const SupplierFormFields = ({
                                         placeholder="VD: 123 Đường Nguyễn Trãi, Phường 2, Quận 5, TP. Hồ Chí Minh"
                                         fullWidth
                                         required
-                                        multiline
-                                        minRows={2}
                                         error={!!fieldState.error || activationMissing}
                                         helperText={fieldState.error?.message || fieldHelper('ADDRESS')}
                                         InputProps={{
@@ -929,7 +927,7 @@ export const SupplierFormFields = ({
                             4. Khung giờ vận hành hàng ngày
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                            Chuỗi thời gian nhận vé, trả ế và đối soát công nợ trong ngày
+                            Chuỗi thời gian nhận vé, trả vé và đối soát công nợ trong ngày
                         </Typography>
                     </Box>
                 </Stack>
@@ -939,7 +937,7 @@ export const SupplierFormFields = ({
                     <Box
                         sx={{
                             display: 'grid',
-                            gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
+                            gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' },
                             gap: 2,
                             p: 2.5,
                             borderRadius: '14px',
@@ -949,13 +947,6 @@ export const SupplierFormFields = ({
                     >
                         {/* Step 1: Import allow from */}
                         <Box>
-                            <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 1 }}>
-                                <Chip
-                                    size="small"
-                                    label="1. Mở nhận vé"
-                                    sx={{ height: 20, fontSize: '0.65rem', fontWeight: 800, bgcolor: '#e0f2fe', color: '#0369a1' }}
-                                />
-                            </Stack>
                             <Controller
                                 name="importAllowFrom"
                                 control={control}
@@ -985,19 +976,12 @@ export const SupplierFormFields = ({
 
                         {/* Step 2: Return cut-off time */}
                         <Box>
-                            <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 1 }}>
-                                <Chip
-                                    size="small"
-                                    label="2. Hạn trả vé ế"
-                                    sx={{ height: 20, fontSize: '0.65rem', fontWeight: 800, bgcolor: '#fef3c7', color: '#b45309' }}
-                                />
-                            </Stack>
                             <Controller
                                 name="returnCutOffTime"
                                 control={control}
                                 render={({ field, fieldState }) => (
                                     <AdminTimePicker
-                                        label="Hạn trả vé vật lý *"
+                                        label="Hạn trả vé *"
                                         value={field.value ? dayjs(`2000-01-01T${field.value}`) : null}
                                         minTime={minReturnCutOffTime}
                                         onChange={(newValue) => {
@@ -1022,13 +1006,6 @@ export const SupplierFormFields = ({
 
                         {/* Step 3: Payment cut-off time (per supplier) */}
                         <Box>
-                            <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 1 }}>
-                                <Chip
-                                    size="small"
-                                    label="3. Giờ thanh toán"
-                                    sx={{ height: 20, fontSize: '0.65rem', fontWeight: 800, bgcolor: '#dcfce7', color: '#15803d' }}
-                                />
-                            </Stack>
                             <Controller
                                 name="paymentCutOffTime"
                                 control={control}

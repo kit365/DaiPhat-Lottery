@@ -96,9 +96,15 @@ public class GlobalExceptionAdvice {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ApiResponse<?>> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException exception) {
         long maxBytes = exception.getMaxUploadSize();
+        // Spring may report -1 when the configured limit is unavailable; fall back to our multipart default (50MB).
         int maxMb = maxBytes > 0 ? (int) Math.max(1, maxBytes / (1024 * 1024)) : 50;
         String message = String.format(ErrorCode.IMAGE_FILE_TOO_LARGE.getMessage(), maxMb);
-        log.warn("Upload rejected (max {} bytes): {}", maxBytes, exception.getMessage());
+        log.warn(
+                "Upload rejected — configured max={} bytes ({} MB message). Cause: {}",
+                maxBytes,
+                maxMb,
+                exception.getMessage()
+        );
         return ResponseEntity.status(ErrorCode.IMAGE_FILE_TOO_LARGE.getStatus()).body(ApiResponse.error(message));
     }
 
@@ -188,6 +194,20 @@ public class GlobalExceptionAdvice {
                 @SuppressWarnings("unchecked")
                 List<String> fields = (List<String>) missingList;
                 return LotteryStationModel.buildActivationIncompleteMessage(fields);
+            }
+        }
+
+        if (errorCode == ErrorCode.EKYC_OCR_FAILED) {
+            if (exception.getData() instanceof Map<?, ?> dataMap) {
+                Object labels = dataMap.get("missingFieldLabels");
+                if (labels instanceof List<?> labelList && !labelList.isEmpty()) {
+                    return "Không đọc được thông tin từ ảnh CCCD (Thiếu/không rõ: "
+                            + String.join(", ", labelList.stream().map(Object::toString).toList())
+                            + "). Vui lòng chụp lại rõ hơn.";
+                }
+            }
+            if (exception.getInternalMessage() != null && !exception.getInternalMessage().isBlank()) {
+                return exception.getInternalMessage();
             }
         }
 

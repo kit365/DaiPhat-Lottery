@@ -89,11 +89,93 @@ function FieldValue({ children, sx }: { children: ReactNode; sx?: object }) {
     );
 }
 
-function CardSectionTitle({ title }: { title: string }) {
+function CardSectionTitle({ title, icon, extra }: { title: string; icon?: string; extra?: ReactNode }) {
     return (
-        <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--palette-text-primary)', mb: 2 }}>
-            {title}
-        </Typography>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+            <Stack direction="row" alignItems="center" spacing={1.25}>
+                {icon && (
+                    <Box
+                        sx={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: '8px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            bgcolor: 'action.hover',
+                            color: 'primary.main',
+                            fontSize: '1.1rem',
+                        }}
+                    >
+                        <Icon icon={icon} />
+                    </Box>
+                )}
+                <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--palette-text-primary)' }}>
+                    {title}
+                </Typography>
+            </Stack>
+            {extra}
+        </Stack>
+    );
+}
+
+function OcrFieldTile({
+    label,
+    value,
+    icon,
+    mono,
+}: {
+    label: string;
+    value?: ReactNode;
+    icon?: string;
+    mono?: boolean;
+}) {
+    return (
+        <Box
+            sx={{
+                p: 1.5,
+                borderRadius: '10px',
+                border: '1px solid',
+                borderColor: 'divider',
+                bgcolor: 'background.neutral',
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+            }}
+        >
+            <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mb: 0.5 }}>
+                {icon && (
+                    <Box sx={{ color: 'text.disabled', display: 'flex', fontSize: '0.95rem' }}>
+                        <Icon icon={icon} />
+                    </Box>
+                )}
+                <Typography
+                    variant="caption"
+                    sx={{
+                        color: 'text.secondary',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        fontSize: '0.7rem',
+                        letterSpacing: '0.04em',
+                    }}
+                >
+                    {label}
+                </Typography>
+            </Stack>
+            <Typography
+                variant="subtitle2"
+                sx={{
+                    fontWeight: 700,
+                    color: value ? 'text.primary' : 'text.disabled',
+                    fontFamily: mono ? 'monospace' : undefined,
+                    wordBreak: 'break-word',
+                    fontSize: '0.875rem',
+                }}
+            >
+                {value || '—'}
+            </Typography>
+        </Box>
     );
 }
 
@@ -370,10 +452,10 @@ export const PrizePayoutDetailPage = () => {
                                 onClick={() => approveMutation.mutate(detail.id)}
                                 sx={headerButtonSx}
                             >
-                                Duyệt
+                                {approveMutation.isPending ? 'Đang duyệt...' : 'Duyệt'}
                             </Button>
                         )}
-                        {(isPending || isApproved) && (
+                        {(detail.requiresFourEyes ? isApproved : isPending) && (
                             <Button
                                 variant="contained"
                                 color="success"
@@ -412,31 +494,115 @@ export const PrizePayoutDetailPage = () => {
             <Grid container spacing={2.5}>
                 <Grid size={{ xs: 12, md: 8 }}>
                     <Stack spacing={2.5}>
+                        {/* Card 1: Ticket & Prize Information */}
                         <Card sx={{ p: 3, ...cardSx }}>
-                            <CardSectionTitle title="Thông tin vé & tiền thưởng" />
+                            <CardSectionTitle title="Thông tin vé & trúng thưởng" icon="solar:ticket-bold-duotone" />
 
-                            <Box sx={{ mb: 2.5 }}>
-                                <InfoRow label="Giá trị giải" value={formatPrizePayoutCurrency(detail.grossAmount)} />
-                                <InfoRow label="Hoa hồng đại lý" value={formatPrizePayoutCurrency(detail.commissionAmount)} />
-                                <InfoRow
-                                    label="Thực nhận"
-                                    value={formatPrizePayoutCurrency(detail.netAmount ?? detail.grossAmount)}
+                            {/* Station and Draw Date Bar */}
+                            <Stack
+                                direction="row"
+                                alignItems="center"
+                                justifyContent="space-between"
+                                flexWrap="wrap"
+                                gap={1.5}
+                                sx={{
+                                    p: 2,
+                                    bgcolor: 'background.neutral',
+                                    borderRadius: '12px',
+                                    border: '1px solid',
+                                    borderColor: 'divider',
+                                    mb: 2.5,
+                                }}
+                            >
+                                <Stack direction="row" alignItems="center" spacing={1.5}>
+                                    <Box
+                                        sx={{
+                                            width: 40,
+                                            height: 40,
+                                            borderRadius: '10px',
+                                            bgcolor: 'error.lighter',
+                                            color: 'error.main',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            flexShrink: 0,
+                                        }}
+                                    >
+                                        <Icon icon="solar:ticket-sale-bold-duotone" width={22} />
+                                    </Box>
+                                    <Box>
+                                        <Typography
+                                            variant="caption"
+                                            sx={{ color: 'text.secondary', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.7rem' }}
+                                        >
+                                            Nhà đài phát hành
+                                        </Typography>
+                                        <Typography variant="subtitle1" sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1.2 }}>
+                                            {detail.stationName || '—'}
+                                        </Typography>
+                                    </Box>
+                                </Stack>
+
+                                <Chip
+                                    icon={<Icon icon="solar:calendar-bold-duotone" width={16} />}
+                                    label={detail.drawDate ? `Ngày quay: ${dayjs(detail.drawDate).format('DD/MM/YYYY')}` : '—'}
+                                    size="small"
+                                    sx={{ fontWeight: 600, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider' }}
                                 />
-                                {detail.paymentMethod === 'COMBINED' ? (
-                                    <>
-                                        <InfoRow label="Tiền mặt" value={formatPrizePayoutCurrency(resolvedCashAmount)} />
-                                        <InfoRow label="Chuyển khoản" value={formatPrizePayoutCurrency(resolvedTransferAmount)} />
-                                    </>
-                                ) : detail.paymentMethod === 'CASH' ? (
-                                    <InfoRow label="Tiền mặt" value={formatPrizePayoutCurrency(resolvedCashAmount)} />
-                                ) : detail.paymentMethod === 'TRANSFER' ? (
-                                    <InfoRow label="Chuyển khoản" value={formatPrizePayoutCurrency(resolvedTransferAmount)} />
-                                ) : null}
+                            </Stack>
+
+                            {/* Numbers and Prize Badge Box */}
+                            <Box
+                                sx={{
+                                    textAlign: 'center',
+                                    p: 2.5,
+                                    mb: 2.5,
+                                    borderRadius: '14px',
+                                    border: '1px solid',
+                                    borderColor: 'error.lighter',
+                                    bgcolor: 'rgba(255, 72, 66, 0.04)',
+                                }}
+                            >
+                                <Typography
+                                    variant="caption"
+                                    sx={{
+                                        color: 'text.secondary',
+                                        fontWeight: 700,
+                                        letterSpacing: '0.08em',
+                                        textTransform: 'uppercase',
+                                        display: 'block',
+                                        mb: 1,
+                                    }}
+                                >
+                                    Dãy số trên vé
+                                </Typography>
+                                <Box
+                                    sx={{
+                                        display: 'inline-block',
+                                        py: 0.75,
+                                        px: 2.5,
+                                        borderRadius: '12px',
+                                        bgcolor: 'background.paper',
+                                        border: '1px solid',
+                                        borderColor: 'divider',
+                                        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                                    }}
+                                >
+                                    <AdminLuckyDisplay value={detail.numbers} ticket sx={{ fontWeight: 800, fontSize: '1.4rem' }} />
+                                </Box>
+                                <Box sx={{ mt: 1.5 }}>
+                                    <Chip
+                                        icon={<Icon icon="solar:cup-star-bold-duotone" width={16} />}
+                                        label={detail.prizeDisplayName || detail.prizeCode || '—'}
+                                        color="error"
+                                        size="medium"
+                                        sx={{ fontWeight: 800, px: 1 }}
+                                    />
+                                </Box>
                             </Box>
 
-                            <Divider sx={{ mb: 2.5, borderStyle: 'dashed' }} />
-
-                            <Grid container spacing={2} sx={{ mb: 2.5 }}>
+                            {/* Order Details Grid */}
+                            <Grid container spacing={2}>
                                 <Grid size={{ xs: 6, sm: 4 }}>
                                     <FieldLabel>Mã đơn hàng</FieldLabel>
                                     {orderDetailPath && detail.orderCode ? (
@@ -450,6 +616,7 @@ export const PrizePayoutDetailPage = () => {
                                                 border: 0,
                                                 bgcolor: 'transparent',
                                                 textAlign: 'left',
+                                                fontWeight: 700,
                                             }}
                                         >
                                             {detail.orderCode}
@@ -459,17 +626,17 @@ export const PrizePayoutDetailPage = () => {
                                     )}
                                 </Grid>
                                 <Grid size={{ xs: 6, sm: 4 }}>
-                                    <FieldLabel>Ngày tạo</FieldLabel>
+                                    <FieldLabel>Ngày tạo yêu cầu</FieldLabel>
                                     <FieldValue>
                                         {detail.createdAt ? dayjs(detail.createdAt).format('DD/MM/YYYY HH:mm') : '—'}
                                     </FieldValue>
                                 </Grid>
                                 <Grid size={{ xs: 6, sm: 4 }}>
-                                    <FieldLabel>Loại đơn</FieldLabel>
+                                    <FieldLabel>Loại đơn hàng</FieldLabel>
                                     <FieldValue>{resolvePrizePayoutOrderTypeLabel(detail)}</FieldValue>
                                 </Grid>
                                 <Grid size={{ xs: 6, sm: 4 }}>
-                                    <FieldLabel>Xác minh</FieldLabel>
+                                    <FieldLabel>Xác minh quyền sở hữu</FieldLabel>
                                     <FieldValue>
                                         {detail.ownershipVerificationLevel
                                             ? PRIZE_PAYOUT_VERIFICATION_LABELS[detail.ownershipVerificationLevel]
@@ -477,7 +644,13 @@ export const PrizePayoutDetailPage = () => {
                                     </FieldValue>
                                 </Grid>
                                 <Grid size={{ xs: 6, sm: 4 }}>
-                                    <FieldLabel>Thanh toán</FieldLabel>
+                                    <FieldLabel>Kênh nhận thưởng</FieldLabel>
+                                    <FieldValue>
+                                        {detail.channel === 'ONLINE' ? 'Trực tuyến' : 'Tại quầy / Đại lý'}
+                                    </FieldValue>
+                                </Grid>
+                                <Grid size={{ xs: 6, sm: 4 }}>
+                                    <FieldLabel>Hình thức chi trả</FieldLabel>
                                     <FieldValue>
                                         {detail.paymentMethod
                                             ? PRIZE_PAYOUT_PAYMENT_METHOD_LABELS[detail.paymentMethod]
@@ -485,82 +658,303 @@ export const PrizePayoutDetailPage = () => {
                                     </FieldValue>
                                 </Grid>
                             </Grid>
-
-                            <Divider sx={{ mb: 2.5, borderStyle: 'dashed' }} />
-
-                            <Grid container spacing={2}>
-                                <Grid size={{ xs: 12, sm: 6 }}>
-                                    <FieldLabel>Đài / Ngày quay</FieldLabel>
-                                    <FieldValue>
-                                        {detail.stationName || '—'}
-                                        {detail.drawDate ? ` · ${dayjs(detail.drawDate).format('DD/MM/YYYY')}` : ''}
-                                    </FieldValue>
-                                </Grid>
-                                <Grid size={{ xs: 12, sm: 6 }}>
-                                    <FieldLabel>Giải trúng</FieldLabel>
-                                    <FieldValue>{detail.prizeDisplayName || detail.prizeCode || '—'}</FieldValue>
-                                </Grid>
-                                <Grid size={{ xs: 12 }}>
-                                    <FieldLabel>Dãy số trên vé</FieldLabel>
-                                    <AdminLuckyDisplay value={detail.numbers} ticket sx={{ fontWeight: 700, fontSize: '1rem' }} />
-                                </Grid>
-
-                                {(detail.recipientFullName || detail.recipientIdNumber) && (
-                                    <>
-                                        <Grid size={{ xs: 12, sm: 6 }}>
-                                            <FieldLabel>Người nhận</FieldLabel>
-                                            <FieldValue>{detail.recipientFullName || '—'}</FieldValue>
-                                        </Grid>
-                                        <Grid size={{ xs: 12, sm: 6 }}>
-                                            <FieldLabel>CCCD (masked)</FieldLabel>
-                                            <FieldValue>{detail.recipientIdNumber || '—'}</FieldValue>
-                                        </Grid>
-                                        {detail.recipientIdImageUrl || detail.recipientIdImageBackUrl ? (
-                                            <Grid size={{ xs: 12 }}>
-                                                <FieldLabel>Ảnh CCCD</FieldLabel>
-                                                <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
-                                                    {detail.recipientIdImageUrl && (
-                                                        <Box>
-                                                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block', mb: 0.75 }}>
-                                                                Mặt trước
-                                                            </Typography>
-                                                            <TransferEvidencePreview
-                                                                compact
-                                                                imageUrl={detail.recipientIdImageUrl}
-                                                                title="CCCD mặt trước"
-                                                                showCaption={false}
-                                                            />
-                                                        </Box>
-                                                    )}
-                                                    {detail.recipientIdImageBackUrl && (
-                                                        <Box>
-                                                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block', mb: 0.75 }}>
-                                                                Mặt sau
-                                                            </Typography>
-                                                            <TransferEvidencePreview
-                                                                compact
-                                                                imageUrl={detail.recipientIdImageBackUrl}
-                                                                title="CCCD mặt sau"
-                                                                showCaption={false}
-                                                            />
-                                                        </Box>
-                                                    )}
-                                                </Stack>
-                                            </Grid>
-                                        ) : null}
-                                    </>
-                                )}
-
-                                <Grid size={{ xs: 12, sm: 6 }}>
-                                    <FieldLabel>Người tạo yêu cầu</FieldLabel>
-                                    <FieldValue>{detail.createdBy || '—'}</FieldValue>
-                                </Grid>
-                                <Grid size={{ xs: 12, sm: 6 }}>
-                                    <FieldLabel>Người hoàn tất</FieldLabel>
-                                    <FieldValue>{detail.completedBy || '—'}</FieldValue>
-                                </Grid>
-                            </Grid>
                         </Card>
+
+                        {/* Card 2: Financial Breakdown */}
+                        <Card sx={{ p: 3, ...cardSx }}>
+                            <CardSectionTitle title="Chi tiết tiền thưởng" icon="solar:wallet-money-bold-duotone" />
+
+                            <Box sx={{ mb: 2.5 }}>
+                                <InfoRow label="Giá trị giải thưởng (Gross)" value={formatPrizePayoutCurrency(detail.grossAmount)} />
+                                <InfoRow
+                                    label="Thuế thu nhập cá nhân (TNCN)"
+                                    value={
+                                        detail.taxAmount && detail.taxAmount > 0
+                                            ? `-${formatPrizePayoutCurrency(detail.taxAmount)}`
+                                            : '0 đ (Miễn thuế)'
+                                    }
+                                />
+                                <InfoRow
+                                    label="Hoa hồng đại lý"
+                                    value={
+                                        detail.commissionAmount && detail.commissionAmount > 0
+                                            ? `-${formatPrizePayoutCurrency(detail.commissionAmount)}`
+                                            : '0 đ'
+                                    }
+                                />
+                            </Box>
+
+                            {/* Highlighted Net Payout Box */}
+                            <Box
+                                sx={{
+                                    p: 2.5,
+                                    borderRadius: '14px',
+                                    background: 'linear-gradient(135deg, rgba(238, 19, 20, 0.03) 0%, rgba(238, 19, 20, 0.08) 100%)',
+                                    border: '1.5px solid',
+                                    borderColor: 'rgba(238, 19, 20, 0.22)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    flexWrap: 'wrap',
+                                    gap: 2,
+                                }}
+                            >
+                                <Stack direction="row" alignItems="center" spacing={1.75}>
+                                    <Box
+                                        sx={{
+                                            width: 44,
+                                            height: 44,
+                                            borderRadius: '12px',
+                                            bgcolor: 'error.main',
+                                            color: '#fff',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            fontSize: '1.3rem',
+                                            boxShadow: '0 4px 12px rgba(238, 19, 20, 0.25)',
+                                            flexShrink: 0,
+                                        }}
+                                    >
+                                        <Icon icon="solar:wallet-check-bold-duotone" />
+                                    </Box>
+                                    <Box>
+                                        <Stack direction="row" alignItems="center" spacing={1}>
+                                            <Typography
+                                                variant="subtitle2"
+                                                sx={{
+                                                    fontWeight: 800,
+                                                    color: 'error.darker',
+                                                    textTransform: 'uppercase',
+                                                    letterSpacing: '0.04em',
+                                                    fontSize: '0.85rem',
+                                                }}
+                                            >
+                                                Số tiền thực nhận (Net)
+                                            </Typography>
+                                            {detail.paymentMethod && (
+                                                <Chip
+                                                    size="small"
+                                                    label={
+                                                        detail.paymentMethod === 'TRANSFER'
+                                                            ? 'Chuyển khoản'
+                                                            : detail.paymentMethod === 'CASH'
+                                                            ? 'Tiền mặt'
+                                                            : 'Kết hợp'
+                                                    }
+                                                    sx={{
+                                                        height: 20,
+                                                        fontSize: '0.7rem',
+                                                        fontWeight: 700,
+                                                        bgcolor: 'rgba(238, 19, 20, 0.1)',
+                                                        color: 'error.dark',
+                                                    }}
+                                                />
+                                            )}
+                                        </Stack>
+                                        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
+                                            Sau khi khấu trừ thuế và phí hoa hồng đại lý
+                                        </Typography>
+                                    </Box>
+                                </Stack>
+
+                                <Box sx={{ textAlign: { xs: 'left', sm: 'right' } }}>
+                                    <Typography
+                                        sx={{
+                                            fontWeight: 900,
+                                            color: 'error.main',
+                                            fontSize: { xs: '1.45rem', sm: '1.75rem' },
+                                            fontVariantNumeric: 'tabular-nums',
+                                            letterSpacing: '-0.02em',
+                                            lineHeight: 1.1,
+                                        }}
+                                    >
+                                        {formatPrizePayoutCurrency(detail.netAmount ?? detail.grossAmount)}
+                                    </Typography>
+                                </Box>
+                            </Box>
+
+                            {detail.paymentMethod === 'COMBINED' && (
+                                <Box sx={{ mt: 2, pt: 1.5, borderTop: '1px dashed', borderColor: 'divider' }}>
+                                    <InfoRow label="Thanh toán tiền mặt" value={formatPrizePayoutCurrency(resolvedCashAmount)} />
+                                    <InfoRow label="Chuyển khoản ngân hàng" value={formatPrizePayoutCurrency(resolvedTransferAmount)} />
+                                </Box>
+                            )}
+                        </Card>
+
+                        {/* Card 3: Recipient & OCR Identity */}
+                        {(detail.recipientFullName ||
+                            detail.recipientIdNumber ||
+                            detail.recipientIdImageUrl ||
+                            detail.recipientIdImageBackUrl ||
+                            detail.ekycOcrDob ||
+                            detail.ekycOcrGender ||
+                            detail.ekycOcrNationality ||
+                            detail.ekycOcrPlaceOfBirth ||
+                            detail.ekycOcrPlaceOfResidence ||
+                            detail.ekycOcrIssueDate ||
+                            detail.ekycOcrExpiryDate) && (
+                            <Card sx={{ p: 3, ...cardSx }}>
+                                <CardSectionTitle
+                                    title="Thông tin người nhận & CCCD"
+                                    icon="solar:user-id-bold-duotone"
+                                    extra={
+                                        <Chip
+                                            size="small"
+                                            label="Trích xuất từ OCR"
+                                            color="primary"
+                                            variant="outlined"
+                                            sx={{ fontWeight: 700, fontSize: '0.75rem' }}
+                                        />
+                                    }
+                                />
+
+                                {/* OCR Fields Grid */}
+                                <Grid container spacing={1.5} sx={{ mb: 2.5 }}>
+                                    <Grid size={{ xs: 12, sm: 6 }}>
+                                        <OcrFieldTile
+                                            label="Họ và tên người nhận"
+                                            value={detail.recipientFullName || detail.ekycOcrName}
+                                            icon="solar:user-bold-duotone"
+                                        />
+                                    </Grid>
+                                    <Grid size={{ xs: 12, sm: 6 }}>
+                                        <OcrFieldTile
+                                            label="Số CCCD / CMND"
+                                            value={detail.recipientIdNumber || detail.ekycOcrIdNumber}
+                                            icon="solar:card-2-bold-duotone"
+                                            mono
+                                        />
+                                    </Grid>
+                                    <Grid size={{ xs: 6, sm: 4 }}>
+                                        <OcrFieldTile
+                                            label="Ngày sinh"
+                                            value={detail.ekycOcrDob}
+                                            icon="solar:calendar-bold-duotone"
+                                        />
+                                    </Grid>
+                                    <Grid size={{ xs: 6, sm: 4 }}>
+                                        <OcrFieldTile
+                                            label="Giới tính"
+                                            value={detail.ekycOcrGender}
+                                            icon="solar:users-group-two-rounded-bold-duotone"
+                                        />
+                                    </Grid>
+                                    <Grid size={{ xs: 12, sm: 4 }}>
+                                        <OcrFieldTile
+                                            label="Quốc tịch"
+                                            value={detail.ekycOcrNationality}
+                                            icon="solar:flag-bold-duotone"
+                                        />
+                                    </Grid>
+                                    <Grid size={{ xs: 6, sm: 6 }}>
+                                        <OcrFieldTile
+                                            label="Ngày cấp"
+                                            value={detail.ekycOcrIssueDate}
+                                            icon="solar:calendar-date-bold-duotone"
+                                        />
+                                    </Grid>
+                                    <Grid size={{ xs: 6, sm: 6 }}>
+                                        <OcrFieldTile
+                                            label="Ngày hết hạn"
+                                            value={detail.ekycOcrExpiryDate}
+                                            icon="solar:clock-circle-bold-duotone"
+                                        />
+                                    </Grid>
+                                    <Grid size={{ xs: 12 }}>
+                                        <OcrFieldTile
+                                            label="Quê quán / Nơi đăng ký khai sinh"
+                                            value={detail.ekycOcrPlaceOfBirth}
+                                            icon="solar:map-point-bold-duotone"
+                                        />
+                                    </Grid>
+                                    <Grid size={{ xs: 12 }}>
+                                        <OcrFieldTile
+                                            label="Nơi thường trú"
+                                            value={detail.ekycOcrPlaceOfResidence}
+                                            icon="solar:home-bold-duotone"
+                                        />
+                                    </Grid>
+                                </Grid>
+
+                                {/* CCCD Photos */}
+                                {(detail.recipientIdImageUrl || detail.recipientIdImageBackUrl) && (
+                                    <Box sx={{ pt: 2, borderTop: '1px dashed', borderColor: 'divider' }}>
+                                        <Typography
+                                            variant="caption"
+                                            sx={{
+                                                color: 'text.secondary',
+                                                fontWeight: 700,
+                                                textTransform: 'uppercase',
+                                                fontSize: '0.72rem',
+                                                letterSpacing: '0.04em',
+                                                display: 'block',
+                                                mb: 1.5,
+                                            }}
+                                        >
+                                            Ảnh căn cước công dân đính kèm
+                                        </Typography>
+                                        <Grid container spacing={2}>
+                                            {detail.recipientIdImageUrl && (
+                                                <Grid size={{ xs: 12, sm: 6 }}>
+                                                    <Box
+                                                        sx={{
+                                                            p: 1.5,
+                                                            borderRadius: '12px',
+                                                            border: '1px solid',
+                                                            borderColor: 'divider',
+                                                            bgcolor: 'background.neutral',
+                                                        }}
+                                                    >
+                                                        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+                                                            <Chip
+                                                                size="small"
+                                                                label="Mặt trước"
+                                                                color="default"
+                                                                sx={{ fontWeight: 700, fontSize: '0.75rem', height: 22 }}
+                                                            />
+                                                        </Stack>
+                                                        <TransferEvidencePreview
+                                                            compact
+                                                            imageUrl={detail.recipientIdImageUrl}
+                                                            title="CCCD mặt trước"
+                                                            showCaption={false}
+                                                        />
+                                                    </Box>
+                                                </Grid>
+                                            )}
+                                            {detail.recipientIdImageBackUrl && (
+                                                <Grid size={{ xs: 12, sm: 6 }}>
+                                                    <Box
+                                                        sx={{
+                                                            p: 1.5,
+                                                            borderRadius: '12px',
+                                                            border: '1px solid',
+                                                            borderColor: 'divider',
+                                                            bgcolor: 'background.neutral',
+                                                        }}
+                                                    >
+                                                        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+                                                            <Chip
+                                                                size="small"
+                                                                label="Mặt sau"
+                                                                color="default"
+                                                                sx={{ fontWeight: 700, fontSize: '0.75rem', height: 22 }}
+                                                            />
+                                                        </Stack>
+                                                        <TransferEvidencePreview
+                                                            compact
+                                                            imageUrl={detail.recipientIdImageBackUrl}
+                                                            title="CCCD mặt sau"
+                                                            showCaption={false}
+                                                        />
+                                                    </Box>
+                                                </Grid>
+                                            )}
+                                        </Grid>
+                                    </Box>
+                                )}
+                            </Card>
+                        )}
 
                         {/* Rejection Note Alert */}
                         {detail.rejectReason && (
@@ -587,7 +981,7 @@ export const PrizePayoutDetailPage = () => {
                     <Stack spacing={2.5}>
                         {detail.channel === 'IN_PERSON' && (
                             <Card sx={{ p: 3, ...cardSx }}>
-                                <CardSectionTitle title="Hợp đồng trả thưởng" />
+                                <CardSectionTitle title="Hợp đồng trả thưởng" icon="solar:document-text-bold-duotone" />
                                 <Stack spacing={1.25}>
                                     <Button
                                         variant="outlined"
@@ -639,7 +1033,7 @@ export const PrizePayoutDetailPage = () => {
                         )}
 
                         <Card sx={{ p: 3, ...cardSx }}>
-                            <CardSectionTitle title="Khách hàng" />
+                            <CardSectionTitle title="Khách hàng" icon="solar:user-circle-bold-duotone" />
                             <InfoRow
                                 label="Họ tên"
                                 value={
@@ -685,7 +1079,7 @@ export const PrizePayoutDetailPage = () => {
                         </Card>
 
                         <Card sx={{ p: 3, ...cardSx }}>
-                            <CardSectionTitle title="Chuyển khoản" />
+                            <CardSectionTitle title="Chuyển khoản" icon="solar:card-transfer-bold-duotone" />
                             <InfoRow label="Ngân hàng" value={detail.bankName || '—'} />
                             <InfoRow label="Số tài khoản" value={detail.bankAccountNumber || '—'} mono />
                             <InfoRow label="Chủ tài khoản" value={detail.accountHolderName || '—'} />

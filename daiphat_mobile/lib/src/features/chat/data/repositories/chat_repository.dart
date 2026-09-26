@@ -1,12 +1,12 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../domain/entities/chat_models.dart';
+import '../../domain/repositories/chat_repository_port.dart';
 import '../../utils/chat_constants.dart';
-import '../../utils/chat_message_mapper.dart';
-import '../models/chat_models.dart';
 import '../services/chat_api_service.dart';
 import '../services/chat_websocket_service.dart';
 
-class ChatRepository {
+class ChatRepository implements ChatRepositoryPort {
   ChatRepository({
     required ChatApiService apiService,
     required ChatWebSocketService webSocketService,
@@ -19,14 +19,18 @@ class ChatRepository {
   final ChatWebSocketService _webSocketService;
   final Future<String?> Function() _readAccessToken;
 
+  @override
   Future<bool> getAiStatus() => _apiService.getAiStatus();
 
+  @override
   Future<ConversationDetailModel?> getOpenConversation() =>
       _apiService.getOpenConversation();
 
+  @override
   Future<ConversationDetailModel?> getConversationDetail(int id) =>
       _apiService.getConversationDetail(id);
 
+  @override
   Future<ConversationDetailModel?> initConversation({
     String? title,
     String? content,
@@ -37,17 +41,22 @@ class ChatRepository {
     requestStaff: requestStaff,
   );
 
+  @override
   Future<ConversationDetailModel?> escalateConversation(int id) =>
       _apiService.escalateConversation(id);
 
+  @override
   Future<ConversationDetailModel?> cancelStaffRequest(int id) =>
       _apiService.cancelStaffRequest(id);
 
+  @override
   Future<ConversationDetailModel?> disconnectStaff(int id) =>
       _apiService.disconnectStaff(id);
 
+  @override
   Future<void> markAsRead(int id) => _apiService.markAsRead(id);
 
+  @override
   Future<ChatTimelinePageModel> getTimeline({
     int limit = 30,
     String? beforeCreatedAt,
@@ -58,6 +67,7 @@ class ChatRepository {
     beforeId: beforeId,
   );
 
+  @override
   Future<void> connectWebSocket() async {
     final token = await readAccessToken();
     if (token == null || token.isEmpty) {
@@ -66,10 +76,13 @@ class ChatRepository {
     await _webSocketService.connect(token);
   }
 
+  @override
   Future<String?> readAccessToken() => _readAccessToken();
 
+  @override
   Future<void> disconnectWebSocket() => _webSocketService.disconnect();
 
+  @override
   Future<void> sendRealtimeMessage({
     required int conversationId,
     required String content,
@@ -78,6 +91,7 @@ class ChatRepository {
     content: content,
   );
 
+  @override
   void subscribeInbox({
     required ChatSocketMessageHandler onMessage,
     required ChatConversationEventHandler onConversationEvent,
@@ -88,6 +102,7 @@ class ChatRepository {
     );
   }
 
+  @override
   void subscribeConversation(
     int conversationId, {
     required ChatSocketMessageHandler onMessage,
@@ -100,9 +115,11 @@ class ChatRepository {
     );
   }
 
+  @override
   void unsubscribeConversation(int conversationId) =>
       _webSocketService.unsubscribeConversation(conversationId);
 
+  @override
   Future<void> saveLastConversationId(int id) async {
     final prefs = await SharedPreferences.getInstance();
     final key = _conversationStorageKey(prefs);
@@ -111,6 +128,7 @@ class ChatRepository {
     await prefs.remove(chatLastConversationKey);
   }
 
+  @override
   Future<int?> readLastConversationId() async {
     final prefs = await SharedPreferences.getInstance();
     final key = _conversationStorageKey(prefs);
@@ -118,6 +136,7 @@ class ChatRepository {
     return key == null ? null : prefs.getInt(key);
   }
 
+  @override
   Future<void> clearLastConversationId() async {
     final prefs = await SharedPreferences.getInstance();
     final key = _conversationStorageKey(prefs);
@@ -130,16 +149,4 @@ class ChatRepository {
     if (userId.isEmpty) return null;
     return '$chatLastConversationKey.$userId';
   }
-}
-
-List<UiChatMessage> mapTimelineItems(List<ChatTimelineItemModel> items) {
-  return items.map((item) => mapApiMessage(item.message)).toList();
-}
-
-(String?, int?) parseTimelineCursor(String? cursor) {
-  if (cursor == null || cursor.isEmpty) return (null, null);
-  final parts = cursor.split('|');
-  if (parts.length != 2) return (null, null);
-  final beforeId = int.tryParse(parts[1]);
-  return (parts[0], beforeId);
 }

@@ -11,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 public interface StreetAgentProfileRepository extends JpaRepository<StreetAgentProfileEntity, Long>,
@@ -25,4 +26,6 @@ public interface StreetAgentProfileRepository extends JpaRepository<StreetAgentP
     boolean existsByCccdAndDeletedAtIsNull(String cccd);
     boolean existsByPhoneAndIdNotAndDeletedAtIsNull(String phone, Long id);
     boolean existsByCccdAndIdNotAndDeletedAtIsNull(String cccd, Long id);
+
+    Optional<StreetAgentProfileEntity> findByUser_IdAndDeletedAtIsNull(UUID userId);
 }

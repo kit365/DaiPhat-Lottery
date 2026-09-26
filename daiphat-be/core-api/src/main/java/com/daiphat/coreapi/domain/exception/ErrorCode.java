@@ -173,6 +173,10 @@ public enum ErrorCode {
             "ORD_056",
             "Giải Đặc Biệt phải đến Văn phòng Đại diện Đài để xác minh, đóng thuế và nhận tiền qua ngân hàng.",
             HttpStatus.BAD_REQUEST),
+    PRIZE_PAYOUT_TICKET_BUSY(
+            "ORD_059",
+            "Vé đang được hệ thống cập nhật nên chưa thể ghi nhận yêu cầu trả thưởng. Vui lòng tải lại trang và thử lại sau ít phút.",
+            HttpStatus.CONFLICT),
     PRIZE_CLAIM_EXPORT_NOT_READY(
             "ORD_057",
             "Phiếu nộp chưa sẵn sàng xuất. Vui lòng xác nhận kiểm tra trước khi xuất phiếu.",
@@ -565,6 +569,11 @@ public enum ErrorCode {
             "Chỉ hỗ trợ tải lên ảnh, PDF, Excel (.xlsx/.xls) hoặc CSV cho biên lai / danh sách vé nhập.",
             HttpStatus.BAD_REQUEST
     ),
+    IMPORT_BATCH_TICKET_LIST_REQUIRED(
+            "LT_142",
+            "Danh sách vé nhập là bắt buộc khi tự động tạo phiếu nhập lô.",
+            HttpStatus.BAD_REQUEST
+    ),
     IMPORT_BATCH_FILE_TICKET_COLUMNS_INCOMPLETE(
             "LT_135",
             "Nhập vé cần cả cột dãy số và cột sê-ri.",
@@ -655,6 +664,22 @@ public enum ErrorCode {
             "SAG_033",
             "Chưa cấu hình giờ Đại Phát cần nhận lại vé cho một hoặc nhiều vé đã chọn, nên không thể xác nhận bàn giao.",
             HttpStatus.CONFLICT),
+    STREET_AGENT_EKYC_REQUIRED(
+            "SAG_034",
+            "Vui lòng hoàn tất xác thực CCCD (eKYC) trước khi kích hoạt hồ sơ.",
+            HttpStatus.BAD_REQUEST),
+    STREET_AGENT_EKYC_IMAGES_REQUIRED(
+            "SAG_035",
+            "Cần ảnh CCCD mặt trước và mặt sau để xác thực eKYC.",
+            HttpStatus.BAD_REQUEST),
+
+    // eKYC (CCCD) — shared Street Agent + Prize Payout
+    EKYC_INVALID_DOCUMENTS("EKYC_001", "Ảnh CCCD / selfie không hợp lệ hoặc bị thiếu.", HttpStatus.BAD_REQUEST),
+    EKYC_AI_UNAVAILABLE("EKYC_002", "Dịch vụ xác thực CCCD tạm thời không khả dụng.", HttpStatus.SERVICE_UNAVAILABLE),
+    EKYC_LIVENESS_FAILED("EKYC_003", "Xác thực sống (liveness) thất bại. Vui lòng chụp lại selfie.", HttpStatus.BAD_REQUEST),
+    EKYC_FACE_MISMATCH("EKYC_004", "Khuôn mặt selfie không khớp ảnh CCCD.", HttpStatus.BAD_REQUEST),
+    EKYC_OCR_FAILED("EKYC_005", "Không đọc được thông tin từ ảnh CCCD. Vui lòng chụp lại rõ hơn.", HttpStatus.BAD_REQUEST),
+    EKYC_ID_MISMATCH("EKYC_006", "Số CCCD trên ảnh không khớp số CCCD đã nhập.", HttpStatus.BAD_REQUEST),
 
     // Support Ticket Errors
     TICKET_NOT_FOUND("TKT_001", "Yêu cầu hỗ trợ không tồn tại.", HttpStatus.NOT_FOUND),
@@ -799,7 +824,7 @@ public enum ErrorCode {
     TICKET_SCAN_IMAGE_REQUIRED("LT_121", "Ảnh quét vé không được để trống.", HttpStatus.BAD_REQUEST),
     TICKET_SCAN_SERVICE_UNAVAILABLE(
             "LT_122",
-            "Dịch vụ quét vé OCR hiện không khả dụng. Vui lòng khởi động ticket-vision (cổng 8090), rồi thử lại.",
+            "Dịch vụ nhận diện vé (OCR) hiện đang gián đoạn hoặc chưa sẵn sàng kết nối. Vui lòng thử lại sau hoặc liên hệ quản trị viên.",
             HttpStatus.SERVICE_UNAVAILABLE),
     TICKET_SCAN_BATCH_CODE_MISMATCH(
             "LT_123",
@@ -820,7 +845,15 @@ public enum ErrorCode {
     OCR_FIELD_LAYOUT_NOT_FOUND(
             "LT_127",
             "Bố cục trường OCR không tồn tại.",
-            HttpStatus.NOT_FOUND);
+            HttpStatus.NOT_FOUND),
+    OCR_FIELD_VALIDATION_RULE_NOT_FOUND(
+            "LT_128",
+            "Luật kiểm tra trường OCR không tồn tại.",
+            HttpStatus.NOT_FOUND),
+    OCR_FIELD_VALIDATION_RULE_INVALID(
+            "LT_129",
+            "Cấu hình luật kiểm tra trường OCR không hợp lệ.",
+            HttpStatus.BAD_REQUEST);
 
     private final String code;
     private final String message;

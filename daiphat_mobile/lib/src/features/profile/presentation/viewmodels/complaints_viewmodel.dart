@@ -1,12 +1,18 @@
 import 'package:flutter/foundation.dart';
 
-import 'package:daiphat_mobile/src/features/profile/data/models/support_ticket.dart';
-import 'package:daiphat_mobile/src/features/profile/data/support_ticket_service.dart';
+import 'package:daiphat_mobile/src/features/profile/domain/entities/support_ticket.dart';
+import 'package:daiphat_mobile/src/features/profile/domain/usecases/support_ticket_usecases.dart';
 
 class ComplaintsViewModel extends ChangeNotifier {
-  final SupportTicketService _service;
+  final GetTicketCategories _getTicketCategories;
+  final GetMySupportTickets _getMySupportTickets;
+  final CloseSupportTicket _closeSupportTicket;
 
-  ComplaintsViewModel(this._service) {
+  ComplaintsViewModel(
+    this._getTicketCategories,
+    this._getMySupportTickets,
+    this._closeSupportTicket,
+  ) {
     _loadCategories();
     fetch(refresh: true);
   }
@@ -45,7 +51,7 @@ class ComplaintsViewModel extends ChangeNotifier {
 
   Future<void> _loadCategories() async {
     try {
-      _categories = await _service.getCategories();
+      _categories = await _getTicketCategories();
       _categoryNames
         ..clear()
         ..addEntries(_categories.map((c) => MapEntry(c.id, c.name)));
@@ -68,7 +74,7 @@ class ComplaintsViewModel extends ChangeNotifier {
     }
 
     try {
-      final result = await _service.getMyTickets(
+      final result = await _getMySupportTickets(
         page: _page,
         limit: 10,
         status: _statusFilter,
@@ -109,7 +115,7 @@ class ComplaintsViewModel extends ChangeNotifier {
     _cancellingId = ticketId;
     notifyListeners();
     try {
-      await _service.close(ticketId);
+      await _closeSupportTicket(ticketId);
       await fetch(refresh: true);
       return null;
     } catch (e) {

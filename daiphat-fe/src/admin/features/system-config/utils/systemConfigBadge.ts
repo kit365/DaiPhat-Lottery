@@ -19,6 +19,8 @@ export const getConfigTypeBadgeClass = (type: ConfigType) => {
         case ConfigType.COMPLAINT_SETTING:
         case ConfigType.FORTUNE_SETTING:
             return 'admin-status-badge--inactive';
+        case ConfigType.OCR_SCAN:
+            return 'admin-status-badge--pending';
         default:
             return 'admin-status-badge--draft';
     }

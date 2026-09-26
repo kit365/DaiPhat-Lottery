@@ -174,6 +174,10 @@ class AppColors {
   static const Color fortuneBackgroundMedium = Color(0xFF4A0E10);
   static const Color fortuneBackgroundDeep = Color(0xFF2A0C0E);
   static const Color fortuneBackgroundOverlay = Color(0xFF1A0808);
+  static const Color fortuneSilkCream = Color(0xFFF7E4D8);
+  static const Color fortuneSilkPeach = Color(0xFFF0C4B4);
+  static const Color fortuneSilkTerracotta = Color(0xFFC45A4C);
+  static const Color fortuneSilkCrimson = Color(0xFF7A1F22);
   static const Color fortuneGold = Color(0xFFE8C872);
   static const Color fortuneGoldLight = Color(0xFFFDE68A);
   static const Color fortuneGoldDark = Color(0xFFFCD34D);
@@ -185,29 +189,146 @@ class AppColors {
   static const Color fortuneCrimsonDeep = Color(0xFF5A1012);
   static const Color fortuneCrimsonBright = Color(0xFFB42324);
   static const Color fortuneWoodDark = Color(0xFF5C1A0A);
+  static const Color fortuneMahoganyDark = Color(0xFF381008);
 
-  // Ticket/profile display states. They remain exact to the existing UI
-  // palette while living in the same source of truth as app-wide colors.
-  static const Color ticketPendingForeground = Color(0xFFD97706);
-  static const Color ticketPendingSurface = Color(0xFFFFFBEB);
-  static const Color ticketLostForeground = Color(0xFFEF4444);
-  static const Color ticketLostSurface = Color(0xFFFEF2F2);
-  static const Color ticketHoldingForeground = Color(0xFFB45309);
-  static const Color ticketHoldingSurface = Color(0xFFFFFBEB);
-  static const Color ticketPickedUpForeground = Color(0xFF0369A1);
-  static const Color ticketPickedUpSurface = Color(0xFFF0F9FF);
-  static const Color ticketReservedForeground = Color(0xFF475569);
-  static const Color ticketReservedSurface = Color(0xFFF8FAFC);
-  static const Color payoutCompleteForeground = Color(0xFF047857);
-  static const Color payoutCompleteSurface = Color(0xFFECFDF5);
-  static const Color payoutPendingForeground = Color(0xFFB45309);
-  static const Color payoutPendingSurface = Color(0xFFFFFBEB);
-  static const Color payoutManualForeground = Color(0xFFBE123C);
-  static const Color payoutManualSurface = Color(0xFFFFF1F2);
-  static const Color payoutNeutralForeground = Color(0xFF475569);
-  static const Color payoutNeutralSurface = Color(0xFFF1F5F9);
-  static const Color payoutInPersonForeground = Color(0xFF6D28D9);
-  static const Color payoutInPersonSurface = Color(0xFFF5F3FF);
+  // Ticket semantic tokens. These are the mobile source of truth mirrored by
+  // the web ticket CSS variables. Keep result, possession, payout, action,
+  // and decorative ticket colors separate so a hue has one meaning.
+  static const Color ticketNumberForeground = Color(0xFF212B36);
+  static const Color ticketNumberSurface = Color(0xFFF9FAFB);
+  static const Color ticketNumberBorder = Color(0xFFE5E8EB);
+  static const Color ticketMetadataForeground = Color(0xFF637381);
+
+  // Dark warning tone keeps small prize/status text readable on the warm
+  // ticket surface (AA contrast for compact labels).
+  static const Color ticketPrizeForeground = Color(0xFF7A4100);
+  static const Color ticketPrizeSurface = statusWarningSurface;
+  static const Color ticketPrizeBorder = statusWarningAccent;
+
+  static const Color ticketResultPendingForeground = Color(0xFF334155);
+  static const Color ticketResultPendingSurface = Color(0xFFF1F5F9);
+  static const Color ticketResultPendingBorder = Color(0xFFCBD5E1);
+
+  static const Color ticketResultWonForeground = ticketPrizeForeground;
+  static const Color ticketResultWonSurface = Color(0xFFFFE082);
+  static const Color ticketResultWonBorder = ticketPrizeBorder;
+
+  static const Color ticketResultLostForeground = Color(0xFF64748B);
+  static const Color ticketResultLostSurface = Color(0xFFF8FAFC);
+  static const Color ticketResultLostBorder = Color(0xFFE2E8F0);
+
+  static const Color ticketPossessionHoldingForeground = Color(0xFF1D4ED8);
+  static const Color ticketPossessionHoldingSurface = Color(0xFFEFF6FF);
+  static const Color ticketPossessionHoldingBorder = Color(0xFFBFDBFE);
+
+  static const Color ticketPossessionPickedForeground = Color(0xFF15803D);
+  static const Color ticketPossessionPickedSurface = Color(0xFFF0FDF4);
+  static const Color ticketPossessionPickedBorder = Color(0xFFBBF7D0);
+
+  static const Color ticketPossessionExpiredForeground = Color(0xFFBE123C);
+  static const Color ticketPossessionExpiredSurface = Color(0xFFFFF1F2);
+  static const Color ticketPossessionExpiredBorder = Color(0xFFFECDD3);
+
+  static const Color ticketPossessionReservedForeground = Color(0xFF475569);
+  static const Color ticketPossessionReservedSurface = Color(0xFFF8FAFC);
+  static const Color ticketPossessionReservedBorder = Color(0xFFCBD5E1);
+
+  static const Color ticketPossessionRejectedForeground = Color(0xFF9F1239);
+  static const Color ticketPossessionRejectedSurface = Color(0xFFFFF1F2);
+  static const Color ticketPossessionRejectedBorder = Color(0xFFFECDD3);
+
+  static const Color ticketPossessionStreetAgentForeground = Color(0xFF0E7490);
+  static const Color ticketPossessionStreetAgentSurface = Color(0xFFECFEFF);
+  static const Color ticketPossessionStreetAgentBorder = Color(0xFFA5F3FC);
+
+  static const Color ticketPayoutNotRequestedForeground = Color(0xFF475569);
+  static const Color ticketPayoutNotRequestedSurface = Color(0xFFF8FAFC);
+  static const Color ticketPayoutNotRequestedBorder = Color(0xFFCBD5E1);
+
+  static const Color ticketPayoutProcessingForeground = Color(0xFF92400E);
+  static const Color ticketPayoutProcessingSurface = Color(0xFFFFFBEB);
+  static const Color ticketPayoutProcessingBorder = Color(0xFFFDE68A);
+
+  static const Color ticketPayoutCompletedForeground = Color(0xFF047857);
+  static const Color ticketPayoutCompletedSurface = Color(0xFFECFDF5);
+  static const Color ticketPayoutCompletedBorder = Color(0xFFA7F3D0);
+
+  static const Color ticketPayoutManualForeground = Color(0xFF9F1239);
+  static const Color ticketPayoutManualSurface = Color(0xFFFFF1F2);
+  static const Color ticketPayoutManualBorder = Color(0xFFFECDD3);
+
+  static const Color ticketPayoutCancelledForeground = Color(0xFF475569);
+  static const Color ticketPayoutCancelledSurface = Color(0xFFF1F5F9);
+  static const Color ticketPayoutCancelledBorder = Color(0xFFCBD5E1);
+
+  static const Color ticketPayoutStationOfficeForeground = Color(0xFF9A3412);
+  static const Color ticketPayoutStationOfficeSurface = Color(0xFFFFF7ED);
+  static const Color ticketPayoutStationOfficeBorder = Color(0xFFFED7AA);
+
+  static const Color ticketPayoutInPersonForeground = Color(0xFF6D28D9);
+  static const Color ticketPayoutInPersonSurface = Color(0xFFF5F3FF);
+  static const Color ticketPayoutInPersonBorder = Color(0xFFDDD6FE);
+
+  static const Color ticketActionPayoutBg = Color(0xFFB45309);
+  static const Color ticketActionPayoutFg = white;
+  static const Color ticketActionRebuyBg = redPrimary;
+  static const Color ticketActionRebuyFg = white;
+
+  // Deprecated aliases kept for existing ticket integrations. New number
+  // displays use ticketNumber* so their color does not depend on draw status.
+  static const Color ticketBallWonSurface = ticketNumberSurface;
+  static const Color ticketBallWonSurfaceEnd = ticketNumberSurface;
+  static const Color ticketBallWonForeground = ticketNumberForeground;
+  static const Color ticketBallWonBorder = ticketNumberBorder;
+
+  static const Color ticketBallNeutralSurface = ticketNumberSurface;
+  static const Color ticketBallNeutralForeground = ticketNumberForeground;
+  static const Color ticketBallNeutralBorder = ticketNumberBorder;
+
+  static const Color ticketStripWonStart = goldBase;
+  static const Color ticketStripWonMid = Color(0xFFF59E0B);
+  static const Color ticketStripWonEnd = Color(0xFFD97706);
+  static const Color ticketStripPendingStart = Color(0xFFE2E8F0);
+  static const Color ticketStripPendingEnd = Color(0xFFCBD5E1);
+  static const Color ticketStripLostStart = Color(0xFFF1F5F9);
+  static const Color ticketStripLostEnd = Color(0xFFE2E8F0);
+
+  static const Color ticketPrizePanelStart = Color(0xFFFFFBEB);
+  static const Color ticketPrizePanelEnd = ticketPrizeSurface;
+  static const Color ticketPrizePanelBorder = ticketResultWonBorder;
+
+  // Backward-compatible aliases. New ticket code must use the canonical
+  // ticket* names above; existing non-ticket screens keep compiling safely.
+  static const Color ticketPendingForeground = ticketResultPendingForeground;
+  static const Color ticketPendingSurface = ticketResultPendingSurface;
+  static const Color ticketLostForeground = ticketResultLostForeground;
+  static const Color ticketLostSurface = ticketResultLostSurface;
+  static const Color ticketHoldingForeground =
+      ticketPossessionHoldingForeground;
+  static const Color ticketHoldingSurface = ticketPossessionHoldingSurface;
+  static const Color ticketPickedUpForeground =
+      ticketPossessionPickedForeground;
+  static const Color ticketPickedUpSurface = ticketPossessionPickedSurface;
+  static const Color ticketReservedForeground =
+      ticketPossessionReservedForeground;
+  static const Color ticketReservedSurface = ticketPossessionReservedSurface;
+  static const Color payoutCompleteForeground = ticketPayoutCompletedForeground;
+  static const Color payoutCompleteSurface = ticketPayoutCompletedSurface;
+  static const Color payoutPendingForeground = ticketPayoutProcessingForeground;
+  static const Color payoutPendingSurface = ticketPayoutProcessingSurface;
+  static const Color payoutManualForeground = ticketPayoutManualForeground;
+  static const Color payoutManualSurface = ticketPayoutManualSurface;
+  static const Color payoutNeutralForeground =
+      ticketPayoutNotRequestedForeground;
+  static const Color payoutNeutralSurface = ticketPayoutNotRequestedSurface;
+  static const Color payoutInPersonForeground = ticketPayoutInPersonForeground;
+  static const Color payoutInPersonSurface = ticketPayoutInPersonSurface;
+  static const Color payoutStationOfficeForeground =
+      ticketPayoutStationOfficeForeground;
+  static const Color payoutStationOfficeSurface =
+      ticketPayoutStationOfficeSurface;
+  static const Color payoutActionBackground = ticketActionPayoutBg;
+  static const Color payoutActionForeground = ticketActionPayoutFg;
 
   static const Color surfaceTintTransparent = transparent;
   static const Color cardShadow = black12;

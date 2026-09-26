@@ -4,10 +4,11 @@ import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
-import { memo, useCallback, useState } from 'react';
+import FormHelperText from '@mui/material/FormHelperText';
+import { forwardRef, memo, useCallback, useState } from 'react';
 
 // Types
-interface Option {
+export interface Option {
     value: string;
     label: string;
     disabled?: boolean;
@@ -19,8 +20,12 @@ interface SelectSingleProps {
     sx?: any;
     value?: string;
     onChange?: (value: string) => void;
+    onBlur?: () => void;
+    name?: string;
     disabled?: boolean;
     showClear?: boolean;
+    error?: boolean;
+    helperText?: React.ReactNode;
 }
 
 // CSS
@@ -60,7 +65,9 @@ const MENU_PROPS = {
     },
 };
 
-export const SelectSingle = memo(({ label, options, sx, value, onChange, disabled, showClear }: SelectSingleProps) => {
+export const SelectSingle = memo(forwardRef<HTMLDivElement, SelectSingleProps>(({ 
+    label, options, sx, value, onChange, onBlur, name, disabled, showClear, error, helperText 
+}, ref) => {
     const [internalValue, setInternalValue] = useState<string>('');
 
     // Use controlled value if provided, otherwise use internal state
@@ -88,10 +95,12 @@ export const SelectSingle = memo(({ label, options, sx, value, onChange, disable
         <FormControl
             sx={{ ...FORM_CONTROL_STYLE, ...sx }}
             disabled={disabled}
+            error={error}
+            ref={ref}
         >
             {!!selectedValue && (
                 <InputLabel
-                    id="select-single-label"
+                    id={`select-single-label-${name || label}`}
                     shrink
                     sx={LABEL_STYLE}
                 >
@@ -99,9 +108,11 @@ export const SelectSingle = memo(({ label, options, sx, value, onChange, disable
                 </InputLabel>
             )}
             <Select
+                name={name}
                 value={selectedValue}
                 label={selectedValue ? label : undefined}
                 onChange={handleChange}
+                onBlur={onBlur}
                 onClose={handleClose}
                 displayEmpty
                 notched={!!selectedValue}
@@ -149,7 +160,7 @@ export const SelectSingle = memo(({ label, options, sx, value, onChange, disable
                     </MenuItem>
                 ))}
             </Select>
+            {helperText && <FormHelperText>{helperText}</FormHelperText>}
         </FormControl>
     )
-})
-
+}))

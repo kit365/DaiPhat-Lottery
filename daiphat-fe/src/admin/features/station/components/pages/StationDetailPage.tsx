@@ -10,6 +10,7 @@ import { CollapsibleCard } from "../../../../components/ui/CollapsibleCard"
 import { prefixAdmin } from "../../../../constants/routes";
 import { DAYS_OF_WEEK } from "../../../../constants/schedule.constants";
 import { useStationDetail } from "../../hooks/useStation";
+import { AdminStatusBadge } from "../../../../components/ui/AdminStatusBadge";
 
 const REGION_LABELS: Record<string, string> = {
     MIEN_BAC: 'Miền Bắc',
@@ -124,9 +125,9 @@ export const StationDetailPage = () => {
                                     <Typography variant="caption" color="text.secondary">Trạng thái</Typography>
                                     <Box mt={0.5}>
                                         {stationDetail.status === 'ACTIVE' || stationDetail.status === 'active' ? (
-                                            <Chip label="Hoạt động" color="success" size="small" />
+                                            <AdminStatusBadge label="Hoạt động" modifier="admin-status-badge--success" />
                                         ) : (
-                                            <Chip label="Vô hiệu hóa" color="default" size="small" />
+                                            <AdminStatusBadge label="Vô hiệu hóa" modifier="admin-status-badge--inactive" />
                                         )}
                                     </Box>
                                 </Box>

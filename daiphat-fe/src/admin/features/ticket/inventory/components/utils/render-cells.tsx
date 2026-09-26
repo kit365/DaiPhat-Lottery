@@ -4,17 +4,19 @@ import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { Box, Link, Typography, Stack } from '@mui/material';
 import { GridRenderCellParams } from '@mui/x-data-grid';
 import { prefixAdmin } from '../../../../../constants/routes';
-import { useTicketInventory } from '../../hooks/useTicketInventory';
-import { toast } from 'react-toastify';
 import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
-import { confirmDelete } from '../../../../../utils/swal';
+import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
 import { useStations } from '../../../../station/hooks/useStation';
 import { formatImportBatchCode } from '../../../import-batch/utils/importBatchCode';
 import { getTicketStatusLabel, normalizeTicketStatus } from '../../constants/ticket-status.config';
 import { AdminRowActionsMenu } from '../../../../../components/ui/AdminRowActionsMenu';
 import { AdminStatusBadge } from '../../../../../components/ui/AdminStatusBadge';
 import { AdminLuckyDisplay } from '@/shared/lucky-number';
+import {
+    getTicketCancelIneligibleReason,
+    summarizeTicketCondition,
+} from '../../../import-batch/utils/cancelTicketSelection';
 
 dayjs.locale('vi');
 
@@ -134,18 +136,30 @@ export const RenderStatusCell = (params: GridRenderCellParams) => {
 
 const ticketConditionModifier = (condition?: string | null): string => {
     const normalized = (condition || '').toUpperCase();
-    if (normalized === 'DAMAGED' || normalized === 'LOST' || normalized === 'VOIDED') {
+    if (
+        normalized === 'DAMAGED'
+        || normalized === 'LOST'
+        || normalized === 'VOIDED'
+        || normalized === 'FAULTY'
+        || normalized === 'NONE'
+    ) {
         return 'admin-status-badge--inactive';
+    }
+    if (normalized === 'MIXED') {
+        return 'admin-status-badge--pending';
     }
     return 'admin-status-badge--active';
 };
 
 export const RenderTicketConditionCell = (params: GridRenderCellParams) => {
-    const { ticketCondition, ticketConditionDisplayName } = params.row;
-    const condition = (ticketCondition || '').toUpperCase();
+    const { ticketCondition, ticketConditionDisplayName, serials } = params.row;
+    const summary = ticketCondition ? null : summarizeTicketCondition(serials);
+    const effectiveCondition = ticketCondition || summary?.condition;
+    const condition = (effectiveCondition || '').toUpperCase();
 
     const label =
         ticketConditionDisplayName ||
+        summary?.label ||
         (condition === 'DAMAGED'
             ? 'Hỏng'
             : condition === 'LOST'
@@ -154,35 +168,43 @@ export const RenderTicketConditionCell = (params: GridRenderCellParams) => {
                 ? 'Đã hủy'
                 : 'Tốt');
 
-    const modifier = ticketConditionModifier(ticketCondition);
+    const modifier = ticketConditionModifier(effectiveCondition);
 
     return <AdminStatusBadge label={label} modifier={modifier} />;
 };
 
-export const RenderActionsCell = (params: GridRenderCellParams) => {
+export interface RenderActionsCellProps extends GridRenderCellParams {
+    onCancelTicket?: (ticket: any) => void;
+    cancelLockReason?: string | null;
+}
+
+export const RenderActionsCell = (params: RenderActionsCellProps) => {
     const router = useAdminRouter();
-    const { deleteTicket } = useTicketInventory();
     const id = params.row.id || params.row._id;
+    const { onCancelTicket, cancelLockReason } = params;
 
     const handleEdit = () => {
         router.push(`/${prefixAdmin}/ticket/edit/${id}`);
     };
 
-    const handleDelete = () => {
-        confirmDelete('Bạn có chắc chắn muốn xóa vé số này?', () => {
-            deleteTicket(id, {
-                onSuccess: (res: any) => {
-                    if (res.success) {
-                        toast.success(res.message || 'Thao tác thành công');
-                    } else {
-                        toast.error(res.message || 'Thao tác thất bại');
-                    }
-                },
-                onError: (err: any) => {
-                    toast.error(err.response?.data?.message || err.message || 'Thao tác không thành công');
-                },
-            });
-        });
+    const ineligibleReason = getTicketCancelIneligibleReason(params.row);
+
+    let cancelDisabled = false;
+    let cancelDisabledTitle: string | undefined = undefined;
+
+    if (cancelLockReason) {
+        cancelDisabled = true;
+        cancelDisabledTitle = cancelLockReason;
+    } else if (ineligibleReason) {
+        cancelDisabled = true;
+        cancelDisabledTitle = ineligibleReason;
+    }
+
+    const handleCancel = () => {
+        if (cancelDisabled) return;
+        if (onCancelTicket) {
+            onCancelTicket(params.row);
+        }
     };
 
     return (
@@ -201,10 +223,12 @@ export const RenderActionsCell = (params: GridRenderCellParams) => {
                     onClick: handleEdit,
                 },
                 {
-                    id: 'delete',
-                    label: 'Xóa',
-                    icon: 'delete',
-                    onClick: handleDelete,
+                    id: 'cancel',
+                    label: 'Hủy vé',
+                    icon: <ReportProblemOutlinedIcon fontSize="small" />,
+                    onClick: handleCancel,
+                    disabled: cancelDisabled,
+                    disabledTitle: cancelDisabledTitle,
                     danger: true,
                 },
             ]}

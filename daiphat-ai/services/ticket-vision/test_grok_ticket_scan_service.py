@@ -19,6 +19,26 @@ def _minimal_jpeg_bytes(width: int = 120, height: int = 80) -> bytes:
     return buffer.tobytes()
 
 
+def _jpeg_with_ticket_rects(
+    width: int,
+    height: int,
+    boxes: list[tuple[int, int, int, int]],
+) -> bytes:
+    """Dark canvas with bright ticket-like rectangles for YOLO crop FP filters."""
+    image = np.zeros((height, width, 3), dtype=np.uint8)
+    for x, y, w, h in boxes:
+        cv2.rectangle(image, (x, y), (x + w, y + h), (220, 220, 220), thickness=-1)
+        # Add light texture so empty-crop rejection (std / Laplacian) keeps them.
+        roi = image[y : y + h, x : x + w]
+        noise = np.random.default_rng(0).integers(0, 40, size=roi.shape, dtype=np.uint8)
+        image[y : y + h, x : x + w] = np.clip(roi.astype(np.int16) - noise, 40, 255).astype(
+            np.uint8
+        )
+    ok, buffer = cv2.imencode(".jpg", image)
+    assert ok
+    return buffer.tobytes()
+
+
 class FakeVisionClient:
     def __init__(self, result: ScanExtractionResult) -> None:
         self._result = result
@@ -174,6 +194,91 @@ def test_groq_scan_maps_complete_ticket():
     )
     assert result.ticketCount == 1
     assert result.tickets[0].status == TicketStatus.COMPLETE
+
+
+def test_per_ticket_ocr_uses_single_collage_call(monkeypatch):
+    """Five YOLO tickets should need 1 Groq call (collage), not N calls."""
+    from domain.scanning import llm_ticket_scan_service as llm_mod
+    from domain.scanning.yolo_llm_guidance import YoloLlmGuidance
+
+    calls: list[dict] = []
+
+    class CountingVision:
+        def analyze_ticket_image(
+            self,
+            image_bytes: bytes,
+            prompt: str,
+            *,
+            extra_images: list[tuple[str, bytes]] | None = None,
+        ) -> ScanExtractionResult:
+            calls.append(
+                {
+                    "bytes": len(image_bytes),
+                    "extras": len(extra_images or []),
+                    "prompt": prompt,
+                }
+            )
+            return ScanExtractionResult(
+                tickets=[
+                    TicketExtraction(
+                        numbers=f"{i:06d}",
+                        serialNumber=f"A{i:06d}",
+                        stationName="TP. Hồ Chí Minh",
+                        stationCode="HCM",
+                        drawDate="2026-08-05",
+                        fieldConfidences={
+                            "numbers": 0.9,
+                            "serialNumber": 0.9,
+                            "stationName": 0.9,
+                            "drawDate": 0.9,
+                        },
+                    )
+                    for i in range(5)
+                ]
+            )
+
+    guidance = YoloLlmGuidance(
+        ticket_count=5,
+        ticket_boxes=[
+            (10, 10, 80, 120),
+            (100, 10, 80, 120),
+            (10, 160, 80, 120),
+            (100, 160, 80, 120),
+            (50, 300, 80, 120),
+        ],
+        ticket_confidences=[0.9] * 5,
+        ticket_field_boxes=[{}] * 5,
+    )
+    monkeypatch.setattr(llm_mod, "build_yolo_llm_guidance", lambda *a, **k: guidance)
+
+    service = GroqTicketScanService(
+        groq_client=CountingVision(),
+        include_cropped_image=False,
+    )
+    result = service.scan_image(
+        _jpeg_with_ticket_rects(
+            width=240,
+            height=460,
+            boxes=[
+                (10, 10, 80, 120),
+                (100, 10, 80, 120),
+                (10, 160, 80, 120),
+                (100, 160, 80, 120),
+                (50, 300, 80, 120),
+            ],
+        ),
+        ScanMetadata(
+            activeStations=[
+                StationMetadata(name="TP. Hồ Chí Minh", code="HCM", expectedNumberLength=6)
+            ],
+            maxTickets=5,
+        ),
+    )
+
+    assert len(calls) == 1
+    assert calls[0]["extras"] == 0
+    assert "COLLAGE MODE" in calls[0]["prompt"]
+    assert result.ticketCount == 5
 
 
 def test_resolve_recognition_engine_prefers_metadata():

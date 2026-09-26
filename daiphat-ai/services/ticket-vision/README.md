@@ -22,8 +22,16 @@ image bytes
   -> ScanResponse { scanId, tickets[], warnings[] }
 ```
 
-Orchestrated by `domain/scanning/ticket_scan_service.py`; wired into the
-route by `routers/scan.py`.
+Orchestrated by `domain/scanning/ticket_scan_service.py` (**Legacy first**) then
+optional Groq/Gemini/Grok boost via `llm_ticket_scan_service.py` when local
+confidence is low or required fields are missing. Wired by `routers/scan.py`:
+`TICKET_VISION_LEGACY_FIRST=true` (default). If Groq hits ITPM/token limits
+during boost, the already-computed Legacy result is returned immediately
+(`TICKET_VISION_GROQ_BOOST_FAIL_FAST`). Set `TICKET_VISION_LEGACY_FIRST=false`
+only to force Groq-first (burns free-tier ITPM quickly).
+
+See [`docs/LOCAL_FIRST_OCR_ROADMAP.md`](docs/LOCAL_FIRST_OCR_ROADMAP.md) for the
+phased plan toward fully local OCR.
 
 ## Design patterns (see doc section 9)
 

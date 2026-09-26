@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
-import { Box, Link, Tooltip, Typography } from '@mui/material';
+import { Box, Chip, Link, Tooltip, Typography } from '@mui/material';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import dayjs from 'dayjs';
 import { AdminRowActionsMenu } from '../../../../../components/ui/AdminRowActionsMenu';
@@ -48,36 +48,52 @@ const BatchCodeCell = ({ row }: { row: ReturnBatch }) => {
                         router.push(detailUrl);
                     }
                 }}
-                underline="none"
+                underline="hover"
                 sx={{
-                    px: 1.25,
-                    py: 0.5,
-                    borderRadius: '8px',
-                    bgcolor: '#f1f5f9',
-                    border: '1px solid #e2e8f0',
-                    fontFamily: 'monospace',
                     fontWeight: 700,
-                    fontSize: '0.8125rem',
-                    color: '#0f172a',
-                    letterSpacing: '0.02em',
+                    fontSize: '0.875rem',
+                    color: 'text.primary',
                     cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    textDecoration: 'none',
-                    transition: 'all 0.15s ease',
                     '&:hover': {
-                        bgcolor: '#e2e8f0',
-                        borderColor: '#cbd5e1',
-                        color: 'var(--color-primary-admin, #0284c7)',
-                        textDecoration: 'none',
-                        transform: 'translateY(-1px)',
-                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
+                        color: 'primary.main',
                     },
                 }}
-                title={`Xem chi tiết phiếu trả ${rawCode}`}
             >
                 {rawCode}
             </Link>
+        </Box>
+    );
+};
+
+const formatCutOffTime = (rawTime?: string | null): string => {
+    if (!rawTime) return '14:30';
+    const parts = rawTime.trim().split(':');
+    if (parts.length >= 2) {
+        return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+    }
+    return rawTime.trim();
+};
+
+const CutoffStatusCell = ({ row }: { row: ReturnBatch }) => {
+    const cutOffTimeStr = formatCutOffTime(row.returnCutOffTime);
+    const isExpired = Boolean(row.inspectionExpired) && row.status !== 'HANDED_OVER';
+
+    if (isExpired) {
+        return (
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 0.25 }}>
+                <Typography variant="body2" sx={{ fontWeight: 700, color: '#d32f2f', fontSize: '0.8125rem' }}>
+                    {cutOffTimeStr}
+                </Typography>
+                <Chip label="Quá hạn trả" color="error" size="small" sx={{ height: 20, fontSize: '0.7rem', fontWeight: 700 }} />
+            </Box>
+        );
+    }
+
+    return (
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary', fontSize: '0.875rem' }}>
+                {cutOffTimeStr}
+            </Typography>
         </Box>
     );
 };
@@ -115,37 +131,11 @@ export const returnBatchColumnsConfig: GridColDef[] = [
                 rowIndex = 0;
             }
             const sttNumber = page * pageSize + rowIndex + 1;
-            const theme = getReturnBatchStatusColorTheme(params.row.status);
             return (
                 <div className="flex h-full w-full min-w-0 items-center justify-center">
-                    <Tooltip title={`Trạng thái: ${theme.label}`} arrow placement="right">
-                        <Box
-                            sx={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                minWidth: 28,
-                                height: 26,
-                                px: 0.75,
-                                borderRadius: '6px',
-                                bgcolor: theme.bg,
-                                color: theme.text,
-                                border: `1.5px solid ${theme.border}`,
-                                fontWeight: 800,
-                                fontSize: '0.8125rem',
-                                fontFamily: 'monospace',
-                                cursor: 'default',
-                                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
-                                transition: 'all 0.15s ease',
-                                '&:hover': {
-                                    transform: 'scale(1.08)',
-                                    boxShadow: `0 2px 6px ${theme.border}`,
-                                },
-                            }}
-                        >
-                            {sttNumber}
-                        </Box>
-                    </Tooltip>
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a' }}>
+                        {sttNumber}
+                    </Typography>
                 </div>
             );
         },
@@ -192,18 +182,7 @@ export const returnBatchColumnsConfig: GridColDef[] = [
             </CellTextCenter>
         ),
     },
-    {
-        field: 'returnedBy',
-        headerName: 'Người thực hiện',
-        flex: 1,
-        minWidth: 140,
-        sortable: true,
-        renderCell: (params: GridRenderCellParams<ReturnBatch>) => (
-            <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-                <span className="admin-cell-text">{params.row.returnedBy || '—'}</span>
-            </Box>
-        ),
-    },
+
     {
         field: 'totalQuantity',
         headerName: 'Số lượng',
@@ -268,6 +247,18 @@ export const returnBatchColumnsConfig: GridColDef[] = [
                 </Typography>
             </Box>
         ),
+    },
+    {
+        field: 'cutoffStatus',
+        headerName: 'Hạn chót trả vé',
+        width: 140,
+        minWidth: 130,
+        maxWidth: 160,
+        flex: 0,
+        align: 'center',
+        headerAlign: 'center',
+        sortable: true,
+        renderCell: (params: GridRenderCellParams<ReturnBatch>) => <CutoffStatusCell row={params.row} />,
     },
     {
         field: 'status',

@@ -21,20 +21,58 @@ class EasyOcrStrategy(OcrStrategy):
 
     def __init__(self) -> None:
         self._reader = None
+        self._reader_langs: tuple[str, ...] | None = None
 
     def _get_reader(self, languages: list[str]):
-        if self._reader is None:
+        langs = tuple(languages or DEFAULT_LANGUAGES)
+        if self._reader is None or self._reader_langs != langs:
             import easyocr  # noqa: PLC0415 -- intentional lazy import, see class docstring
 
-            self._reader = easyocr.Reader(languages, gpu=False)
+            # cpu/gpu once per process; reuse across tickets in a scan.
+            from domain.ocr.torch_threads import apply_torch_thread_limits
+
+            apply_torch_thread_limits()
+            self._reader = easyocr.Reader(list(langs), gpu=False, verbose=False)
+            self._reader_langs = langs
         return self._reader
 
-    def read_text(self, image: np.ndarray, languages: list[str] = DEFAULT_LANGUAGES) -> list[OcrTextResult]:
+    def warmup(self, languages: list[str] = DEFAULT_LANGUAGES) -> None:
+        """Force-load the Reader into RAM (call once at process startup)."""
+        self._get_reader(languages)
+
+    def read_text(
+        self,
+        image: np.ndarray,
+        languages: list[str] = DEFAULT_LANGUAGES,
+        *,
+        field_hint: str | None = None,
+        allowlist: str | None = None,
+    ) -> list[OcrTextResult]:
+        del field_hint  # used by FieldAwareOcrStrategy; plain EasyOCR ignores it
         reader = self._get_reader(languages)
         # detail=1 -> (bbox, text, confidence) tuples; paragraph=False keeps
         # line-level granularity, which the parser regexes over. bbox is 4
         # (x, y) corner points -- used below for y_center, not kept as-is.
-        raw_results = reader.readtext(image, detail=1, paragraph=False)
+        # greedy + mag_ratio=1.0 + smaller canvas: large CPU speed win for
+        # short lottery glyphs without a second Reader load.
+        kwargs: dict = {
+            "detail": 1,
+            "paragraph": False,
+            "decoder": "greedy",
+            "beamWidth": 5,
+            "batch_size": 1,
+            "workers": 0,
+            "mag_ratio": 1.0,
+            "canvas_size": 1280,
+            "text_threshold": 0.6,
+            "low_text": 0.3,
+            "link_threshold": 0.3,
+        }
+        if allowlist:
+            kwargs["allowlist"] = allowlist
+            # Digit/serial crops are small — slightly lower detection floor.
+            kwargs["text_threshold"] = 0.55
+        raw_results = reader.readtext(image, **kwargs)
         height = image.shape[0] or 1
         width = image.shape[1] or 1
         return [

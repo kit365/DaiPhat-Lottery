@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
@@ -8,11 +6,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/shared/utils/app_dialog.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import 'package:daiphat_mobile/src/shared/widgets/app_header_action_button.dart';
-import '../../models/cart_item_model.dart';
-import '../../providers/cart_provider.dart';
+import '../../domain/entities/cart_item.dart';
+import '../providers/cart_provider.dart';
 import '../../../tickets/presentation/viewmodels/buy_ticket_viewmodel.dart';
 import '../../../tickets/presentation/views/buy_ticket_view.dart';
 import '../../../tickets/utils/sellable_draw_date.dart';
@@ -171,53 +170,16 @@ class _CartViewState extends ConsumerState<CartView> {
     }
     if (expiredIndexes.isEmpty) return;
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          'Xóa vé hết hạn',
-          style: AppTypography.h4(fontWeight: FontWeight.w800, fontSize: 18),
-        ),
-        content: Text(
+    final confirmed = await AppDialog.confirm(
+      context,
+      title: 'Xóa vé hết hạn',
+      message:
           'Bạn có muốn xóa ${expiredIndexes.length} vé đã hết hạn mua khỏi giỏ hàng không?',
-          style: AppTypography.bodyMedium(
-            fontSize: 14,
-            height: 1.4,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(
-              'Hủy',
-              style: AppTypography.buttonMedium(
-                color: AppColors.contentMuted,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.surfacePrimary,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            child: Text(
-              'Xóa',
-              style: AppTypography.buttonMedium(fontWeight: FontWeight.w700),
-            ),
-          ),
-        ],
-      ),
+      confirmLabel: 'Xóa',
+      isDestructive: true,
     );
 
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
 
     ref.read(cartProvider.notifier).removeAtIndexes(expiredIndexes);
     setState(() {
@@ -243,73 +205,15 @@ class _CartViewState extends ConsumerState<CartView> {
     final count = _selectedIndexes.length;
     if (count == 0) return;
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          'Xóa sản phẩm',
-          textAlign: TextAlign.center,
-          style: AppTypography.h4(fontWeight: FontWeight.w800, fontSize: 18),
-        ),
-        content: Text(
-          'Bạn có muốn bỏ $count sản phẩm khỏi giỏ hàng không?',
-          textAlign: TextAlign.center,
-          style: AppTypography.bodyMedium(
-            color: AppColors.textSecondary,
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-            height: 1.4,
-          ),
-        ),
-        actionsAlignment: MainAxisAlignment.center,
-        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        actions: [
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.textSecondary,
-                    side: const BorderSide(color: AppColors.borderDefault),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: Text(
-                    'Hủy',
-                    style: AppTypography.buttonMedium(fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(ctx, true),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.surfacePrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: Text(
-                    'Xóa',
-                    style: AppTypography.buttonMedium(fontWeight: FontWeight.w800),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+    final confirmed = await AppDialog.confirm(
+      context,
+      title: 'Xóa sản phẩm',
+      message: 'Bạn có muốn bỏ $count sản phẩm khỏi giỏ hàng không?',
+      confirmLabel: 'Xóa',
+      isDestructive: true,
     );
 
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
 
     final indexes = _selectedIndexes.toList()..sort();
     ref.read(cartProvider.notifier).removeAtIndexes(indexes);
@@ -322,53 +226,16 @@ class _CartViewState extends ConsumerState<CartView> {
   }
 
   Future<void> _confirmRemoveItem(CartItemData item, int index) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          'Xác nhận xóa vé',
-          style: AppTypography.h4(fontWeight: FontWeight.w800, fontSize: 18),
-        ),
-        content: Text(
+    final confirmed = await AppDialog.confirm(
+      context,
+      title: 'Xác nhận xóa vé',
+      message:
           'Bạn có chắc muốn xóa vé số ${item.number} (${item.province}) khỏi giỏ hàng?',
-          style: AppTypography.bodyMedium(
-            fontSize: 14,
-            height: 1.4,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(
-              'Hủy',
-              style: AppTypography.buttonMedium(
-                color: AppColors.contentMuted,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.surfacePrimary,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            child: Text(
-              'Xóa',
-              style: AppTypography.buttonMedium(fontWeight: FontWeight.w700),
-            ),
-          ),
-        ],
-      ),
+      confirmLabel: 'Xóa',
+      isDestructive: true,
     );
 
-    if (confirmed == true) {
+    if (confirmed) {
       _removeItem(item, index);
     }
   }
@@ -908,18 +775,19 @@ class _CartTicketCard extends StatelessWidget {
                 children: [
                   Text(
                     _money(item.unitPrice),
-                    style: AppTypography.priceMedium(
-                      fontSize: 13.5,
-                      color: isExpired
-                          ? AppColors.contentPlaceholder
-                          : AppColors.primary,
-                      fontWeight: FontWeight.w800,
-                    ).copyWith(
-                      decoration: isExpired
-                          ? TextDecoration.lineThrough
-                          : null,
-                      decorationColor: AppColors.contentPlaceholder,
-                    ),
+                    style:
+                        AppTypography.priceMedium(
+                          fontSize: 13.5,
+                          color: isExpired
+                              ? AppColors.contentPlaceholder
+                              : AppColors.primary,
+                          fontWeight: FontWeight.w800,
+                        ).copyWith(
+                          decoration: isExpired
+                              ? TextDecoration.lineThrough
+                              : null,
+                          decorationColor: AppColors.contentPlaceholder,
+                        ),
                   ),
                   const SizedBox(height: 8),
                   if (isExpired) ...[
@@ -969,7 +837,6 @@ class _CartTicketCard extends StatelessWidget {
                       maxStock: item.maxStock > 0 ? item.maxStock : 1,
                       enabled: !isSelectionMode,
                       onChanged: onQuantityChanged,
-                      onDelete: onDelete,
                     ),
                   ],
                 ],
@@ -982,76 +849,22 @@ class _CartTicketCard extends StatelessWidget {
   }
 }
 
-class _CartQuantityStepper extends StatefulWidget {
+class _CartQuantityStepper extends StatelessWidget {
   const _CartQuantityStepper({
     required this.quantity,
     required this.maxStock,
     required this.enabled,
     required this.onChanged,
-    required this.onDelete,
   });
 
   final int quantity;
   final int maxStock;
   final bool enabled;
   final ValueChanged<int> onChanged;
-  final VoidCallback onDelete;
-
-  @override
-  State<_CartQuantityStepper> createState() => _CartQuantityStepperState();
-}
-
-class _CartQuantityStepperState extends State<_CartQuantityStepper> {
-  bool _showDelete = false;
-  Timer? _timer;
-
-  @override
-  void didUpdateWidget(covariant _CartQuantityStepper oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.quantity > 1 && _showDelete) {
-      _resetDelete();
-    }
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  void _resetDelete() {
-    _timer?.cancel();
-    if (_showDelete && mounted) {
-      setState(() => _showDelete = false);
-    }
-  }
-
-  void _onMinusTap() {
-    if (!widget.enabled) return;
-
-    if (widget.quantity > 1) {
-      _resetDelete();
-      widget.onChanged(widget.quantity - 1);
-    } else {
-      // Khi số lượng đang là 1:
-      if (!_showDelete) {
-        // Lần 1: Chuyển nút trừ thành icon xóa đỏ
-        setState(() => _showDelete = true);
-        _timer?.cancel();
-        _timer = Timer(const Duration(seconds: 4), () {
-          if (mounted) setState(() => _showDelete = false);
-        });
-      } else {
-        // Lần 2 (khi đang hiện nút xóa): Hiện hộp thoại xác nhận xóa
-        _resetDelete();
-        widget.onDelete();
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
-    final effectiveMax = widget.maxStock > 0 ? widget.maxStock : 1;
+    final effectiveMax = maxStock > 0 ? maxStock : 1;
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -1069,15 +882,9 @@ class _CartQuantityStepperState extends State<_CartQuantityStepper> {
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
                   decoration: BoxDecoration(
-                    color: _showDelete
-                        ? AppColors.surfaceDestructiveSoft
-                        : AppColors.surfaceSoft,
+                    color: AppColors.surfaceSoft,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: _showDelete
-                          ? AppColors.borderDestructive
-                          : AppColors.borderSubtle,
-                    ),
+                    border: Border.all(color: AppColors.borderSubtle),
                   ),
                 ),
               ),
@@ -1085,23 +892,21 @@ class _CartQuantityStepperState extends State<_CartQuantityStepper> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _CartStepBtn(
-                    icon: _showDelete
-                        ? Icons.delete_outline_rounded
-                        : Icons.remove_rounded,
-                    iconColor: _showDelete
-                        ? AppColors.primary
-                        : AppColors.contentNavy,
-                    disabled: !widget.enabled,
-                    onTap: _onMinusTap,
+                    icon: Icons.remove_rounded,
+                    iconColor: AppColors.contentNavy,
+                    disabled: !enabled || quantity <= 1,
+                    onTap: enabled && quantity > 1
+                        ? () => onChanged(quantity - 1)
+                        : null,
                   ),
                   Container(
                     constraints: const BoxConstraints(minWidth: 26),
                     padding: const EdgeInsets.symmetric(horizontal: 2),
                     alignment: Alignment.center,
                     child: Text(
-                      '${widget.quantity}',
+                      '$quantity',
                       style: AppTypography.lotteryDigit(
-                        color: _showDelete ? AppColors.primary : AppColors.ink,
+                        color: AppColors.ink,
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
                       ),
@@ -1109,14 +914,10 @@ class _CartQuantityStepperState extends State<_CartQuantityStepper> {
                   ),
                   _CartStepBtn(
                     icon: Icons.add_rounded,
-                    disabled:
-                        !widget.enabled || widget.quantity >= effectiveMax,
+                    disabled: !enabled || quantity >= effectiveMax,
                     iconColor: AppColors.contentNavy,
-                    onTap: (widget.enabled && widget.quantity < effectiveMax)
-                        ? () {
-                            _resetDelete();
-                            widget.onChanged(widget.quantity + 1);
-                          }
+                    onTap: (enabled && quantity < effectiveMax)
+                        ? () => onChanged(quantity + 1)
                         : null,
                     onDisabledTap: () {
                       AppToast.info(
@@ -1578,7 +1379,9 @@ class _EmptyCartView extends StatelessWidget {
                   ),
                   child: Text(
                     'Quay lại mua vé',
-                    style: AppTypography.buttonMedium(fontWeight: FontWeight.w700),
+                    style: AppTypography.buttonMedium(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),

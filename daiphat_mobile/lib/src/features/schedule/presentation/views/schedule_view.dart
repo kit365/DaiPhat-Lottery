@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
-import '../../data/models/lottery_station_schedule.dart';
+import '../../domain/entities/lottery_station_schedule.dart';
 import '../providers/schedule_providers.dart';
 
 class ScheduleView extends ConsumerStatefulWidget {

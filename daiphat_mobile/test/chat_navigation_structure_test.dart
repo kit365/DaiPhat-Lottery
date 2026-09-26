@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 String _readSource(String relativePath) =>
-    File(relativePath).readAsStringSync();
+    File(relativePath).readAsStringSync().replaceAll('\r\n', '\n');
 
 void main() {
   test('chat is a root-level protected route', () {

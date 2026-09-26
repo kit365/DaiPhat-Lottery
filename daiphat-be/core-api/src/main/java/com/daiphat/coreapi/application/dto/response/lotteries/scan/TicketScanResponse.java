@@ -15,6 +15,7 @@ public record TicketScanResponse(
         List<ScannedTicketResponse> tickets,
         List<String> warnings,
         Integer imageWidth,
-        Integer imageHeight
+        Integer imageHeight,
+        String sourceImageUrl
 ) {
 }

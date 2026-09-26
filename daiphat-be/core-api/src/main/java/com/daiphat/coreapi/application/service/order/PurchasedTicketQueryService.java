@@ -9,6 +9,7 @@ import com.daiphat.coreapi.application.port.out.payout.PrizePayoutRequestReposit
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryResultRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.PurchasedTicketQueryRepositoryPort;
 import com.daiphat.coreapi.application.service.payout.PrizePayoutEligibilityService;
+import com.daiphat.coreapi.application.service.payout.PrizeRedemptionDeadlineService;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryResultStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.SerialPayoutState;
@@ -108,9 +109,68 @@ public class PurchasedTicketQueryService implements PurchasedTicketQueryPort {
         return redeemed == isRedeemed;
     }
 
+    /** Per-request lookups shared by every row so a page of N tickets does not issue N copies of each query. */
+    private final class MappingContext {
+        private final Map<String, Optional<LotteryResultModel>> resultCache = new HashMap<>();
+        private final Map<Long, List<LotteryResultDetailModel>> detailCache = new HashMap<>();
+        private final Map<Long, BigDecimal> prizeAmountCache = new HashMap<>();
+        private final Map<String, Optional<PrizeRedemptionDeadlineService.RedemptionDeadlines>> deadlineCache =
+                new HashMap<>();
+        private final Map<Long, PrizePayoutRequestModel> latestPayouts;
+        private BigDecimal onlineMaxAmount;
+        private boolean onlineMaxAmountLoaded;
+        private Integer maxOnlineRejectRetry;
+
+        private MappingContext(Map<Long, PrizePayoutRequestModel> latestPayouts) {
+            this.latestPayouts = latestPayouts;
+        }
+
+        private BigDecimal onlineMaxAmount() {
+            if (!onlineMaxAmountLoaded) {
+                onlineMaxAmount = prizePayoutEligibilityService.resolveOnlineMaxAmount();
+                onlineMaxAmountLoaded = true;
+            }
+            return onlineMaxAmount;
+        }
+
+        private boolean isOnlineClaimLocked(Long serialId) {
+            // Lock requires at least one existing payout request; latestPayouts covers every serial that has any.
+            if (serialId == null || !latestPayouts.containsKey(serialId)) {
+                return false;
+            }
+            if (maxOnlineRejectRetry == null) {
+                maxOnlineRejectRetry = prizePayoutEligibilityService.resolveMaxOnlineRejectRetry();
+            }
+            return prizePayoutEligibilityService.isOnlineClaimLocked(serialId, maxOnlineRejectRetry);
+        }
+
+        private BigDecimal prizeAmount(Long prizeStructureId) {
+            if (prizeStructureId == null) {
+                return null;
+            }
+            if (!prizeAmountCache.containsKey(prizeStructureId)) {
+                prizeAmountCache.put(prizeStructureId, resolvePrizeAmount(prizeStructureId));
+            }
+            return prizeAmountCache.get(prizeStructureId);
+        }
+
+        private Optional<PrizeRedemptionDeadlineService.RedemptionDeadlines> deadlines(
+                OrderDetailEntity detail,
+                LotteryTicketSerialEntity serial,
+                LotteryTicketEntity ticket) {
+            Long stationId = ticket.getStation() != null ? ticket.getStation().getId() : null;
+            String key = stationId + "|" + ticket.getDrawDate();
+            return deadlineCache.computeIfAbsent(key, ignored -> {
+                try {
+                    return Optional.ofNullable(prizePayoutEligibilityService.resolveRedemptionDeadlines(detail, serial));
+                } catch (DomainException ex) {
+                    return Optional.empty();
+                }
+            });
+        }
+    }
+
     private List<PurchasedTicketResponse> mapDetails(List<OrderDetailEntity> details) {
-        Map<String, Optional<LotteryResultModel>> resultCache = new HashMap<>();
-        Map<Long, List<LotteryResultDetailModel>> detailCache = new HashMap<>();
         List<Long> serialIds = details.stream()
                 .map(OrderDetailEntity::getLotteryTicketSerial)
                 .filter(serial -> serial != null)
@@ -118,23 +178,19 @@ public class PurchasedTicketQueryService implements PurchasedTicketQueryPort {
                 .toList();
         Map<Long, PrizePayoutRequestModel> latestPayouts =
                 prizePayoutRequestRepositoryPort.findLatestBySerialIds(serialIds);
-        if (latestPayouts == null) {
-            latestPayouts = Map.of();
-        }
-        final Map<Long, PrizePayoutRequestModel> payoutBySerial = latestPayouts;
+        MappingContext context = new MappingContext(latestPayouts != null ? latestPayouts : Map.of());
 
         return details.stream()
                 .filter(detail -> detail.getLotteryTicketSerial() != null
                         && detail.getLotteryTicketSerial().getTicket() != null)
-                .map(detail -> mapDetail(detail, resultCache, detailCache, payoutBySerial))
+                .map(detail -> mapDetail(detail, context))
                 .toList();
     }
 
-    private PurchasedTicketResponse mapDetail(
-            OrderDetailEntity detail,
-            Map<String, Optional<LotteryResultModel>> resultCache,
-            Map<Long, List<LotteryResultDetailModel>> detailCache,
-            Map<Long, PrizePayoutRequestModel> latestPayouts) {
+    private PurchasedTicketResponse mapDetail(OrderDetailEntity detail, MappingContext context) {
+        Map<String, Optional<LotteryResultModel>> resultCache = context.resultCache;
+        Map<Long, List<LotteryResultDetailModel>> detailCache = context.detailCache;
+        Map<Long, PrizePayoutRequestModel> latestPayouts = context.latestPayouts;
 
         OrderEntity order = detail.getOrder();
         LotteryTicketSerialEntity serial = detail.getLotteryTicketSerial();
@@ -168,7 +224,7 @@ public class PurchasedTicketQueryService implements PurchasedTicketQueryPort {
                     drawResultStatus = TicketDrawResultStatus.WON;
                     matchedPrizeCode = match.get().prizeCode();
                     matchedPrizeDisplayName = match.get().prizeDisplayName();
-                    prizeAmount = resolvePrizeAmount(match.get().prizeStructureId());
+                    prizeAmount = context.prizeAmount(match.get().prizeStructureId());
                 } else {
                     drawResultStatus = TicketDrawResultStatus.LOST;
                 }
@@ -188,19 +244,20 @@ public class PurchasedTicketQueryService implements PurchasedTicketQueryPort {
         PrizeRedemptionZone redemptionZone = null;
         Integer daysRemainingToIssuer = null;
         if (drawResultStatus == TicketDrawResultStatus.WON && prizeAmount != null) {
-            claimChannel = prizePayoutEligibilityService.resolveClaimChannel(detail, serial, prizeAmount);
-            boolean onlineLocked = prizePayoutEligibilityService.isOnlineClaimLocked(serial.getId());
+            claimChannel = prizePayoutEligibilityService.resolveClaimChannel(
+                    detail, serial, prizeAmount, context.onlineMaxAmount());
+            boolean onlineLocked = context.isOnlineClaimLocked(serial.getId());
             if (onlineLocked) {
                 claimChannel = PrizePayoutChannel.IN_PERSON;
             }
-            try {
-                var deadlines = prizePayoutEligibilityService.resolveRedemptionDeadlines(detail, serial);
+            // Missing deadlines still return the ticket row, just without deadline metadata.
+            var deadlinesOpt = context.deadlines(detail, serial, ticket);
+            if (deadlinesOpt.isPresent()) {
+                var deadlines = deadlinesOpt.get();
                 customerRedemptionDeadline = deadlines.customerDeadlineDate();
                 issuerRedemptionDeadline = deadlines.issuerDeadlineDate();
                 redemptionZone = deadlines.zone();
                 daysRemainingToIssuer = deadlines.daysRemainingToIssuer();
-            } catch (DomainException ignored) {
-                // Still return the ticket row without deadline metadata.
             }
             boolean withinCustomerWindow = redemptionZone == null
                     || redemptionZone == PrizeRedemptionZone.WITHIN_CUSTOMER;

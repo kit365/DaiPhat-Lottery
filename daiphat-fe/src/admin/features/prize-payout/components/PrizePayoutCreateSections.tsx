@@ -25,29 +25,18 @@ export const SectionCard = ({
         }}
     >
         <CardHeader
-            avatar={
-                <Avatar
-                    sx={{
-                        width: 36,
-                        height: 36,
-                        bgcolor: 'var(--palette-primary-lighter)',
-                        color: 'var(--palette-primary-dark)',
-                    }}
-                >
-                    <Icon icon={icon} width={20} />
-                </Avatar>
-            }
-            title={<Typography sx={{ fontWeight: 700, fontSize: '1rem' }}>{title}</Typography>}
+            title={<Typography variant="h6" sx={{ fontWeight: 700 }}>{title}</Typography>}
             action={action}
             sx={{
-                px: 2.5,
-                py: 1.75,
-                bgcolor: 'var(--palette-background-neutral)',
-                borderBottom: '1px solid var(--palette-divider)',
+                px: 3,
+                pt: 3,
+                pb: 1,
+                bgcolor: 'transparent',
+                borderBottom: 'none',
                 '& .MuiCardHeader-action': { m: 0, alignSelf: 'center' },
             }}
         />
-        <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>{children}</CardContent>
+        <CardContent sx={{ p: 3, pt: 1, '&:last-child': { pb: 3 } }}>{children}</CardContent>
     </Card>
 );
 

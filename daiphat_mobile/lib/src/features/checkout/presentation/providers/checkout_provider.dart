@@ -6,7 +6,7 @@ import '../../domain/repositories/transaction_repository.dart';
 import '../../domain/usecases/create_online_order.dart';
 import '../../domain/usecases/process_payment.dart';
 import '../../models/transaction_type.dart';
-import '../../../cart/providers/cart_provider.dart';
+import '../../../cart/presentation/providers/cart_provider.dart';
 import 'package:daiphat_mobile/src/features/orders/domain/entities/order.dart';
 import 'package:daiphat_mobile/src/features/orders/presentation/providers/orders_providers.dart';
 import 'package:daiphat_mobile/src/shared/providers/api_providers.dart';

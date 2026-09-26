@@ -6,7 +6,7 @@ import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 import '../viewmodels/register_viewmodel.dart';
-import 'package:daiphat_mobile/src/features/auth/data/dto/register_request.dart';
+import 'package:daiphat_mobile/src/features/auth/domain/entities/register_request.dart';
 
 class RegisterView extends StatefulWidget {
   final RegisterViewModel viewModel;

@@ -78,6 +78,7 @@ android/app/src/main/res/raw/
 .vscode/
 .flutter-plugins
 .flutter-plugins-dependencies
+daiphat_mobile/android/key.properties
 
 # Eclipse
 .settings/

@@ -1,10 +1,10 @@
 import type { ReturnBatchLineStatus, ReturnBatchStatus } from '../types/returnBatch.type';
 
 export const RETURN_BATCH_STATUS_LABELS: Record<ReturnBatchStatus, string> = {
-    PENDING_INSPECTION: 'Chờ kiểm tra vé',
-    INSPECTING: 'Đang kiểm tra vé',
-    PENDING_HANDOVER: 'Chờ bàn giao nhà cung cấp',
-    HANDED_OVER: 'Đã bàn giao nhà cung cấp',
+    PENDING_INSPECTION: 'Chờ kiểm tra',
+    INSPECTING: 'Đang kiểm tra',
+    PENDING_HANDOVER: 'Chờ bàn giao',
+    HANDED_OVER: 'Đã bàn giao',
     CANCELLED: 'Đã hủy',
 };
 

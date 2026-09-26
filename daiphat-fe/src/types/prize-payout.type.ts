@@ -64,6 +64,21 @@ export interface PrizePayoutRequestResponse {
     recipientIdNumber?: string;
     recipientIdImageUrl?: string;
     recipientIdImageBackUrl?: string;
+    recipientSelfieUrl?: string;
+    ekycStatus?: string;
+    ekycFaceDistance?: number;
+    ekycLivenessScore?: number;
+    ekycFailureReason?: string;
+    ekycOcrName?: string;
+    ekycOcrIdNumber?: string;
+    ekycOcrDob?: string;
+    ekycOcrGender?: string;
+    ekycOcrNationality?: string;
+    ekycOcrPlaceOfBirth?: string;
+    ekycOcrPlaceOfResidence?: string;
+    ekycOcrIssueDate?: string;
+    ekycOcrExpiryDate?: string;
+    ekycVerifiedAt?: string;
     recipientIdentityCapturedAt?: string;
     status: PrizePayoutRequestStatus;
     rejectCount?: number;
@@ -194,6 +209,8 @@ export interface CreatePrizePayoutRequest {
     orderDetailId?: number;
     serialId?: number;
     bankAccountId: number;
+    recipientIdImageUrl: string;
+    recipientIdImageBackUrl: string;
 }
 
 export interface CreateStaffPrizePayoutRequest {
@@ -206,7 +223,6 @@ export interface CreateStaffPrizePayoutRequest {
     bankAccountNumber?: string;
     accountHolderName?: string;
     recipientFullName?: string;
-    recipientIdNumber?: string;
     recipientIdImageUrl?: string;
     recipientIdImageBackUrl?: string;
     paymentMethod: PrizePayoutPaymentMethod;
@@ -224,7 +240,6 @@ export interface CreateStaffPrizePayoutBatchRequest {
     bankAccountNumber?: string;
     accountHolderName?: string;
     recipientFullName?: string;
-    recipientIdNumber?: string;
     recipientIdImageUrl?: string;
     recipientIdImageBackUrl?: string;
     paymentMethod: PrizePayoutPaymentMethod;

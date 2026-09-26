@@ -29,7 +29,7 @@ class UserBankAccountResponse {
       bankBin: json['bankBin']?.toString() ?? '',
       bankAccountNo: json['bankAccountNo']?.toString() ?? '',
       bankAccountName: json['bankAccountName']?.toString() ?? '',
-      isDefault: json['isDefault'] as bool? ?? false,
+      isDefault: (json['isDefault'] ?? json['default']) as bool? ?? false,
       createdAt: json['createdAt']?.toString(),
       updatedAt: json['updatedAt']?.toString(),
     );

@@ -46,7 +46,7 @@ import {
     useCancelPrizeClaim,
     useConfirmPrizeClaimHandover,
     useConfirmPrizeClaimInspection,
-    useExportPrizeClaimSubmission,
+
     usePrizeClaimSubmissionDetail,
     usePrizeClaimSubmissionLines,
     useRecordLineOutcome,
@@ -125,7 +125,7 @@ export const PrizeClaimSubmissionDetailPage = () => {
     const confirmInspectionMutation = useConfirmPrizeClaimInspection();
     const confirmHandoverMutation = useConfirmPrizeClaimHandover();
     const cancelMutation = useCancelPrizeClaim();
-    const exportMutation = useExportPrizeClaimSubmission();
+
     const updateActualReceivedMutation = useUpdatePrizeClaimActualReceived();
 
     const submission = subData?.data;
@@ -322,16 +322,7 @@ export const PrizeClaimSubmissionDetailPage = () => {
         }
     };
 
-    const canExport =
-        (isPendingHandover || isHandedOver || isClosed) && lines.length > 0;
 
-    const handleExport = async () => {
-        try {
-            await exportMutation.mutateAsync(id);
-        } catch {
-            // toast handled by mutation
-        }
-    };
 
     const canConfirmOutcome =
         outcome !== PrizeClaimLineOutcome.HANDED_OVER || Boolean(outcomeEvidenceFile);
@@ -346,27 +337,7 @@ export const PrizeClaimSubmissionDetailPage = () => {
                     { label: 'Phiếu nộp', to: ROUTES.ADMIN.PRIZE_CLAIM_SUBMISSIONS.LIST },
                     { label: submission.submissionCode ?? '#' + id },
                 ]}
-                action={
-                    canExport ? (
-                        <Button
-                            variant="outlined"
-                            startIcon={<FileDownloadOutlinedIcon />}
-                            onClick={handleExport}
-                            disabled={exportMutation.isPending}
-                            sx={{
-                                textTransform: 'none',
-                                fontWeight: 700,
-                                borderRadius: '10px',
-                                borderColor: '#cbd5e1',
-                                color: '#475569',
-                                bgcolor: '#ffffff',
-                                '&:hover': { bgcolor: '#f8fafc', borderColor: '#94a3b8' },
-                            }}
-                        >
-                            Xuất phiếu nộp
-                        </Button>
-                    ) : undefined
-                }
+
             />
 
             {hasPendingOutcomes && (

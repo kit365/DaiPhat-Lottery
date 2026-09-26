@@ -8,6 +8,10 @@ import com.daiphat.coreapi.application.port.out.lotteries.PrizeStructureReposito
 import com.daiphat.coreapi.application.port.out.payout.PrizePayoutRequestRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.PurchasedTicketQueryRepositoryPort;
 import com.daiphat.coreapi.application.service.payout.PrizePayoutEligibilityService;
+import com.daiphat.coreapi.application.service.payout.PrizeRedemptionDeadlineService;
+import com.daiphat.coreapi.domain.model.enums.payout.PrizePayoutChannel;
+import com.daiphat.coreapi.domain.model.enums.payout.PrizeRedemptionZone;
+import com.daiphat.coreapi.domain.model.lotteries.PrizeStructureModel;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryResultStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
@@ -42,6 +46,11 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -122,6 +131,59 @@ class PurchasedTicketQueryServiceTest {
 
         assertThat(response.getRecordList().getFirst().drawResultStatus()).isEqualTo(TicketDrawResultStatus.WON);
         assertThat(response.getRecordList().getFirst().matchedPrizeCode()).isEqualTo("G8");
+    }
+
+    @Test
+    @DisplayName("getMyTickets: shares prize/online-cap/deadline lookups across winning rows")
+    void getMyTickets_multipleWinners_resolvesSharedLookupsOnce() {
+        LocalDate drawDate = LocalDate.now().minusDays(2);
+        OrderDetailEntity first = buildDetail("123456", drawDate);
+        OrderDetailEntity second = buildDetail("654356", drawDate);
+        second.setId(31L);
+        second.getLotteryTicketSerial().setId(21L);
+        LotteryResultModel result = LotteryResultModel.builder()
+                .id(99L)
+                .stationId(1L)
+                .drawDate(drawDate)
+                .status(LotteryResultStatus.COMPLETED)
+                .build();
+        LotteryResultDetailModel resultDetail = LotteryResultDetailModel.builder()
+                .prizeStructureId(7L)
+                .prizeCode("G8")
+                .prizeDisplayName("Giải tám")
+                .winningNumber("56")
+                .matchFrom(com.daiphat.coreapi.domain.model.enums.lottery.MatchFrom.LAST)
+                .matchDigits(2)
+                .build();
+        var deadlines = new PrizeRedemptionDeadlineService.RedemptionDeadlines(
+                drawDate, 30, 5, drawDate.plusDays(25), drawDate.plusDays(30),
+                PrizeRedemptionZone.WITHIN_CUSTOMER, 28);
+
+        when(purchasedTicketQueryRepositoryPort.findPurchasedTickets(any(Specification.class), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of(first, second)));
+        when(lotteryResultRepositoryPort.findByStationIdAndDrawDate(1L, drawDate)).thenReturn(Optional.of(result));
+        when(lotteryResultDetailRepositoryPort.findByLotteryResultId(99L)).thenReturn(List.of(resultDetail));
+        when(prizeStructureRepositoryPort.findById(7L))
+                .thenReturn(Optional.of(PrizeStructureModel.builder().id(7L).prizeValue(BigDecimal.valueOf(100_000)).build()));
+        when(prizePayoutEligibilityService.resolveOnlineMaxAmount()).thenReturn(BigDecimal.valueOf(5_000_000));
+        when(prizePayoutEligibilityService.resolveClaimChannel(any(), any(), any(), any()))
+                .thenReturn(PrizePayoutChannel.ONLINE);
+        when(prizePayoutEligibilityService.resolveRedemptionDeadlines(any(), any())).thenReturn(deadlines);
+
+        PageResponse<PurchasedTicketResponse> response = service.getMyTickets(
+                USER_ID, 1, 10, null, null, null, null, null, "createdAt", "desc");
+
+        assertThat(response.getRecordList()).hasSize(2)
+                .allSatisfy(ticket -> {
+                    assertThat(ticket.drawResultStatus()).isEqualTo(TicketDrawResultStatus.WON);
+                    assertThat(ticket.prizeAmount()).isEqualByComparingTo("100000");
+                    assertThat(ticket.canClaimOnline()).isTrue();
+                    assertThat(ticket.redemptionZone()).isEqualTo(PrizeRedemptionZone.WITHIN_CUSTOMER);
+                });
+        verify(prizeStructureRepositoryPort, times(1)).findById(7L);
+        verify(prizePayoutEligibilityService, times(1)).resolveOnlineMaxAmount();
+        verify(prizePayoutEligibilityService, times(1)).resolveRedemptionDeadlines(any(), any());
+        verify(prizePayoutEligibilityService, never()).isOnlineClaimLocked(anyLong(), anyInt());
     }
 
     @Test

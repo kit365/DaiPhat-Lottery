@@ -32,6 +32,7 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from "axios"
 import { peekQueryAbortSignal } from "@/shared/react-query/queryAbort"
 import { API_PREFIX, API_VERSION } from "./api.constants"
 import { AppToast } from "../utils/toast.util"
+import { isAxiosTimeoutError } from "./requestError"
 import { persistRefreshTokenFallback, resolveAccessToken } from "./authHeaders"
 import { endAuthSession } from "./endAuthSession"
 import { refreshAccessSession } from "./sessionBoot"
@@ -99,6 +100,10 @@ apiApp.interceptors.request.use((config) => {
             delete headers["Content-Type"];
             delete headers["content-type"];
         }
+        // Upload tệp/ảnh thường cần thời gian dài hơn timeout mặc định 15s
+        if (!config.timeout || config.timeout === 15_000) {
+            config.timeout = 120_000;
+        }
     }
 
     return config;
@@ -132,6 +137,18 @@ const isAuthRequiredRequest = (url?: string) => {
     }
 
     return AUTH_REQUIRED_PATHS.some((path) => url.includes(path));
+};
+
+/** OCR scan / payout identity failures are handled per-image in the wizard — never global "server down" toast. */
+const isOcrScanRequest = (url?: string) => {
+    if (!url) {
+        return false;
+    }
+    return (
+        url.includes("/lottery-tickets/scan") ||
+        url.includes("/recipient-id/upload") ||
+        url.includes("/prize-payout-requests")
+    );
 };
 
 const handleExpiredSession = (showToast: boolean = true) => {
@@ -284,7 +301,7 @@ apiApp.interceptors.response.use(
                 });
             }
 
-            if (skipToast) {
+            if (skipToast || isOcrScanRequest(originalRequest?.url)) {
                 return Promise.reject(error);
             }
 
@@ -322,10 +339,16 @@ apiApp.interceptors.response.use(
                     AppToast.error(message, { toastId: `api-error-default-${message}` });
                     console.warn(`[API Error] ${status}: ${message}`);
             }
-        } else if (!skipToast) {
-            AppToast.error("Không thể kết nối tới máy chủ. Vui lòng kiểm tra mạng!", {
-                toastId: "api-network-unreachable",
-            });
+        } else if (!skipToast && !isOcrScanRequest(originalRequest?.url)) {
+            if (isAxiosTimeoutError(error)) {
+                AppToast.error("Thao tác mất quá nhiều thời gian. Vui lòng kiểm tra lại mạng hoặc thử lại!", {
+                    toastId: "api-timeout-error",
+                });
+            } else {
+                AppToast.error("Không thể kết nối tới máy chủ. Vui lòng kiểm tra mạng!", {
+                    toastId: "api-network-unreachable",
+                });
+            }
         }
 
         return Promise.reject(error);

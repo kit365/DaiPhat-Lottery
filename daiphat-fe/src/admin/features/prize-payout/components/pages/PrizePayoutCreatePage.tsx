@@ -22,9 +22,9 @@ import {
     TableContainer,
     TableHead,
     TableRow,
+    Tabs,
+    Tab,
     TextField,
-    ToggleButton,
-    ToggleButtonGroup,
     Typography,
 } from '@mui/material';
 import { Icon } from '@/admin/components/ui/AdminIcon';
@@ -83,6 +83,7 @@ import {
     SectionCard,
     renderHighlightedNumber,
 } from '../PrizePayoutCreateSections';
+import { SegmentedControl } from '@/admin/components/ui/SegmentedControl';
 
 type LookupMode = 'PHONE' | 'EMAIL';
 
@@ -205,7 +206,6 @@ export const PrizePayoutCreatePage = () => {
     const [transferEvidenceUrl, setTransferEvidenceUrl] = useState('');
     const [confirmationContractUrl, setConfirmationContractUrl] = useState('');
     const [recipientFullName, setRecipientFullName] = useState('');
-    const [recipientIdNumber, setRecipientIdNumber] = useState('');
     const [recipientIdImageUrl, setRecipientIdImageUrl] = useState('');
     const [recipientIdImageBackUrl, setRecipientIdImageBackUrl] = useState('');
     const [uploadingIdFront, setUploadingIdFront] = useState(false);
@@ -246,49 +246,38 @@ export const PrizePayoutCreatePage = () => {
     const totalCommission = selectedItems.reduce((sum, item) => sum + (Number(item.commissionAmount) || 0), 0);
     const totalNet = selectedItems.reduce((sum, item) => sum + (Number(item.netAmount) || 0), 0);
 
-    // Counter payout now always captures both CCCD sides for audit.
+    // Counter payout captures CCCD front + back for OCR eKYC (no selfie / no manual CCCD).
     const needsIdImage = selectedItems.length > 0;
+    const cccdImagesReady =
+        Boolean(recipientIdImageUrl.trim()) && Boolean(recipientIdImageBackUrl.trim());
+
     const needsManualConfirm = selectedItems.some((item) => item.requiresManualOwnershipConfirm);
     const hasMatchProof = selectedItems.every(
         (item) => item.prizeStatus === 'WON' && item.ticketNumbers?.trim() && item.winningNumber?.trim()
     );
     const primary = selectedItems[0];
 
-    const isRecipientIdValid = useMemo(
-        () => /^\d{9,12}$/.test(recipientIdNumber.trim()),
-        [recipientIdNumber]
-    );
-
-    const recipientIdError = useMemo(() => {
-        const raw = recipientIdNumber.trim();
-        if (!raw) return '';
-        if (!/^\d+$/.test(raw)) return 'Số CCCD/CMND chỉ được chứa chữ số';
-        if (raw.length < 9 || raw.length > 12) return 'Số CCCD/CMND phải đủ 9 đến 12 chữ số';
-        return '';
-    }, [recipientIdNumber]);
-
     const identityDocsReady = useMemo(() => {
-        if (!recipientFullName.trim() || !isRecipientIdValid) return false;
-        if (needsIdImage && (!recipientIdImageUrl.trim() || !recipientIdImageBackUrl.trim())) return false;
+        if (!recipientFullName.trim()) return false;
+        if (needsIdImage && !cccdImagesReady) return false;
         if (!confirmationContractUrl.trim()) return false;
         if (needsManualConfirm && !manualConfirmed) return false;
         return true;
     }, [
         recipientFullName,
-        isRecipientIdValid,
         needsIdImage,
-        recipientIdImageUrl,
-        recipientIdImageBackUrl,
+        cccdImagesReady,
         confirmationContractUrl,
         needsManualConfirm,
         manualConfirmed,
     ]);
 
-    const canPrintContract = selectedItems.length > 0 && Boolean(recipientFullName.trim()) && isRecipientIdValid;
+    const canPrintContract =
+        selectedItems.length > 0 && Boolean(recipientFullName.trim()) && cccdImagesReady;
 
     const handlePrintContract = async () => {
         if (!canPrintContract) {
-            toast.error('Nhập họ tên và số CCCD người nhận trước khi in hợp đồng.');
+            toast.error('Nhập họ tên và tải đủ ảnh CCCD trước khi in hợp đồng (số CCCD lấy từ OCR).');
             return;
         }
         try {
@@ -296,7 +285,8 @@ export const PrizePayoutCreatePage = () => {
             await prizePayoutAdminApi.openConfirmationContractPreview({
                 orderDetailIds: selectedItems.map((item) => item.orderDetailId),
                 recipientFullName: recipientFullName.trim(),
-                recipientIdNumber: recipientIdNumber.trim(),
+                recipientIdImageUrl: recipientIdImageUrl.trim(),
+                recipientIdImageBackUrl: recipientIdImageBackUrl.trim(),
             });
         } catch (error) {
             toast.error(
@@ -424,7 +414,6 @@ export const PrizePayoutCreatePage = () => {
             transferEvidenceUrl,
             confirmationContractUrl,
             recipientFullName,
-            recipientIdNumber,
             recipientIdImageUrl,
             recipientIdImageBackUrl,
             manualConfirmed,
@@ -443,7 +432,6 @@ export const PrizePayoutCreatePage = () => {
         transferEvidenceUrl,
         confirmationContractUrl,
         recipientFullName,
-        recipientIdNumber,
         recipientIdImageUrl,
         recipientIdImageBackUrl,
         manualConfirmed,
@@ -455,7 +443,6 @@ export const PrizePayoutCreatePage = () => {
     const resetFormSideEffects = () => {
         setManualConfirmed(false);
         setRecipientFullName('');
-        setRecipientIdNumber('');
         setRecipientIdImageUrl('');
         setRecipientIdImageBackUrl('');
         setConfirmationContractUrl('');
@@ -585,16 +572,12 @@ export const PrizePayoutCreatePage = () => {
             toast.error('Cần đánh dấu xác nhận đã đối chiếu giấy tờ + vé gốc');
             return false;
         }
-        if (!recipientFullName.trim() || !recipientIdNumber.trim()) {
-            toast.error('Vui lòng nhập họ tên người nhận và số CCCD');
-            return false;
-        }
-        if (!/^\d{9,12}$/.test(recipientIdNumber.trim())) {
-            toast.error('Số CCCD/CMND phải có từ 9 đến 12 chữ số');
+        if (!recipientFullName.trim()) {
+            toast.error('Vui lòng nhập họ tên người nhận');
             return false;
         }
         if (needsIdImage && (!recipientIdImageUrl.trim() || !recipientIdImageBackUrl.trim())) {
-            toast.error('Cần ảnh CCCD mặt trước và mặt sau');
+            toast.error('Cần ảnh CCCD mặt trước và mặt sau (số CCCD lấy từ OCR)');
             return false;
         }
         if (!confirmationContractUrl.trim()) {
@@ -647,7 +630,6 @@ export const PrizePayoutCreatePage = () => {
                     ? accountHolderName.trim().toUpperCase()
                     : undefined,
                 recipientFullName: recipientFullName.trim(),
-                recipientIdNumber: recipientIdNumber.trim(),
                 recipientIdImageUrl: recipientIdImageUrl.trim() || undefined,
                 recipientIdImageBackUrl: recipientIdImageBackUrl.trim() || undefined,
                 paymentMethod: normalizedMethod,
@@ -710,9 +692,9 @@ export const PrizePayoutCreatePage = () => {
         if (!hasMatchProof) return 'Thiếu đối chiếu số trên vé / KQXS.';
         if (hasLockedRedemption) return 'Vé đã quá hạn lĩnh nhà đài — không thể trả thưởng.';
         if (!identityDocsReady) {
-            if (!recipientFullName.trim() || !isRecipientIdValid) return 'Nhập họ tên và CCCD (9–12 số).';
-            if (needsIdImage && (!recipientIdImageUrl.trim() || !recipientIdImageBackUrl.trim())) {
-                return 'Tải đủ ảnh CCCD mặt trước và mặt sau.';
+            if (!recipientFullName.trim()) return 'Nhập họ tên người nhận.';
+            if (needsIdImage && !cccdImagesReady) {
+                return 'Tải đủ ảnh CCCD mặt trước và mặt sau (OCR lấy số CCCD).';
             }
             if (!confirmationContractUrl.trim()) return 'Tải hợp đồng xác nhận trả thưởng.';
             if (needsManualConfirm && !manualConfirmed) return 'Xác nhận đã đối chiếu giấy tờ & vé gốc.';
@@ -776,109 +758,120 @@ export const PrizePayoutCreatePage = () => {
             />
 
             {/* Section 1: Search Card */}
-            <SectionCard title="1. Tra cứu vé số" icon="solar:magnifer-bold-duotone">
-                            <Alert severity="info" sx={{ mb: 2, borderRadius: '10px' }}>
-                                Chỉ hỗ trợ vé đã bán qua hệ thống. Tra cứu bằng số điện thoại hoặc email của khách hàng.
-                            </Alert>
+            <SectionCard
+                title="1. Tra cứu vé số"
+                icon="solar:magnifer-bold-duotone"
+                action={
+                    <Typography variant="body2" color="info.main" sx={{ fontStyle: 'italic', pr: 1 }}>
+                        * Chỉ hỗ trợ vé đã bán qua hệ thống. Tra cứu bằng số điện thoại hoặc email.
+                    </Typography>
+                }
+            >
+                <SegmentedControl
+                    sx={{ width: { xs: "100%", sm: 240 }, mb: 2 }}
+                    value={searchMode}
+                    onChange={(value) => {
+                        setSearchMode(value as 'PHONE' | 'EMAIL');
+                        setSearchInput('');
+                        setSelectedSuggestion(null);
+                        setDebouncedSearch('');
+                        setLookupItems([]);
+                        setSelectedIds([]);
+                    }}
+                    options={[
+                        { value: 'PHONE', label: 'Điện thoại' },
+                        { value: 'EMAIL', label: 'Email' }
+                    ]}
+                />
 
-                            <ToggleButtonGroup
-                                value={searchMode}
-                                exclusive
-                                onChange={(_, value) => {
-                                    if (value) {
-                                        setSearchMode(value);
-                                        setSearchInput('');
-                                        setSelectedSuggestion(null);
-                                        setDebouncedSearch('');
-                                        setLookupItems([]);
-                                        setSelectedIds([]);
-                                    }
-                                }}
-                                size="small"
-                                sx={{ mb: 2 }}
-                            >
-                                <ToggleButton value="PHONE">Điện thoại</ToggleButton>
-                                <ToggleButton value="EMAIL">Email</ToggleButton>
-                            </ToggleButtonGroup>
-
-                            <Autocomplete
-                                freeSolo
-                                options={suggestions}
-                                loading={isLoadingSuggestions}
-                                value={selectedSuggestion}
-                                inputValue={searchInput}
-                                onInputChange={(_, value, reason) => {
-                                    setSearchInput(value);
-                                    if (reason === 'input') {
-                                        setSelectedSuggestion(null);
-                                    }
-                                }}
-                                onChange={(_, value) => {
-                                    if (!value || typeof value === 'string') {
-                                        setSelectedSuggestion(null);
-                                        return;
-                                    }
-                                    setSelectedSuggestion(value);
-                                    const searchValue = searchMode === 'PHONE' ? value.phone : value.email;
-                                    if (searchValue) {
-                                        setSearchInput(searchValue);
-                                        setDebouncedSearch(searchValue);
-                                    }
-                                }}
-                                getOptionLabel={(o) => {
-                                    if (typeof o === 'string') return o;
-                                    if (searchMode === 'EMAIL') {
-                                        return `${o.displayName} - ${o.email || ''}`;
-                                    }
-                                    return `${o.displayName} - ${o.phone || ''}`;
-                                }}
-                                noOptionsText={
-                                    debouncedSearch.length < 2
-                                        ? 'Nhập từ 2 ký tự để tìm...'
-                                        : 'Không tìm thấy'
+                <Autocomplete
+                    freeSolo
+                    options={suggestions}
+                    loading={isLoadingSuggestions}
+                    value={selectedSuggestion}
+                    inputValue={searchInput}
+                    onInputChange={(_, value, reason) => {
+                        setSearchInput(value);
+                        if (reason === 'input') {
+                            setSelectedSuggestion(null);
+                        }
+                    }}
+                    onChange={(_, value) => {
+                        if (!value || typeof value === 'string') {
+                            setSelectedSuggestion(null);
+                            return;
+                        }
+                        setSelectedSuggestion(value);
+                        const searchValue = searchMode === 'PHONE' ? value.phone : value.email;
+                        if (searchValue) {
+                            setSearchInput(searchValue);
+                            setDebouncedSearch(searchValue);
+                        }
+                    }}
+                    getOptionLabel={(o) => {
+                        if (typeof o === 'string') return o;
+                        if (searchMode === 'EMAIL') {
+                            return `${o.displayName} - ${o.email || ''}`;
+                        }
+                        return `${o.displayName} - ${o.phone || ''}`;
+                    }}
+                    noOptionsText={
+                        debouncedSearch.length < 2
+                            ? 'Nhập từ 2 ký tự để tìm...'
+                            : 'Không tìm thấy'
+                    }
+                    renderInput={(params) => (
+                        <TextField
+                            {...params}
+                            label={searchMode === 'PHONE' ? 'Số điện thoại' : 'Email'}
+                            placeholder={
+                                searchMode === 'PHONE'
+                                    ? 'Nhập số điện thoại khách hàng...'
+                                    : 'Nhập email khách hàng...'
+                            }
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    void handleLookup();
                                 }
-                                renderInput={(params) => (
-                                    <TextField
-                                        {...params}
-                                        label={searchMode === 'PHONE' ? 'Số điện thoại' : 'Email'}
-                                        placeholder={
-                                            searchMode === 'PHONE'
-                                                ? 'Nhập số điện thoại khách hàng...'
-                                                : 'Nhập email khách hàng...'
-                                        }
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
-                                                e.preventDefault();
-                                                void handleLookup();
-                                            }
-                                        }}
-                                        size="small"
-                                        InputProps={{
-                                            ...params.InputProps,
-                                            endAdornment: (
-                                                <>
-                                                    {isLoadingSuggestions ? <CircularProgress size={16} /> : null}
-                                                </>
-                                            ),
-                                        }}
-                                    />
-                                )}
-                            />
+                            }}
+                            size="small"
+                            InputProps={{
+                                ...params.InputProps,
+                                endAdornment: (
+                                    <>
+                                        {isLoadingSuggestions ? <CircularProgress size={16} /> : null}
+                                    </>
+                                ),
+                            }}
+                        />
+                    )}
+                />
 
-                            <Button
-                                variant="contained"
-                                onClick={handleLookup}
-                                disabled={loadingLookup || !lookupReady}
-                                startIcon={loadingLookup ? <CircularProgress size={16} color="inherit" /> : <Icon icon="solar:magnifer-bold-duotone" />}
-                                sx={{ fontWeight: 700, textTransform: 'none', borderRadius: '8px', boxShadow: 'none', mt: 2 }}
-                            >
-                                {loadingLookup ? 'Đang tra cứu…' : 'Tra cứu vé số'}
-                            </Button>
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+                    <Button
+                        variant="contained"
+                        onClick={handleLookup}
+                        disabled={loadingLookup || !lookupReady}
+                        startIcon={loadingLookup ? <CircularProgress size={16} color="inherit" /> : <Icon icon="solar:magnifer-bold-duotone" />}
+                        sx={{ fontWeight: 700, textTransform: 'none', borderRadius: '8px', boxShadow: 'none' }}
+                    >
+                        {loadingLookup ? 'Đang tra cứu…' : 'Tra cứu vé số'}
+                    </Button>
+                </Box>
             </SectionCard>
 
             {/* Section 2: Ticket Selection & Match Proof */}
             {lookupItems.length > 0 && (
-                <SectionCard title="2. Chọn vé trúng & Đối chiếu KQXS" icon="solar:ticket-bold-duotone">
+                <SectionCard 
+                    title="2. Chọn vé trúng & Đối chiếu KQXS" 
+                    icon="solar:ticket-bold-duotone"
+                    action={
+                        <Typography variant="body2" color="warning.main" sx={{ fontStyle: 'italic', pr: 1 }}>
+                            * Lưu ý: Giải Đặc Biệt phải đến Văn phòng Đại diện Đài để xác minh, không hỗ trợ.
+                        </Typography>
+                    }
+                >
                                 <TableContainer>
                                     <Table size="small">
                                         <TableHead>
@@ -899,9 +892,8 @@ export const PrizePayoutCreatePage = () => {
                                                 </TableCell>
                                                 <TableCell>Serial</TableCell>
                                                 <TableCell>Số vé</TableCell>
-                                                <TableCell>KQ</TableCell>
-                                                <TableCell>Giải</TableCell>
-                                                <TableCell>Trạng thái</TableCell>
+                                                <TableCell>Đối soát</TableCell>
+                                                <TableCell align="center">Giải</TableCell>
                                                 <TableCell align="right">Trúng</TableCell>
                                                 <TableCell align="right">HH</TableCell>
                                                 <TableCell align="right">Thuế</TableCell>
@@ -912,8 +904,7 @@ export const PrizePayoutCreatePage = () => {
                                             {lookupItems.filter((item) => item.prizeStatus === 'WON').map((item) => {
                                                 const payoutState = resolveLookupPayoutState(item);
                                                 const lockedByPayout = payoutState === 'PAYOUT_PENDING' || payoutState === 'PAID_OUT';
-                                                const stationOfficeOnly = Boolean(item.requiresStationOfficeRedemption);
-                                                const selectable = item.prizeStatus === 'WON' && !lockedByPayout && !stationOfficeOnly;
+                                                const selectable = item.prizeStatus === 'WON' && !lockedByPayout;
                                                 const checked = selectedIds.includes(item.orderDetailId);
                                                 const payoutBadge = lookupPayoutStatusBadge(item);
                                                 const isWon = item.prizeStatus === 'WON';
@@ -955,12 +946,10 @@ export const PrizePayoutCreatePage = () => {
                                                         <TableCell sx={{ fontFamily: 'monospace', fontWeight: 700 }}>
                                                             {renderHighlightedNumber(item.ticketNumbers, item.matchFrom, item.matchDigits, 'ticket')}
                                                         </TableCell>
-                                                        <TableCell>
-                                                            <Typography variant="caption" sx={{ fontWeight: 700 }}>
-                                                                {prizeStatusLabel(item.prizeStatus)}
-                                                            </Typography>
+                                                        <TableCell sx={{ fontFamily: 'monospace', fontWeight: 700 }}>
+                                                            {item.winningNumber ? renderHighlightedNumber(item.winningNumber, item.matchFrom, item.matchDigits, 'winning') : <Typography variant="caption" color="text.disabled">—</Typography>}
                                                         </TableCell>
-                                                        <TableCell>
+                                                        <TableCell align="center">
                                                             {item.prizeDisplayName ? (
                                                                 <AdminStatusBadge
                                                                     label={item.prizeDisplayName}
@@ -970,42 +959,6 @@ export const PrizePayoutCreatePage = () => {
                                                             ) : (
                                                                 <Typography variant="caption" color="text.disabled">—</Typography>
                                                             )}
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            {stationOfficeOnly ? (
-                                                                <Chip
-                                                                    label="VPĐĐ"
-                                                                    size="small"
-                                                                    color="warning"
-                                                                    sx={{ fontWeight: 700 }}
-                                                                />
-                                                            ) : payoutBadge ? (
-                                                                <AdminStatusBadge
-                                                                    label={payoutBadge.label}
-                                                                    modifier={payoutBadge.modifier}
-                                                                    className="admin-status-badge--compact"
-                                                                />
-                                                            ) : (
-                                                                <Typography variant="caption" color="text.disabled">—</Typography>
-                                                            )}
-                                                            {stationOfficeOnly && (
-                                                                <Typography variant="caption" color="warning.main" sx={{ display: 'block', mt: 0.5 }}>
-                                                                    {buildStationOfficeRedemptionMessage(item.stationName)}
-                                                                </Typography>
-                                                            )}
-                                                            {!stationOfficeOnly && (() => {
-                                                                const urgency = getUrgencyBadge(item);
-                                                                return urgency ? (
-                                                                    <Box sx={{ mt: 0.5 }}>
-                                                                        <Chip
-                                                                            label={urgency.label}
-                                                                            color={urgency.color}
-                                                                            size="small"
-                                                                            sx={{ fontSize: '0.7rem', height: 20 }}
-                                                                        />
-                                                                    </Box>
-                                                                ) : null;
-                                                            })()}
                                                         </TableCell>
                                                         <TableCell align="right" sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>
                                                             {formatPrizePayoutCurrency(item.grossAmount)}
@@ -1025,42 +978,6 @@ export const PrizePayoutCreatePage = () => {
                                         </TableBody>
                                     </Table>
                                 </TableContainer>
-
-                                {selectedItems.length > 0 && (
-                                    <Box
-                                        sx={{
-                                            mt: 2,
-                                            p: 2,
-                                            borderRadius: '12px',
-                                            bgcolor: 'var(--palette-background-neutral)',
-                                            border: '1px solid var(--palette-divider)',
-                                        }}
-                                    >
-                                        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.25 }}>
-                                            Đối chiếu số trúng ({selectedItems.length} vé)
-                                        </Typography>
-                                        {selectedItems.map((item) => (
-                                            <Grid container spacing={1} key={item.orderDetailId} sx={{ mb: 1 }}>
-                                                <Grid size={{ xs: 12, sm: 6 }}>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        Vé {item.serialNumber}
-                                                    </Typography>
-                                                    <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 700 }}>
-                                                        {renderHighlightedNumber(item.ticketNumbers, item.matchFrom, item.matchDigits, 'ticket')}
-                                                    </Typography>
-                                                </Grid>
-                                                <Grid size={{ xs: 12, sm: 6 }}>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        KQXS
-                                                    </Typography>
-                                                    <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 700 }}>
-                                                        {renderHighlightedNumber(item.winningNumber, item.matchFrom, item.matchDigits, 'winning')}
-                                                    </Typography>
-                                                </Grid>
-                                            </Grid>
-                                        ))}
-                                    </Box>
-                                )}
 
                                 {primary && (
                                     <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 2 }}>
@@ -1083,7 +1000,7 @@ export const PrizePayoutCreatePage = () => {
             {selectedItems.length > 0 && (
                 <SectionCard title="3. Định danh người nhận thưởng" icon="solar:user-id-bold-duotone">
                                 <Alert severity="info" sx={{ mb: 2, borderRadius: '10px' }}>
-                                    Cần họ tên, CCCD và ảnh mặt trước + mặt sau.
+                                    Cần họ tên và ảnh CCCD mặt trước / mặt sau. Số CCCD được OCR tự động (không nhập tay, không selfie).
                                 </Alert>
                                 <Stack spacing={2}>
                                     <TextField
@@ -1093,20 +1010,10 @@ export const PrizePayoutCreatePage = () => {
                                         fullWidth
                                         size="small"
                                     />
-                                    <TextField
-                                        label="Số CCCD / CMND *"
-                                        value={recipientIdNumber}
-                                        onChange={(e) => setRecipientIdNumber(e.target.value.replace(/\D/g, '').slice(0, 12))}
-                                        fullWidth
-                                        size="small"
-                                        error={!!recipientIdError}
-                                        inputProps={{ inputMode: 'numeric', pattern: '[0-9]*', maxLength: 12 }}
-                                        helperText={recipientIdError || 'Chỉ nhập số (9–12 chữ số)'}
-                                    />
 
                                     <Stack spacing={1.5}>
                                         <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary' }}>
-                                            Ảnh CCCD * (mặt trước và mặt sau)
+                                            Ảnh CCCD * (OCR eKYC)
                                         </Typography>
                                         <Grid container spacing={1.5}>
                                             <Grid size={{ xs: 12, sm: 6 }}>
@@ -1192,7 +1099,7 @@ export const PrizePayoutCreatePage = () => {
                                     </Button>
                                     {!canPrintContract && (
                                         <Typography variant="caption" color="text.secondary">
-                                            Nhập họ tên và số CCCD người nhận để mở in hợp đồng.
+                                            Nhập họ tên và tải đủ ảnh CCCD để in hợp đồng (số CCCD lấy từ OCR).
                                         </Typography>
                                     )}
                                     <UploadSingleFile
@@ -1603,7 +1510,7 @@ export const PrizePayoutCreatePage = () => {
                                 <strong>Người nhận:</strong> {recipientFullName.trim() || '-'}
                             </Typography>
                             <Typography variant="body2">
-                                <strong>CCCD/CMND:</strong> {recipientIdNumber.trim() || '-'}
+                                <strong>CCCD/CMND:</strong> sẽ lấy từ OCR khi hoàn tất
                             </Typography>
                             <Typography variant="body2">
                                 <strong>Số vé:</strong> {selectedItems.length}

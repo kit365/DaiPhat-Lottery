@@ -232,7 +232,7 @@ export const PrizePayoutList = () => {
                         >
                             <TableHead>
                                 <TableRow>
-                                    <TableCell>Mã yêu cầu</TableCell>
+                                    <TableCell align="center">Mã yêu cầu</TableCell>
                                     <TableCell>Khách hàng</TableCell>
                                     <TableCell>Đài / Ngày quay</TableCell>
                                     <TableCell align="center">Loại đơn</TableCell>
@@ -278,7 +278,7 @@ export const PrizePayoutList = () => {
                                 ) : (
                                     rows.map((row) => (
                                         <TableRow key={row.id} hover>
-                                            <TableCell>
+                                            <TableCell align="center">
                                                 <Typography
                                                     className="admin-cell-title"
                                                     onClick={() => router.push(detailPath(row.id))}

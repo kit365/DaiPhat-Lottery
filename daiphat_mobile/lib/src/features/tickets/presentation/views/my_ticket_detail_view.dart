@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/features/home/presentation/providers/lottery_results_lookup_provider.dart';
@@ -15,9 +13,8 @@ import 'package:daiphat_mobile/src/features/prize_payouts/presentation/widgets/p
 import 'package:daiphat_mobile/src/features/tickets/presentation/utils/ticket_display_utils.dart';
 import 'package:daiphat_mobile/src/features/tickets/presentation/utils/rebuy_ticket.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
-import 'package:daiphat_mobile/src/features/profile/presentation/profile_iconography.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
-import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
+import 'package:daiphat_mobile/src/shared/widgets/ticket_number_display.dart';
 
 class MyTicketDetailView extends ConsumerWidget {
   final String ticketId;
@@ -48,20 +45,33 @@ class MyTicketDetailView extends ConsumerWidget {
   }
 }
 
-class _TicketDetailBody extends ConsumerWidget {
+class _TicketDetailBody extends ConsumerStatefulWidget {
   final PurchasedTicket ticket;
 
   const _TicketDetailBody({required this.ticket});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final status = ticketStatusUi(ticket.drawResultStatus);
-    final possession = resolveTicketPossessionDisplay(ticket);
-    final payout = resolveTicketPayoutDisplay(ticket);
-    final numberParts = splitTicketNumbers(ticket.numbers);
-    final isWon = ticket.drawResultStatus == 'WON';
-    final isEligible = canRequestPrizePayout(ticket);
-    final ineligibility = getPrizePayoutIneligibilityMessage(ticket);
+  ConsumerState<_TicketDetailBody> createState() => _TicketDetailBodyState();
+}
+
+class _TicketDetailBodyState extends ConsumerState<_TicketDetailBody> {
+  late PurchasedTicket _ticket;
+  PurchasedTicket get ticket => _ticket;
+
+  @override
+  void initState() {
+    super.initState();
+    _ticket = widget.ticket;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final status = ticketStatusUi(_ticket.drawResultStatus);
+    final possession = resolveTicketPossessionDisplay(_ticket);
+    final payout = resolveTicketPayoutDisplay(_ticket);
+    final fullNumber = normalizeFullTicketNumber(_ticket.numbers);
+    final isWon = _ticket.drawResultStatus == 'WON';
+    final isEligible = canRequestPrizePayout(_ticket);
 
     return Scaffold(
       backgroundColor: AppColors.surfaceCanvas,
@@ -93,20 +103,16 @@ class _TicketDetailBody extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildTicketStub(
-              context: context,
               status: status,
-              numberParts: numberParts,
+              fullNumber: fullNumber,
               isWon: isWon,
               possession: possession,
-              payout: payout,
             ),
             if (isWon) ...[
               const SizedBox(height: 16),
               _buildPrizeSection(
                 context,
-                ref,
                 isEligible: isEligible,
-                ineligibility: ineligibility,
                 payout: payout,
               ),
             ],
@@ -212,12 +218,10 @@ class _TicketDetailBody extends ConsumerWidget {
   }
 
   Widget _buildTicketStub({
-    required BuildContext context,
     required TicketStatusUi status,
-    required List<String> numberParts,
+    required String fullNumber,
     required bool isWon,
     required TicketPossessionDisplay? possession,
-    required TicketPayoutDisplay? payout,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -242,62 +246,31 @@ class _TicketDetailBody extends ConsumerWidget {
               gradient: LinearGradient(
                 colors: isWon
                     ? const [
-                        AppColors.brandAccentYellow,
-                        AppColors.statusWarningAccent,
-                        AppColors.brandAccentOrange,
+                        AppColors.ticketStripWonStart,
+                        AppColors.ticketStripWonMid,
+                        AppColors.ticketStripWonEnd,
                       ]
                     : ticket.drawResultStatus == 'PENDING_DRAW'
                     ? const [
-                        AppColors.brandAccentYellow,
-                        AppColors.brandAccentOrangeBright,
-                        AppColors.statusWarningAccent,
+                        AppColors.ticketStripPendingStart,
+                        AppColors.ticketStripPendingEnd,
+                        AppColors.ticketStripPendingStart,
                       ]
-                    : const [AppColors.borderMuted, AppColors.contentSubtle],
+                    : const [
+                        AppColors.ticketStripLostStart,
+                        AppColors.ticketStripLostEnd,
+                      ],
               ),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: isWon
-                              ? const [
-                                  AppColors.brandAccentYellow,
-                                  AppColors.statusWarningAccent,
-                                ]
-                              : ticket.drawResultStatus == 'PENDING_DRAW'
-                              ? const [
-                                  AppColors.brandAccentYellow,
-                                  AppColors.brandAccentOrangeBright,
-                                ]
-                              : const [
-                                  AppColors.borderSubtle,
-                                  AppColors.borderMuted,
-                                ],
-                        ),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Icon(
-                        isWon
-                            ? ProfileIconography.prize
-                            : ProfileIconography.ticket,
-                        color:
-                            isWon || ticket.drawResultStatus == 'PENDING_DRAW'
-                            ? AppColors.surfacePrimary
-                            : AppColors.contentMuted,
-                        size: 28,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -310,79 +283,25 @@ class _TicketDetailBody extends ConsumerWidget {
                               color: AppColors.textMain,
                             ),
                           ),
-                          const SizedBox(height: 6),
-                          _buildStatusChip(
-                            status.label,
-                            status.color,
-                            status.bgColor,
+                          const SizedBox(height: 4),
+                          Text(
+                            'Kỳ quay: ${_formatDrawDate(ticket.drawDate)}',
+                            style: AppTypography.mainWith(
+                              fontSize: 12,
+                              color: AppColors.ticketMetadataForeground,
+                            ),
                           ),
                         ],
                       ),
                     ),
+                    const SizedBox(width: 12),
+                    _buildStatusChip(
+                      status.label,
+                      status.color,
+                      status.bgColor,
+                      borderColor: status.borderColor,
+                    ),
                   ],
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceSoft,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.borderSubtle),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Mã serial vé',
-                              style: AppTypography.mainWith(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textMuted,
-                              ),
-                            ),
-                            Text(
-                              ticket.serialNumber ?? ticket.numbers,
-                              style: AppTypography.mainWith(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w900,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        width: 1,
-                        height: 36,
-                        color: AppColors.borderSubtle,
-                      ),
-                      const SizedBox(width: 14),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            'Giá vé',
-                            style: AppTypography.mainWith(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textMuted,
-                            ),
-                          ),
-                          Text(
-                            AppFormatters.formatCurrency(ticket.price),
-                            style: AppTypography.mainWith(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.textMain,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
                 ),
                 const SizedBox(height: 16),
                 Text(
@@ -390,157 +309,46 @@ class _TicketDetailBody extends ConsumerWidget {
                   style: AppTypography.mainWith(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textMuted,
+                    color: AppColors.ticketMetadataForeground,
                   ),
                 ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: numberParts.isNotEmpty
-                      ? numberParts
-                            .map(
-                              (n) => Container(
-                                width: 48,
-                                height: 48,
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  gradient: isWon
-                                      ? const LinearGradient(
-                                          begin: Alignment.topCenter,
-                                          end: Alignment.bottomCenter,
-                                          colors: [
-                                            AppColors.fortuneGoldLight,
-                                            AppColors.statusWarningAccent,
-                                          ],
-                                        )
-                                      : null,
-                                  color: isWon
-                                      ? null
-                                      : AppColors.surfaceSlate100,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: isWon
-                                        ? AppColors.brandAccentYellow
-                                        : AppColors.borderMuted,
-                                  ),
-                                ),
-                                child: Text(
-                                  n,
-                                  style: AppTypography.mainWith(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w900,
-                                    color: isWon
-                                        ? AppColors.contentAmberDark
-                                        : AppColors.textMain,
-                                  ),
-                                ),
-                              ),
-                            )
-                            .toList()
-                      : [
-                          Text(
-                            ticket.numbers,
-                            style: AppTypography.mainWith(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w900,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ],
-                ),
-                const SizedBox(height: 20),
-                const Divider(color: AppColors.borderSubtle),
-                const SizedBox(height: 16),
-                _buildInfoRow(
-                  'Ngày mở thưởng',
-                  _formatDrawDate(ticket.drawDate),
-                ),
-                _buildInfoRow(
-                  'Thời gian mua vé',
-                  _formatDateTime(ticket.purchasedAt),
-                ),
-                _buildInfoRow(
-                  'Kết quả đối chiếu',
-                  status.label,
-                  valueColor: status.color,
-                ),
-                if (isWon && ticket.prizeAmount != null)
-                  _buildInfoRow(
-                    'Tổng tiền trúng thưởng',
-                    AppFormatters.formatCurrency(ticket.prizeAmount),
-                    valueColor: AppColors.statusWarningAccent,
-                  ),
+                const SizedBox(height: 8),
+                TicketNumberDisplay.detail(value: fullNumber),
                 if (isWon &&
-                    (ticket.customerRedemptionDeadline != null ||
-                        ticket.issuerRedemptionDeadline != null))
-                  _buildInfoRow(
-                    'Thời gian còn lại đổi thưởng',
-                    _redemptionRemainingLabel(ticket),
-                    valueColor:
-                        ticket.redemptionZone == 'PAST_CUSTOMER_URGENT' ||
-                            ticket.redemptionZone == 'PAST_ISSUER_LOCKED'
-                        ? AppColors.brandPrimaryCrimson
-                        : AppColors.brandAccentGoldAmber,
-                  ),
-                if (isWon && ticket.payoutState != null)
-                  _buildInfoRow(
-                    'Trạng thái trả thưởng',
-                    serialPayoutStateLabel(ticket.payoutState),
-                  ),
-                if (possession != null)
-                  _buildInfoRow('Tình trạng nhận vé', possession.label),
-                _buildOrderCodeRow(context, ticket.orderCode),
-                const SizedBox(height: 16),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [
-                        AppColors.contentNavy,
-                        AppColors.contentSlate900,
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
+                    ticket.matchedPrizeDisplayName?.trim().isNotEmpty ==
+                        true) ...[
+                  const SizedBox(height: 10),
+                  Row(
                     children: [
-                      Text(
-                        'Xác thực vé điện tử',
-                        style: AppTypography.mainWith(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.contentSubtle,
-                          letterSpacing: 1,
-                        ),
+                      const Icon(
+                        Icons.star_rounded,
+                        size: 16,
+                        color: AppColors.ticketResultWonForeground,
                       ),
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: AppColors.surfacePrimary,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: QrImageView(
-                          data: ticket.orderCode.isNotEmpty
-                              ? ticket.orderCode
-                              : ticket.ticketId.toString(),
-                          size: 120,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
+                      const SizedBox(width: 6),
                       Text(
-                        ticket.orderCode,
+                        ticket.matchedPrizeDisplayName!,
                         style: AppTypography.mainWith(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.borderMuted,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.ticketResultWonForeground,
                         ),
                       ),
                     ],
                   ),
-                ),
+                ],
+                const SizedBox(height: 16),
+                _buildTicketMetaPanel(),
+                if (possession != null) ...[
+                  const SizedBox(height: 12),
+                  _buildStatusChip(
+                    possession.label,
+                    possession.color,
+                    possession.bgColor,
+                    borderColor: possession.borderColor,
+                    icon: possession.icon,
+                  ),
+                ],
               ],
             ),
           ),
@@ -549,22 +357,93 @@ class _TicketDetailBody extends ConsumerWidget {
     );
   }
 
+  Widget _buildTicketMetaPanel() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.ticketNumberSurface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.ticketNumberBorder),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Mã serial vé',
+                  style: AppTypography.mainWith(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.ticketMetadataForeground,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  ticket.serialNumber ?? ticket.numbers,
+                  style: AppTypography.mainWith(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.ticketNumberForeground,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(width: 1, height: 34, color: AppColors.ticketNumberBorder),
+          const SizedBox(width: 14),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                'Giá vé',
+                style: AppTypography.mainWith(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.ticketMetadataForeground,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                AppFormatters.formatCurrency(ticket.price),
+                style: AppTypography.mainWith(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.ticketNumberForeground,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPrizeSection(
-    BuildContext context,
-    WidgetRef ref, {
+    BuildContext context, {
     required bool isEligible,
-    required String? ineligibility,
     required TicketPayoutDisplay? payout,
   }) {
+    final isPayoutInProgress =
+        _ticket.activePayoutStatus == 'PENDING' ||
+        _ticket.activePayoutStatus == 'APPROVED' ||
+        _ticket.payoutState == 'PAYOUT_PENDING';
+    final isPayoutCompleted =
+        _ticket.activePayoutStatus == 'COMPLETED' ||
+        _ticket.payoutState == 'PAID_OUT';
+    final isStationOfficeOnly = isStationOfficeRedemption(_ticket);
+    final isRedemptionUrgent =
+        _ticket.redemptionZone == 'PAST_CUSTOMER_URGENT' ||
+        _ticket.redemptionZone == 'PAST_ISSUER_LOCKED';
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.surfaceWarning, AppColors.surfaceWarningSubtle],
-        ),
+        color: AppColors.ticketNumberSurface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.fortuneGoldLight),
+        border: Border.all(color: AppColors.ticketResultWonBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -572,59 +451,80 @@ class _TicketDetailBody extends ConsumerWidget {
           Row(
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 36,
+                height: 36,
                 decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      AppColors.brandAccentYellow,
-                      AppColors.statusWarningAccent,
-                    ],
-                  ),
+                  color: AppColors.ticketResultWonSurface,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
-                  Icons.card_giftcard,
-                  color: AppColors.surfacePrimary,
+                  Icons.workspace_premium_rounded,
+                  color: AppColors.ticketResultWonForeground,
+                  size: 20,
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  'Chúc mừng bạn đã trúng thưởng!',
-                  style: AppTypography.mainWith(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.contentAmberDark,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Đổi thưởng',
+                      style: AppTypography.mainWith(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.ticketResultWonForeground,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      isPayoutCompleted
+                          ? 'Đã trả thưởng'
+                          : isPayoutInProgress
+                          ? 'Yêu cầu đang xử lý'
+                          : isStationOfficeOnly
+                          ? 'Đổi tại văn phòng đài'
+                          : _ticket.canClaimOnline == false ||
+                                _ticket.claimChannel == 'IN_PERSON'
+                          ? 'Đổi tại đại lý'
+                          : 'Có thể đổi thưởng trực tuyến',
+                      style: AppTypography.mainWith(
+                        fontSize: 12,
+                        color: AppColors.ticketMetadataForeground,
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              if (_ticket.prizeAmount != null)
+                Text(
+                  AppFormatters.formatCurrency(_ticket.prizeAmount),
+                  style: AppTypography.mainWith(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.ticketResultWonForeground,
+                  ),
+                ),
             ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            isEligible
-                ? 'Bạn có thể gửi yêu cầu trả thưởng trực tuyến. Tiền sẽ được chuyển sau khi nhân viên duyệt.'
-                : ticket.canClaimOnline == false ||
-                      ticket.claimChannel == 'IN_PERSON'
-                ? 'Vé này cần mang đến đại lý để đổi thưởng trực tiếp.'
-                : 'Tiền thưởng sẽ được chuyển tới tài khoản ngân hàng sau khi yêu cầu được duyệt.',
-            style: AppTypography.mainWith(
-              fontSize: 13,
-              color: AppColors.contentMuted,
-            ),
           ),
           if (payout != null) ...[
             const SizedBox(height: 10),
-            _buildStatusChip(payout.label, payout.color, payout.bgColor),
+            _buildStatusChip(
+              payout.label,
+              payout.color,
+              payout.bgColor,
+              borderColor: payout.borderColor,
+              icon: payout.icon,
+            ),
           ],
-          if (ineligibility != null) ...[
+          if (isRedemptionUrgent) ...[
             const SizedBox(height: 8),
             Text(
-              ineligibility,
+              _redemptionRemainingLabel(_ticket),
               style: AppTypography.mainWith(
                 fontSize: 12,
-                color: AppColors.textMuted,
+                fontWeight: FontWeight.w700,
+                color: AppColors.brandPrimaryCrimson,
               ),
             ),
           ],
@@ -633,10 +533,10 @@ class _TicketDetailBody extends ConsumerWidget {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () => _openPayoutSheet(context, ref),
+                onPressed: () => _openPayoutSheet(context),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.statusWarningAccent,
-                  foregroundColor: AppColors.surfacePrimary,
+                  backgroundColor: AppColors.ticketActionPayoutBg,
+                  foregroundColor: AppColors.ticketActionPayoutFg,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -652,126 +552,113 @@ class _TicketDetailBody extends ConsumerWidget {
               ),
             ),
           ],
+          if (_hasPayoutDetailLink) ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _openPayoutDetail(context),
+                icon: const Icon(Icons.receipt_long_outlined, size: 18),
+                label: Text(
+                  'Xem chi tiết yêu cầu đổi thưởng',
+                  style: AppTypography.mainWith(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.contentSlate700,
+                  side: const BorderSide(color: AppColors.borderMuted),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Future<void> _openPayoutSheet(BuildContext context, WidgetRef ref) async {
-    await showModalBottomSheet<void>(
+  bool get _hasPayoutDetailLink {
+    final status = _ticket.activePayoutStatus;
+    return _ticket.activePayoutRequestId != null &&
+        (status == 'PENDING' || status == 'APPROVED' || status == 'COMPLETED');
+  }
+
+  void _openPayoutDetail(BuildContext context) {
+    final requestId = _ticket.activePayoutRequestId;
+    if (requestId == null) return;
+    context.pushNamed(
+      AppRoute.prizePayoutDetail.name,
+      pathParameters: {'id': '$requestId'},
+    );
+  }
+
+  Future<void> _openPayoutSheet(BuildContext context) async {
+    final result = await showModalBottomSheet<dynamic>(
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.transparent,
       builder: (context) => PrizePayoutRequestSheet(
-        ticket: ticket,
+        ticket: _ticket,
         previewPrizePayout: ref.read(previewPrizePayoutProvider),
         createPrizePayout: ref.read(createPrizePayoutProvider),
+        uploadRecipientIdImage:
+            ref.read(uploadPrizePayoutRecipientIdImageProvider),
         getMyBankAccounts: ref.read(getMyBankAccountsProvider),
         getBanks: ref.read(getBanksProvider),
         createBankAccount: ref.read(createBankAccountProvider),
       ),
     );
+
+    if (result == true && mounted) {
+      setState(() {
+        _ticket = _ticket.copyWith(
+          activePayoutStatus: 'PENDING',
+          canClaimOnline: false,
+          payoutState: 'PAYOUT_PENDING',
+        );
+      });
+    }
   }
 
-  Widget _buildInfoRow(String label, String value, {Color? valueColor}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            flex: 2,
-            child: Text(
-              label,
-              style: AppTypography.mainWith(
-                fontSize: 13,
-                color: AppColors.textMuted,
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 3,
-            child: Text(
-              value,
-              textAlign: TextAlign.end,
-              style: AppTypography.mainWith(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: valueColor ?? AppColors.textMain,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOrderCodeRow(BuildContext context, String orderCode) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 2,
-            child: Text(
-              'Mã đơn hàng',
-              style: AppTypography.mainWith(
-                fontSize: 13,
-                color: AppColors.textMuted,
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 3,
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: InkWell(
-                onTap: () {
-                  Clipboard.setData(ClipboardData(text: orderCode));
-                  AppToast.success('Đã sao chép mã đơn hàng');
-                },
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      orderCode,
-                      style: AppTypography.mainWith(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textMain,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    const Icon(
-                      Icons.copy,
-                      size: 14,
-                      color: AppColors.textMuted,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatusChip(String label, Color color, Color bgColor) {
+  Widget _buildStatusChip(
+    String label,
+    Color color,
+    Color bgColor, {
+    Color? borderColor,
+    IconData? icon,
+  }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.25)),
+        border: Border.all(color: borderColor ?? color.withValues(alpha: 0.25)),
       ),
-      child: Text(
-        label,
-        style: AppTypography.mainWith(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          color: color,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 13, color: color),
+            const SizedBox(width: 5),
+          ],
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.mainWith(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -831,15 +718,6 @@ class _TicketDetailBody extends ConsumerWidget {
     try {
       final dt = DateTime.parse(value).toLocal();
       return DateFormat('EEEE, dd/MM/yyyy', 'vi_VN').format(dt);
-    } catch (_) {
-      return value;
-    }
-  }
-
-  String _formatDateTime(String value) {
-    try {
-      final dt = DateTime.parse(value).toLocal();
-      return DateFormat('dd/MM/yyyy - HH:mm:ss').format(dt);
     } catch (_) {
       return value;
     }

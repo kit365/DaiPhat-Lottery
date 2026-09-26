@@ -1,14 +1,20 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:daiphat_mobile/src/shared/providers/api_providers.dart';
-import '../../data/models/lottery_station_schedule.dart';
-import '../../data/services/schedule_api_service.dart';
+import '../../domain/entities/lottery_station_schedule.dart';
+import '../../domain/repositories/schedule_repository.dart';
+import '../../domain/usecases/get_lottery_schedule.dart';
 
-final scheduleApiServiceProvider = Provider<ScheduleApiService>((ref) {
-  return ScheduleApiService(ref.watch(apiClientProvider));
+final scheduleRepositoryProvider = Provider<ScheduleRepository>((ref) {
+  throw UnimplementedError(
+    'scheduleRepositoryProvider must be overridden in bootstrap',
+  );
+});
+
+final getLotteryScheduleProvider = Provider<GetLotterySchedule>((ref) {
+  return GetLotterySchedule(ref.watch(scheduleRepositoryProvider));
 });
 
 final lotteryScheduleProvider =
     FutureProvider.autoDispose<List<LotteryStationSchedule>>((ref) {
-  return ref.watch(scheduleApiServiceProvider).fetchAll();
+  return ref.watch(getLotteryScheduleProvider)();
 });

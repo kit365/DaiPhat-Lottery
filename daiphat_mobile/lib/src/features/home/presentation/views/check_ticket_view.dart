@@ -7,10 +7,11 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
-import 'package:daiphat_mobile/src/features/home/data/models/ticket_check_models.dart';
+import 'package:daiphat_mobile/src/features/home/domain/entities/ticket_check.dart';
 import 'package:daiphat_mobile/src/features/home/presentation/viewmodels/ticket_check_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/home/presentation/views/widgets/lottery_date_picker_dialog.dart';
-import 'package:daiphat_mobile/src/features/schedule/data/models/lottery_station_schedule.dart';
+import 'package:daiphat_mobile/src/features/home/presentation/views/widgets/ticket_check_results_card.dart';
+import 'package:daiphat_mobile/src/features/schedule/domain/entities/lottery_station_schedule.dart';
 import 'package:daiphat_mobile/src/features/schedule/presentation/providers/schedule_providers.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
@@ -55,6 +56,8 @@ class _CheckTicketViewState extends ConsumerState<CheckTicketView> {
         !state.isChecking &&
         state.errorMessage == null &&
         (!state.hasChecked || state.checkResult == null);
+    final isWinningResult =
+        state.hasChecked && state.checkResult?.winning == true;
 
     return Scaffold(
       backgroundColor: AppColors.pageBg,
@@ -102,7 +105,9 @@ class _CheckTicketViewState extends ConsumerState<CheckTicketView> {
                     // Main Form Card
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                      child: Container(
+                      child: _WinningResultPopup(
+                        active: isWinningResult,
+                        child: Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
@@ -120,9 +125,9 @@ class _CheckTicketViewState extends ConsumerState<CheckTicketView> {
                             ),
                           ],
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
                             if (state.isChecking)
                               const _CheckingState()
                             else if (state.errorMessage != null)
@@ -138,10 +143,14 @@ class _CheckTicketViewState extends ConsumerState<CheckTicketView> {
                               )
                             else
                               _FormState(state: state, vm: vm),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
+
+                    if (state.hasChecked && state.checkResult != null)
+                      _CheckedStationResultsSection(state: state),
 
                     if (showSupport)
                       _CheckTicketSupportSection(schedule: schedule),
@@ -544,44 +553,63 @@ class _ResultState extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           ...result.matchedPrizes.map(
-            (prize) => Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceSoft,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.borderSubtle),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          prize.prizeDisplayName,
-                          style: AppTypography.labelLarge(
-                            fontWeight: FontWeight.w700,
+            (prize) {
+              final isConsolationPrize = prize.prizeCode == 'KK';
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceSoft,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.borderSubtle),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            prize.prizeDisplayName,
+                            style: AppTypography.labelLarge(
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Số trúng: ${prize.winningNumber}',
-                          style: AppTypography.labelMedium(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
+                          const SizedBox(height: 2),
+                          if (isConsolationPrize) ...[
+                            Text(
+                              'Số vé của bạn: ${result.ticketNumber}',
+                              style: AppTypography.labelMedium(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            Text(
+                              'Đối chiếu giải đặc biệt: ${prize.winningNumber}',
+                              style: AppTypography.labelMedium(
+                                color: AppColors.contentMuted,
+                              ),
+                            ),
+                          ] else
+                            Text(
+                              'Số trúng: ${prize.winningNumber}',
+                              style: AppTypography.labelMedium(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
-                  Text(
-                    AppFormatters.formatCurrency(prize.prizeValue),
-                    style: AppTypography.priceMedium(color: AppColors.primary),
-                  ),
-                ],
-              ),
-            ),
+                    Text(
+                      AppFormatters.formatCurrency(prize.prizeValue),
+                      style: AppTypography.priceMedium(color: AppColors.primary),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
           if (result.matchedPrizes.length > 1) ...[
             const SizedBox(height: 4),
@@ -646,6 +674,97 @@ class _ResultState extends StatelessWidget {
       message:
           'Vé số của bạn không trùng với giải nào lần này. Chúc bạn may mắn lần sau!',
       onReset: onReset,
+    );
+  }
+}
+
+/// Gives a winning lookup a short, celebratory entrance without making the
+/// result hard to read. The sequence overshoots once, then settles in place.
+class _WinningResultPopup extends StatefulWidget {
+  const _WinningResultPopup({required this.active, required this.child});
+
+  final bool active;
+  final Widget child;
+
+  @override
+  State<_WinningResultPopup> createState() => _WinningResultPopupState();
+}
+
+class _WinningResultPopupState extends State<_WinningResultPopup>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _scale;
+  late final Animation<double> _opacity;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 620),
+    );
+    _scale = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween(begin: 0.76, end: 1.06)
+            .chain(CurveTween(curve: Curves.easeOutCubic)),
+        weight: 58,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: 1.06, end: 0.98)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 25,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: 0.98, end: 1.0)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 17,
+      ),
+    ]).animate(_controller);
+    _opacity = CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0, 0.34, curve: Curves.easeOut),
+    );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) => _playOrComplete());
+  }
+
+  @override
+  void didUpdateWidget(covariant _WinningResultPopup oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.active != widget.active) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _playOrComplete());
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _playOrComplete() {
+    if (!mounted) return;
+
+    if (widget.active && !MediaQuery.of(context).disableAnimations) {
+      _controller.forward(from: 0);
+    } else {
+      _controller.value = 1;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.active || MediaQuery.of(context).disableAnimations) {
+      return widget.child;
+    }
+
+    return FadeTransition(
+      opacity: _opacity,
+      child: ScaleTransition(
+        scale: _scale,
+        alignment: Alignment.center,
+        child: widget.child,
+      ),
     );
   }
 }
@@ -962,6 +1081,87 @@ class _FormStateState extends State<_FormState> {
     if (selected != null) {
       vm.selectStation(selected.id);
     }
+  }
+}
+
+class _CheckedStationResultsSection extends StatelessWidget {
+  const _CheckedStationResultsSection({required this.state});
+
+  final TicketCheckState state;
+
+  @override
+  Widget build(BuildContext context) {
+    if (state.isLoadingCheckedStationResult) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
+          decoration: BoxDecoration(
+            color: AppColors.surfacePrimary,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.borderDecorative),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2.5),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Đang tải kết quả đầy đủ của đài...',
+                textAlign: TextAlign.center,
+                style: AppTypography.bodyMedium(color: AppColors.contentMuted),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final result = state.checkedStationResult;
+    if (result != null) {
+      return TicketCheckResultsCard(result: result);
+    }
+
+    final stationName = state.checkResult?.stationName.trim();
+    final date = state.selectedDate;
+    final dateLabel = date == null ? '' : DateFormat('dd/MM/yyyy').format(date);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: AppColors.surfacePrimary,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.borderDecorative),
+        ),
+        child: Column(
+          children: [
+            const Icon(
+              Icons.hourglass_empty_rounded,
+              color: AppColors.contentMuted,
+              size: 28,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Kết quả đài ${stationName?.isEmpty ?? true ? 'đã chọn' : stationName}',
+              textAlign: TextAlign.center,
+              style: AppTypography.h6(color: AppColors.contentHeading),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              dateLabel.isEmpty
+                  ? 'Chưa thể tải bảng kết quả đầy đủ lúc này.'
+                  : 'Chưa thể tải bảng kết quả ngày $dateLabel. Vui lòng thử lại sau.',
+              textAlign: TextAlign.center,
+              style: AppTypography.bodySmall(color: AppColors.contentMuted),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

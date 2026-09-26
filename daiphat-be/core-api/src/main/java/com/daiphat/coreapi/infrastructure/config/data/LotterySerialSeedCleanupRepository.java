@@ -16,6 +16,80 @@ class LotterySerialSeedCleanupRepository {
 
     private final EntityManager entityManager;
 
+    /**
+     * Clears prize-payout rows that reference order_details of seeded orders,
+     * so order delete does not hit {@code prize_payout_requests_order_detail_id_fkey}.
+     */
+    void clearPayoutDependentsForOrderCodePrefix(String orderCodePrefix) {
+        if (orderCodePrefix == null || orderCodePrefix.isBlank()) {
+            return;
+        }
+        String likePrefix = orderCodePrefix + "%";
+
+        entityManager.createNativeQuery("""
+                        UPDATE transactions t
+                           SET prize_payout_request_id = NULL
+                         WHERE t.prize_payout_request_id IN (
+                               SELECT ppr.id
+                                 FROM prize_payout_requests ppr
+                                WHERE ppr.order_detail_id IN (
+                                      SELECT od.id
+                                        FROM order_details od
+                                        JOIN orders o ON o.id = od.order_id
+                                       WHERE o.order_code LIKE :orderCodePrefix
+                                )
+                         )
+                        """)
+                .setParameter("orderCodePrefix", likePrefix)
+                .executeUpdate();
+
+        entityManager.createNativeQuery("""
+                        DELETE FROM prize_payout_installments ppi
+                         WHERE ppi.prize_payout_request_id IN (
+                               SELECT ppr.id
+                                 FROM prize_payout_requests ppr
+                                WHERE ppr.order_detail_id IN (
+                                      SELECT od.id
+                                        FROM order_details od
+                                        JOIN orders o ON o.id = od.order_id
+                                       WHERE o.order_code LIKE :orderCodePrefix
+                                )
+                         )
+                        """)
+                .setParameter("orderCodePrefix", likePrefix)
+                .executeUpdate();
+
+        entityManager.createNativeQuery("""
+                        DELETE FROM prize_claim_submission_lines pcsl
+                         WHERE pcsl.prize_payout_request_id IN (
+                               SELECT ppr.id
+                                 FROM prize_payout_requests ppr
+                                WHERE ppr.order_detail_id IN (
+                                      SELECT od.id
+                                        FROM order_details od
+                                        JOIN orders o ON o.id = od.order_id
+                                       WHERE o.order_code LIKE :orderCodePrefix
+                                )
+                         )
+                        """)
+                .setParameter("orderCodePrefix", likePrefix)
+                .executeUpdate();
+
+        entityManager.createNativeQuery("""
+                        DELETE FROM prize_payout_requests ppr
+                         WHERE ppr.order_detail_id IN (
+                               SELECT od.id
+                                 FROM order_details od
+                                 JOIN orders o ON o.id = od.order_id
+                                WHERE o.order_code LIKE :orderCodePrefix
+                         )
+                        """)
+                .setParameter("orderCodePrefix", likePrefix)
+                .executeUpdate();
+
+        entityManager.flush();
+    }
+
     void clearOrderAndPayoutDependents(Collection<Long> serialIds) {
         if (serialIds == null || serialIds.isEmpty()) {
             return;

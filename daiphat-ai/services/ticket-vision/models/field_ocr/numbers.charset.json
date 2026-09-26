@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "fieldName": "numbers",
+  "charset": "0123456789",
+  "blankIndex": 0,
+  "height": 32,
+  "width": 160,
+  "inputName": "input",
+  "outputName": "logits",
+  "inputLayout": "NCHW",
+  "outputLayout": "NTC",
+  "normalize": "minus_one_one"
+}

@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
 
 import 'package:daiphat_mobile/src/shared/network/api_exception.dart';
-import '../../data/models/notification_setting_model.dart';
-import '../../data/services/notification_setting_service.dart';
+import '../../domain/entities/notification_setting.dart';
+import '../../domain/usecases/notification_setting_usecases.dart';
 
 class NotificationSettingOption {
   final String channel;
@@ -21,7 +21,8 @@ class NotificationSettingOption {
 }
 
 class NotificationSettingsViewModel extends ChangeNotifier {
-  final NotificationSettingService _service;
+  final GetMyNotificationSettings _getMyNotificationSettings;
+  final UpsertNotificationSetting _upsertNotificationSetting;
 
   /// Mirrors the settings the backend manages for a customer account.
   static const options = <NotificationSettingOption>[
@@ -48,7 +49,10 @@ class NotificationSettingsViewModel extends ChangeNotifier {
   String? _error;
   String? get error => _error;
 
-  NotificationSettingsViewModel(this._service) {
+  NotificationSettingsViewModel(
+    this._getMyNotificationSettings,
+    this._upsertNotificationSetting,
+  ) {
     load();
   }
 
@@ -65,7 +69,7 @@ class NotificationSettingsViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final settings = await _service.getMySettings();
+      final settings = await _getMyNotificationSettings();
       _enabled
         ..clear()
         ..addEntries(settings.map((s) => MapEntry(s.key, s.isEnabled)));
@@ -91,7 +95,7 @@ class NotificationSettingsViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final updated = await _service.upsertSetting(
+      final updated = await _upsertNotificationSetting(
         UpsertNotificationSettingRequest(
           channel: option.channel,
           type: option.type,

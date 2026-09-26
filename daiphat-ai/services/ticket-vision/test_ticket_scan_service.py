@@ -37,12 +37,23 @@ class _MarkerAwareStub(OcrStrategy):
 
     name = "marker-aware-stub"
 
-    def read_text(self, image: np.ndarray, languages: list[str] = DEFAULT_LANGUAGES) -> list[OcrTextResult]:
+    def read_text(
+        self,
+        image: np.ndarray,
+        languages: list[str] = DEFAULT_LANGUAGES,
+        *,
+        field_hint: str | None = None,
+    ) -> list[OcrTextResult]:
+        del field_hint
         marker_is_bright = image[0, 0] > 128 if image.ndim == 2 else bool(image[0, 0].mean() > 128)
         return [OcrTextResult(text="marker", confidence=0.9 if marker_is_bright else 0.1)]
 
 
-def test_correct_orientation_picks_the_rotation_the_ocr_engine_reads_best():
+def test_correct_orientation_picks_the_rotation_the_ocr_engine_reads_best(monkeypatch):
+    monkeypatch.setattr(
+        "domain.scanning.ticket_scan_service.settings.TICKET_VISION_LEGACY_FAST_ORIENTATION",
+        False,
+    )
     # Blank aside from one marker pixel -- Hough finds no text-like lines,
     # so dominant_text_axis defaults to 0, making the primary candidate
     # pair (0, 180). The marker starts at the bottom-right corner; only the
@@ -157,3 +168,38 @@ def test_refine_low_confidence_fields_skips_fields_already_above_the_ceiling(sam
 
     assert refined.extracted.numbers == "123456"
     assert ocr_strategy.call_count == 0
+
+
+def test_heuristic_batch_box_is_bottom_left_not_mid_logo():
+    from domain.scanning.ticket_scan_service import _heuristic_batch_box
+
+    x, y, w, h = _heuristic_batch_box(0, 0, 400, 200)
+    assert y >= int(200 * 0.55)  # lower half
+    assert x <= int(400 * 0.15)
+    assert w <= int(400 * 0.55)
+
+
+def test_heuristic_serial_box_defaults_to_near_numbers_band():
+    from domain.scanning.ticket_scan_service import (
+        _heuristic_serial_box,
+        _heuristic_serial_box_near_numbers,
+    )
+
+    assert _heuristic_serial_box(0, 0, 400, 200) == _heuristic_serial_box_near_numbers(
+        0, 0, 400, 200
+    )
+
+
+def test_heuristic_serial_near_numbers_sits_above_number_row():
+    from domain.scanning.ticket_scan_service import _heuristic_serial_box_near_numbers
+
+    x, y, w, h = _heuristic_serial_box_near_numbers(0, 0, 400, 200)
+    assert int(200 * 0.35) <= y <= int(200 * 0.55)
+    assert w >= int(400 * 0.6)
+
+
+def test_looks_like_qr_field_box_detects_lower_right_square():
+    from domain.scanning.ticket_scan_service import _looks_like_qr_field_box
+
+    assert _looks_like_qr_field_box((280, 140, 70, 70), 400, 220)
+    assert not _looks_like_qr_field_box((20, 20, 200, 40), 400, 220)

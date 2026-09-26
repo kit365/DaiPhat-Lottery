@@ -71,7 +71,9 @@ public class LotteryTicketEntity extends BaseEntity {
     @Column(name = "status_reason", length = 500)
     private String statusReason;
 
+    /** Batched so mapping a page of tickets to domain does not issue one serial query per ticket. */
     @OneToMany(mappedBy = "ticket", cascade = CascadeType.ALL, orphanRemoval = true)
+    @org.hibernate.annotations.BatchSize(size = 100)
     @Builder.Default
     private List<LotteryTicketSerialEntity> serials = new ArrayList<>();
 

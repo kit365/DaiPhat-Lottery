@@ -175,7 +175,8 @@ public class StatusCoverageImportBatchSeedInitializer implements ApplicationRunn
 
         List<ImportBatchLineEntity> lines = new ArrayList<>();
         lines.add(line);
-        batch.setLines(lines);
+        batch.getLines().clear();
+        batch.getLines().addAll(lines);
         batch = importBatchRepository.save(batch);
         line = batch.getLines().getFirst();
 

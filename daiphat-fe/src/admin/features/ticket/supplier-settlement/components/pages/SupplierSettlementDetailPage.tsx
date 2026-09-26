@@ -23,7 +23,7 @@ import { SpinnerLoading } from '../../../../../components/ui/SpinnerLoading';
 import { AdminStatusBadge } from '../../../../../components/ui/AdminStatusBadge';
 import { Button } from '../../../../../components/ui/Button';
 import { ROUTES } from '../../../../../constants/routes';
-import { useSupplierSettlementList, useSupplierSettlementOverview } from '../../hooks/useSupplierSettlement';
+import { useSupplierSettlementOverview } from '../../hooks/useSupplierSettlement';
 import {
     getSupplierSettlementStatusLabel,
     getSupplierSettlementStatusModifier,
@@ -34,7 +34,7 @@ import { ExpiredReturnSettlementBanner } from '../sections/ExpiredReturnSettleme
 import { PendingReturnBatchBanner, resolveReturnBatchPath } from '../sections/PendingReturnBatchBanner';
 import { ReconciliationWindowNoticeBanner } from '../sections/ReconciliationWindowNoticeBanner';
 import { SettlementConsolidatedDetails } from '../sections/SettlementConsolidatedDetails';
-import { SettlementKpiCards } from '../sections/SettlementKpiCards';
+
 import { SettlementOverviewSummary } from '../sections/SettlementOverviewSummary';
 
 const cardSx = {
@@ -47,7 +47,7 @@ export const SupplierSettlementDetailPage = () => {
     const router = useAdminRouter();
     const { id } = useRouteParams();
     const { data: overview, isLoading, isError } = useSupplierSettlementOverview(id);
-    const { allSettlements } = useSupplierSettlementList();
+
     const [pendingReturnConfirmOpen, setPendingReturnConfirmOpen] = useState(false);
 
     const settlement = overview?.settlement;
@@ -91,15 +91,9 @@ export const SupplierSettlementDetailPage = () => {
         goToInspect();
     };
 
-    const expiredItems = useMemo(
-        () => (allSettlements.length > 0 ? allSettlements.filter((s: any) => s.isReturnExpired) : []),
-        [allSettlements]
-    );
-    const expiredCount = expiredItems.length;
-    const totalExpiredSum = useMemo(
-        () => expiredItems.reduce((acc: number, curr: any) => acc + (curr.expiredReturnValue || curr.totalReturnValue || 0), 0),
-        [expiredItems]
-    );
+    const expiredCount = isExpired ? 1 : 0;
+    const totalExpiredSum = isExpired ? (settlement.expiredReturnValue || settlement.totalReturnValue || 0) : 0;
+    const expiredItems = isExpired ? [settlement] : [];
 
     const breadcrumbItems = [
         { label: 'Vé số', to: ROUTES.ADMIN.TICKETS.LIST },
@@ -217,19 +211,6 @@ export const SupplierSettlementDetailPage = () => {
                 </Typography>
                 <SettlementOverviewSummary settlement={settlement} />
             </Card>
-
-            <Box>
-                <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, mb: 1.5 }}>
-                    Thống kê vé &amp; trạng thái tồn kho
-                </Typography>
-                <SettlementKpiCards
-                    kpis={overview.kpis}
-                    hasHandedOver={overview.returnBatches?.some(
-                        (rb) => rb.status === 'HANDED_OVER' || rb.status === 'COMPLETED'
-                    )}
-                    isExpired={overview.kpis.isReturnExpired}
-                />
-            </Box>
 
             <SettlementConsolidatedDetails
                 inventoryRows={overview.inventoryByStation || []}

@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -16,8 +17,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
+/**
+ * Bootstraps canonical demo accounts (admin / member / street_agent / operator).
+ * Enable with {@code daiphat.auth.seed.enabled=true} (local profile or AUTH_SEED_ENABLED on staging/prod).
+ */
 @Component
-@Order(100)
+@Order(20)
+@ConditionalOnProperty(value = "daiphat.auth.seed.enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class AuthSeedInitializer implements ApplicationRunner {
 
@@ -116,7 +122,11 @@ public class AuthSeedInitializer implements ApplicationRunner {
             String firstName,
             String lastName
     ) {
+        // Empty .env values override YAML defaults to "" — treat blank as skip only.
         if (username == null || username.isBlank() || email == null || email.isBlank()) {
+            return;
+        }
+        if (password == null || password.isBlank()) {
             return;
         }
 

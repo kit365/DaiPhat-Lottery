@@ -7,7 +7,7 @@ import 'package:daiphat_mobile/src/features/prize_payouts/domain/entities/prize_
 import 'package:daiphat_mobile/src/features/prize_payouts/domain/usecases/prize_payout_usecases.dart';
 import 'package:daiphat_mobile/src/features/refunds/domain/entities/refund_request.dart';
 import 'package:daiphat_mobile/src/features/refunds/domain/usecases/refund_usecases.dart';
-import 'package:daiphat_mobile/src/features/profile/data/models/support_ticket.dart';
+import 'package:daiphat_mobile/src/features/profile/domain/entities/support_ticket.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 

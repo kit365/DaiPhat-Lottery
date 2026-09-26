@@ -13,6 +13,7 @@ import {
     TableCell,
     TableRow,
     TextField,
+    Tooltip,
     Typography,
 } from '@mui/material';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
@@ -173,10 +174,10 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                 eligibleStations.find((station) => station.lotteryStationId === lotteryStationId) ??
                 (displayStationName
                     ? {
-                          lotteryStationId,
-                          name: displayStationName,
-                          resolvedBatchType: batchType ?? ('NEW' as ImportBatchType),
-                      }
+                        lotteryStationId,
+                        name: displayStationName,
+                        resolvedBatchType: batchType ?? ('NEW' as ImportBatchType),
+                    }
                     : null);
             if (current) {
                 return [current, ...filtered];
@@ -212,6 +213,7 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                 transition: 'background-color 0.8s ease',
                 '& > td': {
                     py: 1.25,
+                    px: 0.5,
                     verticalAlign: 'middle',
                 },
             }}
@@ -276,25 +278,8 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                     />
                 )}
             </TableCell>
-            <TableCell sx={{ width: 110, whiteSpace: 'nowrap' }}>
-                <Typography variant="body2">
-                    {drawDate ? dayjs(drawDate).format('DD/MM/YYYY') : '—'}
-                </Typography>
-            </TableCell>
-            <TableCell align="center" sx={{ width: 140, whiteSpace: 'nowrap' }}>
-                <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                    {batchType ? (
-                        <AdminStatusBadge
-                            label={getBatchTypeLabel(batchType)}
-                            modifier={getBatchTypeBadgeClass(batchType)}
-                        />
-                    ) : (
-                        <Typography variant="caption" color="text.secondary">
-                            Chọn đài
-                        </Typography>
-                    )}
-                </Box>
-            </TableCell>
+
+
             {showStatusColumn && (
                 <TableCell sx={{ width: 120, whiteSpace: 'nowrap' }}>
                     {lineStatus ? (
@@ -316,9 +301,9 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                     ) : null}
                 </TableCell>
             )}
-            <TableCell sx={{ width: 120, overflow: 'visible' }}>
+            <TableCell align="right" sx={{ width: 130, overflow: 'visible' }}>
                 {readOnly || declareQuantityReadOnly ? (
-                    <Typography variant="body2" sx={{ lineHeight: 1.5 }}>
+                    <Typography variant="body2" sx={{ lineHeight: 1.5, fontWeight: 500, textAlign: 'right' }}>
                         {declareQuantity.toLocaleString('vi-VN')}
                     </Typography>
                 ) : (
@@ -343,25 +328,22 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                                     (showErrors ? fieldState.error?.message : undefined)
                                 }
                                 sx={{
-                                    width: 104,
+                                    width: 110,
                                     '& .MuiFormHelperText-root': { mx: 0, whiteSpace: 'normal' },
                                     '& .MuiOutlinedInput-root': {
                                         bgcolor: 'background.paper',
-                                    },
-                                    '& .MuiOutlinedInput-input': {
-                                        py: 1,
-                                        px: 1.25,
+                                        borderRadius: '8px',
                                     },
                                     ...(declareQuantityHighlighted
                                         ? {
-                                              '& .MuiOutlinedInput-root': {
-                                                  bgcolor: 'rgba(255, 236, 179, 0.45)',
-                                                  '& fieldset': {
-                                                      borderColor: 'warning.main',
-                                                      borderWidth: 2,
-                                                  },
-                                              },
-                                          }
+                                            '& .MuiOutlinedInput-root': {
+                                                bgcolor: 'rgba(255, 236, 179, 0.45)',
+                                                '& fieldset': {
+                                                    borderColor: 'warning.main',
+                                                    borderWidth: 2,
+                                                },
+                                            },
+                                        }
                                         : {}),
                                 }}
                                 onChange={(e) => {
@@ -377,14 +359,15 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                                 inputProps={{
                                     inputMode: 'numeric',
                                     min: declareQuantityMin,
+                                    style: { textAlign: 'right', fontWeight: 500 },
                                 }}
                             />
                         )}
                     />
                 )}
             </TableCell>
-            <TableCell align="center" sx={{ width: 130 }}>
-                <Typography variant="body2" sx={{ lineHeight: 1.5, textAlign: 'center' }} title="Tính từ giá bán × (1 − hoa hồng đài)">
+            <TableCell align="right" sx={{ width: 130 }}>
+                <Typography variant="body2" sx={{ lineHeight: 1.5, textAlign: 'right', color: '#475569' }} title="Tính từ giá bán × (1 − hoa hồng đài)">
                     {formatVnd(importCost)}
                 </Typography>
                 <Controller
@@ -393,76 +376,91 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                     render={({ field }) => <input type="hidden" {...field} value={field.value ?? ''} />}
                 />
             </TableCell>
-            <TableCell align="right" sx={{ width: 130, whiteSpace: 'nowrap' }}>
-                <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.5 }}>
+            <TableCell align="right" sx={{ width: 140, whiteSpace: 'nowrap' }}>
+                <Typography variant="body2" sx={{ fontWeight: 800, lineHeight: 1.5, color: '#15803d' }}>
                     {formatVnd(lineTotal)}
                 </Typography>
             </TableCell>
             {!hideActionsColumn && (
-            <TableCell
-                align="center"
-                sx={{
-                    width:
-                        canPause || canResume || canAdjustDeclareQuantity
-                            ? 260
-                            : 48,
-                    px: 0.5,
-                }}
-            >
-                <Box
+                <TableCell
+                    align="center"
                     sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 0.5,
-                        flexWrap: 'wrap',
+                        width:
+                            canPause || canResume || canAdjustDeclareQuantity
+                                ? 260
+                                : 48,
+                        px: 0.5,
                     }}
                 >
-                    {canPause && (
-                        <Button
-                            size="small"
-                            variant="outlined"
-                            color="warning"
-                            startIcon={<PauseCircleOutlineIcon fontSize="small" />}
-                            onClick={onPause}
-                            disabled={pausePending || !onPause}
-                            sx={{ whiteSpace: 'nowrap', minWidth: 0, px: 1 }}
-                        >
-                            Tạm dừng
-                        </Button>
-                    )}
-                    {canAdjustDeclareQuantity && (
-                        <Button
-                            size="small"
-                            variant="outlined"
-                            color="primary"
-                            onClick={onAdjustDeclareQuantity}
-                            disabled={!onAdjustDeclareQuantity}
-                            sx={{ whiteSpace: 'nowrap', minWidth: 0, px: 1 }}
-                        >
-                            Điều chỉnh SL
-                        </Button>
-                    )}
-                    {canResume && (
-                        <Button
-                            size="small"
-                            variant="outlined"
-                            color="success"
-                            startIcon={<PlayCircleOutlineIcon fontSize="small" />}
-                            onClick={onResume}
-                            disabled={resumePending || !onResume}
-                            sx={{ whiteSpace: 'nowrap', minWidth: 0, px: 1 }}
-                        >
-                            Tiếp tục
-                        </Button>
-                    )}
-                    {canRemove && (
-                        <IconButton size="small" color="error" onClick={onRemove} aria-label="Xóa dòng">
-                            <DeleteOutlineIcon fontSize="small" />
-                        </IconButton>
-                    )}
-                </Box>
-            </TableCell>
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 0.5,
+                            flexWrap: 'wrap',
+                        }}
+                    >
+                        {canPause && (
+                            <Button
+                                size="small"
+                                variant="outlined"
+                                color="warning"
+                                startIcon={<PauseCircleOutlineIcon fontSize="small" />}
+                                onClick={onPause}
+                                disabled={pausePending || !onPause}
+                                sx={{ whiteSpace: 'nowrap', minWidth: 0, px: 1, borderRadius: '8px' }}
+                            >
+                                Tạm dừng
+                            </Button>
+                        )}
+                        {canAdjustDeclareQuantity && (
+                            <Button
+                                size="small"
+                                variant="outlined"
+                                color="primary"
+                                onClick={onAdjustDeclareQuantity}
+                                disabled={!onAdjustDeclareQuantity}
+                                sx={{ whiteSpace: 'nowrap', minWidth: 0, px: 1, borderRadius: '8px' }}
+                            >
+                                Điều chỉnh SL
+                            </Button>
+                        )}
+                        {canResume && (
+                            <Button
+                                size="small"
+                                variant="outlined"
+                                color="success"
+                                startIcon={<PlayCircleOutlineIcon fontSize="small" />}
+                                onClick={onResume}
+                                disabled={resumePending || !onResume}
+                                sx={{ whiteSpace: 'nowrap', minWidth: 0, px: 1, borderRadius: '8px' }}
+                            >
+                                Tiếp tục
+                            </Button>
+                        )}
+                        {canRemove && (
+                            <Tooltip title="Xóa đài này khỏi phiếu">
+                                <IconButton
+                                    size="small"
+                                    onClick={onRemove}
+                                    aria-label="Xóa dòng"
+                                    sx={{
+                                        color: '#ef4444',
+                                        borderRadius: '8px',
+                                        p: 0.75,
+                                        '&:hover': {
+                                            bgcolor: '#fee2e2',
+                                            color: '#dc2626',
+                                        },
+                                    }}
+                                >
+                                    <DeleteOutlineIcon sx={{ fontSize: '1.15rem' }} />
+                                </IconButton>
+                            </Tooltip>
+                        )}
+                    </Box>
+                </TableCell>
             )}
         </TableRow>
     );

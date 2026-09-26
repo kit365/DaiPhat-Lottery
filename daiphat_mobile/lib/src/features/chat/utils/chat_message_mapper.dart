@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import '../data/models/chat_models.dart';
+import '../domain/entities/chat_models.dart';
 import 'chat_constants.dart';
 
 enum QuickReplyAction { send, staff }

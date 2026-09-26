@@ -60,7 +60,7 @@ import java.util.stream.Collectors;
 public class OcrConfirmImportService {
 
     private static final Pattern SERIAL_PATTERN =
-            Pattern.compile("^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z0-9]{4,10}$");
+            Pattern.compile("^(?:[A-Za-z]\\d{4,19}|\\d{4,19}[A-Za-z])$");
 
     private final ImportBatchServicePort importBatchServicePort;
     private final ImportBatchRepositoryPort importBatchRepositoryPort;
@@ -428,8 +428,10 @@ public class OcrConfirmImportService {
             if (!SERIAL_PATTERN.matcher(serial).matches()) {
                 throw new DomainException(
                         ErrorCode.INVALID_INPUT,
-                        "Serial '" + serial + "' không đúng định dạng (4–10 ký tự, gồm chữ và số)."
-                );
+                        "Serial '" + serial
+                                + "' không đúng định dạng: chữ số với đúng 1 chữ cái ở đầu hoặc cuối "
+                                + "(ví dụ A123456, 123456B)."
+                    );
             }
 
             LotteryStationModel station = lotteryStationServicePort.getModelById(ticket.stationId());

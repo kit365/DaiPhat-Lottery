@@ -76,10 +76,15 @@ daiphat:
     pending-payment-ttl-seconds: 600
     pending-payment-expire-rate-ms: 60000
     payment-failure-max-attempts: 3
+    seed:
+      enabled: ${ORDER_SEED_ENABLED:false}
     refund:
       closing-time: "14:00"
       window-minutes: 30
       timezone: Asia/Ho_Chi_Minh
+  sample-order:
+    seed:
+      enabled: ${SAMPLE_ORDER_SEED_ENABLED:false}
   fortune:
     # When true, one cast per Vietnam calendar day (production). Set false for local testing.
     daily-limit-enabled: ${FORTUNE_DAILY_LIMIT_ENABLED:true}
@@ -95,14 +100,30 @@ daiphat:
       # local stack runs both inside the `ai` container — override via
       # DAIPHAT_TICKET_VISION_BASE_URL=http://ai:8090.
       base-url: ${DAIPHAT_TICKET_VISION_BASE_URL:http://localhost:8090}
-      # OCR on a multi-ticket photo takes 3-10s (doc: "Implementation
-      # Considerations & Risks") -- longer read timeout than the chat/fortune
-      # AI calls above. Grok vision may take longer; default 60s in Docker.
+      # OCR: Groq path is usually <30s; legacy EasyOCR after token exhaustion
+      # often needs 60–120s on CPU. Keep headroom above FE scan timeout.
       connect-timeout-ms: ${DAIPHAT_TICKET_VISION_CONNECT_TIMEOUT_MS:5000}
-      read-timeout-ms: ${DAIPHAT_TICKET_VISION_READ_TIMEOUT_MS:60000}
+      read-timeout-ms: ${DAIPHAT_TICKET_VISION_READ_TIMEOUT_MS:180000}
+  ekyc-ai:
+    # Fail closed in prod; set required=false for local/CI without ekyc-vision.
+    street-agent-required: ${DAIPHAT_EKYC_STREET_AGENT_REQUIRED:true}
+    prize-payout-required: ${DAIPHAT_EKYC_PRIZE_PAYOUT_REQUIRED:true}
+    face-distance-threshold: ${DAIPHAT_EKYC_FACE_DISTANCE_THRESHOLD:0.55}
+    liveness-min-score: ${DAIPHAT_EKYC_LIVENESS_MIN_SCORE:0.08}
+    service:
+      base-url: ${DAIPHAT_EKYC_AI_BASE_URL:http://localhost:8091}
+      api-key: ${DAIPHAT_EKYC_AI_API_KEY:dev-kyc-ai-secret}
+      connect-timeout-ms: ${DAIPHAT_EKYC_AI_CONNECT_TIMEOUT_MS:5000}
+      read-timeout-ms: ${DAIPHAT_EKYC_AI_READ_TIMEOUT_MS:120000}
   ocr:
     training-export-dir: ${DAIPHAT_OCR_TRAINING_EXPORT_DIR:./data/ocr-training-exports}
     ai-model-metric-cron: ${DAIPHAT_OCR_AI_MODEL_METRIC_CRON:0 15 2 * * *}
+    retrain:
+      # Phase 4: nightly retrain suggestion from correction metrics.
+      lookback-days: ${DAIPHAT_OCR_RETRAIN_LOOKBACK_DAYS:7}
+      correction-rate-threshold: ${DAIPHAT_OCR_RETRAIN_CORRECTION_RATE_THRESHOLD:0.15}
+      min-corrected-fields: ${DAIPHAT_OCR_RETRAIN_MIN_CORRECTED_FIELDS:50}
+      auto-export-on-suggest: ${DAIPHAT_OCR_RETRAIN_AUTO_EXPORT:false}
   chat:
     ai:
       confidence-threshold: 0.7
@@ -135,9 +156,17 @@ daiphat:
       enabled: ${LOTTERY_SEED_ENABLED:false}
       tickets-per-batch: 150
       serials-per-ticket: 4
+      status-coverage:
+        enabled: ${LOTTERY_SEED_STATUS_COVERAGE_ENABLED:false}
       southern-stations:
-        # Upsert 21 đài Miền Nam + lịch quay (Thứ 2–CN) mỗi lần startup
-        enabled: ${LOTTERY_SEED_SOUTHERN_STATIONS_ENABLED:true}
+        # Off by default — prod/staging must not overwrite operator-managed stations.
+        # Local profile enables create (+ overwrite when configured).
+        enabled: ${LOTTERY_SEED_SOUTHERN_STATIONS_ENABLED:false}
+        overwrite-existing: ${LOTTERY_SEED_SOUTHERN_STATIONS_OVERWRITE:false}
+      past-days: ${LOTTERY_SEED_PAST_DAYS:30}
+      tickets-per-batch-past: ${LOTTERY_SEED_TICKETS_PER_BATCH_PAST:36}
+      win50-payout:
+        enabled: ${LOTTERY_SEED_WIN50_PAYOUT_ENABLED:false}
     crawler:
       user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36
     draw-reminder-minutes: 30
@@ -166,6 +195,8 @@ daiphat:
   auth:
     frontend-url: ${FRONTEND_URL:http://localhost:3000}
     seed:
+      # Off by default for prod/staging. Local profile enables bootstrap accounts.
+      enabled: ${AUTH_SEED_ENABLED:false}
       admin:
         username: ${AUTH_SEED_ADMIN_USERNAME:admin}
         password: ${AUTH_SEED_ADMIN_PASSWORD:Admin@123456}
@@ -175,19 +206,19 @@ daiphat:
       member:
         username: ${AUTH_SEED_MEMBER_USERNAME:member}
         password: ${AUTH_SEED_MEMBER_PASSWORD:member123}
-        email: ${AUTH_SEED_MEMBER_EMAIL:member@daiphat.com}
+        email: ${AUTH_SEED_MEMBER_EMAIL:member@daiphat.local}
         first-name: ${AUTH_SEED_MEMBER_FIRST_NAME:Default}
         last-name: ${AUTH_SEED_MEMBER_LAST_NAME:Member}
       street-agent:
         username: ${AUTH_SEED_STREET_AGENT_USERNAME:street_agent}
         password: ${AUTH_SEED_STREET_AGENT_PASSWORD:agent123}
-        email: ${AUTH_SEED_STREET_AGENT_EMAIL:agent@daiphat.com}
+        email: ${AUTH_SEED_STREET_AGENT_EMAIL:agent@daiphat.local}
         first-name: ${AUTH_SEED_STREET_AGENT_FIRST_NAME:Default}
         last-name: ${AUTH_SEED_STREET_AGENT_LAST_NAME:Agent}
       operator:
         username: ${AUTH_SEED_OPERATOR_USERNAME:operator}
         password: ${AUTH_SEED_OPERATOR_PASSWORD:operator123}
-        email: ${AUTH_SEED_OPERATOR_EMAIL:operator@daiphat.com}
+        email: ${AUTH_SEED_OPERATOR_EMAIL:operator@daiphat.local}
         first-name: ${AUTH_SEED_OPERATOR_FIRST_NAME:Default}
         last-name: ${AUTH_SEED_OPERATOR_LAST_NAME:Operator}
     jwt:

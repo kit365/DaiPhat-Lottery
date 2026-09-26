@@ -102,6 +102,31 @@ export const formatSystemConfigDisplayValue = (
         }
     }
 
+    if (configKey === 'OCR_TICKET_SCAN_VALIDATION_RULES') {
+        try {
+            const parsed = JSON.parse(rawValue || '[]');
+            if (Array.isArray(parsed)) {
+                const active = parsed.filter((r) => r && r.isActive !== false).length;
+                return {
+                    summary:
+                        parsed.length === 0
+                            ? 'Chưa có luật'
+                            : `${parsed.length} luật (${active} đang bật)`,
+                    detailLines: parsed.slice(0, 5).map((r, i) => {
+                        const field = r?.fieldName ?? '?';
+                        const type = r?.ruleType ?? '?';
+                        const severity = r?.severity ?? 'HARD_FAIL';
+                        const off = r?.isActive === false ? ' · tắt' : '';
+                        return `${i + 1}. ${field} · ${type} · ${severity}${off}`;
+                    }),
+                    isStructured: true,
+                };
+            }
+        } catch {
+            // fall through
+        }
+    }
+
     if (dataType === ConfigDataType.JSON) {
         try {
             const pretty = JSON.stringify(JSON.parse(rawValue), null, 2);

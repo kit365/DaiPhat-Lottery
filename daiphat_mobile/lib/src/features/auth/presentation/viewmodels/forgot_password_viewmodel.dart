@@ -1,15 +1,27 @@
 import 'package:flutter/material.dart';
-import '../../data/dto/forgot_password_request.dart';
-import '../../data/dto/reset_password_request.dart';
-import '../../data/dto/verify_otp_request.dart';
-import 'package:daiphat_mobile/src/features/auth/data/repositories/auth_repository.dart';
+import '../../domain/entities/forgot_password_request.dart';
+import '../../domain/entities/reset_password_request.dart';
+import '../../domain/entities/verify_otp_request.dart';
+import '../../domain/repositories/auth_repository.dart';
+import '../../domain/usecases/auth_usecases.dart';
 
 enum ForgotPasswordStep { email, otp, reset }
 
 class ForgotPasswordViewModel extends ChangeNotifier {
-  final AuthRepository _authRepository;
+  final RequestPasswordResetOtp _requestPasswordResetOtp;
+  final VerifyPasswordResetOtp _verifyPasswordResetOtp;
+  final ResetPassword _resetPassword;
 
-  ForgotPasswordViewModel(this._authRepository);
+  ForgotPasswordViewModel(
+    AuthRepository authRepository, {
+    RequestPasswordResetOtp? requestPasswordResetOtp,
+    VerifyPasswordResetOtp? verifyPasswordResetOtp,
+    ResetPassword? resetPassword,
+  })  : _requestPasswordResetOtp =
+            requestPasswordResetOtp ?? RequestPasswordResetOtp(authRepository),
+        _verifyPasswordResetOtp =
+            verifyPasswordResetOtp ?? VerifyPasswordResetOtp(authRepository),
+        _resetPassword = resetPassword ?? ResetPassword(authRepository);
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -31,7 +43,7 @@ class ForgotPasswordViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _authRepository.forgotPasswordRequest(ForgotPasswordRequest(email: email));
+      await _requestPasswordResetOtp(ForgotPasswordRequest(email: email));
       _email = email;
       _currentStep = ForgotPasswordStep.otp;
       return true;
@@ -50,7 +62,9 @@ class ForgotPasswordViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final token = await _authRepository.verifyResetOtp(VerifyOtpRequest(email: _email, otp: otp));
+      final token = await _verifyPasswordResetOtp(
+        VerifyOtpRequest(email: _email, otp: otp),
+      );
       _resetToken = token;
       _currentStep = ForgotPasswordStep.reset;
       return true;
@@ -69,7 +83,7 @@ class ForgotPasswordViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _authRepository.resetPassword(ResetPasswordRequest(
+      await _resetPassword(ResetPasswordRequest(
         resetToken: _resetToken,
         newPassword: newPassword,
         confirmPassword: confirmPassword,

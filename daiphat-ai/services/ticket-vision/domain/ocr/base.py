@@ -37,10 +37,21 @@ class OcrStrategy(ABC):
     failure (model not loaded, corrupt image, out of memory, ...), which is
     exactly what FallbackOcrStrategy watches for to trigger the fallback
     engine.
+
+    field_hint (Phase 3): optional ExtractedTicketFields attribute name
+    (e.g. "serialNumber", "numbers") when the crop is already a single-field
+    YOLO region. Field-aware strategies use it to pick charset-constrained /
+    specialized readers; general engines ignore it.
     """
 
     name: str = "base"
 
     @abstractmethod
-    def read_text(self, image: np.ndarray, languages: list[str] = DEFAULT_LANGUAGES) -> list[OcrTextResult]:
+    def read_text(
+        self,
+        image: np.ndarray,
+        languages: list[str] = DEFAULT_LANGUAGES,
+        *,
+        field_hint: str | None = None,
+    ) -> list[OcrTextResult]:
         raise NotImplementedError

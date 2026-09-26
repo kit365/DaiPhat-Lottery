@@ -1,6 +1,6 @@
 import 'package:daiphat_mobile/src/shared/network/api_client.dart';
 
-import '../models/notification_setting_model.dart';
+import '../../domain/entities/notification_setting.dart';
 
 class NotificationSettingService {
   static const _baseNotifications = '/notifications';

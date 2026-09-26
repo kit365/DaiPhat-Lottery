@@ -5,7 +5,9 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTi
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketSerialEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderDetailEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderEntity;
+import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -33,6 +35,7 @@ public final class PurchasedTicketSpecification {
     private PurchasedTicketSpecification() {
     }
 
+    @SuppressWarnings("unchecked")
     public static Specification<OrderDetailEntity> purchasedByUser(
             UUID userId,
             LocalDate fromDate,
@@ -44,9 +47,22 @@ public final class PurchasedTicketSpecification {
                 query.distinct(true);
             }
 
-            Join<OrderDetailEntity, OrderEntity> order = root.join("order");
-            Join<OrderDetailEntity, LotteryTicketSerialEntity> serial = root.join("lotteryTicketSerial");
-            Join<LotteryTicketSerialEntity, LotteryTicketEntity> ticket = serial.join("ticket");
+            Join<OrderDetailEntity, OrderEntity> order;
+            Join<OrderDetailEntity, LotteryTicketSerialEntity> serial;
+            Join<LotteryTicketSerialEntity, LotteryTicketEntity> ticket;
+            if (isCountQuery(query)) {
+                order = root.join("order");
+                serial = root.join("lotteryTicketSerial");
+                ticket = serial.join("ticket");
+            } else {
+                // Every row reads order/serial/ticket/station; fetch them with the page instead of per row.
+                order = (Join<OrderDetailEntity, OrderEntity>) root.<OrderDetailEntity, OrderEntity>fetch("order");
+                serial = (Join<OrderDetailEntity, LotteryTicketSerialEntity>)
+                        root.<OrderDetailEntity, LotteryTicketSerialEntity>fetch("lotteryTicketSerial");
+                ticket = (Join<LotteryTicketSerialEntity, LotteryTicketEntity>)
+                        serial.<LotteryTicketSerialEntity, LotteryTicketEntity>fetch("ticket");
+                ticket.fetch("station", JoinType.LEFT);
+            }
 
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(cb.equal(order.get("user").get("id"), userId));
@@ -69,5 +85,13 @@ public final class PurchasedTicketSpecification {
 
             return cb.and(predicates.toArray(new Predicate[0]));
         };
+    }
+
+    private static boolean isCountQuery(CriteriaQuery<?> query) {
+        if (query == null) {
+            return true;
+        }
+        Class<?> resultType = query.getResultType();
+        return resultType == Long.class || resultType == long.class;
     }
 }

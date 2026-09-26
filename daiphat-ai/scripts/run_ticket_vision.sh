@@ -26,6 +26,8 @@ fi
 "${VENV_PYTHON}" -m pip install -q -r "${SERVICE_DIR}/requirements.txt"
 
 export PYTHONPATH="${ROOT_DIR}:${SERVICE_DIR}"
+# Avoid PaddleOCR vs protobuf 4+/5+ descriptor crash.
+export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION="${PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION:-python}"
 
 exec "${ROOT_DIR}/.venv/bin/uvicorn" main:app \
   --app-dir "${SERVICE_DIR}" \

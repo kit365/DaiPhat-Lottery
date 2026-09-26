@@ -17,6 +17,7 @@ import java.util.List;
 @Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface RefundApplicationMapper {
 
+    @Mapping(target = "isDefault", expression = "java(model.isDefault())")
     UserBankAccountResponse toBankAccountResponse(UserBankAccountModel model);
 
     List<UserBankAccountResponse> toBankAccountResponses(List<UserBankAccountModel> models);

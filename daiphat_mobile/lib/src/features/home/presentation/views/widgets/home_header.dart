@@ -7,7 +7,7 @@ import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:daiphat_mobile/src/shared/widgets/app_header_action_button.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/login_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/notifications/presentation/viewmodels/notification_viewmodel.dart';
-import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
+import 'package:daiphat_mobile/src/features/cart/presentation/providers/cart_provider.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/profile_iconography.dart';
 
 class HomeHeader extends StatelessWidget {

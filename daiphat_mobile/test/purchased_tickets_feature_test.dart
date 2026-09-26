@@ -6,12 +6,12 @@ import 'package:daiphat_mobile/src/features/tickets/domain/repositories/purchase
 import 'package:daiphat_mobile/src/features/tickets/domain/usecases/get_my_tickets.dart';
 import 'package:daiphat_mobile/src/features/tickets/presentation/viewmodels/my_tickets_viewmodel.dart';
 
-class _FakePurchasedTicketsRepository
-    implements PurchasedTicketsRepository {
+class _FakePurchasedTicketsRepository implements PurchasedTicketsRepository {
   int? page;
   int? size;
   String? status;
   String? ticketNumber;
+  bool? redeemed;
 
   final ticket = const PurchasedTicket(
     orderId: 'order-uuid',
@@ -30,6 +30,7 @@ class _FakePurchasedTicketsRepository
     int page = 1,
     int size = 10,
     String? status,
+    bool? redeemed,
     String? ticketNumber,
     String sortBy = 'createdAt',
     String direction = 'desc',
@@ -37,6 +38,7 @@ class _FakePurchasedTicketsRepository
     this.page = page;
     this.size = size;
     this.status = status;
+    this.redeemed = redeemed;
     this.ticketNumber = ticketNumber;
     return PurchasedTicketsPageResponse(
       records: [ticket],

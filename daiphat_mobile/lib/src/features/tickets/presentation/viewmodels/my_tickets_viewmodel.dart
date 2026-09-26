@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:daiphat_mobile/src/features/tickets/domain/entities/purchased_ticket.dart';
+import 'package:daiphat_mobile/src/features/tickets/presentation/utils/ticket_display_utils.dart';
 import 'package:daiphat_mobile/src/features/tickets/domain/usecases/get_my_tickets.dart';
 
 class MyTicketsViewModel extends ChangeNotifier {
@@ -29,10 +30,18 @@ class MyTicketsViewModel extends ChangeNotifier {
   String? _selectedStatus;
   String? get selectedStatus => _selectedStatus;
 
+  bool? _selectedRedeemed;
+  bool? get selectedRedeemed => _selectedRedeemed;
+
+  String _selectedChannel = 'ALL';
+  String get selectedChannel => _selectedChannel;
+
   String _searchQuery = '';
   String get searchQuery => _searchQuery;
 
   Timer? _searchDebounce;
+  int _requestGeneration = 0;
+  bool _disposed = false;
 
   MyTicketsViewModel(this._getMyTickets) {
     fetchTickets(refresh: true);
@@ -40,11 +49,14 @@ class MyTicketsViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
+    _requestGeneration++;
     _searchDebounce?.cancel();
     super.dispose();
   }
 
   Future<void> fetchTickets({bool refresh = false}) async {
+    if (_disposed) return;
     if (refresh) {
       _page = 1;
       _hasMore = true;
@@ -58,13 +70,22 @@ class MyTicketsViewModel extends ChangeNotifier {
       notifyListeners();
     }
 
+    final requestGeneration = ++_requestGeneration;
+    final requestPage = _page;
+    final requestStatus = _selectedStatus;
+    final requestRedeemed = _selectedRedeemed;
+    final requestSearch = _searchQuery.trim();
+
     try {
       final result = await _getMyTickets(
-        page: _page,
-        size: 10,
-        status: _selectedStatus,
-        ticketNumber: _searchQuery.trim().isEmpty ? null : _searchQuery.trim(),
+        page: requestPage,
+        size: requestRedeemed == false ? 500 : 10,
+        status: requestStatus,
+        redeemed: requestRedeemed,
+        ticketNumber: requestSearch.isEmpty ? null : requestSearch,
       );
+
+      if (_disposed || requestGeneration != _requestGeneration) return;
 
       if (refresh) {
         _tickets = result.records;
@@ -76,19 +97,39 @@ class MyTicketsViewModel extends ChangeNotifier {
       _hasMore = !result.pagination.isLast;
       if (_hasMore) _page++;
     } catch (e) {
+      if (_disposed || requestGeneration != _requestGeneration) return;
       _error = e.toString();
-      debugPrint('MyTicketsViewModel error: $e');
+      if (kDebugMode) debugPrint('MyTicketsViewModel error: $e');
     } finally {
-      _isLoading = false;
-      _isLoadingMore = false;
-      notifyListeners();
+      if (!_disposed && requestGeneration == _requestGeneration) {
+        _isLoading = false;
+        _isLoadingMore = false;
+        notifyListeners();
+      }
     }
   }
 
   void setStatusFilter(String? status) {
     if (_selectedStatus == status) return;
     _selectedStatus = status;
+    if (status != 'WON') {
+      _selectedRedeemed = null;
+      _selectedChannel = 'ALL';
+    }
     fetchTickets(refresh: true);
+  }
+
+  void setRedeemedFilter(bool? redeemed) {
+    if (_selectedRedeemed == redeemed && _selectedStatus == 'WON') return;
+    _selectedRedeemed = redeemed;
+    _selectedChannel = 'ALL';
+    fetchTickets(refresh: true);
+  }
+
+  void setChannelFilter(String channel) {
+    if (_selectedChannel == channel) return;
+    _selectedChannel = channel;
+    notifyListeners();
   }
 
   void setSearchQuery(String query) {
@@ -101,8 +142,26 @@ class MyTicketsViewModel extends ChangeNotifier {
   }
 
   int get pendingCountOnPage =>
-      _tickets.where((t) => t.drawResultStatus == 'PENDING_DRAW').length;
+      visibleTickets.where((t) => t.drawResultStatus == 'PENDING_DRAW').length;
 
   int get wonCountOnPage =>
-      _tickets.where((t) => t.drawResultStatus == 'WON').length;
+      visibleTickets.where((t) => t.drawResultStatus == 'WON').length;
+
+  List<PurchasedTicket> get visibleTickets {
+    if (_selectedRedeemed != false || _selectedChannel == 'ALL') {
+      return _tickets;
+    }
+    return _tickets
+        .where((ticket) {
+          return _selectedChannel == 'ONLINE'
+              ? isTicketOnlineRedemption(ticket)
+              : isTicketCounterRedemption(ticket);
+        })
+        .toList(growable: false);
+  }
+
+  int get displayedTotalRecords =>
+      _selectedRedeemed == false && _selectedChannel != 'ALL'
+      ? visibleTickets.length
+      : _totalRecords;
 }

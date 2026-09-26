@@ -1,3 +1,4 @@
+import time
 import uuid
 from typing import Callable
 
@@ -5,59 +6,210 @@ import numpy as np
 
 from domain.detection.base import DetectedRegion, TicketDetectorStrategy
 from domain.layouts.factory import LayoutStrategyFactory
+from domain.layouts.yolo_field_layout import FIELD_REGION_PREFIX
 from domain.ocr.base import OcrStrategy
 from domain.parsing.ticket_parser import ParsedTicket, TicketParser
 from domain.preprocessing import pipeline as image_pipeline
 from domain.preprocessing.pipeline import ProcessedTicketCrop
 from domain.scanning.status_resolver import resolve_status
+from domain.scanning.yolo_llm_guidance import build_yolo_llm_guidance
 from domain.stations.default_aliases import DEFAULT_STATIONS
 from domain.stations.matcher import StationMatcher
 from domain.stations.models import StationRef
 from domain.validation.format_validator import FormatValidator
 from dto.request.scan_metadata import ScanMetadata
 from dto.response.scan_response import BoundingBox, ScanResponse, TicketScanResult
+from infra.config import settings
 from infra.logger import logger
 
-# Orientation correction (see _correct_orientation): image size fed to each
-# per-rotation OCR probe. Kept small since this only needs to compare
-# *relative* confidence across candidate rotations, not actually transcribe
-# the ticket -- running it at full resolution would multiply the cost of an
-# already-expensive OCR pass by up to 4x for no extra benefit.
-_ORIENTATION_PROBE_MAX_DIMENSION = 480
-# If even the best-scoring candidate in the geometrically-favored axis pair
-# (0/180 or 90/270) barely detects any text, the geometric axis guess itself
-# may be wrong (a very busy/decorative ticket background can throw off the
-# Hough-line heuristic) -- worth also trying the perpendicular pair before
-# settling.
-_ORIENTATION_MIN_TRUSTED_SCORE = 0.3
 
-# ROI refinement (see _refine_low_confidence_fields): how much of the ticket
-# to crop around a field's approximate read location for a second, targeted
-# OCR pass. Generous on the x-axis since token width varies a lot (a station
-# name is much wider than a 6-digit number) and it's cheaper to include a
-# little extra background than to clip the real text.
+def _field_hint_from_region(region_name: str) -> str | None:
+    """Map layout region name ``field:serialNumber`` → ``serialNumber``."""
+    if region_name.startswith(FIELD_REGION_PREFIX):
+        hint = region_name[len(FIELD_REGION_PREFIX) :].strip()
+        return hint or None
+    return None
+
+
+_ORIENTATION_PROBE_MAX_DIMENSION = 480
+_ORIENTATION_MIN_TRUSTED_SCORE = 0.3
 _ROI_PADDING_Y = 0.06
 _ROI_PADDING_X = 0.30
 _ROI_UPSCALE_MIN_DIMENSION = 200
-# Skip refinement for a field that's already read confidently -- the second
-# pass costs an extra OCR call and can only help fields that are actually in
-# doubt.
 _ROI_REFINEMENT_CONFIDENCE_CEILING = 0.85
+# EasyOCR/Paddle on CPU dominates latency — keep OCR canvases modest but
+# large enough for serial letter + 6-digit glyphs.
+_EASYOCR_MAX_DIMENSION = 640
+_EASYOCR_FIELD_MAX_DIMENSION = 720
+_EASYOCR_SERIAL_FIELD_MAX_DIMENSION = 880
+_REVIEW_JPEG_QUALITY = 88
 
-# (strategy name, max tickets) -> detector. Injected rather than calling
-# TicketDetectorFactory directly so this service stays independent of the
-# factory (and tests can hand it a stub without touching OpenCV/YOLO).
 DetectorProvider = Callable[[str | None, int | None], TicketDetectorStrategy]
+
+# Priority order for YOLO / heuristic field crops on the local path.
+_FIELD_OCR_ORDER = (
+    "numbers",
+    "serialNumber",
+    "drawDate",
+    "stationName",
+    "ticketType",
+    "batchCode",
+)
+
+# Core fields — whole-ticket OCR always runs; this set is for coverage metrics.
+_CORE_FIELD_HINTS = frozenset({"numbers", "serialNumber", "drawDate", "stationName"})
+
+
+def _heuristic_serial_box(
+    tx: int, ty: int, tw: int, th: int
+) -> tuple[int, int, int, int]:
+    """Default serial ROI: band just above the large number row (…435 S).
+
+    Top-left was often logo/header whitespace; yellow strip near numbers is
+    where letter+digit serials usually print on southern tickets.
+    """
+    return _heuristic_serial_box_near_numbers(tx, ty, tw, th)
+
+
+def _heuristic_serial_box_near_numbers(
+    tx: int, ty: int, tw: int, th: int
+) -> tuple[int, int, int, int]:
+    """Band just above the large number row (yellow strip: 188435 S)."""
+    band_h = max(int(th * 0.14), 26)
+    y0 = ty + int(th * 0.40)
+    return (tx + int(tw * 0.10), y0, max(int(tw * 0.80), 48), band_h)
+
+
+def _heuristic_serial_box_footer(
+    tx: int, ty: int, tw: int, th: int
+) -> tuple[int, int, int, int]:
+    """Bottom band fallback (QR / footer serial on some layouts)."""
+    band_h = max(int(th * 0.18), 28)
+    return (tx + int(tw * 0.05), ty + th - band_h, max(int(tw * 0.90), 40), band_h)
+
+
+def _heuristic_batch_box(
+    tx: int, ty: int, tw: int, th: int
+) -> tuple[int, int, int, int]:
+    """Bottom-left ký hiệu / lô (05K22). Mid-left often lands on the station logo."""
+    band_h = max(int(th * 0.18), 28)
+    band_w = max(int(tw * 0.42), 40)
+    return (
+        tx + int(tw * 0.03),
+        ty + th - band_h - int(th * 0.02),
+        band_w,
+        band_h,
+    )
+
+
+def _looks_like_qr_field_box(
+    box: tuple[int, int, int, int], ticket_w: int, ticket_h: int
+) -> bool:
+    """YOLO sometimes maps drawDate onto the QR code (square, lower-right)."""
+    if ticket_w <= 0 or ticket_h <= 0:
+        return False
+    _x, _y, w, h = (int(v) for v in box)
+    if w < 12 or h < 12:
+        return False
+    aspect = w / float(h)
+    if not (0.65 <= aspect <= 1.45):
+        return False
+    if w > ticket_w * 0.32 or h > ticket_h * 0.32:
+        return False
+    cx = _x + w * 0.5
+    cy = _y + h * 0.5
+    return cx >= ticket_w * 0.55 and cy >= ticket_h * 0.55
+
+
+def _xywh_to_bounding_box(box: tuple[int, int, int, int]) -> BoundingBox:
+    x, y, w, h = (int(v) for v in box)
+    return BoundingBox(
+        x=x,
+        y=y,
+        width=max(1, w),
+        height=max(1, h),
+        corners=[[x, y], [x + w, y], [x + w, y + h], [x, y + h]],
+    )
+
+
+def _heuristic_numbers_box_local(width: int, height: int) -> tuple[int, int, int, int]:
+    """Center band on an oriented ticket crop for the large lottery number."""
+    y0 = int(height * 0.35)
+    h = max(int(height * 0.35), 40)
+    x0 = int(width * 0.08)
+    w = max(int(width * 0.84), 40)
+    return (x0, y0, w, h)
+
+
+def _heuristic_station_box_local(width: int, height: int) -> tuple[int, int, int, int]:
+    """Top banner band for nhà đài."""
+    return (
+        int(width * 0.06),
+        int(height * 0.04),
+        max(int(width * 0.88), 40),
+        max(int(height * 0.18), 24),
+    )
+
+
+def _heuristic_draw_date_box_local(width: int, height: int) -> tuple[int, int, int, int]:
+    """Lower-left band for ngày mở thưởng."""
+    band_h = max(int(height * 0.16), 24)
+    band_w = max(int(width * 0.55), 40)
+    return (int(width * 0.04), height - band_h - int(height * 0.02), band_w, band_h)
+
+
+def _heuristic_price_box_local(width: int, height: int) -> tuple[int, int, int, int]:
+    """Upper-right oval for mệnh giá."""
+    band_h = max(int(height * 0.14), 22)
+    band_w = max(int(width * 0.32), 36)
+    return (width - band_w - int(width * 0.04), int(height * 0.04), band_w, band_h)
+
+
+def _scale_xywh(
+    box: tuple[int, int, int, int],
+    *,
+    src_w: int,
+    src_h: int,
+    dst_w: int,
+    dst_h: int,
+) -> tuple[int, int, int, int]:
+    if src_w <= 0 or src_h <= 0:
+        return box
+    x, y, w, h = box
+    sx = dst_w / src_w
+    sy = dst_h / src_h
+    nx = max(0, int(round(x * sx)))
+    ny = max(0, int(round(y * sy)))
+    nw = max(1, int(round(w * sx)))
+    nh = max(1, int(round(h * sy)))
+    if nx + nw > dst_w:
+        nw = max(1, dst_w - nx)
+    if ny + nh > dst_h:
+        nh = max(1, dst_h - ny)
+    return nx, ny, nw, nh
+
+
+def _map_box_to_ticket_local(
+    field_box: tuple[int, int, int, int],
+    ticket_box: tuple[int, int, int, int],
+) -> tuple[int, int, int, int] | None:
+    """Intersect a full-image field box with the ticket bbox → local xywh."""
+    fx, fy, fw, fh = (int(v) for v in field_box)
+    tx, ty, tw, th = (int(v) for v in ticket_box)
+    x1 = max(fx, tx)
+    y1 = max(fy, ty)
+    x2 = min(fx + fw, tx + tw)
+    y2 = min(fy + fh, ty + th)
+    if x2 - x1 < 8 or y2 - y1 < 8:
+        return None
+    return (x1 - tx, y1 - ty, x2 - x1, y2 - y1)
 
 
 class TicketScanService:
-    """Orchestrates one POST /v1/scan request end-to-end (doc section 4,
-    Flow 1 pipeline): detect ticket regions -> crop/warp each -> OCR ->
-    parse -> Layer-1 validate -> resolve green/yellow/red status.
+    """Local OCR pipeline: YOLO detect once → per-ticket field crops → EasyOCR.
 
-    One failure in a single detected region must not fail the whole scan --
-    other tickets in the same photo are still returned; the failing one is
-    dropped with a warning (mobile still sees "N of M tickets processed").
+    Avoids a second YOLO inference per ticket (old yolo_field layout path) and
+    prefers tight field crops with charset allowlists for serial/numbers/date.
     """
 
     def __init__(
@@ -83,9 +235,14 @@ class TicketScanService:
         self._include_cropped_image = include_cropped_image
 
     def scan_image(self, image_bytes: bytes, metadata: ScanMetadata) -> ScanResponse:
+        t_all = time.perf_counter()
+        stage_ms: dict[str, float] = {}
+
         image_pipeline.guard_file_size(image_bytes, self._max_file_size_mb)
+        t0 = time.perf_counter()
         image = image_pipeline.decode_image(image_bytes)
         image = image_pipeline.resize_if_needed(image, self._max_image_dimension)
+        stage_ms["decode"] = (time.perf_counter() - t0) * 1000.0
 
         stations = [
             StationRef(id=s.id, name=s.name, code=s.code, aliases=tuple(s.aliases))
@@ -100,22 +257,97 @@ class TicketScanService:
             if s.code and s.expectedNumberLength
         }
 
-        # Detector is resolved per request, not per process: ScanMetadata lets
-        # Java pick the strategy (and cap ticket count) per call, e.g. to A/B
-        # the YOLO detector against the contour MVP without a redeploy.
-        detector = self._detector_provider(metadata.detectorStrategy, metadata.maxTickets)
-        detection_result = detector.detect(image)
-        warnings = list(detection_result.warnings)
+        max_tickets = metadata.maxTickets or settings.TICKET_VISION_MAX_TICKETS_PER_IMAGE
+        max_tickets = min(max_tickets, settings.TICKET_VISION_MAX_TICKETS_PER_IMAGE)
 
+        # One YOLO pass for tickets + field boxes (same weights as LLM path).
+        t0 = time.perf_counter()
+        yolo = build_yolo_llm_guidance(image, max_tickets=max_tickets, encode_crops=False)
+        stage_ms["yolo"] = (time.perf_counter() - t0) * 1000.0
+
+        warnings: list[str] = []
         tickets: list[TicketScanResult] = []
-        for index, region in enumerate(detection_result.regions):
-            try:
-                tickets.append(
-                    self._scan_one_region(image, region, index, parser, expected_lengths_by_code)
-                )
-            except Exception:  # noqa: BLE001 -- one bad region must not fail the whole scan
-                logger.exception("Failed to process detected ticket #%s", index)
-                warnings.append(f"Vé #{index}: xử lý thất bại, đã bỏ qua.")
+
+        if yolo.ticket_count >= 1 and yolo.ticket_boxes:
+            t0 = time.perf_counter()
+            image_h, image_w = image.shape[:2]
+            for index, (tx, ty, tw, th) in enumerate(yolo.ticket_boxes):
+                if len(tickets) >= max_tickets:
+                    break
+                try:
+                    # Tiny pad only — YOLO already frames paper; over-pad pulls
+                    # neighbor tickets into the crop (wrong station/batch OCR).
+                    tx, ty, tw, th = image_pipeline.expand_bbox(
+                        tx,
+                        ty,
+                        tw,
+                        th,
+                        image_w,
+                        image_h,
+                        pad_ratio=0.015,
+                        min_pad_px=6,
+                    )
+                    region = DetectedRegion(
+                        bbox=(tx, ty, tw, th),
+                        corners=[
+                            (tx, ty),
+                            (tx + tw, ty),
+                            (tx + tw, ty + th),
+                            (tx, ty + th),
+                        ],
+                    )
+                    field_boxes = (
+                        yolo.ticket_field_boxes[index]
+                        if index < len(yolo.ticket_field_boxes)
+                        else {}
+                    )
+                    tickets.append(
+                        self._scan_one_region_with_fields(
+                            image,
+                            region,
+                            index,
+                            parser,
+                            expected_lengths_by_code,
+                            field_boxes=field_boxes,
+                        )
+                    )
+                except Exception:  # noqa: BLE001
+                    logger.exception("Failed to process YOLO ticket #%s", index)
+                    warnings.append(f"Vé #{index}: xử lý thất bại, đã bỏ qua.")
+            stage_ms["ocr_tickets"] = (time.perf_counter() - t0) * 1000.0
+        else:
+            # Contour / classic detector fallback when YOLO finds nothing.
+            t0 = time.perf_counter()
+            detector = self._detector_provider(metadata.detectorStrategy, metadata.maxTickets)
+            detection_result = detector.detect(image)
+            warnings.extend(detection_result.warnings or [])
+            stage_ms["detect_fallback"] = (time.perf_counter() - t0) * 1000.0
+
+            t0 = time.perf_counter()
+            regions = list(detection_result.regions)
+            for index, region in enumerate(regions):
+                try:
+                    tickets.append(
+                        self._scan_one_region_with_fields(
+                            image,
+                            region,
+                            index,
+                            parser,
+                            expected_lengths_by_code,
+                            field_boxes={},
+                        )
+                    )
+                except Exception:  # noqa: BLE001
+                    logger.exception("Failed to process detected ticket #%s", index)
+                    warnings.append(f"Vé #{index}: xử lý thất bại, đã bỏ qua.")
+            stage_ms["ocr_tickets"] = (time.perf_counter() - t0) * 1000.0
+
+        stage_ms["total"] = (time.perf_counter() - t_all) * 1000.0
+        logger.info(
+            "Legacy OCR stage timings ms: %s (tickets=%s)",
+            {k: int(round(v)) for k, v in stage_ms.items()},
+            len(tickets),
+        )
 
         return ScanResponse(
             scanId=str(uuid.uuid4()),
@@ -124,55 +356,296 @@ class TicketScanService:
             warnings=warnings,
         )
 
-    def _scan_one_region(
+    def _prepare_ocr_canvas(
+        self,
+        image: np.ndarray,
+        *,
+        max_dimension: int = _EASYOCR_MAX_DIMENSION,
+        field_hint: str | None = None,
+        already_enhanced: bool = False,
+    ) -> np.ndarray:
+        """Downscale + mild enhance so EasyOCR stays fast and digits stay sharp."""
+        if image is None or image.size == 0:
+            return image
+        if field_hint:
+            working = image_pipeline.prepare_field_crop_for_ocr(image, field_hint)
+        elif already_enhanced:
+            working = image
+        else:
+            working = image_pipeline.enhance_for_ocr(image)
+        return image_pipeline.resize_if_needed(working, max_dimension)
+
+    def _ocr_region(
+        self,
+        image: np.ndarray,
+        *,
+        field_hint: str | None = None,
+        already_enhanced: bool = False,
+    ) -> list:
+        if field_hint in {"serialNumber", "batchCode", "stationName"}:
+            max_dim = _EASYOCR_SERIAL_FIELD_MAX_DIMENSION
+        elif field_hint:
+            max_dim = _EASYOCR_FIELD_MAX_DIMENSION
+        else:
+            max_dim = _EASYOCR_MAX_DIMENSION
+        canvas = self._prepare_ocr_canvas(
+            image,
+            max_dimension=max_dim,
+            field_hint=field_hint,
+            already_enhanced=already_enhanced,
+        )
+        canvas = image_pipeline.upscale_if_too_small(canvas)
+        return self._ocr_strategy.read_text(canvas, field_hint=field_hint)
+
+    def _ocr_field_crop(
+        self,
+        canvas: np.ndarray,
+        box: tuple[int, int, int, int],
+        *,
+        field_hint: str,
+        preview: np.ndarray | None = None,
+    ) -> list:
+        fx, fy, fw, fh = box
+        field_crop = canvas[fy : fy + fh, fx : fx + fw]
+        if field_crop is None or field_crop.size == 0:
+            return []
+        field_crop = image_pipeline.upscale_if_too_small(field_crop)
+        lines = self._ocr_region(field_crop, field_hint=field_hint, already_enhanced=True)
+        if lines:
+            return lines
+        # One raw-preview retry for stylized banners only (cheap vs EasyOCR).
+        if (
+            field_hint in {"stationName", "batchCode"}
+            and preview is not None
+            and preview.size > 0
+        ):
+            ph, pw = preview.shape[:2]
+            scaled = _scale_xywh(
+                box, src_w=canvas.shape[1], src_h=canvas.shape[0], dst_w=pw, dst_h=ph
+            )
+            px, py, pw_, ph_ = scaled
+            raw = preview[py : py + ph_, px : px + pw_]
+            if raw.size > 0:
+                return self._ocr_region(
+                    image_pipeline.upscale_if_too_small(raw),
+                    field_hint=field_hint,
+                    already_enhanced=False,
+                )
+        return []
+
+    def _scan_one_region_with_fields(
         self,
         image: np.ndarray,
         region: DetectedRegion,
         index: int,
         parser: TicketParser,
         expected_lengths_by_code: dict[str, int],
+        *,
+        field_boxes: dict[str, tuple[int, int, int, int]],
     ) -> TicketScanResult:
         crop = image_pipeline.process_ticket_crop(image, region)
         crop = self._correct_orientation(crop)
 
-        # Station is unknown before OCR runs, so layout selection always
-        # resolves to GenericLayoutStrategy for now -- see
-        # domain/layouts/base.py docstring for the two-pass idea that would
-        # let this use a station-specific layout instead.
-        layout = LayoutStrategyFactory.get_for_station(None)
-        regions_map = layout.get_regions(crop.ocr_ready)
-        # A header/body split shrinks each sub-crop well below the
-        # already-upscaled full crop's size (the header band alone can drop
-        # under MIN_OCR_CROP_DIMENSION again), starving the text detector on
-        # exactly the small, plainly-printed text (station name, draw date)
-        # this split was meant to isolate -- re-apply the same upscale
-        # safeguard per sub-region before OCR sees it.
-        regions_map = {
-            name: image_pipeline.upscale_if_too_small(region_image) for name, region_image in regions_map.items()
-        }
-        ocr_results_by_region = {
-            name: self._ocr_strategy.read_text(region_image) for name, region_image in regions_map.items()
-        }
+        ocr_results_by_region: dict = {}
+        canvas = crop.ocr_ready
+        ch, cw = canvas.shape[:2]
+        tx, ty, tw, th = region.bbox
+        boxes = dict(field_boxes or {})
 
-        if not any(ocr_results_by_region.values()):
-            # The header/body split (GenericLayoutStrategy's fixed 30/70
-            # ratio -- uncalibrated, see its docstring) can cut through
-            # printed text or leave a band too small for the OCR engines to
-            # find anything. Retry once on the whole crop before giving up.
-            whole_results = self._ocr_strategy.read_text(crop.ocr_ready)
-            if whole_results:
-                ocr_results_by_region = {"whole": whole_results}
+        # Drop YOLO drawDate when it landed on the QR (square lower-right).
+        draw_box = boxes.get("drawDate")
+        if draw_box and _looks_like_qr_field_box(draw_box, tw, th):
+            logger.info(
+                "Ticket #%s ignoring YOLO drawDate box (looks like QR)", index
+            )
+            boxes.pop("drawDate", None)
+
+        if "serialNumber" not in boxes and tw > 0 and th > 0:
+            boxes["serialNumber"] = _heuristic_serial_box(tx, ty, tw, th)
+        if "batchCode" not in boxes and tw > 0 and th > 0:
+            boxes["batchCode"] = _heuristic_batch_box(tx, ty, tw, th)
+
+        # Prefer field crops from the *oriented color ticket canvas* so OCR
+        # sees the same upright image as Admin preview (not a sideways /
+        # grayscale strip from the full photo).
+        # fieldBoxes returned to Admin are crop-local (this canvas), not
+        # full-frame — overlay them on the cropped ticket preview only.
+        crop_local_boxes: dict[str, tuple[int, int, int, int]] = {}
+        for field_name in _FIELD_OCR_ORDER:
+            local: tuple[int, int, int, int] | None = None
+            if field_name == "numbers" and field_name not in (field_boxes or {}):
+                local = _heuristic_numbers_box_local(cw, ch)
+            else:
+                box = boxes.get(field_name)
+                if box and len(box) == 4:
+                    local = _map_box_to_ticket_local(box, (tx, ty, tw, th))
+                    if local is not None and tw > 0 and th > 0:
+                        # Map into canvas pixels (warped size may differ).
+                        lx, ly, lw, lh = local
+                        sx = cw / max(tw, 1)
+                        sy = ch / max(th, 1)
+                        local = (
+                            max(0, int(lx * sx)),
+                            max(0, int(ly * sy)),
+                            max(8, int(lw * sx)),
+                            max(8, int(lh * sy)),
+                        )
+            if local is None:
+                continue
+            fx, fy, fw, fh = image_pipeline.expand_bbox(
+                local[0], local[1], local[2], local[3], cw, ch, pad_ratio=0.04, min_pad_px=4
+            )
+            crop_local_boxes[field_name] = (fx, fy, fw, fh)
+            lines = self._ocr_field_crop(
+                canvas,
+                (fx, fy, fw, fh),
+                field_hint=field_name,
+                preview=crop.preview,
+            )
+            if lines:
+                ocr_results_by_region[f"{FIELD_REGION_PREFIX}{field_name}"] = lines
+
+        # Fill overlay gaps when YOLO missed a class — and OCR those bands
+        # (previously station/batch heuristics were overlay-only → UNREADABLE).
+        heuristic_fills: list[tuple[str, tuple[int, int, int, int]]] = []
+        if "stationName" not in crop_local_boxes:
+            heuristic_fills.append(("stationName", _heuristic_station_box_local(cw, ch)))
+        if "drawDate" not in crop_local_boxes:
+            heuristic_fills.append(("drawDate", _heuristic_draw_date_box_local(cw, ch)))
+        if "ticketType" not in crop_local_boxes:
+            heuristic_fills.append(("ticketType", _heuristic_price_box_local(cw, ch)))
+        if "numbers" not in crop_local_boxes:
+            heuristic_fills.append(("numbers", _heuristic_numbers_box_local(cw, ch)))
+        if "serialNumber" not in crop_local_boxes:
+            heuristic_fills.append(("serialNumber", _heuristic_serial_box(0, 0, cw, ch)))
+        if "batchCode" not in crop_local_boxes:
+            heuristic_fills.append(("batchCode", _heuristic_batch_box(0, 0, cw, ch)))
+
+        for field_name, local in heuristic_fills:
+            fx, fy, fw, fh = image_pipeline.expand_bbox(
+                local[0], local[1], local[2], local[3], cw, ch, pad_ratio=0.04, min_pad_px=4
+            )
+            crop_local_boxes[field_name] = (fx, fy, fw, fh)
+            key = f"{FIELD_REGION_PREFIX}{field_name}"
+            if ocr_results_by_region.get(key):
+                continue
+            lines = self._ocr_field_crop(
+                canvas, (fx, fy, fw, fh), field_hint=field_name, preview=crop.preview
+            )
+            if lines:
+                ocr_results_by_region[key] = lines
+
+        # Serial: at most one extra ROI if the primary band was empty.
+        # (Letter recovery from digit-only crops is handled by whole-ticket OCR.)
+        serial_key = f"{FIELD_REGION_PREFIX}serialNumber"
+        if not ocr_results_by_region.get(serial_key):
+            footer = _heuristic_serial_box_footer(0, 0, cw, ch)
+            fx, fy, fw, fh = image_pipeline.expand_bbox(
+                footer[0], footer[1], footer[2], footer[3], cw, ch, pad_ratio=0.03, min_pad_px=3
+            )
+            lines = self._ocr_field_crop(
+                canvas, (fx, fy, fw, fh), field_hint="serialNumber", preview=None
+            )
+            if lines:
+                ocr_results_by_region[serial_key] = lines
+                crop_local_boxes["serialNumber"] = (fx, fy, fw, fh)
+            else:
+                # Single vertical-edge attempt (HCM-style) — one orientation only.
+                edge_w = max(int(cw * 0.14), 24)
+                edge = canvas[:, max(0, cw - edge_w) : cw]
+                if edge.size > 0:
+                    probe = image_pipeline.rotate_quarter_turns(edge, 1)
+                    probe = image_pipeline.upscale_if_too_small(probe)
+                    lines = self._ocr_region(
+                        probe, field_hint="serialNumber", already_enhanced=True
+                    )
+                    if lines:
+                        ocr_results_by_region[serial_key] = lines
+
+        # Always OCR the whole oriented color ticket once.
+        whole_lines = self._ocr_region(canvas, already_enhanced=True)
+        if not whole_lines and crop.preview is not None and crop.preview.size > 0:
+            # Glare/enhance on scenic tickets can blank Paddle/EasyOCR while the
+            # Admin preview still looks sharp — retry on the raw warped crop.
+            logger.info(
+                "Whole-ticket OCR empty on enhanced canvas; retrying raw preview (ticket #%s)",
+                index,
+            )
+            whole_lines = self._ocr_region(crop.preview)
+        ocr_results_by_region["whole"] = whole_lines
+        logger.info(
+            "Ticket #%s OCR lines: whole=%s fields=%s",
+            index,
+            len(whole_lines),
+            {
+                k[len(FIELD_REGION_PREFIX) :]: len(v)
+                for k, v in ocr_results_by_region.items()
+                if k.startswith(FIELD_REGION_PREFIX)
+            },
+        )
+
+        # Layout fallback only when YOLO produced zero field hits.
+        has_field_ocr = any(k.startswith(FIELD_REGION_PREFIX) for k in ocr_results_by_region)
+        if not has_field_ocr:
+            layout = LayoutStrategyFactory.get_for_station(None)
+            regions_map = layout.get_regions(canvas)
+            for name, region_image in regions_map.items():
+                if name == "whole":
+                    continue
+                ocr_results_by_region[name] = self._ocr_region(
+                    region_image,
+                    field_hint=_field_hint_from_region(name),
+                    already_enhanced=True,
+                )
 
         parsed: ParsedTicket = parser.parse(ocr_results_by_region, expected_number_length=None)
-
-        # Now that the station may be known, re-parse once more with its
-        # exact expected number length if Java supplied one -- cheap, since
-        # OCR (the expensive step) already ran and isn't repeated.
         expected_length = expected_lengths_by_code.get(parsed.extracted.stationCode)
         if expected_length is not None:
             parsed = parser.parse(ocr_results_by_region, expected_number_length=expected_length)
 
-        parsed = self._refine_low_confidence_fields(crop, parsed, parser, expected_length)
+        # If numbers still missing, force a center-band OCR on color crop / preview.
+        if not getattr(parsed.extracted, "numbers", None):
+            for source in (canvas, crop.preview):
+                if source is None or source.size == 0:
+                    continue
+                sh, sw = source.shape[:2]
+                lx, ly, lw, lh = _heuristic_numbers_box_local(sw, sh)
+                band = source[ly : ly + lh, lx : lx + lw]
+                if band.size == 0:
+                    continue
+                # Prefer unconstrained OCR (no specialized allowlist dead-end).
+                lines = self._ocr_region(
+                    image_pipeline.upscale_if_too_small(band),
+                    field_hint=None,
+                    already_enhanced=(source is canvas),
+                )
+                if lines:
+                    ocr_results_by_region[f"{FIELD_REGION_PREFIX}numbers"] = lines
+                    parsed = parser.parse(
+                        ocr_results_by_region, expected_number_length=expected_length
+                    )
+                    if getattr(parsed.extracted, "numbers", None):
+                        break
+
+        # Optional ROI refine when numbers are truncated (5 of 6 digits).
+        numbers = getattr(parsed.extracted, "numbers", None)
+        want_len = expected_length or 6
+        if numbers and len(str(numbers)) != want_len:
+            parsed = self._refine_low_confidence_fields(
+                crop, parsed, parser, expected_length
+            )
+        elif not bool(getattr(settings, "TICKET_VISION_LEGACY_SKIP_ROI_REFINE", True)):
+            parsed = self._refine_low_confidence_fields(
+                crop, parsed, parser, expected_length
+            )
+
+        # Retarget overlay batch box toward bottom-left when we have a code
+        # but the mid/logo heuristic was used (YOLO has no batch class).
+        if getattr(parsed.extracted, "batchCode", None) and "batchCode" in crop_local_boxes:
+            bx, by, bw, bh = crop_local_boxes["batchCode"]
+            # Logo-ish mid band: move overlay to bottom-left ký hiệu band.
+            if by < int(ch * 0.45):
+                crop_local_boxes["batchCode"] = _heuristic_batch_box(0, 0, cw, ch)
 
         validation = self._validator.validate(parsed.extracted, expected_number_length=expected_length)
         status, confidence = resolve_status(
@@ -190,9 +663,22 @@ class TicketScanService:
             corners=[[point[0], point[1]] for point in region.corners],
         )
 
-        cropped_image_base64 = (
-            image_pipeline.encode_to_base64_jpeg(crop.preview) if self._include_cropped_image else None
-        )
+        # Crop-local field boxes aligned to the Admin cropped preview pixels.
+        response_field_boxes: dict[str, BoundingBox] = {}
+        cropped_image_base64 = None
+        preview_w, preview_h = cw, ch
+        if self._include_cropped_image and crop.preview is not None and crop.preview.size > 0:
+            preview = image_pipeline.resize_if_needed(crop.preview, 900)
+            preview_h, preview_w = preview.shape[:2]
+            cropped_image_base64 = image_pipeline.encode_to_base64_jpeg(
+                preview, quality=_REVIEW_JPEG_QUALITY
+            )
+
+        for name, box in crop_local_boxes.items():
+            scaled = _scale_xywh(
+                box, src_w=cw, src_h=ch, dst_w=preview_w, dst_h=preview_h
+            )
+            response_field_boxes[name] = _xywh_to_bounding_box(scaled)
 
         return TicketScanResult(
             ticketIndex=index,
@@ -201,37 +687,24 @@ class TicketScanService:
             confidence=confidence,
             extracted=parsed.extracted,
             fieldConfidences=parsed.field_confidences,
+            fieldBoxes=response_field_boxes,
             missingFields=validation.missing_fields,
             validationErrors=validation.errors,
             croppedImageBase64=cropped_image_base64,
         )
 
     def _correct_orientation(self, crop: ProcessedTicketCrop) -> ProcessedTicketCrop:
-        """Correct arbitrary 90-degree-multiple rotation (a sideways or
-        fully upside-down photo) before OCR ever sees the ticket.
-
-        Perspective warp (process_ticket_crop) only straightens *skew* -- it
-        has no way to know which of the 4 axis-aligned orientations is
-        content-upright, since a rotated rectangle looks the same to pure
-        geometry. Resolved with a cheap two-stage probe: a geometric guess
-        at the text axis (horizontal vs vertical -- pure OpenCV, no OCR),
-        then a small downscaled OCR read at both members of that axis pair
-        (0/180 or 90/270) to pick whichever one an OCR engine actually reads
-        text in. Falls back to trying the other axis pair too if neither
-        candidate in the first pair scores above a noise floor -- the
-        geometric axis guess itself can be wrong on a very busy/decorative
-        ticket background.
-        """
         axis_hint = image_pipeline.dominant_text_axis(crop.ocr_ready)
-        primary_pair = (axis_hint, axis_hint + 2)
+        if bool(getattr(settings, "TICKET_VISION_LEGACY_FAST_ORIENTATION", True)):
+            return image_pipeline.rotate_crop(crop, axis_hint)
 
+        primary_pair = (axis_hint, axis_hint + 2)
         best_quarter_turns, best_score = self._best_orientation(crop, primary_pair)
         if best_score < _ORIENTATION_MIN_TRUSTED_SCORE:
             fallback_pair = (axis_hint + 1, axis_hint + 3)
             fallback_turns, fallback_score = self._best_orientation(crop, fallback_pair)
             if fallback_score > best_score:
                 best_quarter_turns = fallback_turns
-
         return image_pipeline.rotate_crop(crop, best_quarter_turns)
 
     def _best_orientation(
@@ -244,7 +717,7 @@ class TicketScanService:
             probe = image_pipeline.resize_if_needed(rotated, _ORIENTATION_PROBE_MAX_DIMENSION)
             try:
                 results = self._ocr_strategy.read_text(probe)
-            except Exception:  # noqa: BLE001 -- a probe failure just loses that candidate, not the scan
+            except Exception:  # noqa: BLE001
                 continue
             score = sum(r.confidence for r in results)
             if score > best_score:
@@ -259,73 +732,47 @@ class TicketScanService:
         parser: TicketParser,
         expected_number_length: int | None,
     ) -> ParsedTicket:
-        """Re-crop a small, targeted region around each low-confidence
-        field's approximate read location and try OCR again on just that.
-
-        A tight, upscaled, single-purpose crop is easier for the text
-        detector than the full ticket (no competing decorative art, no
-        other fields' text nearby) -- this is the "small clean ROI" half of
-        the improved pipeline, done adaptively per-ticket from where the
-        first OCR pass actually found each field rather than a fixed,
-        uncalibrated set of station-agnostic percentages (Vietnam's ~40
-        station designs don't share one layout, so a hand-picked box would
-        only ever be right for a handful of them). Only replaces a field's
-        value when the re-read is strictly more confident; any failure here
-        (bad crop bounds, OCR error, nothing found) just keeps the original
-        first-pass result.
-
-        Deliberately skips serialNumber: OCR confidence scores aren't always
-        well-calibrated (an engine can be very confident about a wrong short
-        alnum read), and serialNumber was already reliably correct before
-        this refinement pass existed -- there's much more to lose than gain
-        by letting a re-crop-and-reread risk clobbering an already-good
-        result for a field that was never the problem.
-        """
-        height, width = crop.ocr_ready.shape[:2]
-
-        for field_name, (y_pos, x_pos) in list(parsed.field_positions.items()):
-            if field_name == "serialNumber":
-                continue
+        """Re-crop around weak numbers/date only — skip serial (allowlist crop is better)."""
+        for field_name in ("numbers", "drawDate"):
             if parsed.field_confidences.get(field_name, 0.0) >= _ROI_REFINEMENT_CONFIDENCE_CEILING:
                 continue
-
-            y0 = max(int((y_pos - _ROI_PADDING_Y) * height), 0)
-            y1 = min(int((y_pos + _ROI_PADDING_Y) * height), height)
-            x0 = max(int((x_pos - _ROI_PADDING_X) * width), 0)
-            x1 = min(int((x_pos + _ROI_PADDING_X) * width), width)
-            if y1 - y0 < 2 or x1 - x0 < 2:
+            current = getattr(parsed.extracted, field_name, None)
+            if field_name == "numbers" and current and expected_number_length:
+                if len(str(current)) == expected_number_length:
+                    continue
+            if field_name == "drawDate" and current:
                 continue
 
-            roi = crop.ocr_ready[y0:y1, x0:x1]
-            roi = image_pipeline.upscale_if_too_small(roi, _ROI_UPSCALE_MIN_DIMENSION)
-
-            try:
-                roi_results = self._ocr_strategy.read_text(roi)
-            except Exception:  # noqa: BLE001 -- refinement is best-effort, never fatal to the scan
-                continue
-            if not roi_results:
+            position = parsed.field_positions.get(field_name)
+            if position is None:
                 continue
 
-            roi_parsed = parser.parse({"whole": roi_results}, expected_number_length=expected_number_length)
-            roi_confidence = roi_parsed.field_confidences.get(field_name, 0.0)
+            y_center, x_center = position
+            height, width = crop.ocr_ready.shape[:2]
+            y = int(y_center * height)
+            x = int(x_center * width)
+            half_h = max(int(height * _ROI_PADDING_Y), 12)
+            half_w = max(int(width * _ROI_PADDING_X), 24)
+            y1, y2 = max(y - half_h, 0), min(y + half_h, height)
+            x1, x2 = max(x - half_w, 0), min(x + half_w, width)
+            roi = crop.ocr_ready[y1:y2, x1:x2]
+            if roi.size == 0:
+                continue
+            if min(roi.shape[:2]) < _ROI_UPSCALE_MIN_DIMENSION:
+                roi = image_pipeline.upscale_if_too_small(roi)
+
+            roi_results = self._ocr_region(roi, field_hint=field_name)
+            roi_parsed = parser.parse(
+                {"whole": roi_results, f"{FIELD_REGION_PREFIX}{field_name}": roi_results},
+                expected_number_length=expected_number_length,
+            )
             roi_value = getattr(roi_parsed.extracted, field_name, None)
-            original_value = getattr(parsed.extracted, field_name, None) or ""
-
-            # A tight crop risks clipping part of a wide field (a decorative
-            # lottery number in particular spans much of the ticket's width)
-            # -- OCR then confidently, and wrongly, transcribes only the
-            # part it can still see. A refined read that's *shorter* than
-            # what pass 1 already found is the signature of exactly that
-            # failure, so a higher confidence alone isn't trusted to accept
-            # it; length must not regress too.
+            roi_confidence = roi_parsed.field_confidences.get(field_name, 0.0)
             if (
                 roi_value
                 and roi_confidence > parsed.field_confidences.get(field_name, 0.0)
-                and len(roi_value) >= len(original_value)
             ):
                 setattr(parsed.extracted, field_name, roi_value)
                 parsed.field_confidences[field_name] = roi_confidence
-                if field_name == "stationName":
-                    parsed.extracted.stationCode = roi_parsed.extracted.stationCode
 
         return parsed

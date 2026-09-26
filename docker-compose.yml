@@ -65,11 +65,13 @@ services:
       YOLO_CONFIG_DIR: /cache/ultralytics
       TICKET_VISION_YOLO_DEVICE: cpu
       TICKET_VISION_RECOGNITION_ENGINE: ${TICKET_VISION_RECOGNITION_ENGINE:-groq}
+      TICKET_VISION_LEGACY_FIRST: ${TICKET_VISION_LEGACY_FIRST:-false}
+      TICKET_VISION_LLM_FALLBACK_TO_LEGACY: ${TICKET_VISION_LLM_FALLBACK_TO_LEGACY:-true}
       OCR_AI_PROVIDER: ${OCR_AI_PROVIDER:-}
       GROQ_API_BASE_URL: ${GROQ_API_BASE_URL:-https://api.groq.com/openai/v1}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
-      GROQ_VISION_MODEL: ${GROQ_VISION_MODEL:-qwen/qwen3.6-27b}
-      GROQ_READ_TIMEOUT_SECONDS: ${GROQ_READ_TIMEOUT_SECONDS:-60}
+      GROQ_VISION_MODEL: ${GROQ_VISION_MODEL:-qwen/qwen3.8-27b}
+      GROQ_READ_TIMEOUT_SECONDS: ${GROQ_READ_TIMEOUT_SECONDS:-45}
       GEMINI_API_BASE_URL: ${GEMINI_API_BASE_URL:-https://generativelanguage.googleapis.com/v1beta}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_VISION_MODEL: ${GEMINI_VISION_MODEL:-gemini-3.6-flash}
@@ -107,6 +109,34 @@ services:
     mem_limit: ${LOCAL_TICKET_VISION_MEMORY:-4g}
     cpus: ${LOCAL_TICKET_VISION_CPUS:-2}
 
+  ekyc-vision:
+    build:
+      context: ./daiphat-ai/services/ekyc-vision
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      KYC_AI_API_KEY: ${KYC_AI_API_KEY:-dev-kyc-ai-secret}
+      KYC_AI_LOG_LEVEL: info
+      INSIGHTFACE_HOME: /cache/insightface
+    ports:
+      - "127.0.0.1:${LOCAL_EKYC_VISION_PORT:-8091}:8000"
+    volumes:
+      - ekyc_vision_model_cache:/cache
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)",
+        ]
+      interval: 20s
+      timeout: 5s
+      start_period: 60s
+      retries: 6
+    mem_limit: ${LOCAL_EKYC_VISION_MEMORY:-2g}
+    cpus: ${LOCAL_EKYC_VISION_CPUS:-1}
+
   backend:
     build:
       context: ./daiphat-be/core-api
@@ -125,6 +155,8 @@ services:
       DAIPHAT_AI_BASE_URL: http://ai:8000
       DAIPHAT_TICKET_VISION_BASE_URL: http://ticket-vision:8090
       DAIPHAT_TICKET_VISION_RECOGNITION_ENGINE: ${TICKET_VISION_RECOGNITION_ENGINE:-groq}
+      DAIPHAT_EKYC_AI_BASE_URL: http://ekyc-vision:8000
+      DAIPHAT_EKYC_AI_API_KEY: ${KYC_AI_API_KEY:-dev-kyc-ai-secret}
     ports:
       - "${LOCAL_BACKEND_PORT:-8080}:8080"
     depends_on:
@@ -135,6 +167,8 @@ services:
       ai:
         condition: service_healthy
       ticket-vision:
+        condition: service_started
+      ekyc-vision:
         condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/actuator/health/readiness"]
@@ -172,3 +206,4 @@ volumes:
   postgres_data:
   redis_data:
   ticket_vision_model_cache:
+  ekyc_vision_model_cache:

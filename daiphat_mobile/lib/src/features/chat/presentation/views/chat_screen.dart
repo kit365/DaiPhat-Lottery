@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
-import 'package:daiphat_mobile/src/features/chat/data/models/chat_models.dart';
+import 'package:daiphat_mobile/src/features/chat/domain/entities/chat_models.dart';
 import 'package:daiphat_mobile/src/features/chat/presentation/viewmodels/chat_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/chat/utils/chat_message_mapper.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
@@ -661,19 +661,23 @@ class _TypingBubble extends StatelessWidget {
       children: [
         const _BrandAvatar(size: 28),
         const SizedBox(width: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: AppColors.surfacePrimary,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: AppColors.borderLight),
-          ),
-          child: Text(
-            'Đại Phát đang soạn tin...',
-            style: AppTypography.caption(
-              fontSize: 12,
-              color: AppColors.contentSlate600,
-              fontStyle: FontStyle.italic,
+        Flexible(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.surfacePrimary,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AppColors.borderLight),
+            ),
+            child: Text(
+              'Đại Phát đang soạn tin...',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.caption(
+                fontSize: 12,
+                color: AppColors.contentSlate600,
+                fontStyle: FontStyle.italic,
+              ),
             ),
           ),
         ),
@@ -689,37 +693,31 @@ class _TicketSuggestBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _BrandAvatar(size: 28),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _SupportBubble(
-                message: UiChatMessage(
-                  id: '${message.id}-intro',
-                  isUser: false,
-                  text: message.text,
-                  timeLabel: message.timeLabel,
-                ),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 118,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: message.suggestedTickets.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 8),
-                  itemBuilder: (context, index) {
-                    final ticket = message.suggestedTickets[index];
-                    return _TicketSuggestCard(ticket: ticket);
-                  },
-                ),
-              ),
-            ],
+        _SupportBubble(
+          message: UiChatMessage(
+            id: '${message.id}-intro',
+            isUser: false,
+            text: message.text,
+            timeLabel: message.timeLabel,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.only(left: 36),
+          child: SizedBox(
+            height: 148,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: message.suggestedTickets.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final ticket = message.suggestedTickets[index];
+                return _TicketSuggestCard(ticket: ticket);
+              },
+            ),
           ),
         ),
       ],
@@ -744,7 +742,7 @@ class _TicketSuggestCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 180,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: AppColors.surfacePrimary,
         borderRadius: BorderRadius.circular(14),
@@ -755,6 +753,8 @@ class _TicketSuggestCard extends StatelessWidget {
         children: [
           Text(
             ticket.numbers,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: AppTypography.lotteryDigit(
               fontSize: 18,
               fontWeight: FontWeight.w800,
@@ -781,15 +781,19 @@ class _TicketSuggestCard extends StatelessWidget {
           const Spacer(),
           Row(
             children: [
-              Text(
-                _formatPrice(),
-                style: AppTypography.priceMedium(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.contentHeading,
+              Expanded(
+                child: Text(
+                  _formatPrice(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.priceMedium(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.contentHeading,
+                  ),
                 ),
               ),
-              const Spacer(),
+              const SizedBox(width: 4),
               TextButton(
                 onPressed: () {
                   final params = <String, String>{
@@ -806,6 +810,19 @@ class _TicketSuggestCard extends StatelessWidget {
                       .join('&');
                   context.push('${AppRoute.buyTicket.path}?$query');
                 },
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.surfacePrimary,
+                  backgroundColor: AppColors.primary,
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 6,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
                 child: Text(
                   'Mua ngay',
                   style: AppTypography.buttonSmall(

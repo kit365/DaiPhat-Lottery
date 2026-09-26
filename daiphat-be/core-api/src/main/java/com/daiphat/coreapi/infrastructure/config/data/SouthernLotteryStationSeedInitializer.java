@@ -14,6 +14,7 @@ import com.daiphat.coreapi.domain.model.lotteries.LotteryRegionModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import com.daiphat.coreapi.domain.model.lotteries.PrizeStructureModel;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -34,15 +35,15 @@ import java.util.stream.Collectors;
 
 /**
  * Upserts the 21 Miền Nam stations + weekday schedule on startup.
- * Creates missing stations, refreshes schedule, and backfills activation fields
- * (price, commission) for legacy rows. Each station write uses REQUIRES_NEW.
+ * Creates missing stations; optionally refreshes schedule/price when
+ * {@code daiphat.lottery.seed.southern-stations.overwrite-existing=true}.
+ * Each station write uses REQUIRES_NEW.
  */
 @Component
 @Order(50)
 @ConditionalOnProperty(
         value = "daiphat.lottery.seed.southern-stations.enabled",
-        havingValue = "true",
-        matchIfMissing = true
+        havingValue = "true"
 )
 @Slf4j
 public class SouthernLotteryStationSeedInitializer implements ApplicationRunner {
@@ -53,6 +54,9 @@ public class SouthernLotteryStationSeedInitializer implements ApplicationRunner 
     private final PrizeStructureRepositoryPort prizeStructureRepositoryPort;
     private final TransactionTemplate readTx;
     private final TransactionTemplate writeTx;
+
+    @Value("${daiphat.lottery.seed.southern-stations.overwrite-existing:false}")
+    private boolean overwriteExisting;
 
     public SouthernLotteryStationSeedInitializer(
             LotteryStationRepositoryPort lotteryStationRepositoryPort,
@@ -112,7 +116,7 @@ public class SouthernLotteryStationSeedInitializer implements ApplicationRunner 
                     created++;
                     continue;
                 }
-                if (needsRefresh(existing, seed)) {
+                if (overwriteExisting && needsRefresh(existing, seed)) {
                     writeTx.executeWithoutResult(status -> activateStation(existing.getId(), seed));
                     updated++;
                 }

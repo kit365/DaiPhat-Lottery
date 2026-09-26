@@ -39,7 +39,7 @@ class LotteryTicketRepository {
       size: size,
       drawDate: drawDate,
       search: search,
-      searchMode: 'CONTAINS',
+      searchMode: 'SUFFIX',
       tailRanges: tailRanges,
       numberTypes: numberTypes,
       stationId: stationId,

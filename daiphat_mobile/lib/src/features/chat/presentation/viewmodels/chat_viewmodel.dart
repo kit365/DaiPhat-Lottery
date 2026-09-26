@@ -2,13 +2,9 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:daiphat_mobile/src/shared/providers/api_providers.dart';
-import 'package:daiphat_mobile/src/shared/storage/auth_token_storage.dart';
-
-import '../../data/models/chat_models.dart';
-import '../../data/repositories/chat_repository.dart';
-import '../../data/services/chat_api_service.dart';
-import '../../data/services/chat_websocket_service.dart';
+import '../../domain/entities/chat_models.dart';
+import '../../domain/repositories/chat_repository_port.dart';
+import '../../domain/usecases/chat_usecases.dart';
 import '../../utils/chat_constants.dart';
 import '../../utils/chat_message_mapper.dart';
 
@@ -105,33 +101,20 @@ class ChatState {
   }
 }
 
-final chatWebSocketServiceProvider = Provider<ChatWebSocketService>((ref) {
-  final service = ChatWebSocketService();
-  ref.onDispose(service.disconnect);
-  return service;
-});
-
-final chatApiServiceProvider = Provider<ChatApiService>(
-  (ref) => ChatApiService(ref.watch(apiClientProvider)),
+final chatRepositoryProvider = Provider<ChatRepositoryPort>(
+  (ref) => throw UnimplementedError('chatRepositoryProvider must be overridden'),
 );
 
-final chatRepositoryProvider = Provider<ChatRepository>((ref) {
-  return ChatRepository(
-    apiService: ref.watch(chatApiServiceProvider),
-    webSocketService: ref.watch(chatWebSocketServiceProvider),
-    readAccessToken: () async {
-      final storage = await AuthTokenStorage.create();
-      return storage.getAccessToken();
-    },
-  );
-});
+final chatUseCasesProvider = Provider<ChatUseCases>(
+  (ref) => ChatUseCases(ref.watch(chatRepositoryProvider)),
+);
 
 final chatViewModelProvider = NotifierProvider<ChatViewModel, ChatState>(
   ChatViewModel.new,
 );
 
 class ChatViewModel extends Notifier<ChatState> {
-  ChatRepository get _repository => ref.read(chatRepositoryProvider);
+  ChatUseCases get _chat => ref.read(chatUseCasesProvider);
 
   Timer? _typingTimer;
   Timer? _aiStatusTimer;
@@ -145,8 +128,8 @@ class ChatViewModel extends Notifier<ChatState> {
 
   @override
   ChatState build() {
-    final repository = ref.read(chatRepositoryProvider);
-    ref.onDispose(() => _disposeTimers(repository));
+    final chat = ref.read(chatUseCasesProvider);
+    ref.onDispose(() => _disposeTimers(chat));
     return const ChatState();
   }
 
@@ -156,7 +139,7 @@ class ChatViewModel extends Notifier<ChatState> {
       return;
     }
 
-    final accessToken = await _repository.readAccessToken();
+    final accessToken = await _chat.readAccessToken();
     if (accessToken == null || accessToken.isEmpty) {
       await _resetSession();
       return;
@@ -175,18 +158,18 @@ class ChatViewModel extends Notifier<ChatState> {
       clearError: true,
     );
     try {
-      final isAiEnabled = await _repository.getAiStatus();
+      final isAiEnabled = await _chat.getAiStatus();
       if (!_isCurrentSession(sessionEpoch)) return;
       state = state.copyWith(isAiEnabled: isAiEnabled);
 
-      ConversationDetailModel? detail = await _repository.getOpenConversation();
+      ConversationDetailModel? detail = await _chat.getOpenConversation();
       if (!_isCurrentSession(sessionEpoch)) return;
       detail ??= await _loadStoredConversation();
       if (!_isCurrentSession(sessionEpoch)) return;
 
       if (detail != null) {
         _applyConversation(detail.conversation);
-        await _repository.saveLastConversationId(detail.conversation.id);
+        await _chat.saveLastConversationId(detail.conversation.id);
       }
 
       await _loadTimeline(reset: true);
@@ -220,7 +203,7 @@ class ChatViewModel extends Notifier<ChatState> {
 
     state = state.copyWith(isLoading: true);
     try {
-      final page = await _repository.getTimeline(
+      final page = await _chat.getTimeline(
         beforeCreatedAt: beforeCreatedAt,
         beforeId: beforeId,
       );
@@ -270,7 +253,7 @@ class ChatViewModel extends Notifier<ChatState> {
       final shouldInit = conversationId == null || isClosed;
 
       if (shouldInit) {
-        final detail = await _repository.initConversation(
+        final detail = await _chat.initConversation(
           title: wantsStaff
               ? 'Yêu cầu gặp nhân viên'
               : 'Yêu cầu hỗ trợ từ khách hàng',
@@ -281,16 +264,16 @@ class ChatViewModel extends Notifier<ChatState> {
           throw Exception('Không thể khởi tạo cuộc trò chuyện.');
         }
         _applyConversation(detail.conversation);
-        await _repository.saveLastConversationId(detail.conversation.id);
+        await _chat.saveLastConversationId(detail.conversation.id);
         await _connectAndSubscribe(forceResubscribe: true);
         await _loadTimeline(reset: true);
       } else {
-        await _repository.sendRealtimeMessage(
+        await _chat.sendRealtimeMessage(
           conversationId: conversationId,
           content: text,
         );
         if (wantsStaff && status == ConversationStatus.open) {
-          final detail = await _repository.escalateConversation(conversationId);
+          final detail = await _chat.escalateConversation(conversationId);
           if (detail != null) _applyConversation(detail.conversation);
         }
         unawaited(_refreshTimelineSoon());
@@ -327,7 +310,7 @@ class ChatViewModel extends Notifier<ChatState> {
       final status = state.conversationStatus;
 
       if (conversationId == null || status == ConversationStatus.closed) {
-        final detail = await _repository.initConversation(
+        final detail = await _chat.initConversation(
           title: 'Yêu cầu gặp nhân viên',
           requestStaff: true,
         );
@@ -335,11 +318,11 @@ class ChatViewModel extends Notifier<ChatState> {
           throw Exception('Không thể chuyển yêu cầu cho nhân viên.');
         }
         _applyConversation(detail.conversation);
-        await _repository.saveLastConversationId(detail.conversation.id);
+        await _chat.saveLastConversationId(detail.conversation.id);
         await _connectAndSubscribe(forceResubscribe: true);
         await _loadTimeline(reset: true);
       } else if (status == ConversationStatus.open) {
-        final detail = await _repository.escalateConversation(conversationId);
+        final detail = await _chat.escalateConversation(conversationId);
         if (detail != null) _applyConversation(detail.conversation);
       } else if (!fromChip) {
         state = state.copyWith(
@@ -355,16 +338,16 @@ class ChatViewModel extends Notifier<ChatState> {
   }
 
   Future<ConversationDetailModel?> _loadStoredConversation() async {
-    final lastId = await _repository.readLastConversationId();
+    final lastId = await _chat.readLastConversationId();
     if (lastId == null) return null;
-    return _repository.getConversationDetail(lastId);
+    return _chat.getConversationDetail(lastId);
   }
 
   Future<void> _loadTimeline({required bool reset}) async {
     if (reset && _timelineRefreshInFlight) return;
     if (reset) _timelineRefreshInFlight = true;
     try {
-      final page = await _repository.getTimeline();
+      final page = await _chat.getTimeline();
       final mapped = mapTimelineItems(page.items);
       state = state.copyWith(
         timelineMessages: reset
@@ -391,8 +374,8 @@ class ChatViewModel extends Notifier<ChatState> {
   }
 
   Future<void> _connectAndSubscribe({bool forceResubscribe = false}) async {
-    await _repository.connectWebSocket();
-    _repository.subscribeInbox(
+    await _chat.connectWebSocket();
+    _chat.subscribeInbox(
       onMessage: _handleSocketMessage,
       onConversationEvent: _handleConversationEvent,
     );
@@ -400,7 +383,7 @@ class ChatViewModel extends Notifier<ChatState> {
     final conversationId = state.conversationId;
     if (conversationId == null) {
       if (_subscribedConversationId != null) {
-        _repository.unsubscribeConversation(_subscribedConversationId!);
+        _chat.unsubscribeConversation(_subscribedConversationId!);
         _subscribedConversationId = null;
       }
       return;
@@ -409,10 +392,10 @@ class ChatViewModel extends Notifier<ChatState> {
       return;
     }
     if (_subscribedConversationId != null) {
-      _repository.unsubscribeConversation(_subscribedConversationId!);
+      _chat.unsubscribeConversation(_subscribedConversationId!);
     }
     _subscribedConversationId = conversationId;
-    _repository.subscribeConversation(
+    _chat.subscribeConversation(
       conversationId,
       onMessage: _handleSocketMessage,
       onConversationEvent: _handleConversationEvent,
@@ -469,14 +452,14 @@ class ChatViewModel extends Notifier<ChatState> {
     if (event.eventType == 'CONVERSATION_CLOSED') {
       await _loadTimeline(reset: true);
       if (!ref.mounted) return;
-      final open = await _repository.getOpenConversation();
+      final open = await _chat.getOpenConversation();
       if (!ref.mounted) return;
       if (open != null) {
         _applyConversation(open.conversation);
         await _connectAndSubscribe(forceResubscribe: true);
       } else {
         if (_subscribedConversationId != null) {
-          _repository.unsubscribeConversation(_subscribedConversationId!);
+          _chat.unsubscribeConversation(_subscribedConversationId!);
           _subscribedConversationId = null;
         }
         _lastReadAckKey = null;
@@ -485,7 +468,7 @@ class ChatViewModel extends Notifier<ChatState> {
     } else if (event.eventType == 'CONVERSATION_STAFF_REQUEST_CANCELLED' ||
         event.eventType == 'CONVERSATION_TAKEN' ||
         event.eventType == 'CONVERSATION_ASSIGNED') {
-      final detail = await _repository.getConversationDetail(
+      final detail = await _chat.getConversationDetail(
         event.conversationId,
       );
       if (!ref.mounted) return;
@@ -514,7 +497,7 @@ class ChatViewModel extends Notifier<ChatState> {
       _lastReadAckKey = null;
       if (_subscribedConversationId != null &&
           _subscribedConversationId != conversation.id) {
-        _repository.unsubscribeConversation(_subscribedConversationId!);
+        _chat.unsubscribeConversation(_subscribedConversationId!);
         _subscribedConversationId = null;
       }
     }
@@ -574,7 +557,7 @@ class ChatViewModel extends Notifier<ChatState> {
     if (_lastReadAckKey == readAckKey) return;
     _lastReadAckKey = readAckKey;
     _markConversationMessagesAsRead(conversationId);
-    await _repository.markAsRead(conversationId);
+    await _chat.markAsRead(conversationId);
   }
 
   void _markConversationMessagesAsRead(int conversationId) {
@@ -628,7 +611,7 @@ class ChatViewModel extends Notifier<ChatState> {
   void _startAiStatusPolling() {
     _aiStatusTimer?.cancel();
     _aiStatusTimer = Timer.periodic(const Duration(seconds: 10), (_) async {
-      final enabled = await _repository.getAiStatus();
+      final enabled = await _chat.getAiStatus();
       if (!ref.mounted) return;
       if (enabled != state.isAiEnabled) {
         state = state.copyWith(isAiEnabled: enabled);
@@ -637,12 +620,12 @@ class ChatViewModel extends Notifier<ChatState> {
     });
   }
 
-  void _disposeTimers(ChatRepository repository) {
+  void _disposeTimers(ChatUseCases chat) {
     _typingTimer?.cancel();
     _aiStatusTimer?.cancel();
     _lastReadAckKey = null;
     _subscribedConversationId = null;
-    unawaited(repository.disconnectWebSocket());
+    unawaited(chat.disconnectWebSocket());
   }
 
   bool _isCurrentSession(int epoch) {
@@ -659,8 +642,8 @@ class ChatViewModel extends Notifier<ChatState> {
     _lastReadAckKey = null;
     _subscribedConversationId = null;
     _activeAccessToken = null;
-    await _repository.disconnectWebSocket();
-    await _repository.clearLastConversationId();
+    await _chat.disconnectWebSocket();
+    await _chat.clearLastConversationId();
     state = const ChatState();
   }
 
@@ -676,4 +659,16 @@ class ChatViewModel extends Notifier<ChatState> {
 
 extension _LastOrNull<E> on Iterable<E> {
   E? get lastOrNull => isEmpty ? null : last;
+}
+
+List<UiChatMessage> mapTimelineItems(List<ChatTimelineItemModel> items) {
+  return items.map((item) => mapApiMessage(item.message)).toList();
+}
+
+(String?, int?) parseTimelineCursor(String? cursor) {
+  if (cursor == null || cursor.isEmpty) return (null, null);
+  final parts = cursor.split('|');
+  if (parts.length != 2) return (null, null);
+  final beforeId = int.tryParse(parts[1]);
+  return (parts[0], beforeId);
 }

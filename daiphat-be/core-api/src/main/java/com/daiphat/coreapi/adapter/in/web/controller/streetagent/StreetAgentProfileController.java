@@ -134,4 +134,21 @@ public class StreetAgentProfileController {
                 id, StorageUtils.toUploadRequest(file));
         return ApiResponse.success("Đính kèm bản hợp đồng đã ký thành công.", response);
     }
+
+    @PostMapping(value = "/ekyc/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAuthority('streetAgent:create') or hasAuthority('streetAgent:edit')")
+    public ApiResponse<com.daiphat.coreapi.application.dto.storage.StorageResult> uploadEkycImage(
+            @RequestPart("file") MultipartFile file) {
+        return ApiResponse.success(
+                null,
+                streetAgentProfileServicePort.uploadEkycImage(StorageUtils.toUploadRequest(file)));
+    }
+
+    @PostMapping(ID_PATH + "/ekyc/verify")
+    @PreAuthorize("hasAuthority('streetAgent:create') or hasAuthority('streetAgent:edit')")
+    public ApiResponse<StreetAgentProfileResponse> verifyEkyc(@PathVariable Long id) {
+        return ApiResponse.success(
+                "Xác thực CCCD (eKYC) thành công.",
+                streetAgentProfileServicePort.verifyEkyc(id));
+    }
 }

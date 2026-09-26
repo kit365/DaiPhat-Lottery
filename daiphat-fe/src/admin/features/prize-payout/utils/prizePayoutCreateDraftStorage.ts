@@ -12,7 +12,6 @@ export type PrizePayoutCreateDraft = {
     accountHolderName: string;
     confirmationContractUrl: string;
     recipientFullName: string;
-    recipientIdNumber: string;
     recipientIdImageUrl: string;
     recipientIdImageBackUrl: string;
     manualConfirmed: boolean;

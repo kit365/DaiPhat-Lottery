@@ -1,4 +1,4 @@
-import '../data/models/chat_models.dart';
+import '../domain/entities/chat_models.dart';
 
 class ChatWsConstants {
   const ChatWsConstants._();
@@ -12,11 +12,13 @@ class ChatWsConstants {
   static String conversationTopic(int conversationId) =>
       '/topic/chat/conversations/$conversationId';
 
-  static String wsUrl(String baseUrl, String token) {
+  static String wsUrl(String baseUrl) {
     final normalized = baseUrl.endsWith('/')
         ? baseUrl.substring(0, baseUrl.length - 1)
         : baseUrl;
-    return '$normalized/api/v1/ws?token=$token';
+    // Authentication is sent in the STOMP CONNECT headers. Keeping the token
+    // out of the URL prevents it from leaking into proxy and access logs.
+    return '$normalized/api/v1/ws';
   }
 }
 

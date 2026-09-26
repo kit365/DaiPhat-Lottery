@@ -1,8 +1,18 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:daiphat_mobile/src/shared/providers/api_providers.dart';
-import '../../data/fortune_cast_service.dart';
+import '../../domain/repositories/fortune_cast_repository.dart';
+import '../../domain/usecases/fortune_cast_usecases.dart';
 
-final fortuneCastServiceProvider = Provider<FortuneCastService>((ref) {
-  return FortuneCastService(ref.watch(apiClientProvider));
+final fortuneCastRepositoryProvider = Provider<FortuneCastRepository>((ref) {
+  throw UnimplementedError(
+    'fortuneCastRepositoryProvider must be overridden in bootstrap',
+  );
+});
+
+final castFortuneProvider = Provider<CastFortune>((ref) {
+  return CastFortune(ref.watch(fortuneCastRepositoryProvider));
+});
+
+final getTodayFortuneCastProvider = Provider<GetTodayFortuneCast>((ref) {
+  return GetTodayFortuneCast(ref.watch(fortuneCastRepositoryProvider));
 });

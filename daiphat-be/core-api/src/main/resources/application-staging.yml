@@ -36,3 +36,30 @@ logging:
     com.daiphat: INFO
     org.springframework.web: INFO
     org.hibernate.SQL: INFO
+
+daiphat:
+  # Same seed suite as local/prod — enable via env when staging needs full-flow demos.
+  auth:
+    seed:
+      enabled: ${AUTH_SEED_ENABLED:false}
+  lottery:
+    seed:
+      enabled: ${LOTTERY_SEED_ENABLED:false}
+      past-days: ${LOTTERY_SEED_PAST_DAYS:30}
+      tickets-per-batch-past: ${LOTTERY_SEED_TICKETS_PER_BATCH_PAST:36}
+      status-coverage:
+        enabled: ${LOTTERY_SEED_STATUS_COVERAGE_ENABLED:false}
+      win50-payout:
+        enabled: ${LOTTERY_SEED_WIN50_PAYOUT_ENABLED:false}
+      southern-stations:
+        enabled: ${LOTTERY_SEED_SOUTHERN_STATIONS_ENABLED:false}
+        overwrite-existing: ${LOTTERY_SEED_SOUTHERN_STATIONS_OVERWRITE:false}
+  order:
+    seed:
+      enabled: ${ORDER_SEED_ENABLED:false}
+  sample-order:
+    seed:
+      enabled: ${SAMPLE_ORDER_SEED_ENABLED:false}
+  vendor:
+    test-seed:
+      enabled: ${VENDOR_TEST_SEED_ENABLED:false}

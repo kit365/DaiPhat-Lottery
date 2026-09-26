@@ -564,26 +564,19 @@ export const StationEditPage = () => {
                             </Stack>
                         </CollapsibleCard>
 
-                        <CollapsibleCard
-                            title="Mẫu vé OCR"
-                            subheader="Ảnh mẫu vé, template mặc định và gắn vùng trường trên ảnh"
-                            expanded={expandedOcr}
-                            onToggle={toggle(setExpandedOcr)}
-                        >
-                            <Stack p="calc(3 * var(--spacing))" gap="calc(3 * var(--spacing))">
-                                {id ? (
-                                    <StationOcrTemplateSection
-                                        stationId={Number(id)}
-                                        defaultOcrTemplateId={
-                                            (detailRes as { defaultOcrTemplateId?: number | null } | null)
-                                                ?.defaultOcrTemplateId ?? null
-                                        }
-                                    />
-                                ) : (
-                                    <Alert severity="warning">Không xác định được nhà đài.</Alert>
-                                )}
-                            </Stack>
-                        </CollapsibleCard>
+                        {id ? (
+                            <StationOcrTemplateSection
+                                stationId={Number(id)}
+                                defaultOcrTemplateId={
+                                    (detailRes as { defaultOcrTemplateId?: number | null } | null)
+                                        ?.defaultOcrTemplateId ?? null
+                                }
+                                expanded={expandedOcr}
+                                onToggle={toggle(setExpandedOcr)}
+                            />
+                        ) : (
+                            <Alert severity="warning">Không xác định được nhà đài.</Alert>
+                        )}
 
                         <Box gap="calc(3 * var(--spacing))" sx={{ display: "flex", alignItems: "center" }}>
                             <SwitchButton
