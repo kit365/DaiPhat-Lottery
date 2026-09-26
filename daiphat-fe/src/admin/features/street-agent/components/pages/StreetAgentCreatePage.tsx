@@ -70,11 +70,9 @@ const defaultValues: CreateStreetAgentProfileFormValues = {
     firstName: "",
     lastName: "",
     phone: "",
-    cccd: "",
     imageUrl: "",
     cccdFrontImageUrl: "",
     cccdBackImageUrl: "",
-    cccdSelfieImageUrl: "",
     contactAddress: "",
     contactProvince: "",
     contactWard: "",
@@ -88,11 +86,9 @@ const toFormValues = (profile: StreetAgentProfile): CreateStreetAgentProfileForm
     firstName: profile.firstName || "",
     lastName: profile.lastName || "",
     phone: profile.phone || "",
-    cccd: profile.cccd || "",
     imageUrl: profile.imageUrl || "",
     cccdFrontImageUrl: profile.cccdFrontImageUrl || "",
     cccdBackImageUrl: profile.cccdBackImageUrl || "",
-    cccdSelfieImageUrl: profile.cccdSelfieImageUrl || "",
     contactAddress: profile.contactAddress || "",
     contactProvince: profile.contactProvince || "",
     contactWard: profile.contactWard || "",
@@ -232,11 +228,9 @@ export const StreetAgentCreatePage = () => {
             firstName: data.firstName,
             lastName: data.lastName,
             phone: data.phone,
-            cccd: data.cccd,
             imageUrl: data.imageUrl || undefined,
             cccdFrontImageUrl: data.cccdFrontImageUrl || undefined,
             cccdBackImageUrl: data.cccdBackImageUrl || undefined,
-            cccdSelfieImageUrl: data.cccdSelfieImageUrl || undefined,
             contactAddress: data.contactAddress || undefined,
             contactProvince: data.contactProvince || undefined,
             contactWard: data.contactWard || undefined,
@@ -253,8 +247,7 @@ export const StreetAgentCreatePage = () => {
                     return;
                 }
                 let profile = response.data;
-                const hasEkycImages =
-                    !!data.cccdFrontImageUrl && !!data.cccdBackImageUrl && !!data.cccdSelfieImageUrl;
+                const hasEkycImages = !!data.cccdFrontImageUrl && !!data.cccdBackImageUrl;
                 if (hasEkycImages) {
                     try {
                         setIsVerifyingEkyc(true);
@@ -404,6 +397,14 @@ export const StreetAgentCreatePage = () => {
                         ekycFailureReason={profile?.ekycFailureReason}
                         ekycOcrName={profile?.ekycOcrName}
                         ekycOcrIdNumber={profile?.ekycOcrIdNumber}
+                        ekycOcrDob={profile?.ekycOcrDob}
+                        ekycOcrGender={profile?.ekycOcrGender}
+                        ekycOcrNationality={profile?.ekycOcrNationality}
+                        ekycOcrPlaceOfBirth={profile?.ekycOcrPlaceOfBirth}
+                        ekycOcrPlaceOfResidence={profile?.ekycOcrPlaceOfResidence}
+                        ekycOcrIssueDate={profile?.ekycOcrIssueDate}
+                        ekycOcrExpiryDate={profile?.ekycOcrExpiryDate}
+                        profileCccd={profile?.cccd}
                         isVerifyingEkyc={isVerifyingEkyc}
                         depositBalance={0}
                         statusChip="PENDING"

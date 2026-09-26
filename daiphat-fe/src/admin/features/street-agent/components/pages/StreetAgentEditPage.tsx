@@ -43,11 +43,9 @@ const defaultValues: UpdateStreetAgentProfileFormValues = {
     firstName: "",
     lastName: "",
     phone: "",
-    cccd: "",
     imageUrl: "",
     cccdFrontImageUrl: "",
     cccdBackImageUrl: "",
-    cccdSelfieImageUrl: "",
     contactAddress: "",
     contactProvince: "",
     contactWard: "",
@@ -61,11 +59,9 @@ const buildBasePayload = (data: UpdateStreetAgentProfileFormValues) => ({
     firstName: data.firstName,
     lastName: data.lastName,
     phone: data.phone,
-    cccd: data.cccd,
     imageUrl: data.imageUrl || undefined,
     cccdFrontImageUrl: data.cccdFrontImageUrl || undefined,
     cccdBackImageUrl: data.cccdBackImageUrl || undefined,
-    cccdSelfieImageUrl: data.cccdSelfieImageUrl || undefined,
     contactAddress: data.contactAddress || undefined,
     contactProvince: data.contactProvince || undefined,
     contactWard: data.contactWard || undefined,
@@ -79,11 +75,9 @@ const buildPayloadFromProfile = (profile: StreetAgentProfile) => ({
     firstName: profile.firstName,
     lastName: profile.lastName,
     phone: profile.phone,
-    cccd: profile.cccd,
     imageUrl: profile.imageUrl || undefined,
     cccdFrontImageUrl: profile.cccdFrontImageUrl || undefined,
     cccdBackImageUrl: profile.cccdBackImageUrl || undefined,
-    cccdSelfieImageUrl: profile.cccdSelfieImageUrl || undefined,
     contactAddress: profile.contactAddress || undefined,
     contactProvince: profile.contactProvince || undefined,
     contactWard: profile.contactWard || undefined,
@@ -139,11 +133,9 @@ export const StreetAgentEditPage = () => {
                 firstName: profile.firstName || "",
                 lastName: profile.lastName || "",
                 phone: profile.phone || "",
-                cccd: profile.cccd || "",
                 imageUrl: profile.imageUrl || "",
                 cccdFrontImageUrl: profile.cccdFrontImageUrl || "",
                 cccdBackImageUrl: profile.cccdBackImageUrl || "",
-                cccdSelfieImageUrl: profile.cccdSelfieImageUrl || "",
                 contactAddress: profile.contactAddress || "",
                 contactProvince: profile.contactProvince || "",
                 contactWard: profile.contactWard || "",
@@ -440,6 +432,14 @@ export const StreetAgentEditPage = () => {
                     ekycFailureReason={profile?.ekycFailureReason}
                     ekycOcrName={profile?.ekycOcrName}
                     ekycOcrIdNumber={profile?.ekycOcrIdNumber}
+                    ekycOcrDob={profile?.ekycOcrDob}
+                    ekycOcrGender={profile?.ekycOcrGender}
+                    ekycOcrNationality={profile?.ekycOcrNationality}
+                    ekycOcrPlaceOfBirth={profile?.ekycOcrPlaceOfBirth}
+                    ekycOcrPlaceOfResidence={profile?.ekycOcrPlaceOfResidence}
+                    ekycOcrIssueDate={profile?.ekycOcrIssueDate}
+                    ekycOcrExpiryDate={profile?.ekycOcrExpiryDate}
+                    profileCccd={profile?.cccd}
                     onVerifyEkyc={handleVerifyEkyc}
                     isVerifyingEkyc={isVerifyingEkyc || isPending}
                     statusChip={profile?.status}

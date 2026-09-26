@@ -59,6 +59,14 @@ interface StreetAgentProfileFormProps {
     ekycFailureReason?: string | null;
     ekycOcrName?: string | null;
     ekycOcrIdNumber?: string | null;
+    ekycOcrDob?: string | null;
+    ekycOcrGender?: string | null;
+    ekycOcrNationality?: string | null;
+    ekycOcrPlaceOfBirth?: string | null;
+    ekycOcrPlaceOfResidence?: string | null;
+    ekycOcrIssueDate?: string | null;
+    ekycOcrExpiryDate?: string | null;
+    profileCccd?: string | null;
     onVerifyEkyc?: () => void;
     isVerifyingEkyc?: boolean;
     contractCode?: string | null;
@@ -183,6 +191,14 @@ export const StreetAgentProfileForm = ({
     ekycFailureReason,
     ekycOcrName,
     ekycOcrIdNumber,
+    ekycOcrDob,
+    ekycOcrGender,
+    ekycOcrNationality,
+    ekycOcrPlaceOfBirth,
+    ekycOcrPlaceOfResidence,
+    ekycOcrIssueDate,
+    ekycOcrExpiryDate,
+    profileCccd,
     onVerifyEkyc,
     isVerifyingEkyc = false,
     contractCode,
@@ -469,13 +485,6 @@ export const StreetAgentProfileForm = ({
                                     <TextField {...field} required label="Số điện thoại" type="tel" autoComplete="tel" slotProps={{ htmlInput: { inputMode: "numeric" } }} fullWidth error={!!fieldState.error} helperText={fieldState.error?.message} sx={fieldSx} />
                                 )}
                             />
-                            <Controller
-                                name="cccd"
-                                control={control}
-                                render={({ field, fieldState }) => (
-                                    <TextField {...field} required label="Số CCCD" type="text" slotProps={{ htmlInput: { inputMode: "numeric" } }} fullWidth error={!!fieldState.error} helperText={fieldState.error?.message} sx={fieldSx} />
-                                )}
-                            />
                         </Box>
 
                         <Box sx={{ mt: 3, pt: 3, borderTop: "1px dashed var(--palette-divider)" }}>
@@ -493,7 +502,7 @@ export const StreetAgentProfileForm = ({
                                         Xác thực CCCD (eKYC)
                                     </Typography>
                                     <Typography variant="caption" sx={{ color: "var(--palette-text-secondary)" }}>
-                                        Tải ảnh CCCD mặt trước, mặt sau và selfie. Sau khi lưu hồ sơ, bấm xác thực.
+                                        Tải ảnh CCCD mặt trước và mặt sau. Sau khi lưu hồ sơ, hệ thống đọc thông tin CCCD bằng OCR (số CCCD được lấy tự động, không nhập tay).
                                     </Typography>
                                 </Box>
                                 {ekycStatus ? (
@@ -529,12 +538,27 @@ export const StreetAgentProfileForm = ({
                                     {ekycFailureReason}
                                 </Alert>
                             ) : null}
-                            {(ekycOcrName || ekycOcrIdNumber) && ekycStatus === "VERIFIED" ? (
+                            {ekycStatus === "VERIFIED" && (ekycOcrName || profileCccd || ekycOcrIdNumber) ? (
                                 <Alert severity="success" sx={{ mb: 1.5, borderRadius: "8px" }}>
-                                    OCR: {ekycOcrName || "—"} · {ekycOcrIdNumber || "—"}
+                                    <Typography variant="body2" component="div">
+                                        <strong>{ekycOcrName || "—"}</strong> · Số CCCD: {profileCccd || ekycOcrIdNumber || "—"}
+                                    </Typography>
+                                    <Typography variant="caption" component="div" sx={{ mt: 0.5, display: "block" }}>
+                                        {[
+                                            ekycOcrDob && `Ngày sinh: ${ekycOcrDob}`,
+                                            ekycOcrGender && `Giới tính: ${ekycOcrGender}`,
+                                            ekycOcrNationality && `Quốc tịch: ${ekycOcrNationality}`,
+                                            ekycOcrPlaceOfBirth && `Quê quán: ${ekycOcrPlaceOfBirth}`,
+                                            ekycOcrPlaceOfResidence && `Thường trú: ${ekycOcrPlaceOfResidence}`,
+                                            ekycOcrIssueDate && `Ngày cấp: ${ekycOcrIssueDate}`,
+                                            ekycOcrExpiryDate && `Hết hạn: ${ekycOcrExpiryDate}`,
+                                        ]
+                                            .filter(Boolean)
+                                            .join(" · ")}
+                                    </Typography>
                                 </Alert>
                             ) : null}
-                            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" }, gap: 2 }}>
+                            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" }, gap: 2 }}>
                                 <Controller
                                     name="cccdFrontImageUrl"
                                     control={control}
@@ -559,20 +583,6 @@ export const StreetAgentProfileForm = ({
                                             customUpload={uploadStreetAgentEkycImage}
                                             autoUpload
                                             label="CCCD mặt sau"
-                                            compact
-                                        />
-                                    )}
-                                />
-                                <Controller
-                                    name="cccdSelfieImageUrl"
-                                    control={control}
-                                    render={({ field }) => (
-                                        <UploadSingleFile
-                                            value={field.value || ""}
-                                            onChange={(url) => field.onChange(url || "")}
-                                            customUpload={uploadStreetAgentEkycImage}
-                                            autoUpload
-                                            label="Ảnh selfie"
                                             compact
                                         />
                                     )}

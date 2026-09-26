@@ -206,13 +206,10 @@ export const PrizePayoutCreatePage = () => {
     const [transferEvidenceUrl, setTransferEvidenceUrl] = useState('');
     const [confirmationContractUrl, setConfirmationContractUrl] = useState('');
     const [recipientFullName, setRecipientFullName] = useState('');
-    const [recipientIdNumber, setRecipientIdNumber] = useState('');
     const [recipientIdImageUrl, setRecipientIdImageUrl] = useState('');
     const [recipientIdImageBackUrl, setRecipientIdImageBackUrl] = useState('');
-    const [recipientSelfieUrl, setRecipientSelfieUrl] = useState('');
     const [uploadingIdFront, setUploadingIdFront] = useState(false);
     const [uploadingIdBack, setUploadingIdBack] = useState(false);
-    const [uploadingSelfie, setUploadingSelfie] = useState(false);
     const [uploadingTransferEvidence, setUploadingTransferEvidence] = useState(false);
     const [uploadingContract, setUploadingContract] = useState(false);
     const [printingContract, setPrintingContract] = useState(false);
@@ -249,8 +246,10 @@ export const PrizePayoutCreatePage = () => {
     const totalCommission = selectedItems.reduce((sum, item) => sum + (Number(item.commissionAmount) || 0), 0);
     const totalNet = selectedItems.reduce((sum, item) => sum + (Number(item.netAmount) || 0), 0);
 
-    // Counter payout captures CCCD both sides + selfie for eKYC.
+    // Counter payout captures CCCD front + back for OCR eKYC (no selfie / no manual CCCD).
     const needsIdImage = selectedItems.length > 0;
+    const cccdImagesReady =
+        Boolean(recipientIdImageUrl.trim()) && Boolean(recipientIdImageBackUrl.trim());
 
     const needsManualConfirm = selectedItems.some((item) => item.requiresManualOwnershipConfirm);
     const hasMatchProof = selectedItems.every(
@@ -258,42 +257,27 @@ export const PrizePayoutCreatePage = () => {
     );
     const primary = selectedItems[0];
 
-    const isRecipientIdValid = useMemo(
-        () => /^\d{9,12}$/.test(recipientIdNumber.trim()),
-        [recipientIdNumber]
-    );
-
-    const recipientIdError = useMemo(() => {
-        const raw = recipientIdNumber.trim();
-        if (!raw) return '';
-        if (!/^\d+$/.test(raw)) return 'Số CCCD/CMND chỉ được chứa chữ số';
-        if (raw.length < 9 || raw.length > 12) return 'Số CCCD/CMND phải đủ 9 đến 12 chữ số';
-        return '';
-    }, [recipientIdNumber]);
-
     const identityDocsReady = useMemo(() => {
-        if (!recipientFullName.trim() || !isRecipientIdValid) return false;
-        if (needsIdImage && (!recipientIdImageUrl.trim() || !recipientIdImageBackUrl.trim() || !recipientSelfieUrl.trim())) return false;
+        if (!recipientFullName.trim()) return false;
+        if (needsIdImage && !cccdImagesReady) return false;
         if (!confirmationContractUrl.trim()) return false;
         if (needsManualConfirm && !manualConfirmed) return false;
         return true;
     }, [
         recipientFullName,
-        isRecipientIdValid,
         needsIdImage,
-        recipientIdImageUrl,
-        recipientIdImageBackUrl,
-        recipientSelfieUrl,
+        cccdImagesReady,
         confirmationContractUrl,
         needsManualConfirm,
         manualConfirmed,
     ]);
 
-    const canPrintContract = selectedItems.length > 0 && Boolean(recipientFullName.trim()) && isRecipientIdValid;
+    const canPrintContract =
+        selectedItems.length > 0 && Boolean(recipientFullName.trim()) && cccdImagesReady;
 
     const handlePrintContract = async () => {
         if (!canPrintContract) {
-            toast.error('Nhập họ tên và số CCCD người nhận trước khi in hợp đồng.');
+            toast.error('Nhập họ tên và tải đủ ảnh CCCD trước khi in hợp đồng (số CCCD lấy từ OCR).');
             return;
         }
         try {
@@ -301,7 +285,8 @@ export const PrizePayoutCreatePage = () => {
             await prizePayoutAdminApi.openConfirmationContractPreview({
                 orderDetailIds: selectedItems.map((item) => item.orderDetailId),
                 recipientFullName: recipientFullName.trim(),
-                recipientIdNumber: recipientIdNumber.trim(),
+                recipientIdImageUrl: recipientIdImageUrl.trim(),
+                recipientIdImageBackUrl: recipientIdImageBackUrl.trim(),
             });
         } catch (error) {
             toast.error(
@@ -429,10 +414,8 @@ export const PrizePayoutCreatePage = () => {
             transferEvidenceUrl,
             confirmationContractUrl,
             recipientFullName,
-            recipientIdNumber,
             recipientIdImageUrl,
             recipientIdImageBackUrl,
-            recipientSelfieUrl,
             manualConfirmed,
             paymentMethod,
             cashAmount,
@@ -449,10 +432,8 @@ export const PrizePayoutCreatePage = () => {
         transferEvidenceUrl,
         confirmationContractUrl,
         recipientFullName,
-        recipientIdNumber,
         recipientIdImageUrl,
         recipientIdImageBackUrl,
-        recipientSelfieUrl,
         manualConfirmed,
         paymentMethod,
         cashAmount,
@@ -462,10 +443,8 @@ export const PrizePayoutCreatePage = () => {
     const resetFormSideEffects = () => {
         setManualConfirmed(false);
         setRecipientFullName('');
-        setRecipientIdNumber('');
         setRecipientIdImageUrl('');
         setRecipientIdImageBackUrl('');
-        setRecipientSelfieUrl('');
         setConfirmationContractUrl('');
         setSelectedBank(null);
         setBankAccountNumber('');
@@ -593,16 +572,12 @@ export const PrizePayoutCreatePage = () => {
             toast.error('Cần đánh dấu xác nhận đã đối chiếu giấy tờ + vé gốc');
             return false;
         }
-        if (!recipientFullName.trim() || !recipientIdNumber.trim()) {
-            toast.error('Vui lòng nhập họ tên người nhận và số CCCD');
+        if (!recipientFullName.trim()) {
+            toast.error('Vui lòng nhập họ tên người nhận');
             return false;
         }
-        if (!/^\d{9,12}$/.test(recipientIdNumber.trim())) {
-            toast.error('Số CCCD/CMND phải có từ 9 đến 12 chữ số');
-            return false;
-        }
-        if (needsIdImage && (!recipientIdImageUrl.trim() || !recipientIdImageBackUrl.trim() || !recipientSelfieUrl.trim())) {
-            toast.error('Cần ảnh CCCD mặt trước, mặt sau và ảnh selfie');
+        if (needsIdImage && (!recipientIdImageUrl.trim() || !recipientIdImageBackUrl.trim())) {
+            toast.error('Cần ảnh CCCD mặt trước và mặt sau (số CCCD lấy từ OCR)');
             return false;
         }
         if (!confirmationContractUrl.trim()) {
@@ -655,10 +630,8 @@ export const PrizePayoutCreatePage = () => {
                     ? accountHolderName.trim().toUpperCase()
                     : undefined,
                 recipientFullName: recipientFullName.trim(),
-                recipientIdNumber: recipientIdNumber.trim(),
                 recipientIdImageUrl: recipientIdImageUrl.trim() || undefined,
                 recipientIdImageBackUrl: recipientIdImageBackUrl.trim() || undefined,
-                recipientSelfieUrl: recipientSelfieUrl.trim() || undefined,
                 paymentMethod: normalizedMethod,
                 cashAmount: normalizedMethod === 'COMBINED' ? parsedCashAmount : undefined,
                 manualOwnershipConfirmed: manualConfirmed || needsManualConfirm,
@@ -693,7 +666,7 @@ export const PrizePayoutCreatePage = () => {
 
     const lookupReady = !!selectedSuggestion || !!searchInput.trim();
 
-    const anyUploading = uploadingTransferEvidence || uploadingIdFront || uploadingIdBack || uploadingSelfie || uploadingContract;
+    const anyUploading = uploadingTransferEvidence || uploadingIdFront || uploadingIdBack || uploadingContract;
 
     const submitDisabled =
         selectedItems.length === 0
@@ -719,9 +692,9 @@ export const PrizePayoutCreatePage = () => {
         if (!hasMatchProof) return 'Thiếu đối chiếu số trên vé / KQXS.';
         if (hasLockedRedemption) return 'Vé đã quá hạn lĩnh nhà đài — không thể trả thưởng.';
         if (!identityDocsReady) {
-            if (!recipientFullName.trim() || !isRecipientIdValid) return 'Nhập họ tên và CCCD (9–12 số).';
-            if (needsIdImage && (!recipientIdImageUrl.trim() || !recipientIdImageBackUrl.trim() || !recipientSelfieUrl.trim())) {
-                return 'Tải đủ ảnh CCCD mặt trước, mặt sau và selfie.';
+            if (!recipientFullName.trim()) return 'Nhập họ tên người nhận.';
+            if (needsIdImage && !cccdImagesReady) {
+                return 'Tải đủ ảnh CCCD mặt trước và mặt sau (OCR lấy số CCCD).';
             }
             if (!confirmationContractUrl.trim()) return 'Tải hợp đồng xác nhận trả thưởng.';
             if (needsManualConfirm && !manualConfirmed) return 'Xác nhận đã đối chiếu giấy tờ & vé gốc.';
@@ -1027,7 +1000,7 @@ export const PrizePayoutCreatePage = () => {
             {selectedItems.length > 0 && (
                 <SectionCard title="3. Định danh người nhận thưởng" icon="solar:user-id-bold-duotone">
                                 <Alert severity="info" sx={{ mb: 2, borderRadius: '10px' }}>
-                                    Cần họ tên, CCCD, ảnh mặt trước + mặt sau và selfie (eKYC).
+                                    Cần họ tên và ảnh CCCD mặt trước / mặt sau. Số CCCD được OCR tự động (không nhập tay, không selfie).
                                 </Alert>
                                 <Stack spacing={2}>
                                     <TextField
@@ -1037,23 +1010,13 @@ export const PrizePayoutCreatePage = () => {
                                         fullWidth
                                         size="small"
                                     />
-                                    <TextField
-                                        label="Số CCCD / CMND *"
-                                        value={recipientIdNumber}
-                                        onChange={(e) => setRecipientIdNumber(e.target.value.replace(/\D/g, '').slice(0, 12))}
-                                        fullWidth
-                                        size="small"
-                                        error={!!recipientIdError}
-                                        inputProps={{ inputMode: 'numeric', pattern: '[0-9]*', maxLength: 12 }}
-                                        helperText={recipientIdError || 'Chỉ nhập số (9–12 chữ số)'}
-                                    />
 
                                     <Stack spacing={1.5}>
                                         <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary' }}>
-                                            Ảnh CCCD & selfie * (eKYC)
+                                            Ảnh CCCD * (OCR eKYC)
                                         </Typography>
                                         <Grid container spacing={1.5}>
-                                            <Grid size={{ xs: 12, sm: 4 }}>
+                                            <Grid size={{ xs: 12, sm: 6 }}>
                                                 <UploadSingleFile
                                                     value={recipientIdImageUrl}
                                                     onChange={setRecipientIdImageUrl}
@@ -1071,7 +1034,7 @@ export const PrizePayoutCreatePage = () => {
                                                     </Box>
                                                 )}
                                             </Grid>
-                                            <Grid size={{ xs: 12, sm: 4 }}>
+                                            <Grid size={{ xs: 12, sm: 6 }}>
                                                 <UploadSingleFile
                                                     value={recipientIdImageBackUrl}
                                                     onChange={setRecipientIdImageBackUrl}
@@ -1086,24 +1049,6 @@ export const PrizePayoutCreatePage = () => {
                                                 {recipientIdImageBackUrl && (
                                                     <Box sx={{ mt: 1, maxHeight: 150, overflow: 'hidden', borderRadius: 1 }}>
                                                         <TransferEvidencePreview imageUrl={recipientIdImageBackUrl} title="Mặt sau" showCaption />
-                                                    </Box>
-                                                )}
-                                            </Grid>
-                                            <Grid size={{ xs: 12, sm: 4 }}>
-                                                <UploadSingleFile
-                                                    value={recipientSelfieUrl}
-                                                    onChange={setRecipientSelfieUrl}
-                                                    customUpload={prizePayoutAdminApi.uploadRecipientIdImage}
-                                                    autoUpload
-                                                    onUploadingChange={setUploadingSelfie}
-                                                    disabled={uploadingSelfie || createMutation.isPending}
-                                                    label="Ảnh selfie"
-                                                    required
-                                                    compact
-                                                />
-                                                {recipientSelfieUrl && (
-                                                    <Box sx={{ mt: 1, maxHeight: 150, overflow: 'hidden', borderRadius: 1 }}>
-                                                        <TransferEvidencePreview imageUrl={recipientSelfieUrl} title="Selfie" showCaption />
                                                     </Box>
                                                 )}
                                             </Grid>
@@ -1154,7 +1099,7 @@ export const PrizePayoutCreatePage = () => {
                                     </Button>
                                     {!canPrintContract && (
                                         <Typography variant="caption" color="text.secondary">
-                                            Nhập họ tên và số CCCD người nhận để mở in hợp đồng.
+                                            Nhập họ tên và tải đủ ảnh CCCD để in hợp đồng (số CCCD lấy từ OCR).
                                         </Typography>
                                     )}
                                     <UploadSingleFile
@@ -1565,7 +1510,7 @@ export const PrizePayoutCreatePage = () => {
                                 <strong>Người nhận:</strong> {recipientFullName.trim() || '-'}
                             </Typography>
                             <Typography variant="body2">
-                                <strong>CCCD/CMND:</strong> {recipientIdNumber.trim() || '-'}
+                                <strong>CCCD/CMND:</strong> sẽ lấy từ OCR khi hoàn tất
                             </Typography>
                             <Typography variant="body2">
                                 <strong>Số vé:</strong> {selectedItems.length}
