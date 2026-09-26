@@ -227,6 +227,23 @@ class _HomeContentState extends ConsumerState<_HomeContent>
     return buf.toString().replaceAll(RegExp(r'\s+'), ' ');
   }
 
+  String normalizeProvinceName(String stationName) {
+    return _normalizeProvinceLabel(stationName);
+  }
+
+  String weekdayLabel(DateTime date) {
+    const weekdays = [
+      'Thứ 2',
+      'Thứ 3',
+      'Thứ 4',
+      'Thứ 5',
+      'Thứ 6',
+      'Thứ 7',
+      'Chủ nhật',
+    ];
+    return weekdays[date.weekday - 1];
+  }
+
   void _applyPendingStationLookup(HomeLotteryData data) {
     final hasPending =
         (_pendingStationName != null && _pendingStationName!.isNotEmpty) ||
