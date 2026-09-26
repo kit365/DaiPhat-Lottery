@@ -17,6 +17,11 @@ class Settings(BaseSettings):
 
     # OCR: ảnh điện thoại 12MP làm Paddle chậm/treo trên CPU — giới hạn cạnh dài trước inference; 0 = tắt resize
     ocr_max_side: int = 1920
+    # Text detection (DB). Paddle defaults (960 / 0.6 / 1.5) drop small italic CCCD lines such as
+    # "Nơi thường trú", "Có giá trị đến" and the back-side "Ngày, tháng, năm" issue date.
+    ocr_det_limit_side_len: int = 1600
+    ocr_det_db_box_thresh: float = 0.3
+    ocr_det_db_unclip_ratio: float = 2.0
 
     # CORS: FE dev (Vite) gọi trực tiếp — danh sách origin cách nhau bởi dấu phẩy
     cors_origins: str = (

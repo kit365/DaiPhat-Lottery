@@ -10,6 +10,7 @@ import re
 from typing import Any, Optional
 
 # Cấu hình môi trường
+os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 
@@ -18,7 +19,7 @@ import numpy as np
 from paddleocr import PaddleOCR
 
 from app.core.config import settings
-from app.utils.id_parser import parse_id_fields
+from app.utils.id_parser import OcrBox, detect_card_layout, parse_id_fields
 from app.utils.image_decode import decode_bgr
 
 _log = logging.getLogger(__name__)
@@ -37,6 +38,9 @@ def _get_ocr() -> PaddleOCR:
                 lang="vi",
                 show_log=False,
                 enable_mkldnn=False,
+                det_limit_side_len=settings.ocr_det_limit_side_len,
+                det_db_box_thresh=settings.ocr_det_db_box_thresh,
+                det_db_unclip_ratio=settings.ocr_det_db_unclip_ratio,
             )
             _log.info("OCR trace: Engine ready in %.2fs", time.perf_counter() - t_ctor)
         return _ocr
@@ -98,11 +102,17 @@ def run_ocr(image_bytes: bytes) -> dict[str, Any]:
     result = ocr.ocr(img, cls=True)
 
     lines: list[tuple[str, float]] = []
+    boxes: list[OcrBox] = []
     if result and result[0]:
         for line in result[0]:
-            lines.append((str(line[1][0]), float(line[1][1])))
+            text, conf = str(line[1][0]), float(line[1][1])
+            lines.append((text, conf))
+            xs = [float(p[0]) for p in line[0]]
+            ys = [float(p[1]) for p in line[0]]
+            boxes.append(OcrBox(text=text, conf=conf, x1=min(xs), y1=min(ys), x2=max(xs), y2=max(ys)))
 
     full_text = "\n".join(t for t, _ in lines)
+    _log.debug("OCR raw lines: %s", [(b.text, round(b.conf, 3), int(b.x1), int(b.y1)) for b in boxes])
     
     # --- IF/ELSE CONFIRM CCCD ---
     if not is_valid_cccd(full_text):
@@ -115,12 +125,13 @@ def run_ocr(image_bytes: bytes) -> dict[str, Any]:
         }
 
     # Nếu OK thì tiếp tục parse
-    fields = parse_id_fields(full_text, lines)
+    fields = parse_id_fields(full_text, lines, boxes)
     avg_conf = sum(c for _, c in lines) / len(lines) if lines else 0.0
 
     return {
         "is_valid": True,
         "full_text": full_text,
         "fields": fields,
+        "card_layout": detect_card_layout(full_text),
         "confidence_avg": round(avg_conf, 4),
     }
