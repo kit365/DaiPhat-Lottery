@@ -39,10 +39,11 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -59,12 +60,9 @@ import java.util.Set;
 public class StatusCoverageImportBatchSeedInitializer implements ApplicationRunner {
 
     private static final String SYSTEM_ACTOR = "status-coverage-seed";
-    private static final String SUPPLIER_CODE = "MINH_CHINH";
-    private static final String HEADER_CODE_PREFIX = "PN-STATUS-";
-    private static final String LINE_CODE_PREFIX = "LO-STATUS-";
+    private static final String SUPPLIER_CODE = SharedSeedConstants.SUPPLIER_MINH_CHINH_CODE;
     private static final String SERIAL_PREFIX = "IBSTATUS-";
     private static final BigDecimal DEFAULT_IMPORT_COST = BigDecimal.valueOf(10_000);
-    private static final DateTimeFormatter BASIC_DATE = DateTimeFormatter.BASIC_ISO_DATE;
     private static final int SERIALS_PER_TICKET = 20;
     private static final LocalTime DEFAULT_DRAW_TIME = LocalTime.of(16, 15);
 
@@ -120,10 +118,14 @@ public class StatusCoverageImportBatchSeedInitializer implements ApplicationRunn
             return;
         }
 
-        String dateToken = drawDate.format(BASIC_DATE);
-        String stationCode = ImportBatchCodeHelper.toStationCode(station.getName());
-        String headerCode = HEADER_CODE_PREFIX + dateToken + "-NEW";
-        String lineCode = LINE_CODE_PREFIX + dateToken + "-" + stationCode + "-NEW";
+        String dateToken = SeedDocumentCodes.dateToken(drawDate);
+        String headerCode = SeedDocumentCodes.importHeader(drawDate, SeedDocumentCodes.LANE_IMPORT_STATUS);
+        String lineCode = SeedDocumentCodes.importLine(
+                drawDate,
+                station.getName(),
+                ImportBatchType.NEW,
+                SeedDocumentCodes.LANE_IMPORT_LINE_STATUS
+        );
 
         ImportBatchEntity batch = ImportBatchEntity.builder()
                         .batchCode(headerCode)
@@ -146,7 +148,7 @@ public class StatusCoverageImportBatchSeedInitializer implements ApplicationRunn
                         .totalImportedCostValue(BigDecimal.ZERO)
                         .submittedAt(now.minusHours(1))
                         .completedAt(null)
-                        .note("Status-coverage NEW import batch for draw " + drawDate)
+                        .note(SeedDocumentCodes.importNote("STATUS", drawDate))
                         .createdAt(now)
                         .updatedAt(now)
                         .createdBy(SYSTEM_ACTOR)
@@ -333,7 +335,7 @@ public class StatusCoverageImportBatchSeedInitializer implements ApplicationRunn
     }
 
     private LotteryStationEntity findFirstActiveStation() {
-        return lotteryStationRepository.findAll().stream()
+        return SouthernStationSeedSupport.filterCanonical(lotteryStationRepository.findAll()).stream()
                 .filter(station -> station.getDeletedAt() == null)
                 .filter(LotteryStationEntity::isActive)
                 .filter(station -> station.getDrawDays() != null && !station.getDrawDays().isEmpty())
@@ -372,8 +374,20 @@ public class StatusCoverageImportBatchSeedInitializer implements ApplicationRunn
         }
         lotteryTicketRepository.flush();
 
-        List<ImportBatchEntity> seedBatches =
-                importBatchRepository.findByBatchCodeStartingWithAndDeletedAtIsNull(HEADER_CODE_PREFIX);
+        Map<Long, ImportBatchEntity> seedBatchesById = new HashMap<>();
+        for (ImportBatchEntity batch : importBatchRepository
+                .findByNoteStartingWithAndDeletedAtIsNull(SeedDocumentCodes.IMPORT_NOTE_PREFIX + "STATUS")) {
+            if (batch.getId() != null) {
+                seedBatchesById.put(batch.getId(), batch);
+            }
+        }
+        for (ImportBatchEntity batch : importBatchRepository
+                .findByBatchCodeStartingWithAndDeletedAtIsNull("PN-STATUS-")) {
+            if (batch.getId() != null) {
+                seedBatchesById.putIfAbsent(batch.getId(), batch);
+            }
+        }
+        List<ImportBatchEntity> seedBatches = new ArrayList<>(seedBatchesById.values());
         if (!seedBatches.isEmpty()) {
             importBatchRepository.deleteAll(seedBatches);
             importBatchRepository.flush();
@@ -395,26 +409,5 @@ public class StatusCoverageImportBatchSeedInitializer implements ApplicationRunn
         }
         List<UserEntity> admins = userRepository.findAllByRole_CodeIn(List.of(RoleConstants.ADMIN));
         return admins.isEmpty() ? null : admins.getFirst();
-    }
-
-    private static final class ImportBatchCodeHelper {
-        private ImportBatchCodeHelper() {
-        }
-
-        static String toStationCode(String stationName) {
-            if (stationName == null || stationName.isBlank()) {
-                return "STATION";
-            }
-            String normalized = java.text.Normalizer.normalize(stationName.trim(), java.text.Normalizer.Form.NFD)
-                    .replaceAll("\\p{M}+", "")
-                    .replace('đ', 'd')
-                    .replace('Đ', 'D')
-                    .replaceAll("[^A-Za-z0-9]+", "")
-                    .toUpperCase(java.util.Locale.ROOT);
-            if (normalized.isBlank()) {
-                return "STATION";
-            }
-            return normalized.length() > 16 ? normalized.substring(0, 16) : normalized;
-        }
     }
 }

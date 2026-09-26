@@ -131,7 +131,7 @@ class ReturnBatchAutoCancelServiceTest {
     @DisplayName("skips seed return batches so settlement QA inventory stays inspectable")
     void cancelIfPastCutoff_skipsSeedReturnNotes() {
         ReturnBatchModel batch = openBatch(14L, ReturnBatchStatus.PENDING_INSPECTION);
-        batch.setNote("SEED-RETURN-SETTLE-DOI_SOAT_QA-" + DRAW_DATE);
+        batch.setNote("SEED-RETURN-MINH_NGOC-" + DRAW_DATE);
 
         boolean cancelled = service.cancelIfPastCutoff(batch);
 

@@ -76,7 +76,8 @@ GoRouter createAppRouter({
               'orderCode': queryParams['orderCode']!,
             if (queryParams.containsKey('internalCode'))
               'internalCode': queryParams['internalCode']!,
-            if (queryParams.containsKey('orderId')) 'orderId': queryParams['orderId']!,
+            if (queryParams.containsKey('orderId'))
+              'orderId': queryParams['orderId']!,
             if (queryParams.containsKey('status'))
               'status': queryParams['status']!,
             if (queryParams.containsKey('cancel'))
@@ -97,7 +98,8 @@ GoRouter createAppRouter({
               'orderCode': queryParams['orderCode']!,
             if (queryParams.containsKey('internalCode'))
               'internalCode': queryParams['internalCode']!,
-            if (queryParams.containsKey('orderId')) 'orderId': queryParams['orderId']!,
+            if (queryParams.containsKey('orderId'))
+              'orderId': queryParams['orderId']!,
             if (queryParams.containsKey('status'))
               'status': queryParams['status']!,
             if (queryParams.containsKey('cancel'))
@@ -107,7 +109,8 @@ GoRouter createAppRouter({
       }
 
       final path = state.uri.path;
-      final isProtectedPath = path == AppRoute.cart.path ||
+      final isProtectedPath =
+          path == AppRoute.cart.path ||
           path == AppRoute.checkout.path ||
           path == AppRoute.paymentWebView.path ||
           path == AppRoute.profile.path ||
@@ -154,18 +157,6 @@ GoRouter createAppRouter({
           StatefulShellBranch(
             routes: [
               _route(
-                AppRoute.checkTicket,
-                loginViewModel,
-                registerViewModel,
-                forgotPasswordViewModel,
-                profileViewModel,
-                notificationViewModel,
-              ),
-            ],
-          ),
-          StatefulShellBranch(
-            routes: [
-              _route(
                 AppRoute.home,
                 loginViewModel,
                 registerViewModel,
@@ -182,10 +173,20 @@ GoRouter createAppRouter({
                 name: AppRoute.utilitiesTwo.name,
                 builder: (context, state) => UtilitiesTwoView(
                   isAuthenticated: loginViewModel.isAuthenticated,
-                  onOpenNotifications: () =>
-                      context.push(AppRoute.notifications.path),
                   onOpenBlog: () => context.push(AppRoute.blog.path),
                 ),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              _route(
+                AppRoute.notifications,
+                loginViewModel,
+                registerViewModel,
+                forgotPasswordViewModel,
+                profileViewModel,
+                notificationViewModel,
               ),
             ],
           ),
@@ -230,6 +231,14 @@ GoRouter createAppRouter({
       ),
       _route(
         AppRoute.forgotPassword,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
+      _route(
+        AppRoute.checkTicket,
         loginViewModel,
         registerViewModel,
         forgotPasswordViewModel,
@@ -390,14 +399,6 @@ GoRouter createAppRouter({
       ),
       _route(
         AppRoute.bankAccounts,
-        loginViewModel,
-        registerViewModel,
-        forgotPasswordViewModel,
-        profileViewModel,
-        notificationViewModel,
-      ),
-      _route(
-        AppRoute.notifications,
         loginViewModel,
         registerViewModel,
         forgotPasswordViewModel,
@@ -571,7 +572,10 @@ Widget _buildRoute(
         orderId: orderId,
       );
     case AppRoute.notifications:
-      return NotificationView(viewModel: notificationViewModel);
+      return NotificationView(
+        viewModel: notificationViewModel,
+        showBackButton: false,
+      );
     case AppRoute.chat:
       return ChatScreen(
         isAuthenticated: loginViewModel.isAuthenticated,
@@ -631,13 +635,11 @@ Widget _buildRoute(
     case AppRoute.utilities:
       return UtilitiesTwoView(
         isAuthenticated: loginViewModel.isAuthenticated,
-        onOpenNotifications: () => context.push(AppRoute.notifications.path),
         onOpenBlog: () => context.push(AppRoute.blog.path),
       );
     case AppRoute.utilitiesTwo:
       return UtilitiesTwoView(
         isAuthenticated: loginViewModel.isAuthenticated,
-        onOpenNotifications: () => context.push(AppRoute.notifications.path),
         onOpenBlog: () => context.push(AppRoute.blog.path),
       );
   }

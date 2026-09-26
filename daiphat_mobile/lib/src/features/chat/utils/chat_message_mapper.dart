@@ -23,17 +23,9 @@ class QuickReplyChip {
 
 List<QuickReplyChip> buildHubActionChips() => const [
   QuickReplyChip(
-    id: 'hub-schedule',
-    label: 'Xem lịch xổ',
-    action: QuickReplyAction.send,
-    message: 'SCHEDULE_SHOW:goal=SCHEDULE:region=MIEN_NAM:scope=all',
-    primary: true,
-  ),
-  QuickReplyChip(
-    id: 'hub-results',
-    label: 'Kết quả',
-    action: QuickReplyAction.send,
-    message: 'SCHEDULE_SET_GOAL:RESULT',
+    id: 'hub-staff',
+    label: 'Gặp nhân viên',
+    action: QuickReplyAction.staff,
     primary: true,
   ),
   QuickReplyChip(
@@ -41,6 +33,7 @@ List<QuickReplyChip> buildHubActionChips() => const [
     label: 'Gợi ý vé',
     action: QuickReplyAction.send,
     message: suggestTicketsMessage,
+    primary: true,
   ),
   QuickReplyChip(
     id: 'hub-search',
@@ -49,31 +42,38 @@ List<QuickReplyChip> buildHubActionChips() => const [
     message: searchSuffixMessage,
   ),
   QuickReplyChip(
-    id: 'hub-staff',
-    label: 'Gặp nhân viên',
-    action: QuickReplyAction.staff,
+    id: 'hub-results',
+    label: 'Kết quả',
+    action: QuickReplyAction.send,
+    message: 'SCHEDULE_SET_GOAL:RESULT',
   ),
 ];
 
 List<QuickReplyChip> buildWelcomeQuickReplies() => const [
   QuickReplyChip(
-    id: 'welcome-schedule',
-    label: 'Xem lịch xổ',
-    action: QuickReplyAction.send,
-    message: 'SCHEDULE_SHOW:goal=SCHEDULE:region=MIEN_NAM:scope=all',
+    id: 'welcome-staff',
+    label: 'Gặp nhân viên',
+    action: QuickReplyAction.staff,
     primary: true,
-  ),
-  QuickReplyChip(
-    id: 'welcome-result',
-    label: 'Tra cứu kết quả',
-    action: QuickReplyAction.send,
-    message: 'SCHEDULE_SET_GOAL:RESULT',
   ),
   QuickReplyChip(
     id: 'welcome-ticket',
     label: 'Gợi ý vé',
     action: QuickReplyAction.send,
     message: suggestTicketsMessage,
+    primary: true,
+  ),
+  QuickReplyChip(
+    id: 'welcome-search',
+    label: 'Tìm đuôi số',
+    action: QuickReplyAction.send,
+    message: searchSuffixMessage,
+  ),
+  QuickReplyChip(
+    id: 'welcome-result',
+    label: 'Kết quả',
+    action: QuickReplyAction.send,
+    message: 'SCHEDULE_SET_GOAL:RESULT',
   ),
 ];
 

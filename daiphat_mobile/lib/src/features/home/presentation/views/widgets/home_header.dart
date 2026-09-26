@@ -6,19 +6,13 @@ import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:daiphat_mobile/src/shared/widgets/app_header_action_button.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/login_viewmodel.dart';
-import 'package:daiphat_mobile/src/features/notifications/presentation/viewmodels/notification_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/cart/presentation/providers/cart_provider.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/profile_iconography.dart';
 
 class HomeHeader extends StatelessWidget {
   final LoginViewModel loginViewModel;
-  final NotificationViewModel notificationViewModel;
 
-  const HomeHeader({
-    super.key,
-    required this.loginViewModel,
-    required this.notificationViewModel,
-  });
+  const HomeHeader({super.key, required this.loginViewModel});
 
   @override
   Widget build(BuildContext context) {
@@ -73,15 +67,11 @@ class HomeHeader extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               if (loginViewModel.isAuthenticated) ...[
-                ListenableBuilder(
-                  listenable: notificationViewModel,
-                  builder: (context, _) => AppHeaderActionButton(
-                    icon: ProfileIconography.notifications,
-                    tooltip: 'Thông báo',
-                    badgeCount: notificationViewModel.unreadCount,
-                    variant: AppHeaderActionVariant.bare,
-                    onTap: () => context.pushNamed(AppRoute.notifications.name),
-                  ),
+                AppHeaderActionButton(
+                  icon: ProfileIconography.chat,
+                  tooltip: 'Chat hỗ trợ',
+                  variant: AppHeaderActionVariant.bare,
+                  onTap: () => context.push(AppRoute.chat.path),
                 ),
                 const SizedBox(width: 8),
                 Consumer(
@@ -92,7 +82,11 @@ class HomeHeader extends StatelessWidget {
                       tooltip: 'Giỏ hàng',
                       badgeCount: cartItemCount,
                       variant: AppHeaderActionVariant.bare,
-                      onTap: () => context.pushNamed(AppRoute.cart.name),
+                      onTap: () {
+                        final path = GoRouterState.of(context).uri.path;
+                        if (path == AppRoute.cart.path) return;
+                        context.push(AppRoute.cart.path);
+                      },
                     );
                   },
                 ),

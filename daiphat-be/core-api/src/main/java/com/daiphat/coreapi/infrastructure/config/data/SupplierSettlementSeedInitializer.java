@@ -55,12 +55,7 @@ public class SupplierSettlementSeedInitializer implements ApplicationRunner {
             "import-batch-seed",
             SupplierSettlementScenarioSeedInitializer.SYSTEM_ACTOR
     );
-    private static final List<String> IMPORT_BATCH_CODE_PREFIXES = List.of(
-            "PN-SEED-",
-            "PN-STATUS-",
-            SupplierSettlementScenarioSeedInitializer.HEADER_CODE_PREFIX
-    );
-    private static final String RETURN_NOTE_PREFIX = "SEED-RETURN-";
+    private static final String RETURN_NOTE_PREFIX = SeedDocumentCodes.RETURN_NOTE_PREFIX;
 
     private final ImportBatchRepository importBatchRepository;
     private final ReturnBatchRepository returnBatchRepository;
@@ -81,7 +76,7 @@ public class SupplierSettlementSeedInitializer implements ApplicationRunner {
 
         if (importBatches.isEmpty() && returnBatches.isEmpty()) {
             log.warn(
-                    "Skip supplier-settlement seed: no PN-SEED-/PN-STATUS- import batches and no {} return batches.",
+                    "Skip supplier-settlement seed: no seed import batches and no {} return batches.",
                     RETURN_NOTE_PREFIX
             );
             return;
@@ -209,8 +204,15 @@ public class SupplierSettlementSeedInitializer implements ApplicationRunner {
 
     private List<ImportBatchEntity> loadSeedImportBatches() {
         Map<Long, ImportBatchEntity> byId = new LinkedHashMap<>();
-        for (String prefix : IMPORT_BATCH_CODE_PREFIXES) {
-            for (ImportBatchEntity batch : importBatchRepository.findByBatchCodeStartingWithAndDeletedAtIsNull(prefix)) {
+        for (ImportBatchEntity batch : importBatchRepository
+                .findByNoteStartingWithAndDeletedAtIsNull(SeedDocumentCodes.IMPORT_NOTE_PREFIX)) {
+            if (batch.getId() != null) {
+                byId.putIfAbsent(batch.getId(), batch);
+            }
+        }
+        for (String legacyPrefix : SeedDocumentCodes.LEGACY_IMPORT_HEADER_PREFIXES) {
+            for (ImportBatchEntity batch : importBatchRepository
+                    .findByBatchCodeStartingWithAndDeletedAtIsNull(legacyPrefix)) {
                 if (batch.getId() != null) {
                     byId.putIfAbsent(batch.getId(), batch);
                 }

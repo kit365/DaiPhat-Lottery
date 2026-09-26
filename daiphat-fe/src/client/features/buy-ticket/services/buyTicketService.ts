@@ -1,7 +1,6 @@
 import { apiApp } from '@/api';
 
-const PUBLIC_TICKET_PAGE_SIZE = 500;
-const PUBLIC_TICKET_MAX_PAGES = 50;
+export const PUBLIC_TICKET_PAGE_SIZE = 48;
 
 export type PublicTicketQueryParams = {
     stationIds: string[];
@@ -19,48 +18,49 @@ const mapPublicTicketRecord = (item: Record<string, unknown>) => ({
     status: item.status ? String(item.status).toLowerCase() : 'draft',
 });
 
-export const fetchAllPublicBuyTickets = async (params: PublicTicketQueryParams) => {
-    const merged: ReturnType<typeof mapPublicTicketRecord>[] = [];
-    let page = 1;
-    let totalRecords = 0;
-    let hasMore = true;
+export type PublicBuyTicketPage = {
+    recordList: ReturnType<typeof mapPublicTicketRecord>[];
+    page: number;
+    totalRecords: number;
+    isLast: boolean;
+};
 
-    while (hasMore && page <= PUBLIC_TICKET_MAX_PAGES) {
-        const response = await apiApp.get('/lottery-tickets/public', {
-            params: {
-                page,
-                size: PUBLIC_TICKET_PAGE_SIZE,
-                stationIds: params.stationIds,
-                drawDate: params.drawDate,
-                search: params.search || undefined,
-                // Tra đuôi số (SUFFIX). CONTAINS còn khớp batchCode (vd. mã chứa ngày -13) nên trả cả kho.
-                searchMode: params.search ? 'SUFFIX' : undefined,
-                searches: params.searches && params.searches.length > 0 ? params.searches : undefined,
-                tailRanges: params.tailRanges && params.tailRanges.length > 0 ? params.tailRanges : undefined,
-                numberTypes: params.numberTypes && params.numberTypes.length > 0 ? params.numberTypes : undefined,
-                sortBy: undefined,
-                direction: undefined,
-            },
-            paramsSerializer: {
-                indexes: null,
-            },
-            skipGlobalErrorToast: true,
-        } as Parameters<typeof apiApp.get>[1]);
+export const fetchPublicBuyTicketPage = async (
+    params: PublicTicketQueryParams,
+    page: number,
+): Promise<PublicBuyTicketPage> => {
+    const response = await apiApp.get('/lottery-tickets/public', {
+        params: {
+            page,
+            size: PUBLIC_TICKET_PAGE_SIZE,
+            stationIds: params.stationIds,
+            drawDate: params.drawDate,
+            search: params.search || undefined,
+            // Tra đuôi số (SUFFIX). CONTAINS còn khớp batchCode (vd. mã chứa ngày -13) nên trả cả kho.
+            searchMode: params.search ? 'SUFFIX' : undefined,
+            searches: params.searches && params.searches.length > 0 ? params.searches : undefined,
+            tailRanges: params.tailRanges && params.tailRanges.length > 0 ? params.tailRanges : undefined,
+            numberTypes: params.numberTypes && params.numberTypes.length > 0 ? params.numberTypes : undefined,
+            sortBy: undefined,
+            direction: undefined,
+        },
+        paramsSerializer: {
+            indexes: null,
+        },
+        skipGlobalErrorToast: true,
+    } as Parameters<typeof apiApp.get>[1]);
 
-        const result = response.data?.data;
-        const recordList = (result?.recordList || []).map(mapPublicTicketRecord);
-        merged.push(...recordList);
-
-        const pagination = result?.pagination;
-        totalRecords = pagination?.totalRecords ?? merged.length;
-        hasMore = pagination ? !pagination.isLast : recordList.length === PUBLIC_TICKET_PAGE_SIZE;
-        page += 1;
-    }
+    const result = response.data?.data;
+    const recordList = (result?.recordList || []).map(mapPublicTicketRecord);
+    const pagination = result?.pagination;
 
     return {
-        recordList: merged,
-        pagination: {
-            totalRecords: totalRecords || merged.length,
-        },
+        recordList,
+        page,
+        totalRecords: pagination?.totalRecords ?? recordList.length,
+        isLast: pagination ? Boolean(pagination.isLast) : recordList.length < PUBLIC_TICKET_PAGE_SIZE,
     };
 };
+
+export const getNextBuyTicketPage = (lastPage: PublicBuyTicketPage): number | undefined =>
+    lastPage.isLast ? undefined : lastPage.page + 1;

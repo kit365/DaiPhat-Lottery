@@ -15,7 +15,7 @@ import {
 } from '@/shared/station/scheduleApi';
 
 import { buyTicketListQueryKey, type BuyTicketListQueryParams } from '../constants/queryKeys';
-import { fetchAllPublicBuyTickets } from '../services/buyTicketService';
+import { fetchPublicBuyTicketPage, getNextBuyTicketPage } from '../services/buyTicketService';
 
 const stationIdsFromSchedule = (stations: PublicStationSchedule[]): string[] =>
     stations
@@ -76,15 +76,15 @@ const prefetchBuyTicketList = (
     queryClient: QueryClient,
     params: BuyTicketListQueryParams,
 ): Promise<unknown> =>
-    queryClient.prefetchQuery({
+    queryClient.prefetchInfiniteQuery({
         queryKey: buyTicketListQueryKey(params),
-        queryFn: async () => ({
-            data: await fetchAllPublicBuyTickets(params),
-        }),
+        queryFn: ({ pageParam }) => fetchPublicBuyTicketPage(params, pageParam),
+        initialPageParam: 1,
+        getNextPageParam: getNextBuyTicketPage,
     });
 
 /**
- * Prefetch toàn bộ vé public theo tất cả đài (hôm nay + ngày mai).
+ * Prefetch trang vé đầu tiên theo tất cả đài (hôm nay + ngày mai).
  * Dùng chung query key với `useBuyTicketList` để vào /tickets có data ngay.
  */
 export const prefetchBuyTicketCatalog = async (

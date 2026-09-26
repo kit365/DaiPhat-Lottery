@@ -28,6 +28,12 @@ class ChatUseCases {
   Future<ConversationDetailModel?> escalateConversation(int id) =>
       _repository.escalateConversation(id);
 
+  Future<ConversationDetailModel?> cancelStaffRequest(int id) =>
+      _repository.cancelStaffRequest(id);
+
+  Future<ConversationDetailModel?> disconnectStaff(int id) =>
+      _repository.disconnectStaff(id);
+
   Future<void> markAsRead(int id) => _repository.markAsRead(id);
 
   Future<ChatTimelinePageModel> getTimeline({

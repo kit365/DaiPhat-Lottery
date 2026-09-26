@@ -22,11 +22,12 @@ class MainLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const homeBranchIndex = _AnimatedBottomNavigation.homeBranchIndex;
     return PopScope(
-      canPop: navigationShell.currentIndex == 2,
+      canPop: navigationShell.currentIndex == homeBranchIndex,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && navigationShell.currentIndex != 2) {
-          navigationShell.goBranch(2);
+        if (!didPop && navigationShell.currentIndex != homeBranchIndex) {
+          navigationShell.goBranch(homeBranchIndex);
         }
       },
       child: Scaffold(
@@ -35,11 +36,23 @@ class MainLayout extends StatelessWidget {
           listenable: Listenable.merge([notificationViewModel, loginViewModel]),
           builder: (context, _) => _AnimatedBottomNavigation(
             selectedIndex: navigationShell.currentIndex,
+            notificationBadgeCount: loginViewModel.isAuthenticated
+                ? notificationViewModel.unreadCount
+                : 0,
             onTap: (branchIndex) {
-              if (!loginViewModel.isAuthenticated &&
-                  branchIndex == _AnimatedBottomNavigation.profileBranchIndex) {
-                context.go(AppRoute.profile.path);
-                return;
+              if (!loginViewModel.isAuthenticated) {
+                // Protected tabs go through the router redirect to login.
+                final protectedPath = switch (branchIndex) {
+                  _AnimatedBottomNavigation.notificationsBranchIndex =>
+                    AppRoute.notifications.path,
+                  _AnimatedBottomNavigation.profileBranchIndex =>
+                    AppRoute.profile.path,
+                  _ => null,
+                };
+                if (protectedPath != null) {
+                  context.go(protectedPath);
+                  return;
+                }
               }
               navigationShell.goBranch(branchIndex);
             },
@@ -54,13 +67,25 @@ class _AnimatedBottomNavigation extends StatelessWidget {
   const _AnimatedBottomNavigation({
     required this.selectedIndex,
     required this.onTap,
+    required this.notificationBadgeCount,
   });
 
   final int selectedIndex;
   final ValueChanged<int> onTap;
+  final int notificationBadgeCount;
+  static const homeBranchIndex = 1;
+  static const utilitiesBranchIndex = 2;
+  static const notificationsBranchIndex = 3;
   static const profileBranchIndex = 4;
 
-  static const _branchIndexes = <int>[0, 1, 2, 3, profileBranchIndex];
+  /// Shell branch per nav item, in display order.
+  static const _branchIndexes = <int>[
+    0,
+    utilitiesBranchIndex,
+    homeBranchIndex,
+    notificationsBranchIndex,
+    profileBranchIndex,
+  ];
 
   static const _items = <({String label, IconData icon, IconData activeIcon})>[
     (
@@ -69,9 +94,9 @@ class _AnimatedBottomNavigation extends StatelessWidget {
       activeIcon: ProfileIconography.ticket,
     ),
     (
-      label: 'Dò vé',
-      icon: Icons.qr_code_scanner_rounded,
-      activeIcon: Icons.qr_code_scanner_rounded,
+      label: 'Tiện ích',
+      icon: Icons.dashboard_customize_outlined,
+      activeIcon: Icons.dashboard_customize_rounded,
     ),
     (
       label: 'Trang chủ',
@@ -79,9 +104,9 @@ class _AnimatedBottomNavigation extends StatelessWidget {
       activeIcon: Icons.home_rounded,
     ),
     (
-      label: 'Tiện ích',
-      icon: Icons.dashboard_customize_outlined,
-      activeIcon: Icons.dashboard_customize_rounded,
+      label: 'Thông báo',
+      icon: ProfileIconography.notifications,
+      activeIcon: ProfileIconography.notifications,
     ),
     (
       label: 'Cá nhân',
@@ -123,8 +148,11 @@ class _AnimatedBottomNavigation extends StatelessWidget {
                 item: _items[index],
                 index: index,
                 itemCount: _items.length,
-                isHome: index == 2,
+                isHome: _branchIndexes[index] == homeBranchIndex,
                 selected: displayedSelectedIndex == index,
+                badgeCount: _branchIndexes[index] == notificationsBranchIndex
+                    ? notificationBadgeCount
+                    : 0,
                 onTap: () => onTap(_branchIndexes[index]),
               ),
             ),
@@ -142,6 +170,7 @@ class _AnimatedNavItem extends StatelessWidget {
     required this.isHome,
     required this.selected,
     required this.onTap,
+    this.badgeCount = 0,
   });
 
   final ({String label, IconData icon, IconData activeIcon}) item;
@@ -150,6 +179,7 @@ class _AnimatedNavItem extends StatelessWidget {
   final bool isHome;
   final bool selected;
   final VoidCallback onTap;
+  final int badgeCount;
 
   @override
   Widget build(BuildContext context) {
@@ -162,7 +192,9 @@ class _AnimatedNavItem extends StatelessWidget {
       button: true,
       selected: selected,
       label:
-          '${item.label}, tab ${index + 1} trên $itemCount${selected ? ', đang chọn' : ''}',
+          '${item.label}, tab ${index + 1} trên $itemCount'
+          '${badgeCount > 0 ? ', $badgeCount chưa đọc' : ''}'
+          '${selected ? ', đang chọn' : ''}',
       child: InkResponse(
         onTap: onTap,
         containedInkWell: true,
@@ -198,16 +230,53 @@ class _AnimatedNavItem extends StatelessWidget {
                     alignment: Alignment.center,
                     child: Transform.translate(
                       offset: Offset(0, -1.2 * value),
-                      child: Icon(
-                        selected ? item.activeIcon : item.icon,
-                        color: isHome
-                            ? Color.lerp(
-                                AppColors.contentHeading,
-                                AppColors.primary,
-                                value,
-                              )
-                            : activeColor,
-                        size: isHome ? 23 + (2 * value) : 20 + (2 * value),
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Icon(
+                            selected ? item.activeIcon : item.icon,
+                            color: isHome
+                                ? Color.lerp(
+                                    AppColors.contentHeading,
+                                    AppColors.primary,
+                                    value,
+                                  )
+                                : activeColor,
+                            size: isHome ? 23 + (2 * value) : 20 + (2 * value),
+                          ),
+                          if (badgeCount > 0)
+                            Positioned(
+                              right: -8,
+                              top: -6,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 1,
+                                ),
+                                constraints: const BoxConstraints(
+                                  minWidth: 16,
+                                  minHeight: 16,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.statusError,
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
+                                    color: AppColors.surfacePrimary,
+                                    width: 1.5,
+                                  ),
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  badgeCount > 99 ? '99+' : '$badgeCount',
+                                  style: AppTypography.overline(
+                                    color: AppColors.surfacePrimary,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   ),

@@ -245,9 +245,9 @@ LotteryResult mapSummaryToLotteryResult(LotteryResultSummaryApiResponse item) {
   return LotteryResult(
     id: item.id,
     stationId: item.stationId,
-    province: _normalizeProvinceName(item.stationName),
+    province: normalizeProvinceName(item.stationName),
     dateLabel: DateFormat('dd/MM/yyyy').format(drawDate),
-    dayOfWeek: _weekdayLabel(drawDate),
+    dayOfWeek: weekdayLabel(drawDate),
     drawDate: drawDate,
     status: item.status,
     prizes: const LotteryPrizes(),
@@ -296,7 +296,7 @@ DateTime _parseApiDate(String value) {
   return DateTime.tryParse(value)?.toLocal() ?? DateTime.now();
 }
 
-String _weekdayLabel(DateTime date) {
+String weekdayLabel(DateTime date) {
   const labels = <int, String>{
     DateTime.monday: 'Thứ Hai',
     DateTime.tuesday: 'Thứ Ba',
@@ -309,7 +309,7 @@ String _weekdayLabel(DateTime date) {
   return labels[date.weekday] ?? '';
 }
 
-String _normalizeProvinceName(String name) {
+String normalizeProvinceName(String name) {
   switch (name.trim()) {
     case 'Hồ Chí Minh':
       return 'TP. Hồ Chí Minh';
