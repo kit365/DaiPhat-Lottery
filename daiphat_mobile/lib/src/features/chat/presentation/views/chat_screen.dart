@@ -808,7 +808,7 @@ class _TicketSuggestCard extends StatelessWidget {
                             '${entry.key}=${Uri.encodeComponent(entry.value)}',
                       )
                       .join('&');
-                  context.push('${AppRoute.buyTicket.path}?$query');
+                  context.go('${AppRoute.buyTicket.path}?$query');
                 },
                 style: TextButton.styleFrom(
                   foregroundColor: AppColors.surfacePrimary,

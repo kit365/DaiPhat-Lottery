@@ -9,9 +9,9 @@ import {
     Checkbox,
     Stack,
     IconButton,
-    Typography
+    Typography,
+    Button
 } from '@mui/material';
-import { Button } from '../ui/Button';
 import CloseIcon from '@mui/icons-material/Close';
 import { ImageCropModal } from './ImageCropModal';
 import { toast } from 'react-toastify';
@@ -65,6 +65,29 @@ export const CreateOcrTemplateModal: React.FC<CreateOcrTemplateModalProps> = ({ 
         }
     };
 
+    const handleCropSave = async (croppedFile: File) => {
+        if (!templateName.trim()) {
+            toast.error('Vui lòng nhập tên mẫu vé trước khi tải ảnh.');
+            return;
+        }
+        setLoading(true);
+        try {
+            await onCreate({
+                templateName: templateName.trim(),
+                isDefault,
+                sampleImage: croppedFile
+            });
+            // Reset state on successful creation
+            setTemplateName('');
+            setIsDefault(true);
+            setCroppedImage(null);
+            setRawImage(null);
+            onClose();
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
             <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -82,40 +105,45 @@ export const CreateOcrTemplateModal: React.FC<CreateOcrTemplateModalProps> = ({ 
                         fullWidth
                         disabled={loading}
                     />
-                    <FormControlLabel
-                        control={
-                            <Checkbox
-                                checked={isDefault}
-                                onChange={(e) => setIsDefault(e.target.checked)}
-                                sx={{
-                                    color: '#FF3030',
-                                    '&.Mui-checked': {
+                    <Stack direction="row" alignItems="center" justifyContent="space-between">
+                        <FormControlLabel
+                            control={
+                                <Checkbox
+                                    checked={isDefault}
+                                    onChange={(e) => setIsDefault(e.target.checked)}
+                                    sx={{
                                         color: '#FF3030',
-                                    },
-                                }}
-                            />
-                        }
-                        label="Đặt làm mặc định"
-                    />
-
-                    <Stack direction="row" alignItems="center" spacing={2}>
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="image/*"
-                            hidden
-                            onChange={(e) => handleSelectFile(e.target.files?.[0] ?? null)}
+                                        '&.Mui-checked': {
+                                            color: '#FF3030',
+                                        },
+                                    }}
+                                />
+                            }
+                            label="Đặt làm mặc định"
                         />
-                        <Button
-                            variant="outlined"
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={loading}
-                        >
-                            {croppedImage ? 'Đổi ảnh khác' : 'Chọn ảnh mẫu vé'}
-                        </Button>
-                        <Typography variant="body2" color="text.secondary">
-                            {croppedImage ? `Đã chọn: ${croppedImage.name}` : ''}
-                        </Typography>
+
+                        <Stack direction="row" alignItems="center" spacing={1.5}>
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/*"
+                                hidden
+                                onChange={(e) => handleSelectFile(e.target.files?.[0] ?? null)}
+                            />
+                            {croppedImage && (
+                                <Typography variant="body2" color="text.secondary">
+                                    Đã chọn: {croppedImage.name}
+                                </Typography>
+                            )}
+                            <Button
+                                variant="outlined"
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={loading}
+                                sx={{ textTransform: 'none', borderRadius: '8px', fontWeight: 600 }}
+                            >
+                                {croppedImage ? 'Đổi ảnh khác' : 'Chọn ảnh mẫu vé'}
+                            </Button>
+                        </Stack>
                     </Stack>
                 </Stack>
             </DialogContent>
@@ -125,17 +153,32 @@ export const CreateOcrTemplateModal: React.FC<CreateOcrTemplateModalProps> = ({ 
                     className="btn-outlined-admin"
                     onClick={onClose}
                     disabled={loading}
-                    label="Hủy"
-                />
+                >
+                    Hủy
+                </Button>
                 <Button
                     variant="contained"
                     className="btn-primary-admin"
                     onClick={() => void handleSave()}
-                    disabled={!templateName.trim()}
-                    loading={loading}
-                    label="Tạo mẫu"
-                    loadingLabel="Đang tạo..."
-                />
+                    disabled={!templateName.trim() || loading}
+                    sx={{ 
+                        bgcolor: '#212b36 !important', 
+                        color: '#ffffff !important',
+                        minWidth: 100,
+                        fontWeight: 700,
+                        textTransform: 'none',
+                        borderRadius: '8px',
+                        '&:hover': {
+                            bgcolor: '#454f5b !important'
+                        },
+                        '&.Mui-disabled': {
+                            bgcolor: 'rgba(145, 158, 171, 0.24) !important',
+                            color: 'rgba(145, 158, 171, 0.8) !important',
+                        }
+                    }}
+                >
+                    {loading ? "Đang tạo..." : "Tạo mẫu"}
+                </Button>
             </DialogActions>
 
             {rawImage && (
@@ -143,10 +186,7 @@ export const CreateOcrTemplateModal: React.FC<CreateOcrTemplateModalProps> = ({ 
                     open={Boolean(rawImage)}
                     imageFile={rawImage}
                     onClose={() => setRawImage(null)}
-                    onSave={(file) => {
-                        setCroppedImage(file);
-                        setRawImage(null);
-                    }}
+                    onSave={handleCropSave}
                 />
             )}
         </Dialog>

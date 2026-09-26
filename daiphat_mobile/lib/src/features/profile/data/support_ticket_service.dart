@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:mime/mime.dart';
 
 import 'package:daiphat_mobile/src/features/profile/domain/entities/support_ticket.dart';
 import 'package:daiphat_mobile/src/shared/network/api_client.dart';
@@ -181,8 +183,17 @@ class SupportTicketService {
       ),
     );
     if (filePath != null && filePath.isNotEmpty) {
+      final mimeType = lookupMimeType(filePath) ?? 'image/jpeg';
+      final fileName = filePath.split(Platform.pathSeparator).last;
       formData.files.add(
-        MapEntry('file', await MultipartFile.fromFile(filePath)),
+        MapEntry(
+          'file',
+          await MultipartFile.fromFile(
+            filePath,
+            filename: fileName,
+            contentType: DioMediaType.parse(mimeType),
+          ),
+        ),
       );
     }
     return formData;

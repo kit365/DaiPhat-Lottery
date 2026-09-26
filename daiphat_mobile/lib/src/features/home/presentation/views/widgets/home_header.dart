@@ -80,7 +80,11 @@ class HomeHeader extends StatelessWidget {
                     tooltip: 'Thông báo',
                     badgeCount: notificationViewModel.unreadCount,
                     variant: AppHeaderActionVariant.bare,
-                    onTap: () => context.pushNamed(AppRoute.notifications.name),
+                    onTap: () {
+                      final path = GoRouterState.of(context).uri.path;
+                      if (path == AppRoute.notifications.path) return;
+                      context.push(AppRoute.notifications.path);
+                    },
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -92,7 +96,11 @@ class HomeHeader extends StatelessWidget {
                       tooltip: 'Giỏ hàng',
                       badgeCount: cartItemCount,
                       variant: AppHeaderActionVariant.bare,
-                      onTap: () => context.pushNamed(AppRoute.cart.name),
+                      onTap: () {
+                        final path = GoRouterState.of(context).uri.path;
+                        if (path == AppRoute.cart.path) return;
+                        context.push(AppRoute.cart.path);
+                      },
                     );
                   },
                 ),

@@ -54,16 +54,16 @@ class _CheckoutResultViewState extends ConsumerState<CheckoutResultView> {
   @override
   void initState() {
     super.initState();
+    if (widget.orderId != null && widget.orderId!.isNotEmpty) {
+      _verification = _PaymentVerification.checking;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _verifyPayment());
+      return;
+    }
     if (!_callbackReportsSuccess) {
       _verification = _PaymentVerification.failed;
       return;
     }
-    if (widget.orderId == null || widget.orderId!.isEmpty) {
-      _verification = _PaymentVerification.pending;
-      return;
-    }
-    _verification = _PaymentVerification.checking;
-    WidgetsBinding.instance.addPostFrameCallback((_) => _verifyPayment());
+    _verification = _PaymentVerification.pending;
   }
 
   Future<void> _verifyPayment() async {
@@ -96,7 +96,11 @@ class _CheckoutResultViewState extends ConsumerState<CheckoutResultView> {
       }
     }
     if (mounted) {
-      setState(() => _verification = _PaymentVerification.pending);
+      setState(() {
+        _verification = _callbackReportsSuccess
+            ? _PaymentVerification.pending
+            : _PaymentVerification.failed;
+      });
     }
   }
 
