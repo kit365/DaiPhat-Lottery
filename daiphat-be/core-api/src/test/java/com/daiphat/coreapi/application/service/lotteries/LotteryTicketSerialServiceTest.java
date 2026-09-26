@@ -502,4 +502,105 @@ class LotteryTicketSerialServiceTest {
         verify(lotteryTicketSerialRepositoryPort).save(any());
     }
 
+    // === reportFault: cancellation eligibility scenarios ===
+
+    private LotteryTicketSerialModel shelfSerial(LotteryTicketSerialStatus status, TicketCondition condition) {
+        return LotteryTicketSerialModel.builder()
+                .id(SERIAL_ID)
+                .ticketId(TICKET_ID)
+                .serialNumber("SN-123")
+                .drawDate(LocalDate.of(2026, 9, 25))
+                .status(status)
+                .ticketCondition(condition)
+                .build();
+    }
+
+    @Test
+    @DisplayName("reportFault: in stock + unsold + GOOD + before cut-off → cancelled")
+    void reportFault_goodInStockBeforeCutOff_cancelled() {
+        LotteryTicketSerialModel serial = shelfSerial(LotteryTicketSerialStatus.IN_STOCK, TicketCondition.GOOD);
+        when(lotteryTicketSerialRepositoryPort.findById(SERIAL_ID)).thenReturn(Optional.of(serial));
+        when(intakeWindowPolicy.isTicketChangeLocked(any(), any(), any())).thenReturn(false);
+        when(lotteryTicketSerialRepositoryPort.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        lotteryTicketSerialService.reportFault(SERIAL_ID, new ReportSerialFaultRequest(
+                TicketCondition.DAMAGED, LotteryTicketSerialFaultedBy.INTERNAL_FAULT,
+                "Rách góc", null, null, null), USER_ID);
+
+        assertThat(serial.getTicketCondition()).isEqualTo(TicketCondition.DAMAGED);
+        verify(lotteryTicketSerialRepositoryPort).save(serial);
+    }
+
+    @Test
+    @DisplayName("reportFault: after cut-off (or past draw date) → rejected, nothing written")
+    void reportFault_afterCutOff_rejected() {
+        LotteryTicketSerialModel serial = shelfSerial(LotteryTicketSerialStatus.IN_STOCK, TicketCondition.GOOD);
+        when(lotteryTicketSerialRepositoryPort.findById(SERIAL_ID)).thenReturn(Optional.of(serial));
+        when(intakeWindowPolicy.isTicketChangeLocked(any(), any(), any())).thenReturn(true);
+        when(intakeWindowPolicy.ticketChangeLockedMessage(any(), any(), any())).thenReturn("Đã khóa");
+
+        assertThatThrownBy(() -> lotteryTicketSerialService.reportFault(SERIAL_ID, new ReportSerialFaultRequest(
+                TicketCondition.DAMAGED, LotteryTicketSerialFaultedBy.INTERNAL_FAULT,
+                "Rách góc", null, null, null), USER_ID))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.LOTTERY_TICKET_CANCEL_WINDOW_CLOSED);
+        verify(lotteryTicketSerialRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("reportFault: sold serial → rejected, nothing written")
+    void reportFault_soldSerial_rejected() {
+        LotteryTicketSerialModel serial = shelfSerial(LotteryTicketSerialStatus.SOLD, TicketCondition.GOOD);
+        when(lotteryTicketSerialRepositoryPort.findById(SERIAL_ID)).thenReturn(Optional.of(serial));
+        when(intakeWindowPolicy.isTicketChangeLocked(any(), any(), any())).thenReturn(false);
+
+        assertThatThrownBy(() -> lotteryTicketSerialService.reportFault(SERIAL_ID, new ReportSerialFaultRequest(
+                TicketCondition.DAMAGED, LotteryTicketSerialFaultedBy.INTERNAL_FAULT,
+                "Rách góc", null, null, null), USER_ID))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
+        verify(lotteryTicketSerialRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("reportFault: serial already DAMAGED / LOST / VOIDED → rejected, nothing written")
+    void reportFault_alreadyFaultedSerial_rejected() {
+        for (TicketCondition condition : List.of(TicketCondition.DAMAGED, TicketCondition.LOST, TicketCondition.VOIDED)) {
+            LotteryTicketSerialModel serial = shelfSerial(LotteryTicketSerialStatus.IN_STOCK, condition);
+            when(lotteryTicketSerialRepositoryPort.findById(SERIAL_ID)).thenReturn(Optional.of(serial));
+            when(intakeWindowPolicy.isTicketChangeLocked(any(), any(), any())).thenReturn(false);
+
+            assertThatThrownBy(() -> lotteryTicketSerialService.reportFault(SERIAL_ID, new ReportSerialFaultRequest(
+                    TicketCondition.VOIDED, LotteryTicketSerialFaultedBy.DATA_ENTRY_FAULT,
+                    "Hủy vé", null, null, null), USER_ID))
+                    .as("condition %s", condition)
+                    .isInstanceOf(DomainException.class)
+                    .extracting("errorCode").isEqualTo(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
+            assertThat(serial.getTicketCondition()).isEqualTo(condition);
+        }
+        verify(lotteryTicketSerialRepositoryPort, never()).save(any());
+    }
+
+    /**
+     * Serials are only attached to a return batch line inside the inspection window,
+     * which is exactly when {@link SupplierTicketIntakeWindowPolicy#isTicketChangeLocked}
+     * closes the shelf, so a return-linked serial is refused by the cut-off guard.
+     */
+    @Test
+    @DisplayName("reportFault: serial already in a return batch (sweep started) → rejected")
+    void reportFault_returnBatchLinkedSerial_rejected() {
+        LotteryTicketSerialModel serial = shelfSerial(LotteryTicketSerialStatus.IN_STOCK, TicketCondition.GOOD);
+        serial.setReturnBatchLineId(55L);
+        when(lotteryTicketSerialRepositoryPort.findById(SERIAL_ID)).thenReturn(Optional.of(serial));
+        when(intakeWindowPolicy.isTicketChangeLocked(any(), any(), any())).thenReturn(true);
+        when(intakeWindowPolicy.ticketChangeLockedMessage(any(), any(), any())).thenReturn("Đã khóa");
+
+        assertThatThrownBy(() -> lotteryTicketSerialService.reportFault(SERIAL_ID, new ReportSerialFaultRequest(
+                TicketCondition.VOIDED, LotteryTicketSerialFaultedBy.DATA_ENTRY_FAULT,
+                "Hủy vé", null, null, null), USER_ID))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.LOTTERY_TICKET_CANCEL_WINDOW_CLOSED);
+        verify(lotteryTicketSerialRepositoryPort, never()).save(any());
+    }
+
 }

@@ -2,6 +2,11 @@
 # Keep low (2) so Paddle + YOLO do not OpenMP-thrash laptop CPUs.
 import os
 
+# PaddleOCR ships older generated pb2 files; protobuf 4+/5+ raises
+# "Descriptors cannot be created directly" unless we use the pure-Python impl
+# (same workaround as services/ekyc-vision).
+os.environ.setdefault("PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION", "python")
+
 _default_threads = os.environ.get("TICKET_VISION_PADDLE_CPU_THREADS") or os.environ.get(
     "TICKET_VISION_TORCH_NUM_THREADS"
 ) or "4"

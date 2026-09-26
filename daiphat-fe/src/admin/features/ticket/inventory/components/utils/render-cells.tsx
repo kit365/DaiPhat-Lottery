@@ -13,8 +13,10 @@ import { getTicketStatusLabel, normalizeTicketStatus } from '../../constants/tic
 import { AdminRowActionsMenu } from '../../../../../components/ui/AdminRowActionsMenu';
 import { AdminStatusBadge } from '../../../../../components/ui/AdminStatusBadge';
 import { AdminLuckyDisplay } from '@/shared/lucky-number';
-import { isTicketSelectableForCancel } from '../../../import-batch/utils/cancelTicketSelection';
-import { isSerialIncidentEligible } from '../../../import-batch/utils/serialIncidentWorkflow';
+import {
+    getTicketCancelIneligibleReason,
+    summarizeTicketCondition,
+} from '../../../import-batch/utils/cancelTicketSelection';
 
 dayjs.locale('vi');
 
@@ -134,18 +136,30 @@ export const RenderStatusCell = (params: GridRenderCellParams) => {
 
 const ticketConditionModifier = (condition?: string | null): string => {
     const normalized = (condition || '').toUpperCase();
-    if (normalized === 'DAMAGED' || normalized === 'LOST' || normalized === 'VOIDED') {
+    if (
+        normalized === 'DAMAGED'
+        || normalized === 'LOST'
+        || normalized === 'VOIDED'
+        || normalized === 'FAULTY'
+        || normalized === 'NONE'
+    ) {
         return 'admin-status-badge--inactive';
+    }
+    if (normalized === 'MIXED') {
+        return 'admin-status-badge--pending';
     }
     return 'admin-status-badge--active';
 };
 
 export const RenderTicketConditionCell = (params: GridRenderCellParams) => {
-    const { ticketCondition, ticketConditionDisplayName } = params.row;
-    const condition = (ticketCondition || '').toUpperCase();
+    const { ticketCondition, ticketConditionDisplayName, serials } = params.row;
+    const summary = ticketCondition ? null : summarizeTicketCondition(serials);
+    const effectiveCondition = ticketCondition || summary?.condition;
+    const condition = (effectiveCondition || '').toUpperCase();
 
     const label =
         ticketConditionDisplayName ||
+        summary?.label ||
         (condition === 'DAMAGED'
             ? 'Hỏng'
             : condition === 'LOST'
@@ -154,7 +168,7 @@ export const RenderTicketConditionCell = (params: GridRenderCellParams) => {
                 ? 'Đã hủy'
                 : 'Tốt');
 
-    const modifier = ticketConditionModifier(ticketCondition);
+    const modifier = ticketConditionModifier(effectiveCondition);
 
     return <AdminStatusBadge label={label} modifier={modifier} />;
 };
@@ -173,9 +187,7 @@ export const RenderActionsCell = (params: RenderActionsCellProps) => {
         router.push(`/${prefixAdmin}/ticket/edit/${id}`);
     };
 
-    const isSelectable = isTicketSelectableForCancel(params.row.status);
-    const cancelableSerials = (params.row.serials || []).filter((serial: any) => isSerialIncidentEligible(serial));
-    const hasCancelableSerials = cancelableSerials.length > 0;
+    const ineligibleReason = getTicketCancelIneligibleReason(params.row);
 
     let cancelDisabled = false;
     let cancelDisabledTitle: string | undefined = undefined;
@@ -183,12 +195,9 @@ export const RenderActionsCell = (params: RenderActionsCellProps) => {
     if (cancelLockReason) {
         cancelDisabled = true;
         cancelDisabledTitle = cancelLockReason;
-    } else if (!isSelectable) {
+    } else if (ineligibleReason) {
         cancelDisabled = true;
-        cancelDisabledTitle = `Vé ở trạng thái "${params.row.statusDisplayName || params.row.status || 'không hợp lệ'}" không thể hủy`;
-    } else if (Array.isArray(params.row.serials) && params.row.serials.length > 0 && !hasCancelableSerials) {
-        cancelDisabled = true;
-        cancelDisabledTitle = 'Vé không còn sê-ri hợp lệ để hủy';
+        cancelDisabledTitle = ineligibleReason;
     }
 
     const handleCancel = () => {

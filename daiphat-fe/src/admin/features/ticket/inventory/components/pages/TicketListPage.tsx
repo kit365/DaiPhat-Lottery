@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import CloseIcon from '@mui/icons-material/Close';
 import DocumentScannerOutlinedIcon from '@mui/icons-material/DocumentScannerOutlined';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
@@ -31,10 +31,24 @@ export const TicketListPage = () => {
 
     const initialDrawDate = useMemo(() => getDefaultInitialDrawDate(), []);
 
-    const ticketHook = useTicketInventory({
+    const inventory = useTicketInventory({
         drawDateFrom: initialDrawDate,
         drawDateTo: initialDrawDate,
     });
+
+    /** Once staff pick a draw date themselves (today included), the default roll-over must not override it. */
+    const userPickedDrawDateRef = useRef(false);
+    const { setDateRangeFilter } = inventory;
+    const ticketHook = useMemo(
+        () => ({
+            ...inventory,
+            setDateRangeFilter: (drawDateFrom?: string, drawDateTo?: string) => {
+                userPickedDrawDateRef.current = true;
+                setDateRangeFilter(drawDateFrom, drawDateTo);
+            },
+        }),
+        [inventory, setDateRangeFilter]
+    );
 
     const cancelSelection = useCancelTicketSelection(ticketHook.tickets);
     const hasSelectedSerials = cancelSelection.selectedSerials.length > 0;
@@ -43,13 +57,14 @@ export const TicketListPage = () => {
 
     useEffect(() => {
         if (
+            !userPickedDrawDateRef.current &&
             allBlockedForToday &&
-            ticketHook.filters.drawDateFrom === todayIso &&
-            ticketHook.filters.drawDateTo === todayIso
+            inventory.filters.drawDateFrom === todayIso &&
+            inventory.filters.drawDateTo === todayIso
         ) {
-            ticketHook.setDateRangeFilter(tomorrowIso, tomorrowIso);
+            setDateRangeFilter(tomorrowIso, tomorrowIso);
         }
-    }, [allBlockedForToday, todayIso, tomorrowIso, ticketHook]);
+    }, [allBlockedForToday, todayIso, tomorrowIso, inventory.filters.drawDateFrom, inventory.filters.drawDateTo, setDateRangeFilter]);
 
     /**
      * Why cancelling is unavailable, or null when it is available.

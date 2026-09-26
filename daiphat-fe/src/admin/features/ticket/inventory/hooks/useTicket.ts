@@ -12,17 +12,18 @@ import {
     forceDeleteTicket,
     scanExpiredTickets,
     uploadTicketImage,
-    uploadTicketSerialImage
+    uploadTicketSerialImage,
+    type TicketListRequestConfig,
 } from '../services/ticketService';
 import { ApiResponse } from '../../../../../types/api.type';
 import { QUERY_KEYS } from '../constants/queryKeys';
 import { QUERY_KEYS as IMPORT_BATCH_QUERY_KEYS } from '../../import-batch/constants/queryKeys';
 
 /** List vé theo params — cùng pattern `useStations(params)`. */
-export const useTickets = (params?: any, options?: any) => {
+export const useTickets = (params?: any, options?: any, requestConfig?: TicketListRequestConfig) => {
     return useQuery({
         queryKey: [QUERY_KEYS.TICKETS, params],
-        queryFn: () => getTickets(params),
+        queryFn: () => getTickets(params, requestConfig),
         ...options,
     });
 };

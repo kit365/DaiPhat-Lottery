@@ -40,6 +40,8 @@ import SearchOffOutlinedIcon from '@mui/icons-material/SearchOffOutlined';
 import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
 import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
 import BorderColorOutlinedIcon from '@mui/icons-material/BorderColorOutlined';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
 import {
     buildReportSerialFaultPayload,
     reportTicketSerialFault,
@@ -330,12 +332,9 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
         return Boolean(forms[s.id]?.selected) && numKey !== currentTicketNumbers;
     }).length;
     const isFullTicketScope =
-        cancelMode === 'TICKET'
-        || (
-            eligibleCurrentSerials.length > 0
-            && eligibleCurrentSerials.every((s) => forms[s.id]?.selected)
-            && selectedOutsideCurrentGroup === 0
-        );
+        eligibleCurrentSerials.length > 0
+        && eligibleCurrentSerials.every((s) => forms[s.id]?.selected)
+        && selectedOutsideCurrentGroup === 0;
     const allSelectedSerialsInternalFault =
         cancelMode === 'SERIAL'
         && eligibleCurrentSerials.length > 0
@@ -481,9 +480,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
         });
 
     const getTargetSerialsForSubmit = (): SerialItem[] =>
-        cancelMode === 'TICKET'
-            ? eligibleCurrentSerials
-            : serialProcessingMode === 'ALL'
+        serialProcessingMode === 'ALL'
             ? currentGroupSelectedSerials
             : serials.filter((s) => forms[s.id]?.selected && isSerialIncidentEligible(s));
 
@@ -589,16 +586,17 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
     };
 
     const handleScopeContinue = () => {
-        if (!scopeMode) {
-            AppToast.error('Vui lòng chọn một phạm vi báo sự cố.');
+        const totalSelected = Object.keys(forms).filter((id) => forms[id]?.selected).length;
+        if (totalSelected === 0) {
+            AppToast.error('Vui lòng chọn ít nhất một sê-ri để báo sự cố.');
             return;
         }
-        applyScopeMode(scopeMode);
+        setCancelMode(isFullTicketScope ? 'TICKET' : 'SERIAL');
+        setScopeMode(isFullTicketScope ? 'TICKET' : 'SERIAL');
         setWorkflowStep('FORM');
     };
 
     const goBackToScope = () => {
-        setScopeMode(cancelMode);
         setWorkflowStep('SCOPE');
     };
 
@@ -721,7 +719,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
         });
     };
 
-    const canSubmit = cancelMode === 'TICKET'
+    const canSubmit = serialProcessingMode === 'ALL'
         ? (isTicketBatchFaultFlow
             ? isTicketBatchFaultFormComplete
             : ticketForm.status === 'VOIDED' && replacementType === 'DIGITS'
@@ -732,18 +730,9 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                 return !!form?.replacementSerial?.trim() && !form?.errors.replacementSerial;
             })
             : currentGroupSelectedSerials.length > 0)
-        : serialProcessingMode === 'ALL'
-        ? currentGroupSelectedSerials.length > 0 && (
-            isBulkVoidedReplacementScope
-                ? resolveReplacementSerialScopeIds(forms).every((scopeId) => {
-                    const form = forms[scopeId];
-                    return !!form?.replacementSerial?.trim() && !form?.errors?.replacementSerial;
-                })
-                : true
-        )
-        : selectedCount > 0 && Object.keys(forms).every(id => {
-            const form = forms[id];
-            if (!form.selected) return true;
+        : currentGroupSelectedSerials.length > 0 && currentGroupSelectedSerials.every((s) => {
+            const form = forms[s.id];
+            if (!form?.selected) return true;
             if (form.status === 'VOIDED') {
                 if (replacementType === 'DIGITS') {
                     return !!replacementDigits && replacementDigits.length === 6;
@@ -753,8 +742,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
             return true;
         });
 
-    const confirmButtonVisible =
-        cancelMode !== 'TICKET' || isTicketBatchFaultFlow || canSubmit;
+    const confirmButtonVisible = true;
     const confirmButtonDisabled = submitting || !canSubmit;
 
     const isSerialFormFilled = (form: FormState | undefined): boolean => {
@@ -813,7 +801,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
     const validateForms = (overrideTargets?: SerialItem[]): boolean => {
         let isValid = true;
 
-        if (serialProcessingMode === 'ALL' && isFullTicketScope) {
+        if (serialProcessingMode === 'ALL') {
             const ticketErrors: FormState['errors'] = {};
             if (ticketForm.status === 'DAMAGED' || ticketForm.status === 'LOST' || ticketForm.status === 'VOIDED') {
                 if (!ticketForm.damagedReason?.trim()) {
@@ -874,26 +862,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
 
         const targetSerials =
             overrideTargets ??
-            (serialProcessingMode === 'ALL'
-                ? currentGroupSelectedSerials
-                : serials.filter((s) => forms[s.id]?.selected));
-
-        if (serialProcessingMode === 'ALL' && !overrideTargets) {
-            const bulkErrors: FormState['errors'] = {};
-            if (ticketForm.status === 'DAMAGED' || ticketForm.status === 'LOST' || ticketForm.status === 'VOIDED') {
-                if (!ticketForm.damagedReason?.trim()) {
-                    bulkErrors.damagedReason = 'Vui lòng chọn hoặc nhập lý do chi tiết.';
-                    isValid = false;
-                }
-                if (ticketForm.status === 'DAMAGED' && ticketForm.faultedBy === 'INTERNAL_FAULT' && !ticketForm.damagedEvidenceUrl?.trim()) {
-                    bulkErrors.damagedEvidenceUrl = 'Ảnh minh chứng sự cố không được để trống.';
-                    isValid = false;
-                }
-            }
-            setTicketForm(prev => ({ ...prev, errors: bulkErrors }));
-
-            if (!isValid) return false;
-        }
+            serials.filter((s) => forms[s.id]?.selected);
 
         const newForms = { ...forms };
 
@@ -904,16 +873,14 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
 
             const errors: FormState['errors'] = {};
 
-            if (serialProcessingMode !== 'ALL') {
-                if (form.status === 'DAMAGED' || form.status === 'LOST' || form.status === 'VOIDED') {
-                    if (!form.damagedReason?.trim()) {
-                        errors.damagedReason = 'Vui lòng chọn hoặc nhập lý do chi tiết.';
-                        isValid = false;
-                    }
-                    if (form.status === 'DAMAGED' && form.faultedBy === 'INTERNAL_FAULT' && !form.damagedEvidenceUrl?.trim()) {
-                        errors.damagedEvidenceUrl = 'Ảnh minh chứng sự cố không được để trống.';
-                        isValid = false;
-                    }
+            if (form.status === 'DAMAGED' || form.status === 'LOST' || form.status === 'VOIDED') {
+                if (!form.damagedReason?.trim()) {
+                    errors.damagedReason = 'Vui lòng chọn hoặc nhập lý do chi tiết.';
+                    isValid = false;
+                }
+                if (form.status === 'DAMAGED' && form.faultedBy === 'INTERNAL_FAULT' && !form.damagedEvidenceUrl?.trim()) {
+                    errors.damagedEvidenceUrl = 'Ảnh minh chứng sự cố không được để trống.';
+                    isValid = false;
                 }
             }
 
@@ -1343,167 +1310,24 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                         onSyncOrderDrafts={(drafts) => setRefundDraftByOrderId(drafts)}
                     />
                 ) : workflowStep === 'SCOPE' ? (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, py: 1 }}>
-                    <Box>
-                        <Typography variant="subtitle1" fontWeight={800} color="#0f172a" sx={{ mb: 0.5 }}>
-                            Chọn phạm vi báo sự cố
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, py: 1 }}>
+                    <Box sx={{ mb: 0.5 }}>
+                        <Typography variant="subtitle1" fontWeight={800} color="#0f172a" sx={{ mb: 0.25 }}>
+                            Danh sách thông tin vé & sê-ri áp dụng
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                            Chỉ chọn một cách xử lý. Sau đó tiếp tục để nhập thông tin sự cố.
+                            Chọn các sê-ri cần báo sự cố. Hệ thống tự động xác định phạm vi theo toàn bộ vé hoặc theo từng sê-ri.
                         </Typography>
-                    </Box>
-
-                    {/* Scope Options Cards */}
-                    <Grid container spacing={1.5}>
-                        <Grid size={{ xs: 12, sm: 6 }}>
-                            <Paper
-                                variant="outlined"
-                                onClick={() => setScopeMode('TICKET')}
-                                sx={{
-                                    p: 2,
-                                    borderRadius: '12px',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.15s ease',
-                                    bgcolor: scopeMode === 'TICKET' ? '#f0fdf4' : '#ffffff',
-                                    borderColor: scopeMode === 'TICKET' ? '#16a34a' : '#e2e8f0',
-                                    borderWidth: scopeMode === 'TICKET' ? '2px' : '1px',
-                                    boxShadow: scopeMode === 'TICKET' ? '0 4px 12px rgba(22, 163, 74, 0.12)' : 'none',
-                                    '&:hover': {
-                                        borderColor: scopeMode === 'TICKET' ? '#16a34a' : '#cbd5e1',
-                                        bgcolor: scopeMode === 'TICKET' ? '#f0fdf4' : '#f8fafc',
-                                    }
-                                }}
-                            >
-                                <Stack direction="row" spacing={1.5} alignItems="center">
-                                    <Box sx={{
-                                        width: 38, height: 38, borderRadius: '10px',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        bgcolor: scopeMode === 'TICKET' ? '#dcfce7' : '#f1f5f9',
-                                        color: scopeMode === 'TICKET' ? '#16a34a' : '#64748b',
-                                    }}>
-                                        <ConfirmationNumberOutlinedIcon sx={{ fontSize: '20px' }} />
-                                    </Box>
-                                    <Box sx={{ flexGrow: 1 }}>
-                                        <Typography variant="body2" fontWeight={800} color={scopeMode === 'TICKET' ? '#15803d' : '#0f172a'}>
-                                            Báo sự cố toàn bộ dãy
-                                        </Typography>
-                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.72rem' }}>
-                                            Áp dụng đồng thời cho tất cả sê-ri của dãy số
-                                        </Typography>
-                                    </Box>
-                                    {scopeMode === 'TICKET' && (
-                                        <CheckCircleRoundedIcon sx={{ fontSize: '20px', color: '#16a34a' }} />
-                                    )}
-                                </Stack>
-                            </Paper>
-                        </Grid>
-                        <Grid size={{ xs: 12, sm: 6 }}>
-                            <Paper
-                                variant="outlined"
-                                onClick={() => setScopeMode('SERIAL')}
-                                sx={{
-                                    p: 2,
-                                    borderRadius: '12px',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.15s ease',
-                                    bgcolor: scopeMode === 'SERIAL' ? '#eff6ff' : '#ffffff',
-                                    borderColor: scopeMode === 'SERIAL' ? '#2563eb' : '#e2e8f0',
-                                    borderWidth: scopeMode === 'SERIAL' ? '2px' : '1px',
-                                    boxShadow: scopeMode === 'SERIAL' ? '0 4px 12px rgba(37, 99, 235, 0.12)' : 'none',
-                                    '&:hover': {
-                                        borderColor: scopeMode === 'SERIAL' ? '#2563eb' : '#cbd5e1',
-                                        bgcolor: scopeMode === 'SERIAL' ? '#eff6ff' : '#f8fafc',
-                                    }
-                                }}
-                            >
-                                <Stack direction="row" spacing={1.5} alignItems="center">
-                                    <Box sx={{
-                                        width: 38, height: 38, borderRadius: '10px',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        bgcolor: scopeMode === 'SERIAL' ? '#dbeafe' : '#f1f5f9',
-                                        color: scopeMode === 'SERIAL' ? '#2563eb' : '#64748b',
-                                    }}>
-                                        <StyleOutlinedIcon sx={{ fontSize: '20px' }} />
-                                    </Box>
-                                    <Box sx={{ flexGrow: 1 }}>
-                                        <Typography variant="body2" fontWeight={800} color={scopeMode === 'SERIAL' ? '#1d4ed8' : '#0f172a'}>
-                                            Báo sự cố theo sê-ri
-                                        </Typography>
-                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.72rem' }}>
-                                            Tùy chọn các sê-ri cụ thể bị sự cố trong dãy
-                                        </Typography>
-                                    </Box>
-                                    {scopeMode === 'SERIAL' && (
-                                        <CheckCircleRoundedIcon sx={{ fontSize: '20px', color: '#2563eb' }} />
-                                    )}
-                                </Stack>
-                            </Paper>
-                        </Grid>
-                    </Grid>
-
-                    {/* Scope Dynamic Visual Preview Banner */}
-                    <Box
-                        sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            flexWrap: 'wrap',
-                            gap: 1,
-                            px: 2,
-                            py: 1.25,
-                            borderRadius: '10px',
-                            bgcolor: scopeMode === 'TICKET' ? '#f0fdf4' : '#eff6ff',
-                            border: `1px solid ${scopeMode === 'TICKET' ? '#bbf7d0' : '#bfdbfe'}`,
-                            color: scopeMode === 'TICKET' ? '#15803d' : '#1d4ed8',
-                        }}
-                    >
-                        <Stack direction="row" alignItems="center" spacing={1}>
-                            {scopeMode === 'TICKET' ? (
-                                <ConfirmationNumberOutlinedIcon sx={{ fontSize: '20px' }} />
-                            ) : (
-                                <StyleOutlinedIcon sx={{ fontSize: '20px' }} />
-                            )}
-                            <Typography variant="body2" fontWeight={700} sx={{ fontSize: '0.8125rem' }}>
-                                {scopeMode === 'TICKET'
-                                    ? 'Phạm vi: Báo sự cố toàn bộ dãy số (Làm nổi bật khung dãy vé số)'
-                                    : 'Phạm vi: Báo sự cố theo từng sê-ri (Làm nổi bật các thẻ sê-ri được chọn)'}
-                            </Typography>
-                        </Stack>
-                        <Stack direction="row" spacing={1}>
-                            <Chip
-                                label={`${groups.length} dãy vé`}
-                                size="small"
-                                sx={{
-                                    height: 22,
-                                    fontSize: '0.7rem',
-                                    fontWeight: 700,
-                                    bgcolor: scopeMode === 'TICKET' ? '#dcfce7' : '#dbeafe',
-                                    color: scopeMode === 'TICKET' ? '#15803d' : '#1d4ed8',
-                                }}
-                            />
-                            <Chip
-                                label={`${serials.length} sê-ri`}
-                                size="small"
-                                sx={{
-                                    height: 22,
-                                    fontSize: '0.7rem',
-                                    fontWeight: 700,
-                                    bgcolor: scopeMode === 'TICKET' ? '#dcfce7' : '#dbeafe',
-                                    color: scopeMode === 'TICKET' ? '#15803d' : '#1d4ed8',
-                                }}
-                            />
-                        </Stack>
                     </Box>
 
                     {/* Ticket and Serial List Section */}
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <Typography variant="subtitle2" fontWeight={800} color="#334155" sx={{ textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: '0.75rem' }}>
-                            Danh sách thông tin vé & sê-ri áp dụng
-                        </Typography>
-
                         {groups.map((group) => {
+                            const groupEligibleSerials = group.serials.filter(s => isSerialIncidentEligible(s));
+                            const groupEligibleCount = groupEligibleSerials.length;
                             const groupSelectedCount = group.serials.filter(s => forms[s.id]?.selected && isSerialIncidentEligible(s)).length;
-                            const groupEligibleCount = group.serials.filter(s => isSerialIncidentEligible(s)).length;
+                            const isGroupAllSelected = groupEligibleCount > 0 && groupSelectedCount === groupEligibleCount;
+                            const isGroupPartiallySelected = groupSelectedCount > 0 && groupSelectedCount < groupEligibleCount;
 
                             return (
                                 <Paper
@@ -1513,10 +1337,10 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                         p: 2,
                                         borderRadius: '14px',
                                         transition: 'all 0.2s ease',
-                                        bgcolor: scopeMode === 'TICKET' ? '#f0fdf4' : '#ffffff',
-                                        borderColor: scopeMode === 'TICKET' ? '#16a34a' : '#cbd5e1',
-                                        borderWidth: scopeMode === 'TICKET' ? '2px' : '1px',
-                                        boxShadow: scopeMode === 'TICKET' ? '0 4px 16px rgba(22, 163, 74, 0.12)' : '0 1px 3px rgba(0,0,0,0.04)',
+                                        bgcolor: isGroupAllSelected ? '#fafffc' : isGroupPartiallySelected ? '#f8fbff' : '#ffffff',
+                                        borderColor: isGroupAllSelected ? '#86efac' : isGroupPartiallySelected ? '#93c5fd' : '#cbd5e1',
+                                        borderWidth: isGroupAllSelected || isGroupPartiallySelected ? '1.5px' : '1px',
+                                        boxShadow: isGroupAllSelected ? '0 4px 16px rgba(22, 163, 74, 0.08)' : isGroupPartiallySelected ? '0 4px 16px rgba(37, 99, 235, 0.08)' : '0 1px 3px rgba(0,0,0,0.04)',
                                     }}
                                 >
                                     {/* Ticket Header */}
@@ -1524,30 +1348,30 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                         <Stack direction="row" alignItems="center" spacing={1.25}>
                                             <Box
                                                 sx={{
-                                                    width: 34,
-                                                    height: 34,
-                                                    borderRadius: '8px',
+                                                    width: 36,
+                                                    height: 36,
+                                                    borderRadius: '9px',
                                                     display: 'flex',
                                                     alignItems: 'center',
                                                     justifyContent: 'center',
-                                                    bgcolor: scopeMode === 'TICKET' ? '#16a34a' : '#f1f5f9',
-                                                    color: scopeMode === 'TICKET' ? '#ffffff' : '#475569',
+                                                    bgcolor: isGroupAllSelected ? '#dcfce7' : isGroupPartiallySelected ? '#dbeafe' : '#f1f5f9',
+                                                    color: isGroupAllSelected ? '#15803d' : isGroupPartiallySelected ? '#1d4ed8' : '#475569',
                                                 }}
                                             >
-                                                <ConfirmationNumberOutlinedIcon sx={{ fontSize: '18px' }} />
+                                                <ConfirmationNumberOutlinedIcon sx={{ fontSize: '19px' }} />
                                             </Box>
                                             <Box>
                                                 <Stack direction="row" alignItems="center" spacing={1}>
-                                                    <Typography variant="caption" fontWeight={700} color={scopeMode === 'TICKET' ? '#15803d' : '#64748b'}>
+                                                    <Typography variant="caption" fontWeight={700} color="text.secondary">
                                                         Dãy số vé:
                                                     </Typography>
                                                     <AdminLuckyDisplay
                                                         value={group.ticketNumbers}
                                                         ticket
                                                         sx={{
-                                                            fontSize: '1.15rem',
+                                                            fontSize: '1.2rem',
                                                             letterSpacing: '0.08em',
-                                                            color: scopeMode === 'TICKET' ? '#15803d' : '#0f172a',
+                                                            color: isGroupAllSelected ? '#15803d' : '#0f172a',
                                                             fontWeight: 900,
                                                         }}
                                                     />
@@ -1556,211 +1380,244 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                             </Box>
                                         </Stack>
 
-                                        {scopeMode === 'TICKET' ? (
-                                            <Chip
-                                                icon={<CheckCircleRoundedIcon sx={{ fontSize: '16px !important', color: '#16a34a !important' }} />}
-                                                label={`Nổi bật: Báo toàn bộ dãy (${group.serials.length} sê-ri)`}
+                                        {/* Action buttons: Select All / Deselect */}
+                                        <Stack direction="row" spacing={1} alignItems="center">
+                                            <Button
                                                 size="small"
-                                                sx={{
-                                                    fontWeight: 800,
-                                                    fontSize: '0.75rem',
-                                                    height: 26,
-                                                    bgcolor: '#dcfce7',
-                                                    color: '#15803d',
-                                                    border: '1px solid #86efac',
+                                                variant="outlined"
+                                                onClick={() => {
+                                                    setForms((prev) => {
+                                                        const next = { ...prev };
+                                                        group.serials.forEach((s) => {
+                                                            if (next[s.id] && isSerialIncidentEligible(s)) {
+                                                                next[s.id] = { ...next[s.id], selected: true };
+                                                            }
+                                                        });
+                                                        return next;
+                                                    });
                                                 }}
-                                            />
-                                        ) : (
-                                            <Chip
-                                                icon={<StyleOutlinedIcon sx={{ fontSize: '14px !important', color: '#2563eb !important' }} />}
-                                                label={`Nổi bật sê-ri (${groupSelectedCount}/${groupEligibleCount} được chọn)`}
+                                                sx={{
+                                                    borderRadius: '8px',
+                                                    textTransform: 'none',
+                                                    fontWeight: 700,
+                                                    fontSize: '0.75rem',
+                                                    py: 0.4,
+                                                    px: 1.25,
+                                                    borderColor: '#cbd5e1',
+                                                    color: '#334155',
+                                                    '&:hover': { bgcolor: '#f8fafc', borderColor: '#94a3b8' }
+                                                }}
+                                            >
+                                                Chọn tất cả ({groupEligibleCount})
+                                            </Button>
+                                            <Button
                                                 size="small"
-                                                sx={{
-                                                    fontWeight: 800,
-                                                    fontSize: '0.75rem',
-                                                    height: 26,
-                                                    bgcolor: '#eff6ff',
-                                                    color: '#1d4ed8',
-                                                    border: '1px solid #bfdbfe',
+                                                variant="text"
+                                                onClick={() => {
+                                                    setForms((prev) => {
+                                                        const next = { ...prev };
+                                                        group.serials.forEach((s) => {
+                                                            if (next[s.id]) {
+                                                                next[s.id] = { ...next[s.id], selected: false };
+                                                            }
+                                                        });
+                                                        return next;
+                                                    });
                                                 }}
-                                            />
-                                        )}
+                                                sx={{
+                                                    borderRadius: '8px',
+                                                    textTransform: 'none',
+                                                    fontWeight: 700,
+                                                    color: '#64748b',
+                                                    fontSize: '0.75rem',
+                                                    py: 0.4,
+                                                    px: 1,
+                                                    '&:hover': { bgcolor: '#f1f5f9' }
+                                                }}
+                                            >
+                                                Bỏ chọn
+                                            </Button>
+                                        </Stack>
                                     </Stack>
 
-                                    {/* Subtitle description */}
-                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5, fontSize: '0.75rem' }}>
-                                        {scopeMode === 'TICKET'
-                                            ? `Áp dụng báo sự cố đồng thời cho toàn bộ ${group.serials.length} sê-ri thuộc dãy số ${group.ticketNumbers}.`
-                                            : `Nhấn vào từng thẻ sê-ri bên dưới để chọn hoặc bỏ chọn sê-ri cần báo sự cố.`}
-                                    </Typography>
+                                    {/* Dynamic notification requested by user */}
+                                    <Box
+                                        sx={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            flexWrap: 'wrap',
+                                            gap: 1,
+                                            px: 1.75,
+                                            py: 1.15,
+                                            borderRadius: '10px',
+                                            mb: 1.75,
+                                            bgcolor: isGroupAllSelected ? '#f0fdf4' : isGroupPartiallySelected ? '#eff6ff' : '#f8fafc',
+                                            border: `1px solid ${isGroupAllSelected ? '#bbf7d0' : isGroupPartiallySelected ? '#bfdbfe' : '#e2e8f0'}`,
+                                        }}
+                                    >
+                                        <Stack direction="row" alignItems="center" spacing={1.25}>
+                                            {isGroupAllSelected ? (
+                                                <CheckCircleRoundedIcon sx={{ fontSize: '20px', color: '#16a34a' }} />
+                                            ) : isGroupPartiallySelected ? (
+                                                <StyleOutlinedIcon sx={{ fontSize: '20px', color: '#2563eb' }} />
+                                            ) : (
+                                                <InfoOutlinedIcon sx={{ fontSize: '20px', color: '#94a3b8' }} />
+                                            )}
+                                            <Box>
+                                                <Typography
+                                                    variant="body2"
+                                                    fontWeight={800}
+                                                    sx={{
+                                                        color: isGroupAllSelected ? '#15803d' : isGroupPartiallySelected ? '#1d4ed8' : '#64748b',
+                                                        fontSize: '0.825rem'
+                                                    }}
+                                                >
+                                                    {isGroupAllSelected
+                                                        ? `Báo sự cố toàn bộ vé '${group.ticketNumbers}'`
+                                                        : isGroupPartiallySelected
+                                                        ? `Báo sự cố theo từng sê-ri của vé '${group.ticketNumbers}'`
+                                                        : `Chưa chọn sê-ri nào của vé '${group.ticketNumbers}'`}
+                                                </Typography>
+                                                <Typography variant="caption" sx={{ color: isGroupAllSelected ? '#166534' : isGroupPartiallySelected ? '#1e40af' : '#94a3b8', fontSize: '0.72rem' }}>
+                                                    {isGroupAllSelected
+                                                        ? `Đã chọn tất cả ${groupSelectedCount}/${groupEligibleCount} sê-ri của dãy số này`
+                                                        : isGroupPartiallySelected
+                                                        ? `Đã chọn ${groupSelectedCount}/${groupEligibleCount} sê-ri (nhấn vào các thẻ sê-ri bên dưới để thay đổi)`
+                                                        : `Nhấn vào các thẻ sê-ri bên dưới để chọn sê-ri cần báo sự cố`}
+                                                </Typography>
+                                            </Box>
+                                        </Stack>
 
-                                    {/* Serials List */}
-                                    {scopeMode === 'TICKET' ? (
-                                        <Box
+                                        <Chip
+                                            label={`${groupSelectedCount} / ${groupEligibleCount} sê-ri`}
+                                            size="small"
                                             sx={{
-                                                p: 1.25,
-                                                borderRadius: '10px',
-                                                bgcolor: '#ffffff',
-                                                border: '1px solid #dcfce7',
+                                                fontWeight: 800,
+                                                fontSize: '0.72rem',
+                                                height: 24,
+                                                bgcolor: isGroupAllSelected ? '#dcfce7' : isGroupPartiallySelected ? '#dbeafe' : '#f1f5f9',
+                                                color: isGroupAllSelected ? '#15803d' : isGroupPartiallySelected ? '#1d4ed8' : '#64748b',
+                                                border: `1px solid ${isGroupAllSelected ? '#86efac' : isGroupPartiallySelected ? '#93c5fd' : '#cbd5e1'}`,
                                             }}
-                                        >
-                                            <Typography variant="caption" fontWeight={700} color="#15803d" sx={{ display: 'block', mb: 1, textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: '0.68rem' }}>
-                                                Các sê-ri trong dãy ({group.serials.length} sê-ri):
-                                            </Typography>
-                                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                                                {group.serials.map((s) => (
-                                                    <Box
-                                                        key={s.id}
-                                                        sx={{
-                                                            display: 'inline-flex',
-                                                            alignItems: 'center',
-                                                            gap: 0.75,
-                                                            px: 1.25,
-                                                            py: 0.6,
-                                                            borderRadius: '8px',
-                                                            bgcolor: '#f0fdf4',
-                                                            border: '1px solid #bbf7d0',
-                                                        }}
-                                                    >
-                                                        <CheckCircleRoundedIcon sx={{ fontSize: '15px', color: '#16a34a' }} />
-                                                        <Typography
-                                                            variant="caption"
-                                                            fontWeight={800}
+                                        />
+                                    </Box>
+
+                                    {/* Serials Grid (clickable cards) */}
+                                    <Box
+                                        sx={{
+                                            p: 1.25,
+                                            borderRadius: '10px',
+                                            bgcolor: '#f8fafc',
+                                            border: '1px solid #e2e8f0',
+                                        }}
+                                    >
+                                        <Typography variant="caption" fontWeight={700} color="#64748b" sx={{ display: 'block', mb: 1, textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: '0.68rem' }}>
+                                            Danh sách các sê-ri trong dãy ({group.serials.length} sê-ri):
+                                        </Typography>
+
+                                        <Grid container spacing={1}>
+                                            {group.serials.map((s) => {
+                                                const isEligible = isSerialIncidentEligible(s);
+                                                const isSelected = Boolean(forms[s.id]?.selected) && isEligible;
+
+                                                return (
+                                                    <Grid key={s.id} size={{ xs: 12, sm: 6, md: 4 }}>
+                                                        <Paper
+                                                            variant="outlined"
+                                                            onClick={() => isEligible && handleToggleSerialInScope(s.id)}
                                                             sx={{
-                                                                fontFamily: 'monospace',
-                                                                fontSize: '0.825rem',
-                                                                color: '#15803d',
+                                                                p: 1.25,
+                                                                borderRadius: '10px',
+                                                                cursor: isEligible ? 'pointer' : 'not-allowed',
+                                                                transition: 'all 0.15s ease',
+                                                                bgcolor: isSelected ? '#eff6ff' : '#ffffff',
+                                                                borderColor: isSelected ? '#2563eb' : '#e2e8f0',
+                                                                borderWidth: isSelected ? '1.5px' : '1px',
+                                                                boxShadow: isSelected ? '0 2px 8px rgba(37, 99, 235, 0.12)' : 'none',
+                                                                opacity: isEligible ? 1 : 0.6,
+                                                                '&:hover': isEligible ? {
+                                                                    borderColor: '#2563eb',
+                                                                    bgcolor: isSelected ? '#eff6ff' : '#f0f9ff',
+                                                                } : {},
                                                             }}
                                                         >
-                                                            {s.serialNumber || s.id}
-                                                        </Typography>
-                                                        <SerialStatusChip status={s.status} ticketCondition={s.ticketCondition} />
-                                                        {s.reservedByOrderId && (
-                                                            <Chip
-                                                                label={`Đơn #${s.reservedByOrderId}`}
-                                                                size="small"
-                                                                sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700, bgcolor: '#fef3c7', color: '#92400e' }}
-                                                            />
-                                                        )}
-                                                    </Box>
-                                                ))}
-                                            </Box>
-                                        </Box>
-                                    ) : (
-                                        <Box
-                                            sx={{
-                                                p: 1.25,
-                                                borderRadius: '10px',
-                                                bgcolor: '#f8fafc',
-                                                border: '1px solid #e2e8f0',
-                                            }}
-                                        >
-                                            <Typography variant="caption" fontWeight={700} color="#64748b" sx={{ display: 'block', mb: 1, textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: '0.68rem' }}>
-                                                Chọn sê-ri cần báo sự cố:
-                                            </Typography>
-                                            <Grid container spacing={1}>
-                                                {group.serials.map((s) => {
-                                                    const isEligible = isSerialIncidentEligible(s);
-                                                    const isSelected = Boolean(forms[s.id]?.selected) && isEligible;
-
-                                                    return (
-                                                        <Grid key={s.id} size={{ xs: 12, sm: 6, md: 4 }}>
-                                                            <Paper
-                                                                variant="outlined"
-                                                                onClick={() => isEligible && handleToggleSerialInScope(s.id)}
-                                                                sx={{
-                                                                    p: 1.25,
-                                                                    borderRadius: '10px',
-                                                                    cursor: isEligible ? 'pointer' : 'not-allowed',
-                                                                    transition: 'all 0.15s ease',
-                                                                    bgcolor: isSelected ? '#eff6ff' : '#ffffff',
-                                                                    borderColor: isSelected ? '#2563eb' : '#e2e8f0',
-                                                                    borderWidth: isSelected ? '2px' : '1px',
-                                                                    boxShadow: isSelected ? '0 3px 10px rgba(37, 99, 235, 0.14)' : 'none',
-                                                                    opacity: isEligible ? 1 : 0.6,
-                                                                    '&:hover': isEligible ? {
-                                                                        borderColor: '#2563eb',
-                                                                        bgcolor: isSelected ? '#eff6ff' : '#f0f9ff',
-                                                                    } : {},
-                                                                }}
-                                                            >
-                                                                <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
-                                                                    <Stack direction="row" alignItems="center" spacing={1}>
-                                                                        <Box
-                                                                            sx={{
-                                                                                width: 24,
-                                                                                height: 24,
-                                                                                borderRadius: '6px',
-                                                                                display: 'flex',
-                                                                                alignItems: 'center',
-                                                                                justifyContent: 'center',
-                                                                                bgcolor: isSelected ? '#2563eb' : '#f1f5f9',
-                                                                                color: isSelected ? '#ffffff' : '#94a3b8',
-                                                                            }}
-                                                                        >
-                                                                            {isSelected ? (
-                                                                                <CheckCircleRoundedIcon sx={{ fontSize: '16px' }} />
-                                                                            ) : (
-                                                                                <StyleOutlinedIcon sx={{ fontSize: '14px' }} />
-                                                                            )}
-                                                                        </Box>
-                                                                        <Typography
-                                                                            variant="body2"
-                                                                            fontWeight={800}
-                                                                            sx={{
-                                                                                fontFamily: 'monospace',
-                                                                                fontSize: '0.9rem',
-                                                                                color: isSelected ? '#1d4ed8' : '#334155',
-                                                                            }}
-                                                                        >
-                                                                            {s.serialNumber || s.id}
-                                                                        </Typography>
-                                                                    </Stack>
-
-                                                                    {isSelected ? (
-                                                                        <Chip
-                                                                            label="Được chọn"
-                                                                            size="small"
-                                                                            sx={{
-                                                                                height: 20,
-                                                                                fontSize: '0.65rem',
-                                                                                fontWeight: 800,
-                                                                                bgcolor: '#2563eb',
-                                                                                color: '#ffffff',
-                                                                            }}
-                                                                        />
-                                                                    ) : (
-                                                                        <Chip
-                                                                            label={isEligible ? 'Chưa chọn' : 'Không khả dụng'}
-                                                                            size="small"
-                                                                            sx={{
-                                                                                height: 20,
-                                                                                fontSize: '0.65rem',
-                                                                                fontWeight: 600,
-                                                                                bgcolor: '#f1f5f9',
-                                                                                color: '#64748b',
-                                                                            }}
-                                                                        />
-                                                                    )}
+                                                            <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+                                                                <Stack direction="row" alignItems="center" spacing={1}>
+                                                                    <Box
+                                                                        sx={{
+                                                                            width: 24,
+                                                                            height: 24,
+                                                                            borderRadius: '6px',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            justifyContent: 'center',
+                                                                            bgcolor: isSelected ? '#2563eb' : '#f1f5f9',
+                                                                            color: isSelected ? '#ffffff' : '#94a3b8',
+                                                                        }}
+                                                                    >
+                                                                        {isSelected ? (
+                                                                            <CheckCircleRoundedIcon sx={{ fontSize: '16px' }} />
+                                                                        ) : (
+                                                                            <StyleOutlinedIcon sx={{ fontSize: '14px' }} />
+                                                                        )}
+                                                                    </Box>
+                                                                    <Typography
+                                                                        variant="body2"
+                                                                        fontWeight={800}
+                                                                        sx={{
+                                                                            fontFamily: 'monospace',
+                                                                            fontSize: '0.85rem',
+                                                                            color: isSelected ? '#1d4ed8' : '#334155',
+                                                                        }}
+                                                                    >
+                                                                        {s.serialNumber || s.id}
+                                                                    </Typography>
                                                                 </Stack>
 
-                                                                <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 0.75 }}>
-                                                                    <SerialStatusChip status={s.status} ticketCondition={s.ticketCondition} />
-                                                                    {s.reservedByOrderId && (
-                                                                        <Chip
-                                                                            label={`Đơn #${s.reservedByOrderId}`}
-                                                                            size="small"
-                                                                            sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700, bgcolor: '#fef3c7', color: '#92400e' }}
-                                                                        />
-                                                                    )}
-                                                                </Stack>
-                                                            </Paper>
-                                                        </Grid>
-                                                    );
-                                                })}
-                                            </Grid>
-                                        </Box>
-                                    )}
+                                                                {isSelected ? (
+                                                                    <Chip
+                                                                        label="Được chọn"
+                                                                        size="small"
+                                                                        sx={{
+                                                                            height: 20,
+                                                                            fontSize: '0.65rem',
+                                                                            fontWeight: 800,
+                                                                            bgcolor: '#2563eb',
+                                                                            color: '#ffffff',
+                                                                        }}
+                                                                    />
+                                                                ) : (
+                                                                    <Chip
+                                                                        label={isEligible ? 'Chưa chọn' : 'Không khả dụng'}
+                                                                        size="small"
+                                                                        sx={{
+                                                                            height: 20,
+                                                                            fontSize: '0.65rem',
+                                                                            fontWeight: 600,
+                                                                            bgcolor: '#f1f5f9',
+                                                                            color: '#64748b',
+                                                                        }}
+                                                                    />
+                                                                )}
+                                                            </Stack>
+
+                                                            <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 0.75 }}>
+                                                                <SerialStatusChip status={s.status} ticketCondition={s.ticketCondition} />
+                                                                {s.reservedByOrderId && (
+                                                                    <Chip
+                                                                        label={`Đơn #${s.reservedByOrderId}`}
+                                                                        size="small"
+                                                                        sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700, bgcolor: '#fef3c7', color: '#92400e' }}
+                                                                    />
+                                                                )}
+                                                            </Stack>
+                                                        </Paper>
+                                                    </Grid>
+                                                );
+                                            })}
+                                        </Grid>
+                                    </Box>
                                 </Paper>
                             );
                         })}
@@ -1768,122 +1625,138 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                 </Box>
                 ) : (
                 <>
+                {/* 1. Thanh tóm tắt phạm vi xử lý vé & sê-ri */}
                 <Paper
                     variant="outlined"
                     sx={{
                         mb: 2,
-                        px: 2,
-                        py: 1.25,
+                        p: 1.75,
                         borderRadius: '12px',
-                        borderColor: cancelMode === 'TICKET' ? '#bbf7d0' : '#bfdbfe',
-                        bgcolor: cancelMode === 'TICKET' ? '#f0fdf4' : '#f8fbff',
+                        borderColor: isFullTicketScope ? '#86efac' : '#93c5fd',
+                        bgcolor: isFullTicketScope ? '#f0fdf4' : '#eff6ff',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
+                        flexWrap: 'wrap',
                         gap: 1.5,
                     }}
                 >
-                    <Box>
-                        <Typography variant="caption" fontWeight={800} color="#64748b" sx={{ textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block' }}>
-                            Phạm vi đã chọn
-                        </Typography>
-                        <Typography variant="body2" fontWeight={800} color="#0f172a">
-                            {cancelMode === 'TICKET' ? 'Báo sự cố toàn bộ dãy' : 'Báo sự cố theo sê-ri'}
-                        </Typography>
-                    </Box>
-                    <Button
-                        size="small"
-                        variant="text"
-                        onClick={goBackToScope}
-                        sx={{ textTransform: 'none', fontWeight: 700, whiteSpace: 'nowrap' }}
-                    >
-                        Đổi phạm vi
-                    </Button>
-                </Paper>
-
-                {/* Scope Quick Bar & Segmented Mode Toggle (When SERIAL mode) */}
-                {cancelMode === 'SERIAL' && (
-                <Box sx={{ mb: 2 }}>
-                    <Paper
-                        variant="outlined"
-                        sx={{
-                            px: 2,
-                            py: 1.25,
-                            borderRadius: '12px',
-                            borderColor: isFullTicketScope ? '#bfdbfe' : '#e2e8f0',
-                            bgcolor: isFullTicketScope ? '#f0f9ff' : '#f8fafc',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            flexWrap: 'wrap',
-                            gap: 1.5,
-                            mb: 1.5,
-                        }}
-                    >
-                        <Box>
-                            <Typography variant="caption" fontWeight={800} color="#64748b" sx={{ textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block' }}>
-                                Phạm vi xử lý
-                            </Typography>
-                            <Typography variant="body2" fontWeight={800} color="#0f172a">
-                                Đã chọn {currentGroupSelectedSerials.length}/{eligibleCurrentSerials.length} sê-ri đủ điều kiện của dãy {currentTicketNumbers}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                                {allSelectedSerialsInternalFault
-                                    ? 'Toàn bộ sê-ri đều báo sự cố vật lý — dãy số sẽ bị hủy theo.'
-                                    : isFullTicketScope
-                                    ? 'Đang xử lý toàn bộ sê-ri đủ điều kiện của dãy.'
-                                    : 'Đang xử lý một phần sê-ri — bỏ chọn hoặc chọn thêm để đổi phạm vi.'}
-                            </Typography>
-                            {selectedOutsideCurrentGroup > 0 && (
-                                <Typography variant="caption" color="#b91c1c" sx={{ display: 'block' }}>
-                                    Đang có {selectedOutsideCurrentGroup} sê-ri thuộc dãy khác được chọn — chỉ dãy hiện tại được gửi khi áp dụng chung.
-                                </Typography>
+                    <Stack direction="row" alignItems="center" spacing={1.5}>
+                        <Box
+                            sx={{
+                                width: 38,
+                                height: 38,
+                                borderRadius: '10px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                bgcolor: isFullTicketScope ? '#dcfce7' : '#dbeafe',
+                                color: isFullTicketScope ? '#15803d' : '#1d4ed8',
+                            }}
+                        >
+                            {isFullTicketScope ? (
+                                <ConfirmationNumberOutlinedIcon sx={{ fontSize: '20px' }} />
+                            ) : (
+                                <StyleOutlinedIcon sx={{ fontSize: '20px' }} />
                             )}
                         </Box>
-                        <Stack direction="row" spacing={1}>
-                            <Button
-                                size="small"
-                                variant="text"
-                                onClick={() => {
-                                    setForms((prev) => {
-                                        const next = { ...prev };
-                                        serials.forEach((s) => {
-                                            if (!next[s.id]) return;
-                                            const numKey = s.ticketNumbers || ticketNumbers || 'Vé số';
-                                            const inCurrent = numKey === currentTicketNumbers;
-                                            next[s.id] = {
-                                                ...next[s.id],
-                                                selected: inCurrent && isSerialIncidentEligible(s),
-                                            };
-                                        });
-                                        return next;
-                                    });
-                                }}
-                                sx={{ textTransform: 'none', fontWeight: 700, fontSize: '0.8125rem' }}
-                            >
-                                Chọn hết dãy này
-                            </Button>
-                            <Button
-                                size="small"
-                                variant="text"
-                                onClick={() => {
-                                    setForms((prev) => {
-                                        const next = { ...prev };
-                                        currentGroupSelectedSerials.forEach((s) => {
-                                            if (next[s.id]) {
-                                                next[s.id] = { ...next[s.id], selected: false };
-                                            }
-                                        });
-                                        return next;
-                                    });
-                                }}
-                                sx={{ textTransform: 'none', fontWeight: 700, color: '#64748b', fontSize: '0.8125rem' }}
-                            >
-                                Bỏ chọn
-                            </Button>
-                        </Stack>
-                    </Paper>
+                        <Box>
+                            <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
+                                <Typography variant="body2" fontWeight={800} color={isFullTicketScope ? '#15803d' : '#1d4ed8'}>
+                                    {isFullTicketScope
+                                        ? `Báo sự cố toàn bộ vé '${currentTicketNumbers}'`
+                                        : `Báo sự cố theo từng sê-ri của vé '${currentTicketNumbers}'`}
+                                </Typography>
+                                <Chip
+                                    label={`${currentGroupSelectedSerials.length}/${eligibleCurrentSerials.length} sê-ri`}
+                                    size="small"
+                                    sx={{
+                                        height: 22,
+                                        fontSize: '0.7rem',
+                                        fontWeight: 800,
+                                        bgcolor: isFullTicketScope ? '#dcfce7' : '#dbeafe',
+                                        color: isFullTicketScope ? '#15803d' : '#1d4ed8',
+                                        border: `1px solid ${isFullTicketScope ? '#86efac' : '#93c5fd'}`,
+                                    }}
+                                />
+                            </Stack>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25, fontSize: '0.72rem' }}>
+                                {isFullTicketScope
+                                    ? `Đang áp dụng báo sự cố cho toàn bộ ${eligibleCurrentSerials.length} sê-ri đủ điều kiện của dãy số ${currentTicketNumbers}.`
+                                    : `Đang áp dụng báo sự cố cho ${currentGroupSelectedSerials.length} sê-ri đã chọn trong tổng số ${eligibleCurrentSerials.length} sê-ri của dãy.`}
+                            </Typography>
+                        </Box>
+                    </Stack>
 
+                    <Stack direction="row" spacing={1} alignItems="center">
+                        <Button
+                            size="small"
+                            variant="text"
+                            onClick={() => {
+                                setForms((prev) => {
+                                    const next = { ...prev };
+                                    serials.forEach((s) => {
+                                        if (!next[s.id]) return;
+                                        const numKey = s.ticketNumbers || ticketNumbers || 'Vé số';
+                                        const inCurrent = numKey === currentTicketNumbers;
+                                        next[s.id] = {
+                                            ...next[s.id],
+                                            selected: inCurrent && isSerialIncidentEligible(s),
+                                        };
+                                    });
+                                    return next;
+                                });
+                            }}
+                            sx={{ textTransform: 'none', fontWeight: 700, fontSize: '0.75rem', color: isFullTicketScope ? '#15803d' : '#1d4ed8' }}
+                        >
+                            Chọn hết dãy
+                        </Button>
+                        <Button
+                            size="small"
+                            variant="text"
+                            onClick={() => {
+                                setForms((prev) => {
+                                    const next = { ...prev };
+                                    currentGroupSelectedSerials.forEach((s) => {
+                                        if (next[s.id]) {
+                                            next[s.id] = { ...next[s.id], selected: false };
+                                        }
+                                    });
+                                    return next;
+                                });
+                            }}
+                            sx={{ textTransform: 'none', fontWeight: 700, color: '#64748b', fontSize: '0.75rem' }}
+                        >
+                            Bỏ chọn
+                        </Button>
+                        <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={goBackToScope}
+                            sx={{
+                                textTransform: 'none',
+                                fontWeight: 700,
+                                whiteSpace: 'nowrap',
+                                borderRadius: '8px',
+                                fontSize: '0.75rem',
+                                py: 0.4,
+                                px: 1.25,
+                                borderColor: isFullTicketScope ? '#86efac' : '#bfdbfe',
+                                color: isFullTicketScope ? '#15803d' : '#1d4ed8',
+                                bgcolor: '#ffffff',
+                                '&:hover': {
+                                    bgcolor: isFullTicketScope ? '#f0fdf4' : '#eff6ff',
+                                    borderColor: isFullTicketScope ? '#16a34a' : '#2563eb',
+                                }
+                            }}
+                        >
+                            Đổi sê-ri
+                        </Button>
+                    </Stack>
+                </Paper>
+
+                {/* 2. Nút chuyển đổi: Báo cáo lý do chung cho các vé hoặc Lý do cụ thể cho từng vé */}
+                <Box sx={{ mb: 2 }}>
                     <ToggleButtonGroup
                         value={serialProcessingMode}
                         exclusive
@@ -1894,7 +1767,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                             bgcolor: '#f1f5f9',
                             p: 0.5,
                             borderRadius: '12px',
-                            border: 'none',
+                            border: '1px solid #e2e8f0',
                             '& .MuiToggleButtonGroup-grouped': {
                                 border: 'none',
                                 borderRadius: '10px !important',
@@ -1906,42 +1779,46 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                             sx={{
                                 fontWeight: 700,
                                 textTransform: 'none',
-                                fontSize: '0.8125rem',
-                                py: 0.85,
+                                fontSize: '0.825rem',
+                                py: 0.9,
                                 color: '#64748b',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
+                                gap: 0.75,
                                 '&.Mui-selected': {
                                     bgcolor: '#ffffff',
                                     color: '#0f172a',
-                                    boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+                                    fontWeight: 800,
+                                    boxShadow: '0 1px 4px rgba(0,0,0,0.08)'
                                 }
                             }}
                         >
-                            <BoltOutlinedIcon sx={{ fontSize: '18px', mr: 0.75, color: '#eab308' }} />
-                            Áp dụng chung cho {currentGroupSelectedSerials.length} sê-ri đã chọn
+                            <BoltOutlinedIcon sx={{ fontSize: '18px', color: serialProcessingMode === 'ALL' ? '#f59e0b' : '#94a3b8' }} />
+                            Báo cáo lý do chung cho các vé ({currentGroupSelectedSerials.length} sê-ri)
                         </ToggleButton>
                         <ToggleButton
                             value="EACH"
                             sx={{
                                 fontWeight: 700,
                                 textTransform: 'none',
-                                fontSize: '0.8125rem',
-                                py: 0.85,
+                                fontSize: '0.825rem',
+                                py: 0.9,
                                 color: '#64748b',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
+                                gap: 0.75,
                                 '&.Mui-selected': {
                                     bgcolor: '#ffffff',
                                     color: '#0f172a',
-                                    boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+                                    fontWeight: 800,
+                                    boxShadow: '0 1px 4px rgba(0,0,0,0.08)'
                                 }
                             }}
                         >
-                            <BorderColorOutlinedIcon sx={{ fontSize: '16px', mr: 0.75, color: '#3b82f6' }} />
-                            Điền thông tin riêng từng sê-ri
+                            <BorderColorOutlinedIcon sx={{ fontSize: '16px', color: serialProcessingMode === 'EACH' ? '#2563eb' : '#94a3b8' }} />
+                            Lý do cụ thể cho từng vé
                         </ToggleButton>
                     </ToggleButtonGroup>
 
@@ -1950,18 +1827,17 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                             severity="warning"
                             sx={{
                                 mt: 1.5,
-                                borderRadius: '12px',
-                                '& .MuiAlert-message': { fontWeight: 600 },
+                                borderRadius: '10px',
+                                '& .MuiAlert-message': { fontWeight: 600, fontSize: '0.8rem' },
                             }}
                         >
                             Dãy số {currentTicketNumbers} đồng thời sẽ bị hủy vì toàn bộ {eligibleCurrentSerials.length} sê-ri đều được báo sự cố vật lý.
                         </Alert>
                     )}
                 </Box>
-                )}
 
                 {/* Group (Ticket Numbers) Switcher Header - Shown for multiple ticket groups */}
-                {groups.length > 1 ? (
+                {groups.length > 1 && (
                     <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2, px: 1.5, py: 1, bgcolor: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
                         <Button 
                             size="small" 
@@ -1992,20 +1868,14 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                             Dãy sau ›
                         </Button>
                     </Stack>
-                ) : (
-                    <Box sx={{ mb: 2, px: 1.5, py: 1, bgcolor: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                        <Typography variant="caption" fontWeight={700} color="text.secondary">
-                            Hiển thị sê-ri cho dãy số {currentTicketNumbers}{currentTicketId ? ` (Vé #${currentTicketId})` : ''} ({currentSerials.length} sê-ri vật lý)
-                        </Typography>
-                    </Box>
                 )}
 
-                {/* ── 2. Form Khai báo sự cố chung ── */}
-                {(cancelMode === 'TICKET' || serialProcessingMode === 'ALL') && (
+                {/* ── 3. Form Khai báo sự cố chung (Khi chọn 'Báo cáo lý do chung cho các vé') ── */}
+                {serialProcessingMode === 'ALL' && (
                     <Paper
                         variant="outlined"
                         sx={{
-                            p: 2.5,
+                            p: 2.25,
                             borderRadius: '14px',
                             borderColor: '#e2e8f0',
                             bgcolor: '#ffffff',
@@ -2013,135 +1883,148 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                             mb: 2.5,
                         }}
                     >
-                        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2, pb: 1.5, borderBottom: '1px solid #f1f5f9' }}>
-                            <Box>
-                                <Typography variant="subtitle2" fontWeight={800} color="#0f172a">
-                                    Thông tin sự cố
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                    {cancelMode === 'TICKET'
-                                        ? `Khai báo sự cố cho toàn bộ dãy ${currentTicketNumbers}`
-                                        : `Áp dụng chung cho ${currentGroupSelectedSerials.length} sê-ri đã chọn của dãy ${currentTicketNumbers}`}
-                                </Typography>
-                            </Box>
+                        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2, pb: 1.25, borderBottom: '1px solid #f1f5f9' }}>
+                            <Stack direction="row" alignItems="center" spacing={1.25}>
+                                <Box
+                                    sx={{
+                                        width: 32,
+                                        height: 32,
+                                        borderRadius: '8px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        bgcolor: '#fee2e2',
+                                        color: '#ef4444',
+                                    }}
+                                >
+                                    <ReportProblemOutlinedIcon sx={{ fontSize: '18px' }} />
+                                </Box>
+                                <Box>
+                                    <Typography variant="subtitle2" fontWeight={800} color="#0f172a">
+                                        Thông tin sự cố (Áp dụng chung)
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                        {isFullTicketScope
+                                            ? `Khai báo chung cho toàn bộ vé ${currentTicketNumbers} (${currentGroupSelectedSerials.length} sê-ri)`
+                                            : `Áp dụng chung cho ${currentGroupSelectedSerials.length} sê-ri đã chọn của vé ${currentTicketNumbers}`}
+                                    </Typography>
+                                </Box>
+                            </Stack>
                             <Chip
-                                label={cancelMode === 'TICKET' ? 'Toàn bộ dãy' : `${currentGroupSelectedSerials.length} sê-ri`}
+                                label={`${currentGroupSelectedSerials.length} sê-ri`}
                                 size="small"
-                                sx={{ fontWeight: 700, height: 22, color: '#0369a1', bgcolor: '#e0f2fe', borderColor: '#bae6fd' }}
+                                sx={{ fontWeight: 800, height: 24, color: '#0369a1', bgcolor: '#e0f2fe', borderColor: '#bae6fd', fontSize: '0.72rem' }}
                                 variant="outlined"
                             />
                         </Stack>
 
-                        <Stack spacing={2.5}>
-                            {/* Nguyên nhân sự cố */}
-                            {!hideFaultedBySelector && (
-                                <Box>
+                        <Stack spacing={2}>
+                            {/* Row 1: 2 cột gọn gàng - Nguyên nhân sự cố & Trạng thái báo hủy */}
+                            <Grid container spacing={2}>
+                                {!hideFaultedBySelector && (
+                                    <Grid size={{ xs: 12, sm: 6 }}>
+                                        <Typography variant="caption" fontWeight={700} color="#475569" sx={{ mb: 0.75, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.7rem' }}>
+                                            Nguyên nhân sự cố *
+                                        </Typography>
+                                        <ToggleButtonGroup
+                                            value={ticketForm.faultedBy}
+                                            exclusive
+                                            onChange={(e, val) => { if (val) handleTicketFormFieldChange('faultedBy', val); }}
+                                            size="small"
+                                            fullWidth
+                                            sx={{
+                                                bgcolor: '#f8fafc',
+                                                p: 0.4,
+                                                borderRadius: '10px',
+                                                border: '1px solid #e2e8f0',
+                                                '& .MuiToggleButtonGroup-grouped': {
+                                                    border: 'none',
+                                                    borderRadius: '8px !important',
+                                                }
+                                            }}
+                                        >
+                                            <ToggleButton
+                                                value="INTERNAL_FAULT"
+                                                sx={{
+                                                    fontWeight: 700,
+                                                    textTransform: 'none',
+                                                    fontSize: '0.8rem',
+                                                    py: 0.75,
+                                                    color: '#64748b',
+                                                    '&.Mui-selected': { bgcolor: '#ffffff', color: '#dc2626', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }
+                                                }}
+                                            >
+                                                <HandymanOutlinedIcon sx={{ fontSize: '17px', mr: 0.75 }} />
+                                                Sự cố vật lý
+                                            </ToggleButton>
+                                            <ToggleButton
+                                                value="DATA_ENTRY_FAULT"
+                                                sx={{
+                                                    fontWeight: 700,
+                                                    textTransform: 'none',
+                                                    fontSize: '0.8rem',
+                                                    py: 0.75,
+                                                    color: '#64748b',
+                                                    '&.Mui-selected': { bgcolor: '#ffffff', color: '#2563eb', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }
+                                                }}
+                                            >
+                                                <KeyboardAltOutlinedIcon sx={{ fontSize: '17px', mr: 0.75 }} />
+                                                Lỗi thao tác nhập liệu
+                                            </ToggleButton>
+                                        </ToggleButtonGroup>
+                                    </Grid>
+                                )}
+
+                                <Grid size={{ xs: 12, sm: hideFaultedBySelector ? 12 : 6 }}>
                                     <Typography variant="caption" fontWeight={700} color="#475569" sx={{ mb: 0.75, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.7rem' }}>
-                                        Nguyên nhân sự cố *
+                                        Trạng thái báo hủy *
                                     </Typography>
                                     <ToggleButtonGroup
-                                        value={ticketForm.faultedBy}
+                                        value={ticketForm.status}
                                         exclusive
-                                        onChange={(e, val) => { if (val) handleTicketFormFieldChange('faultedBy', val); }}
+                                        onChange={(e, val) => { if (val) handleTicketFormFieldChange('status', val); }}
                                         size="small"
                                         fullWidth
+                                        disabled={ticketForm.faultedBy === 'DATA_ENTRY_FAULT'}
                                         sx={{
-                                            bgcolor: '#f1f5f9',
-                                            p: 0.5,
+                                            bgcolor: '#f8fafc',
+                                            p: 0.4,
                                             borderRadius: '10px',
-                                            border: 'none',
+                                            border: '1px solid #e2e8f0',
                                             '& .MuiToggleButtonGroup-grouped': {
                                                 border: 'none',
                                                 borderRadius: '8px !important',
                                             }
                                         }}
                                     >
-                                        <ToggleButton
-                                            value="INTERNAL_FAULT"
-                                            sx={{
-                                                fontWeight: 700,
-                                                textTransform: 'none',
-                                                fontSize: '0.8125rem',
-                                                py: 0.75,
-                                                color: '#64748b',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                '&.Mui-selected': { bgcolor: '#ffffff', color: '#b91c1c', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }
-                                            }}
-                                        >
-                                            <HandymanOutlinedIcon sx={{ fontSize: '18px', mr: 0.75 }} />
-                                            Sự cố vật lý
-                                        </ToggleButton>
-                                        <ToggleButton
-                                            value="DATA_ENTRY_FAULT"
-                                            sx={{
-                                                fontWeight: 700,
-                                                textTransform: 'none',
-                                                fontSize: '0.8125rem',
-                                                py: 0.75,
-                                                color: '#64748b',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                '&.Mui-selected': { bgcolor: '#ffffff', color: '#b91c1c', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }
-                                            }}
-                                        >
-                                            <KeyboardAltOutlinedIcon sx={{ fontSize: '18px', mr: 0.75 }} />
-                                            Lỗi thao tác nhập liệu
-                                        </ToggleButton>
-                                    </ToggleButtonGroup>
-                                </Box>
-                            )}
-
-                            {/* Trạng thái báo hủy */}
-                            <Box>
-                                <Typography variant="caption" fontWeight={700} color="#475569" sx={{ mb: 0.75, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.7rem' }}>
-                                    Trạng thái báo hủy *
-                                </Typography>
-                                <ToggleButtonGroup
-                                    value={ticketForm.status}
-                                    exclusive
-                                    onChange={(e, val) => { if (val) handleTicketFormFieldChange('status', val); }}
-                                    size="small"
-                                    fullWidth
-                                    disabled={ticketForm.faultedBy === 'DATA_ENTRY_FAULT'}
-                                    sx={{
-                                        bgcolor: '#f1f5f9',
-                                        p: 0.5,
-                                        borderRadius: '10px',
-                                        border: 'none',
-                                        '& .MuiToggleButtonGroup-grouped': {
-                                            border: 'none',
-                                            borderRadius: '8px !important',
-                                        }
-                                    }}
-                                >
-                                    {ticketForm.faultedBy === 'DATA_ENTRY_FAULT' ? (
-                                        <ToggleButton value="VOIDED" sx={{ fontWeight: 700, textTransform: 'none', fontSize: '0.8125rem', py: 0.75, color: '#b91c1c', display: 'flex', alignItems: 'center', justifyContent: 'center', '&.Mui-selected': { bgcolor: '#ffffff', color: '#b91c1c', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' } }}>
-                                            <CancelOutlinedIcon sx={{ fontSize: '18px', mr: 0.75 }} />
-                                            Hủy do lỗi nhập liệu
-                                        </ToggleButton>
-                                    ) : (
-                                        [
-                                            <ToggleButton key="DAMAGED" value="DAMAGED" sx={{ fontWeight: 700, textTransform: 'none', fontSize: '0.8125rem', py: 0.75, color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', '&.Mui-selected': { bgcolor: '#ffffff', color: '#b91c1c', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' } }}>
-                                                <ContentCutOutlinedIcon sx={{ fontSize: '18px', mr: 0.75 }} />
-                                                Bị hư hỏng / rách
-                                            </ToggleButton>,
-                                            <ToggleButton key="LOST" value="LOST" sx={{ fontWeight: 700, textTransform: 'none', fontSize: '0.8125rem', py: 0.75, color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', '&.Mui-selected': { bgcolor: '#ffffff', color: '#b91c1c', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' } }}>
-                                                <SearchOffOutlinedIcon sx={{ fontSize: '18px', mr: 0.75 }} />
-                                                Thất lạc / Mất
+                                        {ticketForm.faultedBy === 'DATA_ENTRY_FAULT' ? (
+                                            <ToggleButton value="VOIDED" sx={{ fontWeight: 700, textTransform: 'none', fontSize: '0.8rem', py: 0.75, color: '#dc2626', '&.Mui-selected': { bgcolor: '#ffffff', color: '#dc2626', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' } }}>
+                                                <CancelOutlinedIcon sx={{ fontSize: '17px', mr: 0.75 }} />
+                                                Hủy do lỗi nhập liệu
                                             </ToggleButton>
-                                        ]
-                                    )}
-                                </ToggleButtonGroup>
-                            </Box>
+                                        ) : (
+                                            [
+                                                <ToggleButton key="DAMAGED" value="DAMAGED" sx={{ fontWeight: 700, textTransform: 'none', fontSize: '0.8rem', py: 0.75, color: '#64748b', '&.Mui-selected': { bgcolor: '#ffffff', color: '#dc2626', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' } }}>
+                                                    <ContentCutOutlinedIcon sx={{ fontSize: '17px', mr: 0.75 }} />
+                                                    Bị hư hỏng / rách
+                                                </ToggleButton>,
+                                                <ToggleButton key="LOST" value="LOST" sx={{ fontWeight: 700, textTransform: 'none', fontSize: '0.8rem', py: 0.75, color: '#64748b', '&.Mui-selected': { bgcolor: '#ffffff', color: '#d97706', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' } }}>
+                                                    <SearchOffOutlinedIcon sx={{ fontSize: '17px', mr: 0.75 }} />
+                                                    Thất lạc / Mất
+                                                </ToggleButton>
+                                            ]
+                                        )}
+                                    </ToggleButtonGroup>
+                                </Grid>
+                            </Grid>
 
-                            {/* Lý do chi tiết */}
+                            {/* Row 2: Lý do chi tiết & gợi ý nhanh */}
                             <Box>
+                                <Typography variant="caption" fontWeight={700} color="#475569" sx={{ mb: 0.5, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.7rem' }}>
+                                    Lý do chi tiết *
+                                </Typography>
                                 <TextField
-                                    label="Lý do chi tiết"
-                                    variant="outlined"
+                                    placeholder="Nhập lý do chi tiết hoặc chọn nhanh bên dưới..."
                                     fullWidth
                                     size="small"
                                     required={ticketForm.status === 'LOST' || ticketForm.status === 'VOIDED' || (ticketForm.faultedBy === 'INTERNAL_FAULT' && ticketForm.status === 'DAMAGED')}
@@ -2149,51 +2032,37 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                     onChange={(e) => handleTicketFormFieldChange('damagedReason', e.target.value)}
                                     error={!!ticketForm.errors.damagedReason}
                                     helperText={ticketForm.errors.damagedReason}
-                                    placeholder="Nhập lý do chi tiết..."
-                                    InputProps={{ sx: { borderRadius: '10px' } }}
+                                    InputProps={{ sx: { borderRadius: '10px', fontSize: '0.875rem' } }}
                                 />
                                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mt: 1 }}>
-                                    {ticketForm.faultedBy === 'INTERNAL_FAULT' ? (
-                                        ['Lỡ tay làm rách vé', 'Vé bị dính nước/bẩn', 'Mất vé khi kiểm kho'].map((sug) => (
-                                            <Chip
-                                                key={sug}
-                                                label={sug}
-                                                size="small"
-                                                variant="outlined"
-                                                onClick={() => handleTicketFormFieldChange('damagedReason', sug)}
-                                                sx={{
-                                                    borderRadius: '6px',
-                                                    cursor: 'pointer',
-                                                    fontSize: '0.72rem',
-                                                    bgcolor: '#f8fafc',
-                                                    '&:hover': { bgcolor: '#f1f5f9', borderColor: '#94a3b8' }
-                                                }}
-                                            />
-                                        ))
-                                    ) : (
-                                        ['Nhập sai số vé', 'Nhập nhầm đài/ngày', 'Nhập sai số sê-ri'].map((sug) => (
-                                            <Chip
-                                                key={sug}
-                                                label={sug}
-                                                size="small"
-                                                variant="outlined"
-                                                onClick={() => handleTicketFormFieldChange('damagedReason', sug)}
-                                                sx={{
-                                                    borderRadius: '6px',
-                                                    cursor: 'pointer',
-                                                    fontSize: '0.72rem',
-                                                    bgcolor: '#f8fafc',
-                                                    '&:hover': { bgcolor: '#f1f5f9', borderColor: '#94a3b8' }
-                                                }}
-                                            />
-                                        ))
-                                    )}
+                                    {(ticketForm.faultedBy === 'INTERNAL_FAULT'
+                                        ? ['Lỡ tay làm rách vé', 'Vé bị dính nước/bẩn', 'Mất vé khi kiểm kho', 'Vé bị nhòe số/mờ mực']
+                                        : ['Nhập sai số vé', 'Nhập nhầm đài/ngày', 'Nhập sai số sê-ri']
+                                    ).map((sug) => (
+                                        <Chip
+                                            key={sug}
+                                            label={sug}
+                                            size="small"
+                                            variant="outlined"
+                                            onClick={() => handleTicketFormFieldChange('damagedReason', sug)}
+                                            sx={{
+                                                borderRadius: '6px',
+                                                cursor: 'pointer',
+                                                fontSize: '0.72rem',
+                                                bgcolor: ticketForm.damagedReason === sug ? '#fee2e2' : '#f8fafc',
+                                                borderColor: ticketForm.damagedReason === sug ? '#fca5a5' : '#e2e8f0',
+                                                color: ticketForm.damagedReason === sug ? '#b91c1c' : '#475569',
+                                                fontWeight: ticketForm.damagedReason === sug ? 700 : 500,
+                                                '&:hover': { bgcolor: '#f1f5f9', borderColor: '#cbd5e1' }
+                                            }}
+                                        />
+                                    ))}
                                 </Box>
                             </Box>
 
-                            {/* Dãy số vé thay thế và ảnh vé thay thế khi cấp dãy số (cancelMode === 'TICKET') */}
-                            {cancelMode === 'TICKET' && ticketForm.faultedBy === 'DATA_ENTRY_FAULT' && (
-                                <Box sx={{ mt: 1.5, pt: 2, borderTop: '1px dashed #fecaca', bgcolor: '#fff5f5', p: 2, borderRadius: '10px', border: '1px solid #fee2e2' }}>
+                            {/* Dãy số vé thay thế và ảnh vé thay thế khi cấp dãy số (cancelMode === 'TICKET' && DATA_ENTRY_FAULT) */}
+                            {isFullTicketScope && ticketForm.faultedBy === 'DATA_ENTRY_FAULT' && (
+                                <Box sx={{ mt: 1, p: 2, borderRadius: '10px', bgcolor: '#fff5f5', border: '1px solid #fee2e2' }}>
                                     <Typography variant="caption" fontWeight={800} color="#b91c1c" sx={{ mb: 0.5, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.72rem' }}>
                                         Thông tin vé số thay thế *
                                     </Typography>
@@ -2263,7 +2132,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                     </Paper>
                 )}
 
-                {/* ── 3. Danh sách sê-ri ── */}
+                {/* ── 4. Danh sách sê-ri ── */}
                 <Paper
                     variant="outlined"
                     sx={{
@@ -2273,15 +2142,65 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                         bgcolor: '#ffffff',
                     }}
                 >
-                    <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
-                        <Typography variant="caption" fontWeight={800} color="#475569" sx={{ textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.75rem' }}>
-                            Danh sách sê-ri — Dãy {currentTicketNumbers}
-                        </Typography>
-                        <Chip
-                            label={`${currentGroupSelectedSerials.length} / ${eligibleCurrentSerials.length} đã chọn`}
-                            size="small"
-                            sx={{ fontWeight: 700, height: 20, fontSize: '0.675rem', bgcolor: '#f1f5f9', color: '#475569' }}
-                        />
+                    <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1} sx={{ mb: 1.5 }}>
+                        <Box>
+                            <Typography variant="caption" fontWeight={800} color="#475569" sx={{ textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.75rem' }}>
+                                Danh sách sê-ri — Dãy {currentTicketNumbers}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.7rem' }}>
+                                {serialProcessingMode === 'ALL'
+                                    ? 'Các sê-ri được chọn sẽ áp dụng chung thông tin sự cố ở trên'
+                                    : 'Khai báo thông tin sự cố riêng biệt cho từng sê-ri bên dưới'}
+                            </Typography>
+                        </Box>
+
+                        <Stack direction="row" spacing={1} alignItems="center">
+                            {serialProcessingMode === 'EACH' && currentGroupSelectedSerials.length > 1 && (
+                                <Button
+                                    size="small"
+                                    variant="outlined"
+                                    onClick={() => {
+                                        const firstSelected = currentGroupSelectedSerials[0];
+                                        const firstForm = forms[firstSelected.id];
+                                        if (!firstForm) return;
+                                        setForms((prev) => {
+                                            const next = { ...prev };
+                                            currentGroupSelectedSerials.forEach((s) => {
+                                                if (s.id !== firstSelected.id && next[s.id]) {
+                                                    next[s.id] = {
+                                                        ...next[s.id],
+                                                        faultedBy: firstForm.faultedBy,
+                                                        status: firstForm.status,
+                                                        damagedReason: firstForm.damagedReason,
+                                                        damagedEvidenceUrl: firstForm.damagedEvidenceUrl,
+                                                    };
+                                                }
+                                            });
+                                            return next;
+                                        });
+                                        AppToast.success('Đã sao chép lý do sự cố từ sê-ri đầu tiên cho các sê-ri còn lại');
+                                    }}
+                                    sx={{
+                                        textTransform: 'none',
+                                        fontSize: '0.72rem',
+                                        fontWeight: 700,
+                                        borderRadius: '8px',
+                                        py: 0.3,
+                                        px: 1,
+                                        borderColor: '#cbd5e1',
+                                        color: '#334155',
+                                        '&:hover': { bgcolor: '#f8fafc', borderColor: '#94a3b8' }
+                                    }}
+                                >
+                                    Sao chép sê-ri #1 sang các sê-ri còn lại
+                                </Button>
+                            )}
+                            <Chip
+                                label={`${currentGroupSelectedSerials.length} / ${eligibleCurrentSerials.length} đã chọn`}
+                                size="small"
+                                sx={{ fontWeight: 700, height: 22, fontSize: '0.7rem', bgcolor: '#f1f5f9', color: '#475569' }}
+                            />
+                        </Stack>
                     </Stack>
 
                     {/* Sub-pagination if single ticket group has > 10 serials */}
@@ -2335,7 +2254,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                 <Box 
                                     key={s.id} 
                                     sx={{ 
-                                        p: 1.75, 
+                                        p: 1.5, 
                                         border: cardBorder, 
                                         borderRadius: '12px', 
                                         bgcolor: cardBg,
@@ -2349,7 +2268,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                                 <Checkbox
                                                     checked={form.selected}
                                                     onChange={(e) => handleFieldChange(s.id, 'selected', e.target.checked)}
-                                                    disabled={!incidentEligible || cancelMode === 'TICKET'}
+                                                    disabled={!incidentEligible}
                                                     size="small"
                                                     sx={{
                                                         color: '#cbd5e1',
@@ -2371,17 +2290,28 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                             }
                                         />
                                         
-                                        <SerialStatusChip status={s.status} ticketCondition={s.ticketCondition} />
-                                        {!incidentEligible && (
-                                            <Typography variant="caption" color="text.secondary" sx={{ ml: 1, fontStyle: 'italic' }}>
-                                                Chỉ tra cứu — không thể báo sự cố
-                                            </Typography>
-                                        )}
+                                        <Stack direction="row" alignItems="center" spacing={1}>
+                                            <SerialStatusChip status={s.status} ticketCondition={s.ticketCondition} />
+                                            {s.reservedByOrderId && (
+                                                <Chip
+                                                    label={`Đơn #${s.reservedByOrderId}`}
+                                                    size="small"
+                                                    sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700, bgcolor: '#fef3c7', color: '#92400e' }}
+                                                />
+                                            )}
+                                            {isSelected && serialProcessingMode === 'ALL' && (
+                                                <Chip
+                                                    label="Áp dụng lý do chung"
+                                                    size="small"
+                                                    sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700, bgcolor: '#dcfce7', color: '#15803d', border: '1px solid #86efac' }}
+                                                />
+                                            )}
+                                        </Stack>
                                     </Stack>
 
                                     {/* Evidence upload per serial in ALL mode */}
                                     {form.selected && incidentEligible && serialProcessingMode === 'ALL' && isTicketBatchFaultFlow && ticketForm.status === 'DAMAGED' && ticketBatchEvidenceMode === 'EACH' && (
-                                        <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid #f1f5f9' }}>
+                                        <Box sx={{ mt: 1.25, pt: 1.25, borderTop: '1px solid #f1f5f9' }}>
                                             <Typography variant="caption" fontWeight={700} color="#64748b" sx={{ mb: 0.75, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.7rem' }}>
                                                 Ảnh minh chứng <strong style={{ color: '#ef4444' }}>*</strong>
                                             </Typography>
@@ -2394,10 +2324,10 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                         </Box>
                                     )}
 
-                                    {/* Inline Replacement Serial in ALL mode when DATA_ENTRY_FAULT and cancelMode is SERIAL */}
-                                    {cancelMode === 'SERIAL' && form.selected && incidentEligible && serialProcessingMode === 'ALL' && ticketForm.faultedBy === 'DATA_ENTRY_FAULT' && (
-                                        <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid #e2e8f0' }}>
-                                            <Stack spacing={1.5}>
+                                    {/* Inline Replacement Serial in ALL mode when DATA_ENTRY_FAULT */}
+                                    {form.selected && incidentEligible && serialProcessingMode === 'ALL' && ticketForm.faultedBy === 'DATA_ENTRY_FAULT' && !isFullTicketScope && (
+                                        <Box sx={{ mt: 1.25, pt: 1.25, borderTop: '1px solid #e2e8f0' }}>
+                                            <Stack spacing={1.25}>
                                                 <TextField
                                                     label="Số sê-ri thay thế"
                                                     variant="outlined"
@@ -2412,7 +2342,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                                     InputProps={{ sx: { borderRadius: '10px' } }}
                                                 />
                                                 <Box>
-                                                    <Typography variant="caption" fontWeight={700} color="#475569" sx={{ mb: 0.75, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.7rem' }}>
+                                                    <Typography variant="caption" fontWeight={700} color="#475569" sx={{ mb: 0.5, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.7rem' }}>
                                                         Ảnh vé thay thế
                                                     </Typography>
                                                     <UploadSingleFile
@@ -2427,174 +2357,140 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                         </Box>
                                     )}
 
-                                    {/* EACH Mode Form inside individual serial item */}
+                                    {/* EACH Mode Form inside individual serial item - Compact 2-column layout */}
                                     {form.selected && serialProcessingMode === 'EACH' && incidentEligible && (
-                                        <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid #e2e8f0' }}>
-                                            <Stack spacing={2}>
-                                                {/* Nguyên nhân sự cố - Toggle pills */}
-                                                {!hideFaultedBySelector && (
-                                                    <Box>
-                                                        <Typography variant="caption" fontWeight={700} color="#475569" sx={{ mb: 0.75, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.7rem' }}>
-                                                            Nguyên nhân sự cố
+                                        <Box sx={{ mt: 1.25, pt: 1.25, borderTop: '1px solid #e2e8f0' }}>
+                                            <Stack spacing={1.5}>
+                                                {/* 2 cột: Nguyên nhân sự cố & Trạng thái báo hủy */}
+                                                <Grid container spacing={1.5}>
+                                                    {!hideFaultedBySelector && (
+                                                        <Grid size={{ xs: 12, sm: 6 }}>
+                                                            <Typography variant="caption" fontWeight={700} color="#475569" sx={{ mb: 0.5, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.68rem' }}>
+                                                                Nguyên nhân sự cố
+                                                            </Typography>
+                                                            <ToggleButtonGroup
+                                                                value={form.faultedBy}
+                                                                exclusive
+                                                                onChange={(e, val) => { if (val) handleFieldChange(s.id, 'faultedBy', val); }}
+                                                                size="small"
+                                                                fullWidth
+                                                                sx={{
+                                                                    bgcolor: '#f1f5f9',
+                                                                    p: 0.3,
+                                                                    borderRadius: '8px',
+                                                                    border: 'none',
+                                                                    '& .MuiToggleButtonGroup-grouped': {
+                                                                        border: 'none',
+                                                                        borderRadius: '6px !important',
+                                                                    }
+                                                                }}
+                                                            >
+                                                                <ToggleButton 
+                                                                    value="INTERNAL_FAULT" 
+                                                                    sx={{ 
+                                                                        fontWeight: 700, 
+                                                                        textTransform: 'none', 
+                                                                        fontSize: '0.75rem', 
+                                                                        py: 0.5, 
+                                                                        color: '#64748b', 
+                                                                        '&.Mui-selected': { bgcolor: '#fff', color: '#b91c1c', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' } 
+                                                                    }}
+                                                                >
+                                                                    <HandymanOutlinedIcon sx={{ fontSize: '15px', mr: 0.5 }} />
+                                                                    Sự cố vật lý
+                                                                </ToggleButton>
+                                                                <ToggleButton 
+                                                                    value="DATA_ENTRY_FAULT" 
+                                                                    sx={{ 
+                                                                        fontWeight: 700, 
+                                                                        textTransform: 'none', 
+                                                                        fontSize: '0.75rem', 
+                                                                        py: 0.5, 
+                                                                        color: '#64748b', 
+                                                                        '&.Mui-selected': { bgcolor: '#fff', color: '#2563eb', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' } 
+                                                                    }}
+                                                                >
+                                                                    <KeyboardAltOutlinedIcon sx={{ fontSize: '15px', mr: 0.5 }} />
+                                                                    Lỗi nhập liệu
+                                                                </ToggleButton>
+                                                            </ToggleButtonGroup>
+                                                        </Grid>
+                                                    )}
+
+                                                    <Grid size={{ xs: 12, sm: hideFaultedBySelector ? 12 : 6 }}>
+                                                        <Typography variant="caption" fontWeight={700} color="#475569" sx={{ mb: 0.5, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.68rem' }}>
+                                                            Trạng thái báo hủy
                                                         </Typography>
                                                         <ToggleButtonGroup
-                                                            value={form.faultedBy}
+                                                            value={form.status}
                                                             exclusive
-                                                            onChange={(e, val) => { if (val) handleFieldChange(s.id, 'faultedBy', val); }}
+                                                            onChange={(e, val) => { if (val) handleFieldChange(s.id, 'status', val); }}
                                                             size="small"
                                                             fullWidth
+                                                            disabled={form.faultedBy === 'DATA_ENTRY_FAULT'}
                                                             sx={{
                                                                 bgcolor: '#f1f5f9',
-                                                                p: 0.5,
-                                                                borderRadius: '10px',
+                                                                p: 0.3,
+                                                                borderRadius: '8px',
                                                                 border: 'none',
                                                                 '& .MuiToggleButtonGroup-grouped': {
                                                                     border: 'none',
-                                                                    borderRadius: '8px !important',
+                                                                    borderRadius: '6px !important',
                                                                 }
                                                             }}
                                                         >
-                                                            <ToggleButton 
-                                                                value="INTERNAL_FAULT" 
-                                                                sx={{ 
-                                                                    fontWeight: 700, 
-                                                                    textTransform: 'none', 
-                                                                    fontSize: '0.8rem', 
-                                                                    py: 0.75, 
-                                                                    color: '#64748b', 
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    justifyContent: 'center',
-                                                                    '&.Mui-selected': {
-                                                                        bgcolor: '#fff', 
-                                                                        color: '#b91c1c', 
-                                                                        boxShadow: '0 1px 3px rgba(0,0,0,0.1)' 
-                                                                    }
-                                                                }}
-                                                            >
-                                                                <HandymanOutlinedIcon sx={{ fontSize: '16px', mr: 0.5 }} />
-                                                                Sự cố vật lý
-                                                            </ToggleButton>
-                                                            <ToggleButton 
-                                                                value="DATA_ENTRY_FAULT" 
-                                                                sx={{ 
-                                                                    fontWeight: 700, 
-                                                                    textTransform: 'none', 
-                                                                    fontSize: '0.8rem', 
-                                                                    py: 0.75, 
-                                                                    color: '#64748b', 
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    justifyContent: 'center',
-                                                                    '&.Mui-selected': {
-                                                                        bgcolor: '#fff', 
-                                                                        color: '#b91c1c', 
-                                                                        boxShadow: '0 1px 3px rgba(0,0,0,0.1)' 
-                                                                    }
-                                                                }}
-                                                            >
-                                                                <KeyboardAltOutlinedIcon sx={{ fontSize: '16px', mr: 0.5 }} />
-                                                                Lỗi thao tác nhập liệu
-                                                            </ToggleButton>
-                                                        </ToggleButtonGroup>
-                                                    </Box>
-                                                )}
-
-                                                {/* Trạng thái báo hủy - Toggle pills */}
-                                                <Box>
-                                                    <Typography variant="caption" fontWeight={700} color="#475569" sx={{ mb: 0.75, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.7rem' }}>
-                                                        Trạng thái báo hủy
-                                                    </Typography>
-                                                    <ToggleButtonGroup
-                                                        value={form.status}
-                                                        exclusive
-                                                        onChange={(e, val) => { if (val) handleFieldChange(s.id, 'status', val); }}
-                                                        size="small"
-                                                        fullWidth
-                                                        disabled={form.faultedBy === 'DATA_ENTRY_FAULT'}
-                                                        sx={{
-                                                            bgcolor: '#f1f5f9',
-                                                            p: 0.5,
-                                                            borderRadius: '10px',
-                                                            border: 'none',
-                                                            '& .MuiToggleButtonGroup-grouped': {
-                                                                border: 'none',
-                                                                borderRadius: '8px !important',
-                                                            }
-                                                        }}
-                                                    >
-                                                        {form.faultedBy === 'DATA_ENTRY_FAULT' ? (
-                                                            <ToggleButton 
-                                                                value="VOIDED" 
-                                                                sx={{ 
-                                                                    fontWeight: 700, 
-                                                                    textTransform: 'none', 
-                                                                    fontSize: '0.8rem', 
-                                                                    py: 0.75, 
-                                                                    color: '#b91c1c', 
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    justifyContent: 'center',
-                                                                    '&.Mui-selected': {
-                                                                        bgcolor: '#fff', 
-                                                                        color: '#b91c1c', 
-                                                                        boxShadow: '0 1px 3px rgba(0,0,0,0.1)' 
-                                                                    }
-                                                                }}
-                                                            >
-                                                                <CancelOutlinedIcon sx={{ fontSize: '16px', mr: 0.5 }} />
-                                                                Hủy do lỗi nhập liệu
-                                                            </ToggleButton>
-                                                        ) : (
-                                                            [
+                                                            {form.faultedBy === 'DATA_ENTRY_FAULT' ? (
                                                                 <ToggleButton 
-                                                                    key="DAMAGED"
-                                                                    value="DAMAGED" 
+                                                                    value="VOIDED" 
                                                                     sx={{ 
                                                                         fontWeight: 700, 
                                                                         textTransform: 'none', 
-                                                                        fontSize: '0.8rem', 
-                                                                        py: 0.75, 
-                                                                        color: '#64748b', 
-                                                                        display: 'flex',
-                                                                        alignItems: 'center',
-                                                                        justifyContent: 'center',
-                                                                        '&.Mui-selected': {
-                                                                            bgcolor: '#fff', 
-                                                                            color: '#b91c1c', 
-                                                                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)' 
-                                                                        }
+                                                                        fontSize: '0.75rem', 
+                                                                        py: 0.5, 
+                                                                        color: '#b91c1c', 
+                                                                        '&.Mui-selected': { bgcolor: '#fff', color: '#b91c1c', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' } 
                                                                     }}
                                                                 >
-                                                                    <ContentCutOutlinedIcon sx={{ fontSize: '16px', mr: 0.5 }} />
-                                                                    Bị hư hỏng / rách
-                                                                </ToggleButton>,
-                                                                <ToggleButton 
-                                                                    key="LOST"
-                                                                    value="LOST" 
-                                                                    sx={{ 
-                                                                        fontWeight: 700, 
-                                                                        textTransform: 'none', 
-                                                                        fontSize: '0.8rem', 
-                                                                        py: 0.75, 
-                                                                        color: '#64748b', 
-                                                                        display: 'flex',
-                                                                        alignItems: 'center',
-                                                                        justifyContent: 'center',
-                                                                        '&.Mui-selected': {
-                                                                            bgcolor: '#fff', 
-                                                                            color: '#b91c1c', 
-                                                                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)' 
-                                                                        }
-                                                                    }}
-                                                                >
-                                                                    <SearchOffOutlinedIcon sx={{ fontSize: '16px', mr: 0.5 }} />
-                                                                    Thất lạc / Mất
+                                                                    <CancelOutlinedIcon sx={{ fontSize: '15px', mr: 0.5 }} />
+                                                                    Hủy do lỗi nhập liệu
                                                                 </ToggleButton>
-                                                            ]
-                                                        )}
-                                                    </ToggleButtonGroup>
-                                                </Box>
+                                                            ) : (
+                                                                [
+                                                                    <ToggleButton 
+                                                                        key="DAMAGED"
+                                                                        value="DAMAGED" 
+                                                                        sx={{ 
+                                                                            fontWeight: 700, 
+                                                                            textTransform: 'none', 
+                                                                            fontSize: '0.75rem', 
+                                                                            py: 0.5, 
+                                                                            color: '#64748b', 
+                                                                            '&.Mui-selected': { bgcolor: '#fff', color: '#b91c1c', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' } 
+                                                                        }}
+                                                                    >
+                                                                        <ContentCutOutlinedIcon sx={{ fontSize: '15px', mr: 0.5 }} />
+                                                                        Bị hư hỏng / rách
+                                                                    </ToggleButton>,
+                                                                    <ToggleButton 
+                                                                        key="LOST"
+                                                                        value="LOST" 
+                                                                        sx={{ 
+                                                                            fontWeight: 700, 
+                                                                            textTransform: 'none', 
+                                                                            fontSize: '0.75rem', 
+                                                                            py: 0.5, 
+                                                                            color: '#64748b', 
+                                                                            '&.Mui-selected': { bgcolor: '#fff', color: '#d97706', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' } 
+                                                                        }}
+                                                                    >
+                                                                        <SearchOffOutlinedIcon sx={{ fontSize: '15px', mr: 0.5 }} />
+                                                                        Thất lạc / Mất
+                                                                    </ToggleButton>
+                                                                ]
+                                                            )}
+                                                        </ToggleButtonGroup>
+                                                    </Grid>
+                                                </Grid>
 
                                                 {/* Lý do chi tiết */}
                                                 <Box>
@@ -2610,10 +2506,10 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                                         helperText={form.errors.damagedReason}
                                                         placeholder="Nhập lý do chi tiết..."
                                                         InputProps={{
-                                                            sx: { borderRadius: '10px' }
+                                                            sx: { borderRadius: '8px', fontSize: '0.825rem' }
                                                         }}
                                                     />
-                                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mt: 0.75 }}>
+                                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.75 }}>
                                                         {(form.faultedBy === 'INTERNAL_FAULT'
                                                             ? ['Lỡ tay làm rách vé', 'Vé bị dính nước/bẩn', 'Mất vé khi kiểm kho']
                                                             : ['Nhập sai số vé', 'Nhập nhầm đài/ngày', 'Nhập sai số sê-ri']
@@ -2624,7 +2520,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                                                 size="small"
                                                                 variant="outlined"
                                                                 onClick={() => handleFieldChange(s.id, 'damagedReason', sug)}
-                                                                sx={{ borderRadius: '6px', cursor: 'pointer', fontSize: '0.7rem', bgcolor: '#f8fafc', '&:hover': { bgcolor: '#f1f5f9' } }}
+                                                                sx={{ borderRadius: '6px', cursor: 'pointer', fontSize: '0.68rem', height: 22, bgcolor: '#f8fafc', '&:hover': { bgcolor: '#f1f5f9' } }}
                                                             />
                                                         ))}
                                                     </Box>
@@ -2633,7 +2529,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                                 {/* Link ảnh minh chứng */}
                                                 {form.status === 'DAMAGED' && (
                                                     <Box>
-                                                        <Typography variant="caption" fontWeight={700} color="#475569" sx={{ mb: 0.75, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.7rem' }}>
+                                                        <Typography variant="caption" fontWeight={700} color="#475569" sx={{ mb: 0.5, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.68rem' }}>
                                                             Ảnh minh chứng {form.faultedBy === 'INTERNAL_FAULT' && <strong style={{ color: '#ef4444' }}>*</strong>}
                                                         </Typography>
                                                         <UploadSingleFile
@@ -2659,14 +2555,14 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                                         placeholder="Ví dụ: IBSEED-..."
                                                         error={!!form.errors.replacementSerial}
                                                         helperText={form.errors.replacementSerial}
-                                                        InputProps={{ sx: { borderRadius: '10px' } }}
+                                                        InputProps={{ sx: { borderRadius: '8px' } }}
                                                     />
                                                 )}
 
                                                 {/* Ảnh vé thay thế khi VOIDED */}
                                                 {form.status === 'VOIDED' && (
                                                     <Box>
-                                                        <Typography variant="caption" fontWeight={700} color="#475569" sx={{ mb: 0.75, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.7rem' }}>
+                                                        <Typography variant="caption" fontWeight={700} color="#475569" sx={{ mb: 0.5, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.68rem' }}>
                                                             Ảnh vé thay thế
                                                         </Typography>
                                                         <UploadSingleFile

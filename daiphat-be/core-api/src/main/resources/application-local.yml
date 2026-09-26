@@ -135,7 +135,10 @@ daiphat:
   lottery:
     seed:
       # Shared inventory pool (PN-SEED / IBSEED): past ≤30 days + today/tomorrow.
-      enabled: true
+      # Off by default: the reset rewrites tens of thousands of rows inside long transactions
+      # that lock member tickets (payout/orders) until it finishes. Set LOTTERY_SEED_ENABLED=true
+      # (plus the win50/order flags below) for one restart to regenerate demo data.
+      enabled: ${LOTTERY_SEED_ENABLED:false}
       past-days: 30
       tickets-per-batch-past: 36
       serials-per-ticket: 10
@@ -147,13 +150,13 @@ daiphat:
         overwrite-existing: true
       win50-payout:
         # Mark winners FROM IBSEED past inventory for member payout demos.
-        enabled: true
+        enabled: ${LOTTERY_SEED_WIN50_PAYOUT_ENABLED:false}
   fortune:
     daily-limit-enabled: true
   order:
     seed:
-      # Lifecycle orders; prefers real southern stations (buyable overlay).
-      enabled: true
+      # Lifecycle orders; prefers real southern stations (buyable overlay). Same caveat as lottery.seed.
+      enabled: ${ORDER_SEED_ENABLED:false}
   sample-order:
     seed:
       enabled: false

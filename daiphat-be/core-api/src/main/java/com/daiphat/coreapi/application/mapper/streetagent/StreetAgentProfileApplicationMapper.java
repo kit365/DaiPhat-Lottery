@@ -19,6 +19,7 @@ public interface StreetAgentProfileApplicationMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "userId", ignore = true)
     @Mapping(target = "email", ignore = true)
+    @Mapping(target = "cccd", ignore = true)
     @Mapping(target = "depositAdjustmentReason", ignore = true)
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "contractCode", ignore = true)
@@ -30,12 +31,14 @@ public interface StreetAgentProfileApplicationMapper {
     StreetAgentProfileModel toModel(CreateStreetAgentProfileRequest request);
 
     @Mapping(target = "status", expression = "java(model.getStatus() != null ? model.getStatus().getCode() : null)")
+    @Mapping(target = "ekycStatus", expression = "java(model.getEkycStatus() != null ? model.getEkycStatus().name() : null)")
     StreetAgentProfileResponse toResponse(StreetAgentProfileModel model);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "userId", ignore = true)
     @Mapping(target = "email", ignore = true)
+    @Mapping(target = "cccd", ignore = true)
     @Mapping(target = "contractCode", ignore = true)
     @Mapping(target = "contractDocumentUrl", ignore = true)
     @Mapping(target = "createdAt", ignore = true)

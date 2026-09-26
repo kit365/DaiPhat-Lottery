@@ -34,6 +34,7 @@ import {
     parseCoverageAreaCodes,
     serializeCoverageAreaCodes,
 } from "../constants/coverageAreas";
+import { verifyStreetAgentEkyc } from "../services/streetAgentService";
 
 interface StreetAgentProfileEditModalProps {
     open: boolean;
@@ -47,8 +48,9 @@ const toFormValues = (profile: StreetAgentProfile): UpdateStreetAgentProfileForm
     firstName: profile.firstName || "",
     lastName: profile.lastName || "",
     phone: profile.phone || "",
-    cccd: profile.cccd || "",
     imageUrl: profile.imageUrl || "",
+    cccdFrontImageUrl: profile.cccdFrontImageUrl || "",
+    cccdBackImageUrl: profile.cccdBackImageUrl || "",
     contactAddress: profile.contactAddress || "",
     contactProvince: profile.contactProvince || "",
     contactWard: profile.contactWard || "",
@@ -77,20 +79,22 @@ export const StreetAgentProfileEditModal = ({
 }: StreetAgentProfileEditModalProps) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isUploading, setIsUploading] = useState(false);
+    const [isVerifyingEkyc, setIsVerifyingEkyc] = useState(false);
 
-    const { data: profile, isLoading } = useStreetAgentProfileDetail(
+    const { data: profile, isLoading, refetch } = useStreetAgentProfileDetail(
         open && profileId ? profileId : undefined
     );
     const { mutate: update, isPending } = useUpdateStreetAgentProfile();
 
-    const { control, handleSubmit, reset, setValue, watch } = useForm<UpdateStreetAgentProfileFormValues>({
+    const { control, handleSubmit, reset, setValue, watch, getValues } = useForm<UpdateStreetAgentProfileFormValues>({
         resolver: zodResolver(updateStreetAgentProfileSchema) as any,
         defaultValues: {
             firstName: "",
             lastName: "",
             phone: "",
-            cccd: "",
             imageUrl: "",
+            cccdFrontImageUrl: "",
+            cccdBackImageUrl: "",
             contactAddress: "",
             contactProvince: "",
             contactWard: "",
@@ -110,6 +114,22 @@ export const StreetAgentProfileEditModal = ({
             reset(toFormValues(profile));
         }
     }, [open, profile, reset]);
+
+    const buildUpdatePayload = (data: UpdateStreetAgentProfileFormValues) => ({
+        firstName: data.firstName,
+        lastName: data.lastName,
+        phone: data.phone,
+        imageUrl: data.imageUrl || undefined,
+        cccdFrontImageUrl: data.cccdFrontImageUrl || undefined,
+        cccdBackImageUrl: data.cccdBackImageUrl || undefined,
+        contactAddress: data.contactAddress || undefined,
+        contactProvince: data.contactProvince || undefined,
+        contactWard: data.contactWard || undefined,
+        coverageArea: serializeCoverageAreaCodes(data.coverageAreaCodes || []),
+        contractStartDate: data.contractStartDate || undefined,
+        contractEndDate: data.contractEndDate || undefined,
+        contractMaxDailyCap: data.contractMaxDailyCap ?? undefined,
+    });
 
     const handleOpenFile = () => {
         fileInputRef.current?.click();
@@ -147,26 +167,55 @@ export const StreetAgentProfileEditModal = ({
         }
     };
 
+    const handleVerifyEkyc = async () => {
+        if (!profileId) return;
+        const values = getValues();
+        update(
+            {
+                id: profileId,
+                data: buildUpdatePayload(values),
+            },
+            {
+                onSuccess: async (response) => {
+                    if (!response.success) {
+                        toast.error(response.message || "Không lưu được ảnh eKYC");
+                        return;
+                    }
+                    try {
+                        setIsVerifyingEkyc(true);
+                        const verifyRes = await verifyStreetAgentEkyc(profileId);
+                        if (verifyRes.success) {
+                            toast.success(verifyRes.message || "Xác thực eKYC thành công.");
+                            await refetch();
+                            if (verifyRes.data) {
+                                onUpdated?.(verifyRes.data);
+                            }
+                        } else {
+                            toast.error(verifyRes.message || "Xác thực eKYC thất bại");
+                            await refetch();
+                        }
+                    } catch (error: any) {
+                        toast.error(
+                            error?.response?.data?.message ||
+                                error?.message ||
+                                "Xác thực eKYC thất bại"
+                        );
+                        await refetch();
+                    } finally {
+                        setIsVerifyingEkyc(false);
+                    }
+                },
+            }
+        );
+    };
+
     const onSubmit = (data: UpdateStreetAgentProfileFormValues) => {
         if (!profileId) return;
 
         update(
             {
                 id: profileId,
-                data: {
-                    firstName: data.firstName,
-                    lastName: data.lastName,
-                    phone: data.phone,
-                    cccd: data.cccd,
-                    imageUrl: data.imageUrl || undefined,
-                    contactAddress: data.contactAddress || undefined,
-                    contactProvince: data.contactProvince || undefined,
-                    contactWard: data.contactWard || undefined,
-                    coverageArea: serializeCoverageAreaCodes(data.coverageAreaCodes || []),
-                    contractStartDate: data.contractStartDate || undefined,
-                    contractEndDate: data.contractEndDate || undefined,
-                    contractMaxDailyCap: data.contractMaxDailyCap ?? undefined,
-                },
+                data: buildUpdatePayload(data),
             },
             {
                 onSuccess: (response) => {
@@ -263,6 +312,21 @@ export const StreetAgentProfileEditModal = ({
                             fileInputRef={fileInputRef}
                             onOpenFile={handleOpenFile}
                             onFileChange={handleFileChange}
+                            profileId={profileId}
+                            ekycStatus={profile?.ekycStatus}
+                            ekycFailureReason={profile?.ekycFailureReason}
+                            ekycOcrName={profile?.ekycOcrName}
+                            ekycOcrIdNumber={profile?.ekycOcrIdNumber}
+                            ekycOcrDob={profile?.ekycOcrDob}
+                            ekycOcrGender={profile?.ekycOcrGender}
+                            ekycOcrNationality={profile?.ekycOcrNationality}
+                            ekycOcrPlaceOfBirth={profile?.ekycOcrPlaceOfBirth}
+                            ekycOcrPlaceOfResidence={profile?.ekycOcrPlaceOfResidence}
+                            ekycOcrIssueDate={profile?.ekycOcrIssueDate}
+                            ekycOcrExpiryDate={profile?.ekycOcrExpiryDate}
+                            profileCccd={profile?.cccd}
+                            onVerifyEkyc={handleVerifyEkyc}
+                            isVerifyingEkyc={isVerifyingEkyc || isPending}
                             statusChip={profile?.status}
                             contractDocumentUrl={profile?.contractDocumentUrl}
                             vendorDefaults={vendorDefaults}

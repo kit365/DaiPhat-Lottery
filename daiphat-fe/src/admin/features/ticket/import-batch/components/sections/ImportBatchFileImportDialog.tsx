@@ -1165,21 +1165,6 @@ export const ImportBatchFileImportDialog = ({
                 }}
             >
                 <Stack direction="row" spacing={1.75} alignItems="center">
-                    <Box
-                        sx={{
-                            width: 44,
-                            height: 44,
-                            borderRadius: '12px',
-                            bgcolor: '#fef2f2',
-                            color: '#FF3030',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            boxShadow: '0 2px 8px rgba(255, 48, 48, 0.15)',
-                        }}
-                    >
-                        <UploadFileOutlinedIcon fontSize="medium" />
-                    </Box>
                     <Box>
                         <Typography variant="h6" fontWeight={800} sx={{ color: '#0f172a', lineHeight: 1.2 }}>
                             Nhập lô vé từ tệp

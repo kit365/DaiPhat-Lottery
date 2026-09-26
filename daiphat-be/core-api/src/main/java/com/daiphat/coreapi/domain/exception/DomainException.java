@@ -34,6 +34,22 @@ public class DomainException extends RuntimeException {
         this.data = null;
     }
 
+    private DomainException(ErrorCode errorCode, Object data, String internalMessage, boolean internalOnly) {
+        super(errorCode.getMessage());
+        this.errorCode = errorCode;
+        this.data = data;
+        this.internalMessage = internalMessage;
+    }
+
+    /**
+     * Error data plus an internal-only message. A factory rather than a
+     * {@code (ErrorCode, Object, String)} constructor, which would shadow the
+     * varargs constructor for every {@code "%s"} error code.
+     */
+    public static DomainException withInternalMessage(ErrorCode errorCode, Object data, String internalMessage) {
+        return new DomainException(errorCode, data, internalMessage, true);
+    }
+
     public DomainException(ErrorCode errorCode, Throwable cause) {
         super(errorCode.getMessage(), cause);
         this.errorCode = errorCode;

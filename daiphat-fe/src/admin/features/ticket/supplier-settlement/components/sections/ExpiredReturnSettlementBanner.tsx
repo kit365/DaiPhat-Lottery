@@ -97,29 +97,13 @@ export const ExpiredReturnSettlementBanner = ({
             >
                 <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
                     <strong>{customTitle || 'Có kỳ đối soát quá hạn trả vé'}</strong>
-                    <Chip
-                        size="small"
-                        label={`${expiredCount} kỳ`}
-                        sx={{
-                            bgcolor: '#fee2e2',
-                            color: '#b91c1c',
-                            fontWeight: 600,
-                            fontSize: '0.75rem',
-                            height: 22,
-                        }}
-                    />
+                    <Typography component="span" sx={{ color: '#b91c1c', fontWeight: 700, fontSize: '0.85rem' }}>
+                        {expiredCount} kỳ
+                    </Typography>
                     {totalExpiredValue > 0 && (
-                        <Chip
-                            size="small"
-                            label={`Đọng ${formatImportCost(totalExpiredValue)} VNĐ`}
-                            sx={{
-                                bgcolor: '#ffedd5',
-                                color: '#c2410c',
-                                fontWeight: 600,
-                                fontSize: '0.75rem',
-                                height: 22,
-                            }}
-                        />
+                        <Typography component="span" sx={{ color: '#c2410c', fontWeight: 700, fontSize: '0.85rem' }}>
+                            (Đọng {formatImportCost(totalExpiredValue)} VNĐ)
+                        </Typography>
                     )}
                     <span style={{ fontSize: '0.85rem', color: '#475569' }}>
                         {customDescription || 'Vui lòng kiểm tra và xử lý sớm các kỳ bị quá hạn.'}

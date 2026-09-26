@@ -10,6 +10,8 @@ import { defaultSellableDrawDate } from '../utils/sellableDrawDate.util';
 
 const TICKET_BASE = '/lottery-tickets';
 const ORDER_BASE = '/orders';
+/** "Vé của tôi" loads up to 500 rows with per-ticket prize/payout checks; the global 15s default is too short. */
+const MY_TICKETS_TIMEOUT_MS = 60_000;
 
 const cleanParams = (params?: Record<string, unknown>) => {
     if (!params) return undefined;
@@ -41,6 +43,7 @@ export const lotteryTicketService = {
         params: LookupPurchasedTicketsParams
     ): Promise<ApiResponse<PurchasedTicketPage>> => {
         const response = await apiApp.get(`${ORDER_BASE}/my-tickets`, {
+            timeout: MY_TICKETS_TIMEOUT_MS,
             params: cleanParams({
                 page: params.page ?? 1,
                 size: params.size ?? 20,

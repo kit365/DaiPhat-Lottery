@@ -1,6 +1,11 @@
 package com.daiphat.coreapi.application.service.streetagent;
 
+import com.daiphat.coreapi.application.dto.ekyc.EkycVerificationResult;
 import com.daiphat.coreapi.application.dto.request.streetagent.CreateStreetAgentProfileRequest;
+import com.daiphat.coreapi.application.generator.streetagent.StreetAgentContractCodeGenerator;
+import com.daiphat.coreapi.application.service.ekyc.EkycVerificationService;
+import com.daiphat.coreapi.domain.model.enums.ekyc.EkycStatus;
+import com.daiphat.coreapi.shared.time.VietnamClock;
 import com.daiphat.coreapi.application.dto.request.streetagent.UpdateStreetAgentProfileRequest;
 import com.daiphat.coreapi.application.dto.response.streetagent.StreetAgentProfileResponse;
 import com.daiphat.coreapi.application.mapper.streetagent.StreetAgentProfileApplicationMapper;
@@ -27,6 +32,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -356,7 +362,7 @@ class StreetAgentProfileServiceTest {
             assertThat(result.status()).isEqualTo("ACTIVE");
 
             verify(streetAgentProfileRepositoryPort).existsByPhone(PHONE);
-            verify(streetAgentProfileRepositoryPort).existsByCccd(CCCD);
+            verify(streetAgentProfileRepositoryPort, never()).existsByCccd(any());
             verify(streetAgentProfileApplicationMapper).toModel(request);
             verify(streetAgentProfileRepositoryPort).save(model);
             verify(streetAgentProfileApplicationMapper).toResponse(saved);
@@ -527,22 +533,6 @@ class StreetAgentProfileServiceTest {
         }
 
         @Test
-        @DisplayName("CCCD đã tồn tại")
-        void create_cccdExisted() {
-            CreateStreetAgentProfileRequest request = buildRequest(null, null, BigDecimal.ZERO);
-            when(streetAgentProfileRepositoryPort.existsByPhone(PHONE)).thenReturn(false);
-            when(streetAgentProfileRepositoryPort.existsByCccd(CCCD)).thenReturn(true);
-
-            assertThatThrownBy(() -> streetAgentProfileService.create(request))
-                    .isInstanceOf(DomainException.class)
-                    .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
-                            .isEqualTo(ErrorCode.STREET_AGENT_PROFILE_CCCD_EXISTED));
-
-            verify(streetAgentProfileRepositoryPort, never()).save(any());
-            verifyNoInteractions(streetAgentProfileApplicationMapper);
-        }
-
-        @Test
         @DisplayName("ngày kết thúc hợp đồng trước ngày bắt đầu")
         void create_invalidContractDate() {
             CreateStreetAgentProfileRequest request = buildRequest(
@@ -551,7 +541,6 @@ class StreetAgentProfileServiceTest {
                     BigDecimal.ZERO
             );
             when(streetAgentProfileRepositoryPort.existsByPhone(PHONE)).thenReturn(false);
-            when(streetAgentProfileRepositoryPort.existsByCccd(CCCD)).thenReturn(false);
 
             assertThatThrownBy(() -> streetAgentProfileService.create(request))
                     .isInstanceOf(DomainException.class)
@@ -660,7 +649,7 @@ class StreetAgentProfileServiceTest {
             assertThat(result.status()).isEqualTo("INACTIVE");
             verify(streetAgentProfileRepositoryPort).findById(PROFILE_ID);
             verify(streetAgentProfileRepositoryPort).existsByPhoneAndIdNot(PHONE, PROFILE_ID);
-            verify(streetAgentProfileRepositoryPort).existsByCccdAndIdNot(CCCD, PROFILE_ID);
+            verify(streetAgentProfileRepositoryPort, never()).existsByCccdAndIdNot(any(), any());
             verify(streetAgentProfileApplicationMapper).updateModel(existing, request);
             verify(streetAgentProfileRepositoryPort).save(existing);
             verify(streetAgentProfileApplicationMapper).toResponse(saved);
@@ -817,8 +806,8 @@ class StreetAgentProfileServiceTest {
         }
 
         @Test
-        @DisplayName("cho phép giữ nguyên số điện thoại và CCCD của chính hồ sơ")
-        void update_allowsSamePhoneAndCccdForSameProfile() {
+        @DisplayName("cho phép giữ nguyên số điện thoại; CCCD chỉ lấy từ OCR nên không kiểm tra khi cập nhật")
+        void update_allowsSamePhoneAndSkipsCccdCheck() {
             UpdateStreetAgentProfileRequest request = buildUpdateRequest(null, null, null, null, "ACTIVE");
             StreetAgentProfileModel existing = buildSavedModel();
 
@@ -829,7 +818,7 @@ class StreetAgentProfileServiceTest {
             streetAgentProfileService.update(PROFILE_ID, request);
 
             verify(streetAgentProfileRepositoryPort).existsByPhoneAndIdNot(PHONE, PROFILE_ID);
-            verify(streetAgentProfileRepositoryPort).existsByCccdAndIdNot(CCCD, PROFILE_ID);
+            verify(streetAgentProfileRepositoryPort, never()).existsByCccdAndIdNot(any(), any());
             verify(streetAgentProfileRepositoryPort).save(existing);
         }
     }
@@ -873,23 +862,6 @@ class StreetAgentProfileServiceTest {
         }
 
         @Test
-        @DisplayName("CCCD đã tồn tại")
-        void update_cccdExisted() {
-            UpdateStreetAgentProfileRequest request = buildUpdateRequest(null, null, BigDecimal.ZERO, null, "ACTIVE");
-            when(streetAgentProfileRepositoryPort.findById(PROFILE_ID)).thenReturn(Optional.of(buildSavedModel()));
-            when(streetAgentProfileRepositoryPort.existsByPhoneAndIdNot(PHONE, PROFILE_ID)).thenReturn(false);
-            when(streetAgentProfileRepositoryPort.existsByCccdAndIdNot(CCCD, PROFILE_ID)).thenReturn(true);
-
-            assertThatThrownBy(() -> streetAgentProfileService.update(PROFILE_ID, request))
-                    .isInstanceOf(DomainException.class)
-                    .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
-                            .isEqualTo(ErrorCode.STREET_AGENT_PROFILE_CCCD_EXISTED));
-
-            verify(streetAgentProfileApplicationMapper, never()).updateModel(any(), any());
-            verify(streetAgentProfileRepositoryPort, never()).save(any());
-        }
-
-        @Test
         @DisplayName("ngày kết thúc hợp đồng trước ngày bắt đầu")
         void update_invalidContractDate() {
             UpdateStreetAgentProfileRequest request = buildUpdateRequest(
@@ -901,7 +873,6 @@ class StreetAgentProfileServiceTest {
             );
             when(streetAgentProfileRepositoryPort.findById(PROFILE_ID)).thenReturn(Optional.of(buildSavedModel()));
             when(streetAgentProfileRepositoryPort.existsByPhoneAndIdNot(PHONE, PROFILE_ID)).thenReturn(false);
-            when(streetAgentProfileRepositoryPort.existsByCccdAndIdNot(CCCD, PROFILE_ID)).thenReturn(false);
 
             assertThatThrownBy(() -> streetAgentProfileService.update(PROFILE_ID, request))
                     .isInstanceOf(DomainException.class)
@@ -910,6 +881,120 @@ class StreetAgentProfileServiceTest {
 
             verify(streetAgentProfileApplicationMapper, never()).updateModel(any(), any());
             verify(streetAgentProfileRepositoryPort, never()).save(any());
+        }
+    }
+
+    @Nested
+    @DisplayName("Xác thực eKYC (chỉ OCR CCCD, không selfie)")
+    class VerifyEkyc {
+
+        private static final String FRONT_URL = "https://cdn.example.com/ekyc/front.jpg";
+        private static final String BACK_URL = "https://cdn.example.com/ekyc/back.jpg";
+
+        @Mock
+        private EkycVerificationService ekycVerificationService;
+
+        private StreetAgentProfileServicePort ekycService;
+
+        @BeforeEach
+        void setUpEkycService() {
+            VietnamClock clock = new VietnamClock(Clock.systemUTC());
+            ekycService = new StreetAgentProfileService(
+                    streetAgentProfileRepositoryPort,
+                    streetAgentProfileApplicationMapper,
+                    storagePort,
+                    null,
+                    null,
+                    null,
+                    new StreetAgentContractCodeGenerator(clock),
+                    clock,
+                    ekycVerificationService);
+        }
+
+        @Test
+        @DisplayName("chỉ cần ảnh mặt trước + mặt sau; CCCD hồ sơ lấy từ OCR")
+        void verifyEkyc_ocrOnly_setsCccdFromOcr() {
+            StreetAgentProfileModel profile = buildEkycProfile();
+            EkycVerificationResult result = verifiedOcrResult();
+
+            when(streetAgentProfileRepositoryPort.findById(PROFILE_ID)).thenReturn(Optional.of(profile));
+            when(ekycVerificationService.verifyIdCardOcrOnlyFromUrls(FRONT_URL, BACK_URL)).thenReturn(result);
+            when(ekycVerificationService.requireOcrIdNumber(result)).thenReturn(CCCD);
+            when(streetAgentProfileRepositoryPort.existsByCccdAndIdNot(CCCD, PROFILE_ID)).thenReturn(false);
+            when(streetAgentProfileRepositoryPort.save(profile)).thenReturn(profile);
+            when(streetAgentProfileApplicationMapper.toResponse(profile)).thenReturn(buildResponse());
+
+            ekycService.verifyEkyc(PROFILE_ID);
+
+            assertThat(profile.getCccd()).isEqualTo(CCCD);
+            assertThat(profile.getEkycStatus()).isEqualTo(EkycStatus.VERIFIED);
+            assertThat(profile.getEkycOcrIdNumber()).isEqualTo(CCCD);
+            verify(ekycVerificationService).verifyIdCardOcrOnlyFromUrls(FRONT_URL, BACK_URL);
+            verify(ekycVerificationService, never()).verifyFromUrls(any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("CCCD từ OCR đã thuộc hồ sơ khác thì đánh dấu FAILED")
+        void verifyEkyc_ocrCccdExisted() {
+            StreetAgentProfileModel profile = buildEkycProfile();
+            EkycVerificationResult result = verifiedOcrResult();
+
+            when(streetAgentProfileRepositoryPort.findById(PROFILE_ID)).thenReturn(Optional.of(profile));
+            when(ekycVerificationService.verifyIdCardOcrOnlyFromUrls(FRONT_URL, BACK_URL)).thenReturn(result);
+            when(ekycVerificationService.requireOcrIdNumber(result)).thenReturn(CCCD);
+            when(streetAgentProfileRepositoryPort.existsByCccdAndIdNot(CCCD, PROFILE_ID)).thenReturn(true);
+
+            assertThatThrownBy(() -> ekycService.verifyEkyc(PROFILE_ID))
+                    .isInstanceOf(DomainException.class)
+                    .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                            .isEqualTo(ErrorCode.STREET_AGENT_PROFILE_CCCD_EXISTED));
+
+            assertThat(profile.getEkycStatus()).isEqualTo(EkycStatus.FAILED);
+            assertThat(profile.getCccd()).isNull();
+            verify(streetAgentProfileRepositoryPort).save(profile);
+        }
+
+        @Test
+        @DisplayName("thiếu ảnh CCCD mặt sau thì không gọi OCR")
+        void verifyEkyc_missingBackImage() {
+            StreetAgentProfileModel profile = buildEkycProfile();
+            profile.setCccdBackImageUrl(null);
+            when(streetAgentProfileRepositoryPort.findById(PROFILE_ID)).thenReturn(Optional.of(profile));
+
+            assertThatThrownBy(() -> ekycService.verifyEkyc(PROFILE_ID))
+                    .isInstanceOf(DomainException.class)
+                    .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                            .isEqualTo(ErrorCode.STREET_AGENT_EKYC_IMAGES_REQUIRED));
+
+            verifyNoInteractions(ekycVerificationService);
+            verify(streetAgentProfileRepositoryPort, never()).save(any());
+        }
+
+        private StreetAgentProfileModel buildEkycProfile() {
+            StreetAgentProfileModel profile = buildSavedModel();
+            profile.setCccd(null);
+            profile.setCccdFrontImageUrl(FRONT_URL);
+            profile.setCccdBackImageUrl(BACK_URL);
+            profile.setEkycStatus(EkycStatus.PENDING);
+            return profile;
+        }
+
+        private EkycVerificationResult verifiedOcrResult() {
+            return new EkycVerificationResult(
+                    EkycStatus.VERIFIED,
+                    "NGUYEN VAN A",
+                    CCCD,
+                    "01/01/1990",
+                    "Nam",
+                    "Việt Nam",
+                    "Hồ Chí Minh",
+                    "123 Nguyen Hue, Hồ Chí Minh",
+                    "01/01/2021",
+                    "01/01/2046",
+                    null,
+                    null,
+                    null,
+                    null);
         }
     }
 
@@ -972,13 +1057,11 @@ class StreetAgentProfileServiceTest {
 
     private void stubUniqueConstraintsPass() {
         when(streetAgentProfileRepositoryPort.existsByPhone(PHONE)).thenReturn(false);
-        when(streetAgentProfileRepositoryPort.existsByCccd(CCCD)).thenReturn(false);
     }
 
     private void stubUpdateUniqueConstraintsPass(StreetAgentProfileModel existing) {
         when(streetAgentProfileRepositoryPort.findById(PROFILE_ID)).thenReturn(Optional.of(existing));
         when(streetAgentProfileRepositoryPort.existsByPhoneAndIdNot(PHONE, PROFILE_ID)).thenReturn(false);
-        when(streetAgentProfileRepositoryPort.existsByCccdAndIdNot(CCCD, PROFILE_ID)).thenReturn(false);
     }
 
     private CreateStreetAgentProfileRequest buildRequest(
