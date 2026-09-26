@@ -49,8 +49,8 @@ bool isShellTabRoute(String route) {
   final cleanPath = Uri.tryParse(route)?.path ?? route;
   return cleanPath == AppRoute.home.path ||
       cleanPath == AppRoute.buyTicket.path ||
-      cleanPath == AppRoute.checkTicket.path ||
       cleanPath == AppRoute.utilitiesTwo.path ||
+      cleanPath == AppRoute.notifications.path ||
       cleanPath == AppRoute.profile.path ||
       cleanPath == AppRoute.utilities.path;
 }

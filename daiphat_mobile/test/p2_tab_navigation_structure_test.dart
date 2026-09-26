@@ -86,21 +86,25 @@ void main() {
     expect(find.text('first: 1'), findsOneWidget);
   });
 
-  test('router uses five persistent branches, including utilities', () {
+  test('router uses five persistent branches, including notifications', () {
     final router = _readSource('lib/src/app/routing/app_router.dart');
 
     expect(router, contains('StatefulShellRoute.indexedStack('));
-    final branches = router.substring(router.indexOf('branches: ['));
-    expect(RegExp(r'StatefulShellBranch\(').allMatches(branches).length, 5);
+    final shell = router.substring(
+      router.indexOf('branches: ['),
+      router.indexOf('AppRoute.login,'),
+    );
+    expect(RegExp(r'StatefulShellBranch\(').allMatches(shell).length, 5);
+    expect(shell, isNot(contains('AppRoute.checkTicket')));
+    expect(shell, isNot(contains('AppRoute.chat')));
     expect(
-      branches.indexOf('AppRoute.buyTicket') <
-              branches.indexOf('AppRoute.checkTicket') &&
-          branches.indexOf('AppRoute.checkTicket') <
-              branches.indexOf('AppRoute.home') &&
-          branches.indexOf('AppRoute.home') <
-              branches.indexOf('AppRoute.utilitiesTwo') &&
-          branches.indexOf('AppRoute.utilitiesTwo') <
-              branches.indexOf('AppRoute.profile'),
+      shell.indexOf('AppRoute.buyTicket') < shell.indexOf('AppRoute.home') &&
+          shell.indexOf('AppRoute.home') <
+              shell.indexOf('AppRoute.utilitiesTwo') &&
+          shell.indexOf('AppRoute.utilitiesTwo') <
+              shell.indexOf('AppRoute.notifications') &&
+          shell.indexOf('AppRoute.notifications') <
+              shell.indexOf('AppRoute.profile'),
       isTrue,
     );
     expect(router, contains('UtilitiesTwoView('));
@@ -129,25 +133,45 @@ void main() {
     expect(layout, contains('final StatefulNavigationShell navigationShell;'));
     expect(layout, contains('body: navigationShell'));
     expect(layout, contains('navigationShell.goBranch(branchIndex);'));
-    expect(layout, contains('canPop: navigationShell.currentIndex == 2'));
-    expect(layout, contains('navigationShell.goBranch(2);'));
+    expect(
+      layout,
+      contains('canPop: navigationShell.currentIndex == homeBranchIndex'),
+    );
+    expect(layout, contains('navigationShell.goBranch(homeBranchIndex);'));
+    expect(
+      layout,
+      isNot(contains('context.push(AppRoute.notifications.path)')),
+    );
+    expect(layout, contains('notificationsBranchIndex'));
+    expect(
+      layout.indexOf("label: 'Tiện ích'") <
+              layout.indexOf("label: 'Trang chủ'") &&
+          layout.indexOf("label: 'Trang chủ'") <
+              layout.indexOf("label: 'Thông báo'"),
+      isTrue,
+    );
     expect(layout, isNot(contains('PageView(')));
     expect(layout, isNot(contains('PageController')));
   });
 
-  test('all notification entry points open the protected notification route', () {
+  test('notifications is a top-level tab without a back button', () {
     final service = _readSource(
       'lib/src/shared/services/notification_service.dart',
     );
     final profile = _readSource(
       'lib/src/features/profile/presentation/views/profile_view.dart',
     );
+    final router = _readSource('lib/src/app/routing/app_router.dart');
     final view = _readSource(
       'lib/src/features/notifications/presentation/views/notification_view.dart',
     );
 
     expect(service, contains('context.go(AppRoute.notifications.path);'));
-    expect(profile, contains('context.push(AppRoute.notifications.path),'));
+    expect(
+      profile,
+      isNot(contains('context.push(AppRoute.notifications.path)')),
+    );
+    expect(router, contains('showBackButton: false'));
     expect(view, contains('final bool showBackButton;'));
     expect(view, contains('automaticallyImplyLeading: false'));
   });

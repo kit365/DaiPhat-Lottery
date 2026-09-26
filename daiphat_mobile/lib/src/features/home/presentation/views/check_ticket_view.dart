@@ -83,7 +83,6 @@ class _CheckTicketViewState extends ConsumerState<CheckTicketView> {
             ),
           ),
           SafeArea(
-            bottom: false,
             child: RefreshIndicator(
               color: AppColors.primary,
               onRefresh: () async {
@@ -436,9 +435,27 @@ class _HeaderBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Text('Dò vé', style: AppTypography.pageTitle()),
+    return Row(
+      children: [
+        IconButton(
+          tooltip: 'Quay lại',
+          visualDensity: VisualDensity.compact,
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: AppColors.primary,
+            size: 20,
+          ),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go(AppRoute.home.path);
+            }
+          },
+        ),
+        const SizedBox(width: 4),
+        Text('Dò vé', style: AppTypography.pageTitle()),
+      ],
     );
   }
 }

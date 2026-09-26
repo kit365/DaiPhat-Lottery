@@ -14,13 +14,11 @@ class UtilitiesTwoView extends ConsumerWidget {
     super.key,
     required this.isAuthenticated,
     this.onBack,
-    required this.onOpenNotifications,
     required this.onOpenBlog,
   });
 
   final bool isAuthenticated;
   final VoidCallback? onBack;
-  final VoidCallback onOpenNotifications;
   final VoidCallback onOpenBlog;
 
   @override
@@ -72,25 +70,26 @@ class UtilitiesTwoView extends ConsumerWidget {
                                   children: [
                                     Expanded(
                                       child: _UtilityCard(
-                                        icon:
-                                            Icons.notifications_active_outlined,
-                                        title: 'Thông báo',
+                                        icon: Icons.qr_code_scanner_rounded,
+                                        title: 'Dò vé',
                                         subtitle:
-                                            'Cập nhật các thông báo mới nhất từ hệ thống',
-                                        actionLabel: 'Xem ngay',
-                                        onTap: onOpenNotifications,
+                                            'Nhập số vé để xem bạn có trúng thưởng không',
+                                        actionLabel: 'Dò ngay',
+                                        onTap: () => context.push(
+                                          AppRoute.checkTicket.path,
+                                        ),
                                       ),
                                     ),
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: _UtilityCard(
-                                        icon: Icons.auto_awesome_rounded,
-                                        title: 'Gieo quẻ',
+                                        icon: Icons.support_agent_rounded,
+                                        title: 'Chat hỗ trợ',
                                         subtitle:
-                                            'Gieo quẻ may mắn nhận lời giải cho bạn',
-                                        actionLabel: 'Gieo ngay',
+                                            'Hỏi Đại Phát, gợi ý vé hoặc gặp nhân viên',
+                                        actionLabel: 'Chat ngay',
                                         onTap: () =>
-                                            context.push(AppRoute.fortune.path),
+                                            context.push(AppRoute.chat.path),
                                       ),
                                     ),
                                   ],
@@ -101,14 +100,13 @@ class UtilitiesTwoView extends ConsumerWidget {
                                   children: [
                                     Expanded(
                                       child: _UtilityCard(
-                                        icon: Icons.calendar_month_outlined,
-                                        title: 'Lịch mở thưởng',
+                                        icon: Icons.auto_awesome_rounded,
+                                        title: 'Gieo quẻ',
                                         subtitle:
-                                            'Theo dõi lịch mở thưởng và kết quả chi tiết',
-                                        actionLabel: 'Xem lịch',
-                                        onTap: () => context.push(
-                                          AppRoute.schedule.path,
-                                        ),
+                                            'Gieo quẻ may mắn nhận lời giải cho bạn',
+                                        actionLabel: 'Gieo ngay',
+                                        onTap: () =>
+                                            context.push(AppRoute.fortune.path),
                                       ),
                                     ),
                                     const SizedBox(width: 12),

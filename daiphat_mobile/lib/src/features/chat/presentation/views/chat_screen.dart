@@ -139,8 +139,37 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           _ChatHeader(
             onBack: widget.onBack,
             onOpenOfficialProfile: _showOfficialProfile,
+            subtitle: chatState.showChattingWithStaff
+                ? 'Hỗ trợ bởi Nhân viên'
+                : chatState.showWaitingForStaff
+                ? 'Đang chờ Nhân viên tiếp nhận...'
+                : 'Hỗ trợ trực tuyến',
           ),
-          if (chatState.statusBanner != null)
+          if (chatState.showWaitingForStaff)
+            _StaffSessionBar(
+              tone: _StaffSessionTone.waiting,
+              label: 'Đang kết nối nhân viên...',
+              actionLabel: chatState.isCancellingStaff
+                  ? 'Đang huỷ...'
+                  : 'Huỷ gặp nhân viên',
+              busy: chatState.isCancellingStaff || chatState.isSending,
+              onAction: () => ref
+                  .read(chatViewModelProvider.notifier)
+                  .cancelStaffRequest(),
+            )
+          else if (chatState.showChattingWithStaff)
+            _StaffSessionBar(
+              tone: _StaffSessionTone.active,
+              label: 'Đang chat với Nhân viên',
+              actionLabel: chatState.isDisconnectingStaff
+                  ? 'Đang ngắt...'
+                  : 'Ngắt kết nối',
+              actionIcon: Icons.phone_disabled_rounded,
+              busy: chatState.isDisconnectingStaff || chatState.isSending,
+              onAction: () =>
+                  ref.read(chatViewModelProvider.notifier).disconnectStaff(),
+            )
+          else if (chatState.statusBanner != null)
             _StatusBanner(text: chatState.statusBanner!),
           if (chatState.isLoading && chatState.visibleMessages.isEmpty)
             const Expanded(
@@ -251,11 +280,117 @@ class _StatusBanner extends StatelessWidget {
   }
 }
 
+enum _StaffSessionTone { waiting, active }
+
+class _StaffSessionBar extends StatelessWidget {
+  const _StaffSessionBar({
+    required this.tone,
+    required this.label,
+    required this.actionLabel,
+    required this.busy,
+    required this.onAction,
+    this.actionIcon,
+  });
+
+  final _StaffSessionTone tone;
+  final String label;
+  final String actionLabel;
+  final IconData? actionIcon;
+  final bool busy;
+  final VoidCallback onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final isWaiting = tone == _StaffSessionTone.waiting;
+    final background = isWaiting
+        ? AppColors.surfaceWarning
+        : AppColors.surfaceSuccess;
+    final border = isWaiting
+        ? AppColors.surfaceWarningSubtle
+        : AppColors.statusSuccessBorder;
+    final accent = isWaiting
+        ? AppColors.statusWarningAccent
+        : AppColors.statusSuccessMedium;
+    final textColor = isWaiting
+        ? AppColors.statusAttentionForeground
+        : AppColors.statusSuccessDeep;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 8, 10, 8),
+      decoration: BoxDecoration(
+        color: background,
+        border: Border(bottom: BorderSide(color: border)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 8),
+          if (!isWaiting) ...[
+            Icon(Icons.headset_mic_rounded, size: 14, color: accent),
+            const SizedBox(width: 4),
+          ],
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.caption(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: textColor,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton(
+            onPressed: busy ? null : onAction,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              backgroundColor: AppColors.white,
+              side: const BorderSide(color: AppColors.brandPrimaryBorderLight),
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              minimumSize: const Size(0, 30),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              textStyle: AppTypography.buttonSmall(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (actionIcon != null) ...[
+                  Icon(actionIcon, size: 14),
+                  const SizedBox(width: 4),
+                ],
+                Text(actionLabel),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ChatHeader extends StatelessWidget {
-  const _ChatHeader({this.onBack, required this.onOpenOfficialProfile});
+  const _ChatHeader({
+    this.onBack,
+    required this.onOpenOfficialProfile,
+    required this.subtitle,
+  });
 
   final VoidCallback? onBack;
   final VoidCallback onOpenOfficialProfile;
+  final String subtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -318,7 +453,7 @@ class _ChatHeader extends StatelessWidget {
                   ],
                 ),
                 Text(
-                  'Hỗ trợ trực tuyến',
+                  subtitle,
                   style: AppTypography.caption(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
@@ -855,12 +990,19 @@ class _QuickReplyChips extends StatelessWidget {
         separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
           final reply = replies[index];
+          final textColor = reply.primary ? AppColors.white : AppColors.primary;
           return OutlinedButton(
             onPressed: () => onTap(reply),
             style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.primary,
-              backgroundColor: AppColors.surfacePrimary,
-              side: const BorderSide(color: AppColors.brandPrimaryBorderLight),
+              foregroundColor: textColor,
+              backgroundColor: reply.primary
+                  ? AppColors.primary
+                  : AppColors.surfacePrimary,
+              side: BorderSide(
+                color: reply.primary
+                    ? AppColors.primary
+                    : AppColors.brandPrimaryBorderLight,
+              ),
               padding: const EdgeInsets.symmetric(horizontal: 12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(999),
@@ -875,7 +1017,7 @@ class _QuickReplyChips extends StatelessWidget {
               style: AppTypography.buttonSmall(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: AppColors.primary,
+                color: textColor,
               ),
             ),
           );
