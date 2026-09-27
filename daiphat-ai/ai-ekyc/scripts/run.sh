@@ -3,7 +3,7 @@ set -euo pipefail
 
 SERVICE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 AI_ROOT="$(dirname "${SERVICE_DIR}")"
-PORT="${LOCAL_CHATBOT_PORT:-${PORT:-8000}}"
+PORT="${LOCAL_EKYC_VISION_PORT:-${PORT:-8091}}"
 
 cd "${SERVICE_DIR}"
 
@@ -17,7 +17,9 @@ for env_file in "${AI_ROOT}/.env" "${AI_ROOT}/../.env" "${SERVICE_DIR}/.env"; do
   fi
 done
 
-# Reuse shared daiphat-ai/.venv when present
+export KYC_AI_API_KEY="${KYC_AI_API_KEY:-dev-kyc-ai-secret}"
+
+# Reuse shared daiphat-ai/.venv when present; Paddle/InsightFace dependencies are large (~3GB).
 VENV_DIR="${SERVICE_DIR}/.venv"
 if [[ ! -x "${VENV_DIR}/bin/python" && ! -x "${VENV_DIR}/Scripts/python.exe" ]]; then
   if [[ -x "${AI_ROOT}/.venv/bin/python" || -x "${AI_ROOT}/.venv/Scripts/python.exe" ]]; then
@@ -40,15 +42,25 @@ if [[ ! -x "${PYTHON_BIN}" ]]; then
   fi
 fi
 
+# Ensure requirements installed
 if [[ -f "${SERVICE_DIR}/requirements.txt" ]]; then
   "${PYTHON_BIN}" -m pip install -q -r "${SERVICE_DIR}/requirements.txt" 2>/dev/null || true
 fi
 
 export PYTHONPATH="${SERVICE_DIR}"
+export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION="${PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION:-python}"
+export OMP_NUM_THREADS="${OMP_NUM_THREADS:-1}"
+export KMP_DUPLICATE_LIB_OK="${KMP_DUPLICATE_LIB_OK:-True}"
 
-echo ">>> Khởi động AI Chatbot trên http://0.0.0.0:${PORT} (Swagger docs: http://localhost:${PORT}/docs)"
-exec "${PYTHON_BIN}" -m uvicorn main:app \
+RELOAD_ARGS=()
+if [[ "${EKYC_VISION_RELOAD:-0}" == "1" ]]; then
+  echo ">>> [eKYC] Reload mode ENABLED"
+  RELOAD_ARGS=(--reload)
+fi
+
+echo ">>> Khởi động eKYC Vision trên http://0.0.0.0:${PORT} (Swagger docs: http://localhost:${PORT}/docs)"
+exec "${PYTHON_BIN}" -m uvicorn app.main:app \
   --app-dir "${SERVICE_DIR}" \
   --host 0.0.0.0 \
   --port "${PORT}" \
-  --reload
+  "${RELOAD_ARGS[@]+"${RELOAD_ARGS[@]}"}"
