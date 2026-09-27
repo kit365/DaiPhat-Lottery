@@ -26,13 +26,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy installed python packages from builder
 COPY --from=builder /install /usr/local
 
+# paddleocr/imgaug pull opencv-python and opencv-contrib-python on top of the pinned
+# headless build; keep a single cv2 build so their native libs don't overwrite each other.
+RUN pip uninstall -y opencv-python opencv-contrib-python opencv-python-headless && \
+    pip install --no-cache-dir --no-deps opencv-python-headless==4.10.0.84 && \
+    python -c "import cv2; print('cv2', cv2.__version__)"
+
+# libpaddle.so shadows the system zlib symbols; without the preload every zlib call made
+# after `import paddle` (requests, PaddleOCR init) crashes in inflateReset2.
+ENV LD_PRELOAD=libz.so.1
 ENV PYTHONUNBUFFERED=1
 # Ensure InsightFace can download models to a writable directory
 ENV INSIGHTFACE_HOME=/app/.insightface
 
-# Pre-load PaddleOCR models (optional, but good for speed)
+# Pre-load PaddleOCR models; a crash here must fail the build instead of the first eKYC request.
 RUN mkdir -p /app/.paddleocr && \
-    python -c "from paddleocr import PaddleOCR; PaddleOCR(use_angle_cls=True, lang='vi', show_log=False, enable_mkldnn=False)" || true
+    python -c "from paddleocr import PaddleOCR; PaddleOCR(use_angle_cls=True, lang='vi', show_log=False, enable_mkldnn=False)"
 
 COPY app ./app
 
