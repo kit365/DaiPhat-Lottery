@@ -132,6 +132,23 @@ enum ChatMessageVariant {
   divider,
   typing,
   ticketSuggest,
+  scheduleResultSummary,
+}
+
+class ScheduleResultSummaryData {
+  const ScheduleResultSummaryData({
+    this.region,
+    this.stationId,
+    this.stationIds,
+    this.drawDate,
+    this.stationName,
+  });
+
+  final String? region;
+  final int? stationId;
+  final List<int>? stationIds;
+  final String? drawDate;
+  final String? stationName;
 }
 
 class UiChatMessage {
@@ -147,6 +164,7 @@ class UiChatMessage {
     this.sentContent,
     this.suggestedTickets = const [],
     this.actions = const [],
+    this.scheduleResultSummary,
   });
 
   final String id;
@@ -160,6 +178,7 @@ class UiChatMessage {
   final String? sentContent;
   final List<SuggestedTicketModel> suggestedTickets;
   final List<ChatMessageAction> actions;
+  final ScheduleResultSummaryData? scheduleResultSummary;
 
   UiChatMessage copyWith({
     String? id,
@@ -173,6 +192,7 @@ class UiChatMessage {
     String? sentContent,
     List<SuggestedTicketModel>? suggestedTickets,
     List<ChatMessageAction>? actions,
+    ScheduleResultSummaryData? scheduleResultSummary,
   }) {
     return UiChatMessage(
       id: id ?? this.id,
@@ -186,6 +206,8 @@ class UiChatMessage {
       sentContent: sentContent ?? this.sentContent,
       suggestedTickets: suggestedTickets ?? this.suggestedTickets,
       actions: actions ?? this.actions,
+      scheduleResultSummary:
+          scheduleResultSummary ?? this.scheduleResultSummary,
     );
   }
 }
@@ -222,6 +244,13 @@ String formatMessageTime(DateTime? value) => _formatTime(value);
 String mapCustomerDisplayText(String rawContent) {
   final raw = rawContent.trim();
   if (raw == scheduleRestartToken) return 'Xem lịch xổ';
+  if (raw.startsWith('SCHEDULE_SELECT_STATION:')) {
+    final match = RegExp(r'name=([^|&]+)').firstMatch(raw);
+    if (match != null) {
+      return match.group(1)!.trim();
+    }
+    return raw;
+  }
   if (raw.startsWith(scheduleSetGoalPrefix)) {
     final goal = raw.substring(scheduleSetGoalPrefix.length).trim();
     return switch (goal) {
@@ -298,7 +327,10 @@ UiChatMessage mapApiMessage(ChatMessageModel message) {
   if (!isUser &&
       (message.intent == 'WEB_SCHEDULE' ||
           raw.startsWith('SCHEDULE_') ||
-          raw.contains('SCHEDULE_'))) {
+          raw.contains('SCHEDULE_') ||
+          raw.startsWith('region=') ||
+          raw.contains('goal=RESULT') ||
+          raw.contains('goal=SCHEDULE'))) {
     final schedule = _parseScheduleMessage(raw);
     return UiChatMessage(
       id: message.id.toString(),
@@ -308,6 +340,8 @@ UiChatMessage mapApiMessage(ChatMessageModel message) {
       conversationId: message.conversationId,
       fromStaff: fromStaff,
       isRead: message.isRead,
+      variant: schedule.variant,
+      scheduleResultSummary: schedule.scheduleResultSummary,
       actions: schedule.actions,
     );
   }
@@ -399,10 +433,80 @@ bool _isSystemNotice(String text) {
 }
 
 class _ParsedScheduleMessage {
-  const _ParsedScheduleMessage({required this.text, this.actions = const []});
+  const _ParsedScheduleMessage({
+    required this.text,
+    this.actions = const [],
+    this.variant = ChatMessageVariant.bubble,
+    this.scheduleResultSummary,
+  });
 
   final String text;
   final List<ChatMessageAction> actions;
+  final ChatMessageVariant variant;
+  final ScheduleResultSummaryData? scheduleResultSummary;
+}
+
+ScheduleResultSummaryData? parseScheduleResultSummaryToken(String content) {
+  var raw = content.trim();
+  if (raw.startsWith('SCHEDULE_RESULT_SUMMARY:')) {
+    raw = raw.substring('SCHEDULE_RESULT_SUMMARY:'.length).trim();
+  } else if (raw.startsWith('SCHEDULE_RESULT:')) {
+    raw = raw.substring('SCHEDULE_RESULT:'.length).trim();
+  } else if (raw.startsWith('SCHEDULE_STATION_BUNDLE:')) {
+    raw = raw.substring('SCHEDULE_STATION_BUNDLE:'.length).trim();
+  } else if (raw.startsWith('SCHEDULE_SHOW:')) {
+    raw = raw.substring('SCHEDULE_SHOW:'.length).trim();
+  } else if (!raw.startsWith('region=') &&
+      !raw.startsWith('station=') &&
+      !raw.contains('goal=RESULT')) {
+    return null;
+  }
+
+  final parts = raw.split(RegExp(r'[:|]'));
+  String? region;
+  int? stationId;
+  List<int>? stationIds;
+  String? drawDate;
+  String? stationName;
+
+  for (final part in parts) {
+    final eqIdx = part.indexOf('=');
+    if (eqIdx < 0) continue;
+    final key = part.substring(0, eqIdx).trim();
+    final value = part.substring(eqIdx + 1).trim();
+
+    if (key == 'region') {
+      region = value;
+    } else if (key == 'station') {
+      stationId = int.tryParse(value);
+    } else if (key == 'stations') {
+      stationIds = value
+          .split(',')
+          .map((segment) => int.tryParse(segment.split(':')[0].trim()))
+          .whereType<int>()
+          .toList();
+    } else if (key == 'date') {
+      drawDate = value;
+    } else if (key == 'stationName') {
+      stationName = Uri.decodeComponent(value.replaceAll('+', ' '));
+    }
+  }
+
+  if (region == null &&
+      stationId == null &&
+      stationIds == null &&
+      drawDate == null &&
+      stationName == null) {
+    return null;
+  }
+
+  return ScheduleResultSummaryData(
+    region: region,
+    stationId: stationId,
+    stationIds: stationIds,
+    drawDate: drawDate,
+    stationName: stationName,
+  );
 }
 
 _ParsedScheduleMessage _parseScheduleMessage(String raw) {
@@ -421,51 +525,46 @@ _ParsedScheduleMessage _parseScheduleMessage(String raw) {
             ? 'Bạn muốn xem vé ngày nào?'
             : 'Bạn muốn xem lịch ngày nào?');
 
-    final actions = <ChatMessageAction>[
-      ChatMessageAction(
-        label: 'Hôm nay',
-        payload: 'SCHEDULE_SHOW:date=TODAY|goal=$goal',
-        primary: true,
-      ),
-      if (isResult)
-        ChatMessageAction(
-          label: 'Hôm qua',
-          payload: 'SCHEDULE_SHOW:date=YESTERDAY|goal=$goal',
-        )
-      else
-        ChatMessageAction(
-          label: 'Ngày mai',
-          payload: 'SCHEDULE_SHOW:date=TOMORROW|goal=$goal',
-        ),
-      ChatMessageAction(
-        label: 'Thứ 2',
-        payload: 'SCHEDULE_SHOW:day=2|goal=$goal',
-      ),
-      ChatMessageAction(
-        label: 'Thứ 3',
-        payload: 'SCHEDULE_SHOW:day=3|goal=$goal',
-      ),
-      ChatMessageAction(
-        label: 'Thứ 4',
-        payload: 'SCHEDULE_SHOW:day=4|goal=$goal',
-      ),
-      ChatMessageAction(
-        label: 'Thứ 5',
-        payload: 'SCHEDULE_SHOW:day=5|goal=$goal',
-      ),
-      ChatMessageAction(
-        label: 'Thứ 6',
-        payload: 'SCHEDULE_SHOW:day=6|goal=$goal',
-      ),
-      ChatMessageAction(
-        label: 'Thứ 7',
-        payload: 'SCHEDULE_SHOW:day=7|goal=$goal',
-      ),
-      ChatMessageAction(
-        label: 'Chủ nhật',
-        payload: 'SCHEDULE_SHOW:day=CN|goal=$goal',
-      ),
-    ];
+    final actions = isResult
+        ? <ChatMessageAction>[
+            const ChatMessageAction(
+              label: 'Hôm nay',
+              payload: 'Hôm nay',
+              primary: true,
+            ),
+            const ChatMessageAction(
+              label: 'Hôm qua',
+              payload: 'Hôm qua',
+            ),
+            const ChatMessageAction(
+              label: 'Chọn ngày khác',
+              payload: 'ACTION_PICK_DATE:goal=RESULT',
+            ),
+          ]
+        : <ChatMessageAction>[
+            ChatMessageAction(
+              label: 'Hôm nay',
+              payload: 'Hôm nay',
+              primary: true,
+            ),
+            ChatMessageAction(
+              label: 'Ngày mai',
+              payload: 'Ngày mai',
+              primary: true,
+            ),
+            ChatMessageAction(
+              label: 'Hôm qua',
+              payload: 'Hôm qua',
+            ),
+            ChatMessageAction(
+              label: 'Chọn thứ/ngày',
+              payload: 'ACTION_PICK_DATE:goal=$goal',
+            ),
+            ChatMessageAction(
+              label: 'Tất cả ngày',
+              payload: 'Tất cả ngày',
+            ),
+          ];
     return _ParsedScheduleMessage(text: text, actions: actions);
   }
 
@@ -493,49 +592,161 @@ _ParsedScheduleMessage _parseScheduleMessage(String raw) {
   if (trimmed.startsWith('SCHEDULE_CONFIRM_STATION:') ||
       trimmed.startsWith('SCHEDULE_PICK_STATION_LIST:') ||
       trimmed.startsWith('SCHEDULE_ASK_STATION:')) {
-    final colonIdx = trimmed.indexOf(':');
-    final payload =
-        colonIdx >= 0 ? trimmed.substring(colonIdx + 1).trim() : '';
-    const text = 'Chọn đài bạn muốn xem:';
+    final isResultGoal = trimmed.contains('goal=RESULT');
+    final dateMatch = RegExp(r'date=([^:|]+)').firstMatch(trimmed);
+    final rawDate = dateMatch?.group(1);
+    final dateLabel = rawDate != null && RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(rawDate)
+        ? rawDate.split('-').reversed.join('/')
+        : rawDate;
+
+    final String text;
+    if (isResultGoal && dateLabel != null && dateLabel.isNotEmpty) {
+      text = 'Chọn đài muốn xem kết quả ngày $dateLabel:';
+    } else if (trimmed.startsWith('SCHEDULE_CONFIRM_STATION:')) {
+      text = 'Mình tìm thấy vài đài gần giống. Bạn chọn đài nào ạ?';
+    } else {
+      text = 'Chọn đài bạn muốn xem:';
+    }
+
     final actions = <ChatMessageAction>[];
 
-    if (payload.isNotEmpty) {
-      try {
-        final decoded = jsonDecode(payload);
-        if (decoded is List) {
-          for (final item in decoded) {
-            final name = item is Map
-                ? (item['name'] ?? item['stationName'] ?? '').toString()
-                : item.toString();
-            if (name.isNotEmpty) {
-              actions.add(
-                ChatMessageAction(
-                  label: name,
-                  payload:
-                      'SCHEDULE_SHOW:station=${Uri.encodeComponent(name)}',
-                ),
-              );
-            }
+    final stationsIdx = trimmed.indexOf('stations=');
+    if (stationsIdx >= 0) {
+      var rawStations = trimmed.substring(stationsIdx + 'stations='.length);
+      rawStations = rawStations.replaceAll(
+        RegExp(r':(goal|hasNext|page|region|date)=.*$', caseSensitive: false),
+        '',
+      );
+
+      for (final segment in rawStations.split(',')) {
+        final colonIdx = segment.indexOf(':');
+        if (colonIdx >= 0) {
+          final idStr = segment.substring(0, colonIdx).trim();
+          var nameStr = segment.substring(colonIdx + 1).trim();
+          nameStr = nameStr.replaceAll(
+            RegExp(r':(goal|hasNext|page|region|date)=.*$', caseSensitive: false),
+            '',
+          ).trim();
+          final id = int.tryParse(idStr);
+          if (id != null && nameStr.isNotEmpty) {
+            actions.add(
+              ChatMessageAction(
+                label: nameStr,
+                payload: 'SCHEDULE_SELECT_STATION:id=$id:name=$nameStr',
+                primary: true,
+              ),
+            );
           }
-        }
-      } catch (_) {
-        final parts = payload.split(RegExp(r'[,|]'));
-        for (final p in parts) {
-          final clean = p.replaceAll(RegExp(r'^(station=)?'), '').trim();
+        } else {
+          final clean = segment.trim();
           if (clean.isNotEmpty && !clean.contains('=')) {
             actions.add(
               ChatMessageAction(
                 label: clean,
-                payload:
-                    'SCHEDULE_SHOW:station=${Uri.encodeComponent(clean)}',
+                payload: 'SCHEDULE_SHOW:station=${Uri.encodeComponent(clean)}',
+                primary: true,
               ),
             );
+          }
+        }
+      }
+    } else {
+      final colonIdx = trimmed.indexOf(':');
+      final payload =
+          colonIdx >= 0 ? trimmed.substring(colonIdx + 1).trim() : '';
+
+      if (payload.isNotEmpty) {
+        try {
+          final decoded = jsonDecode(payload);
+          if (decoded is List) {
+            for (final item in decoded) {
+              final name = item is Map
+                  ? (item['name'] ?? item['stationName'] ?? '').toString()
+                  : item.toString();
+              final id = item is Map ? (item['id'] as int?) : null;
+              if (name.isNotEmpty) {
+                actions.add(
+                  ChatMessageAction(
+                    label: name,
+                    payload: id != null && id > 0
+                        ? 'SCHEDULE_SELECT_STATION:id=$id:name=$name'
+                        : 'SCHEDULE_SHOW:station=${Uri.encodeComponent(name)}',
+                    primary: true,
+                  ),
+                );
+              }
+            }
+          }
+        } catch (_) {
+          final parts = payload.split(RegExp(r'[,|]'));
+          for (final p in parts) {
+            final clean = p.replaceAll(RegExp(r'^(station=|stations=)?'), '').trim();
+            if (clean.isNotEmpty && !clean.contains('=')) {
+              final colon = clean.indexOf(':');
+              final nameOnly = colon >= 0 ? clean.substring(colon + 1).trim() : clean;
+              final id = colon >= 0 ? int.tryParse(clean.substring(0, colon).trim()) : null;
+              actions.add(
+                ChatMessageAction(
+                  label: nameOnly,
+                  payload: id != null && id > 0
+                      ? 'SCHEDULE_SELECT_STATION:id=$id:name=$nameOnly'
+                      : 'SCHEDULE_SHOW:station=${Uri.encodeComponent(nameOnly)}',
+                  primary: true,
+                ),
+              );
+            }
           }
         }
       }
     }
 
     return _ParsedScheduleMessage(text: text, actions: actions);
+  }
+
+  final resultSummary = parseScheduleResultSummaryToken(trimmed);
+  if (resultSummary != null &&
+      (trimmed.startsWith('SCHEDULE_RESULT_SUMMARY:') ||
+          trimmed.startsWith('region=') ||
+          trimmed.startsWith('SCHEDULE_STATION_BUNDLE:') ||
+          (trimmed.startsWith('SCHEDULE_RESULT:') &&
+              trimmed.contains('goal=RESULT')) ||
+          (trimmed.contains('goal=RESULT') &&
+              (resultSummary.drawDate != null ||
+                  resultSummary.region != null)))) {
+    final dateLabel = resultSummary.drawDate != null &&
+            RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(resultSummary.drawDate!)
+        ? resultSummary.drawDate!.split('-').reversed.join('/')
+        : resultSummary.drawDate;
+    final stationLabel = resultSummary.stationName;
+
+    final String displayText;
+    if (trimmed.startsWith('SCHEDULE_STATION_BUNDLE:') &&
+        stationLabel != null) {
+      displayText =
+          'Dạ, dưới đây là lịch quay và kết quả gần nhất của đài $stationLabel${dateLabel != null ? ' (ngày $dateLabel)' : ''} ạ:';
+    } else {
+      displayText = 'Kết quả xổ số theo yêu cầu của bạn:';
+    }
+
+    return _ParsedScheduleMessage(
+      text: displayText,
+      variant: ChatMessageVariant.scheduleResultSummary,
+      scheduleResultSummary: resultSummary,
+      actions: const [
+        ChatMessageAction(
+          label: 'Tra cứu kết quả khác',
+          payload: 'SCHEDULE_SET_GOAL:RESULT',
+        ),
+        ChatMessageAction(
+          label: 'Xem lịch mở thưởng',
+          payload: 'SCHEDULE_SET_GOAL:SCHEDULE',
+        ),
+        ChatMessageAction(
+          label: 'Gợi ý vé',
+          payload: suggestTicketsMessage,
+        ),
+      ],
+    );
   }
 
   if (trimmed.startsWith('SCHEDULE_RESULT_SUMMARY:') ||
@@ -600,42 +811,162 @@ _ParsedScheduleMessage _parseScheduleMessage(String raw) {
   return _ParsedScheduleMessage(text: trimmed);
 }
 
-List<UiChatMessage> mergeTimelineWithOverlay({
-  required List<UiChatMessage> timeline,
-  required List<UiChatMessage> overlay,
-}) {
-  final merged = [...timeline];
-  final timelineUsers = timeline.where((message) => message.isUser).toList();
+bool isCountableBotReply(UiChatMessage message) =>
+    !message.isUser &&
+    !message.fromStaff &&
+    message.variant != ChatMessageVariant.divider &&
+    message.variant != ChatMessageVariant.typing &&
+    message.id != 'welcome';
+
+int countBotReplies(List<UiChatMessage> messages) =>
+    messages.where(isCountableBotReply).length;
+
+bool customerMessagesMatch(UiChatMessage timeline, UiChatMessage optimistic) {
+  final timelineKey = timeline.sentContent ?? timeline.text;
+  final optimisticKey = optimistic.sentContent ?? optimistic.text;
+  if (timelineKey.trim() == optimisticKey.trim()) return true;
+
+  if (timeline.text.trim() == optimistic.text.trim()) {
+    if (optimistic.sentContent != null) {
+      return timeline.sentContent?.trim() == optimistic.sentContent?.trim();
+    }
+    return timeline.sentContent == null;
+  }
+
+  final timelineMapped = mapCustomerDisplayText(timeline.text);
+  final optimisticMapped = mapCustomerDisplayText(optimistic.text);
+  if (timelineMapped == optimisticMapped) return true;
+
+  if (optimistic.sentContent != null) {
+    final sent = optimistic.sentContent!.trim();
+    return timeline.sentContent?.trim() == sent ||
+        timeline.text.trim() == sent ||
+        timelineMapped == sent;
+  }
+  return false;
+}
+
+List<UiChatMessage> pruneOverlayMessages(
+  List<UiChatMessage> overlay,
+  List<UiChatMessage> timeline,
+) {
+  final timelineUsers = timeline.where((m) => m.isUser).toList();
   final claimed = <String>{};
 
-  for (final extra in overlay) {
+  return overlay.where((extra) {
     if (extra.id.startsWith('optimistic-user-')) {
-      final match = timelineUsers.where((message) {
-        if (claimed.contains(message.id)) return false;
-        return _customerMessagesMatch(message, extra);
+      final match = timelineUsers.where((timelineMessage) {
+        if (claimed.contains(timelineMessage.id)) return false;
+        return customerMessagesMatch(timelineMessage, extra);
       }).firstOrNull;
       if (match != null) {
         claimed.add(match.id);
-        continue;
+        return false;
       }
-      merged.add(extra);
-      continue;
+      return true;
     }
-    if (extra.variant == ChatMessageVariant.typing) {
-      merged.add(extra);
-      continue;
+    if (extra.variant == ChatMessageVariant.typing) return true;
+    if (extra.id.startsWith('local-')) {
+      return !timeline.any((m) => m.id == extra.id);
     }
-    if (!merged.any((message) => message.id == extra.id)) {
-      merged.add(extra);
-    }
-  }
-  return merged;
+    return true;
+  }).toList();
 }
 
-bool _customerMessagesMatch(UiChatMessage timeline, UiChatMessage optimistic) {
-  final timelineKey = timeline.sentContent ?? timeline.text;
-  final optimisticKey = optimistic.sentContent ?? optimistic.text;
-  return timelineKey.trim() == optimisticKey.trim();
+List<UiChatMessage> mergeTimelineWithOverlay({
+  required List<UiChatMessage> timeline,
+  required List<UiChatMessage> overlay,
+  int botReplyCountAtSend = 0,
+  bool awaitingBotReply = false,
+  bool holdTypingReveal = false,
+}) {
+  final base = timeline;
+  var prunedOverlay = pruneOverlayMessages(overlay, timeline);
+
+  if (!awaitingBotReply && !holdTypingReveal) {
+    prunedOverlay = prunedOverlay
+        .where((m) => m.variant != ChatMessageVariant.typing)
+        .toList();
+  }
+
+  final optimisticUsers = prunedOverlay
+      .where((m) => m.id.startsWith('optimistic-user-'))
+      .toList();
+  final typing = prunedOverlay
+      .where((m) => m.variant == ChatMessageVariant.typing)
+      .toList();
+  final restOverlay = prunedOverlay
+      .where((m) =>
+          !m.id.startsWith('optimistic-user-') &&
+          m.variant != ChatMessageVariant.typing)
+      .toList();
+
+  final hideBotRepliesAfterSend =
+      holdTypingReveal || typing.isNotEmpty || awaitingBotReply;
+
+  final pendingOptimistic =
+      optimisticUsers.isNotEmpty ? optimisticUsers.last : null;
+  final settledOptimistics = pendingOptimistic != null
+      ? optimisticUsers.where((m) => m.id != pendingOptimistic.id).toList()
+      : optimisticUsers;
+
+  if (!hideBotRepliesAfterSend &&
+      pendingOptimistic == null &&
+      botReplyCountAtSend >= countBotReplies(base)) {
+    return [...base, ...settledOptimistics, ...restOverlay];
+  }
+
+  var seenBotReplies = 0;
+  final beforeSend = <UiChatMessage>[];
+  final botRepliesAfterSend = <UiChatMessage>[];
+
+  for (final message in base) {
+    if (pendingOptimistic != null &&
+        customerMessagesMatch(message, pendingOptimistic)) {
+      continue;
+    }
+    if (isCountableBotReply(message)) {
+      seenBotReplies++;
+      if (seenBotReplies > botReplyCountAtSend) {
+        botRepliesAfterSend.add(message);
+        continue;
+      }
+    }
+    beforeSend.add(message);
+  }
+
+  if (hideBotRepliesAfterSend && pendingOptimistic == null) {
+    var lastUserIndex = -1;
+    for (var i = base.length - 1; i >= 0; i--) {
+      if (base[i].isUser) {
+        lastUserIndex = i;
+        break;
+      }
+    }
+    if (lastUserIndex >= 0) {
+      beforeSend.clear();
+      botRepliesAfterSend.clear();
+      for (var i = 0; i < base.length; i++) {
+        final message = base[i];
+        if (i <= lastUserIndex) {
+          beforeSend.add(message);
+        } else if (isCountableBotReply(message)) {
+          botRepliesAfterSend.add(message);
+        } else {
+          beforeSend.add(message);
+        }
+      }
+    }
+  }
+
+  return [
+    ...beforeSend,
+    ...settledOptimistics,
+    ?pendingOptimistic,
+    ...typing,
+    if (!hideBotRepliesAfterSend) ...botRepliesAfterSend,
+    ...restOverlay,
+  ];
 }
 
 extension _FirstOrNull<T> on Iterable<T> {

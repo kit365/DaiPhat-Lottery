@@ -18,6 +18,7 @@ import 'package:daiphat_mobile/src/features/profile/presentation/profile_iconogr
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 import 'package:daiphat_mobile/src/shared/widgets/ticket_number_display.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
+import 'package:daiphat_mobile/src/features/orders/presentation/widgets/payment_timeout_complaint_dialog.dart';
 import '../viewmodels/order_detail_viewmodel.dart';
 
 class OrderDetailView extends ConsumerStatefulWidget {
@@ -95,6 +96,8 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
         return AppColors.payoutCompleteForeground;
       case 'COMPLETED':
         return AppColors.statusSuccessForeground;
+      case 'PAYMENT_COMPLAINT_PENDING':
+        return AppColors.statusWarningForeground;
       case 'CANCELLED':
         return AppColors.contentMuted;
       default:
@@ -114,6 +117,8 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
         return 'Chờ nhận vé';
       case 'COMPLETED':
         return 'Hoàn thành';
+      case 'PAYMENT_COMPLAINT_PENDING':
+        return 'Chờ xác minh';
       case 'CANCELLED':
         return 'Đã hủy';
       default:
@@ -300,6 +305,10 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
   // ── Stepper ──────────────────────────────────────────────────────────────
 
   Widget _buildStepper(OrderResponse order) {
+    if (order.isPaymentTimeoutCancellation ||
+        order.status == 'PAYMENT_COMPLAINT_PENDING') {
+      return _buildPaymentTimeoutComplaintCard(order);
+    }
     if (order.status == 'CANCELLED') {
       return _buildCancelledBanner();
     }
@@ -460,6 +469,250 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentTimeoutComplaintCard(OrderResponse order) {
+    final isPending = order.status == 'PAYMENT_COMPLAINT_PENDING';
+    final isRejected = order.status == 'CANCELLED' &&
+        (order.paymentComplaintResolutionReason != null &&
+            order.paymentComplaintResolutionReason!.isNotEmpty);
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surfacePrimary,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.borderLight),
+        boxShadow: const [
+          BoxShadow(
+            color: AppColors.shadowLight,
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: isPending
+                      ? AppColors.statusSuccessSurface
+                      : AppColors.statusErrorSurface,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  isPending
+                      ? Icons.hourglass_top_rounded
+                      : Icons.receipt_long_rounded,
+                  color: isPending
+                      ? AppColors.statusSuccessForeground
+                      : AppColors.primary,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Chứng từ thanh toán',
+                      style: AppTypography.mainWith(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.contentPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Đơn đã bị hệ thống hủy do quá thời gian thanh toán. Nếu bạn đã thanh toán, hãy gửi ảnh biên lai để cửa hàng kiểm tra.',
+                      style: AppTypography.caption(
+                        fontSize: 12,
+                        color: AppColors.contentMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (isPending) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1FFF7),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFB8E8D0)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.access_time_rounded,
+                        color: Color(0xFF118D57),
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Đang chờ cửa hàng xác minh',
+                        style: AppTypography.bodySmall(
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF118D57),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (order.paymentComplaintSubmittedAt != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Đã gửi lúc ${_formatDate(order.paymentComplaintSubmittedAt)}',
+                      style: AppTypography.caption(
+                        color: AppColors.contentMuted,
+                      ),
+                    ),
+                  ],
+                  if (order.paymentComplaintEvidenceUrl != null &&
+                      order.paymentComplaintEvidenceUrl!.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    InkWell(
+                      onTap: () =>
+                          _viewEvidence(order.paymentComplaintEvidenceUrl!),
+                      child: Text(
+                        'Xem chứng từ đã gửi',
+                        style: AppTypography.caption(
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF118D57),
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ] else ...[
+            if (isRejected) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                margin: const EdgeInsets.only(bottom: 14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF4F4),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFFFCDD2)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Chứng từ trước đó chưa được chấp nhận',
+                      style: AppTypography.bodySmall(
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFFB71D18),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Lý do: ${order.paymentComplaintResolutionReason}',
+                      style: AppTypography.caption(
+                        color: const Color(0xFFB71D18),
+                      ),
+                    ),
+                    if (order.paymentComplaintResolvedAt != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        'Đã xử lý lúc ${_formatDate(order.paymentComplaintResolvedAt)}',
+                        style: AppTypography.caption(
+                          color: AppColors.contentMuted,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  PaymentTimeoutComplaintDialog.show(
+                    context,
+                    orderId: order.id,
+                    orderCode: order.orderCode,
+                    totalAmount: order.totalAmount,
+                    onSubmitted: () => _viewModel.fetchOrderDetail(),
+                  );
+                },
+                icon: const Icon(
+                  Icons.cloud_upload_rounded,
+                  size: 18,
+                  color: AppColors.surfacePrimary,
+                ),
+                label: Text(
+                  isRejected ? 'Gửi lại chứng từ' : 'Gửi khiếu nại thanh toán',
+                  style: AppTypography.buttonSmall(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.surfacePrimary,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.surfacePrimary,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  elevation: 0,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _viewEvidence(String url) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: Stack(
+          alignment: Alignment.topRight,
+          children: [
+            InteractiveViewer(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  url,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, error, stackTrace) => Container(
+                    padding: const EdgeInsets.all(24),
+                    color: AppColors.surfacePrimary,
+                    child: const Text('Không thể tải ảnh chứng từ'),
+                  ),
+                ),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close, color: Colors.white, size: 30),
+              onPressed: () => Navigator.of(ctx).pop(),
+            ),
+          ],
+        ),
       ),
     );
   }
