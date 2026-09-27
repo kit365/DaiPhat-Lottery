@@ -4,8 +4,10 @@ import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.application.dto.request.refund.AttachRefundBankAccountRequest;
+import com.daiphat.coreapi.application.dto.request.refund.CompleteCounterRefundRequest;
 import com.daiphat.coreapi.application.dto.request.refund.RequestBankInfoUpdateRequest;
 import com.daiphat.coreapi.application.dto.request.refund.TransferRefundRequestRequest;
+import com.daiphat.coreapi.application.dto.request.refund.VerifyRefundCounterIdentityRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundRequestAdminDetailResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundRequestResponse;
@@ -103,5 +105,35 @@ public class StaffRefundRequestController {
         return ApiResponse.success(
                 "Tải ảnh minh chứng chuyển khoản thành công.",
                 refundRequestStaffServicePort.uploadTransferEvidence(StorageUtils.toUploadRequest(file)));
+    }
+
+    @PostMapping(value = "/counter-identity/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAuthority('refund:process')")
+    public ApiResponse<StorageResult> uploadCounterIdentityImage(@RequestPart("file") MultipartFile file) {
+        return ApiResponse.success(
+                "Tải ảnh CCCD thành công.",
+                refundRequestStaffServicePort.uploadCounterIdentityImage(StorageUtils.toUploadRequest(file)));
+    }
+
+    @PostMapping(ID_PATH + "/counter-identity/verify")
+    @PreAuthorize("hasAuthority('refund:process')")
+    public ApiResponse<RefundRequestAdminDetailResponse.RefundCounterIdentitySummary> verifyCounterIdentity(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            @Valid @RequestBody VerifyRefundCounterIdentityRequest request) {
+        return ApiResponse.success(
+                "Xác thực CCCD thành công.",
+                refundRequestStaffServicePort.verifyCounterIdentity(id, principal.getId(), request));
+    }
+
+    @PatchMapping(ID_PATH + "/counter-complete")
+    @PreAuthorize("hasAuthority('refund:process')")
+    public ApiResponse<RefundRequestResponse> completeCounterRefund(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            @Valid @RequestBody CompleteCounterRefundRequest request) {
+        return ApiResponse.success(
+                "Đã hoàn tất hoàn tiền tại quầy.",
+                refundRequestStaffServicePort.completeCounterRefund(id, principal.getId(), request));
     }
 }

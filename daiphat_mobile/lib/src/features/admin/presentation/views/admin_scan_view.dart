@@ -1,9 +1,12 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import '../viewmodels/admin_scan_viewmodel.dart';
+import '../../domain/models/ocr_models.dart';
+import '../../utils/ocr_validation.dart';
 
 class AdminScanView extends StatefulWidget {
   final AdminScanViewModel viewModel;
@@ -21,6 +24,7 @@ class _AdminScanViewState extends State<AdminScanView> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       if (!widget.viewModel.isConnected && !widget.viewModel.isConnecting) {
         widget.viewModel.startConnecting(webIsWaiting: true);
       }
@@ -55,7 +59,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                     Icons.link_off_rounded,
                     color: AppColors.primary,
                   ),
-                  tooltip: 'Ngắt kết nối Web',
+                  tooltip: 'Đổi phiếu nhập',
                   onPressed: () => widget.viewModel.disconnectSession(),
                 ),
             ],
@@ -74,6 +78,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                 _buildStationTabs(),
                 const SizedBox(height: 12),
                 _buildScannedList(),
+                if (widget.viewModel.rows.isNotEmpty) _buildImportActions(),
               ],
             ),
           ),
@@ -86,7 +91,6 @@ class _AdminScanViewState extends State<AdminScanView> {
     final isConnected = widget.viewModel.isConnected;
     final isConnecting = widget.viewModel.isConnecting;
     final errorMessage = widget.viewModel.errorMessage;
-    final countdown = widget.viewModel.countdownSeconds;
 
     return Card(
       elevation: 0,
@@ -142,10 +146,10 @@ class _AdminScanViewState extends State<AdminScanView> {
                     children: [
                       Text(
                         isConnected
-                            ? 'ĐÃ KẾT NỐI WEB ADMIN'
+                            ? 'ĐÃ KẾT NỐI OCR'
                             : (isConnecting
-                                  ? 'ĐANG CHỜ KẾT NỐI WEB ($countdown s)'
-                                  : 'CHƯA KẾT NỐI WEB ADMIN'),
+                                  ? 'ĐANG KẾT NỐI OCR'
+                                  : 'CHƯA SẴN SÀNG QUÉT'),
                         style: AppTypography.subtitle2(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
@@ -159,10 +163,10 @@ class _AdminScanViewState extends State<AdminScanView> {
                       const SizedBox(height: 2),
                       Text(
                         isConnected
-                            ? 'Mã phiên: ${widget.viewModel.sessionCode} (Real-time Active)'
+                            ? 'Phiếu nhập: ${widget.viewModel.sessionCode}'
                             : (isConnecting
-                                  ? 'Đang tìm kiếm trang Admin Web đang mở để tự động kết nối...'
-                                  : 'Mở màn hình "Quét vé bằng Mobile App" trên Web Admin để ghép nối.'),
+                                  ? 'Đang tải phiếu nhập và kiểm tra dịch vụ OCR...'
+                                  : 'Chọn phiếu nhập lô đã tạo để quét và xác nhận vé.'),
                         style: AppTypography.caption(
                           fontSize: 12,
                           color: AppColors.contentSecondary,
@@ -173,6 +177,39 @@ class _AdminScanViewState extends State<AdminScanView> {
                 ),
               ],
             ),
+            if (widget.viewModel.batchOptions.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              DropdownButtonFormField<int>(
+                key: ValueKey(widget.viewModel.selectedImportBatchId),
+                initialValue:
+                    widget.viewModel.batchOptions.any(
+                      (b) => b.id == widget.viewModel.selectedImportBatchId,
+                    )
+                    ? widget.viewModel.selectedImportBatchId
+                    : null,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Phiếu nhập lô / nhà cung cấp',
+                ),
+                items: widget.viewModel.batchOptions
+                    .map(
+                      (batch) => DropdownMenuItem(
+                        value: batch.id,
+                        child: Text(
+                          '${batch.batchCode} — ${batch.data['supplierName'] ?? ''}',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged:
+                    widget.viewModel.isScanning ||
+                        widget.viewModel.confirming ||
+                        isConnecting
+                    ? null
+                    : widget.viewModel.selectDraftBatch,
+              ),
+            ],
             if (errorMessage != null) ...[
               const SizedBox(height: 12),
               Container(
@@ -233,9 +270,7 @@ class _AdminScanViewState extends State<AdminScanView> {
                         )
                       : const Icon(Icons.sync_rounded, size: 20),
                   label: Text(
-                    isConnecting
-                        ? 'Đang kết nối ($countdown s)...'
-                        : 'Thử kết nối lại với Web',
+                    isConnecting ? 'Đang kết nối...' : 'Thử kết nối lại',
                     style: AppTypography.buttonMedium(
                       fontWeight: FontWeight.bold,
                     ),
@@ -251,7 +286,10 @@ class _AdminScanViewState extends State<AdminScanView> {
 
   Widget _buildScanActionsCard(BuildContext context) {
     final isConnected = widget.viewModel.isConnected;
-    final isScanning = widget.viewModel.isScanning;
+    final isScanning =
+        widget.viewModel.isScanning ||
+        widget.viewModel.confirming ||
+        widget.viewModel.importResult != null;
 
     return Card(
       elevation: 0,
@@ -274,7 +312,7 @@ class _AdminScanViewState extends State<AdminScanView> {
             ),
             const SizedBox(height: 6),
             Text(
-              'Ảnh chụp vé sau khi xử lý OCR sẽ tự động đồng bộ Real-time lên danh sách của phiếu nhập lô vé trên Web Admin.',
+              'Quét ảnh, kiểm tra kết quả và xác nhận nhập vé vào phiếu nhập lô.',
               style: AppTypography.caption(
                 fontSize: 12,
                 color: AppColors.contentSecondary,
@@ -376,7 +414,9 @@ class _AdminScanViewState extends State<AdminScanView> {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              'Real-time Synced',
+              widget.viewModel.importResult == null
+                  ? 'Chờ xác nhận'
+                  : 'Đã xử lý nhập',
               style: AppTypography.caption(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
@@ -488,7 +528,7 @@ class _AdminScanViewState extends State<AdminScanView> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Bấm nút "Chụp vé số" hoặc "Tải ảnh lên" để bắt đầu nhận diện và đồng bộ với Web Admin.',
+              'Bấm nút "Chụp vé số" hoặc "Tải ảnh lên" để bắt đầu nhận diện.',
               textAlign: TextAlign.center,
               style: AppTypography.caption(
                 fontSize: 12,
@@ -514,87 +554,365 @@ class _AdminScanViewState extends State<AdminScanView> {
             borderRadius: BorderRadius.circular(12),
             side: const BorderSide(color: AppColors.borderDefault),
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: ticket.imagePath != null
-                      ? Image.file(
-                          File(ticket.imagePath!),
-                          width: 60,
-                          height: 60,
-                          fit: BoxFit.cover,
-                        )
-                      : Container(
-                          width: 60,
-                          height: 60,
-                          color: AppColors.surfaceNeutral,
-                          child: const Icon(Icons.confirmation_number_rounded),
-                        ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            ticket.ticketNumber,
-                            style: AppTypography.lotteryDigit(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 16,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                          const Spacer(),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.statusSuccessSurface,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              ticket.status,
-                              style: AppTypography.caption(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.statusSuccessForeground,
+          child: InkWell(
+            onTap: () => _editTicket(ticket.id),
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: _ticketImage(ticket.imagePath),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              ticket.ticketNumber,
+                              style: AppTypography.lotteryDigit(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 16,
+                                color: AppColors.primary,
                               ),
                             ),
+                            const Spacer(),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.statusSuccessSurface,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                ticket.status,
+                                style: AppTypography.caption(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.statusSuccessForeground,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Đài: ${ticket.stationName} • Ngày: ${ticket.drawDate}',
+                          style: AppTypography.caption(
+                            fontSize: 12,
+                            color: AppColors.textMain,
+                            fontWeight: FontWeight.w500,
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Đài: ${ticket.stationName} • Ngày: ${ticket.drawDate}',
-                        style: AppTypography.caption(
-                          fontSize: 12,
-                          color: AppColors.textMain,
-                          fontWeight: FontWeight.w500,
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Độ tin cậy OCR: ${(ticket.confidence * 100).toStringAsFixed(0)}% • Đã gửi Web',
-                        style: AppTypography.caption(
-                          fontSize: 11,
-                          color: AppColors.contentSecondary,
+                        const SizedBox(height: 2),
+                        Text(
+                          'Độ tin cậy OCR: ${(ticket.confidence * 100).toStringAsFixed(0)}% • Chạm để kiểm tra',
+                          style: AppTypography.caption(
+                            fontSize: 11,
+                            color: AppColors.contentSecondary,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _ticketImage(String? source) {
+    Widget placeholder() => const SizedBox(
+      width: 60,
+      height: 60,
+      child: Icon(Icons.confirmation_number_rounded),
+    );
+    if (source == null || source.isEmpty) return placeholder();
+    Widget error(BuildContext context, Object error, StackTrace? stack) =>
+        placeholder();
+    if (source.startsWith('http://') || source.startsWith('https://'))
+      return Image.network(
+        source,
+        width: 60,
+        height: 60,
+        fit: BoxFit.cover,
+        errorBuilder: error,
+      );
+    try {
+      if (source.startsWith('data:') ||
+          (!source.contains('\\') && !source.startsWith('/'))) {
+        final raw = source.startsWith('data:')
+            ? source.substring(source.indexOf(',') + 1)
+            : source;
+        return Image.memory(
+          base64Decode(raw),
+          width: 60,
+          height: 60,
+          fit: BoxFit.cover,
+          errorBuilder: error,
+        );
+      }
+      return Image.file(
+        File(source),
+        width: 60,
+        height: 60,
+        fit: BoxFit.cover,
+        errorBuilder: error,
+      );
+    } catch (_) {
+      return placeholder();
+    }
+  }
+
+  Widget _buildImportActions() {
+    final vm = widget.viewModel;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final warning in vm.warnings)
+          Padding(padding: const EdgeInsets.only(top: 8), child: Text(warning)),
+        const SizedBox(height: 12),
+        if (vm.importResult == null) ...[
+          TextButton(
+            onPressed: vm.isScanning || vm.confirming
+                ? null
+                : () => vm.toggleAllConfirmable(true),
+            child: Text('Chọn vé hợp lệ (${vm.confirmableCount})'),
+          ),
+          ElevatedButton(
+            onPressed: vm.canConfirmImport ? _confirmImport : null,
+            child: Text(
+              vm.confirming
+                  ? 'Đang nhập vé...'
+                  : 'Xác nhận nhập ${vm.confirmableCount} vé',
+            ),
+          ),
+        ] else ...[
+          Text(
+            'Đã nhập ${vm.importResult!['successCount']}/${vm.importResult!['totalRequested']} vé; trùng: ${vm.importResult!['duplicateCount']}, lỗi: ${vm.importResult!['failedCount']}.',
+          ),
+          for (final batch in ocrMaps(vm.importResult!['batches']))
+            for (final item in ocrMaps(batch['ticketResults']))
+              Text(
+                '${item['numbers'] ?? ''} / ${item['serialNumber'] ?? ''}: ${item['outcome']} ${item['message'] ?? ''}',
+              ),
+        ],
+        TextButton(
+          onPressed: vm.isScanning || vm.confirming
+              ? null
+              : vm.discardPreviousScan,
+          child: Text(
+            vm.importResult == null ? 'Xóa bản quét' : 'Quét phiên mới',
+          ),
+        ),
+        TextButton(
+          onPressed: vm.loadingLogs ? null : _showLogs,
+          child: const Text('Nhật ký quét'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _confirmImport() async {
+    final vm = widget.viewModel;
+    var outcome = await vm.confirmImport();
+    if (!mounted) return;
+    if (outcome == OcrConfirmOutcome.shortfall) {
+      final q = vm.getImportQuantityCheck();
+      final accepted = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Phiếu nhập còn thiếu vé'),
+          content: Text(
+            'Đã chọn ${q.selectedCount}/${q.remainingCapacity} vé còn lại. Tiếp tục nhập thiếu ${q.shortfallCount} vé?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Quay lại'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Tiếp tục'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted || accepted != true) return;
+      outcome = await vm.confirmImport(acknowledgeShortfall: true);
+    }
+    if (!mounted) return;
+    if (outcome == OcrConfirmOutcome.over ||
+        outcome == OcrConfirmOutcome.blocked)
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(vm.errorMessage ?? 'Vui lòng kiểm tra các vé đã chọn.'),
+        ),
+      );
+  }
+
+  Future<void> _showLogs() async {
+    await widget.viewModel.loadScanLogs();
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Nhật ký quét'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView(
+            shrinkWrap: true,
+            children: widget.viewModel.scanLogs
+                .map(
+                  (log) => ListTile(
+                    title: Text('${log['eventType']}'),
+                    subtitle: Text(
+                      '${log['note'] ?? ''}\n${log['scannedAt'] ?? ''}',
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Đóng'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _editTicket(String key) async {
+    final vm = widget.viewModel;
+    final row = vm.rows.where((r) => r.key == key).firstOrNull;
+    if (row == null || vm.isScanning || vm.confirming) return;
+    await showDialog<void>(
+      context: context,
+      builder: (context) => ListenableBuilder(
+        listenable: vm,
+        builder: (context, _) => AlertDialog(
+          title: const Text('Kiểm tra vé OCR'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _ticketImage(
+                    (row.data['croppedImageUrl'] ??
+                            row.data['croppedImageBase64'] ??
+                            row.data['sourcePreviewUrl'])
+                        ?.toString(),
+                  ),
+                  for (final field in ocrFieldKeys.where(
+                    (f) => f != 'stationName',
+                  ))
+                    TextFormField(
+                      initialValue: row.data[field]?.toString() ?? '',
+                      readOnly: vm.importResult != null,
+                      decoration: InputDecoration(
+                        labelText: ocrFieldLabels[field],
+                        helperText: field == 'drawDate' ? 'YYYY-MM-DD' : null,
+                        errorText: vm.evaluateField(row, field).blocksImport
+                            ? vm.evaluateField(row, field).message
+                            : null,
+                      ),
+                      onChanged: (value) => vm.updateRow(key, {field: value}),
+                    ),
+                  DropdownButtonFormField<int>(
+                    key: ValueKey('${row.drawDate}-${row.stationId}'),
+                    initialValue:
+                        vm
+                            .stationsForDate(row.drawDate)
+                            .any((s) => ocrInt(s['id']) == row.stationId)
+                        ? row.stationId
+                        : null,
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      labelText: 'Nhà đài',
+                      errorText:
+                          vm.evaluateField(row, 'stationName').blocksImport
+                          ? vm.evaluateField(row, 'stationName').message
+                          : null,
+                    ),
+                    items: vm
+                        .stationsForDate(row.drawDate)
+                        .map(
+                          (s) => DropdownMenuItem(
+                            value: ocrInt(s['id']),
+                            child: Text(
+                              '${s['name']}',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: vm.importResult != null
+                        ? null
+                        : (id) {
+                            final station = vm
+                                .stationsForDate(row.drawDate)
+                                .where((s) => ocrInt(s['id']) == id)
+                                .firstOrNull;
+                            vm.updateRow(key, {
+                              'stationId': id,
+                              'stationName': station?['name'],
+                            });
+                          },
+                  ),
+                  for (final message in [
+                    ...ocrStrings(row.data['validationErrors']),
+                    ...ocrStrings(row.data['businessValidationErrors']),
+                  ])
+                    Text(message),
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Chọn để nhập'),
+                    value: row.selected,
+                    onChanged:
+                        vm.importResult != null ||
+                            (!row.selected && !vm.isRowConfirmable(row))
+                        ? null
+                        : (selected) => vm.toggleRow(key, selected ?? false),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            if (vm.importResult == null)
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  vm.retryImage(row.sourceImageId);
+                },
+                child: const Text('Quét lại'),
+              ),
+            if (vm.importResult == null)
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  vm.removeImage(row.sourceImageId);
+                },
+                child: const Text('Bỏ ảnh'),
+              ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Đóng'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -51,7 +51,6 @@ import {
 import { formatVietnameseErrorMessage } from '../utils/ocrScanErrorMessage';
 import type { OcrFieldSelection } from './OcrReviewImagePane';
 import OcrCroppedTicketOverlay from './OcrCroppedTicketOverlay';
-import { hasSourceFieldBoxes } from '../utils/ocrBboxOverlay';
 import { getStationColor } from '../../../station/utils/stationColor';
 
 const formatFieldConfidenceChip = (conf?: number | null) => {
@@ -307,10 +306,6 @@ export default function OcrReviewResultCards({
     onUpdate,
 }: Props) {
     const [zoomImage, setZoomImage] = useState<{ url: string; title: string; row: OcrReviewRow } | null>(null);
-    const zoomSourceUrl =
-        zoomImage?.row.sourcePreviewUrl && hasSourceFieldBoxes(zoomImage.row)
-            ? zoomImage.row.sourcePreviewUrl
-            : null;
     const [selectedRowForErrorDetail, setSelectedRowForErrorDetail] = useState<{
         row: OcrReviewRow;
         index: number;
@@ -800,11 +795,7 @@ export default function OcrReviewResultCards({
                                                     size="small"
                                                     fullWidth
                                                     displayEmpty
-                                                    value={
-                                                        row.drawDate
-                                                            ? dayjs(row.drawDate).format('YYYY-MM-DD')
-                                                            : dayjs(batchDrawDate).format('YYYY-MM-DD')
-                                                    }
+                                                    value={row.drawDate ? dayjs(row.drawDate).format('YYYY-MM-DD') : ''}
                                                     error={drawDateStatus.status === 'invalid'}
                                                     onFocus={() => onSelect({ rowKey: row.key, fieldName: 'drawDate' })}
                                                     onChange={(e) => {
@@ -1282,7 +1273,7 @@ export default function OcrReviewResultCards({
             <Dialog
                 open={Boolean(zoomImage)}
                 onClose={() => setZoomImage(null)}
-                maxWidth={zoomSourceUrl ? 'md' : 'sm'}
+                maxWidth="md"
                 fullWidth
                 PaperProps={{
                     sx: {
@@ -1326,8 +1317,8 @@ export default function OcrReviewResultCards({
                 <DialogContent sx={{ p: 2, bgcolor: '#0f172a', textAlign: 'center' }}>
                     {zoomImage && (
                         <OcrCroppedTicketOverlay
-                            imageUrl={zoomSourceUrl ?? zoomImage.url}
-                            space={zoomSourceUrl ? 'source' : 'crop'}
+                            imageUrl={zoomImage.url}
+                            space="crop"
                             row={zoomImage.row}
                             selection={selection}
                             alt={zoomImage.title}

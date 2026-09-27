@@ -85,6 +85,11 @@ daiphat:
   sample-order:
     seed:
       enabled: ${SAMPLE_ORDER_SEED_ENABLED:false}
+  member-status:
+    seed:
+      # Orders / refund requests / support tickets covering every status for one existing MEMBER account.
+      enabled: ${MEMBER_STATUS_SEED_ENABLED:false}
+      username: ${MEMBER_STATUS_SEED_USERNAME:phu123}
   fortune:
     # When true, one cast per Vietnam calendar day (production). Set false for local testing.
     daily-limit-enabled: ${FORTUNE_DAILY_LIMIT_ENABLED:true}

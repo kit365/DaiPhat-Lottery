@@ -1,10 +1,14 @@
 "use client";
 
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Calendar, ChevronDown, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { ChevronDown, Check, X } from 'lucide-react';
 
-const WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'] as const;
+const MONTH_NAMES = [
+    'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4',
+    'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8',
+    'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'
+] as const;
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
@@ -20,59 +24,23 @@ export const formatDateToDMY = (dateStr: string) => {
 
 const getDaysInMonth = (month: number, year: number) => new Date(year, month + 1, 0).getDate();
 
-const getFirstDayOfMonth = (month: number, year: number) => {
-    const day = new Date(year, month, 1).getDay();
-    return day === 0 ? 6 : day - 1;
-};
-
-type CalendarCell = { day: number; month: number; year: number };
-
-const generateCalendarDays = (selectedMonth: number, selectedYear: number): CalendarCell[] => {
-    const daysInMonth = getDaysInMonth(selectedMonth, selectedYear);
-    const firstDayIndex = getFirstDayOfMonth(selectedMonth, selectedYear);
-    const cells: CalendarCell[] = [];
-
-    const prevMonth = selectedMonth === 0 ? 11 : selectedMonth - 1;
-    const prevYear = selectedMonth === 0 ? selectedYear - 1 : selectedYear;
-    const daysInPrevMonth = getDaysInMonth(prevMonth, prevYear);
-
-    for (let i = firstDayIndex - 1; i >= 0; i -= 1) {
-        cells.push({ day: daysInPrevMonth - i, month: prevMonth, year: prevYear });
-    }
-    for (let d = 1; d <= daysInMonth; d += 1) {
-        cells.push({ day: d, month: selectedMonth, year: selectedYear });
-    }
-
-    const nextMonth = selectedMonth === 11 ? 0 : selectedMonth + 1;
-    const nextYear = selectedMonth === 11 ? selectedYear + 1 : selectedYear;
-    let nextDay = 1;
-    while (cells.length % 7 !== 0 || cells.length < 35) {
-        cells.push({ day: nextDay, month: nextMonth, year: nextYear });
-        nextDay += 1;
-        if (cells.length >= 42) break;
-    }
-    return cells;
-};
-
 export type ClientDatePickerProps = {
-    value: string;
+    value: string; // YYYY-MM-DD
     onChange: (ymd: string) => void;
     minDate?: string;
     maxDate?: string;
     label?: string;
     placeholder?: string;
     allowClear?: boolean;
-    /** Lottery-only shortcut in the calendar footer. Hidden when omitted. */
     earliestShortcutLabel?: string;
     error?: boolean;
     className?: string;
-    /** Called when this picker opens (so parent can close sibling popovers). */
     onOpen?: () => void;
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
 };
 
-type PanelPos = { top: number; left: number };
+type DropdownType = 'day' | 'month' | 'year' | null;
 
 export const ClientDatePicker: React.FC<ClientDatePickerProps> = ({
     value,
@@ -89,51 +57,101 @@ export const ClientDatePicker: React.FC<ClientDatePickerProps> = ({
     open: controlledOpen,
     onOpenChange,
 }) => {
-    const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
-    const isControlled = controlledOpen !== undefined;
-    const isOpen = isControlled ? controlledOpen : uncontrolledOpen;
-
-    const setOpen = (next: boolean) => {
-        if (!isControlled) setUncontrolledOpen(next);
-        onOpenChange?.(next);
-        if (next) onOpen?.();
-    };
-
-    const triggerRef = useRef<HTMLButtonElement>(null);
-    const panelRef = useRef<HTMLDivElement>(null);
-    const [pos, setPos] = useState<PanelPos>({ top: 0, left: 0 });
+    const [activeDropdown, setActiveDropdown] = useState<DropdownType>(null);
     const [mounted, setMounted] = useState(false);
 
-    const initial = value ? new Date(`${value}T12:00:00`) : new Date();
-    const [viewYear, setViewYear] = useState(initial.getFullYear());
-    const [viewMonth, setViewMonth] = useState(initial.getMonth());
+    const dayBtnRef = useRef<HTMLButtonElement>(null);
+    const monthBtnRef = useRef<HTMLButtonElement>(null);
+    const yearBtnRef = useRef<HTMLButtonElement>(null);
+    const panelRef = useRef<HTMLDivElement>(null);
+
+    const [pos, setPos] = useState({ top: 0, left: 0, width: 140 });
+
     const now = new Date();
+
+    const parsed = useMemo(() => {
+        if (!value) return { year: null, month: null, day: null };
+        const parts = value.split('-');
+        if (parts.length === 3) {
+            const y = Number(parts[0]);
+            const m = Number(parts[1]) - 1;
+            const d = Number(parts[2]);
+            if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+                return { year: y, month: m, day: d };
+            }
+        }
+        return { year: null, month: null, day: null };
+    }, [value]);
+
+    const [selDay, setSelDay] = useState<number | null>(parsed.day);
+    const [selMonth, setSelMonth] = useState<number | null>(parsed.month);
+    const [selYear, setSelYear] = useState<number | null>(parsed.year);
 
     useEffect(() => setMounted(true), []);
 
     useEffect(() => {
-        if (!value) return;
-        const parts = value.split('-');
-        if (parts.length === 3) {
-            setViewYear(Number(parts[0]));
-            setViewMonth(Number(parts[1]) - 1);
+        setSelDay(parsed.day);
+        setSelMonth(parsed.month);
+        setSelYear(parsed.year);
+    }, [parsed.day, parsed.month, parsed.year]);
+
+    const maxDaysInCurrentMonth = useMemo(() => {
+        const y = selYear ?? now.getFullYear();
+        const m = selMonth ?? now.getMonth();
+        return getDaysInMonth(m, y);
+    }, [selMonth, selYear]);
+
+    const yearsList = useMemo(() => {
+        const currentYear = now.getFullYear();
+        const startYear = minDate ? Math.min(1920, Number(minDate.split('-')[0]) || 1920) : 1920;
+        const endYear = maxDate ? Math.max(currentYear, Number(maxDate.split('-')[0]) || currentYear) : currentYear + 5;
+        const years: number[] = [];
+        for (let y = endYear; y >= startYear; y -= 1) {
+            years.push(y);
         }
-    }, [value]);
+        return years;
+    }, [minDate, maxDate]);
+
+    const closeDropdown = () => {
+        setActiveDropdown(null);
+        onOpenChange?.(false);
+    };
+
+    const commitDate = (newDay: number | null, newMonth: number | null, newYear: number | null) => {
+        setSelDay(newDay);
+        setSelMonth(newMonth);
+        setSelYear(newYear);
+
+        if (newDay !== null && newMonth !== null && newYear !== null) {
+            const maxD = getDaysInMonth(newMonth, newYear);
+            const validDay = Math.min(newDay, maxD);
+            const ymd = formatDateToYMD(newYear, newMonth, validDay);
+            onChange(ymd);
+        }
+    };
 
     const updatePosition = () => {
-        const el = triggerRef.current;
-        if (!el) return;
-        const rect = el.getBoundingClientRect();
-        const panelWidth = 290;
-        let left = rect.left;
-        if (left + panelWidth > window.innerWidth - 8) {
-            left = Math.max(8, window.innerWidth - panelWidth - 8);
-        }
-        setPos({ top: rect.bottom + 4, left });
+        let triggerEl: HTMLButtonElement | null = null;
+
+        if (activeDropdown === 'day') triggerEl = dayBtnRef.current;
+        else if (activeDropdown === 'month') triggerEl = monthBtnRef.current;
+        else if (activeDropdown === 'year') triggerEl = yearBtnRef.current;
+
+        if (!triggerEl) return;
+        const rect = triggerEl.getBoundingClientRect();
+        const panelHeight = 220;
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const openUp = spaceBelow < panelHeight + 12 && rect.top > panelHeight + 12;
+
+        setPos({
+            top: openUp ? rect.top - 6 - panelHeight : rect.bottom + 6,
+            left: rect.left,
+            width: Math.max(rect.width, 130),
+        });
     };
 
     useLayoutEffect(() => {
-        if (!isOpen) return;
+        if (!activeDropdown) return;
         updatePosition();
         const onReposition = () => updatePosition();
         window.addEventListener('scroll', onReposition, true);
@@ -142,183 +160,239 @@ export const ClientDatePicker: React.FC<ClientDatePickerProps> = ({
             window.removeEventListener('scroll', onReposition, true);
             window.removeEventListener('resize', onReposition);
         };
-    }, [isOpen]);
+    }, [activeDropdown]);
 
     useEffect(() => {
-        if (!isOpen) return;
+        if (!activeDropdown) return;
         const handleClickOutside = (event: MouseEvent) => {
             const target = event.target as Node;
-            if (triggerRef.current?.contains(target)) return;
+            if (dayBtnRef.current?.contains(target)) return;
+            if (monthBtnRef.current?.contains(target)) return;
+            if (yearBtnRef.current?.contains(target)) return;
             if (panelRef.current?.contains(target)) return;
-            setOpen(false);
+            closeDropdown();
+        };
+        const handleEscape = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') closeDropdown();
         };
         document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [isOpen]);
+        document.addEventListener('keydown', handleEscape);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('keydown', handleEscape);
+        };
+    }, [activeDropdown]);
 
-    const isDateAllowed = (ymd: string) => {
-        if (minDate && ymd < minDate) return false;
-        if (maxDate && ymd > maxDate) return false;
-        return true;
+    const openMenu = (type: DropdownType) => {
+        if (activeDropdown === type) {
+            closeDropdown();
+        } else {
+            setActiveDropdown(type);
+            onOpenChange?.(true);
+            onOpen?.();
+        }
     };
 
-    const pickDate = (ymd: string) => {
-        if (!isDateAllowed(ymd)) return;
-        onChange(ymd);
-        setOpen(false);
-    };
+    // Auto-scroll selected item into view in popover panel
+    useEffect(() => {
+        if (!activeDropdown || !panelRef.current) return;
+        const selectedBtn = panelRef.current.querySelector<HTMLButtonElement>('[aria-selected="true"]');
+        if (selectedBtn) {
+            selectedBtn.scrollIntoView({ block: 'nearest' });
+        }
+    }, [activeDropdown]);
 
-    const panel =
-        mounted &&
-        isOpen &&
-        createPortal(
-            <div
-                ref={panelRef}
-                style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 10000 }}
-                className="client-portal bg-white border border-[#E5E8EB] rounded-xl shadow-[0_12px_32px_rgba(0,0,0,0.12)] w-[290px] p-3.5"
-            >
-                <div className="flex items-center justify-between mb-2.5 px-0.5">
-                    <button
-                        type="button"
-                        onClick={() => {
-                            if (viewMonth === 0) {
-                                setViewMonth(11);
-                                setViewYear((y) => y - 1);
-                            } else {
-                                setViewMonth((m) => m - 1);
-                            }
-                        }}
-                        className="p-1 rounded-lg hover:bg-[#F4F6F8] text-[#637381] transition-colors"
-                    >
-                        <ChevronLeft size={15} />
-                    </button>
-                    <span className="text-[14px] font-bold text-[#212B36]">
-                        Tháng {viewMonth + 1}, {viewYear}
-                    </span>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            if (viewMonth === 11) {
-                                setViewMonth(0);
-                                setViewYear((y) => y + 1);
-                            } else {
-                                setViewMonth((m) => m + 1);
-                            }
-                        }}
-                        className="p-1 rounded-lg hover:bg-[#F4F6F8] text-[#637381] transition-colors"
-                    >
-                        <ChevronRight size={15} />
-                    </button>
-                </div>
+    const portalContent =
+        mounted && activeDropdown ? (
+            createPortal(
+                <div
+                    ref={panelRef}
+                    style={{
+                        position: 'fixed',
+                        top: pos.top,
+                        left: pos.left,
+                        width: pos.width,
+                        zIndex: 10000,
+                    }}
+                    className="client-portal bg-white border border-[#E5E8EB] rounded-xl shadow-[0_12px_32px_rgba(0,0,0,0.12)] overflow-y-auto max-h-[220px] py-1 custom-scrollbar"
+                >
+                    {/* DANH SÁCH XỔ XUỐNG CHỌN NGÀY */}
+                    {activeDropdown === 'day' &&
+                        Array.from({ length: maxDaysInCurrentMonth }, (_, i) => i + 1).map((d) => {
+                            const isSelected = selDay === d;
+                            return (
+                                <button
+                                    key={d}
+                                    type="button"
+                                    aria-selected={isSelected}
+                                    onClick={() => {
+                                        const nextYear = selYear ?? now.getFullYear();
+                                        const nextMonth = selMonth ?? now.getMonth();
+                                        commitDate(d, nextMonth, nextYear);
+                                        closeDropdown();
+                                    }}
+                                    className={`w-full flex items-center justify-between gap-2 px-3.5 py-2 text-left text-[14px] transition-colors cursor-pointer ${
+                                        isSelected
+                                            ? 'bg-[#FFF4F4] text-[#ee1314] font-semibold'
+                                            : 'text-[#212B36] hover:bg-[#F4F6F8]'
+                                    }`}
+                                >
+                                    <span>Ngày {pad2(d)}</span>
+                                    {isSelected && <Check size={14} className="text-[#ee1314] shrink-0" />}
+                                </button>
+                            );
+                        })}
 
-                <div className="grid grid-cols-7 gap-1 text-center mb-1.5 text-[12px] font-bold text-[#919EAB]">
-                    {WEEKDAYS.map((d) => (
-                        <div key={d} className="py-0.5">
-                            {d}
-                        </div>
-                    ))}
-                </div>
+                    {/* DANH SÁCH XỔ XUỐNG CHỌN THÁNG */}
+                    {activeDropdown === 'month' &&
+                        MONTH_NAMES.map((name, idx) => {
+                            const isSelected = selMonth === idx;
+                            return (
+                                <button
+                                    key={idx}
+                                    type="button"
+                                    aria-selected={isSelected}
+                                    onClick={() => {
+                                        const nextDay = selDay ?? 1;
+                                        const nextYear = selYear ?? now.getFullYear();
+                                        commitDate(nextDay, idx, nextYear);
+                                        closeDropdown();
+                                    }}
+                                    className={`w-full flex items-center justify-between gap-2 px-3.5 py-2 text-left text-[14px] transition-colors cursor-pointer ${
+                                        isSelected
+                                            ? 'bg-[#FFF4F4] text-[#ee1314] font-semibold'
+                                            : 'text-[#212B36] hover:bg-[#F4F6F8]'
+                                    }`}
+                                >
+                                    <span>{name}</span>
+                                    {isSelected && <Check size={14} className="text-[#ee1314] shrink-0" />}
+                                </button>
+                            );
+                        })}
 
-                <div className="grid grid-cols-7 gap-1 text-center text-[13px]">
-                    {generateCalendarDays(viewMonth, viewYear).map((cell, idx) => {
-                        const ymd = formatDateToYMD(cell.year, cell.month, cell.day);
-                        const isSelected = value === ymd;
-                        const isCurrentMonth = cell.month === viewMonth;
-                        const allowed = isDateAllowed(ymd);
-                        const isToday =
-                            cell.day === now.getDate() &&
-                            cell.month === now.getMonth() &&
-                            cell.year === now.getFullYear();
-
-                        return (
-                            <button
-                                key={idx}
-                                type="button"
-                                disabled={!allowed}
-                                onClick={() => pickDate(ymd)}
-                                className={`py-1.5 rounded-lg font-semibold transition-all ${
-                                    isSelected
-                                        ? 'bg-[#ee1314] text-white font-bold'
-                                        : !allowed
-                                          ? 'text-[#C4CDD5] cursor-not-allowed'
-                                          : isToday
-                                            ? 'text-[#ee1314] font-bold hover:bg-[#FFF4F4]'
-                                            : isCurrentMonth
-                                              ? 'text-[#212B36] hover:bg-[#F4F6F8]'
-                                              : 'text-[#C4CDD5] hover:bg-[#F4F6F8]'
-                                }`}
-                            >
-                                {cell.day}
-                            </button>
-                        );
-                    })}
-                </div>
-
-                {earliestShortcutLabel && minDate && isDateAllowed(minDate) && (
-                    <div className="border-t border-[#F4F6F8] mt-2 pt-2 text-center">
-                        <button
-                            type="button"
-                            onClick={() => pickDate(minDate)}
-                            className="text-[13px] font-bold text-[#ee1314] hover:bg-[#FFF4F4] px-3 py-1.5 rounded-lg transition-colors inline-flex items-center justify-center gap-1.5"
-                        >
-                            <Calendar size={13} />
-                            {earliestShortcutLabel}
-                        </button>
-                    </div>
-                )}
-            </div>,
-            document.body
-        );
+                    {/* DANH SÁCH XỔ XUỐNG CHỌN NĂM */}
+                    {activeDropdown === 'year' &&
+                        yearsList.map((y) => {
+                            const isSelected = selYear === y;
+                            return (
+                                <button
+                                    key={y}
+                                    type="button"
+                                    aria-selected={isSelected}
+                                    onClick={() => {
+                                        const nextDay = selDay ?? 1;
+                                        const nextMonth = selMonth ?? 0;
+                                        commitDate(nextDay, nextMonth, y);
+                                        closeDropdown();
+                                    }}
+                                    className={`w-full flex items-center justify-between gap-2 px-3.5 py-2 text-left text-[14px] transition-colors cursor-pointer ${
+                                        isSelected
+                                            ? 'bg-[#FFF4F4] text-[#ee1314] font-semibold'
+                                            : 'text-[#212B36] hover:bg-[#F4F6F8]'
+                                    }`}
+                                >
+                                    <span>Năm {y}</span>
+                                    {isSelected && <Check size={14} className="text-[#ee1314] shrink-0" />}
+                                </button>
+                            );
+                        })}
+                </div>,
+                document.body
+            )
+        ) : null;
 
     return (
         <div className={`flex flex-col gap-1 relative ${className}`}>
             {label ? <span className="text-[13px] font-semibold text-[#637381]">{label}</span> : null}
-            <button
-                ref={triggerRef}
-                type="button"
-                onClick={() => setOpen(!isOpen)}
-                className={`w-full flex items-center justify-between px-3.5 h-[46px] rounded-xl border bg-white text-[14px] font-medium transition-all ${
-                    error
-                        ? 'border-red-400 ring-2 ring-red-50'
-                        : isOpen
-                          ? 'border-[#ee1314] ring-2 ring-[#ee1314]/10'
-                          : 'border-[#E5E8EB] hover:border-[#C4CDD5]'
-                }`}
-            >
-                <span className={`flex items-center gap-1.5 min-w-0 ${value ? 'text-[#212B36]' : 'text-[#919EAB]'}`}>
-                    <Calendar size={16} className="text-[#ee1314] shrink-0" />
-                    <span className="truncate">{formatDateToDMY(value) || placeholder}</span>
-                </span>
-                <span className="flex items-center gap-1 shrink-0">
-                    {allowClear && value ? (
-                        <span
-                            role="button"
-                            tabIndex={0}
-                            aria-label="Xóa ngày"
-                            onClick={(event) => {
-                                event.stopPropagation();
-                                onChange('');
-                                setOpen(false);
-                            }}
-                            onKeyDown={(event) => {
-                                if (event.key !== 'Enter' && event.key !== ' ') return;
-                                event.preventDefault();
-                                event.stopPropagation();
-                                onChange('');
-                                setOpen(false);
-                            }}
-                            className="p-0.5 rounded-md text-[#919EAB] hover:text-[#212B36] hover:bg-[#F4F6F8]"
-                        >
-                            <X size={14} />
-                        </span>
-                    ) : null}
+
+            <div className="grid grid-cols-3 gap-2 w-full">
+                {/* 1. NÚT CHỌN NGÀY */}
+                <button
+                    ref={dayBtnRef}
+                    type="button"
+                    onClick={() => openMenu('day')}
+                    className={`h-[46px] px-3.5 bg-white border rounded-xl font-medium text-[14px] flex items-center justify-between gap-1.5 transition-all cursor-pointer shadow-[0_2px_8px_rgb(0,0,0,0.02)] ${
+                        error
+                            ? 'border-red-400 ring-2 ring-red-50'
+                            : activeDropdown === 'day'
+                              ? 'border-[#ee1314] ring-2 ring-[#ee1314]/10'
+                              : 'border-[#E5E8EB] hover:border-[#C4CDD5]'
+                    }`}
+                >
+                    <span className={`truncate text-left ${selDay !== null ? 'text-[#212B36] font-semibold' : 'text-[#919EAB]'}`}>
+                        {selDay !== null ? `Ngày ${pad2(selDay)}` : 'Chọn ngày'}
+                    </span>
                     <ChevronDown
                         size={16}
-                        className={`text-[#919EAB] transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                        className={`text-[#919EAB] shrink-0 transition-transform ${activeDropdown === 'day' ? 'rotate-180' : ''}`}
                     />
-                </span>
-            </button>
-            {panel}
+                </button>
+
+                {/* 2. NÚT CHỌN THÁNG */}
+                <button
+                    ref={monthBtnRef}
+                    type="button"
+                    onClick={() => openMenu('month')}
+                    className={`h-[46px] px-3.5 bg-white border rounded-xl font-medium text-[14px] flex items-center justify-between gap-1.5 transition-all cursor-pointer shadow-[0_2px_8px_rgb(0,0,0,0.02)] ${
+                        error
+                            ? 'border-red-400 ring-2 ring-red-50'
+                            : activeDropdown === 'month'
+                              ? 'border-[#ee1314] ring-2 ring-[#ee1314]/10'
+                              : 'border-[#E5E8EB] hover:border-[#C4CDD5]'
+                    }`}
+                >
+                    <span className={`truncate text-left ${selMonth !== null ? 'text-[#212B36] font-semibold' : 'text-[#919EAB]'}`}>
+                        {selMonth !== null ? MONTH_NAMES[selMonth] : 'Chọn tháng'}
+                    </span>
+                    <ChevronDown
+                        size={16}
+                        className={`text-[#919EAB] shrink-0 transition-transform ${activeDropdown === 'month' ? 'rotate-180' : ''}`}
+                    />
+                </button>
+
+                {/* 3. NÚT CHỌN NĂM */}
+                <button
+                    ref={yearBtnRef}
+                    type="button"
+                    onClick={() => openMenu('year')}
+                    className={`h-[46px] px-3.5 bg-white border rounded-xl font-medium text-[14px] flex items-center justify-between gap-1.5 transition-all cursor-pointer shadow-[0_2px_8px_rgb(0,0,0,0.02)] ${
+                        error
+                            ? 'border-red-400 ring-2 ring-red-50'
+                            : activeDropdown === 'year'
+                              ? 'border-[#ee1314] ring-2 ring-[#ee1314]/10'
+                              : 'border-[#E5E8EB] hover:border-[#C4CDD5]'
+                    }`}
+                >
+                    <span className={`truncate text-left ${selYear !== null ? 'text-[#212B36] font-semibold' : 'text-[#919EAB]'}`}>
+                        {selYear !== null ? `Năm ${selYear}` : 'Chọn năm'}
+                    </span>
+                    <ChevronDown
+                        size={16}
+                        className={`text-[#919EAB] shrink-0 transition-transform ${activeDropdown === 'year' ? 'rotate-180' : ''}`}
+                    />
+                </button>
+            </div>
+
+            {allowClear && (selDay !== null || selMonth !== null || selYear !== null) && (
+                <div className="flex justify-end mt-0.5">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setSelDay(null);
+                            setSelMonth(null);
+                            setSelYear(null);
+                            onChange('');
+                            closeDropdown();
+                        }}
+                        className="text-[11px] text-[#919EAB] hover:text-[#ee1314] inline-flex items-center gap-1 font-medium transition-colors"
+                    >
+                        <X size={12} />
+                        Xóa đã chọn
+                    </button>
+                </div>
+            )}
+
+            {portalContent}
         </div>
     );
 };

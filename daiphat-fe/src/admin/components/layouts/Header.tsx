@@ -8,7 +8,6 @@ import useScrollTrigger from '@mui/material/useScrollTrigger';
 import React from "react";
 import Container from "@mui/material/Container";
 import Box from '@mui/material/Box';
-import SettingsIcon from '@mui/icons-material/Settings';
 import Avatar from "@mui/material/Avatar";
 
 import Popover from "@mui/material/Popover";
@@ -128,42 +127,6 @@ export const Header = () => {
                             isHovered={hoveredItem === 'notif'}
                             layoutId="header-highlight"
                         />
-                        <motion.div 
-                            {...navMotionProps}
-                            onMouseEnter={() => setHoveredItem('settings')}
-                            onMouseLeave={() => setHoveredItem(null)}
-                            className="relative"
-                        >
-                            <Button
-                                sx={{
-                                    minWidth: 0,
-                                    width: 40,
-                                    height: 40,
-                                    padding: 0,
-                                    borderRadius: '50%',
-                                    position: 'relative',
-                                    zIndex: 1
-                                }}>
-                                <SettingsIcon
-                                    sx={{
-                                        color: "#637381",
-                                        fontSize: "1.25rem",
-                                        animation: "spin 12s linear infinite",
-                                        "@keyframes spin": {
-                                            "0%": { transform: "rotate(0deg)" },
-                                            "100%": { transform: "rotate(360deg)" }
-                                        }
-                                    }}
-                                />
-                            </Button>
-                            {hoveredItem === 'settings' && (
-                                <motion.div
-                                    layoutId="header-highlight"
-                                    className="absolute inset-0 bg-[#919eab14] rounded-full z-0"
-                                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                                />
-                            )}
-                        </motion.div>
                         <motion.div 
                             {...navMotionProps}
                             onMouseEnter={() => setHoveredItem('user')}

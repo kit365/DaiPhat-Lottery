@@ -85,6 +85,8 @@ import {
 import { clearAllPendingMatchingDraftFiles } from '../../utils/matchingActualsDraftFiles';
 import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined';
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import type {
     SettlementAdjustmentReasonCode,
     SettlementDiscrepancyItem,
@@ -419,6 +421,8 @@ export const MatchingActualsForm = ({
     const [stationPricingHydrateKey, setStationPricingHydrateKey] = useState(0);
 
     const [selectedImportId, setSelectedImportId] = useState<number | null>(importBatches[0]?.id ?? null);
+    const importPillsContainerRef = useRef<HTMLDivElement>(null);
+    const compareImportPillsContainerRef = useRef<HTMLDivElement>(null);
 
     const { data: supplier } = useSupplierDetail(settlement.lotterySupplierId);
     const drawDate = settlement.periodFrom ? String(settlement.periodFrom).slice(0, 10) : undefined;
@@ -997,6 +1001,46 @@ export const MatchingActualsForm = ({
         () => effectiveImportBatches.find((b) => b.id === selectedImportId) || effectiveImportBatches[0],
         [effectiveImportBatches, selectedImportId]
     );
+
+    const currentImportIndex = useMemo(() => {
+        const idx = effectiveImportBatches.findIndex((b) => b.id === selectedImportId);
+        return idx >= 0 ? idx : 0;
+    }, [effectiveImportBatches, selectedImportId]);
+
+    const hasPrevImport = currentImportIndex > 0;
+    const hasNextImport = currentImportIndex < effectiveImportBatches.length - 1;
+
+    const handlePrevImport = useCallback(() => {
+        if (currentImportIndex > 0) {
+            setSelectedImportId(effectiveImportBatches[currentImportIndex - 1].id);
+        }
+    }, [currentImportIndex, effectiveImportBatches]);
+
+    const handleNextImport = useCallback(() => {
+        if (currentImportIndex < effectiveImportBatches.length - 1) {
+            setSelectedImportId(effectiveImportBatches[currentImportIndex + 1].id);
+        }
+    }, [currentImportIndex, effectiveImportBatches]);
+
+    useEffect(() => {
+        if (!importPillsContainerRef.current || selectedImportId == null) return;
+        const activeEl = importPillsContainerRef.current.querySelector(
+            `[data-batch-id="${selectedImportId}"]`
+        ) as HTMLElement | null;
+        if (activeEl) {
+            activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+        }
+    }, [selectedImportId]);
+
+    useEffect(() => {
+        if (!compareImportPillsContainerRef.current || selectedImportId == null) return;
+        const activeEl = compareImportPillsContainerRef.current.querySelector(
+            `[data-batch-id="${selectedImportId}"]`
+        ) as HTMLElement | null;
+        if (activeEl) {
+            activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+        }
+    }, [selectedImportId]);
 
     const importBatchReceiptUrl = (batch?: SettlementOverviewImportBatch | null) => {
         if (batch?.id != null && String(localImportReceiptById[batch.id] || '').trim()) {
@@ -3825,123 +3869,173 @@ export const MatchingActualsForm = ({
                                             <Typography variant="caption" color="#475569" sx={{ fontWeight: 700, fontSize: '0.75rem' }}>
                                                 Danh sách phiếu nhập lô ({effectiveImportBatches.filter((b) => isBatchCompleteEvidence(b)).length}/{effectiveImportBatches.length} đủ chứng từ):
                                             </Typography>
+                                            <Typography variant="caption" sx={{ color: '#2563eb', fontWeight: 700, fontSize: '0.75rem' }}>
+                                                Phiếu {currentImportIndex + 1} / {effectiveImportBatches.length}
+                                            </Typography>
                                         </Stack>
-                                        <Box
-                                            sx={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: 0.75,
-                                                p: '4px',
-                                                bgcolor: '#f8fafc',
-                                                borderRadius: '10px',
-                                                border: '1px solid #e2e8f0',
-                                                overflowX: 'auto',
-                                                scrollbarWidth: 'none',
-                                                '&::-webkit-scrollbar': { display: 'none' },
-                                            }}
-                                        >
-                                            {effectiveImportBatches.map((batch, index) => {
-                                                const isSel = batch.id === selectedImportId;
-                                                const batchHasImg = isBatchCompleteEvidence(batch);
-                                                const shortCode = batch.batchCode
-                                                    ? batch.batchCode.length > 18
-                                                        ? `${batch.batchCode.slice(0, 10)}...${batch.batchCode.slice(-6)}`
-                                                        : batch.batchCode
-                                                    : `#${batch.id}`;
-
-                                                return (
-                                                    <Tooltip
-                                                        key={batch.id}
-                                                        title={
-                                                            <Box sx={{ p: 0.5 }}>
-                                                                <Typography variant="caption" sx={{ fontWeight: 700, display: 'block' }}>
-                                                                    Phiếu #{index + 1}: {batch.batchCode || `#${batch.id}`}
-                                                                </Typography>
-                                                                <Typography variant="caption" sx={{ color: '#cbd5e1', display: 'block' }}>
-                                                                    {batch.drawDate ? `Ngày quay: ${dayjs(batch.drawDate).format('DD/MM/YYYY')} · ` : ''}
-                                                                    {batchHasImg ? '✓ Đủ biên lai + danh sách vé' : '⚠️ Thiếu chứng từ'}
-                                                                </Typography>
-                                                            </Box>
-                                                        }
-                                                        arrow
+                                        <Stack direction="row" alignItems="center" spacing={0.5}>
+                                            <Tooltip title={hasPrevImport ? "Phiếu trước" : "Đang ở phiếu đầu tiên"}>
+                                                <span>
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={handlePrevImport}
+                                                        disabled={!hasPrevImport}
+                                                        sx={{
+                                                            p: 0.5,
+                                                            border: '1px solid #e2e8f0',
+                                                            borderRadius: '8px',
+                                                            bgcolor: '#ffffff',
+                                                            color: '#334155',
+                                                            flexShrink: 0,
+                                                            '&:hover': { bgcolor: '#eff6ff', borderColor: '#bfdbfe', color: '#2563eb' },
+                                                            '&.Mui-disabled': { opacity: 0.4, bgcolor: '#f1f5f9', borderColor: '#e2e8f0' },
+                                                        }}
                                                     >
-                                                        <ButtonBase
-                                                            onClick={() => setSelectedImportId(batch.id)}
-                                                            sx={{
-                                                                px: 1.5,
-                                                                py: 0.65,
-                                                                borderRadius: '8px',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                gap: 0.75,
-                                                                flexShrink: 0,
-                                                                transition: 'all 0.15s ease',
-                                                                bgcolor: isSel
-                                                                    ? '#2563eb'
-                                                                    : batchHasImg
-                                                                        ? '#ffffff'
-                                                                        : '#fff1f2',
-                                                                color: isSel
-                                                                    ? '#ffffff'
-                                                                    : batchHasImg
-                                                                        ? '#334155'
-                                                                        : '#be123c',
-                                                                border: `1px solid ${isSel
+                                                        <ChevronLeftIcon sx={{ fontSize: 18 }} />
+                                                    </IconButton>
+                                                </span>
+                                            </Tooltip>
+                                            <Box
+                                                ref={importPillsContainerRef}
+                                                sx={{
+                                                    flex: 1,
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: 0.75,
+                                                    p: '4px',
+                                                    bgcolor: '#f8fafc',
+                                                    borderRadius: '10px',
+                                                    border: '1px solid #e2e8f0',
+                                                    overflowX: 'auto',
+                                                    scrollbarWidth: 'none',
+                                                    '&::-webkit-scrollbar': { display: 'none' },
+                                                }}
+                                            >
+                                                {effectiveImportBatches.map((batch, index) => {
+                                                    const isSel = batch.id === selectedImportId;
+                                                    const batchHasImg = isBatchCompleteEvidence(batch);
+                                                    const shortCode = batch.batchCode
+                                                        ? batch.batchCode.length > 18
+                                                            ? `${batch.batchCode.slice(0, 10)}...${batch.batchCode.slice(-6)}`
+                                                            : batch.batchCode
+                                                        : `#${batch.id}`;
+
+                                                    return (
+                                                        <Tooltip
+                                                            key={batch.id}
+                                                            title={
+                                                                <Box sx={{ p: 0.5 }}>
+                                                                    <Typography variant="caption" sx={{ fontWeight: 700, display: 'block' }}>
+                                                                        Phiếu #{index + 1}: {batch.batchCode || `#${batch.id}`}
+                                                                    </Typography>
+                                                                    <Typography variant="caption" sx={{ color: '#cbd5e1', display: 'block' }}>
+                                                                        {batch.drawDate ? `Ngày quay: ${dayjs(batch.drawDate).format('DD/MM/YYYY')} · ` : ''}
+                                                                        {batchHasImg ? '✓ Đủ biên lai + danh sách vé' : '⚠️ Thiếu chứng từ'}
+                                                                    </Typography>
+                                                                </Box>
+                                                            }
+                                                            arrow
+                                                        >
+                                                            <ButtonBase
+                                                                data-batch-id={batch.id}
+                                                                onClick={() => setSelectedImportId(batch.id)}
+                                                                sx={{
+                                                                    px: 1.5,
+                                                                    py: 0.65,
+                                                                    borderRadius: '8px',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    gap: 0.75,
+                                                                    flexShrink: 0,
+                                                                    transition: 'all 0.15s ease',
+                                                                    bgcolor: isSel
                                                                         ? '#2563eb'
                                                                         : batchHasImg
-                                                                            ? '#e2e8f0'
-                                                                            : '#fecdd3'
-                                                                    }`,
-                                                                boxShadow: isSel ? '0 1px 3px rgba(37, 99, 235, 0.3)' : 'none',
-                                                                '&:hover': {
-                                                                    bgcolor: isSel
-                                                                        ? '#1d4ed8'
+                                                                            ? '#ffffff'
+                                                                            : '#fff1f2',
+                                                                    color: isSel
+                                                                        ? '#ffffff'
                                                                         : batchHasImg
-                                                                            ? '#f8fafc'
-                                                                            : '#ffe4e6',
-                                                                },
-                                                            }}
-                                                        >
-                                                            {batchHasImg ? (
-                                                                <CheckCircleOutlinedIcon
-                                                                    sx={{
-                                                                        fontSize: '0.85rem',
-                                                                        color: isSel ? '#93c5fd' : '#16a34a',
-                                                                    }}
-                                                                />
-                                                            ) : (
-                                                                <WarningAmberOutlinedIcon
-                                                                    sx={{
-                                                                        fontSize: '0.85rem',
-                                                                        color: isSel ? '#fecaca' : '#dc2626',
-                                                                    }}
-                                                                />
-                                                            )}
-                                                            <Typography
-                                                                variant="caption"
-                                                                sx={{
-                                                                    fontWeight: isSel ? 700 : 600,
-                                                                    fontSize: '0.75rem',
-                                                                    whiteSpace: 'nowrap',
+                                                                            ? '#334155'
+                                                                            : '#be123c',
+                                                                    border: `1px solid ${isSel
+                                                                            ? '#2563eb'
+                                                                            : batchHasImg
+                                                                                ? '#e2e8f0'
+                                                                                : '#fecdd3'
+                                                                        }`,
+                                                                    boxShadow: isSel ? '0 1px 3px rgba(37, 99, 235, 0.3)' : 'none',
+                                                                    '&:hover': {
+                                                                        bgcolor: isSel
+                                                                            ? '#1d4ed8'
+                                                                            : batchHasImg
+                                                                                ? '#f8fafc'
+                                                                                : '#ffe4e6',
+                                                                    },
                                                                 }}
                                                             >
-                                                                Phiếu {index + 1}
-                                                            </Typography>
-                                                            <Typography
-                                                                variant="caption"
-                                                                sx={{
-                                                                    fontSize: '0.7rem',
-                                                                    opacity: isSel ? 0.85 : 0.65,
-                                                                    whiteSpace: 'nowrap',
-                                                                }}
-                                                            >
-                                                                ({shortCode})
-                                                            </Typography>
-                                                        </ButtonBase>
-                                                    </Tooltip>
-                                                );
-                                            })}
-                                        </Box>
+                                                                {batchHasImg ? (
+                                                                    <CheckCircleOutlinedIcon
+                                                                        sx={{
+                                                                            fontSize: '0.85rem',
+                                                                            color: isSel ? '#93c5fd' : '#16a34a',
+                                                                        }}
+                                                                    />
+                                                                ) : (
+                                                                    <WarningAmberOutlinedIcon
+                                                                        sx={{
+                                                                            fontSize: '0.85rem',
+                                                                            color: isSel ? '#fecaca' : '#dc2626',
+                                                                        }}
+                                                                    />
+                                                                )}
+                                                                <Typography
+                                                                    variant="caption"
+                                                                    sx={{
+                                                                        fontWeight: isSel ? 700 : 600,
+                                                                        fontSize: '0.75rem',
+                                                                        whiteSpace: 'nowrap',
+                                                                    }}
+                                                                >
+                                                                    Phiếu {index + 1}
+                                                                </Typography>
+                                                                <Typography
+                                                                    variant="caption"
+                                                                    sx={{
+                                                                        fontSize: '0.7rem',
+                                                                        opacity: isSel ? 0.85 : 0.65,
+                                                                        whiteSpace: 'nowrap',
+                                                                    }}
+                                                                >
+                                                                    ({shortCode})
+                                                                </Typography>
+                                                            </ButtonBase>
+                                                        </Tooltip>
+                                                    );
+                                                })}
+                                            </Box>
+                                            <Tooltip title={hasNextImport ? "Phiếu kế tiếp" : "Đang ở phiếu cuối cùng"}>
+                                                <span>
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={handleNextImport}
+                                                        disabled={!hasNextImport}
+                                                        sx={{
+                                                            p: 0.5,
+                                                            border: '1px solid #e2e8f0',
+                                                            borderRadius: '8px',
+                                                            bgcolor: '#ffffff',
+                                                            color: '#334155',
+                                                            flexShrink: 0,
+                                                            '&:hover': { bgcolor: '#eff6ff', borderColor: '#bfdbfe', color: '#2563eb' },
+                                                            '&.Mui-disabled': { opacity: 0.4, bgcolor: '#f1f5f9', borderColor: '#e2e8f0' },
+                                                        }}
+                                                    >
+                                                        <ChevronRightIcon sx={{ fontSize: 18 }} />
+                                                    </IconButton>
+                                                </span>
+                                            </Tooltip>
+                                        </Stack>
                                     </Box>
                                 )}
 
@@ -5044,27 +5138,84 @@ export const MatchingActualsForm = ({
 
                                 {/* Batch switcher if multiple */}
                                 {effectiveImportBatches.length > 1 && (
-                                    <Stack direction="row" spacing={1} sx={{ mb: 1.5, overflowX: 'auto', pb: 0.5 }}>
-                                        {effectiveImportBatches.map((batch) => {
-                                            const isSel = batch.id === selectedImportId;
-                                            return (
-                                                <Chip
-                                                    key={batch.id}
-                                                    label={batch.batchCode || `#${batch.id}`}
-                                                    onClick={() => setSelectedImportId(batch.id)}
-                                                    color={isSel ? 'primary' : 'default'}
-                                                    variant={isSel ? 'filled' : 'outlined'}
+                                    <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 1.5 }}>
+                                        <Tooltip title={hasPrevImport ? "Phiếu trước" : "Đang ở phiếu đầu tiên"}>
+                                            <span>
+                                                <IconButton
                                                     size="small"
+                                                    onClick={handlePrevImport}
+                                                    disabled={!hasPrevImport}
                                                     sx={{
-                                                        fontWeight: isSel ? 700 : 500,
-                                                        cursor: 'pointer',
+                                                        p: 0.4,
+                                                        border: '1px solid #e2e8f0',
                                                         borderRadius: '8px',
-                                                        bgcolor: isSel ? '#2563eb' : '#ffffff',
-                                                        color: isSel ? '#ffffff' : '#475569',
+                                                        bgcolor: '#ffffff',
+                                                        color: '#334155',
+                                                        flexShrink: 0,
+                                                        '&:hover': { bgcolor: '#eff6ff', borderColor: '#bfdbfe', color: '#2563eb' },
+                                                        '&.Mui-disabled': { opacity: 0.4, bgcolor: '#f1f5f9', borderColor: '#e2e8f0' },
                                                     }}
-                                                />
-                                            );
-                                        })}
+                                                >
+                                                    <ChevronLeftIcon sx={{ fontSize: 18 }} />
+                                                </IconButton>
+                                            </span>
+                                        </Tooltip>
+                                        <Stack
+                                            ref={compareImportPillsContainerRef}
+                                            direction="row"
+                                            spacing={1}
+                                            sx={{
+                                                flex: 1,
+                                                overflowX: 'auto',
+                                                pb: 0.5,
+                                                scrollbarWidth: 'none',
+                                                '&::-webkit-scrollbar': { display: 'none' },
+                                            }}
+                                        >
+                                            {effectiveImportBatches.map((batch) => {
+                                                const isSel = batch.id === selectedImportId;
+                                                return (
+                                                    <Chip
+                                                        key={batch.id}
+                                                        data-batch-id={batch.id}
+                                                        label={batch.batchCode || `#${batch.id}`}
+                                                        onClick={() => setSelectedImportId(batch.id)}
+                                                        color={isSel ? 'primary' : 'default'}
+                                                        variant={isSel ? 'filled' : 'outlined'}
+                                                        size="small"
+                                                        sx={{
+                                                            fontWeight: isSel ? 700 : 500,
+                                                            cursor: 'pointer',
+                                                            borderRadius: '8px',
+                                                            bgcolor: isSel ? '#2563eb' : '#ffffff',
+                                                            color: isSel ? '#ffffff' : '#475569',
+                                                            flexShrink: 0,
+                                                        }}
+                                                    />
+                                                );
+                                            })}
+                                        </Stack>
+                                        <Tooltip title={hasNextImport ? "Phiếu kế tiếp" : "Đang ở phiếu cuối cùng"}>
+                                            <span>
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={handleNextImport}
+                                                    disabled={!hasNextImport}
+                                                    sx={{
+                                                        p: 0.4,
+                                                        border: '1px solid #e2e8f0',
+                                                        borderRadius: '8px',
+                                                        bgcolor: '#ffffff',
+                                                        color: '#334155',
+                                                        flexShrink: 0,
+                                                        '&:hover': { bgcolor: '#eff6ff', borderColor: '#bfdbfe', color: '#2563eb' },
+                                                        '&.Mui-disabled': { opacity: 0.4, bgcolor: '#f1f5f9', borderColor: '#e2e8f0' },
+                                                    }}
+                                                >
+                                                    <ChevronRightIcon sx={{ fontSize: 18 }} />
+                                                </IconButton>
+                                            </span>
+                                        </Tooltip>
                                     </Stack>
                                 )}
 

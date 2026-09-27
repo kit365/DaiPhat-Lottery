@@ -2,6 +2,10 @@ package com.daiphat.coreapi.infrastructure.persistence.repository.lotteries;
 
 import com.daiphat.coreapi.domain.model.enums.lottery.SupplierSettlementStatus;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.SupplierSettlementEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -14,18 +18,29 @@ import java.util.Optional;
 public interface SupplierSettlementRepository
         extends JpaRepository<SupplierSettlementEntity, Long>, JpaSpecificationExecutor<SupplierSettlementEntity> {
 
+    @EntityGraph(attributePaths = {"lotterySupplier"})
+    @Override
+    Optional<SupplierSettlementEntity> findById(Long id);
+
+    @EntityGraph(attributePaths = {"lotterySupplier"})
     Optional<SupplierSettlementEntity> findByLotterySupplier_IdAndPeriodFromAndDeletedAtIsNull(
             Long lotterySupplierId,
             LocalDate periodFrom
     );
 
+    @EntityGraph(attributePaths = {"lotterySupplier"})
     java.util.List<SupplierSettlementEntity> findByStatusAndDeletedAtIsNull(SupplierSettlementStatus status);
 
+    @EntityGraph(attributePaths = {"lotterySupplier"})
     java.util.List<SupplierSettlementEntity> findByStatusInAndDeletedAtIsNull(
             java.util.Collection<SupplierSettlementStatus> statuses
     );
 
+    @EntityGraph(attributePaths = {"lotterySupplier"})
     Optional<SupplierSettlementEntity> findByIdAndDeletedAtIsNull(Long id);
+
+    @EntityGraph(attributePaths = {"lotterySupplier"})
+    Page<SupplierSettlementEntity> findAll(Specification<SupplierSettlementEntity> spec, Pageable pageable);
 
     @Query("""
             SELECT COALESCE(SUM(l.importCost * l.totalQuantity), 0)

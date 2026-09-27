@@ -174,7 +174,7 @@ export const SupportTicketList = () => {
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [search, setSearch] = useState('');
-    const [statusTab, setStatusTab] = useState(STATUS_TABS[0].value);
+    const [statusTab, setStatusTab] = useState(STATUS_TABS[1].value);
     const [sortBy, setSortBy] = useState<'dueAt' | 'createdAt'>('dueAt');
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
     const [refTypeFilter, setRefTypeFilter] = useState<TicketRefType | ''>('');

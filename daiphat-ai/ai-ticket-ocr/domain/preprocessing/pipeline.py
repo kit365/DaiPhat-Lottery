@@ -533,11 +533,15 @@ class ProcessedTicketCrop:
         preview: np.ndarray,
         ocr_ready: np.ndarray,
         source_quad: list[tuple[float, float]] | None = None,
+        paper_quad: list[tuple[float, float]] | None = None,
     ) -> None:
         self.preview = preview
         self.ocr_ready = ocr_ready
         # Upload pixels under the crop's TL, TR, BR, BL corners, when known.
         self.source_quad = source_quad
+        # Upload pixels of the ticket paper's corners (same corner order as
+        # source_quad), when the crop was cut around the complete sheet.
+        self.paper_quad = paper_quad
 
 
 def rotate_crop(crop: ProcessedTicketCrop, quarter_turns: int) -> ProcessedTicketCrop:
@@ -545,12 +549,16 @@ def rotate_crop(crop: ProcessedTicketCrop, quarter_turns: int) -> ProcessedTicke
     turns = quarter_turns % 4
     if turns == 0:
         return crop
-    quad = crop.source_quad
+
+    def roll(quad: list[tuple[float, float]] | None) -> list[tuple[float, float]] | None:
+        # A clockwise turn moves the old bottom-left corner to the top-left.
+        return (quad[-turns:] + quad[:-turns]) if quad else None
+
     return ProcessedTicketCrop(
         preview=rotate_quarter_turns(crop.preview, turns),
         ocr_ready=rotate_quarter_turns(crop.ocr_ready, turns),
-        # A clockwise turn moves the old bottom-left corner to the top-left.
-        source_quad=(quad[-turns:] + quad[:-turns]) if quad else None,
+        source_quad=roll(crop.source_quad),
+        paper_quad=roll(crop.paper_quad),
     )
 
 

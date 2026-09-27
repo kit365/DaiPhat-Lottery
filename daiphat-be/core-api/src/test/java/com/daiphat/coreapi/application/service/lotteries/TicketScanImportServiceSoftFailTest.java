@@ -87,7 +87,6 @@ class TicketScanImportServiceSoftFailTest {
         operatorId = UUID.fromString("22222222-2222-2222-2222-222222222222");
         ReflectionTestUtils.setField(service, "ticketVisionRecognitionEngine", "groq");
         when(ocrTicketTemplateRepositoryPort.existsActiveDefault()).thenReturn(true);
-        when(ocrTicketTemplateRepositoryPort.findActiveDefault()).thenReturn(java.util.Optional.empty());
         when(lotteryStationRepositoryPort.findAll()).thenReturn(List.of(
                 LotteryStationModel.builder().id(1L).name("HCM").code("HCM").build()
         ));
@@ -165,6 +164,9 @@ class TicketScanImportServiceSoftFailTest {
 
         ArgumentCaptor<RemoteScanMetadata> captor = ArgumentCaptor.forClass(RemoteScanMetadata.class);
         verify(ticketVisionPort).scan(any(), any(), captor.capture());
+        // No issuer known yet: no station's template is imposed on the whole scan.
+        assertThat(captor.getValue().templateId()).isNull();
+        assertThat(captor.getValue().fieldLayouts()).isEmpty();
         List<RemoteStationTemplateMetadata> templates = captor.getValue().stationTemplates();
         assertThat(templates).hasSize(1);
         assertThat(templates.getFirst().stationId()).isEqualTo(1L);

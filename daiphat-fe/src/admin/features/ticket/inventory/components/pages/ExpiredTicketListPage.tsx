@@ -146,7 +146,6 @@ export const ExpiredTicketListPage = () => {
                         onPaginationModelChange={onPaginationModelChange}
                         pageSizeOptions={[5, 10, 20, 50]}
                         getRowHeight={() => 'auto'}
-                        checkboxSelection
                         disableRowSelectionOnClick
                         className="admin-datagrid"
                         sx={dataGridStyles}

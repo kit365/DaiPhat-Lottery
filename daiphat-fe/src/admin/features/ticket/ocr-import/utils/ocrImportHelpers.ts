@@ -1102,14 +1102,34 @@ export const toShortFieldHint = (message?: string | null): string => {
         return 'Trùng vé';
     }
 
+    // Must run before the generic "nhà đài" / "mệnh giá" / "lịch" rules below.
+    if (lower.includes('chưa xác định nhà đài')) {
+        return 'Chưa chọn đài';
+    }
+
     // Mệnh giá
-    if (lower.includes('mệnh giá') || lower.includes('không khớp với giá')) {
+    if (lower.includes('nhập mệnh giá')) {
+        return 'Thiếu mệnh giá';
+    }
+    if (lower.includes('không khớp với giá') || lower.includes('không khớp với mệnh giá')) {
         return 'Lệch mệnh giá';
+    }
+    if (lower.includes('chưa cấu hình mệnh giá')) {
+        return 'Đài chưa có giá';
+    }
+    if (lower.includes('mệnh giá') && !lower.includes('không nhận diện được mệnh giá trên')) {
+        return 'Sai mệnh giá';
     }
 
     // Ngày mở thưởng & lịch quay
-    if (lower.includes('không mở thưởng vào ngày') || lower.includes('lịch mở thưởng')) {
+    if (lower.includes('không khớp phiếu nhập') || lower.includes('không khớp với ngày quay của phiếu')) {
+        return 'Lệch ngày phiếu';
+    }
+    if (lower.includes('không mở thưởng vào') || lower.includes('lịch mở thưởng')) {
         return 'Sai lịch quay';
+    }
+    if (lower.includes('chưa cấu hình lịch quay')) {
+        return 'Chưa có lịch quay';
     }
     if (lower.includes('chọn ngày mở thưởng') || lower.includes('thiếu ngày')) {
         return 'Thiếu ngày quay';
@@ -1119,6 +1139,15 @@ export const toShortFieldHint = (message?: string | null): string => {
     }
 
     // Nhà đài
+    if (lower.includes('khác đài gắn với phiếu')) {
+        return 'Khác đài phiếu';
+    }
+    if (lower.includes('nhà đài') && lower.includes('không tìm thấy')) {
+        return 'Không tìm thấy đài';
+    }
+    if (lower.includes('chưa khớp đài')) {
+        return 'Chưa khớp đài';
+    }
     if (
         lower.includes('nhà đài') ||
         lower.includes('chọn nhà đài') ||

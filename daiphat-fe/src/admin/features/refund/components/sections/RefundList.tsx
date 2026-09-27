@@ -147,10 +147,8 @@ const resolveCustomerLabel = (refund: RefundRequestResponse) => {
 const resolveCustomerSubLabel = (refund: RefundRequestResponse) => {
     if (refund.bankAccount) {
         const bank = refund.bankAccount.bankName?.trim();
-        const masked = refund.bankAccount.bankAccountNo
-            ? `****${refund.bankAccount.bankAccountNo.slice(-4)}`
-            : '';
-        return [bank, masked].filter(Boolean).join(' · ') || 'STK nhận hoàn';
+        const accNo = refund.bankAccount.bankAccountNo || '';
+        return [bank, accNo].filter(Boolean).join(' · ') || 'STK nhận hoàn';
     }
     return 'Chưa có STK nhận hoàn';
 };
@@ -221,6 +219,10 @@ export const RefundList = () => {
 
     const handleConfirmTransfer = (id: number) => {
         router.push(`${detailPath(id)}?openTransfer=true`);
+    };
+
+    const handleProcessAtCounter = (id: number) => {
+        router.push(`${detailPath(id)}?openCounter=true`);
     };
 
     const emptyMessage =
@@ -565,6 +567,17 @@ export const RefundList = () => {
                                                         hidden: !canConfirmTransfer(refund),
                                                         permission: PERMISSIONS.REFUND.PROCESS,
                                                         sx: { color: 'var(--palette-success-main)' },
+                                                    },
+                                                    {
+                                                        id: 'counter',
+                                                        label: 'Xử lý hoàn tiền tại quầy',
+                                                        icon: (
+                                                            <Icon icon="solar:user-id-bold" width={18} />
+                                                        ),
+                                                        onClick: () => handleProcessAtCounter(refund.id),
+                                                        hidden: refund.status !== RefundRequestStatus.MANUAL_RESOLUTION,
+                                                        permission: PERMISSIONS.REFUND.PROCESS,
+                                                        sx: { color: 'var(--palette-warning-dark)' },
                                                     },
                                                 ]}
                                             />
