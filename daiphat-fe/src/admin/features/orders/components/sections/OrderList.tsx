@@ -57,7 +57,7 @@ export const OrderList = () => {
     const router = useAdminRouter();
     const { settings, setSettings } = useSettings();
     
-    const [tabStatus, setTabStatus] = useState('all');
+    const [tabStatus, setTabStatus] = useState('NEED_PROCESSING');
     const [openRows, setOpenRows] = useState<string[]>([]);
 
     const {
@@ -74,17 +74,29 @@ export const OrderList = () => {
         setPage,
         setLimit,
         refetch
-    } = useAdminOrderList({ status: tabStatus !== 'all' ? tabStatus : undefined } as any);
+    } = useAdminOrderList({
+        status: tabStatus === 'all'
+            ? undefined
+            : tabStatus === 'NEED_PROCESSING'
+              ? [OrderStatus.PREPARING, OrderStatus.PAYMENT_COMPLAINT_PENDING]
+              : [tabStatus]
+    } as any);
 
     const handleTabChange = (_event: SyntheticEvent, newValue: string) => {
         setTabStatus(newValue);
-        setFilter('status', newValue === 'all' ? [] : [newValue]);
+        if (newValue === 'all') {
+            setFilter('status', []);
+        } else if (newValue === 'NEED_PROCESSING') {
+            setFilter('status', [OrderStatus.PREPARING, OrderStatus.PAYMENT_COMPLAINT_PENDING]);
+        } else {
+            setFilter('status', [newValue]);
+        }
         setPage(1);
     };
 
     const openPendingPaymentComplaints = () => {
-        setTabStatus(OrderStatus.PAYMENT_COMPLAINT_PENDING);
-        setFilter('status', [OrderStatus.PAYMENT_COMPLAINT_PENDING]);
+        setTabStatus('NEED_PROCESSING');
+        setFilter('status', [OrderStatus.PREPARING, OrderStatus.PAYMENT_COMPLAINT_PENDING]);
         setPage(1);
     };
 
@@ -200,13 +212,16 @@ export const OrderList = () => {
         );
     };
 
-    const safeStatusCounts = statusCounts || {};
+    const safeStatusCounts: Record<string, number> = { ...statusCounts };
     const totalCount = Object.keys(safeStatusCounts)
-        .filter(key => key !== 'all')
+        .filter(key => key !== 'all' && key !== 'NEED_PROCESSING')
         .reduce((sum, key) => sum + (Number(safeStatusCounts[key]) || 0), 0);
     safeStatusCounts['all'] = safeStatusCounts['all'] ?? totalCount;
+    safeStatusCounts['NEED_PROCESSING'] =
+        (Number(safeStatusCounts[OrderStatus.PREPARING]) || 0) +
+        (Number(safeStatusCounts[OrderStatus.PAYMENT_COMPLAINT_PENDING]) || 0);
 
-    const preparingCount = Number(safeStatusCounts.PREPARING) || 0;
+    const preparingCount = safeStatusCounts['NEED_PROCESSING'];
     const {
         phase: cutoffPhase,
         cutoffLabel,
@@ -248,7 +263,7 @@ export const OrderList = () => {
                 className="admin-tabs"
             >
                 {ORDER_STATUS_TABS.map((tab) => {
-                    const isPreparingUrgent = tab.value === 'PREPARING' && shouldHighlightPreparing;
+                    const isPreparingUrgent = (tab.value === 'NEED_PROCESSING' || tab.value === 'PREPARING') && shouldHighlightPreparing;
                     const badgeVariant = isPreparingUrgent && cutoffPhase === 'past'
                         ? 'error'
                         : tab.value;
