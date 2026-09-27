@@ -51,4 +51,6 @@ Nếu run thất bại ở bước tạo Release với lỗi quyền, kiểm tra
 
 Không push lại tag đã phát hành. Nếu cần sửa code, tạo tag mới, ví dụ `v1.0.1`.
 
-Nếu chỉ cần chạy lại workflow cho cùng tag sau khi đã xóa Release, workflow sẽ dùng `gh release create` và chỉ thành công khi Release của tag đó chưa tồn tại. Cách an toàn và dễ theo dõi nhất vẫn là tăng phiên bản và tạo tag mới.
+Nếu chạy lại workflow cho cùng tag, APK cùng tên trong Release sẽ được ghi đè. Cách an toàn và dễ theo dõi nhất vẫn là tăng phiên bản và tạo tag mới.
+
+Nếu một tag cũ bị lỗi do workflow, không cần xóa hoặc push lại tag. Vào **Actions > Android Release > Run workflow**, chọn nhánh có workflow mới nhất, nhập chính xác tag cần phát hành (ví dụ `v1.0.4`) rồi chạy. Workflow sẽ checkout mã nguồn tại tag đó và ghi đè APK cùng tên trong Release hiện có.
