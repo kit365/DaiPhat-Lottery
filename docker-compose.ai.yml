@@ -54,7 +54,7 @@ x-ekyc: &ekyc
   logging:
     driver: json-file
     options: {max-size: "10m", max-file: "3"}
-  mem_limit: ${EKYC_VISION_MEMORY_LIMIT:-2g}
+  mem_limit: ${EKYC_VISION_MEMORY_LIMIT:-1g}
   cpus: ${EKYC_VISION_CPU_LIMIT:-1}
   networks: [production]
   environment:
