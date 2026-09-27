@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -83,19 +85,316 @@ class AdminScanViewModel extends ChangeNotifier {
     }
   }
 
+  bool _isSessionConnected = false;
+  String? _remoteSessionCode;
+  int _remoteScannedCount = 0;
+  final List<ScannedTicketItem> _remoteScannedTickets = [];
+
+  bool get isSessionConnected => _isSessionConnected;
+  String? get remoteSessionCode => _remoteSessionCode;
+  int get remoteScannedCount => _remoteScannedCount;
+  List<ScannedTicketItem> get remoteScannedTickets =>
+      List.unmodifiable(_remoteScannedTickets);
+
   bool get isConnecting => _isConnecting;
   bool get isScanning => _isScanning || _preparingImages;
   bool get confirming => _confirming;
   bool get isConnected =>
-      !_isConnecting &&
-      _serviceReady == true &&
-      _templateReady == true &&
-      selectedBatch != null &&
-      selectedBatch!.editable &&
-      !intakeClosed(selectedBatch!);
-  String? get sessionCode => selectedBatch?.batchCode;
+      _isSessionConnected ||
+      (!_isConnecting &&
+          _serviceReady == true &&
+          _templateReady == true &&
+          selectedBatch != null &&
+          selectedBatch!.editable &&
+          !intakeClosed(selectedBatch!));
+  String? get sessionCode => _remoteSessionCode ?? selectedBatch?.batchCode;
   String? get errorMessage => _errorMessage;
   int get countdownSeconds => 0;
+
+  Future<bool> connectToWebSession(String code) async {
+    final cleanCode = code.trim();
+    if (cleanCode.length != 6) {
+      _errorMessage = 'Mã phiên phải gồm đúng 6 chữ số.';
+      _notify();
+      return false;
+    }
+
+    _isConnecting = true;
+    _errorMessage = null;
+    _notify();
+
+    try {
+      await service.joinOcrSession(
+        cleanCode,
+        deviceName: Platform.isAndroid ? 'Android' : 'iOS',
+      );
+      _isSessionConnected = true;
+      _remoteSessionCode = cleanCode;
+      _remoteScannedCount = 0;
+      _remoteScannedTickets.clear();
+      _errorMessage = null;
+      _notify();
+      return true;
+    } catch (e) {
+      _errorMessage = e is ApiException
+          ? e.message
+          : 'Không thể kết nối với mã phiên $cleanCode';
+      _isSessionConnected = false;
+      _notify();
+      return false;
+    } finally {
+      _isConnecting = false;
+      _notify();
+    }
+  }
+
+  Future<void> disconnectRemoteSession() async {
+    if (_remoteSessionCode != null) {
+      await service.closeOcrSession(_remoteSessionCode!);
+    }
+    _isSessionConnected = false;
+    _remoteSessionCode = null;
+    _remoteScannedCount = 0;
+    _remoteScannedTickets.clear();
+    _errorMessage = null;
+    _notify();
+  }
+
+  Future<bool> scanAndUploadToWeb(ImageSource source) async {
+    if (!_isSessionConnected || _remoteSessionCode == null) {
+      _errorMessage = 'Chưa kết nối với Web Admin. Vui lòng nhập mã phiên!';
+      _notify();
+      return false;
+    }
+
+    try {
+      final XFile? photo = await _picker.pickImage(
+        source: source,
+        imageQuality: 85,
+        maxWidth: 1920,
+        maxHeight: 1080,
+      );
+      if (photo == null) return false;
+
+      _isScanning = true;
+      _errorMessage = null;
+      _notify();
+
+      final res = await service.uploadOcrSessionTicket(
+        _remoteSessionCode!,
+        photo,
+      );
+      _remoteScannedCount += 1;
+
+      // Haptic feedback to alert user
+      HapticFeedback.mediumImpact();
+
+      final tickets = ocrMaps(res['tickets']);
+      if (tickets.isNotEmpty) {
+        for (final t in tickets) {
+          _remoteScannedTickets.insert(
+            0,
+            ScannedTicketItem(
+              id: 'TICK-${DateTime.now().millisecondsSinceEpoch}',
+              imagePath: photo.path,
+              ticketNumber: t['numbers']?.toString() ?? '------',
+              stationName: t['stationName']?.toString() ?? 'Chưa rõ đài',
+              drawDate: t['drawDate']?.toString() ?? '',
+              status: t['status']?.toString() ?? 'Đã gửi lên Web',
+              confidence: (t['confidence'] as num?)?.toDouble() ?? 0.95,
+              scannedAt: DateTime.now(),
+            ),
+          );
+        }
+      } else {
+        _remoteScannedTickets.insert(
+          0,
+          ScannedTicketItem(
+            id: 'TICK-${DateTime.now().millisecondsSinceEpoch}',
+            imagePath: photo.path,
+            ticketNumber: 'Vé số',
+            stationName: 'Đã gửi sang Web',
+            drawDate: DateFormat('dd/MM/yyyy').format(DateTime.now()),
+            status: 'Thành công',
+            confidence: 1.0,
+            scannedAt: DateTime.now(),
+          ),
+        );
+      }
+      return true;
+    } catch (e) {
+      _errorMessage = 'Lỗi khi gửi ảnh lên Web: $e';
+      return false;
+    } finally {
+      _isScanning = false;
+      _notify();
+    }
+  }
+
+  Future<int> uploadMultipleFromGallery() async {
+    if (!_isSessionConnected || _remoteSessionCode == null) {
+      _errorMessage = 'Chưa kết nối với Web Admin.';
+      _notify();
+      return 0;
+    }
+
+    try {
+      final List<XFile> photos = await _picker.pickMultiImage(
+        imageQuality: 85,
+        maxWidth: 1920,
+        maxHeight: 1080,
+      );
+      if (photos.isEmpty) return 0;
+
+      _isScanning = true;
+      _errorMessage = null;
+      _notify();
+
+      int uploaded = 0;
+      for (final photo in photos) {
+        try {
+          final res = await service.uploadOcrSessionTicket(_remoteSessionCode!, photo);
+          uploaded++;
+          _remoteScannedCount++;
+          final tickets = ocrMaps(res['tickets']);
+          if (tickets.isNotEmpty) {
+            for (final t in tickets) {
+              _remoteScannedTickets.insert(
+                0,
+                ScannedTicketItem(
+                  id: 'TICK-${DateTime.now().millisecondsSinceEpoch}',
+                  imagePath: photo.path,
+                  ticketNumber: t['numbers']?.toString() ?? '------',
+                  stationName: t['stationName']?.toString() ?? 'Đài chính',
+                  drawDate: t['drawDate']?.toString() ?? '',
+                  status: t['status']?.toString() ?? 'Hợp lệ',
+                  confidence: (t['confidence'] as num?)?.toDouble() ?? 1.0,
+                  scannedAt: DateTime.now(),
+                ),
+              );
+            }
+          } else {
+            _remoteScannedTickets.insert(
+              0,
+              ScannedTicketItem(
+                id: 'TICK-${DateTime.now().millisecondsSinceEpoch}',
+                imagePath: photo.path,
+                ticketNumber: 'Vé số',
+                stationName: 'Đã gửi sang Web',
+                drawDate: DateFormat('dd/MM/yyyy').format(DateTime.now()),
+                status: 'Thành công',
+                confidence: 1.0,
+                scannedAt: DateTime.now(),
+              ),
+            );
+          }
+          HapticFeedback.lightImpact();
+          _notify();
+        } catch (e) {
+          _errorMessage = e is ApiException ? e.message : 'Lỗi khi gửi ảnh lên Web: $e';
+          _notify();
+        }
+      }
+      HapticFeedback.heavyImpact();
+      return uploaded;
+    } catch (e) {
+      _errorMessage = 'Lỗi khi tải ảnh hàng loạt: $e';
+      return 0;
+    } finally {
+      _isScanning = false;
+      _notify();
+    }
+  }
+
+  Future<List<XFile>> pickPhotos(ImageSource source) async {
+    try {
+      if (source == ImageSource.camera) {
+        final XFile? photo = await _picker.pickImage(
+          source: ImageSource.camera,
+          imageQuality: 85,
+          maxWidth: 1920,
+          maxHeight: 1080,
+        );
+        return photo != null ? [photo] : [];
+      } else {
+        return await _picker.pickMultiImage(
+          imageQuality: 85,
+          maxWidth: 1920,
+          maxHeight: 1080,
+        );
+      }
+    } catch (e) {
+      _errorMessage = 'Không thể mở thư viện/camera: $e';
+      _notify();
+      return [];
+    }
+  }
+
+  Future<int> uploadPickedPhotos(List<XFile> photos) async {
+    if (!_isSessionConnected || _remoteSessionCode == null) {
+      _errorMessage = 'Chưa kết nối với Web Admin.';
+      _notify();
+      return 0;
+    }
+    if (photos.isEmpty) return 0;
+
+    _isScanning = true;
+    _errorMessage = null;
+    _notify();
+
+    int uploaded = 0;
+    try {
+      for (final photo in photos) {
+        try {
+          final res = await service.uploadOcrSessionTicket(_remoteSessionCode!, photo);
+          uploaded++;
+          _remoteScannedCount++;
+          final tickets = ocrMaps(res['tickets']);
+          if (tickets.isNotEmpty) {
+            for (final t in tickets) {
+              _remoteScannedTickets.insert(
+                0,
+                ScannedTicketItem(
+                  id: 'TICK-${DateTime.now().millisecondsSinceEpoch}',
+                  imagePath: photo.path,
+                  ticketNumber: t['numbers']?.toString() ?? '------',
+                  stationName: t['stationName']?.toString() ?? 'Đài chính',
+                  drawDate: t['drawDate']?.toString() ?? '',
+                  status: t['status']?.toString() ?? 'Hợp lệ',
+                  confidence: (t['confidence'] as num?)?.toDouble() ?? 1.0,
+                  scannedAt: DateTime.now(),
+                ),
+              );
+            }
+          } else {
+            _remoteScannedTickets.insert(
+              0,
+              ScannedTicketItem(
+                id: 'TICK-${DateTime.now().millisecondsSinceEpoch}',
+                imagePath: photo.path,
+                ticketNumber: 'Vé số',
+                stationName: 'Đã gửi sang Web',
+                drawDate: DateFormat('dd/MM/yyyy').format(DateTime.now()),
+                status: 'Thành công',
+                confidence: 1.0,
+                scannedAt: DateTime.now(),
+              ),
+            );
+          }
+          HapticFeedback.lightImpact();
+          _notify();
+        } catch (e) {
+          _errorMessage = e is ApiException ? e.message : 'Lỗi khi gửi ảnh lên Web: $e';
+          _notify();
+        }
+      }
+      HapticFeedback.heavyImpact();
+      return uploaded;
+    } finally {
+      _isScanning = false;
+      _notify();
+    }
+  }
   List<OcrReviewRow> get rows => List.unmodifiable(_rows);
   List<OcrQueuedImage> get images => List.unmodifiable(_images);
   List<OcrImportBatch> get batchOptions => _batches
@@ -164,7 +463,6 @@ class AdminScanViewModel extends ChangeNotifier {
 
   bool _active(int generation) => !_disposed && generation == _generation;
 
-  Future<bool> connectToWebSession(String code) => startConnecting(code: code);
   Future<bool> startConnecting({String? code, bool webIsWaiting = true}) async {
     if (_isConnecting || _disposed) return false;
     final generation = _generation;

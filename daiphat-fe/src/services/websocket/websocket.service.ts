@@ -16,6 +16,7 @@ import {
     WS_USER_CHAT_INBOX_QUEUE,
     WS_ENDPOINT_PATH,
     getConversationTopic,
+    getOcrSessionTopic,
 } from './websocket.constants';
 
 type ConnectionListener = (connected: boolean) => void;
@@ -211,6 +212,13 @@ class WebSocketService {
             WS_USER_CHAT_INBOX_QUEUE,
             callback
         );
+    }
+
+    async subscribeOcrSession(
+        sessionCode: string,
+        callback: (event: any) => void
+    ): Promise<WebSocketSubscription> {
+        return this.subscribe<any>(getOcrSessionTopic(sessionCode), callback);
     }
 
     async subscribeOperators(
