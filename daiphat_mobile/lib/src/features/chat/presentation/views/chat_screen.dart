@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
@@ -34,6 +35,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _scrollController = ScrollController();
   final _inputController = TextEditingController();
   ProviderSubscription<ChatState>? _chatSubscription;
+  double _lastMaxScrollExtent = 0;
 
   @override
   void initState() {
@@ -43,9 +45,46 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       previous,
       next,
     ) {
-      if ((previous?.visibleMessages.length ?? 0) !=
-          next.visibleMessages.length) {
-        _scrollToBottom();
+      final prevList = previous?.visibleMessages ?? const [];
+      final nextList = next.visibleMessages;
+
+      // 1. Nếu tin nhắn cũ được tải thêm ở đầu danh sách:
+      // Giữ nguyên vị trí cuộn hiện tại của người dùng, không cuộn xuống đáy.
+      final prevFirstId = prevList.firstOrNull?.id;
+      final nextFirstId = nextList.firstOrNull?.id;
+      final wasPrepended = prevList.isNotEmpty &&
+          nextList.length > prevList.length &&
+          prevFirstId != nextFirstId;
+
+      if (wasPrepended) {
+        final prevMax = _lastMaxScrollExtent;
+        final prevPixels = _scrollController.hasClients
+            ? _scrollController.position.pixels
+            : 0.0;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!_scrollController.hasClients) return;
+          final newMax = _scrollController.position.maxScrollExtent;
+          final diff = newMax - prevMax;
+          if (diff > 0) {
+            _scrollController.jumpTo(prevPixels + diff);
+          }
+          _lastMaxScrollExtent = newMax;
+        });
+        return;
+      }
+
+      // 2. Nếu có tin nhắn mới ở cuối danh sách (tin người dùng vừa gửi hoặc bot vừa trả lời):
+      final prevLastId = prevList.lastOrNull?.id;
+      final nextLastId = nextList.lastOrNull?.id;
+      final isNewAtBottom = prevLastId != nextLastId ||
+          (prevList.isEmpty && nextList.isNotEmpty);
+
+      // Chỉ tự cuộn xuống đáy nếu người dùng gửi tin HOẶC người dùng đang ở gần đáy:
+      final userSent = next.isSending || (nextList.lastOrNull?.isUser == true);
+      final wasNearBottom = _isNearBottom();
+
+      if (isNewAtBottom && (userSent || wasNearBottom)) {
+        _scrollToBottom(animate: wasNearBottom);
       }
     });
     WidgetsBinding.instance.addPostFrameCallback((_) => _ensureBootstrap());
@@ -84,9 +123,27 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels <= 48) {
-      ref.read(chatViewModelProvider.notifier).loadMoreTimeline();
+    if (!_scrollController.hasClients) return;
+    final pos = _scrollController.position;
+    _lastMaxScrollExtent = pos.maxScrollExtent;
+
+    // Không kích hoạt tải thêm tin cũ đối với luồng chat ngắn (chưa vượt quá chiều cao màn hình)
+    if (pos.maxScrollExtent <= 96) return;
+
+    // Chỉ tải thêm khi người dùng chủ động vuốt lên chạm đỉnh danh sách
+    if (pos.pixels <= 48 &&
+        pos.userScrollDirection == ScrollDirection.forward) {
+      final state = ref.read(chatViewModelProvider);
+      if (state.hasMoreTimeline && !state.isLoading && !state.isLoadingOlder) {
+        ref.read(chatViewModelProvider.notifier).loadMoreTimeline();
+      }
     }
+  }
+
+  bool _isNearBottom() {
+    if (!_scrollController.hasClients) return true;
+    final pos = _scrollController.position;
+    return (pos.maxScrollExtent - pos.pixels) <= 120;
   }
 
   void _scrollToBottom({bool animate = true}) {
@@ -100,8 +157,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (animate) {
         _scrollController.animateTo(
           max,
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOutQuad,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
         );
       } else {
         _scrollController.jumpTo(max);
@@ -191,21 +248,36 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             )
           else
             Expanded(
-              child: RefreshIndicator(
-                color: AppColors.primary,
-                onRefresh: () =>
-                    ref.read(chatViewModelProvider.notifier).refresh(),
-                child: ListView.builder(
-                  controller: _scrollController,
-                  physics: const AlwaysScrollableScrollPhysics(
-                    parent: BouncingScrollPhysics(),
-                  ),
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                  itemCount: chatState.visibleMessages.length,
-                  itemBuilder: (context, index) {
-                    if (index < 0 || index >= visibleMessages.length) {
-                      return const SizedBox.shrink();
+              child: ListView.builder(
+                controller: _scrollController,
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                itemCount: visibleMessages.length +
+                    (chatState.isLoadingOlder ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if (chatState.isLoadingOlder) {
+                    if (index == 0) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8),
+                        child: Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                      );
                     }
+                    index -= 1;
+                  }
+                  if (index < 0 || index >= visibleMessages.length) {
+                    return const SizedBox.shrink();
+                  }
                     final message = visibleMessages[index];
                     Widget child;
                     if (message.variant == ChatMessageVariant.divider) {
@@ -238,7 +310,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   },
                 ),
               ),
-            ),
           if (chatState.errorMessage != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -267,6 +338,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             bottomInset: bottomInset,
             enabled: !chatState.isSending,
             onSend: _sendMessage,
+            onTap: () {
+              if (_isNearBottom()) {
+                _scrollToBottom();
+              }
+            },
           ),
         ],
       ),
@@ -1620,12 +1696,14 @@ class _ChatInputBar extends StatelessWidget {
     required this.controller,
     required this.bottomInset,
     required this.onSend,
+    this.onTap,
     this.enabled = true,
   });
 
   final TextEditingController controller;
   final double bottomInset;
   final VoidCallback onSend;
+  final VoidCallback? onTap;
   final bool enabled;
 
   @override
@@ -1642,6 +1720,7 @@ class _ChatInputBar extends StatelessWidget {
             child: TextField(
               controller: controller,
               enabled: enabled,
+              onTap: onTap,
               textInputAction: TextInputAction.send,
               onSubmitted: enabled ? (_) => onSend() : null,
               decoration: InputDecoration(

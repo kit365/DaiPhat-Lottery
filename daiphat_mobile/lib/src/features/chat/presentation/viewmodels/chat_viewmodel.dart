@@ -11,6 +11,7 @@ import '../../utils/chat_message_mapper.dart';
 class ChatState {
   const ChatState({
     this.isLoading = false,
+    this.isLoadingOlder = false,
     this.isSending = false,
     this.isAuthenticated = false,
     this.isAiEnabled = true,
@@ -31,6 +32,7 @@ class ChatState {
   });
 
   final bool isLoading;
+  final bool isLoadingOlder;
   final bool isSending;
   final bool isAuthenticated;
   final bool isAiEnabled;
@@ -74,6 +76,7 @@ class ChatState {
 
   ChatState copyWith({
     bool? isLoading,
+    bool? isLoadingOlder,
     bool? isSending,
     bool? isAuthenticated,
     bool? isAiEnabled,
@@ -97,6 +100,7 @@ class ChatState {
   }) {
     return ChatState(
       isLoading: isLoading ?? this.isLoading,
+      isLoadingOlder: isLoadingOlder ?? this.isLoadingOlder,
       isSending: isSending ?? this.isSending,
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
       isAiEnabled: isAiEnabled ?? this.isAiEnabled,
@@ -222,11 +226,11 @@ class ChatViewModel extends Notifier<ChatState> {
   }
 
   Future<void> loadMoreTimeline() async {
-    if (!state.hasMoreTimeline || state.isLoading) return;
+    if (!state.hasMoreTimeline || state.isLoading || state.isLoadingOlder) return;
     final (beforeCreatedAt, beforeId) = parseTimelineCursor(_timelineCursor);
     if (beforeCreatedAt == null || beforeId == null) return;
 
-    state = state.copyWith(isLoading: true);
+    state = state.copyWith(isLoadingOlder: true);
     try {
       final page = await _chat.getTimeline(
         beforeCreatedAt: beforeCreatedAt,
@@ -239,7 +243,7 @@ class ChatViewModel extends Notifier<ChatState> {
       );
       _timelineCursor = page.nextCursor;
     } finally {
-      state = state.copyWith(isLoading: false);
+      state = state.copyWith(isLoadingOlder: false);
     }
   }
 
@@ -305,7 +309,7 @@ class ChatViewModel extends Notifier<ChatState> {
           final detail = await _chat.escalateConversation(conversationId);
           if (detail != null) _applyConversation(detail.conversation);
         }
-        unawaited(_refreshTimelineSoon());
+        unawaited(_refreshTimelineSoon(sendToken));
       }
     } catch (error) {
       state = state.copyWith(
@@ -672,9 +676,16 @@ class ChatViewModel extends Notifier<ChatState> {
     }
   }
 
-  Future<void> _refreshTimelineSoon() async {
-    await Future<void>.delayed(const Duration(milliseconds: 1200));
+  Future<void> _refreshTimelineSoon(String sendToken) async {
+    await Future<void>.delayed(const Duration(milliseconds: 1500));
     if (!ref.mounted) return;
+    // Đồng bộ dự phòng giống web: nếu websocket đã merge tin nhắn vào timeline
+    // thì không cần reload lại toàn bộ timeline gây giật lag.
+    final stillPending = state.overlayMessages.any(
+      (message) => message.id == 'optimistic-user-$sendToken',
+    );
+    if (!stillPending) return;
+
     await _loadTimeline(reset: true);
     if (!ref.mounted) return;
     _refreshQuickReplies();
