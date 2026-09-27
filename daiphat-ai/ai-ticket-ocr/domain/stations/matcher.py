@@ -13,6 +13,10 @@ def _fold(text: str) -> str:
     return remove_accents(normalize_text(text))
 
 
+# Shortest spaceless name matched inside spaceless OCR text ("camau", "dalat").
+_MIN_COMPACT_NAME = 5
+
+
 @dataclass
 class StationMatchResult:
     station: StationRef | None
@@ -25,6 +29,8 @@ class StationMatcher:
 
     Uses token_sort_ratio (not WRatio) so shared suffixes like "Giang"
     (An Giang / Kiên Giang / Hậu Giang / Tiền Giang) do not steal the match.
+    Station codes are staff shorthand, not printed on tickets, and are not
+    matched: a 2-3 letter code partially matches almost any OCR text.
     """
 
     # Tokens that appear on many lottery tickets and should not decide a match.
@@ -34,8 +40,6 @@ class StationMatcher:
         self._choices: list[tuple[str, StationRef, str]] = []
         for station in stations:
             candidate_texts = [station.name, *station.aliases]
-            if station.code:
-                candidate_texts.append(station.code)
             for raw in candidate_texts:
                 folded = _fold(raw)
                 if folded:
@@ -72,11 +76,16 @@ class StationMatcher:
             matched_text, score, index = best
             if best_overall is None or score > best_overall[1]:
                 best_overall = (matched_text, score, index)
-            # Contained names ("HO CHI MINH" inside a long OCR line).
-            partial = process.extractOne(
-                query,
-                candidates,
-                scorer=fuzz.partial_ratio,
+            # Contained names ("HO CHI MINH" inside a long OCR line). Only
+            # names that fit in the query: partial_ratio also aligns a short
+            # query inside a long name ("C" inside "ho chi minh").
+            contained = {
+                index: text for index, text in enumerate(candidates) if len(text) <= len(query)
+            }
+            partial = (
+                process.extractOne(query, contained, scorer=fuzz.partial_ratio)
+                if contained
+                else None
             )
             if partial is not None:
                 p_text, p_score, p_index = partial
@@ -84,6 +93,26 @@ class StationMatcher:
                     best_overall is None or p_score > best_overall[1]
                 ):
                     best_overall = (p_text, p_score, p_index)
+
+        # OCR often drops the spaces of banner text ("XOSOKIENTHIETBARIAVUNGTAU"):
+        # a whole name found inside the spaceless line is a match on its own.
+        compact_query = folded_query.replace(" ", "")
+        compact = {
+            index: text.replace(" ", "")
+            for index, (text, _station, _raw) in enumerate(self._choices)
+            if _MIN_COMPACT_NAME <= len(text.replace(" ", "")) <= len(compact_query)
+        }
+        if compact:
+            _c_text, c_score, c_index = process.extractOne(
+                compact_query, compact, scorer=fuzz.partial_ratio
+            )
+            if c_score >= max(threshold, 95) and (
+                best_overall is None or c_score > best_overall[1]
+            ):
+                _folded, station, original_alias = self._choices[c_index]
+                return StationMatchResult(
+                    station=station, score=c_score / 100.0, matched_alias=original_alias
+                )
 
         if best_overall is None:
             return StationMatchResult(station=None, score=0.0, matched_alias=None)

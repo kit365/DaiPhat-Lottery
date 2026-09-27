@@ -160,6 +160,10 @@ daiphat:
   sample-order:
     seed:
       enabled: false
+  member-status:
+    seed:
+      # Skips with a warning when the account (default phu123) is missing or not a MEMBER.
+      enabled: ${MEMBER_STATUS_SEED_ENABLED:true}
 
 logging:
   level:

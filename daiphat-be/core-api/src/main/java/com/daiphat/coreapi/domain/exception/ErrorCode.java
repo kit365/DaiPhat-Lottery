@@ -185,6 +185,14 @@ public enum ErrorCode {
             "ORD_058",
             "Phiếu nộp chưa có vé nào — không thể xuất tệp.",
             HttpStatus.BAD_REQUEST),
+    REFUND_REQUEST_COUNTER_IDENTITY_REQUIRED(
+            "ORD_060",
+            "Cần xác thực CCCD (mặt trước và mặt sau) của khách hàng trước khi hoàn tất hoàn tiền tại quầy.",
+            HttpStatus.BAD_REQUEST),
+    REFUND_REQUEST_COUNTER_AMOUNT_MISMATCH(
+            "ORD_061",
+            "Số tiền hoàn tại quầy phải bằng số tiền của yêu cầu hoàn tiền.",
+            HttpStatus.BAD_REQUEST),
 
     // Lottery Errors
     // Lottery Product Errors

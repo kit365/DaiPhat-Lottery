@@ -8,7 +8,7 @@ import { ConversationAvatarLetter } from '../components/ConversationAvatarLetter
 import { getConversationDisplayTitle, getConversationAvatarLetter, getAssigneeDisplayLabel, getConversationPreviewText, getManagementUnreadCount, findOwnLiveConversation } from '../utils';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
-    Box, Card, Tabs, Tab, styled, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Checkbox, Stack, Avatar, Chip, Toolbar, Tooltip, SvgIcon, Badge, Alert } from '@mui/material';
+    Box, Card, Tabs, Tab, styled, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Stack, Avatar, Chip, Toolbar, Tooltip, SvgIcon, Badge, Alert } from '@mui/material';
 import { Icon } from '@/admin/components/ui/AdminIcon';
 import { adminChatDetailKey, ADMIN_CHAT_CONVERSATIONS_KEY } from '../../hooks/useChat';
 import { MessageSenderRole, ConversationStatusEnum } from '../../../../../types/chat.type';
@@ -130,7 +130,6 @@ export const ChatList = ({
     const isAdmin = roleCode === RoleEnum.ADMIN || roleCode === 'ADMIN' || roleCode === 'SUPER_ADMIN';
 
     const [tabStatus, setTabStatus] = useState('all');
-    const [selected, setSelected] = useState<string[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [sortByUI, setSortByUI] = useState(SortOrderEnum.NEWEST);
     const [assigneeFilters, setAssigneeFilters] = useState<string[]>([]);
@@ -177,35 +176,6 @@ export const ChatList = ({
 
     const handleTabChange = (event: React.SyntheticEvent, newValue: string) => {
         setTabStatus(newValue);
-    };
-
-    const handleSelectAllClick = (event: React.ChangeEvent<HTMLInputElement>) => {
-        if (event.target.checked) {
-            const newSelecteds = conversations.map((n: Conversation) => n.id);
-            setSelected(newSelecteds.map(String));
-            return;
-        }
-        setSelected([]);
-    };
-
-    const handleClick = (event: React.MouseEvent<unknown>, id: string) => {
-        event.stopPropagation();
-        const selectedIndex = selected.indexOf(id);
-        let newSelected: string[] = [];
-
-        if (selectedIndex === -1) {
-            newSelected = [...selected, id];
-        } else if (selectedIndex === 0) {
-            newSelected = selected.slice(1);
-        } else if (selectedIndex === selected.length - 1) {
-            newSelected = selected.slice(0, -1);
-        } else if (selectedIndex > 0) {
-            newSelected = [
-                ...selected.slice(0, selectedIndex),
-                ...selected.slice(selectedIndex + 1),
-            ];
-        }
-        setSelected(newSelected);
     };
 
     // Filter logic
@@ -441,14 +411,6 @@ export const ChatList = ({
                 <Table sx={{ minWidth: 960 }} size="medium">
                     <TableHead sx={{ bgcolor: 'var(--palette-background-neutral)' }}>
                         <TableRow>
-                            <TableCell padding="checkbox" sx={{ ...HEAD_CELL_SX, textAlign: 'center' }}>
-                                <Checkbox
-                                    indeterminate={selected.length > 0 && selected.length < filteredConversations.length}
-                                    checked={filteredConversations.length > 0 && selected.length === filteredConversations.length}
-                                    onChange={handleSelectAllClick}
-                                    sx={{ color: 'var(--palette-text-disabled)', p: 0 }}
-                                />
-                            </TableCell>
                             <TableCell sx={HEAD_CELL_SX}>Khách hàng</TableCell>
                             <TableCell sx={HEAD_CELL_SX}>Tin nhắn gần nhất</TableCell>
                             <TableCell sx={HEAD_CELL_SX}>Nhân viên phụ trách</TableCell>
@@ -461,7 +423,7 @@ export const ChatList = ({
                     <TableBody>
                         {filteredConversations.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={7} align="center" sx={{ borderBottom: 'none', py: 10 }}>
+                                <TableCell colSpan={6} align="center" sx={{ borderBottom: 'none', py: 10 }}>
                                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
                                         <span className="admin-datagrid-empty">Không có dữ liệu</span>
                                     </Box>
@@ -469,7 +431,6 @@ export const ChatList = ({
                             </TableRow>
                         ) : (
                             filteredConversations.map((row: Conversation) => {
-                                const isItemSelected = selected.indexOf(String(row.id)) !== -1;
                                 const hasUnread = getManagementUnreadCount(row) > 0;
 
                                 const isLockedOther = chatLocked && lockedConversationId != null && row.id !== lockedConversationId;
@@ -478,7 +439,6 @@ export const ChatList = ({
                                     <TableRow
                                         hover={!isLockedOther}
                                         key={row.id}
-                                        selected={isItemSelected}
                                         sx={{
                                             cursor: isLockedOther ? 'not-allowed' : 'pointer',
                                             opacity: isLockedOther ? 0.55 : 1,
@@ -487,14 +447,6 @@ export const ChatList = ({
                                         }}
                                         onClick={() => handleRowSelect(row.id)}
                                     >
-                                        <TableCell padding="checkbox" sx={{ ...BODY_CELL_SX, textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
-                                            <Checkbox
-                                                checked={isItemSelected}
-                                                onChange={(event) => handleClick(event as any, String(row.id))}
-                                                sx={{ color: 'var(--palette-text-disabled)', p: 0 }}
-                                            />
-                                        </TableCell>
-
                                         <TableCell sx={BODY_CELL_SX}>
                                             <Stack direction="row" alignItems="center" spacing={2}>
                                                 <Avatar sx={{ width: 40, height: 40 }}>

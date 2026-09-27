@@ -1,9 +1,11 @@
 package com.daiphat.coreapi.application.port.in.refund;
 
 import com.daiphat.coreapi.application.dto.request.refund.AttachRefundBankAccountRequest;
+import com.daiphat.coreapi.application.dto.request.refund.CompleteCounterRefundRequest;
 import com.daiphat.coreapi.application.dto.request.refund.RequestBankInfoUpdateRequest;
 import com.daiphat.coreapi.application.dto.request.refund.StaffCancelOrderWithRefundRequest;
 import com.daiphat.coreapi.application.dto.request.refund.TransferRefundRequestRequest;
+import com.daiphat.coreapi.application.dto.request.refund.VerifyRefundCounterIdentityRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundRequestAdminDetailResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundRequestResponse;
@@ -38,4 +40,11 @@ public interface RefundRequestStaffServicePort {
     RefundRequestResponse attachBankAccount(Long id, UUID staffId, AttachRefundBankAccountRequest request);
 
     StorageResult uploadTransferEvidence(UploadRequest request);
+
+    StorageResult uploadCounterIdentityImage(UploadRequest request);
+
+    RefundRequestAdminDetailResponse.RefundCounterIdentitySummary verifyCounterIdentity(
+            Long id, UUID staffId, VerifyRefundCounterIdentityRequest request);
+
+    RefundRequestResponse completeCounterRefund(Long id, UUID staffId, CompleteCounterRefundRequest request);
 }

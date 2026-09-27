@@ -1,5 +1,7 @@
 package com.daiphat.coreapi.infrastructure.persistence.entity.refund;
 
+import com.daiphat.coreapi.domain.model.enums.ekyc.EkycStatus;
+import com.daiphat.coreapi.domain.model.enums.order.refund.RefundCounterPayoutMethod;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundFundSource;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestRole;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
@@ -82,6 +84,53 @@ public class RefundRequestEntity {
 
     @Column(name = "operator_note", columnDefinition = "TEXT")
     private String operatorNote;
+
+    @Column(name = "cccd_front_image_url", length = 500)
+    private String cccdFrontImageUrl;
+
+    @Column(name = "cccd_back_image_url", length = 500)
+    private String cccdBackImageUrl;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "ekyc_status", length = 32)
+    private EkycStatus ekycStatus;
+
+    @Column(name = "ekyc_failure_reason", length = 500)
+    private String ekycFailureReason;
+
+    @Column(name = "ekyc_ocr_name", length = 255)
+    private String ekycOcrName;
+
+    @Column(name = "ekyc_ocr_id_number", length = 64)
+    private String ekycOcrIdNumber;
+
+    @Column(name = "ekyc_ocr_dob", length = 32)
+    private String ekycOcrDob;
+
+    @Column(name = "ekyc_ocr_gender", length = 32)
+    private String ekycOcrGender;
+
+    @Column(name = "ekyc_ocr_nationality", length = 100)
+    private String ekycOcrNationality;
+
+    @Column(name = "ekyc_ocr_place_of_birth", length = 500)
+    private String ekycOcrPlaceOfBirth;
+
+    @Column(name = "ekyc_ocr_place_of_residence", length = 500)
+    private String ekycOcrPlaceOfResidence;
+
+    @Column(name = "ekyc_ocr_issue_date", length = 64)
+    private String ekycOcrIssueDate;
+
+    @Column(name = "ekyc_ocr_expiry_date", length = 64)
+    private String ekycOcrExpiryDate;
+
+    @Column(name = "ekyc_verified_at")
+    private LocalDateTime ekycVerifiedAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "counter_payout_method", length = 20)
+    private RefundCounterPayoutMethod counterPayoutMethod;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reviewed_by")
