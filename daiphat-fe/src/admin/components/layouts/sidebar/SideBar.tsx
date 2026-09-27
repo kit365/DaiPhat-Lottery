@@ -2,7 +2,15 @@
 
 import Link from "@/admin/components/navigation/AdminLink";
 import { NavGroup } from "./NavGroup";
-import { menuManagementData, menuOverviewData } from "../../../constants/sideBar";
+import {
+    menuOverviewData,
+    menuSalesData,
+    menuInventoryData,
+    menuSupplierData,
+    menuAgentData,
+    menuSupportData,
+    menuSystemData,
+} from "../../../constants/sideBar";
 import { IconButton } from "@mui/material";
 import { ArrowIcon } from "../../../assets/icons";
 import { useSidebar } from "../../../context/sidebar/useSidebar";
@@ -57,7 +65,12 @@ export const SideBar = () => {
                     <nav className={`text-[#637381] ${isOpen ? 'px-[16px]' : 'px-[4px]'}`}>
                         <ul>
                             <NavGroup title="Tổng quan" data={menuOverviewData} />
-                            <NavGroup title="Quản lý" data={menuManagementData} />
+                            <NavGroup title="Bán hàng & Đơn hàng" data={menuSalesData} />
+                            <NavGroup title="Kho & Vé số" data={menuInventoryData} />
+                            <NavGroup title="Nhà cung cấp" data={menuSupplierData} />
+                            <NavGroup title="Mạng lưới đại lý" data={menuAgentData} />
+                            <NavGroup title="Hỗ trợ & Khiếu nại" data={menuSupportData} />
+                            <NavGroup title="Hệ thống & Nội dung" data={menuSystemData} />
                         </ul>
                     </nav>
                 </div>

@@ -5,17 +5,7 @@ import { ChevronRight, Phone, Mail, MapPin } from 'lucide-react';
 import { useSiteBranding } from '@/client/hooks/useSiteBranding';
 import { BrandMark } from '@/client/components/auth/SharedAuth';
 
-const ABOUT_LINKS = [
-    { label: 'Giới thiệu', to: '/pages/about' },
-    { label: 'Tin tức', to: '/blogs' },
-    { label: 'Tuyển dụng', to: '/pages/careers' },
-    { label: 'Điều khoản sử dụng', to: '/pages/terms' },
-    { label: 'Chính sách bảo mật', to: '/pages/privacy' },
-    { label: 'Liên hệ', to: '/pages/contact' },
-] as const;
-
 const GUIDE_LINKS = [
-    { label: 'Hướng dẫn chơi', to: '/pages/guide-play' },
     { label: 'Hướng dẫn mua vé', to: '/pages/guide-buy' },
     { label: 'Hướng dẫn thanh toán', to: '/pages/guide-payment' },
     { label: 'Hướng dẫn nhận thưởng', to: '/pages/guide-prize' },
@@ -23,17 +13,9 @@ const GUIDE_LINKS = [
 ] as const;
 
 const UTILITY_LINKS = [
-    { label: 'Kết quả xổ số', to: '/results' },
-    { label: 'Thống kê - Phân tích', to: '/pages/stats' },
-    { label: 'Soi cầu', to: '/pages/prediction' },
-    { label: 'Lịch mở thưởng', to: '/lich-mo-thuong' },
-    { label: 'Trúng thưởng hôm qua', to: '/pages/yesterday-winners' },
-] as const;
-
-const BOTTOM_LINKS = [
-    { label: 'Điều khoản', to: '/pages/terms' },
-    { label: 'Bảo mật', to: '/pages/privacy' },
-    { label: 'Sitemap', to: '/pages/sitemap' },
+    { label: 'Mua vé số', to: '/tickets' },
+    { label: 'Lịch mở thưởng', to: '/schedule' },
+    { label: 'Tin tức & Khuyến mãi', to: '/blogs' },
 ] as const;
 
 const sectionTitleClass =
@@ -70,10 +52,6 @@ const FooterNavList = ({
     </div>
 );
 
-/**
- * Footer đủ cột theo design: Thương hiệu · Về chúng tôi · Hướng dẫn · Tiện ích · Liên hệ.
- * Link vẫn hiện dù trang đích chưa có nội dung.
- */
 export const Footer = () => {
     const {
         name,
@@ -102,7 +80,6 @@ export const Footer = () => {
     const copyrightText =
         copyright || `© ${new Date().getFullYear()} ${name}. Tất cả quyền được bảo lưu.`;
 
-    /** Một dòng mô tả: ưu tiên intro; nếu trùng slogan thì chỉ hiện slogan dưới tên. */
     const brandBlurb =
         intro && intro.trim() && intro.trim() !== slogan.trim() ? intro.trim() : '';
 
@@ -120,7 +97,7 @@ export const Footer = () => {
             />
 
             <div className="container mx-auto px-4 md:px-8 relative z-10 max-w-[1440px]">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-8 xl:gap-12 mb-12">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 xl:gap-12 mb-12">
                     {/* Thương hiệu */}
                     <div className="lg:col-span-2 flex flex-col space-y-5 pr-4">
                         <div className="flex items-center gap-3">
@@ -169,9 +146,8 @@ export const Footer = () => {
                         ) : null}
                     </div>
 
-                    <FooterNavList title="Về chúng tôi" links={ABOUT_LINKS} />
-                    <FooterNavList title="Hướng dẫn" links={GUIDE_LINKS} />
                     <FooterNavList title="Tiện ích" links={UTILITY_LINKS} />
+                    <FooterNavList title="Hướng dẫn" links={GUIDE_LINKS} />
 
                     {/* Liên hệ */}
                     <div className="flex flex-col">
@@ -229,6 +205,10 @@ export const Footer = () => {
                             ) : null}
                         </ul>
                     </div>
+                </div>
+
+                <div className="border-t border-red-100 pt-6 flex flex-col md:flex-row items-center justify-between gap-4 text-[12px] text-slate-500">
+                    <p>{copyrightText}</p>
                 </div>
             </div>
         </footer>
