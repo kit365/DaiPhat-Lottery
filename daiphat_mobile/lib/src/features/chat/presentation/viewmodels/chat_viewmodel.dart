@@ -617,18 +617,6 @@ class ChatViewModel extends Notifier<ChatState> {
       showWelcome: lastBot?.id == 'welcome',
     );
 
-    if (lastBot?.variant == ChatMessageVariant.ticketSuggest) {
-      state = state.copyWith(
-        quickReplies: [
-          ...chips,
-          ...ticketSuggestFollowUpChips(
-            collectSuggestedTicketIds(state.visibleMessages),
-          ),
-        ],
-      );
-      return;
-    }
-
     final canShow =
         isOpenBotThread(state.conversationStatus) &&
         state.conversationStatus != ConversationStatus.waitingForOperator &&

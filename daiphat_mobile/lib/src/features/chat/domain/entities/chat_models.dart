@@ -262,3 +262,15 @@ class SuggestedTicketModel {
     );
   }
 }
+
+class ChatMessageAction {
+  const ChatMessageAction({
+    required this.label,
+    required this.payload,
+    this.primary = false,
+  });
+
+  final String label;
+  final String payload;
+  final bool primary;
+}

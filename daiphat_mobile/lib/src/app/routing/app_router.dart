@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:daiphat_mobile/src/features/admin/presentation/providers/admin_ocr_providers.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/login_viewmodel.dart';
@@ -38,7 +40,6 @@ import 'package:daiphat_mobile/src/features/profile/presentation/views/complaint
 import 'package:daiphat_mobile/src/features/profile/presentation/views/complaint_detail_view.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/views/security_view.dart';
 import 'package:daiphat_mobile/src/features/admin/presentation/views/admin_scan_view.dart';
-import 'package:daiphat_mobile/src/features/admin/presentation/viewmodels/admin_scan_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/fortune/presentation/views/fortune_cast_view.dart';
 import 'package:daiphat_mobile/src/features/blog/presentation/views/blog_screen.dart';
 import 'package:daiphat_mobile/src/features/schedule/presentation/views/schedule_view.dart';
@@ -617,7 +618,10 @@ Widget _buildRoute(
       if (loginViewModel.user?.isAdmin != true) {
         return const SizedBox.shrink();
       }
-      return AdminScanView(viewModel: AdminScanViewModel());
+      return Consumer(
+        builder: (context, ref, _) =>
+            AdminScanView(viewModel: ref.watch(adminScanViewModelProvider)),
+      );
     case AppRoute.fortune:
       return FortuneCastView(profileViewModel: profileViewModel);
     case AppRoute.schedule:

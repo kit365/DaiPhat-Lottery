@@ -15,13 +15,18 @@ export const ORDER_STATUS_TABS: OrderStatusTab[] = [
         activeColor: 'var(--palette-common-white, #FFFFFF)',
         activeBg: 'var(--palette-grey-800, #1C252E)',
     },
-    ...[
-        OrderStatus.PENDING_PAYMENT,
-        OrderStatus.PAID,
-        OrderStatus.PREPARING,
-        OrderStatus.PENDING_PICKUP,
-        OrderStatus.COMPLETED,
-        OrderStatus.CANCELLED,
-        OrderStatus.PAYMENT_COMPLAINT_PENDING,
-    ].map((value) => ({ value, ...ORDER_STATUS_BADGE[value] })),
+    {
+        value: 'NEED_PROCESSING',
+        label: 'Cần xử lý',
+        color: 'var(--palette-warning-dark, #B76E00)',
+        bg: 'var(--palette-warning-lighter, #FFF5CC)',
+        activeColor: 'var(--palette-warning-contrastText, #1C252E)',
+        activeBg: 'var(--palette-warning-main, #FFAB00)',
+    },
+    { value: OrderStatus.PENDING_PAYMENT, ...ORDER_STATUS_BADGE[OrderStatus.PENDING_PAYMENT] },
+    { value: OrderStatus.PAID, ...ORDER_STATUS_BADGE[OrderStatus.PAID] },
+    { value: OrderStatus.PENDING_PICKUP, ...ORDER_STATUS_BADGE[OrderStatus.PENDING_PICKUP] },
+    { value: OrderStatus.COMPLETED, ...ORDER_STATUS_BADGE[OrderStatus.COMPLETED] },
+    { value: OrderStatus.CANCELLED, ...ORDER_STATUS_BADGE[OrderStatus.CANCELLED] },
 ];
+
