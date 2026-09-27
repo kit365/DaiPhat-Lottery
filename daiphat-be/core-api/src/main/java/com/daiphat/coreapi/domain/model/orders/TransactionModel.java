@@ -141,24 +141,41 @@ public class TransactionModel {
      * Refund payouts reference only {@code refundRequestId} — not an order.
      */
     public void markRefundPayoutCompleted(UUID operatorId, String evidenceUrl, String note) {
-        if (this.type != TransactionType.REFUND) {
-            throw new DomainException(ErrorCode.TRANSACTION_INVALID_STATUS);
-        }
-        if (this.refundRequestId == null) {
-            throw new DomainException(ErrorCode.INVALID_INPUT, "Refund payout must reference a refund request.");
-        }
         if (evidenceUrl == null || evidenceUrl.isBlank()) {
+            ensureRefundPayout();
             throw new DomainException(ErrorCode.INVALID_INPUT);
         }
+        completeRefundPayout(operatorId, evidenceUrl, note);
+    }
+
+    /**
+     * Records an in-person refund payout for a MANUAL_RESOLUTION refund.
+     * Cash payouts carry no evidence image; transfer payouts pass the receipt URL.
+     */
+    public void markRefundCounterPayoutCompleted(UUID operatorId, String evidenceUrl, String note) {
+        completeRefundPayout(operatorId, evidenceUrl, note);
+    }
+
+    private void completeRefundPayout(UUID operatorId, String evidenceUrl, String note) {
+        ensureRefundPayout();
         this.orderId = null;
         this.status = TransactionStatus.COMPLETED;
         this.paidAt = LocalDateTime.now();
         this.cancelledAt = null;
         this.failureReason = null;
         this.paymentBy = operatorId;
-        this.paymentEvidenceUrl = evidenceUrl.trim();
+        this.paymentEvidenceUrl = evidenceUrl == null || evidenceUrl.isBlank() ? null : evidenceUrl.trim();
         if (note != null && !note.isBlank()) {
             this.note = note.trim();
+        }
+    }
+
+    private void ensureRefundPayout() {
+        if (this.type != TransactionType.REFUND) {
+            throw new DomainException(ErrorCode.TRANSACTION_INVALID_STATUS);
+        }
+        if (this.refundRequestId == null) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "Refund payout must reference a refund request.");
         }
     }
 

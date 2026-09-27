@@ -211,7 +211,7 @@ public class TicketScanImportService implements TicketScanImportServicePort {
         // import-batch draw schedule (that silently biased recognition).
         List<LotteryStationModel> visionStations = loadActiveStationsForVision();
         // Prefer line station template when scanning a specific import line;
-        // otherwise start with the global default template field layouts.
+        // otherwise no request-level template until OCR identifies the issuer.
         Long preferredStationId = lineStation != null ? lineStation.getId() : null;
 
         List<RemoteStationTemplateMetadata> stationTemplates =
@@ -760,6 +760,9 @@ public class TicketScanImportService implements TicketScanImportServicePort {
                 })
                 .toList();
 
+        // Request-level layouts only for a station already known (import line or the
+        // station OCR identified). Batch / free-form scans send none: per-ticket
+        // templates are chosen by OCR from stationTemplates once the issuer is known.
         Long templateId = null;
         List<RemoteFieldLayoutMetadata> fieldLayouts = List.of();
         OcrTicketTemplateModel template = null;
@@ -767,10 +770,6 @@ public class TicketScanImportService implements TicketScanImportServicePort {
             template = ocrTicketTemplateRepositoryPort
                     .resolveForStation(preferredStationId, drawDate)
                     .orElse(null);
-        }
-        if (template == null) {
-            // Batch / free-form scans: still guide OCR with the active default template layouts.
-            template = ocrTicketTemplateRepositoryPort.findActiveDefault().orElse(null);
         }
         if (template != null) {
             templateId = template.getId();
@@ -859,11 +858,11 @@ public class TicketScanImportService implements TicketScanImportServicePort {
 
         // Only the station OCR resolved — never substitute the import-batch/line station.
         Long resolvedStationId = outcome.resolvedStationId();
-        LocalDate resolvedDrawDate = outcome.resolvedDrawDate() != null
-                ? outcome.resolvedDrawDate()
-                : targetDrawDate;
+        // Only the draw date OCR read — never substitute the import-batch draw date.
+        LocalDate resolvedDrawDate = outcome.resolvedDrawDate();
+        LocalDate templateDrawDate = resolvedDrawDate != null ? resolvedDrawDate : targetDrawDate;
         Long templateId = ocrTicketTemplateRepositoryPort
-                .resolveForStation(resolvedStationId, resolvedDrawDate)
+                .resolveForStation(resolvedStationId, templateDrawDate)
                 .map(t -> t.getId())
                 .orElse(null);
 
