@@ -221,6 +221,10 @@ export const RefundList = () => {
         router.push(`${detailPath(id)}?openTransfer=true`);
     };
 
+    const handleProcessAtCounter = (id: number) => {
+        router.push(`${detailPath(id)}?openCounter=true`);
+    };
+
     const emptyMessage =
         statusTab.includes('READY_TO_PAY') && !statusTab.includes(',')
             ? 'Không có yêu cầu chờ chuyển khoản'
@@ -563,6 +567,17 @@ export const RefundList = () => {
                                                         hidden: !canConfirmTransfer(refund),
                                                         permission: PERMISSIONS.REFUND.PROCESS,
                                                         sx: { color: 'var(--palette-success-main)' },
+                                                    },
+                                                    {
+                                                        id: 'counter',
+                                                        label: 'Xử lý hoàn tiền tại quầy',
+                                                        icon: (
+                                                            <Icon icon="solar:user-id-bold" width={18} />
+                                                        ),
+                                                        onClick: () => handleProcessAtCounter(refund.id),
+                                                        hidden: refund.status !== RefundRequestStatus.MANUAL_RESOLUTION,
+                                                        permission: PERMISSIONS.REFUND.PROCESS,
+                                                        sx: { color: 'var(--palette-warning-dark)' },
                                                     },
                                                 ]}
                                             />

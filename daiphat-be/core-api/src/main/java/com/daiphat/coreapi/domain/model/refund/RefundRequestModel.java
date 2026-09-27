@@ -2,6 +2,8 @@ package com.daiphat.coreapi.domain.model.refund;
 
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.ekyc.EkycStatus;
+import com.daiphat.coreapi.domain.model.enums.order.refund.RefundCounterPayoutMethod;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundFundSource;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestRole;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
@@ -57,6 +59,23 @@ public class RefundRequestModel {
     private int retryCount = 0;
 
     private String operatorNote;
+
+    /** Customer CCCD captured at the counter while resolving a MANUAL_RESOLUTION refund. */
+    private String cccdFrontImageUrl;
+    private String cccdBackImageUrl;
+    private EkycStatus ekycStatus;
+    private String ekycFailureReason;
+    private String ekycOcrName;
+    private String ekycOcrIdNumber;
+    private String ekycOcrDob;
+    private String ekycOcrGender;
+    private String ekycOcrNationality;
+    private String ekycOcrPlaceOfBirth;
+    private String ekycOcrPlaceOfResidence;
+    private String ekycOcrIssueDate;
+    private String ekycOcrExpiryDate;
+    private LocalDateTime ekycVerifiedAt;
+    private RefundCounterPayoutMethod counterPayoutMethod;
 
     private UUID reviewedBy;
     private LocalDateTime reviewedAt;
@@ -143,6 +162,35 @@ public class RefundRequestModel {
             throw new DomainException(ErrorCode.REFUND_REQUEST_INVALID_STATUS);
         }
         this.status = RefundRequestStatus.PAID;
+    }
+
+    /** Counter CCCD verification and payout are only allowed while the refund awaits manual resolution. */
+    public void ensureAwaitingCounterResolution() {
+        ensureStatus(RefundRequestStatus.MANUAL_RESOLUTION);
+    }
+
+    public void ensureCounterIdentityVerified() {
+        if (this.ekycStatus != EkycStatus.VERIFIED
+                || isBlank(this.cccdFrontImageUrl)
+                || isBlank(this.cccdBackImageUrl)) {
+            throw new DomainException(ErrorCode.REFUND_REQUEST_COUNTER_IDENTITY_REQUIRED);
+        }
+    }
+
+    /** Staff paid the customer in person after verifying their CCCD → PAID. */
+    public void completeCounterResolution(RefundCounterPayoutMethod payoutMethod) {
+        ensureAwaitingCounterResolution();
+        ensureCounterIdentityVerified();
+        if (payoutMethod == null) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "Vui lòng chọn hình thức hoàn tiền.");
+        }
+        this.counterPayoutMethod = payoutMethod;
+        this.status = RefundRequestStatus.PAID;
+        this.operatorNote = null;
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     private void ensureStatus(RefundRequestStatus expectedStatus) {

@@ -56,6 +56,36 @@ def test_kien_giang_not_confused_with_an_giang():
     assert result.station.code == "KGI"
 
 
+def test_station_codes_and_letter_fragments_are_not_matched():
+    # Codes are staff shorthand; as 2-3 letter choices they matched any OCR
+    # text containing them ("MTVXO" → Trà Vinh, "2" → "BT2"), and a stray
+    # letter matched inside a longer name ("C" → Hồ Chí Minh).
+    stations = [
+        StationRef(id=1, name="Hồ Chí Minh", code="HCM", aliases=("Hồ Chí Minh",)),
+        StationRef(id=12, name="Bình Thuận", code="BT2", aliases=("Bình Thuận",)),
+        StationRef(id=15, name="Trà Vinh", code="TV", aliases=("Trà Vinh",)),
+    ]
+    matcher = StationMatcher(stations)
+
+    for text in ("MTVXO", "2", "C", "TV", "BT2"):
+        assert matcher.match(text, THRESHOLD).station is None
+    assert matcher.match("TRA VINH", THRESHOLD).station.id == 15
+
+
+def test_name_inside_banner_read_without_spaces_matches():
+    stations = [
+        StationRef(id=5, name="Vũng Tàu", code="VT", aliases=("Vũng Tàu",)),
+        StationRef(id=12, name="Bình Thuận", code="BT2", aliases=("Bình Thuận",)),
+        StationRef(id=21, name="Đà Lạt", code="DL", aliases=("Đà Lạt",)),
+    ]
+    matcher = StationMatcher(stations)
+
+    assert matcher.match("XOSOKIENTHIETBARIAVUNGTAU", THRESHOLD).station.id == 5
+    assert matcher.match("XOSOKIENTHIET BARIAVUNGTAU", THRESHOLD).station.id == 5
+    assert matcher.match("dKQxSVüngTau", THRESHOLD).station.id == 5
+    assert matcher.match("XOSOKIENTHIET", THRESHOLD).station is None
+
+
 def test_an_giang_still_matches():
     stations = [
         StationRef(id=10, name="An Giang", code="AGI", aliases=("an giang",)),

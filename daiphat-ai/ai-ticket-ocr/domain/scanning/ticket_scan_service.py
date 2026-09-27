@@ -1,6 +1,8 @@
+import threading
 import time
 import uuid
-from dataclasses import dataclass, field
+from collections import OrderedDict
+from dataclasses import dataclass, field, replace
 from typing import Callable
 
 import cv2
@@ -55,6 +57,11 @@ _REVIEW_JPEG_QUALITY = 88
 _TEMPLATE_WHOLE_MAX_DIMENSION = 960
 _TEMPLATE_TRUST_CONFIDENCE = 0.80
 _TEMPLATE_FIELD_PAD_RATIO = 0.08
+# Template regions of these fields are read in field-crop mode first.
+_FIELD_CROP_READ_FIRST = frozenset({"serialNumber", "batchCode"})
+# Desk border kept around a completed ticket sheet on every side of its crop,
+# so no paper edge is cut (share of the sheet's own width/height).
+_COMPLETE_TICKET_CROP_MARGIN = 0.03
 # A template region this much taller than wide holds vertical print.
 _VERTICAL_TEXT_ASPECT = 1.3
 # Ranking a field's readings across its regions: confidence of the lines that
@@ -65,6 +72,15 @@ _LETTERED_SERIAL_BONUS = 0.15
 _FULL_NUMBER_BONUS = 0.10
 _PREFERRED_BATCH_BONUS = 0.10
 _AGREEMENT_BONUS = 0.10
+# Issuer by printed design: the best-matching template sample must beat every
+# other station's sample by this factor (inlier count), else it is ambiguous.
+_DESIGN_MATCH_MIN_LEAD = 1.5
+_DESIGN_MATCH_MIN_CONFIDENCE = 0.75
+_DESIGN_MATCH_MAX_CONFIDENCE = 0.95
+_SAMPLE_FEATURES_CACHE_SIZE = 64
+
+_sample_features_lock = threading.Lock()
+_sample_features_cache: "OrderedDict[tuple, template_registration.SampleFeatures | None]" = OrderedDict()
 
 DetectorProvider = Callable[[str | None, int | None], TicketDetectorStrategy]
 
@@ -215,8 +231,28 @@ def _scale_xywh(
 class _TemplateContext:
     stations: list[StationRef]
     station_templates: list[StationTemplateMetadata] = field(default_factory=list)
-    """Global default template regions — only used to probe the station banner."""
-    default_regions: list[template_locator.TemplateRegion] = field(default_factory=list)
+
+
+@dataclass
+class _DesignMatch:
+    """Issuer identified by registering its template sample photo onto the ticket."""
+
+    station: StationRef
+    template: StationTemplateMetadata
+    to_upload: np.ndarray
+    inliers: int
+    confidence: float
+
+
+@dataclass
+class _TicketOutline:
+    """One ticket to scan: its box in detector pixels and, when found, its
+    whole paper sheet in original-upload pixels."""
+
+    bbox: tuple[int, int, int, int]
+    corners: list[tuple[int, int]]
+    detection_index: int
+    paper_quad: list[tuple[float, float]] | None = None
 
 
 def _station_id_for(
@@ -344,6 +380,21 @@ class _TemplatePlacement:
         return [(line, x, y) for line, (x, y) in zip(lines, centres)]
 
 
+def _relocate_crop_lines(
+    lines: list[OcrTextResult], old: ProcessedTicketCrop, new: ProcessedTicketCrop
+) -> list[OcrTextResult]:
+    """Line centres normalized to ``old`` crop → normalized to ``new`` crop (same upload)."""
+    if not lines or old.source_quad is None or new.source_quad is None:
+        return lines
+    old_to_new = np.linalg.inv(_unit_square_to(new.source_quad)) @ _unit_square_to(old.source_quad)
+    centres = template_registration.project(
+        old_to_new, [(line.x_center, line.y_center) for line in lines]
+    )
+    return [
+        replace(line, x_center=x, y_center=y) for line, (x, y) in zip(lines, centres)
+    ]
+
+
 def _quad_to_crop_box(
     quad: list[tuple[float, float]], crop: ProcessedTicketCrop, width: int, height: int
 ) -> tuple[int, int, int, int] | None:
@@ -416,7 +467,6 @@ class TicketScanService:
     ) -> None:
         self._sample_loader = template_sample_loader or load_sample_image
         self._paper_quad_cache: dict = {}
-        self._sample_features_cache: dict = {}
         self._detector_provider = detector_provider
         self._ocr_strategy = ocr_strategy
         self._validator = validator
@@ -468,36 +518,34 @@ class TicketScanService:
             getattr(settings, "TICKET_VISION_LEGACY_TEMPLATE_STRATEGY", True)
         )
         use_yolo_fields = bool(getattr(settings, "TICKET_VISION_LEGACY_USE_YOLO_FIELDS", False))
+        # Templates are picked per ticket once its issuer is known; the request-level
+        # ``metadata.fieldLayouts`` belong to no identified issuer and are not used here.
         template_ctx = _TemplateContext(
             stations=stations,
             station_templates=list(metadata.stationTemplates or []),
-            default_regions=template_locator.regions_from_layouts(
-                list(metadata.fieldLayouts or [])
-            ),
         )
         if use_template_strategy:
             logger.info(
-                "Legacy template strategy: stationTemplates=%s defaultLayouts=%s yoloFields=%s",
+                "Legacy template strategy: stationTemplates=%s yoloFields=%s",
                 len(template_ctx.station_templates),
-                len(template_ctx.default_regions),
                 use_yolo_fields,
             )
 
         if yolo.ticket_count >= 1 and yolo.ticket_boxes:
             t0 = time.perf_counter()
+            complete_tickets = use_template_strategy and bool(
+                getattr(settings, "TICKET_VISION_TEMPLATE_COMPLETE_TICKET", True)
+            )
+            outlines = self._ticket_outlines(yolo, original, source_scale, complete=complete_tickets)
+            if complete_tickets:
+                stage_ms["complete_tickets"] = (time.perf_counter() - t0) * 1000.0
             image_h, image_w = image.shape[:2]
-            for index, (tx, ty, tw, th) in enumerate(yolo.ticket_boxes):
+            for index, outline in enumerate(outlines):
                 if len(tickets) >= max_tickets:
                     break
+                tx, ty, tw, th = outline.bbox
                 try:
-                    ticket_region = DetectedRegion(
-                        bbox=(tx, ty, tw, th),
-                        corners=(
-                            list(yolo.ticket_corners[index])
-                            if index < len(yolo.ticket_corners) and len(yolo.ticket_corners[index]) == 4
-                            else [(tx, ty), (tx + tw, ty), (tx + tw, ty + th), (tx, ty + th)]
-                        ),
-                    )
+                    ticket_region = DetectedRegion(bbox=outline.bbox, corners=outline.corners)
                     # Tiny pad only — YOLO already frames paper; over-pad pulls
                     # neighbor tickets into the crop (wrong station/batch OCR).
                     tx, ty, tw, th = image_pipeline.expand_bbox(
@@ -519,9 +567,10 @@ class TicketScanService:
                             (tx, ty + th),
                         ],
                     )
+                    detection = outline.detection_index
                     field_boxes = (
-                        yolo.ticket_field_boxes[index]
-                        if use_yolo_fields and index < len(yolo.ticket_field_boxes)
+                        yolo.ticket_field_boxes[detection]
+                        if use_yolo_fields and detection < len(yolo.ticket_field_boxes)
                         else {}
                     )
                     if use_template_strategy:
@@ -536,6 +585,7 @@ class TicketScanService:
                             fallback_field_boxes=field_boxes,
                             source=original,
                             source_scale=source_scale,
+                            paper_quad=outline.paper_quad,
                         )
                     else:
                         result = self._scan_one_region_with_fields(
@@ -609,6 +659,64 @@ class TicketScanService:
             imageWidth=image_w,
             imageHeight=image_h,
         )
+
+    @staticmethod
+    def _ticket_outlines(
+        yolo, original: np.ndarray, source_scale: float, *, complete: bool
+    ) -> list[_TicketOutline]:
+        """YOLO ticket boxes → the tickets to scan.
+
+        With ``complete``, each box is grown/shrunk to the whole paper sheet
+        on the original upload and boxes that are pieces of one sheet are
+        merged, so every ticket is cropped with all four edges. A box whose
+        sheet is not found is kept as detected.
+        """
+        detected: list[_TicketOutline] = []
+        for index, (tx, ty, tw, th) in enumerate(yolo.ticket_boxes):
+            corners = (
+                list(yolo.ticket_corners[index])
+                if index < len(yolo.ticket_corners) and len(yolo.ticket_corners[index]) == 4
+                else [(tx, ty), (tx + tw, ty), (tx + tw, ty + th), (tx, ty + th)]
+            )
+            detected.append(_TicketOutline(bbox=(tx, ty, tw, th), corners=corners, detection_index=index))
+        if not complete or not detected:
+            return detected
+
+        def to_upload(corners):
+            return [(float(x) * source_scale, float(y) * source_scale) for x, y in corners]
+
+        sheets = [paper_outline.complete_ticket_quad(original, to_upload(o.corners)) for o in detected]
+        merged = paper_outline.merge_ticket_quads(
+            original, [sheet or to_upload(o.corners) for sheet, o in zip(sheets, detected)]
+        )
+        detector_h = int(round(original.shape[0] / source_scale))
+        detector_w = int(round(original.shape[1] / source_scale))
+        outlines: list[_TicketOutline] = []
+        for quad, members in merged:
+            first = detected[members[0]]
+            if len(members) == 1 and sheets[members[0]] is None:
+                outlines.append(first)
+                continue
+            corners = [(int(round(x / source_scale)), int(round(y / source_scale))) for x, y in quad]
+            x0 = max(0, min(x for x, _ in corners))
+            y0 = max(0, min(y for _, y in corners))
+            x1 = min(detector_w, max(x for x, _ in corners))
+            y1 = min(detector_h, max(y for _, y in corners))
+            outlines.append(
+                _TicketOutline(
+                    bbox=(x0, y0, max(1, x1 - x0), max(1, y1 - y0)),
+                    corners=corners,
+                    detection_index=first.detection_index,
+                    paper_quad=quad,
+                )
+            )
+        if len(outlines) != len(detected):
+            logger.info(
+                "Ticket completion merged %s YOLO boxes into %s tickets",
+                len(detected),
+                len(outlines),
+            )
+        return outlines
 
     def _prepare_ocr_canvas(
         self,
@@ -893,25 +1001,34 @@ class TicketScanService:
         *,
         retarget_batch_box: bool,
         template_fields: frozenset[str] = frozenset(),
+        design_match: _DesignMatch | None = None,
     ) -> TicketScanResult:
         """Parse → numbers retry → validate → build the per-ticket response.
 
         ``template_fields`` are owned by the station OCR template: their
         values come only from the template boxes (see ``TicketParser.parse``).
+        ``design_match`` is the issuer identified from the printed design when
+        no station text was readable; it stands in for the station reading.
         """
         canvas = crop.ocr_ready
         ch, cw = canvas.shape[:2]
 
-        parsed: ParsedTicket = parser.parse(
-            ocr_results_by_region, expected_number_length=None, template_fields=template_fields
-        )
-        expected_length = expected_lengths_by_code.get(parsed.extracted.stationCode)
-        if expected_length is not None:
-            parsed = parser.parse(
+        def parse(expected_number_length: int | None) -> ParsedTicket:
+            result = parser.parse(
                 ocr_results_by_region,
-                expected_number_length=expected_length,
+                expected_number_length=expected_number_length,
                 template_fields=template_fields,
             )
+            if design_match is not None and not result.extracted.stationName:
+                result.extracted.stationName = design_match.station.name
+                result.extracted.stationCode = design_match.station.code
+                result.field_confidences["stationName"] = design_match.confidence
+            return result
+
+        parsed: ParsedTicket = parse(None)
+        expected_length = expected_lengths_by_code.get(parsed.extracted.stationCode)
+        if expected_length is not None:
+            parsed = parse(expected_length)
 
         # If numbers still missing, force an unconstrained OCR on color crop /
         # preview: of the template box when the template owns numbers, else
@@ -939,11 +1056,7 @@ class TicketScanService:
                 )
                 if lines:
                     ocr_results_by_region[f"{FIELD_REGION_PREFIX}numbers"] = lines
-                    parsed = parser.parse(
-                        ocr_results_by_region,
-                        expected_number_length=expected_length,
-                        template_fields=template_fields,
-                    )
+                    parsed = parse(expected_length)
                     if getattr(parsed.extracted, "numbers", None):
                         break
 
@@ -1035,18 +1148,24 @@ class TicketScanService:
         fallback_field_boxes: dict[str, tuple[int, int, int, int]],
         source: np.ndarray | None = None,
         source_scale: float = 1.0,
+        paper_quad: list[tuple[float, float]] | None = None,
     ) -> TicketScanResult:
-        """YOLO ticket → station → template placed on the original upload → fields.
+        """Ticket → processed crop → station → template placed on the crop → fields.
 
         ``region`` is in ``image`` (detector-sized) pixels; ``source`` is the
-        original upload, ``source_scale`` its size relative to ``image``.
-        YOLO only locates the ticket; field regions are projected onto the
-        original pixels and OCR reads them there. Field boxes are the template
-        regions as configured: OCR reads inside them but never moves them.
+        original upload, ``source_scale`` its size relative to ``image``, and
+        ``paper_quad`` the ticket's whole paper sheet on ``source`` when known.
+        The ticket is rectified out of the original pixels (with a margin
+        around the whole sheet), oriented and enhanced. Once the template
+        sample registers, the crop is re-cut around the complete ticket as the
+        sample places it. Field regions are projected onto that processed crop
+        and OCR reads them there. Field
+        boxes are the template regions as configured: OCR reads inside them
+        but never moves them.
         """
         upload = source if source is not None else image
         scale = source_scale if source is not None else 1.0
-        crop = self._template_ticket_crop(image, region, source, source_scale)
+        crop = self._template_ticket_crop(image, region, source, source_scale, paper_quad)
         crop = self._correct_orientation(crop)
         whole_lines, station_parsed = self._read_whole_ticket(crop, parser)
 
@@ -1070,7 +1189,7 @@ class TicketScanService:
         station_code = station_parsed.extracted.stationCode
         extra_regions: dict[str, list] = {}
         if station_name is None:
-            probe_name, probe_lines = self._probe_station_banner(crop, parser, ctx)
+            probe_name, probe_lines = self._probe_station_banner(crop, parser)
             if probe_name:
                 station_name = probe_name
                 station_code = next(
@@ -1079,8 +1198,34 @@ class TicketScanService:
                 extra_regions[f"{FIELD_REGION_PREFIX}stationName"] = probe_lines
         station_id = _station_id_for(ctx.stations, station_code, station_name)
 
-        template = template_locator.select_station_template(station_id, ctx.station_templates)
-        placement = self._place_template(template, crop, upload) if template is not None else None
+        # No readable station text (logo-only issuers such as Tây Ninh): identify
+        # the issuer from the printed design before any template is chosen.
+        design_match: _DesignMatch | None = None
+        if station_id is None:
+            design_match = self._identify_station_by_design(ctx, upload, crop)
+            if design_match is not None:
+                station_id = design_match.station.id
+                station_name = design_match.station.name
+                station_code = design_match.station.code
+                logger.info(
+                    "Ticket #%s: issuer identified by printed design station=%s id=%s "
+                    "templateId=%s inliers=%s confidence=%.2f",
+                    index,
+                    station_name,
+                    station_id,
+                    design_match.template.templateId,
+                    design_match.inliers,
+                    design_match.confidence,
+                )
+
+        if design_match is not None:
+            template = design_match.template
+            placement = self._place_template(
+                template, crop, upload, registered=design_match.to_upload
+            )
+        else:
+            template = template_locator.select_station_template(station_id, ctx.station_templates)
+            placement = self._place_template(template, crop, upload) if template is not None else None
         if placement is None or not placement.regions:
             logger.info(
                 "Ticket #%s: no OCR template for station=%s (id=%s) — generic layout",
@@ -1109,6 +1254,11 @@ class TicketScanService:
                 extra_regions=extra_regions,
             )
 
+        complete = self._registered_ticket_crop(template, placement, upload)
+        if complete is not None:
+            whole_lines = _relocate_crop_lines(whole_lines, crop, complete)
+            crop = complete
+
         expected_length = expected_lengths_by_code.get(station_code) if station_code else None
         grouped = template_locator.group_by_field(placement.regions)
         in_region = template_locator.lines_by_region(
@@ -1121,7 +1271,7 @@ class TicketScanService:
         source_field_boxes: dict[str, BoundingBox] = {}
         used_layouts: dict[str, int] = {}
         from_whole: list[str] = []
-        from_upload: list[str] = []
+        from_crop: list[str] = []
 
         for field_name in _FIELD_OCR_ORDER:
             field_regions = grouped.get(field_name)
@@ -1131,11 +1281,11 @@ class TicketScanService:
 
             if not (field_name == "stationName" and station_name):
                 lines, used_region, origin = self._read_template_field(
-                    upload, placement, field_name, field_regions, in_region, parser, expected_length
+                    crop, placement, field_name, field_regions, in_region, parser, expected_length
                 )
                 if lines:
                     ocr_results_by_region[f"{FIELD_REGION_PREFIX}{field_name}"] = lines
-                    read_from = from_whole if origin == "whole" else from_upload
+                    read_from = from_whole if origin == "whole" else from_crop
                     read_from.append(f"{field_name}#{used_region.priority}")
 
             quad = placement.upload_quad(used_region)
@@ -1148,7 +1298,7 @@ class TicketScanService:
 
         logger.info(
             "Ticket #%s template OCR: station=%s id=%s templateId=%s placement=%s "
-            "whole_lines=%s fields_from_whole=%s fields_from_upload=%s",
+            "whole_lines=%s fields_from_whole=%s fields_from_crop=%s",
             index,
             station_name,
             station_id,
@@ -1156,7 +1306,7 @@ class TicketScanService:
             placement.method,
             len(whole_lines),
             from_whole,
-            from_upload,
+            from_crop,
         )
 
         result = self._finalize_ticket(
@@ -1169,6 +1319,7 @@ class TicketScanService:
             crop_local_boxes,
             retarget_batch_box=False,
             template_fields=frozenset(grouped),
+            design_match=design_match,
         )
         return result.model_copy(
             update={"usedFieldLayouts": used_layouts, "sourceFieldBoxes": source_field_boxes}
@@ -1180,17 +1331,22 @@ class TicketScanService:
         region: DetectedRegion,
         source: np.ndarray | None,
         source_scale: float,
+        paper_quad: list[tuple[float, float]] | None = None,
     ) -> ProcessedTicketCrop:
-        """Rectify the YOLO ticket outline out of the original upload.
+        """Rectify the ticket out of the original upload.
 
-        Used for the whole-ticket read (station + text positions). ``preview``
-        keeps the original pixels; ``ocr_ready`` is the enhanced copy used only
-        when the original read comes up empty. ``source_quad`` records where
-        the crop lies on the upload.
+        With ``paper_quad`` (the whole sheet on the upload) the crop is the
+        sheet plus a small desk margin on every side, so no ticket edge is
+        cut; otherwise it is the YOLO outline. ``preview`` keeps the original
+        pixels; ``ocr_ready`` is the enhanced copy used when the original read
+        comes up empty. ``source_quad`` records where the crop lies on the
+        upload, ``paper_quad`` where the sheet does.
         """
         src = source if source is not None else image
         scale = source_scale if source is not None else 1.0
-        if len(region.corners) == 4:
+        if paper_quad is not None:
+            quad = paper_outline.expand_quad(paper_quad, _COMPLETE_TICKET_CROP_MARGIN)
+        elif len(region.corners) == 4:
             quad = [(float(x) * scale, float(y) * scale) for x, y in region.corners]
         else:
             x, y, w, h = region.bbox
@@ -1200,6 +1356,44 @@ class TicketScanService:
                 ((x + w) * scale, (y + h) * scale),
                 (x * scale, (y + h) * scale),
             ]
+        return self._rectify_ticket(src, quad, paper_quad)
+
+    def _registered_ticket_crop(
+        self,
+        template: StationTemplateMetadata,
+        placement: _TemplatePlacement,
+        upload: np.ndarray,
+    ) -> ProcessedTicketCrop | None:
+        """The complete ticket, cut where the registered template places it.
+
+        The detector outline and the paper-edge search can clip a ticket edge
+        (curled paper, low contrast against the desk), which cuts template
+        regions near that edge out of the crop. A registered sample photo
+        knows where the whole ticket lies: its paper edges (or ticketFrame)
+        projected onto the upload, plus the usual desk margin. The sample is
+        upright, so the crop is too. None when the placement is not registered.
+        """
+        if placement.method != "registered":
+            return None
+        outline = self._template_paper_quad(template)
+        if outline is None:
+            frame = template_locator.template_frame(list(template.fieldLayouts))
+            x0, y0, x1, y1 = (
+                (frame.x, frame.y, frame.x + frame.width, frame.y + frame.height)
+                if frame is not None
+                else (0.0, 0.0, 1.0, 1.0)
+            )
+            outline = [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
+        paper = template_registration.project(placement.to_upload, outline)
+        quad = paper_outline.expand_quad(paper, _COMPLETE_TICKET_CROP_MARGIN)
+        return self._rectify_ticket(upload, quad, paper)
+
+    def _rectify_ticket(
+        self,
+        src: np.ndarray,
+        quad: list[tuple[float, float]],
+        paper_quad: list[tuple[float, float]] | None,
+    ) -> ProcessedTicketCrop:
         warped = image_pipeline.perspective_warp(src, quad)
         preview = image_pipeline.resize_if_needed(
             warped, int(getattr(settings, "TICKET_VISION_TEMPLATE_CANVAS_MAX_DIMENSION", 2400))
@@ -1207,24 +1401,34 @@ class TicketScanService:
         ocr_source = image_pipeline.resize_if_needed(preview, self._max_image_dimension)
         ocr_source = image_pipeline.remove_glare(image_pipeline.upscale_if_too_small(ocr_source))
         ocr_ready = image_pipeline.enhance_for_ocr(ocr_source)
-        return ProcessedTicketCrop(preview=preview, ocr_ready=ocr_ready, source_quad=quad)
+        return ProcessedTicketCrop(
+            preview=preview, ocr_ready=ocr_ready, source_quad=quad, paper_quad=paper_quad
+        )
 
     def _place_template(
         self,
         template: StationTemplateMetadata,
         crop: ProcessedTicketCrop,
         upload: np.ndarray,
+        *,
+        registered: np.ndarray | None = None,
     ) -> _TemplatePlacement | None:
         """Where the template's regions lie on the upload.
 
         Preferred: the sample photo registered onto the upload, regions kept
-        in sample-photo coordinates. Fallback: regions relative to the sample
-        paper, laid onto the ticket's paper outline (or the YOLO outline).
+        in sample-photo coordinates (``registered`` when the issuer match
+        already computed it). Fallback: regions relative to the sample
+        paper, laid onto the ticket's whole sheet (or, without one, the paper
+        edges near the YOLO outline, or that outline itself).
         """
         if crop.source_quad is None:
             return None
         layouts = list(template.fieldLayouts)
-        to_upload = self._register_template(template, upload, crop.source_quad)
+        to_upload = (
+            registered
+            if registered is not None
+            else self._register_template(template, upload, crop.source_quad)
+        )
         if to_upload is not None:
             return _TemplatePlacement(
                 regions=template_locator.regions_from_layouts(layouts, frame_relative=False),
@@ -1232,7 +1436,10 @@ class TicketScanService:
                 method="registered",
             )
         regions = template_locator.regions_from_layouts(layouts, self._template_paper_quad(template))
-        outline, snapped = self._ticket_outline(upload, crop.source_quad)
+        if crop.paper_quad is not None:
+            outline, snapped = crop.paper_quad, True
+        else:
+            outline, snapped = self._ticket_outline(upload, crop.source_quad)
         return _TemplatePlacement(
             regions=regions,
             to_upload=_unit_square_to(outline),
@@ -1259,18 +1466,100 @@ class TicketScanService:
     def _template_features(
         self, template: StationTemplateMetadata
     ) -> template_registration.SampleFeatures | None:
-        """Features of the ticket on the template sample photo, cached per template."""
+        """Features of the ticket on the template sample photo.
+
+        Cached across requests per (template, sample photo, ticket frame, loader):
+        editing the frame or replacing the photo yields a new key.
+        """
         if not template.sampleImageUrl:
             return None
         frame = template_locator.template_frame(list(template.fieldLayouts))
-        key = (template.templateId, template.sampleImageUrl, frame)
-        if key not in self._sample_features_cache:
-            sample = self._sample_loader(template.sampleImageUrl)
-            if sample is None:
-                return None
-            box = (frame.x, frame.y, frame.width, frame.height) if frame else (0.0, 0.0, 1.0, 1.0)
-            self._sample_features_cache[key] = template_registration.sample_features(sample, box)
-        return self._sample_features_cache[key]
+        key = (template.templateId, template.sampleImageUrl, frame, self._sample_loader)
+        with _sample_features_lock:
+            if key in _sample_features_cache:
+                _sample_features_cache.move_to_end(key)
+                return _sample_features_cache[key]
+        sample = self._sample_loader(template.sampleImageUrl)
+        if sample is None:
+            return None
+        box = (frame.x, frame.y, frame.width, frame.height) if frame else (0.0, 0.0, 1.0, 1.0)
+        features = template_registration.sample_features(sample, box)
+        with _sample_features_lock:
+            _sample_features_cache[key] = features
+            while len(_sample_features_cache) > _SAMPLE_FEATURES_CACHE_SIZE:
+                _sample_features_cache.popitem(last=False)
+        return features
+
+    def _identify_station_by_design(
+        self,
+        ctx: _TemplateContext,
+        upload: np.ndarray,
+        crop: ProcessedTicketCrop,
+    ) -> _DesignMatch | None:
+        """Issuer whose template sample photo registers onto this ticket.
+
+        Tickets of one issuer share the printed design (logo, banner art,
+        denomination ovals), so it identifies the issuer when its name is not
+        readable as text. Every active station template with a sample photo is
+        tried against the same ticket features; the best one must clearly beat
+        every other station, otherwise the issuer stays unknown.
+        """
+        if not bool(getattr(settings, "TICKET_VISION_TEMPLATE_REGISTRATION", True)):
+            return None
+        if crop.source_quad is None:
+            return None
+        stations = {s.id: s for s in ctx.stations if s.id is not None}
+        candidates = [
+            t
+            for t in ctx.station_templates
+            if t.stationId in stations and t.fieldLayouts and t.sampleImageUrl
+        ]
+        if not candidates:
+            return None
+        ticket = template_registration.ticket_features(upload, crop.source_quad)
+        if ticket is None:
+            return None
+
+        scored: list[tuple[template_registration.Registration, StationTemplateMetadata]] = []
+        for template in candidates:
+            features = self._template_features(template)
+            if features is None:
+                continue
+            found = template_registration.match(features, ticket)
+            if found is not None:
+                scored.append((found, template))
+        if not scored:
+            return None
+        scored.sort(key=lambda item: item[0].inliers, reverse=True)
+        best, template = scored[0]
+        runner_up = max(
+            (found.inliers for found, other in scored[1:] if other.stationId != template.stationId),
+            default=0,
+        )
+        if runner_up and best.inliers < runner_up * _DESIGN_MATCH_MIN_LEAD:
+            logger.info(
+                "Printed design ambiguous: stationId=%s inliers=%s vs runner-up inliers=%s",
+                template.stationId,
+                best.inliers,
+                runner_up,
+            )
+            return None
+
+        features = self._template_features(template)
+        to_upload = best.matrix @ np.diag(
+            [float(features.photo_width), float(features.photo_height), 1.0]
+        )
+        lead = 1.0 - runner_up / float(best.inliers)
+        confidence = _DESIGN_MATCH_MIN_CONFIDENCE + (
+            _DESIGN_MATCH_MAX_CONFIDENCE - _DESIGN_MATCH_MIN_CONFIDENCE
+        ) * lead
+        return _DesignMatch(
+            station=stations[template.stationId],
+            template=template,
+            to_upload=to_upload,
+            inliers=best.inliers,
+            confidence=confidence,
+        )
 
     @staticmethod
     def _ticket_outline(
@@ -1333,7 +1622,7 @@ class TicketScanService:
 
     def _read_template_field(
         self,
-        upload: np.ndarray,
+        crop: ProcessedTicketCrop,
         placement: _TemplatePlacement,
         field_name: str,
         field_regions: list[template_locator.TemplateRegion],
@@ -1344,7 +1633,7 @@ class TicketScanService:
         """Best reading of one field across its template regions.
 
         The whole-ticket lines inside each region are judged first (free),
-        then OCR of each region cut from the upload. A decisive reading ends
+        then OCR of each region cut from the processed crop. A decisive reading ends
         the search; otherwise the best-scoring one wins, so a stylized,
         low-confidence print in region #1 cannot beat a clean copy of the
         same value in region #2. Returned lines are only those that produced
@@ -1377,10 +1666,10 @@ class TicketScanService:
             if decisive is not None:
                 return decisive.lines, decisive.region, decisive.origin
         for region in field_regions:
-            lines = self._ocr_upload_region(
-                upload, placement, region, field_name, parser, expected_length
+            lines = self._ocr_crop_region(
+                crop, placement, region, field_name, parser, expected_length
             )
-            decisive = consider(lines, region, "upload")
+            decisive = consider(lines, region, "crop")
             if decisive is not None:
                 return decisive.lines, decisive.region, decisive.origin
         if not readings:
@@ -1398,82 +1687,109 @@ class TicketScanService:
         best = max(readings, key=agreed_score)
         return best.lines, best.region, best.origin
 
-    def _ocr_upload_region(
+    def _ocr_crop_region(
         self,
-        upload: np.ndarray,
+        crop: ProcessedTicketCrop,
         placement: _TemplatePlacement,
         region: template_locator.TemplateRegion,
         field_name: str,
         parser: TicketParser,
         expected_length: int | None,
     ) -> list:
-        """OCR one template region rectified straight out of the upload.
+        """OCR one template region cut out of the processed ticket crop.
 
+        The region is projected into the crop (rectified, oriented) and cut
+        from ``preview``; the retry cuts it from the enhanced ``ocr_ready``.
         The cut is padded slightly so edge glyphs survive; the padding is an
         OCR margin only and never reaches the returned field box. Tall regions
         hold vertical print (serial along the ticket edge) and are read after
-        a quarter turn either way. Original pixels first, enhanced as retry.
+        a quarter turn either way.
+
+        Numbers, dates and prices are read like the whole ticket first: the
+        region holds the field with its print around it, and the field-crop
+        mode (loose detector, charset allowlist, extra field prep) built for
+        tight YOLO crops garbles it. Short codes keep the field-crop read
+        first (it separates ``0``/``O``). Either way the other read is the
+        retry, also when the first value lacks the field's expected shape.
         """
-        quad = placement.upload_quad(region, pad_ratio=_TEMPLATE_FIELD_PAD_RATIO)
-        patch = image_pipeline.perspective_warp(upload, quad)
-        if patch is None or patch.size == 0 or min(patch.shape[:2]) < 4:
+        if crop.source_quad is None:
+            return []
+        upload_to_crop = np.linalg.inv(_unit_square_to(crop.source_quad))
+        normalized = template_registration.project(
+            upload_to_crop, placement.upload_quad(region, pad_ratio=_TEMPLATE_FIELD_PAD_RATIO)
+        )
+
+        def cut(canvas: np.ndarray | None) -> np.ndarray | None:
+            if canvas is None or canvas.size == 0:
+                return None
+            ch, cw = canvas.shape[:2]
+            patch = image_pipeline.perspective_warp(
+                canvas, [(x * (cw - 1), y * (ch - 1)) for x, y in normalized]
+            )
+            if patch is None or patch.size == 0 or min(patch.shape[:2]) < 4:
+                return None
+            return patch
+
+        patch = cut(crop.preview)
+        if patch is None:
             return []
         turns = (1, 3) if patch.shape[0] > patch.shape[1] * _VERTICAL_TEXT_ASPECT else (0,)
         fallback: list = []
+        unshaped: list = []
         for enhanced in (False, True):
-            canvas = patch
-            if enhanced:
-                canvas = image_pipeline.enhance_for_ocr(
-                    image_pipeline.remove_glare(image_pipeline.upscale_if_too_small(patch))
-                )
-            best: list | None = None
-            for quarter_turns in turns:
-                lines = self._ocr_region(
-                    image_pipeline.upscale_if_too_small(
-                        image_pipeline.rotate_quarter_turns(canvas, quarter_turns)
-                    ),
-                    field_hint=field_name,
-                    already_enhanced=True,
-                )
-                if not lines:
+            canvas = cut(crop.ocr_ready) if enhanced else patch
+            if canvas is None:
+                continue
+            hints = (
+                (field_name, None) if field_name in _FIELD_CROP_READ_FIRST else (None, field_name)
+            )
+            for field_hint in hints:
+                best: list | None = None
+                for quarter_turns in turns:
+                    lines = self._ocr_region(
+                        image_pipeline.upscale_if_too_small(
+                            image_pipeline.rotate_quarter_turns(canvas, quarter_turns)
+                        ),
+                        field_hint=field_hint,
+                        already_enhanced=True,
+                    )
+                    if not lines:
+                        continue
+                    if parser.normalise_field(field_name, lines, expected_length) is None:
+                        fallback = fallback or lines
+                        continue
+                    if best is None or _ocr_score(lines) > _ocr_score(best):
+                        best = lines
+                if best is None:
                     continue
-                if parser.normalise_field(field_name, lines, expected_length) is None:
-                    fallback = fallback or lines
-                    continue
-                if best is None or _ocr_score(lines) > _ocr_score(best):
-                    best = lines
-            if best is not None:
-                return best
-        return fallback
+                value = parser.normalise_field(field_name, best, expected_length)
+                if _has_expected_shape(field_name, value, expected_length):
+                    return best
+                unshaped = unshaped or best
+        return unshaped or fallback
 
     def _probe_station_banner(
         self,
         crop: ProcessedTicketCrop,
         parser: TicketParser,
-        ctx: _TemplateContext,
     ) -> tuple[str | None, list]:
-        """Station missing from the whole-ticket read: OCR the banner band once or twice."""
+        """Station missing from the whole-ticket read: OCR the generic banner band.
+
+        No template is used here — the issuer is not known yet, and another
+        issuer's station box would point at unrelated print.
+        """
         canvas = crop.ocr_ready
         ch, cw = canvas.shape[:2]
-        candidates: list[tuple[int, int, int, int]] = []
-        for default_region in ctx.default_regions:
-            if default_region.field_name != "stationName":
-                continue
-            px = template_locator.region_to_pixels(default_region, cw, ch)
-            if px is not None:
-                candidates.append(px)
-                break
-        candidates.append(_heuristic_station_box_local(cw, ch))
-        for box in candidates:
-            fx, fy, fw, fh = image_pipeline.expand_bbox(
-                box[0], box[1], box[2], box[3], cw, ch, pad_ratio=0.04, min_pad_px=4
-            )
-            lines = self._ocr_field_crop(
-                canvas, (fx, fy, fw, fh), field_hint="stationName", preview=crop.preview
-            )
-            name = parser.normalise_field("stationName", lines)
-            if name:
-                return name, lines
+        box = _heuristic_station_box_local(cw, ch)
+        fx, fy, fw, fh = image_pipeline.expand_bbox(
+            box[0], box[1], box[2], box[3], cw, ch, pad_ratio=0.04, min_pad_px=4
+        )
+        lines = self._ocr_field_crop(
+            canvas, (fx, fy, fw, fh), field_hint="stationName", preview=crop.preview
+        )
+        name = parser.normalise_field("stationName", lines)
+        if name:
+            return name, lines
         return None, []
 
     def _correct_orientation(self, crop: ProcessedTicketCrop) -> ProcessedTicketCrop:

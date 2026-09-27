@@ -32,20 +32,39 @@ only to force Groq-first (burns free-tier ITPM quickly).
 
 Legacy field location (`TICKET_VISION_LEGACY_TEMPLATE_STRATEGY=true`, default):
 YOLO detects each ticket on the detector-sized copy of the upload; its outline
-is scaled back to the **original upload**, snapped to the paper edges and
-rectified from the original pixels, which is what OCR reads. PaddleOCR reads
-the whole ticket to find the station, and that station's OCR template
-(`ScanMetadata.stationTemplates`, sent by core-api) locates the fields.
+is scaled back to the **original upload** and completed to the whole paper
+sheet (`TICKET_VISION_TEMPLATE_COMPLETE_TICKET`): YOLO boxes that cut an edge
+off are grown, boxes that take in desk or neighbouring paper are shrunk, and
+boxes that are pieces of one ticket are merged. Each ticket is rectified from
+the original pixels with a small margin around all four paper edges, oriented
+and enhanced; that processed crop is what OCR reads. The issuer is identified
+first, per ticket: PaddleOCR reads the whole ticket (then the top banner band)
+for the station name; when no name is readable (logo-only issuers such as Tây
+Ninh), every station template's sample photo is registered onto the ticket and
+the station whose printed design clearly matches best is the issuer (an
+ambiguous match leaves it unknown). Only then is that station's OCR template
+(`ScanMetadata.stationTemplates`, sent by core-api) used to locate the fields;
+the request-level `fieldLayouts` are never applied to an unidentified ticket.
 
 The template is the source of truth for field positions. Field boxes are
 expressed relative to the paper edges found inside the template's
 `ticketFrame` on its sample photo (`sampleImageUrl`; falls back to the frame
-itself when the photo is unavailable), and the same paper-edge snap is applied
-to the YOLO outline (`TICKET_VISION_TEMPLATE_PAPER_SNAP`). OCR reads inside the
+itself when the photo is unavailable) and laid onto the ticket's completed
+paper sheet (or, when completion is off or fails, the paper edges snapped near
+the YOLO outline, `TICKET_VISION_TEMPLATE_PAPER_SNAP`). When the sample photo
+registers onto the upload, its homography places the boxes instead, and the
+ticket is re-cut from the upload around the sample's paper edges (or
+`ticketFrame`) plus the same margin, so a curled or low-contrast edge that
+completion clipped no longer cuts boxes near it. Either
+way the boxes are projected into the processed crop for OCR and for
+`fieldBoxes` (crop pixels), and into the upload for `sourceFieldBoxes`
+(detector pixels). OCR reads inside the
 configured boxes but never moves them: the returned `fieldBoxes` are the exact
 template regions (the priority layout that produced the value, reported in
 `usedFieldLayouts`). Fields the whole-ticket read already covers confidently
-are not re-OCR'd. Stations without a template use the generic heuristic
+are not re-OCR'd; the rest are cut from the processed crop and read like the
+whole ticket first (serial and ký hiệu boxes in field-crop mode first), the
+other mode being the retry. Stations without a template use the generic heuristic
 layout. YOLO field-class boxes are ignored unless
 `TICKET_VISION_LEGACY_USE_YOLO_FIELDS=true`.
 

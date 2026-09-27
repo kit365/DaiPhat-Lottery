@@ -184,6 +184,28 @@ describe('OCR soft-fail helpers', () => {
         expect(toShortFieldHint('Không nhận diện được nhà đài trên vé. Thông tin có thể bị che bởi vé khác.')).toBe('Chưa chọn đài');
         expect(toShortFieldHint('Không thể đọc rõ thông tin do ảnh mờ')).toBe('Ảnh mờ/bị che');
     });
+
+    it('does not label a recognized station or a missing denomination with the wrong hint', () => {
+        expect(
+            toShortFieldHint(
+                "Nhà đài OCR 'Tây Ninh' không mở thưởng vào Thứ Hai (ngày phiếu 28/09/2026). Giữ kết quả OCR để bạn kiểm tra."
+            )
+        ).toBe('Sai lịch quay');
+        expect(toShortFieldHint("Nhà đài OCR 'Tây Ninh' khác đài gắn với phiếu/dòng lô (Hồ Chí Minh). Vui lòng kiểm tra lại.")).toBe(
+            'Khác đài phiếu'
+        );
+        expect(toShortFieldHint("Nhà đài nhận diện 'Tay Nin' không tìm thấy trong hệ thống.")).toBe('Không tìm thấy đài');
+        expect(toShortFieldHint('Vui lòng nhập mệnh giá (chuẩn: 10.000 đ).')).toBe('Thiếu mệnh giá');
+        expect(toShortFieldHint('Mệnh giá không hợp lệ.')).toBe('Sai mệnh giá');
+        expect(toShortFieldHint('Không nhận diện được mệnh giá trên vé. Thông tin có thể bị che.')).toBe('Ảnh mờ/bị che');
+        expect(toShortFieldHint('Chưa xác định nhà đài để kiểm tra mệnh giá vé.')).toBe('Chưa chọn đài');
+        expect(
+            toShortFieldHint('Ngày mở thưởng (11/06/2026) không khớp với ngày quay của phiếu (28/09/2026).')
+        ).toBe('Lệch ngày phiếu');
+        expect(toShortFieldHint('Ngày mở thưởng nhận diện (11/06/2026) không khớp phiếu nhập lô (28/09/2026).')).toBe(
+            'Lệch ngày phiếu'
+        );
+    });
 });
 
 describe('formatDenomination', () => {

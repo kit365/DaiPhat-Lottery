@@ -224,7 +224,11 @@ def test_scan_metadata_parses_station_templates():
 
 
 class _FieldHintOcr(OcrStrategy):
-    """Whole-ticket read vs per-field crop reads, keyed by field_hint."""
+    """Whole-ticket read vs per-field crop reads, keyed by field_hint.
+
+    A read without field_hint is the whole ticket only on the full crop; a
+    template region cut (read at most 640 px) holds none of the whole lines.
+    """
 
     name = "field-hint-stub"
 
@@ -236,7 +240,7 @@ class _FieldHintOcr(OcrStrategy):
     def read_text(self, image, languages=DEFAULT_LANGUAGES, *, field_hint=None):
         self.calls.append(field_hint)
         if field_hint is None:
-            return list(self._whole)
+            return list(self._whole) if max(image.shape[:2]) > 640 else []
         return list(self._by_field.get(field_hint, []))
 
 

@@ -254,6 +254,10 @@ class Settings(BaseSettings):
     # sample photo) and the YOLO ticket box (on the upload) to the paper
     # edges, so field boxes keep their position on the paper.
     TICKET_VISION_TEMPLATE_PAPER_SNAP: bool = True
+    # Grow each YOLO ticket box to the whole paper sheet on the original
+    # upload (YOLO cuts edges off, takes in neighbours, splits tickets) and
+    # crop the ticket with all four edges; template regions map onto it.
+    TICKET_VISION_TEMPLATE_COMPLETE_TICKET: bool = True
     TICKET_VISION_TEMPLATE_SAMPLE_TIMEOUT_SECONDS: float = 6.0
     # Template path warps the ticket from the original upload (not the
     # detector-resized copy); cap the rectified ticket's long side.
