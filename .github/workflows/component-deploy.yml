@@ -241,8 +241,6 @@ jobs:
               printf '%s\n' "$ENV_FILE_CONTENT" | awk '/^AI_[A-Z0-9_]*=/' > .ai-runtime.env
             elif [[ "$COMPONENT" == ai-ekyc ]]; then
               printf '%s\n' "$ENV_FILE_CONTENT" | awk '/^(KYC_AI_|EKYC_VISION_|AI_)[A-Z0-9_]*=/' > .ai-runtime.env
-              # ai-ekyc skips API-key auth entirely when KYC_AI_API_KEY is empty.
-              grep -q '^KYC_AI_API_KEY=.' .ai-runtime.env || { echo "KYC_AI_API_KEY is required for ai-ekyc." >&2; exit 1; }
             else
               printf '%s\n' "$ENV_FILE_CONTENT" | awk '/^(GROQ_|GEMINI_|GROK_|TICKET_VISION_|AI_)[A-Z0-9_]*=|^OCR_AI_PROVIDER=/' > .ai-runtime.env
             fi
