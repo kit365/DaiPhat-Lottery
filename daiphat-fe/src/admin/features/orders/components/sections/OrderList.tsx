@@ -17,7 +17,6 @@ import {
     TableContainer,
     TableHead,
     TableRow,
-    Checkbox,
     TablePagination,
     Stack,
     Avatar,
@@ -59,7 +58,6 @@ export const OrderList = () => {
     const { settings, setSettings } = useSettings();
     
     const [tabStatus, setTabStatus] = useState('all');
-    const [selected, setSelected] = useState<string[]>([]);
     const [openRows, setOpenRows] = useState<string[]>([]);
 
     const {
@@ -194,33 +192,7 @@ export const OrderList = () => {
 
 
 
-    const handleSelectAllClick = (event: React.ChangeEvent<HTMLInputElement>) => {
-        if (event.target.checked) {
-            const newSelected = orders.map((n: any) => n.id);
-            setSelected(newSelected);
-            return;
-        }
-        setSelected([]);
-    };
 
-    const handleSelectRow = (id: string) => {
-        const selectedIndex = selected.indexOf(id);
-        let newSelected: string[] = [];
-
-        if (selectedIndex === -1) {
-            newSelected = [...selected, id];
-        } else if (selectedIndex === 0) {
-            newSelected = selected.slice(1);
-        } else if (selectedIndex === selected.length - 1) {
-            newSelected = selected.slice(0, -1);
-        } else if (selectedIndex > 0) {
-            newSelected = [
-                ...selected.slice(0, selectedIndex),
-                ...selected.slice(selectedIndex + 1),
-            ];
-        }
-        setSelected(newSelected);
-    };
 
     const toggleRow = (id: string) => {
         setOpenRows(prev =>
@@ -319,14 +291,6 @@ export const OrderList = () => {
                 <Table sx={{ minWidth: 960 }} size={settings.density === 'compact' ? 'small' : 'medium'}>
                     <TableHead sx={{ bgcolor: 'var(--palette-background-neutral)' }}>
                         <TableRow>
-                            <TableCell padding="checkbox" sx={{ borderBottom: 'none', textAlign: 'center' }}>
-                                <Checkbox
-                                    indeterminate={selected.length > 0 && selected.length < orders.length}
-                                    checked={orders.length > 0 && selected.length === orders.length}
-                                    onChange={handleSelectAllClick}
-                                    sx={{ color: 'var(--palette-text-disabled)', p: 0 }}
-                                />
-                            </TableCell>
                             <TableCell sx={{ borderBottom: 'none', color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Mã đơn</TableCell>
                             <TableCell sx={{ borderBottom: 'none', color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Khách hàng</TableCell>
                             <TableCell sx={{ borderBottom: 'none', color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Loại đơn</TableCell>
@@ -340,7 +304,7 @@ export const OrderList = () => {
                     <TableBody>
                         {isLoading ? (
                             <TableRow>
-                                <TableCell colSpan={8} align="center" sx={{ borderBottom: 'none', py: 10 }}>
+                                <TableCell colSpan={7} align="center" sx={{ borderBottom: 'none', py: 10 }}>
                                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
                                         <CircularProgress size={32} />
                                     </Box>
@@ -348,7 +312,7 @@ export const OrderList = () => {
                             </TableRow>
                         ) : orders.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={8} align="center" sx={{ borderBottom: 'none', py: 10 }}>
+                                <TableCell colSpan={7} align="center" sx={{ borderBottom: 'none', py: 10 }}>
                                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
                                         <span className="admin-datagrid-empty">Không có dữ liệu</span>
                                     </Box>
@@ -356,7 +320,6 @@ export const OrderList = () => {
                             </TableRow>
                         ) : (
                             orders.map((row: any) => {
-                                const isItemSelected = selected.indexOf(row.id) !== -1;
                                 const isOpen = openRows.includes(row.id);
                                 const isPreparingUrgentRow =
                                     shouldHighlightPreparing && row.status === 'PREPARING';
@@ -365,7 +328,6 @@ export const OrderList = () => {
                                     <React.Fragment key={row.id}>
                                         <TableRow
                                             hover
-                                            selected={isItemSelected}
                                             sx={{
                                                 '&:hover': { bgcolor: 'var(--palette-action-hover)' },
                                                 ...(isOpen && {
@@ -387,14 +349,6 @@ export const OrderList = () => {
                                                 transition: 'background-color 0.2s'
                                             }}
                                         >
-                                            <TableCell padding="checkbox" sx={{ borderBottom: '1px dashed var(--palette-background-neutral)', textAlign: 'center' }}>
-                                                <Checkbox
-                                                    checked={isItemSelected}
-                                                    onClick={() => handleSelectRow(row.id)}
-                                                    sx={{ color: 'var(--palette-text-disabled)', p: 0 }}
-                                                />
-                                            </TableCell>
-
                                             <TableCell sx={{ borderBottom: '1px dashed var(--palette-background-neutral)' }}>
                                                 <Typography
                                                     onClick={() => handleViewDetail(row.id)}
