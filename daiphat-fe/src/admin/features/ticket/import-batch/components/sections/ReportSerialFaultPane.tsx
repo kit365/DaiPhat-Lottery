@@ -26,6 +26,7 @@ import {
     Alert,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import LinkIcon from '@mui/icons-material/Link';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
@@ -252,8 +253,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
     const [pendingEvidenceUrl, setPendingEvidenceUrl] = useState('');
     const [evidenceApplyDialogOpen, setEvidenceApplyDialogOpen] = useState(false);
     const [serialEvidenceUrls, setSerialEvidenceUrls] = useState<Record<string, string>>({});
-    const [workflowStep, setWorkflowStep] = useState<'SCOPE' | 'FORM' | 'REFUND'>('SCOPE');
-    const [scopeMode, setScopeMode] = useState<'TICKET' | 'SERIAL'>('TICKET');
+    const [workflowStep, setWorkflowStep] = useState<'FORM' | 'REFUND'>('FORM');
     const [refundDraftByOrderId, setRefundDraftByOrderId] = useState<Record<string, RefundOrderDraft>>({});
     const [pendingSelectedItems, setPendingSelectedItems] = useState<MappedSubmitItem[]>([]);
 
@@ -271,7 +271,8 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
     const [serialProcessingMode, setSerialProcessingMode] = useState<'EACH' | 'ALL'>(
         defaultCancelMode === 'SERIAL' ? 'EACH' : 'ALL'
     );
-    const [cancelMode, setCancelMode] = useState<'TICKET' | 'SERIAL'>(defaultCancelMode);
+    // 'TICKET' only when the user explicitly picks whole-ticket digit replacement for a data-entry fault.
+    const [cancelMode, setCancelMode] = useState<'TICKET' | 'SERIAL'>('SERIAL');
     const [ticketForm, setTicketForm] = useState<FormState>({
         selected: true,
         status: 'DAMAGED',
@@ -302,9 +303,8 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
         setIsPreparing(true);
         setPage(1);
         setRepPage(1);
-        setWorkflowStep('SCOPE');
-        setScopeMode(defaultCancelMode || 'TICKET');
-        setCancelMode(defaultCancelMode || 'TICKET');
+        setWorkflowStep('FORM');
+        setCancelMode('SERIAL');
         setSerialProcessingMode(defaultCancelMode === 'SERIAL' ? 'EACH' : 'ALL');
         const timer = setTimeout(() => {
             setIsPreparing(false);
@@ -335,20 +335,29 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
         eligibleCurrentSerials.length > 0
         && eligibleCurrentSerials.every((s) => forms[s.id]?.selected)
         && selectedOutsideCurrentGroup === 0;
-    const allSelectedSerialsInternalFault =
-        cancelMode === 'SERIAL'
-        && eligibleCurrentSerials.length > 0
-        && eligibleCurrentSerials.every((s) => forms[s.id]?.selected)
-        && selectedOutsideCurrentGroup === 0
+    const canChooseWholeTicketDigits =
+        isFullTicketScope
+        && serialProcessingMode === 'ALL'
+        && ticketForm.faultedBy === 'DATA_ENTRY_FAULT'
+        && Boolean(currentTicketId);
+
+    useEffect(() => {
+        if (!canChooseWholeTicketDigits && cancelMode === 'TICKET') {
+            setCancelMode('SERIAL');
+        }
+    }, [canChooseWholeTicketDigits, cancelMode]);
+
+    const isPhysicalFaultStatus = (status?: string) => status === 'DAMAGED' || status === 'LOST';
+    const allSelectedSerialsPhysicalFault =
+        isFullTicketScope
         && (
             serialProcessingMode === 'ALL'
-                ? ticketForm.faultedBy === 'INTERNAL_FAULT'
-                : currentGroupSelectedSerials.length > 0
-                    && currentGroupSelectedSerials.every((s) => forms[s.id]?.faultedBy === 'INTERNAL_FAULT')
+                ? isPhysicalFaultStatus(ticketForm.status)
+                : currentGroupSelectedSerials.every((s) => isPhysicalFaultStatus(forms[s.id]?.status))
         );
 
     const isTicketBatchFaultFlow =
-        cancelMode === 'TICKET' &&
+        serialProcessingMode === 'ALL' &&
         ticketForm.faultedBy === 'INTERNAL_FAULT' &&
         (ticketForm.status === 'DAMAGED' || ticketForm.status === 'LOST');
 
@@ -455,7 +464,8 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
 
     const mapSerialsToSelectedItems = (targetSerials: SerialItem[]): MappedSubmitItem[] =>
         targetSerials.map((sItem) => {
-            const formState = serialProcessingMode === 'ALL' ? ticketForm : forms[sItem.id];
+            const serialForm = forms[sItem.id];
+            const formState = serialProcessingMode === 'ALL' ? ticketForm : serialForm;
             let damagedEvidenceUrl = formState.damagedEvidenceUrl;
             if (
                 serialProcessingMode === 'ALL' &&
@@ -475,6 +485,9 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                 reservedByOrderId: sItem.reservedByOrderId,
                 serialNumber: sItem.serialNumber,
                 ...formState,
+                // Replacement serial inputs are always per serial, even when the incident reason is shared.
+                replacementSerial: serialForm?.replacementSerial ?? '',
+                replacementTicketImg: serialForm?.replacementTicketImg ?? '',
                 damagedEvidenceUrl,
             };
         });
@@ -549,56 +562,6 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
             setReplacementType('DIGITS');
         }
     }, [cancelMode, currentTicketId]);
-
-    const handleToggleSerialInScope = (serialId: string | number) => {
-        setForms((prev) => {
-            const current = prev[serialId];
-            if (!current) return prev;
-            return {
-                ...prev,
-                [serialId]: {
-                    ...current,
-                    selected: !current.selected,
-                },
-            };
-        });
-    };
-
-    const applyScopeMode = (mode: 'TICKET' | 'SERIAL') => {
-        setCancelMode(mode);
-        if (mode === 'TICKET') {
-            setSerialProcessingMode('ALL');
-            setForms((prev) => {
-                const next = { ...prev };
-                serials.forEach((s) => {
-                    if (!next[s.id]) return;
-                    next[s.id] = {
-                        ...next[s.id],
-                        selected: isSerialIncidentEligible(s),
-                    };
-                });
-                return next;
-            });
-            return;
-        }
-
-        setSerialProcessingMode('EACH');
-    };
-
-    const handleScopeContinue = () => {
-        const totalSelected = Object.keys(forms).filter((id) => forms[id]?.selected).length;
-        if (totalSelected === 0) {
-            AppToast.error('Vui lòng chọn ít nhất một sê-ri để báo sự cố.');
-            return;
-        }
-        setCancelMode(isFullTicketScope ? 'TICKET' : 'SERIAL');
-        setScopeMode(isFullTicketScope ? 'TICKET' : 'SERIAL');
-        setWorkflowStep('FORM');
-    };
-
-    const goBackToScope = () => {
-        setWorkflowStep('SCOPE');
-    };
 
     const handleTicketFormFieldChange = (field: keyof FormState, value: any) => {
         const updatedValue = field === 'replacementNumbers' ? value.replace(/\D/g, '') : value;
@@ -1309,381 +1272,83 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                         }
                         onSyncOrderDrafts={(drafts) => setRefundDraftByOrderId(drafts)}
                     />
-                ) : workflowStep === 'SCOPE' ? (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, py: 1 }}>
-                    <Box sx={{ mb: 0.5 }}>
-                        <Typography variant="subtitle1" fontWeight={800} color="#0f172a" sx={{ mb: 0.25 }}>
-                            Danh sách thông tin vé & sê-ri áp dụng
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                            Chọn các sê-ri cần báo sự cố. Hệ thống tự động xác định phạm vi theo toàn bộ vé hoặc theo từng sê-ri.
-                        </Typography>
-                    </Box>
-
-                    {/* Ticket and Serial List Section */}
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        {groups.map((group) => {
-                            const groupEligibleSerials = group.serials.filter(s => isSerialIncidentEligible(s));
-                            const groupEligibleCount = groupEligibleSerials.length;
-                            const groupSelectedCount = group.serials.filter(s => forms[s.id]?.selected && isSerialIncidentEligible(s)).length;
-                            const isGroupAllSelected = groupEligibleCount > 0 && groupSelectedCount === groupEligibleCount;
-                            const isGroupPartiallySelected = groupSelectedCount > 0 && groupSelectedCount < groupEligibleCount;
-
-                            return (
-                                <Paper
-                                    key={group.ticketNumbers}
-                                    variant="outlined"
-                                    sx={{
-                                        p: 2,
-                                        borderRadius: '14px',
-                                        transition: 'all 0.2s ease',
-                                        bgcolor: isGroupAllSelected ? '#fafffc' : isGroupPartiallySelected ? '#f8fbff' : '#ffffff',
-                                        borderColor: isGroupAllSelected ? '#86efac' : isGroupPartiallySelected ? '#93c5fd' : '#cbd5e1',
-                                        borderWidth: isGroupAllSelected || isGroupPartiallySelected ? '1.5px' : '1px',
-                                        boxShadow: isGroupAllSelected ? '0 4px 16px rgba(22, 163, 74, 0.08)' : isGroupPartiallySelected ? '0 4px 16px rgba(37, 99, 235, 0.08)' : '0 1px 3px rgba(0,0,0,0.04)',
-                                    }}
-                                >
-                                    {/* Ticket Header */}
-                                    <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1} sx={{ mb: 1.5 }}>
-                                        <Stack direction="row" alignItems="center" spacing={1.25}>
-                                            <Box
-                                                sx={{
-                                                    width: 36,
-                                                    height: 36,
-                                                    borderRadius: '9px',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    bgcolor: isGroupAllSelected ? '#dcfce7' : isGroupPartiallySelected ? '#dbeafe' : '#f1f5f9',
-                                                    color: isGroupAllSelected ? '#15803d' : isGroupPartiallySelected ? '#1d4ed8' : '#475569',
-                                                }}
-                                            >
-                                                <ConfirmationNumberOutlinedIcon sx={{ fontSize: '19px' }} />
-                                            </Box>
-                                            <Box>
-                                                <Stack direction="row" alignItems="center" spacing={1}>
-                                                    <Typography variant="caption" fontWeight={700} color="text.secondary">
-                                                        Dãy số vé:
-                                                    </Typography>
-                                                    <AdminLuckyDisplay
-                                                        value={group.ticketNumbers}
-                                                        ticket
-                                                        sx={{
-                                                            fontSize: '1.2rem',
-                                                            letterSpacing: '0.08em',
-                                                            color: isGroupAllSelected ? '#15803d' : '#0f172a',
-                                                            fontWeight: 900,
-                                                        }}
-                                                    />
-                                                    <TicketStatusChip status={group.ticketStatus} />
-                                                </Stack>
-                                            </Box>
-                                        </Stack>
-
-                                        {/* Action buttons: Select All / Deselect */}
-                                        <Stack direction="row" spacing={1} alignItems="center">
-                                            <Button
-                                                size="small"
-                                                variant="outlined"
-                                                onClick={() => {
-                                                    setForms((prev) => {
-                                                        const next = { ...prev };
-                                                        group.serials.forEach((s) => {
-                                                            if (next[s.id] && isSerialIncidentEligible(s)) {
-                                                                next[s.id] = { ...next[s.id], selected: true };
-                                                            }
-                                                        });
-                                                        return next;
-                                                    });
-                                                }}
-                                                sx={{
-                                                    borderRadius: '8px',
-                                                    textTransform: 'none',
-                                                    fontWeight: 700,
-                                                    fontSize: '0.75rem',
-                                                    py: 0.4,
-                                                    px: 1.25,
-                                                    borderColor: '#cbd5e1',
-                                                    color: '#334155',
-                                                    '&:hover': { bgcolor: '#f8fafc', borderColor: '#94a3b8' }
-                                                }}
-                                            >
-                                                Chọn tất cả ({groupEligibleCount})
-                                            </Button>
-                                            <Button
-                                                size="small"
-                                                variant="text"
-                                                onClick={() => {
-                                                    setForms((prev) => {
-                                                        const next = { ...prev };
-                                                        group.serials.forEach((s) => {
-                                                            if (next[s.id]) {
-                                                                next[s.id] = { ...next[s.id], selected: false };
-                                                            }
-                                                        });
-                                                        return next;
-                                                    });
-                                                }}
-                                                sx={{
-                                                    borderRadius: '8px',
-                                                    textTransform: 'none',
-                                                    fontWeight: 700,
-                                                    color: '#64748b',
-                                                    fontSize: '0.75rem',
-                                                    py: 0.4,
-                                                    px: 1,
-                                                    '&:hover': { bgcolor: '#f1f5f9' }
-                                                }}
-                                            >
-                                                Bỏ chọn
-                                            </Button>
-                                        </Stack>
-                                    </Stack>
-
-                                    {/* Dynamic notification requested by user */}
-                                    <Box
-                                        sx={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'space-between',
-                                            flexWrap: 'wrap',
-                                            gap: 1,
-                                            px: 1.75,
-                                            py: 1.15,
-                                            borderRadius: '10px',
-                                            mb: 1.75,
-                                            bgcolor: isGroupAllSelected ? '#f0fdf4' : isGroupPartiallySelected ? '#eff6ff' : '#f8fafc',
-                                            border: `1px solid ${isGroupAllSelected ? '#bbf7d0' : isGroupPartiallySelected ? '#bfdbfe' : '#e2e8f0'}`,
-                                        }}
-                                    >
-                                        <Stack direction="row" alignItems="center" spacing={1.25}>
-                                            {isGroupAllSelected ? (
-                                                <CheckCircleRoundedIcon sx={{ fontSize: '20px', color: '#16a34a' }} />
-                                            ) : isGroupPartiallySelected ? (
-                                                <StyleOutlinedIcon sx={{ fontSize: '20px', color: '#2563eb' }} />
-                                            ) : (
-                                                <InfoOutlinedIcon sx={{ fontSize: '20px', color: '#94a3b8' }} />
-                                            )}
-                                            <Box>
-                                                <Typography
-                                                    variant="body2"
-                                                    fontWeight={800}
-                                                    sx={{
-                                                        color: isGroupAllSelected ? '#15803d' : isGroupPartiallySelected ? '#1d4ed8' : '#64748b',
-                                                        fontSize: '0.825rem'
-                                                    }}
-                                                >
-                                                    {isGroupAllSelected
-                                                        ? `Báo sự cố toàn bộ vé '${group.ticketNumbers}'`
-                                                        : isGroupPartiallySelected
-                                                        ? `Báo sự cố theo từng sê-ri của vé '${group.ticketNumbers}'`
-                                                        : `Chưa chọn sê-ri nào của vé '${group.ticketNumbers}'`}
-                                                </Typography>
-                                                <Typography variant="caption" sx={{ color: isGroupAllSelected ? '#166534' : isGroupPartiallySelected ? '#1e40af' : '#94a3b8', fontSize: '0.72rem' }}>
-                                                    {isGroupAllSelected
-                                                        ? `Đã chọn tất cả ${groupSelectedCount}/${groupEligibleCount} sê-ri của dãy số này`
-                                                        : isGroupPartiallySelected
-                                                        ? `Đã chọn ${groupSelectedCount}/${groupEligibleCount} sê-ri (nhấn vào các thẻ sê-ri bên dưới để thay đổi)`
-                                                        : `Nhấn vào các thẻ sê-ri bên dưới để chọn sê-ri cần báo sự cố`}
-                                                </Typography>
-                                            </Box>
-                                        </Stack>
-
-                                        <Chip
-                                            label={`${groupSelectedCount} / ${groupEligibleCount} sê-ri`}
-                                            size="small"
-                                            sx={{
-                                                fontWeight: 800,
-                                                fontSize: '0.72rem',
-                                                height: 24,
-                                                bgcolor: isGroupAllSelected ? '#dcfce7' : isGroupPartiallySelected ? '#dbeafe' : '#f1f5f9',
-                                                color: isGroupAllSelected ? '#15803d' : isGroupPartiallySelected ? '#1d4ed8' : '#64748b',
-                                                border: `1px solid ${isGroupAllSelected ? '#86efac' : isGroupPartiallySelected ? '#93c5fd' : '#cbd5e1'}`,
-                                            }}
-                                        />
-                                    </Box>
-
-                                    {/* Serials Grid (clickable cards) */}
-                                    <Box
-                                        sx={{
-                                            p: 1.25,
-                                            borderRadius: '10px',
-                                            bgcolor: '#f8fafc',
-                                            border: '1px solid #e2e8f0',
-                                        }}
-                                    >
-                                        <Typography variant="caption" fontWeight={700} color="#64748b" sx={{ display: 'block', mb: 1, textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: '0.68rem' }}>
-                                            Danh sách các sê-ri trong dãy ({group.serials.length} sê-ri):
-                                        </Typography>
-
-                                        <Grid container spacing={1}>
-                                            {group.serials.map((s) => {
-                                                const isEligible = isSerialIncidentEligible(s);
-                                                const isSelected = Boolean(forms[s.id]?.selected) && isEligible;
-
-                                                return (
-                                                    <Grid key={s.id} size={{ xs: 12, sm: 6, md: 4 }}>
-                                                        <Paper
-                                                            variant="outlined"
-                                                            onClick={() => isEligible && handleToggleSerialInScope(s.id)}
-                                                            sx={{
-                                                                p: 1.25,
-                                                                borderRadius: '10px',
-                                                                cursor: isEligible ? 'pointer' : 'not-allowed',
-                                                                transition: 'all 0.15s ease',
-                                                                bgcolor: isSelected ? '#eff6ff' : '#ffffff',
-                                                                borderColor: isSelected ? '#2563eb' : '#e2e8f0',
-                                                                borderWidth: isSelected ? '1.5px' : '1px',
-                                                                boxShadow: isSelected ? '0 2px 8px rgba(37, 99, 235, 0.12)' : 'none',
-                                                                opacity: isEligible ? 1 : 0.6,
-                                                                '&:hover': isEligible ? {
-                                                                    borderColor: '#2563eb',
-                                                                    bgcolor: isSelected ? '#eff6ff' : '#f0f9ff',
-                                                                } : {},
-                                                            }}
-                                                        >
-                                                            <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
-                                                                <Stack direction="row" alignItems="center" spacing={1}>
-                                                                    <Box
-                                                                        sx={{
-                                                                            width: 24,
-                                                                            height: 24,
-                                                                            borderRadius: '6px',
-                                                                            display: 'flex',
-                                                                            alignItems: 'center',
-                                                                            justifyContent: 'center',
-                                                                            bgcolor: isSelected ? '#2563eb' : '#f1f5f9',
-                                                                            color: isSelected ? '#ffffff' : '#94a3b8',
-                                                                        }}
-                                                                    >
-                                                                        {isSelected ? (
-                                                                            <CheckCircleRoundedIcon sx={{ fontSize: '16px' }} />
-                                                                        ) : (
-                                                                            <StyleOutlinedIcon sx={{ fontSize: '14px' }} />
-                                                                        )}
-                                                                    </Box>
-                                                                    <Typography
-                                                                        variant="body2"
-                                                                        fontWeight={800}
-                                                                        sx={{
-                                                                            fontFamily: 'monospace',
-                                                                            fontSize: '0.85rem',
-                                                                            color: isSelected ? '#1d4ed8' : '#334155',
-                                                                        }}
-                                                                    >
-                                                                        {s.serialNumber || s.id}
-                                                                    </Typography>
-                                                                </Stack>
-
-                                                                {isSelected ? (
-                                                                    <Chip
-                                                                        label="Được chọn"
-                                                                        size="small"
-                                                                        sx={{
-                                                                            height: 20,
-                                                                            fontSize: '0.65rem',
-                                                                            fontWeight: 800,
-                                                                            bgcolor: '#2563eb',
-                                                                            color: '#ffffff',
-                                                                        }}
-                                                                    />
-                                                                ) : (
-                                                                    <Chip
-                                                                        label={isEligible ? 'Chưa chọn' : 'Không khả dụng'}
-                                                                        size="small"
-                                                                        sx={{
-                                                                            height: 20,
-                                                                            fontSize: '0.65rem',
-                                                                            fontWeight: 600,
-                                                                            bgcolor: '#f1f5f9',
-                                                                            color: '#64748b',
-                                                                        }}
-                                                                    />
-                                                                )}
-                                                            </Stack>
-
-                                                            <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 0.75 }}>
-                                                                <SerialStatusChip status={s.status} ticketCondition={s.ticketCondition} />
-                                                                {s.reservedByOrderId && (
-                                                                    <Chip
-                                                                        label={`Đơn #${s.reservedByOrderId}`}
-                                                                        size="small"
-                                                                        sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700, bgcolor: '#fef3c7', color: '#92400e' }}
-                                                                    />
-                                                                )}
-                                                            </Stack>
-                                                        </Paper>
-                                                    </Grid>
-                                                );
-                                            })}
-                                        </Grid>
-                                    </Box>
-                                </Paper>
-                            );
-                        })}
-                    </Box>
-                </Box>
                 ) : (
                 <>
                 {/* 1. Thanh tóm tắt phạm vi xử lý vé & sê-ri */}
                 <Paper
                     variant="outlined"
                     sx={{
-                        mb: 2,
-                        p: 1.75,
+                        mb: 1.5,
+                        p: 1.25,
                         borderRadius: '12px',
-                        borderColor: isFullTicketScope ? '#86efac' : '#93c5fd',
-                        bgcolor: isFullTicketScope ? '#f0fdf4' : '#eff6ff',
+                        borderColor: isFullTicketScope ? '#86efac' : currentGroupSelectedSerials.length > 0 ? '#93c5fd' : '#fde68a',
+                        bgcolor: isFullTicketScope ? '#f0fdf4' : currentGroupSelectedSerials.length > 0 ? '#eff6ff' : '#fffbeb',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         flexWrap: 'wrap',
                         gap: 1.5,
+                        boxShadow: isFullTicketScope ? '0 1px 3px rgba(22, 163, 74, 0.08)' : 'none',
+                        transition: 'all 0.2s ease',
                     }}
                 >
                     <Stack direction="row" alignItems="center" spacing={1.5}>
                         <Box
                             sx={{
-                                width: 38,
-                                height: 38,
+                                width: 40,
+                                height: 40,
                                 borderRadius: '10px',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                bgcolor: isFullTicketScope ? '#dcfce7' : '#dbeafe',
-                                color: isFullTicketScope ? '#15803d' : '#1d4ed8',
+                                bgcolor: isFullTicketScope ? '#dcfce7' : currentGroupSelectedSerials.length > 0 ? '#dbeafe' : '#fef3c7',
+                                color: isFullTicketScope ? '#16a34a' : currentGroupSelectedSerials.length > 0 ? '#1d4ed8' : '#d97706',
+                                flexShrink: 0,
                             }}
                         >
                             {isFullTicketScope ? (
-                                <ConfirmationNumberOutlinedIcon sx={{ fontSize: '20px' }} />
+                                <CheckCircleRoundedIcon sx={{ fontSize: '22px' }} />
+                            ) : currentGroupSelectedSerials.length > 0 ? (
+                                <StyleOutlinedIcon sx={{ fontSize: '22px' }} />
                             ) : (
-                                <StyleOutlinedIcon sx={{ fontSize: '20px' }} />
+                                <WarningAmberRoundedIcon sx={{ fontSize: '22px' }} />
                             )}
                         </Box>
                         <Box>
                             <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
-                                <Typography variant="body2" fontWeight={800} color={isFullTicketScope ? '#15803d' : '#1d4ed8'}>
+                                <Typography
+                                    variant="body2"
+                                    fontWeight={800}
+                                    sx={{
+                                        color: isFullTicketScope ? '#15803d' : currentGroupSelectedSerials.length > 0 ? '#1d4ed8' : '#b45309',
+                                        fontSize: '0.9rem',
+                                    }}
+                                >
                                     {isFullTicketScope
                                         ? `Báo sự cố toàn bộ vé '${currentTicketNumbers}'`
-                                        : `Báo sự cố theo từng sê-ri của vé '${currentTicketNumbers}'`}
+                                        : currentGroupSelectedSerials.length > 0
+                                        ? `Báo sự cố theo từng sê-ri của vé '${currentTicketNumbers}'`
+                                        : `Chưa chọn sê-ri nào của vé '${currentTicketNumbers}'`}
                                 </Typography>
                                 <Chip
                                     label={`${currentGroupSelectedSerials.length}/${eligibleCurrentSerials.length} sê-ri`}
                                     size="small"
                                     sx={{
                                         height: 22,
-                                        fontSize: '0.7rem',
+                                        fontSize: '0.72rem',
                                         fontWeight: 800,
-                                        bgcolor: isFullTicketScope ? '#dcfce7' : '#dbeafe',
-                                        color: isFullTicketScope ? '#15803d' : '#1d4ed8',
-                                        border: `1px solid ${isFullTicketScope ? '#86efac' : '#93c5fd'}`,
+                                        bgcolor: isFullTicketScope ? '#dcfce7' : currentGroupSelectedSerials.length > 0 ? '#dbeafe' : '#fef3c7',
+                                        color: isFullTicketScope ? '#15803d' : currentGroupSelectedSerials.length > 0 ? '#1d4ed8' : '#b45309',
+                                        border: `1px solid ${isFullTicketScope ? '#86efac' : currentGroupSelectedSerials.length > 0 ? '#93c5fd' : '#fde68a'}`,
                                     }}
                                 />
                             </Stack>
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25, fontSize: '0.72rem' }}>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25, fontSize: '0.73rem' }}>
                                 {isFullTicketScope
-                                    ? `Đang áp dụng báo sự cố cho toàn bộ ${eligibleCurrentSerials.length} sê-ri đủ điều kiện của dãy số ${currentTicketNumbers}.`
-                                    : `Đang áp dụng báo sự cố cho ${currentGroupSelectedSerials.length} sê-ri đã chọn trong tổng số ${eligibleCurrentSerials.length} sê-ri của dãy.`}
+                                    ? `Đang áp dụng báo sự cố cho toàn bộ ${eligibleCurrentSerials.length} sê-ri của vé số. Vé này sẽ bị hủy toàn bộ dãy.`
+                                    : currentGroupSelectedSerials.length > 0
+                                    ? `Đang áp dụng báo sự cố cho ${currentGroupSelectedSerials.length} sê-ri đã chọn trong tổng số ${eligibleCurrentSerials.length} sê-ri đủ điều kiện của dãy.`
+                                    : `Vui lòng tích chọn ít nhất một sê-ri bên dưới để thực hiện báo sự cố.`}
                             </Typography>
                         </Box>
                     </Stack>
@@ -1691,7 +1356,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                     <Stack direction="row" spacing={1} alignItems="center">
                         <Button
                             size="small"
-                            variant="text"
+                            variant="outlined"
                             onClick={() => {
                                 setForms((prev) => {
                                     const next = { ...prev };
@@ -1707,13 +1372,27 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                     return next;
                                 });
                             }}
-                            sx={{ textTransform: 'none', fontWeight: 700, fontSize: '0.75rem', color: isFullTicketScope ? '#15803d' : '#1d4ed8' }}
+                            sx={{
+                                textTransform: 'none',
+                                fontWeight: 700,
+                                fontSize: '0.75rem',
+                                borderRadius: '8px',
+                                py: 0.4,
+                                px: 1.25,
+                                borderColor: isFullTicketScope ? '#86efac' : '#bfdbfe',
+                                color: isFullTicketScope ? '#15803d' : '#1d4ed8',
+                                bgcolor: '#ffffff',
+                                '&:hover': {
+                                    bgcolor: isFullTicketScope ? '#f0fdf4' : '#eff6ff',
+                                    borderColor: isFullTicketScope ? '#16a34a' : '#2563eb',
+                                },
+                            }}
                         >
                             Chọn hết dãy
                         </Button>
                         <Button
                             size="small"
-                            variant="text"
+                            variant="outlined"
                             onClick={() => {
                                 setForms((prev) => {
                                     const next = { ...prev };
@@ -1725,35 +1404,50 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                     return next;
                                 });
                             }}
-                            sx={{ textTransform: 'none', fontWeight: 700, color: '#64748b', fontSize: '0.75rem' }}
-                        >
-                            Bỏ chọn
-                        </Button>
-                        <Button
-                            size="small"
-                            variant="outlined"
-                            onClick={goBackToScope}
                             sx={{
                                 textTransform: 'none',
                                 fontWeight: 700,
-                                whiteSpace: 'nowrap',
-                                borderRadius: '8px',
                                 fontSize: '0.75rem',
+                                borderRadius: '8px',
                                 py: 0.4,
                                 px: 1.25,
-                                borderColor: isFullTicketScope ? '#86efac' : '#bfdbfe',
-                                color: isFullTicketScope ? '#15803d' : '#1d4ed8',
+                                borderColor: '#e2e8f0',
+                                color: '#64748b',
                                 bgcolor: '#ffffff',
                                 '&:hover': {
-                                    bgcolor: isFullTicketScope ? '#f0fdf4' : '#eff6ff',
-                                    borderColor: isFullTicketScope ? '#16a34a' : '#2563eb',
-                                }
+                                    bgcolor: '#f8fafc',
+                                    borderColor: '#cbd5e1',
+                                    color: '#334155',
+                                },
                             }}
                         >
-                            Đổi sê-ri
+                            Bỏ chọn
                         </Button>
                     </Stack>
                 </Paper>
+
+                {/* Cảnh báo khi báo sự cố toàn bộ vé */}
+                {isFullTicketScope && (
+                    <Alert
+                        severity="warning"
+                        icon={<WarningAmberRoundedIcon sx={{ color: '#d97706', fontSize: '20px' }} />}
+                        sx={{
+                            mb: 2,
+                            borderRadius: '12px',
+                            bgcolor: '#fffbeb',
+                            border: '1px solid #fde68a',
+                            color: '#92400e',
+                            py: 1,
+                            px: 1.75,
+                            '& .MuiAlert-message': { fontSize: '0.825rem', lineHeight: 1.5 },
+                        }}
+                    >
+                        <Typography variant="body2" fontWeight={800} color="#b45309" sx={{ mb: 0.25, fontSize: '0.85rem' }}>
+                            Lưu ý khi báo sự cố toàn bộ vé:
+                        </Typography>
+                        {`Vì toàn bộ ${eligibleCurrentSerials.length}/${eligibleCurrentSerials.length} sê-ri của vé số đều được chọn, vé này sẽ bị hủy toàn bộ. Các đơn hàng có chứa vé này sẽ được hoàn tiền.`}
+                    </Alert>
+                )}
 
                 {/* 2. Nút chuyển đổi: Báo cáo lý do chung cho các vé hoặc Lý do cụ thể cho từng vé */}
                 <Box sx={{ mb: 2 }}>
@@ -1822,7 +1516,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                         </ToggleButton>
                     </ToggleButtonGroup>
 
-                    {allSelectedSerialsInternalFault && (
+                    {allSelectedSerialsPhysicalFault && (
                         <Alert
                             severity="warning"
                             sx={{
@@ -1831,7 +1525,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                 '& .MuiAlert-message': { fontWeight: 600, fontSize: '0.8rem' },
                             }}
                         >
-                            Dãy số {currentTicketNumbers} đồng thời sẽ bị hủy vì toàn bộ {eligibleCurrentSerials.length} sê-ri đều được báo sự cố vật lý.
+                            Dãy số {currentTicketNumbers} đồng thời sẽ bị hủy vì toàn bộ {eligibleCurrentSerials.length} sê-ri đều được báo sự cố vật lý. Lý do hủy dãy sẽ được ghi nhận theo lý do của các sê-ri.
                         </Alert>
                     )}
                 </Box>
@@ -1875,15 +1569,15 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                     <Paper
                         variant="outlined"
                         sx={{
-                            p: 2.25,
-                            borderRadius: '14px',
+                            p: 2,
+                            borderRadius: '12px',
                             borderColor: '#e2e8f0',
                             bgcolor: '#ffffff',
-                            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
-                            mb: 2.5,
+                            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
+                            mb: 2,
                         }}
                     >
-                        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2, pb: 1.25, borderBottom: '1px solid #f1f5f9' }}>
+                        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.75, pb: 1.25, borderBottom: '1px solid #f1f5f9' }}>
                             <Stack direction="row" alignItems="center" spacing={1.25}>
                                 <Box
                                     sx={{
@@ -1893,37 +1587,36 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                        bgcolor: '#fee2e2',
-                                        color: '#ef4444',
+                                        bgcolor: '#fff1f2',
+                                        color: '#e11d48',
+                                        border: '1px solid #ffe4e6',
                                     }}
                                 >
                                     <ReportProblemOutlinedIcon sx={{ fontSize: '18px' }} />
                                 </Box>
                                 <Box>
-                                    <Typography variant="subtitle2" fontWeight={800} color="#0f172a">
+                                    <Typography variant="subtitle2" fontWeight={800} color="#0f172a" sx={{ fontSize: '0.875rem' }}>
                                         Thông tin sự cố (Áp dụng chung)
                                     </Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                        {isFullTicketScope
-                                            ? `Khai báo chung cho toàn bộ vé ${currentTicketNumbers} (${currentGroupSelectedSerials.length} sê-ri)`
-                                            : `Áp dụng chung cho ${currentGroupSelectedSerials.length} sê-ri đã chọn của vé ${currentTicketNumbers}`}
+                                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.72rem' }}>
+                                        {`Áp dụng chung cho ${currentGroupSelectedSerials.length} sê-ri đã chọn của vé ${currentTicketNumbers}`}
                                     </Typography>
                                 </Box>
                             </Stack>
                             <Chip
                                 label={`${currentGroupSelectedSerials.length} sê-ri`}
                                 size="small"
-                                sx={{ fontWeight: 800, height: 24, color: '#0369a1', bgcolor: '#e0f2fe', borderColor: '#bae6fd', fontSize: '0.72rem' }}
+                                sx={{ fontWeight: 800, height: 22, color: '#0369a1', bgcolor: '#e0f2fe', borderColor: '#bae6fd', fontSize: '0.7rem' }}
                                 variant="outlined"
                             />
                         </Stack>
 
-                        <Stack spacing={2}>
-                            {/* Row 1: 2 cột gọn gàng - Nguyên nhân sự cố & Trạng thái báo hủy */}
-                            <Grid container spacing={2}>
+                        <Stack spacing={1.5}>
+                            {/* Row 1: Nguyên nhân sự cố & Trạng thái báo hủy (Chỉ hiện Trạng thái khi KHÔNG phải lỗi nhập liệu) */}
+                            <Grid container spacing={1.5}>
                                 {!hideFaultedBySelector && (
-                                    <Grid size={{ xs: 12, sm: 6 }}>
-                                        <Typography variant="caption" fontWeight={700} color="#475569" sx={{ mb: 0.75, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.7rem' }}>
+                                    <Grid size={{ xs: 12, sm: ticketForm.faultedBy === 'DATA_ENTRY_FAULT' ? 6 : 6 }}>
+                                        <Typography variant="caption" fontWeight={700} color="#475569" sx={{ mb: 0.5, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.7rem' }}>
                                             Nguyên nhân sự cố *
                                         </Typography>
                                         <ToggleButtonGroup
@@ -1934,12 +1627,12 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                             fullWidth
                                             sx={{
                                                 bgcolor: '#f8fafc',
-                                                p: 0.4,
-                                                borderRadius: '10px',
+                                                p: 0.35,
+                                                borderRadius: '8px',
                                                 border: '1px solid #e2e8f0',
                                                 '& .MuiToggleButtonGroup-grouped': {
                                                     border: 'none',
-                                                    borderRadius: '8px !important',
+                                                    borderRadius: '6px !important',
                                                 }
                                             }}
                                         >
@@ -1948,13 +1641,13 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                                 sx={{
                                                     fontWeight: 700,
                                                     textTransform: 'none',
-                                                    fontSize: '0.8rem',
-                                                    py: 0.75,
+                                                    fontSize: '0.78rem',
+                                                    py: 0.65,
                                                     color: '#64748b',
                                                     '&.Mui-selected': { bgcolor: '#ffffff', color: '#dc2626', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }
                                                 }}
                                             >
-                                                <HandymanOutlinedIcon sx={{ fontSize: '17px', mr: 0.75 }} />
+                                                <HandymanOutlinedIcon sx={{ fontSize: '16px', mr: 0.75 }} />
                                                 Sự cố vật lý
                                             </ToggleButton>
                                             <ToggleButton
@@ -1962,60 +1655,72 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                                 sx={{
                                                     fontWeight: 700,
                                                     textTransform: 'none',
-                                                    fontSize: '0.8rem',
-                                                    py: 0.75,
+                                                    fontSize: '0.78rem',
+                                                    py: 0.65,
                                                     color: '#64748b',
                                                     '&.Mui-selected': { bgcolor: '#ffffff', color: '#2563eb', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }
                                                 }}
                                             >
-                                                <KeyboardAltOutlinedIcon sx={{ fontSize: '17px', mr: 0.75 }} />
+                                                <KeyboardAltOutlinedIcon sx={{ fontSize: '16px', mr: 0.75 }} />
                                                 Lỗi thao tác nhập liệu
                                             </ToggleButton>
                                         </ToggleButtonGroup>
                                     </Grid>
                                 )}
 
-                                <Grid size={{ xs: 12, sm: hideFaultedBySelector ? 12 : 6 }}>
-                                    <Typography variant="caption" fontWeight={700} color="#475569" sx={{ mb: 0.75, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.7rem' }}>
-                                        Trạng thái báo hủy *
-                                    </Typography>
-                                    <ToggleButtonGroup
-                                        value={ticketForm.status}
-                                        exclusive
-                                        onChange={(e, val) => { if (val) handleTicketFormFieldChange('status', val); }}
-                                        size="small"
-                                        fullWidth
-                                        disabled={ticketForm.faultedBy === 'DATA_ENTRY_FAULT'}
-                                        sx={{
-                                            bgcolor: '#f8fafc',
-                                            p: 0.4,
-                                            borderRadius: '10px',
-                                            border: '1px solid #e2e8f0',
-                                            '& .MuiToggleButtonGroup-grouped': {
-                                                border: 'none',
-                                                borderRadius: '8px !important',
-                                            }
-                                        }}
-                                    >
-                                        {ticketForm.faultedBy === 'DATA_ENTRY_FAULT' ? (
-                                            <ToggleButton value="VOIDED" sx={{ fontWeight: 700, textTransform: 'none', fontSize: '0.8rem', py: 0.75, color: '#dc2626', '&.Mui-selected': { bgcolor: '#ffffff', color: '#dc2626', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' } }}>
-                                                <CancelOutlinedIcon sx={{ fontSize: '17px', mr: 0.75 }} />
-                                                Hủy do lỗi nhập liệu
+                                {ticketForm.faultedBy !== 'DATA_ENTRY_FAULT' && (
+                                    <Grid size={{ xs: 12, sm: hideFaultedBySelector ? 12 : 6 }}>
+                                        <Typography variant="caption" fontWeight={700} color="#475569" sx={{ mb: 0.5, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.7rem' }}>
+                                            Trạng thái báo hủy *
+                                        </Typography>
+                                        <ToggleButtonGroup
+                                            value={ticketForm.status}
+                                            exclusive
+                                            onChange={(e, val) => { if (val) handleTicketFormFieldChange('status', val); }}
+                                            size="small"
+                                            fullWidth
+                                            sx={{
+                                                bgcolor: '#f8fafc',
+                                                p: 0.35,
+                                                borderRadius: '8px',
+                                                border: '1px solid #e2e8f0',
+                                                '& .MuiToggleButtonGroup-grouped': {
+                                                    border: 'none',
+                                                    borderRadius: '6px !important',
+                                                }
+                                            }}
+                                        >
+                                            <ToggleButton
+                                                value="DAMAGED"
+                                                sx={{
+                                                    fontWeight: 700,
+                                                    textTransform: 'none',
+                                                    fontSize: '0.78rem',
+                                                    py: 0.65,
+                                                    color: '#64748b',
+                                                    '&.Mui-selected': { bgcolor: '#ffffff', color: '#dc2626', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }
+                                                }}
+                                            >
+                                                <ContentCutOutlinedIcon sx={{ fontSize: '16px', mr: 0.75 }} />
+                                                Bị hư hỏng / rách
                                             </ToggleButton>
-                                        ) : (
-                                            [
-                                                <ToggleButton key="DAMAGED" value="DAMAGED" sx={{ fontWeight: 700, textTransform: 'none', fontSize: '0.8rem', py: 0.75, color: '#64748b', '&.Mui-selected': { bgcolor: '#ffffff', color: '#dc2626', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' } }}>
-                                                    <ContentCutOutlinedIcon sx={{ fontSize: '17px', mr: 0.75 }} />
-                                                    Bị hư hỏng / rách
-                                                </ToggleButton>,
-                                                <ToggleButton key="LOST" value="LOST" sx={{ fontWeight: 700, textTransform: 'none', fontSize: '0.8rem', py: 0.75, color: '#64748b', '&.Mui-selected': { bgcolor: '#ffffff', color: '#d97706', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' } }}>
-                                                    <SearchOffOutlinedIcon sx={{ fontSize: '17px', mr: 0.75 }} />
-                                                    Thất lạc / Mất
-                                                </ToggleButton>
-                                            ]
-                                        )}
-                                    </ToggleButtonGroup>
-                                </Grid>
+                                            <ToggleButton
+                                                value="LOST"
+                                                sx={{
+                                                    fontWeight: 700,
+                                                    textTransform: 'none',
+                                                    fontSize: '0.78rem',
+                                                    py: 0.65,
+                                                    color: '#64748b',
+                                                    '&.Mui-selected': { bgcolor: '#ffffff', color: '#d97706', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }
+                                                }}
+                                            >
+                                                <SearchOffOutlinedIcon sx={{ fontSize: '16px', mr: 0.75 }} />
+                                                Thất lạc / Mất
+                                            </ToggleButton>
+                                        </ToggleButtonGroup>
+                                    </Grid>
+                                )}
                             </Grid>
 
                             {/* Row 2: Lý do chi tiết & gợi ý nhanh */}
@@ -2024,7 +1729,11 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                     Lý do chi tiết *
                                 </Typography>
                                 <TextField
-                                    placeholder="Nhập lý do chi tiết hoặc chọn nhanh bên dưới..."
+                                    placeholder={
+                                        ticketForm.faultedBy === 'DATA_ENTRY_FAULT'
+                                            ? "Nhập lý do lỗi nhập liệu hoặc chọn gợi ý bên dưới..."
+                                            : "Nhập lý do chi tiết hoặc chọn gợi ý bên dưới..."
+                                    }
                                     fullWidth
                                     size="small"
                                     required={ticketForm.status === 'LOST' || ticketForm.status === 'VOIDED' || (ticketForm.faultedBy === 'INTERNAL_FAULT' && ticketForm.status === 'DAMAGED')}
@@ -2032,90 +1741,159 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                     onChange={(e) => handleTicketFormFieldChange('damagedReason', e.target.value)}
                                     error={!!ticketForm.errors.damagedReason}
                                     helperText={ticketForm.errors.damagedReason}
-                                    InputProps={{ sx: { borderRadius: '10px', fontSize: '0.875rem' } }}
+                                    InputProps={{ 
+                                        sx: { 
+                                            borderRadius: '8px', 
+                                            fontSize: '0.85rem',
+                                            bgcolor: '#ffffff',
+                                        } 
+                                    }}
                                 />
-                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mt: 1 }}>
+                                <Stack direction="row" alignItems="center" spacing={0.75} flexWrap="wrap" sx={{ mt: 0.75 }}>
+                                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem', fontWeight: 600 }}>
+                                        Gợi ý nhanh:
+                                    </Typography>
                                     {(ticketForm.faultedBy === 'INTERNAL_FAULT'
                                         ? ['Lỡ tay làm rách vé', 'Vé bị dính nước/bẩn', 'Mất vé khi kiểm kho', 'Vé bị nhòe số/mờ mực']
                                         : ['Nhập sai số vé', 'Nhập nhầm đài/ngày', 'Nhập sai số sê-ri']
-                                    ).map((sug) => (
-                                        <Chip
-                                            key={sug}
-                                            label={sug}
-                                            size="small"
-                                            variant="outlined"
-                                            onClick={() => handleTicketFormFieldChange('damagedReason', sug)}
-                                            sx={{
-                                                borderRadius: '6px',
-                                                cursor: 'pointer',
-                                                fontSize: '0.72rem',
-                                                bgcolor: ticketForm.damagedReason === sug ? '#fee2e2' : '#f8fafc',
-                                                borderColor: ticketForm.damagedReason === sug ? '#fca5a5' : '#e2e8f0',
-                                                color: ticketForm.damagedReason === sug ? '#b91c1c' : '#475569',
-                                                fontWeight: ticketForm.damagedReason === sug ? 700 : 500,
-                                                '&:hover': { bgcolor: '#f1f5f9', borderColor: '#cbd5e1' }
-                                            }}
-                                        />
-                                    ))}
-                                </Box>
+                                    ).map((sug) => {
+                                        const isSelected = ticketForm.damagedReason === sug;
+                                        return (
+                                            <Chip
+                                                key={sug}
+                                                label={sug}
+                                                size="small"
+                                                onClick={() => handleTicketFormFieldChange('damagedReason', sug)}
+                                                sx={{
+                                                    borderRadius: '6px',
+                                                    cursor: 'pointer',
+                                                    height: 24,
+                                                    fontSize: '0.72rem',
+                                                    bgcolor: isSelected ? (ticketForm.faultedBy === 'DATA_ENTRY_FAULT' ? '#eff6ff' : '#fee2e2') : '#f8fafc',
+                                                    borderColor: isSelected ? (ticketForm.faultedBy === 'DATA_ENTRY_FAULT' ? '#93c5fd' : '#fca5a5') : '#e2e8f0',
+                                                    color: isSelected ? (ticketForm.faultedBy === 'DATA_ENTRY_FAULT' ? '#1d4ed8' : '#b91c1c') : '#475569',
+                                                    border: '1px solid',
+                                                    fontWeight: isSelected ? 700 : 500,
+                                                    transition: 'all 0.15s ease',
+                                                    '&:hover': { 
+                                                        bgcolor: isSelected ? undefined : '#f1f5f9', 
+                                                        borderColor: '#cbd5e1' 
+                                                    }
+                                                }}
+                                            />
+                                        );
+                                    })}
+                                </Stack>
                             </Box>
 
-                            {/* Dãy số vé thay thế và ảnh vé thay thế khi cấp dãy số (cancelMode === 'TICKET' && DATA_ENTRY_FAULT) */}
-                            {isFullTicketScope && ticketForm.faultedBy === 'DATA_ENTRY_FAULT' && (
-                                <Box sx={{ mt: 1, p: 2, borderRadius: '10px', bgcolor: '#fff5f5', border: '1px solid #fee2e2' }}>
-                                    <Typography variant="caption" fontWeight={800} color="#b91c1c" sx={{ mb: 0.5, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.72rem' }}>
-                                        Thông tin vé số thay thế *
+                            {canChooseWholeTicketDigits && (
+                                <Box sx={{ pt: 0.25 }}>
+                                    <Typography variant="caption" fontWeight={700} color="#475569" sx={{ mb: 0.5, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.7rem' }}>
+                                        Cách xử lý vé thay thế *
                                     </Typography>
-                                    <Typography variant="caption" color="#64748b" sx={{ display: 'block', mb: 1.5, fontSize: '0.72rem', lineHeight: 1.4 }}>
-                                        (*) Tạo dãy số mới và chuyển toàn bộ sê-ri sang dãy đó (giữ nguyên số sê-ri, đổi ticketId). Dãy cũ được ẩn để đối soát.
-                                    </Typography>
-                                    <Stack spacing={1.5}>
-                                        <TextField
-                                            label="Dãy số vé thay thế (6 chữ số)"
-                                            variant="outlined"
-                                            fullWidth
-                                            size="small"
-                                            required
-                                            value={replacementDigits}
-                                            onChange={(e) => {
-                                                const val = e.target.value.replace(/\D/g, '');
-                                                setReplacementDigits(val);
-                                                if (val && val.length !== 6) {
-                                                    setDigitsError('Dãy số vé thay thế phải có đúng 6 chữ số.');
-                                                } else {
-                                                    setDigitsError('');
-                                                }
-                                            }}
-                                            placeholder="Ví dụ: 800039"
-                                            error={!!digitsError}
-                                            helperText={digitsError}
-                                            inputProps={{ maxLength: 6 }}
-                                            sx={{ bgcolor: '#ffffff', borderRadius: '10px' }}
-                                        />
-                                        <Box>
-                                            <Typography variant="caption" fontWeight={700} color="#475569" sx={{ mb: 0.5, display: 'block', fontSize: '0.7rem' }}>
-                                                Ảnh vé thay thế
-                                            </Typography>
-                                            <UploadSingleFile
-                                                value={replacementDigitsImg}
-                                                onChange={(url) => setReplacementDigitsImg(url)}
-                                                autoUpload={true}
-                                                compact={true}
-                                            />
-                                        </Box>
+                                    <ToggleButtonGroup
+                                        value={cancelMode}
+                                        exclusive
+                                        size="small"
+                                        fullWidth
+                                        onChange={(e, val) => { if (val) setCancelMode(val); }}
+                                        sx={{
+                                            bgcolor: '#f8fafc',
+                                            p: 0.35,
+                                            borderRadius: '8px',
+                                            border: '1px solid #e2e8f0',
+                                            '& .MuiToggleButtonGroup-grouped': {
+                                                border: 'none',
+                                                borderRadius: '6px !important',
+                                            },
+                                            '& .MuiToggleButton-root': {
+                                                textTransform: 'none',
+                                                fontWeight: 700,
+                                                fontSize: '0.78rem',
+                                                py: 0.65,
+                                                color: '#64748b',
+                                            },
+                                            '& .MuiToggleButton-root.Mui-selected': {
+                                                bgcolor: '#ffffff',
+                                                color: '#0f172a',
+                                                boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                                            },
+                                        }}
+                                    >
+                                        <ToggleButton value="SERIAL">Cấp sê-ri thay thế cho từng sê-ri</ToggleButton>
+                                        <ToggleButton value="TICKET">Thay dãy số mới cho toàn bộ vé</ToggleButton>
+                                    </ToggleButtonGroup>
+                                </Box>
+                            )}
+
+                            {/* Dãy số vé thay thế và ảnh vé thay thế khi người dùng chọn thay dãy số cho toàn bộ vé */}
+                            {cancelMode === 'TICKET' && ticketForm.faultedBy === 'DATA_ENTRY_FAULT' && (
+                                <Box sx={{ p: 1.5, borderRadius: '10px', bgcolor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                                    <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+                                        <ConfirmationNumberOutlinedIcon sx={{ fontSize: '18px', color: '#2563eb' }} />
+                                        <Typography variant="caption" fontWeight={800} color="#1e293b" sx={{ textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.72rem' }}>
+                                            Thông tin dãy số thay thế *
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                            (Chuyển toàn bộ sê-ri sang dãy mới, dãy cũ chuyển lưu trữ)
+                                        </Typography>
                                     </Stack>
+                                    <Grid container spacing={1.5} alignItems="flex-start">
+                                        <Grid size={{ xs: 12, sm: 6 }}>
+                                            <TextField
+                                                label="Dãy số vé thay thế (6 chữ số)"
+                                                variant="outlined"
+                                                fullWidth
+                                                size="small"
+                                                required
+                                                value={replacementDigits}
+                                                onChange={(e) => {
+                                                    const val = e.target.value.replace(/\D/g, '');
+                                                    setReplacementDigits(val);
+                                                    if (val && val.length !== 6) {
+                                                        setDigitsError('Dãy số vé thay thế phải có đúng 6 chữ số.');
+                                                    } else {
+                                                        setDigitsError('');
+                                                    }
+                                                }}
+                                                placeholder="Ví dụ: 800039"
+                                                error={!!digitsError}
+                                                helperText={digitsError}
+                                                inputProps={{ maxLength: 6, style: { fontFamily: 'monospace', letterSpacing: '2px', fontWeight: 700 } }}
+                                                InputProps={{ sx: { bgcolor: '#ffffff', borderRadius: '8px' } }}
+                                            />
+                                        </Grid>
+                                        <Grid size={{ xs: 12, sm: 6 }}>
+                                            <Box>
+                                                <Typography variant="caption" fontWeight={600} color="#64748b" sx={{ mb: 0.5, display: 'block', fontSize: '0.7rem' }}>
+                                                    Ảnh vé thay thế
+                                                </Typography>
+                                                <UploadSingleFile
+                                                    value={replacementDigitsImg}
+                                                    onChange={(url) => setReplacementDigitsImg(url)}
+                                                    autoUpload={true}
+                                                    compact={true}
+                                                />
+                                            </Box>
+                                        </Grid>
+                                    </Grid>
                                 </Box>
                             )}
 
                             {/* Ảnh minh chứng (cho DAMAGED) */}
                             {ticketForm.status === 'DAMAGED' && (
-                                <Box>
-                                    <Typography variant="caption" fontWeight={700} color="#475569" sx={{ mb: 0.75, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.7rem' }}>
-                                        Ảnh minh chứng sự cố {ticketForm.faultedBy === 'INTERNAL_FAULT' && <strong style={{ color: '#ef4444' }}>*</strong>}
-                                    </Typography>
+                                <Box sx={{ pt: 0.5 }}>
+                                    <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.75 }}>
+                                        <Typography variant="caption" fontWeight={700} color="#475569" sx={{ textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.7rem' }}>
+                                            Ảnh minh chứng sự cố
+                                        </Typography>
+                                        {ticketForm.faultedBy === 'INTERNAL_FAULT' && (
+                                            <Chip label="Bắt buộc" size="small" sx={{ height: 18, fontSize: '0.62rem', fontWeight: 800, bgcolor: '#fee2e2', color: '#b91c1c' }} />
+                                        )}
+                                    </Stack>
                                     {isTicketBatchFaultFlow && ticketBatchEvidenceMode === 'EACH' ? (
-                                        <Typography variant="body2" color="#64748b" sx={{ fontSize: '0.8rem' }}>
-                                            Vui lòng tải ảnh minh chứng cho từng sê-ri đã chọn bên dưới.
+                                        <Typography variant="body2" color="#64748b" sx={{ fontSize: '0.78rem', bgcolor: '#f8fafc', p: 1, borderRadius: '8px', border: '1px dashed #cbd5e1' }}>
+                                            Đang áp dụng tải ảnh riêng lẻ. Vui lòng tải ảnh minh chứng cho từng sê-ri bên dưới danh sách.
                                         </Typography>
                                     ) : (
                                         <UploadSingleFile
@@ -2142,17 +1920,67 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                         bgcolor: '#ffffff',
                     }}
                 >
-                    <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1} sx={{ mb: 1.5 }}>
-                        <Box>
-                            <Typography variant="caption" fontWeight={800} color="#475569" sx={{ textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.75rem' }}>
-                                Danh sách sê-ri — Dãy {currentTicketNumbers}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.7rem' }}>
-                                {serialProcessingMode === 'ALL'
-                                    ? 'Các sê-ri được chọn sẽ áp dụng chung thông tin sự cố ở trên'
-                                    : 'Khai báo thông tin sự cố riêng biệt cho từng sê-ri bên dưới'}
-                            </Typography>
-                        </Box>
+                    <Stack 
+                        direction="row" 
+                        alignItems="center" 
+                        justifyContent="space-between" 
+                        flexWrap="wrap" 
+                        gap={1} 
+                        sx={{ 
+                            mb: 1.5, 
+                            pb: 1.25, 
+                            borderBottom: '1px solid #f1f5f9',
+                        }}
+                    >
+                        <FormControlLabel
+                            control={
+                                <Checkbox
+                                    checked={eligibleCurrentSerials.length > 0 && currentGroupSelectedSerials.length === eligibleCurrentSerials.length}
+                                    indeterminate={currentGroupSelectedSerials.length > 0 && currentGroupSelectedSerials.length < eligibleCurrentSerials.length}
+                                    onChange={() => {
+                                        const isAllSelected = eligibleCurrentSerials.length > 0 && currentGroupSelectedSerials.length === eligibleCurrentSerials.length;
+                                        const shouldSelectAll = !isAllSelected;
+                                        setForms((prev) => {
+                                            const next = { ...prev };
+                                            serials.forEach((s) => {
+                                                if (!next[s.id]) return;
+                                                const numKey = s.ticketNumbers || ticketNumbers || 'Vé số';
+                                                const inCurrent = numKey === currentTicketNumbers;
+                                                if (inCurrent) {
+                                                    next[s.id] = {
+                                                        ...next[s.id],
+                                                        selected: shouldSelectAll && isSerialIncidentEligible(s),
+                                                    };
+                                                }
+                                            });
+                                            return next;
+                                        });
+                                    }}
+                                    disabled={eligibleCurrentSerials.length === 0}
+                                    size="small"
+                                    sx={{
+                                        p: 0.5,
+                                        mr: 0.75,
+                                        color: '#94a3b8',
+                                        '&.Mui-checked': { color: '#2563eb' },
+                                        '&.MuiCheckbox-indeterminate': { color: '#2563eb' },
+                                    }}
+                                />
+                            }
+                            label={
+                                <Box>
+                                    <Typography variant="caption" fontWeight={850} color="#0f172a" sx={{ textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.78rem' }}>
+                                        Chọn toàn bộ sê-ri — Dãy {currentTicketNumbers}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.7rem' }}>
+                                        {serialProcessingMode === 'ALL'
+                                            ? 'Các sê-ri được chọn sẽ áp dụng chung thông tin sự cố ở trên'
+                                            : 'Khai báo thông tin sự cố riêng biệt cho từng sê-ri bên dưới'}
+                                    </Typography>
+                                </Box>
+                            }
+                            sx={{ m: 0, alignItems: 'center' }}
+                        />
 
                         <Stack direction="row" spacing={1} alignItems="center">
                             {serialProcessingMode === 'EACH' && currentGroupSelectedSerials.length > 1 && (
@@ -2198,7 +2026,14 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                             <Chip
                                 label={`${currentGroupSelectedSerials.length} / ${eligibleCurrentSerials.length} đã chọn`}
                                 size="small"
-                                sx={{ fontWeight: 700, height: 22, fontSize: '0.7rem', bgcolor: '#f1f5f9', color: '#475569' }}
+                                sx={{
+                                    fontWeight: 800,
+                                    height: 24,
+                                    fontSize: '0.72rem',
+                                    bgcolor: currentGroupSelectedSerials.length === eligibleCurrentSerials.length ? '#dcfce7' : currentGroupSelectedSerials.length > 0 ? '#eff6ff' : '#f1f5f9',
+                                    color: currentGroupSelectedSerials.length === eligibleCurrentSerials.length ? '#15803d' : currentGroupSelectedSerials.length > 0 ? '#1d4ed8' : '#64748b',
+                                    border: `1px solid ${currentGroupSelectedSerials.length === eligibleCurrentSerials.length ? '#86efac' : currentGroupSelectedSerials.length > 0 ? '#bfdbfe' : '#e2e8f0'}`,
+                                }}
                             />
                         </Stack>
                     </Stack>
@@ -2325,7 +2160,7 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                     )}
 
                                     {/* Inline Replacement Serial in ALL mode when DATA_ENTRY_FAULT */}
-                                    {form.selected && incidentEligible && serialProcessingMode === 'ALL' && ticketForm.faultedBy === 'DATA_ENTRY_FAULT' && !isFullTicketScope && (
+                                    {form.selected && incidentEligible && serialProcessingMode === 'ALL' && ticketForm.faultedBy === 'DATA_ENTRY_FAULT' && cancelMode !== 'TICKET' && (
                                         <Box sx={{ mt: 1.25, pt: 1.25, borderTop: '1px solid #e2e8f0' }}>
                                             <Stack spacing={1.25}>
                                                 <TextField
@@ -2417,79 +2252,59 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                                                         </Grid>
                                                     )}
 
-                                                    <Grid size={{ xs: 12, sm: hideFaultedBySelector ? 12 : 6 }}>
-                                                        <Typography variant="caption" fontWeight={700} color="#475569" sx={{ mb: 0.5, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.68rem' }}>
-                                                            Trạng thái báo hủy
-                                                        </Typography>
-                                                        <ToggleButtonGroup
-                                                            value={form.status}
-                                                            exclusive
-                                                            onChange={(e, val) => { if (val) handleFieldChange(s.id, 'status', val); }}
-                                                            size="small"
-                                                            fullWidth
-                                                            disabled={form.faultedBy === 'DATA_ENTRY_FAULT'}
-                                                            sx={{
-                                                                bgcolor: '#f1f5f9',
-                                                                p: 0.3,
-                                                                borderRadius: '8px',
-                                                                border: 'none',
-                                                                '& .MuiToggleButtonGroup-grouped': {
+                                                    {form.faultedBy !== 'DATA_ENTRY_FAULT' && (
+                                                        <Grid size={{ xs: 12, sm: hideFaultedBySelector ? 12 : 6 }}>
+                                                            <Typography variant="caption" fontWeight={700} color="#475569" sx={{ mb: 0.5, display: 'block', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.68rem' }}>
+                                                                Trạng thái báo hủy
+                                                            </Typography>
+                                                            <ToggleButtonGroup
+                                                                value={form.status}
+                                                                exclusive
+                                                                onChange={(e, val) => { if (val) handleFieldChange(s.id, 'status', val); }}
+                                                                size="small"
+                                                                fullWidth
+                                                                sx={{
+                                                                    bgcolor: '#f1f5f9',
+                                                                    p: 0.3,
+                                                                    borderRadius: '8px',
                                                                     border: 'none',
-                                                                    borderRadius: '6px !important',
-                                                                }
-                                                            }}
-                                                        >
-                                                            {form.faultedBy === 'DATA_ENTRY_FAULT' ? (
+                                                                    '& .MuiToggleButtonGroup-grouped': {
+                                                                        border: 'none',
+                                                                        borderRadius: '6px !important',
+                                                                    }
+                                                                }}
+                                                            >
                                                                 <ToggleButton 
-                                                                    value="VOIDED" 
+                                                                    value="DAMAGED" 
                                                                     sx={{ 
                                                                         fontWeight: 700, 
                                                                         textTransform: 'none', 
                                                                         fontSize: '0.75rem', 
                                                                         py: 0.5, 
-                                                                        color: '#b91c1c', 
+                                                                        color: '#64748b', 
                                                                         '&.Mui-selected': { bgcolor: '#fff', color: '#b91c1c', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' } 
                                                                     }}
                                                                 >
-                                                                    <CancelOutlinedIcon sx={{ fontSize: '15px', mr: 0.5 }} />
-                                                                    Hủy do lỗi nhập liệu
+                                                                    <ContentCutOutlinedIcon sx={{ fontSize: '15px', mr: 0.5 }} />
+                                                                    Bị hư hỏng / rách
                                                                 </ToggleButton>
-                                                            ) : (
-                                                                [
-                                                                    <ToggleButton 
-                                                                        key="DAMAGED"
-                                                                        value="DAMAGED" 
-                                                                        sx={{ 
-                                                                            fontWeight: 700, 
-                                                                            textTransform: 'none', 
-                                                                            fontSize: '0.75rem', 
-                                                                            py: 0.5, 
-                                                                            color: '#64748b', 
-                                                                            '&.Mui-selected': { bgcolor: '#fff', color: '#b91c1c', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' } 
-                                                                        }}
-                                                                    >
-                                                                        <ContentCutOutlinedIcon sx={{ fontSize: '15px', mr: 0.5 }} />
-                                                                        Bị hư hỏng / rách
-                                                                    </ToggleButton>,
-                                                                    <ToggleButton 
-                                                                        key="LOST"
-                                                                        value="LOST" 
-                                                                        sx={{ 
-                                                                            fontWeight: 700, 
-                                                                            textTransform: 'none', 
-                                                                            fontSize: '0.75rem', 
-                                                                            py: 0.5, 
-                                                                            color: '#64748b', 
-                                                                            '&.Mui-selected': { bgcolor: '#fff', color: '#d97706', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' } 
-                                                                        }}
-                                                                    >
-                                                                        <SearchOffOutlinedIcon sx={{ fontSize: '15px', mr: 0.5 }} />
-                                                                        Thất lạc / Mất
-                                                                    </ToggleButton>
-                                                                ]
-                                                            )}
-                                                        </ToggleButtonGroup>
-                                                    </Grid>
+                                                                <ToggleButton 
+                                                                    value="LOST" 
+                                                                    sx={{ 
+                                                                        fontWeight: 700, 
+                                                                        textTransform: 'none', 
+                                                                        fontSize: '0.75rem', 
+                                                                        py: 0.5, 
+                                                                        color: '#64748b', 
+                                                                        '&.Mui-selected': { bgcolor: '#fff', color: '#d97706', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' } 
+                                                                    }}
+                                                                >
+                                                                    <SearchOffOutlinedIcon sx={{ fontSize: '15px', mr: 0.5 }} />
+                                                                    Thất lạc / Mất
+                                                                </ToggleButton>
+                                                            </ToggleButtonGroup>
+                                                        </Grid>
+                                                    )}
                                                 </Grid>
 
                                                 {/* Lý do chi tiết */}
@@ -2592,8 +2407,6 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                     onClick={
                         workflowStep === 'REFUND'
                             ? () => setWorkflowStep('FORM')
-                            : workflowStep === 'FORM'
-                            ? goBackToScope
                             : onCancel
                     } 
                     disabled={submitting} 
@@ -2610,27 +2423,9 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                         minWidth: 120,
                     }}
                 >
-                    {workflowStep === 'SCOPE' ? (cancelButtonText || 'Hủy bỏ') : 'Quay lại'}
+                    {workflowStep === 'REFUND' ? 'Quay lại' : (cancelButtonText || 'Hủy bỏ')}
                 </Button>
-                {workflowStep === 'SCOPE' ? (
-                    <Button
-                        onClick={handleScopeContinue}
-                        disabled={!scopeMode}
-                        variant="contained"
-                        fullWidth
-                        sx={{
-                            borderRadius: '10px',
-                            py: 1,
-                            fontWeight: 700,
-                            textTransform: 'none',
-                            bgcolor: '#ef4444',
-                            boxShadow: 'none',
-                            '&:hover': { bgcolor: '#dc2626' },
-                        }}
-                    >
-                        Tiếp tục
-                    </Button>
-                ) : workflowStep === 'REFUND' ? (
+                {workflowStep === 'REFUND' ? (
                     <Button
                         onClick={handleRefundStepContinue}
                         disabled={submitting}
@@ -2652,23 +2447,31 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                     confirmButtonVisible && (
                         <Button 
                             onClick={handlePreSubmit} 
-                            disabled={confirmButtonDisabled} 
+                            disabled={confirmButtonDisabled || currentGroupSelectedSerials.length === 0} 
                             variant="contained" 
                             fullWidth
                             sx={{ 
                                 borderRadius: '10px',
-                                py: 1,
-                                fontWeight: 700,
+                                py: 1.1,
+                                fontWeight: 800,
                                 textTransform: 'none',
+                                fontSize: '0.875rem',
                                 bgcolor: '#ef4444',
                                 boxShadow: '0 2px 6px rgba(239, 68, 68, 0.25)',
                                 '&:hover': {
                                     bgcolor: '#dc2626',
+                                    boxShadow: '0 4px 10px rgba(220, 38, 38, 0.35)',
+                                },
+                                '&.Mui-disabled': {
+                                    bgcolor: '#f1f5f9',
+                                    color: '#94a3b8',
                                 }
                             }}
                         >
                             {submitting
                                 ? 'Đang xử lý...'
+                                : currentGroupSelectedSerials.length === 0
+                                ? 'Vui lòng chọn ít nhất 1 sê-ri'
                                 : `Xác nhận báo sự cố (${cancelMode === 'TICKET' ? eligibleCurrentSerials.length : currentGroupSelectedSerials.length} sê-ri)`}
                         </Button>
                     )
@@ -2763,291 +2566,408 @@ export const ReportSerialFaultPane: React.FC<Props> = ({
                 </DialogActions>
             </Dialog>
 
-            {/* Confirmation Modal - Horizontal Rectangle Layout */}
-            <Dialog 
-                open={confirmOpen} 
-                onClose={() => setConfirmOpen(false)}
-                maxWidth="lg"
-                fullWidth
-                PaperProps={{
-                    sx: { borderRadius: '20px', p: 1.5, maxWidth: '880px', width: '880px' }
-                }}
-            >
-                <DialogTitle sx={{ pb: 1, pt: 1.5, px: 2 }}>
-                    <Stack direction="row" alignItems="center" justifyContent="space-between">
-                        <Stack direction="row" alignItems="center" spacing={1.5}>
-                            <Box sx={{ bgcolor: '#fee2e2', borderRadius: '50%', p: 1, display: 'flex' }}>
-                                <ReportProblemIcon sx={{ color: '#ef4444', fontSize: '1.4rem' }} />
-                            </Box>
-                            <Box>
-                                <Typography variant="h6" fontWeight={800} color="#1e293b" sx={{ fontSize: '1.1rem', lineHeight: 1.2 }}>
-                                    Xác nhận báo cáo sự cố & thay thế vé số
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                    Vui lòng kiểm tra kỹ các thông tin trước khi tiến hành cập nhật hệ thống
-                                </Typography>
-                            </Box>
-                        </Stack>
-                        <IconButton size="small" onClick={() => setConfirmOpen(false)} sx={{ color: '#94a3b8' }}>
-                            <CloseIcon fontSize="small" />
-                        </IconButton>
-                    </Stack>
-                </DialogTitle>
-                <Divider sx={{ my: 1 }} />
-                <DialogContent sx={{ py: 1.5, px: 2 }}>
-                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-                        {/* Cột 1: Thông tin hủy vé cũ */}
-                        <Paper variant="outlined" sx={{ p: 2, borderRadius: '12px', bgcolor: '#f8fafc', borderColor: '#e2e8f0', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                            <Stack spacing={1.5}>
-                                <Stack direction="row" alignItems="center" justifyContent="space-between">
-                                    <Chip label="Vé bị lỗi / hủy" size="small" color="error" sx={{ fontWeight: 800, fontSize: '0.7rem' }} />
-                                    <Typography variant="subtitle1" fontWeight={800} color="#1e293b">
-                                        #{currentTicketNumbers}
-                                    </Typography>
+            {/* Confirmation Modal */}
+            {(() => {
+                const targetSerialsList = getTargetSerialsForSubmit();
+                const isReplacingWholeTicket = cancelMode === 'TICKET' && ticketForm.faultedBy === 'DATA_ENTRY_FAULT' && replacementType === 'DIGITS' && Boolean(replacementDigits);
+                const serialsWithReplacement = targetSerialsList.filter(s => Boolean(forms[s.id]?.replacementSerial?.trim()));
+                const isReplacingIndividualSerials = replacementType === 'SERIALS' && serialsWithReplacement.length > 0;
+                const hasAnyReplacement = isReplacingWholeTicket || isReplacingIndividualSerials;
+
+                return (
+                    <Dialog 
+                        open={confirmOpen} 
+                        onClose={() => setConfirmOpen(false)}
+                        maxWidth="lg"
+                        fullWidth
+                        PaperProps={{
+                            sx: { 
+                                borderRadius: '18px', 
+                                p: 1.5, 
+                                maxWidth: hasAnyReplacement ? '860px' : '580px', 
+                                width: hasAnyReplacement ? '860px' : '100%',
+                                transition: 'all 0.2s ease',
+                            }
+                        }}
+                    >
+                        <DialogTitle sx={{ pb: 1, pt: 1, px: 2 }}>
+                            <Stack direction="row" alignItems="center" justifyContent="space-between">
+                                <Stack direction="row" alignItems="center" spacing={1.5}>
+                                    <Box sx={{ bgcolor: '#fee2e2', borderRadius: '50%', p: 1, display: 'flex', color: '#ef4444' }}>
+                                        <ReportProblemIcon sx={{ fontSize: '1.35rem' }} />
+                                    </Box>
+                                    <Box>
+                                        <Typography variant="h6" fontWeight={850} color="#0f172a" sx={{ fontSize: '1.05rem', lineHeight: 1.25 }}>
+                                            {hasAnyReplacement ? 'Xác nhận báo cáo sự cố & thay thế vé số' : 'Xác nhận báo cáo sự cố vé số'}
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.72rem' }}>
+                                            Vui lòng kiểm tra kỹ các thông tin trước khi xác nhận xử lý
+                                        </Typography>
+                                    </Box>
                                 </Stack>
-
-                                <Divider />
-
-                                <Box>
-                                    <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', display: 'block', fontSize: '0.68rem', mb: 0.25 }}>
-                                        Hình thức báo hủy
-                                    </Typography>
-                                    <Typography variant="body2" fontWeight={700} color="#334155">
-                                        {cancelMode === 'TICKET'
-                                            ? `Hủy / xử lý sự cố toàn bộ dãy (#${currentTicketNumbers})`
-                                            : `Hủy / xử lý sự cố ${getTargetSerialsForSubmit().length} sê-ri đã chọn`}
-                                    </Typography>
-                                </Box>
-
-                                <Box>
-                                    <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', display: 'block', fontSize: '0.68rem', mb: 0.25 }}>
-                                        Nguyên nhân sự cố
-                                    </Typography>
-                                    <Chip 
-                                        label={(cancelMode === 'TICKET' ? ticketForm.faultedBy : (serialProcessingMode === 'ALL' ? ticketForm.faultedBy : 'Đã chọn')) === 'DATA_ENTRY_FAULT' ? 'Lỗi thao tác nhập liệu' : 'Sự cố vật lý'} 
-                                        size="small" 
-                                        sx={{ 
-                                            fontWeight: 800, 
-                                            fontSize: '0.72rem',
-                                            bgcolor: (cancelMode === 'TICKET' ? ticketForm.faultedBy : (serialProcessingMode === 'ALL' ? ticketForm.faultedBy : '')) === 'DATA_ENTRY_FAULT' ? '#fef2f2' : '#fff7ed',
-                                            color: (cancelMode === 'TICKET' ? ticketForm.faultedBy : (serialProcessingMode === 'ALL' ? ticketForm.faultedBy : '')) === 'DATA_ENTRY_FAULT' ? '#ef4444' : '#c2410c',
-                                            border: '1px solid',
-                                            borderColor: (cancelMode === 'TICKET' ? ticketForm.faultedBy : (serialProcessingMode === 'ALL' ? ticketForm.faultedBy : '')) === 'DATA_ENTRY_FAULT' ? '#fecaca' : '#ffedd5'
-                                        }} 
-                                    />
-                                </Box>
-
-                                <Box>
-                                    <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', display: 'block', fontSize: '0.68rem', mb: 0.25 }}>
-                                        Lý do chi tiết
-                                    </Typography>
-                                    <Typography variant="body2" color="#475569" sx={{ fontStyle: 'italic', bgcolor: '#ffffff', p: 1, borderRadius: '6px', border: '1px solid #cbd5e1' }}>
-                                        "{serialProcessingMode === 'ALL' ? (ticketForm.damagedReason || 'Chưa nhập lý do') : 'Báo hủy theo từng thẻ vé riêng biệt'}"
-                                    </Typography>
-                                </Box>
-
-                                <Box sx={{ pt: 0.5 }}>
-                                    <Typography variant="caption" color="#64748b" sx={{ fontSize: '0.72rem', display: 'block', lineHeight: 1.3 }}>
-                                        Trạng thái dãy số cũ: {cancelMode === 'TICKET' && ticketForm.faultedBy === 'DATA_ENTRY_FAULT'
-                                            ? <>Dãy cũ bị ẩn (soft-delete). Toàn bộ sê-ri giữ nguyên số, chỉ đổi <strong style={{ color: '#ef4444' }}>ticketId</strong> sang dãy mới.</>
-                                            : cancelMode === 'TICKET'
-                                            ? <>Toàn bộ sê-ri của dãy chuyển <strong style={{ color: '#ef4444' }}>DAMAGED/LOST</strong>; dãy không còn bán được.</>
-                                            : <>Sê-ri cũ <strong style={{ color: '#ef4444' }}>ticketCondition = VOIDED</strong> (status giữ IN_STOCK). Sê-ri mới giữ cùng ticketId, khác số sê-ri.</>}
-                                    </Typography>
-                                </Box>
+                                <IconButton size="small" onClick={() => setConfirmOpen(false)} sx={{ color: '#94a3b8' }}>
+                                    <CloseIcon fontSize="small" />
+                                </IconButton>
                             </Stack>
-                        </Paper>
-
-                        {/* Cột 2: Thông tin vé số thay thế mới */}
-                        <Paper 
-                            variant="outlined" 
-                            sx={{ 
-                                p: 2, 
-                                borderRadius: '12px', 
-                                bgcolor: hasVoided && replacementType === 'DIGITS' ? '#fef2f2' : '#f8fafc', 
-                                borderColor: hasVoided && replacementType === 'DIGITS' ? '#fecaca' : '#e2e8f0',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                justifyContent: 'space-between'
-                            }}
-                        >
-                            {hasVoided && replacementType === 'DIGITS' ? (
-                                <Stack spacing={1.5}>
+                        </DialogTitle>
+                        <Divider sx={{ my: 1 }} />
+                        <DialogContent sx={{ py: 1.5, px: 2 }}>
+                            <Box sx={{ display: 'grid', gridTemplateColumns: hasAnyReplacement ? '1fr 1fr' : '1fr', gap: 2 }}>
+                                {/* Cột 1: Thông tin vé / sê-ri báo sự cố */}
+                                <Paper variant="outlined" sx={{ p: 2, borderRadius: '12px', bgcolor: '#f8fafc', borderColor: '#e2e8f0', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                                     <Stack direction="row" alignItems="center" justifyContent="space-between">
-                                        <Chip label="Vé thay thế mới" size="small" color="success" sx={{ fontWeight: 800, fontSize: '0.7rem' }} />
-                                        <Typography variant="subtitle2" fontWeight={800} color="#15803d">
-                                            Tạo mới thành công
+                                        <Chip label="Vé báo sự cố" size="small" sx={{ fontWeight: 800, fontSize: '0.7rem', bgcolor: '#fee2e2', color: '#b91c1c', border: '1px solid #fecaca' }} />
+                                        <Typography variant="subtitle1" fontWeight={900} color="#0f172a" sx={{ fontFamily: 'monospace', fontSize: '1rem', letterSpacing: '0.5px' }}>
+                                            #{currentTicketNumbers}
                                         </Typography>
                                     </Stack>
 
                                     <Divider />
 
                                     <Box>
-                                        <Typography variant="caption" color="#b91c1c" fontWeight={700} sx={{ textTransform: 'uppercase', display: 'block', fontSize: '0.68rem', mb: 0.25 }}>
-                                            Dãy số vé mới sẽ sinh
-                                        </Typography>
-                                        <Typography variant="h4" fontWeight={900} color="#ef4444" sx={{ letterSpacing: '2px' }}>
-                                            {replacementDigits || 'Chưa nhập'}
-                                        </Typography>
-                                    </Box>
-
-                                    <Box>
                                         <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', display: 'block', fontSize: '0.68rem', mb: 0.25 }}>
-                                            Số lượng sê-ri sinh mới
+                                            Phạm vi áp dụng
                                         </Typography>
                                         <Typography variant="body2" fontWeight={800} color="#1e293b">
-                                            {currentSerials.length} sê-ri vật lý trong kho
+                                            {cancelMode === 'TICKET' || isFullTicketScope
+                                                ? `Báo sự cố toàn bộ vé (${targetSerialsList.length} sê-ri)`
+                                                : `Báo sự cố ${targetSerialsList.length} sê-ri đã chọn`}
                                         </Typography>
+                                    </Box>
+
+                                    {/* Danh sách các sê-ri được chọn nếu chọn một vài sê-ri */}
+                                    {(!isFullTicketScope && targetSerialsList.length > 0 && targetSerialsList.length <= 10) && (
+                                        <Box>
+                                            <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', display: 'block', fontSize: '0.68rem', mb: 0.5 }}>
+                                                Các sê-ri áp dụng (${targetSerialsList.length}):
+                                            </Typography>
+                                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                                {targetSerialsList.map(s => (
+                                                    <Chip
+                                                        key={s.id}
+                                                        label={s.serialNumber}
+                                                        size="small"
+                                                        sx={{
+                                                            height: 22,
+                                                            fontSize: '0.68rem',
+                                                            fontFamily: 'monospace',
+                                                            fontWeight: 700,
+                                                            bgcolor: '#ffffff',
+                                                            border: '1px solid #cbd5e1',
+                                                            color: '#334155',
+                                                        }}
+                                                    />
+                                                ))}
+                                            </Box>
+                                        </Box>
+                                    )}
+
+                                    <Box>
+                                        <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', display: 'block', fontSize: '0.68rem', mb: 0.25 }}>
+                                            Nguyên nhân sự cố
+                                        </Typography>
+                                        <Chip 
+                                            label={(ticketForm.faultedBy === 'DATA_ENTRY_FAULT') ? 'Lỗi thao tác nhập liệu' : 'Sự cố vật lý'} 
+                                            size="small" 
+                                            sx={{ 
+                                                fontWeight: 800, 
+                                                fontSize: '0.72rem',
+                                                bgcolor: (ticketForm.faultedBy === 'DATA_ENTRY_FAULT') ? '#eff6ff' : '#fef2f2',
+                                                color: (ticketForm.faultedBy === 'DATA_ENTRY_FAULT') ? '#1d4ed8' : '#b91c1c',
+                                                border: '1px solid',
+                                                borderColor: (ticketForm.faultedBy === 'DATA_ENTRY_FAULT') ? '#bfdbfe' : '#fecaca'
+                                            }} 
+                                        />
                                     </Box>
 
                                     <Box>
                                         <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', display: 'block', fontSize: '0.68rem', mb: 0.25 }}>
-                                            Ảnh minh chứng vé mới
+                                            Lý do chi tiết
                                         </Typography>
-                                        <Typography variant="body2" color="#475569">
-                                            {replacementDigitsImg ? 'Đã tải lên 1 ảnh vé mới' : 'Không có ảnh đính kèm'}
+                                        <Typography variant="body2" color="#334155" sx={{ fontStyle: 'italic', bgcolor: '#ffffff', p: 1, borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '0.8rem' }}>
+                                            "{serialProcessingMode === 'ALL' ? (ticketForm.damagedReason || 'Chưa nhập lý do') : 'Khai báo theo từng sê-ri riêng lẻ'}"
                                         </Typography>
                                     </Box>
 
-                                    <Box sx={{ pt: 0.5, bgcolor: '#ffffff', p: 1, borderRadius: '8px', border: '1px solid #fca5a5' }}>
-                                        <Typography variant="caption" color="#991b1b" fontWeight={700} sx={{ display: 'block', mb: 0.25 }}>
-                                            Lưu vết kế toán (Audit Trail):
-                                        </Typography>
-                                        <Typography variant="caption" color="#64748b" sx={{ fontSize: '0.7rem', display: 'block', lineHeight: 1.3 }}>
-                                            Hệ thống tự động nối thông tin {currentSerials.length} sê-ri mới trỏ về đúng {currentSerials.length} sê-ri cũ để phục vụ kiểm toán đối soát.
-                                        </Typography>
-                                    </Box>
-                                </Stack>
-                            ) : (
-                                <Stack spacing={1.5} justifyContent="center" alignItems="center" sx={{ height: '100%', py: 3, textAlign: 'center' }}>
-                                    <Box sx={{ bgcolor: '#e2e8f0', borderRadius: '50%', p: 1.5, display: 'flex' }}>
-                                        <LayersIcon sx={{ color: '#64748b', fontSize: '1.8rem' }} />
-                                    </Box>
-                                    <Typography variant="subtitle2" fontWeight={800} color="#475569">
-                                        Không tạo vé thay thế hàng loạt
-                                    </Typography>
-                                    <Typography variant="caption" color="text.secondary" sx={{ maxWidth: '240px' }}>
-                                        Sự cố này chỉ ghi nhận báo hỏng/hủy theo từng sê-ri riêng lẻ mà không tạo mới toàn bộ dãy số thay thế.
-                                    </Typography>
-                                </Stack>
-                            )}
-                        </Paper>
-                    </Box>
+                                    {/* Ảnh minh chứng đính kèm (nếu có) */}
+                                    {ticketForm.damagedEvidenceUrl && (
+                                        <Box>
+                                            <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', display: 'block', fontSize: '0.68rem', mb: 0.25 }}>
+                                                Ảnh minh chứng
+                                            </Typography>
+                                            <Typography variant="caption" color="#16a34a" fontWeight={700}>
+                                                ✓ Đã tải lên ảnh minh chứng sự cố
+                                            </Typography>
+                                        </Box>
+                                    )}
 
-                    {Object.keys(refundDraftByOrderId).length > 0 && (
-                        <Paper
-                            variant="outlined"
-                            sx={{
-                                mt: 2,
-                                p: 2,
-                                borderRadius: '12px',
-                                bgcolor: '#fffbeb',
-                                borderColor: '#fde68a',
-                            }}
-                        >
-                            <Typography variant="subtitle2" fontWeight={800} color="#92400e" sx={{ mb: 1.5 }}>
-                                Hoàn tiền đơn hàng liên kết
-                            </Typography>
-                            <Stack spacing={1.5}>
-                                {Object.entries(refundDraftByOrderId).map(([orderId, draft]) => {
-                                    const orderTypeLabel =
-                                        ORDER_TYPE_LABELS[draft.orderType || ''] || draft.orderType || '—';
+                                    {/* Hệ quả xử lý - Ngôn ngữ nghiệp vụ thân thiện */}
+                                    <Box sx={{ mt: 'auto', pt: 0.75 }}>
+                                        <Box sx={{ bgcolor: '#ffffff', p: 1.25, borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                            <Typography variant="caption" color="#64748b" fontWeight={750} sx={{ display: 'block', mb: 0.25, textTransform: 'uppercase', fontSize: '0.68rem', letterSpacing: '0.5px' }}>
+                                                Hệ quả xử lý:
+                                            </Typography>
+                                            <Typography variant="caption" color="#334155" sx={{ fontSize: '0.73rem', display: 'block', lineHeight: 1.45 }}>
+                                                {isReplacingWholeTicket ? (
+                                                    <>Dãy số cũ sẽ được chuyển sang trạng thái lưu trữ đối soát; toàn bộ các vé sê-ri được tự động chuyển sang dãy số mới.</>
+                                                ) : allSelectedSerialsPhysicalFault || isFullTicketScope ? (
+                                                    <>Toàn bộ <strong>${eligibleCurrentSerials.length} sê-ri</strong> của dãy số sẽ bị hủy bỏ và ngừng phát hành. Các đơn hàng có liên quan sẽ được tự động xử lý hoàn tiền.</>
+                                                ) : (
+                                                    <>Chỉ <strong>${targetSerialsList.length} sê-ri</strong> đã chọn bị ghi nhận sự cố và hủy bỏ. Các sê-ri còn lại trong dãy vẫn có thể phát hành bình thường.</>
+                                                )}
+                                            </Typography>
+                                        </Box>
+                                    </Box>
+                                </Paper>
 
-                                    return (
-                                    <Box
-                                        key={orderId}
-                                        sx={{
-                                            p: 1.5,
-                                            borderRadius: '8px',
-                                            bgcolor: '#fff',
-                                            border: '1px solid #fde68a',
+                                {/* Cột 2: Chỉ hiển thị khi CÓ vé / sê-ri thay thế mới */}
+                                {hasAnyReplacement && (
+                                    <Paper 
+                                        variant="outlined" 
+                                        sx={{ 
+                                            p: 2, 
+                                            borderRadius: '12px', 
+                                            bgcolor: '#f0fdf4', 
+                                            borderColor: '#bbf7d0',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            gap: 1.5,
                                         }}
                                     >
-                                        <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
-                                            <Typography variant="body2" fontWeight={800}>
-                                                {draft.orderCode || orderId}
-                                            </Typography>
-                                            <OrderStatusBadge status={draft.orderStatus} />
-                                        </Stack>
-                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                                            {draft.customerName || '—'}
-                                            {draft.customerPhone ? ` · ${draft.customerPhone}` : ''}
-                                            {draft.createdAt
-                                                ? ` · ${dayjs(draft.createdAt).format('DD/MM/YYYY HH:mm')}`
-                                                : ''}
-                                            {orderTypeLabel !== '—' ? ` · ${orderTypeLabel}` : ''}
-                                        </Typography>
-                                        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 0.75 }}>
-                                            <Typography variant="caption" color="text.secondary">
-                                                {draft.canFullOrderCancel
-                                                    ? 'Hủy đơn + hoàn các vé sự cố (vé cuối)'
-                                                    : Number(draft.refundAmount || 0) > 0
-                                                      ? 'Tạo đơn hoàn tiền từng phần — không hủy đơn'
-                                                      : 'Không hủy đơn — chỉ báo sự cố sê-ri'}
-                                                · {draft.incidents.length} sê-ri
-                                                {draft.ticketLineCount != null
-                                                    ? ` · ${draft.ticketLineCount} dòng vé`
-                                                    : ''}
-                                            </Typography>
-                                            <Typography variant="body2" fontWeight={800} color="#b45309">
-                                                {formatRefundCurrency(draft.refundAmount ?? 0)}
-                                            </Typography>
-                                        </Stack>
-                                        {(draft.canFullOrderCancel || Number(draft.refundAmount || 0) > 0) && (
-                                            <Typography variant="caption" color="#475569" sx={{ display: 'block', mt: 0.5, fontStyle: 'italic' }}>
-                                                {draft.canFullOrderCancel ? 'Lý do hủy: ' : 'Lý do hoàn: '}
-                                                {draft.cancelReason || '—'}
-                                            </Typography>
-                                        )}
-                                    </Box>
-                                    );
-                                })}
-                            </Stack>
+                                        {isReplacingWholeTicket ? (
+                                            <>
+                                                <Stack direction="row" alignItems="center" justifyContent="space-between">
+                                                    <Chip label="Dãy số thay thế mới" size="small" color="success" sx={{ fontWeight: 800, fontSize: '0.7rem' }} />
+                                                    <Typography variant="subtitle2" fontWeight={800} color="#15803d">
+                                                        Tạo mới dãy vé
+                                                    </Typography>
+                                                </Stack>
 
-                            {pendingSelectedItems.some(
-                                (item) => !isActiveTransactionSerialStatus(item.originalStatus)
-                            ) && (
-                                <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px dashed #fde68a' }}>
-                                    <Typography variant="caption" fontWeight={700} color="#64748b" sx={{ display: 'block', mb: 0.5 }}>
-                                        Sê-ri chỉ cập nhật kho (IN_STOCK) — không hoàn tiền:
+                                                <Divider sx={{ borderColor: '#bbf7d0' }} />
+
+                                                <Box>
+                                                    <Typography variant="caption" color="#166534" fontWeight={700} sx={{ textTransform: 'uppercase', display: 'block', fontSize: '0.68rem', mb: 0.25 }}>
+                                                        Dãy số vé mới sẽ tạo
+                                                    </Typography>
+                                                    <Typography variant="h4" fontWeight={900} color="#16a34a" sx={{ letterSpacing: '2px', fontFamily: 'monospace' }}>
+                                                        {replacementDigits || 'Chưa nhập'}
+                                                    </Typography>
+                                                </Box>
+
+                                                <Box>
+                                                    <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', display: 'block', fontSize: '0.68rem', mb: 0.25 }}>
+                                                        Số lượng sê-ri chuyển mới
+                                                    </Typography>
+                                                    <Typography variant="body2" fontWeight={800} color="#1e293b">
+                                                        {currentSerials.length} sê-ri vật lý
+                                                    </Typography>
+                                                </Box>
+
+                                                <Box>
+                                                    <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', display: 'block', fontSize: '0.68rem', mb: 0.25 }}>
+                                                        Ảnh minh chứng vé mới
+                                                    </Typography>
+                                                    <Typography variant="body2" color="#475569">
+                                                        {replacementDigitsImg ? 'Đã tải lên ảnh vé mới' : 'Không có ảnh đính kèm'}
+                                                    </Typography>
+                                                </Box>
+
+                                                <Box sx={{ mt: 'auto', bgcolor: '#ffffff', p: 1.25, borderRadius: '8px', border: '1px solid #bbf7d0' }}>
+                                                    <Typography variant="caption" color="#166534" fontWeight={750} sx={{ display: 'block', mb: 0.25, fontSize: '0.68rem', textTransform: 'uppercase' }}>
+                                                        Lưu vết đối soát hệ thống:
+                                                    </Typography>
+                                                    <Typography variant="caption" color="#475569" sx={{ fontSize: '0.7rem', display: 'block', lineHeight: 1.35 }}>
+                                                        Hệ thống tự động liên kết đối soát giữa dãy cũ và dãy mới, đảm bảo tính minh bạch kế toán.
+                                                    </Typography>
+                                                </Box>
+                                            </>
+                                        ) : isReplacingIndividualSerials ? (
+                                            <>
+                                                <Stack direction="row" alignItems="center" justifyContent="space-between">
+                                                    <Chip label="Sê-ri thay thế cấp mới" size="small" color="success" sx={{ fontWeight: 800, fontSize: '0.7rem' }} />
+                                                    <Typography variant="subtitle2" fontWeight={800} color="#15803d">
+                                                        {serialsWithReplacement.length} sê-ri cấp bù
+                                                    </Typography>
+                                                </Stack>
+
+                                                <Divider sx={{ borderColor: '#bbf7d0' }} />
+
+                                                <Box sx={{ flexGrow: 1 }}>
+                                                    <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', display: 'block', fontSize: '0.68rem', mb: 0.75 }}>
+                                                        Danh sách sê-ri thay thế:
+                                                    </Typography>
+                                                    <Stack spacing={0.75} sx={{ maxHeight: '200px', overflowY: 'auto', pr: 0.5 }}>
+                                                        {serialsWithReplacement.map((s) => (
+                                                            <Box
+                                                                key={s.id}
+                                                                sx={{
+                                                                    p: 1,
+                                                                    borderRadius: '8px',
+                                                                    bgcolor: '#ffffff',
+                                                                    border: '1px solid #bbf7d0',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'space-between',
+                                                                    gap: 1,
+                                                                }}
+                                                            >
+                                                                <Typography variant="caption" sx={{ fontFamily: 'monospace', fontWeight: 700, color: '#dc2626' }}>
+                                                                    {s.serialNumber}
+                                                                </Typography>
+                                                                <Typography variant="caption" color="#16a34a" fontWeight={800}>
+                                                                    ➔
+                                                                </Typography>
+                                                                <Typography variant="caption" sx={{ fontFamily: 'monospace', fontWeight: 800, color: '#15803d' }}>
+                                                                    {forms[s.id]?.replacementSerial}
+                                                                </Typography>
+                                                            </Box>
+                                                        ))}
+                                                    </Stack>
+                                                </Box>
+
+                                                <Box sx={{ mt: 'auto', bgcolor: '#ffffff', p: 1.25, borderRadius: '8px', border: '1px solid #bbf7d0' }}>
+                                                    <Typography variant="caption" color="#166534" fontWeight={750} sx={{ display: 'block', mb: 0.25, fontSize: '0.68rem', textTransform: 'uppercase' }}>
+                                                        Lưu vết đối soát hệ thống:
+                                                    </Typography>
+                                                    <Typography variant="caption" color="#475569" sx={{ fontSize: '0.7rem', display: 'block', lineHeight: 1.35 }}>
+                                                        Các sê-ri mới sẽ thay thế trực tiếp vào vị trí sê-ri cũ trong hệ thống để tiếp tục phát hành.
+                                                    </Typography>
+                                                </Box>
+                                            </>
+                                        ) : null}
+                                    </Paper>
+                                )}
+                            </Box>
+
+                            {Object.keys(refundDraftByOrderId).length > 0 && (
+                                <Paper
+                                    variant="outlined"
+                                    sx={{
+                                        mt: 2,
+                                        p: 2,
+                                        borderRadius: '12px',
+                                        bgcolor: '#fffbeb',
+                                        borderColor: '#fde68a',
+                                    }}
+                                >
+                                    <Typography variant="subtitle2" fontWeight={800} color="#92400e" sx={{ mb: 1.5 }}>
+                                        Hoàn tiền đơn hàng liên kết
                                     </Typography>
-                                    <Typography variant="caption" color="#475569">
-                                        {pendingSelectedItems
-                                            .filter((item) => !isActiveTransactionSerialStatus(item.originalStatus))
-                                            .map((item) => item.serialNumber || item.id)
-                                            .join(', ')}
-                                    </Typography>
-                                </Box>
+                                    <Stack spacing={1.5}>
+                                        {Object.entries(refundDraftByOrderId).map(([orderId, draft]) => {
+                                            const orderTypeLabel =
+                                                ORDER_TYPE_LABELS[draft.orderType || ''] || draft.orderType || '—';
+
+                                            return (
+                                            <Box
+                                                key={orderId}
+                                                sx={{
+                                                    p: 1.5,
+                                                    borderRadius: '8px',
+                                                    bgcolor: '#fff',
+                                                    border: '1px solid #fde68a',
+                                                }}
+                                            >
+                                                <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+                                                    <Typography variant="body2" fontWeight={800}>
+                                                        {draft.orderCode || orderId}
+                                                    </Typography>
+                                                    <OrderStatusBadge status={draft.orderStatus} />
+                                                </Stack>
+                                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                                                    {draft.customerName || '—'}
+                                                    {draft.customerPhone ? ` · ${draft.customerPhone}` : ''}
+                                                    {draft.createdAt
+                                                        ? ` · ${dayjs(draft.createdAt).format('DD/MM/YYYY HH:mm')}`
+                                                        : ''}
+                                                    {orderTypeLabel !== '—' ? ` · ${orderTypeLabel}` : ''}
+                                                </Typography>
+                                                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 0.75 }}>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        {draft.canFullOrderCancel
+                                                            ? 'Hủy đơn + hoàn các vé sự cố (vé cuối)'
+                                                            : Number(draft.refundAmount || 0) > 0
+                                                              ? 'Tạo đơn hoàn tiền từng phần — không hủy đơn'
+                                                              : 'Không hủy đơn — chỉ báo sự cố sê-ri'}
+                                                        · {draft.incidents.length} sê-ri
+                                                        {draft.ticketLineCount != null
+                                                            ? ` · ${draft.ticketLineCount} dòng vé`
+                                                            : ''}
+                                                    </Typography>
+                                                    <Typography variant="body2" fontWeight={800} color="#b45309">
+                                                        {formatRefundCurrency(draft.refundAmount ?? 0)}
+                                                    </Typography>
+                                                </Stack>
+                                                {(draft.canFullOrderCancel || Number(draft.refundAmount || 0) > 0) && (
+                                                    <Typography variant="caption" color="#475569" sx={{ display: 'block', mt: 0.5, fontStyle: 'italic' }}>
+                                                        {draft.canFullOrderCancel ? 'Lý do hủy: ' : 'Lý do hoàn: '}
+                                                        {draft.cancelReason || '—'}
+                                                    </Typography>
+                                                )}
+                                            </Box>
+                                            );
+                                        })}
+                                    </Stack>
+
+                                    {pendingSelectedItems.some(
+                                        (item) => !isActiveTransactionSerialStatus(item.originalStatus)
+                                    ) && (
+                                        <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px dashed #fde68a' }}>
+                                            <Typography variant="caption" fontWeight={700} color="#64748b" sx={{ display: 'block', mb: 0.5 }}>
+                                                Sê-ri chỉ cập nhật kho (IN_STOCK) — không hoàn tiền:
+                                            </Typography>
+                                            <Typography variant="caption" color="#475569">
+                                                {pendingSelectedItems
+                                                    .filter((item) => !isActiveTransactionSerialStatus(item.originalStatus))
+                                                    .map((item) => item.serialNumber || item.id)
+                                                    .join(', ')}
+                                            </Typography>
+                                        </Box>
+                                    )}
+                                </Paper>
                             )}
-                        </Paper>
-                    )}
-                </DialogContent>
-                <Divider sx={{ my: 1 }} />
-                <DialogActions sx={{ px: 2, pb: 1.5, pt: 0.5 }}>
-                    <Button 
-                        onClick={() => setConfirmOpen(false)} 
-                        variant="outlined" 
-                        color="inherit"
-                        sx={{ borderRadius: '8px', fontWeight: 700, textTransform: 'none', px: 2.5 }}
-                    >
-                        Quay lại chỉnh sửa
-                    </Button>
-                    <Button 
-                        onClick={handleConfirmSubmit} 
-                        variant="contained" 
-                        sx={{ 
-                            borderRadius: '8px', 
-                            fontWeight: 700, 
-                            textTransform: 'none', 
-                            bgcolor: '#ef4444', 
-                            px: 3,
-                            '&:hover': { bgcolor: '#dc2626' } 
-                        }}
-                    >
-                        Đồng ý & Tiến hành báo hủy
-                    </Button>
-                </DialogActions>
-            </Dialog>
+                        </DialogContent>
+                        <Divider sx={{ my: 1 }} />
+                        <DialogActions sx={{ px: 2, pb: 1.5, pt: 0.5 }}>
+                            <Button 
+                                onClick={() => setConfirmOpen(false)} 
+                                variant="outlined" 
+                                sx={{ 
+                                    borderRadius: '10px',
+                                    py: 0.85,
+                                    px: 2.5,
+                                    fontWeight: 700,
+                                    textTransform: 'none',
+                                    color: '#475569',
+                                    borderColor: '#cbd5e1',
+                                    '&:hover': { bgcolor: '#f8fafc', borderColor: '#94a3b8' }
+                                }}
+                            >
+                                Quay lại chỉnh sửa
+                            </Button>
+                            <Button 
+                                onClick={handleConfirmSubmit} 
+                                disabled={submitting} 
+                                variant="contained" 
+                                sx={{ 
+                                    borderRadius: '10px',
+                                    py: 0.85,
+                                    px: 3,
+                                    fontWeight: 800,
+                                    textTransform: 'none',
+                                    bgcolor: '#ef4444',
+                                    boxShadow: '0 2px 6px rgba(239, 68, 68, 0.25)',
+                                    '&:hover': {
+                                        bgcolor: '#dc2626',
+                                    }
+                                }}
+                            >
+                                {submitting ? 'Đang xử lý...' : 'Đồng ý & Tiến hành báo hủy'}
+                            </Button>
+                        </DialogActions>
+                    </Dialog>
+                );
+            })()}
         </Paper>
     );
 };

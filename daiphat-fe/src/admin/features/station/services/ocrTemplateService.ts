@@ -8,7 +8,8 @@ export type OcrTemplateFieldName =
     | 'drawDate'
     | 'ticketType'
     | 'batchCode'
-    | 'price';
+    | 'price'
+    | 'ticketFrame';
 
 export type OcrFieldDataType = 'STRING' | 'DATE' | 'NUMBER' | 'DECIMAL';
 
@@ -52,6 +53,7 @@ const BASE_URL = '/ocr-templates';
 export const getOcrTemplateDefaultReady = async (): Promise<OcrTemplateDefaultReady> => {
     const response = await apiApp.get(`${BASE_URL}/default-ready`, {
         skipGlobalErrorToast: true,
+        timeout: 30_000,
     });
     return response.data?.data ?? { ready: false, activeDefaultCount: 0 };
 };
@@ -62,6 +64,7 @@ export const listOcrTemplatesByStation = async (
     const response = await apiApp.get(BASE_URL, {
         params: { stationId },
         skipGlobalErrorToast: true,
+        timeout: 30_000,
     });
     return response.data?.data ?? [];
 };

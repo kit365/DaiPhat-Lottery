@@ -578,6 +578,7 @@ export const mapScannedTicketToReviewRow = (
         batchCode: reconciled.batchCode,
         fieldConfidences: ticket.fieldConfidences ?? {},
         fieldBoxes: ticket.fieldBoxes ?? {},
+        sourceFieldBoxes: ticket.sourceFieldBoxes ?? {},
         fieldValidations: ticket.fieldValidations ?? {},
         fields: ticket.fields ?? {},
         overallValidationStatus: overall,
@@ -639,6 +640,7 @@ export const createFailedReviewRow = (
         batchCode: null,
         fieldConfidences: {},
         fieldBoxes: {},
+        sourceFieldBoxes: {},
         fieldValidations: {
             stationName: unreadable,
             serialNumber: unreadable,
@@ -812,12 +814,83 @@ export const getImportOutcomeLabel = (outcome: string): string => {
     }
 };
 
+/**
+ * OCR confidences are 0..1 fractions. Values slightly above 1 are station
+ * ranking scores saved before they were capped (up to ~1.2), not percentages;
+ * only larger values are treated as already-scaled percentages.
+ */
+export const toConfidenceRatio = (value: number): number => {
+    if (value <= 2) {
+        return Math.min(Math.max(value, 0), 1);
+    }
+    return Math.min(value, 100) / 100;
+};
+
 export const formatConfidence = (value: number): string => {
     if (!Number.isFinite(value)) {
         return '—';
     }
-    const pct = value <= 1 ? value * 100 : value;
-    return `${pct.toFixed(0)}%`;
+    return `${Math.round(toConfidenceRatio(value) * 100)}%`;
+};
+
+/** Fields the backend checks against a reference value (station list, batch date, station price), not only a format. */
+const REFERENCE_CHECKED_FIELDS: ReadonlySet<OcrFieldKey> = new Set(['stationName', 'drawDate', 'ticketType']);
+
+const referenceFieldValue = (fieldKey: OcrFieldKey, value?: string | null): string | null => {
+    const text = value?.trim();
+    if (!text) {
+        return null;
+    }
+    if (fieldKey === 'drawDate') {
+        const date = dayjs(text);
+        return date.isValid() ? date.format('YYYY-MM-DD') : text;
+    }
+    if (fieldKey === 'ticketType') {
+        const price = parseTicketPriceNumber(text);
+        return price != null ? String(price) : text;
+    }
+    return text.normalize('NFC').toLowerCase();
+};
+
+const currentReferenceValue = (row: OcrReviewRow, fieldKey: OcrFieldKey): string | null | undefined => {
+    switch (fieldKey) {
+        case 'stationName':
+            return row.stationName;
+        case 'drawDate':
+            return row.drawDate;
+        case 'ticketType':
+            return row.ticketType;
+        default:
+            return null;
+    }
+};
+
+/**
+ * Confidence to display for a field. Normally the OCR recognition confidence;
+ * 100% when the backend confirmed the scanned value against its reference
+ * (MATCHED) and the value has not been changed since the scan. Numbers, serial
+ * and batch code have no reference value, so they keep the OCR confidence.
+ */
+export const resolveFieldDisplayConfidence = (
+    row: OcrReviewRow,
+    fieldKey: OcrFieldKey,
+    uiStatus: OcrFieldUiStatus
+): { confidence: number | null; confirmed: boolean } => {
+    const raw = row.fieldConfidences?.[fieldKey] ?? row.fields?.[fieldKey]?.confidence ?? null;
+    const ocr = raw != null && Number.isFinite(raw) ? toConfidenceRatio(raw) : null;
+    if (!REFERENCE_CHECKED_FIELDS.has(fieldKey) || (uiStatus !== 'valid' && uiStatus !== 'corrected')) {
+        return { confidence: ocr, confirmed: false };
+    }
+    const validationStatus = row.fieldValidations?.[fieldKey]?.status ?? row.fields?.[fieldKey]?.validationStatus;
+    if (validationStatus !== 'MATCHED') {
+        return { confidence: ocr, confirmed: false };
+    }
+    const scanned = row.fields?.[fieldKey]?.value;
+    const unchanged =
+        scanned != null
+            ? referenceFieldValue(fieldKey, scanned) === referenceFieldValue(fieldKey, currentReferenceValue(row, fieldKey))
+            : !row.edited;
+    return unchanged ? { confidence: 1, confirmed: true } : { confidence: ocr, confirmed: false };
 };
 
 export const getFieldValidationLabel = (status?: string | null): string => {
@@ -968,7 +1041,7 @@ export const getConfidenceEmphasis = (confidence?: number | null): ConfidenceEmp
     if (confidence == null || !Number.isFinite(confidence)) {
         return 'medium';
     }
-    const value = confidence <= 1 ? confidence : confidence / 100;
+    const value = toConfidenceRatio(confidence);
     if (value >= 0.85) {
         return 'high';
     }

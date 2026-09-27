@@ -36,9 +36,7 @@ git tag -a v1.0.0 -m "DaiPhat Mobile v1.0.0"
 git push origin v1.0.0
 ```
 
-Hoặc tạo tag hoàn toàn trên giao diện GitHub: vào **Releases > Draft a new release**, nhập một tag mới (ví dụ `v1.0.0`), chọn **Create new tag ... on publish**, đặt target là `main`, rồi **Publish release**. Workflow nhận ra Release đã tồn tại và upload (hoặc ghi đè) APK vào Release đó.
-
-Quy ước tag hợp lệ: `vMAJOR.MINOR.PATCH`, ví dụ `v1.0.0`, `v1.2.3`; có thể dùng prerelease như `v1.1.0-rc.1`. Khi workflow tự tạo Release, tag prerelease sẽ tạo GitHub Release dạng **pre-release**. Khi tạo Release trên giao diện GitHub, chọn thêm tùy chọn **Set as a pre-release** cho tag prerelease.
+Quy ước tag hợp lệ: `vMAJOR.MINOR.PATCH`, ví dụ `v1.0.0`, `v1.2.3`; có thể dùng prerelease như `v1.1.0-rc.1`. Tag prerelease sẽ tạo GitHub Release dạng **pre-release**.
 
 Sau khi push tag:
 
@@ -53,4 +51,4 @@ Nếu run thất bại ở bước tạo Release với lỗi quyền, kiểm tra
 
 Không push lại tag đã phát hành. Nếu cần sửa code, tạo tag mới, ví dụ `v1.0.1`.
 
-Nếu chạy lại workflow cho cùng tag, APK cùng tên trong Release sẽ được ghi đè. Cách an toàn và dễ theo dõi nhất vẫn là tăng phiên bản và tạo tag mới.
+Nếu chỉ cần chạy lại workflow cho cùng tag sau khi đã xóa Release, workflow sẽ dùng `gh release create` và chỉ thành công khi Release của tag đó chưa tồn tại. Cách an toàn và dễ theo dõi nhất vẫn là tăng phiên bản và tạo tag mới.

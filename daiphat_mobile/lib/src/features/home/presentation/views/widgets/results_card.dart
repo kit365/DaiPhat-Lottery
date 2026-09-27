@@ -42,12 +42,12 @@ class _ResultsCardState extends State<ResultsCard> {
         decoration: BoxDecoration(
           color: AppColors.surfacePrimary,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFF1F5F9), width: 1.5),
-          boxShadow: [
+          border: Border.all(color: AppColors.cardBorder, width: 1.5),
+          boxShadow: const [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 16,
-              offset: const Offset(0, 4),
+              color: AppColors.shadowFaint,
+              blurRadius: 20,
+              offset: Offset(0, 8),
             ),
           ],
         ),
@@ -68,7 +68,7 @@ class _ResultsCardState extends State<ResultsCard> {
 
   Widget _buildProvinceHeader(List<String> provinces) {
     return Container(
-      color: const Color(0xFFF8FAFC),
+      color: AppColors.surfaceBrandLight.withValues(alpha: .3),
       child: Row(
         children: [
           Container(
@@ -76,53 +76,42 @@ class _ResultsCardState extends State<ResultsCard> {
             padding: const EdgeInsets.symmetric(vertical: 10),
             alignment: Alignment.center,
             decoration: const BoxDecoration(
-              border: Border(right: BorderSide(color: Color(0xFFF1F5F9))),
+              border: Border(right: BorderSide(color: AppColors.cardBorder)),
             ),
-            child: const Text(
+            child: Text(
               'Giải',
-              style: TextStyle(
-                fontSize: 12,
+              style: AppTypography.labelSmall(
+                fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF333333),
+                color: AppColors.textMuted,
               ),
             ),
           ),
           ...provinces.map(
-            (province) {
-              final shortName =
-                  (province == 'TP. Hồ Chí Minh' || province == 'Hồ Chí Minh')
-                      ? 'TP. HCM'
-                      : province;
-              return Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 8,
-                    horizontal: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFCE5DF).withValues(alpha: 0.35),
-                    border: province != provinces.last
-                        ? const Border(
-                            right: BorderSide(color: Color(0xFFF1F5F9)),
-                          )
-                        : null,
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    shortName,
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: provinces.length > 3 ? 10.5 : 12,
-                      fontWeight: FontWeight.w800,
-                      color: const Color(0xFFEE1314),
-                      height: 1.15,
-                    ),
+            (province) => Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: province != provinces.last
+                    ? const BoxDecoration(
+                        border: Border(
+                          right: BorderSide(color: AppColors.cardBorder),
+                        ),
+                      )
+                    : null,
+                alignment: Alignment.center,
+                child: Text(
+                  province,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.labelMedium(
+                    fontSize: provinces.length > 3 ? 9 : 11,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primary,
                   ),
                 ),
-              );
-            },
+              ),
+            ),
           ),
         ],
       ),
@@ -145,7 +134,7 @@ class _ResultsCardState extends State<ResultsCard> {
               ? AppColors.surfaceBrandLight.withValues(alpha: .3)
               : AppColors.surfacePrimary,
           border: const Border(
-            bottom: BorderSide(color: Color(0xFFF1F5F9), width: 1),
+            bottom: BorderSide(color: AppColors.cardBorder, width: .8),
           ),
         ),
         child: Row(
@@ -201,17 +190,17 @@ class _ResultsCardState extends State<ResultsCard> {
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: const BoxDecoration(
                   border: Border(
-                    right: BorderSide(color: Color(0xFFF1F5F9)),
+                    right: BorderSide(color: AppColors.cardBorder),
                   ),
                 ),
                 alignment: Alignment.center,
-                child: const Text(
+                child: Text(
                   'Đặc biệt',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 11,
+                  style: AppTypography.labelSmall(
+                    fontSize: 10,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFFEE1314),
+                    color: AppColors.primary,
                   ),
                 ),
               ),
@@ -220,7 +209,7 @@ class _ResultsCardState extends State<ResultsCard> {
                   ? Padding(
                       padding: const EdgeInsets.symmetric(vertical: 22),
                       child: _renderNumber(
-                        _specialValue(singleResult, isSingle: true),
+                        _specialValue(singleResult),
                         AppTypography.lotterySpecial(
                           fontSize: 36,
                           fontWeight: FontWeight.w900,
@@ -234,26 +223,23 @@ class _ResultsCardState extends State<ResultsCard> {
                         final result = resultsByProvince[province];
                         return Expanded(
                           child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 12,
-                              horizontal: 2,
-                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
                             decoration: province != provinces.last
                                 ? const BoxDecoration(
                                     border: Border(
                                       right: BorderSide(
-                                        color: Color(0xFFF1F5F9),
+                                        color: AppColors.cardBorder,
                                       ),
                                     ),
                                   )
                                 : null,
                             alignment: Alignment.center,
                             child: _renderNumber(
-                              _specialValue(result, isSingle: false),
+                              _specialValue(result),
                               AppTypography.lotteryPrize(
                                 fontSize: provinces.length > 3 ? 18 : 22,
                                 fontWeight: FontWeight.w900,
-                                color: const Color(0xFFEE1314),
+                                color: AppColors.primary,
                               ),
                             ),
                           ),
@@ -284,7 +270,7 @@ class _ResultsCardState extends State<ResultsCard> {
 
     return Container(
       decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: Color(0xFFF1F5F9))),
+        border: Border(top: BorderSide(color: AppColors.cardBorder)),
       ),
       child: Column(
         children: rows.asMap().entries.map((entry) {
@@ -293,9 +279,9 @@ class _ResultsCardState extends State<ResultsCard> {
 
           return Container(
             decoration: BoxDecoration(
-              color: index.isOdd ? const Color(0xFFFAFAFA) : Colors.white,
+              color: index.isOdd ? AppColors.rowOdd : AppColors.rowEven,
               border: const Border(
-                bottom: BorderSide(color: Color(0xFFF1F5F9), width: 1),
+                bottom: BorderSide(color: AppColors.cardBorder, width: .5),
               ),
             ),
             child: Row(
@@ -306,17 +292,17 @@ class _ResultsCardState extends State<ResultsCard> {
                   padding: const EdgeInsets.symmetric(vertical: 9),
                   decoration: const BoxDecoration(
                     border: Border(
-                      right: BorderSide(color: Color(0xFFF1F5F9)),
+                      right: BorderSide(color: AppColors.cardBorder),
                     ),
                   ),
                   alignment: Alignment.center,
                   child: Text(
                     row.label,
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: isSingle ? 11.5 : 11,
+                    style: AppTypography.labelSmall(
+                      fontSize: isSingle ? 11 : 10,
                       fontWeight: FontWeight.w700,
-                      color: const Color(0xFFEE1314),
+                      color: AppColors.primary,
                     ),
                   ),
                 ),
@@ -339,10 +325,10 @@ class _ResultsCardState extends State<ResultsCard> {
                         : (isSingle ? 15 : 12),
                     fontWeight: row.highlight
                         ? FontWeight.w800
-                        : FontWeight.w700,
+                        : FontWeight.w600,
                     color: row.highlight
-                        ? const Color(0xFFEE1314)
-                        : const Color(0xFF111111),
+                        ? AppColors.primary
+                        : AppColors.textMain,
                     height: 1.6,
                   );
 
@@ -353,8 +339,8 @@ class _ResultsCardState extends State<ResultsCard> {
                           ? const BoxDecoration(
                               border: Border(
                                 right: BorderSide(
-                                  color: Color(0xFFF1F5F9),
-                                  width: 1,
+                                  color: AppColors.cardBorder,
+                                  width: .5,
                                 ),
                               ),
                             )
@@ -483,16 +469,16 @@ class _ResultsCardState extends State<ResultsCard> {
     margin: const EdgeInsets.symmetric(horizontal: 9),
   );
 
-  String _specialValue(LotteryResult? result, {bool isSingle = false}) {
+  String _specialValue(LotteryResult? result) {
     final value = result?.prizes.special.trim() ?? '';
     if (value.isNotEmpty) {
       return value;
     }
-    return isSingle && widget.isWaitingForResults ? 'Đang chờ' : '--';
+    return widget.isWaitingForResults ? 'Đang chờ' : '--';
   }
 
   Widget _renderNumber(String fullNumber, TextStyle baseStyle) {
-    if (fullNumber == '--' || fullNumber == '—' || fullNumber == 'Đang chờ') {
+    if (fullNumber == '--' || fullNumber == 'Đang chờ') {
       return FittedBox(
         fit: BoxFit.scaleDown,
         child: Text(
@@ -500,15 +486,7 @@ class _ResultsCardState extends State<ResultsCard> {
           maxLines: 1,
           softWrap: false,
           textAlign: TextAlign.center,
-          style: fullNumber == 'Đang chờ'
-              ? baseStyle.copyWith(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                )
-              : baseStyle.copyWith(
-                  color: AppColors.contentPlaceholder,
-                  fontWeight: FontWeight.w700,
-                ),
+          style: baseStyle,
         ),
       );
     }

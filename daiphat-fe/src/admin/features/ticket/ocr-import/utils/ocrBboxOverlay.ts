@@ -1,4 +1,4 @@
-import type { TicketBoundingBox } from '../types/ticketOcr.type';
+import type { OcrReviewRow, TicketBoundingBox } from '../types/ticketOcr.type';
 
 export type ContainedImageRect = {
     /** Offset of the drawn bitmap inside the container (object-fit: contain). */
@@ -101,6 +101,60 @@ export const mapBoxToNaturalPixels = (
         corners: box.corners?.map(([cx, cy]) => [cx * sx, cy * sy]),
     };
 };
+
+export const strokeForField = (
+    confidence: number | null | undefined,
+    selected: boolean,
+    validationStatus?: string | null
+): string => {
+    if (selected) return '#2563eb';
+    if (validationStatus === 'UNREADABLE' || validationStatus === 'MISMATCHED' || validationStatus === 'NOT_FOUND') {
+        return '#dc2626';
+    }
+    if (confidence != null && confidence < 0.6) return '#d97706';
+    if (confidence != null && confidence >= 0.85) return '#16a34a';
+    return '#0ea5e9';
+};
+
+export const fillForField = (
+    confidence: number | null | undefined,
+    selected: boolean,
+    validationStatus?: string | null
+): string => {
+    if (selected) return 'rgba(37,99,235,0.22)';
+    if (validationStatus === 'UNREADABLE') return 'rgba(220,38,38,0.28)';
+    if (validationStatus === 'MISMATCHED' || validationStatus === 'NOT_FOUND') {
+        return 'rgba(239,68,68,0.22)';
+    }
+    if (confidence != null && confidence < 0.6) return 'rgba(217,119,6,0.18)';
+    return 'rgba(14,165,233,0.14)';
+};
+
+/** SVG `points` for a box: its four corners when present (tilted tickets), else the rect. */
+export const boxPolygonPoints = (box: TicketBoundingBox): string => {
+    const corners =
+        box.corners && box.corners.length === 4
+            ? box.corners
+            : [
+                  [box.x, box.y],
+                  [box.x + box.width, box.y],
+                  [box.x + box.width, box.y + box.height],
+                  [box.x, box.y + box.height],
+              ];
+    return corners.map(([cx, cy]) => `${cx},${cy}`).join(' ');
+};
+
+/** Template field region on the original image, in the row's `bbox` space. */
+export const resolveSourceFieldBox = (
+    row: OcrReviewRow,
+    fieldName: string
+): TicketBoundingBox | null => {
+    const box = row.sourceFieldBoxes?.[fieldName];
+    return box && box.width > 0 && box.height > 0 ? box : null;
+};
+
+export const hasSourceFieldBoxes = (row: OcrReviewRow): boolean =>
+    Object.keys(row.sourceFieldBoxes ?? {}).some((field) => resolveSourceFieldBox(row, field));
 
 /**
  * Prefer OCR-reported dimensions when present (bbox space); fall back to the

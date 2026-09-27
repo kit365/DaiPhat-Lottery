@@ -4,7 +4,7 @@ import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 
 enum AppHeaderActionVariant { light, translucent, bare }
 
-class AppHeaderActionButton extends StatefulWidget {
+class AppHeaderActionButton extends StatelessWidget {
   const AppHeaderActionButton({
     super.key,
     required this.icon,
@@ -30,35 +30,11 @@ class AppHeaderActionButton extends StatefulWidget {
   final AppHeaderActionVariant variant;
   final BorderRadius? borderRadius;
 
-  @visibleForTesting
-  static DateTime Function()? debugNowOverride;
-
-  @override
-  State<AppHeaderActionButton> createState() => _AppHeaderActionButtonState();
-}
-
-class _AppHeaderActionButtonState extends State<AppHeaderActionButton> {
-  int _lastTapTimestamp = 0;
-
-  void _handleTap() {
-    if (widget.onTap == null) return;
-    final now = (AppHeaderActionButton.debugNowOverride != null
-            ? AppHeaderActionButton.debugNowOverride!()
-            : DateTime.now())
-        .millisecondsSinceEpoch;
-    if (now - _lastTapTimestamp < 500) {
-      return;
-    }
-    _lastTapTimestamp = now;
-    widget.onTap!();
-  }
-
   @override
   Widget build(BuildContext context) {
-    final effectiveBorderRadius =
-        widget.borderRadius ?? BorderRadius.circular(999);
+    final effectiveBorderRadius = borderRadius ?? BorderRadius.circular(999);
 
-    final defaultBgColor = switch (widget.variant) {
+    final defaultBgColor = switch (variant) {
       AppHeaderActionVariant.light => AppColors.surfacePrimary,
       AppHeaderActionVariant.translucent => AppColors.surfacePrimary.withValues(
         alpha: 0.2,
@@ -66,35 +42,35 @@ class _AppHeaderActionButtonState extends State<AppHeaderActionButton> {
       AppHeaderActionVariant.bare => AppColors.transparent,
     };
 
-    final effectiveBgColor = widget.backgroundColor ?? defaultBgColor;
+    final effectiveBgColor = backgroundColor ?? defaultBgColor;
 
-    final defaultIconColor = widget.variant == AppHeaderActionVariant.translucent
+    final defaultIconColor = variant == AppHeaderActionVariant.translucent
         ? AppColors.surfacePrimary
         : AppColors.primary;
 
-    final effectiveIconColor = widget.iconColor ?? defaultIconColor;
+    final effectiveIconColor = iconColor ?? defaultIconColor;
 
     Widget button = Material(
       color: effectiveBgColor,
       borderRadius: effectiveBorderRadius,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: widget.onTap != null ? _handleTap : null,
+        onTap: onTap,
         borderRadius: effectiveBorderRadius,
         child: SizedBox(
-          width: widget.size,
-          height: widget.size,
+          width: size,
+          height: size,
           child: Center(
-            child: Icon(widget.icon, color: effectiveIconColor, size: widget.iconSize),
+            child: Icon(icon, color: effectiveIconColor, size: iconSize),
           ),
         ),
       ),
     );
 
-    if (widget.variant == AppHeaderActionVariant.light) {
+    if (variant == AppHeaderActionVariant.light) {
       button = Container(
-        width: widget.size,
-        height: widget.size,
+        width: size,
+        height: size,
         decoration: BoxDecoration(
           borderRadius: effectiveBorderRadius,
           boxShadow: const [
@@ -110,38 +86,38 @@ class _AppHeaderActionButtonState extends State<AppHeaderActionButton> {
     }
 
     final buttonWithBadge = SizedBox(
-      width: widget.size,
-      height: widget.size,
+      width: size,
+      height: size,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
           button,
-          if (widget.badgeCount > 0)
+          if (badgeCount > 0)
             Positioned(
               right: -3,
               top: -3,
               child: IgnorePointer(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 2,
-                  ),
-                  decoration: const BoxDecoration(
-                    color: AppColors.statusError,
-                    shape: BoxShape.circle,
-                  ),
                   constraints: const BoxConstraints(
-                    minWidth: 16,
-                    minHeight: 16,
+                    minWidth: 18,
+                    minHeight: 18,
                   ),
-                  child: Center(
-                    child: Text(
-                      widget.badgeCount > 99 ? '99+' : '${widget.badgeCount}',
-                      style: AppTypography.overline(
-                        color: AppColors.surfacePrimary,
-                        fontSize: 9,
-                        fontWeight: FontWeight.w700,
-                      ),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.goldDark,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: AppColors.surfacePrimary,
+                      width: 1.5,
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    badgeCount > 99 ? '99+' : '$badgeCount',
+                    style: AppTypography.overline(
+                      color: AppColors.surfacePrimary,
+                      fontSize: 10,
+                      height: 1,
                     ),
                   ),
                 ),
@@ -151,11 +127,11 @@ class _AppHeaderActionButtonState extends State<AppHeaderActionButton> {
       ),
     );
 
-    if (widget.tooltip != null && widget.tooltip!.isNotEmpty) {
+    if (tooltip != null && tooltip!.isNotEmpty) {
       return Semantics(
         button: true,
-        label: widget.tooltip,
-        child: Tooltip(message: widget.tooltip!, child: buttonWithBadge),
+        label: tooltip,
+        child: Tooltip(message: tooltip!, child: buttonWithBadge),
       );
     }
 

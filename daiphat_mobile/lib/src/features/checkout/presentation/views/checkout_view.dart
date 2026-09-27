@@ -11,7 +11,6 @@ import 'package:daiphat_mobile/src/features/cart/presentation/providers/cart_pro
 import '../../models/transaction_type.dart';
 import '../providers/checkout_provider.dart';
 import '../widgets/checkout_datetime_picker.dart';
-import 'package:daiphat_mobile/src/shared/utils/app_toast.dart';
 
 class CheckoutView extends ConsumerStatefulWidget {
   const CheckoutView({super.key});
@@ -164,24 +163,12 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
             'internalCode': checkoutState.orderCode!,
         },
       );
-    } else {
-      if (checkoutState.errorMessage != null &&
-          checkoutState.errorMessage!.isNotEmpty) {
-        AppToast.error(checkoutState.errorMessage!);
-      }
     }
+    // If failed, error is already set in state - UI will show it
   }
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<CheckoutState>(checkoutProvider, (previous, next) {
-      if (next.errorMessage != null &&
-          next.errorMessage!.isNotEmpty &&
-          next.errorMessage != previous?.errorMessage) {
-        AppToast.error(next.errorMessage!);
-      }
-    });
-
     final checkoutState = ref.watch(checkoutProvider);
     final receiveTypesAsync = ref.watch(receiveTypesProvider);
     final transactionTypesAsync = ref.watch(transactionTypesProvider);
@@ -233,49 +220,6 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
         ),
         body: Column(
           children: [
-            if (checkoutState.errorMessage != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceDestructiveSoft,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: AppColors.borderDestructiveSubtle,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.error_outline,
-                        color: AppColors.contentDestructive,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          checkoutState.errorMessage!,
-                          style: AppTypography.bodySmall(
-                            color: AppColors.contentDestructive,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () =>
-                            ref.read(checkoutProvider.notifier).clearError(),
-                        child: const Icon(
-                          Icons.close,
-                          color: AppColors.contentDestructive,
-                          size: 18,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
             Expanded(
               child: RefreshIndicator(
                 color: AppColors.primary,
@@ -434,6 +378,43 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
                       cartTotal,
                     ),
                     const SizedBox(height: 16),
+
+                    // Error message
+                    if (checkoutState.errorMessage != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceDestructiveSoft,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: AppColors.borderDestructiveSubtle,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.error_outline,
+                                color: AppColors.contentDestructive,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  checkoutState.errorMessage!,
+                                  style: AppTypography.bodySmall(
+                                    color: AppColors.contentDestructive,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 8),
                   ],
                 ),
               ),

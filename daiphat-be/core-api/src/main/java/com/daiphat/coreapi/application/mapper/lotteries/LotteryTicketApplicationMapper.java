@@ -39,6 +39,7 @@ public interface LotteryTicketApplicationMapper {
     @Mapping(target = "serialNumber", ignore = true)
     @Mapping(target = "serials", ignore = true)
     @Mapping(target = "batchCode", ignore = true)
+    @Mapping(target = "cancelReason", source = "statusReason")
     LotteryTicketResponse toResponse(LotteryTicketModel model);
 
     @Mapping(target = "status", expression = "java(model.getStatus() != null ? model.getStatus().name() : null)")
@@ -123,6 +124,7 @@ public interface LotteryTicketApplicationMapper {
                 batchCode,
                 base.status(),
                 base.statusDisplayName(),
+                base.cancelReason(),
                 serial != null ? serial.getImportedById() : base.importedById(),
                 serial != null ? serial.getImportedAt() : base.importedAt(),
                 serial != null ? serial.isVerified() : base.verified(),
@@ -168,6 +170,7 @@ public interface LotteryTicketApplicationMapper {
                 batchCode,
                 base.status(),
                 base.statusDisplayName(),
+                base.cancelReason(),
                 base.importedById(),
                 base.importedAt(),
                 base.verified(),

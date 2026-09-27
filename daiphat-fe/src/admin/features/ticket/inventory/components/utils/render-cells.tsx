@@ -1,7 +1,7 @@
 "use client";
 
 import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
-import { Box, Link, Typography, Stack } from '@mui/material';
+import { Box, Link, Typography, Stack, Tooltip } from '@mui/material';
 import { GridRenderCellParams } from '@mui/x-data-grid';
 import { prefixAdmin } from '../../../../../constants/routes';
 import dayjs from 'dayjs';
@@ -127,9 +127,19 @@ const ticketStatusModifier = (status?: string | null): string => {
 };
 
 export const RenderStatusCell = (params: GridRenderCellParams) => {
-    const { status, statusDisplayName } = params.row;
+    const { status, statusDisplayName, cancelReason } = params.row;
     const label = statusDisplayName || getTicketStatusLabel(status) || status || '—';
     const modifier = ticketStatusModifier(status);
+
+    if (cancelReason) {
+        return (
+            <Tooltip title={cancelReason} arrow placement="top">
+                <Box component="span" sx={{ display: 'inline-flex' }}>
+                    <AdminStatusBadge label={label} modifier={modifier} />
+                </Box>
+            </Tooltip>
+        );
+    }
 
     return <AdminStatusBadge label={label} modifier={modifier} />;
 };

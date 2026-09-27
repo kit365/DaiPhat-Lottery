@@ -1,7 +1,8 @@
-# Publish Ticket Vision from local
+# Publish AI Ticket OCR from local
 
-Only `docker.io/kitops365/daiphat-ticket-vision` is prepared/published. Chatbot,
-VPS, production Compose and CI/CD are not touched. The selected repository is
+Only `docker.io/kitops365/daiphat-ai-ticket-ocr` is prepared/published, built
+from the `daiphat-ai/ai-ticket-ocr/` folder. AI Chatbot, AI eKYC, VPS,
+production Compose and CI/CD are not touched. The selected repository is
 public: source under `/app` and `models/best.pt` will be downloadable by anyone.
 
 Prerequisites: Docker Desktop with AMD64 emulation, Python 3.11+, an existing

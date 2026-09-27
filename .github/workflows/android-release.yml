@@ -108,9 +108,7 @@ jobs:
           apk_name="DaiPhat-${{ steps.version.outputs.tag }}.apk"
           mkdir -p dist
           cp build/app/outputs/flutter-apk/app-release.apk "dist/$apk_name"
-          # This step runs inside daiphat_mobile. Use an absolute path so both
-          # upload-artifact and the GitHub CLI resolve the same APK file.
-          echo "path=$PWD/dist/$apk_name" >> "$GITHUB_OUTPUT"
+          echo "path=daiphat_mobile/dist/$apk_name" >> "$GITHUB_OUTPUT"
           echo "name=$apk_name" >> "$GITHUB_OUTPUT"
 
       - name: Upload release APK artifact
@@ -120,7 +118,7 @@ jobs:
           path: ${{ steps.apk.outputs.path }}
           if-no-files-found: error
 
-      - name: Create or update GitHub Release with APK
+      - name: Create GitHub Release and attach APK
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.version.outputs.tag }}
@@ -133,12 +131,7 @@ jobs:
             release_options+=(--prerelease)
           fi
 
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Release $TAG already exists; uploading the APK to it."
-            gh release upload "$TAG" "$APK_PATH#${APK_NAME}" --clobber
-          else
-            gh release create "$TAG" "$APK_PATH#${APK_NAME}" \
-              --title "DaiPhat Mobile $TAG" \
-              --generate-notes \
-              "${release_options[@]}"
-          fi
+          gh release create "$TAG" "$APK_PATH#${APK_NAME}" \
+            --title "DaiPhat Mobile $TAG" \
+            --generate-notes \
+            "${release_options[@]}"

@@ -88,7 +88,9 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -164,6 +166,7 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
     private final StoragePort storagePort;
     private final SupplierTicketIntakeWindowPolicy intakeWindowPolicy;
     private final Clock clock;
+    private final PlatformTransactionManager transactionManager;
 
     @Override
     @Transactional
@@ -367,20 +370,35 @@ public class SupplierSettlementService implements SupplierSettlementServicePort 
         return settlement.getReconciliationPhase() != SupplierSettlementReconciliationPhase.COMPLETED;
     }
 
+    /**
+     * Each settlement runs in its own short transaction: one transaction over every open settlement would
+     * hold all their row locks for the whole scan and block settlement screens that write the same rows.
+     */
     @Override
-    @Transactional
     public int updateExpiredSettlements() {
         List<SupplierSettlementModel> openSettlements = supplierSettlementRepositoryPort.findByStatuses(
                 List.of(SupplierSettlementStatus.OPEN, SupplierSettlementStatus.RECEIPT_OVERDUE)
         );
+        TransactionTemplate perSettlementTx = new TransactionTemplate(transactionManager);
         int updated = 0;
         for (SupplierSettlementModel settlement : openSettlements) {
             boolean wasExpired = settlement.isReturnExpired();
-            recalculateAmounts(settlement.getId());
-            SupplierSettlementModel refreshed = supplierSettlementRepositoryPort.findById(settlement.getId()).orElse(null);
-            if (refreshed != null && refreshed.isReturnExpired() && !wasExpired) {
-                updated++;
-                sendExpiredNotification(refreshed);
+            try {
+                Boolean newlyExpired = perSettlementTx.execute(status -> {
+                    recalculateAmounts(settlement.getId());
+                    SupplierSettlementModel refreshed =
+                            supplierSettlementRepositoryPort.findById(settlement.getId()).orElse(null);
+                    if (refreshed != null && refreshed.isReturnExpired() && !wasExpired) {
+                        sendExpiredNotification(refreshed);
+                        return true;
+                    }
+                    return false;
+                });
+                if (Boolean.TRUE.equals(newlyExpired)) {
+                    updated++;
+                }
+            } catch (RuntimeException ex) {
+                log.warn("Skip expiry refresh for supplier settlement {}: {}", settlement.getId(), ex.getMessage(), ex);
             }
         }
         if (updated > 0) {

@@ -1,8 +1,24 @@
 # AI deployment
 
-`DaiPhat AI Deploy` is the only AI CD entry point. It exposes **OCR** and
-**Chatbot** as separate jobs, deploying OCR first when both are selected.
-Application tests, benchmarks and smoke-test jobs are not part of this CD flow.
+Each AI service has its own independent CD workflow:
+
+| Service | Workflow | Image | Containers (Dozzle name) | Internal URL |
+|---------|----------|-------|--------------------------|--------------|
+| AI Chatbot | `ai-chatbot-deploy.yml` | `daiphat-ai-chatbot` | `daiphat-ai-chatbot-{blue,green,gateway}` | `http://ai-gateway:8000` |
+| AI Ticket OCR | `ai-ticket-ocr-deploy.yml` | `daiphat-ai-ticket-ocr` | `daiphat-ai-ticket-ocr-{blue,green,gateway}` | `http://ticket-vision:8090` |
+| AI eKYC (CCCD OCR, face match, liveness) | `ai-ekyc-deploy.yml` | `daiphat-ai-ekyc` | `daiphat-ai-ekyc-{blue,green,gateway}` | `http://ekyc-vision:8000` |
+
+A push to `main` deploys a service when its `daiphat-ai/<service>/` folder,
+its workflow, or the shared deploy tooling (`docker-compose.ai.yml`,
+`scripts/deploy-ai.sh`, `component-deploy.yml`,
+`.github/scripts/select-ai-deploy.py`) changes, or when
+`docker-compose.prod.yml` changes that service's legacy block or backend URL.
+Workflows may run in parallel; the VPS deployment lock serializes them.
+Tests run in the matching `ai-<service>-ci.yml` on pull requests, not in CD.
+
+The internal hostnames, `.ai-deploy/chatbot|ocr|ekyc` slot state and the
+`TICKET_VISION_*`, `KYC_AI_*` and `EKYC_VISION_*` settings keep their original
+names because the backend and running slots depend on them.
 Container health and route rollback remain runtime operations.
 The script refuses to start an overlapping slot unless available RAM covers
 the candidate's memory limit plus 640 MiB reserve (1664 MiB for a 1 GiB OCR
@@ -35,9 +51,9 @@ crops can still exceed that time. This is not an end-to-end request deadline.
 
 ## First OCR rollout
 
-Dispatch the workflow with `target=ocr` and `source_ref=main` after these deployment
+Dispatch `AI Ticket OCR Deploy` with `source_ref=main` after these deployment
 files are available on that ref. Select `deploy-existing` and provide the full
-`docker.io/<account>/daiphat-ticket-vision@sha256:<digest>` to reuse an image;
+`docker.io/<account>/daiphat-ai-ticket-ocr@sha256:<digest>` as `image_digest` to reuse an image;
 otherwise select `build-and-deploy`. With an existing image, the selected source
 SHA identifies the deployment code, not necessarily the source used to build
 the image.
@@ -48,9 +64,31 @@ The backend must already use `http://ticket-vision:8090`, and the external
 refuses to take it over. Do not enable the root Compose's legacy `ocr` profile
 alongside the managed AI project.
 
+## First eKYC rollout
+
+AI eKYC had no production deployment before this pipeline. Before the
+first run:
+
+1. Add `KYC_AI_API_KEY` (a strong random value) to `.env.prod` and to the
+   `ENV_FILE_CONTENT` secret. The eKYC job refuses to deploy without it, because
+   the service skips API-key checks when the key is empty. Optional sizing:
+   `EKYC_VISION_MEMORY_LIMIT` (default `2g`), `EKYC_VISION_CPU_LIMIT` (default
+   `1`) and `EKYC_VISION_CPU_THREADS` (default `1`).
+2. Roll out the backend so it runs with
+   `DAIPHAT_EKYC_AI_BASE_URL=http://ekyc-vision:8000` and
+   `DAIPHAT_EKYC_AI_API_KEY` taken from `KYC_AI_API_KEY`; both come from
+   `docker-compose.prod.yml`. CD refuses to route eKYC traffic until the running
+   backend uses that URL.
+3. Dispatch `AI eKYC Deploy`.
+
+The eKYC gateway owns the `ekyc-vision` network alias and allows 25 MiB request
+bodies with a 125-second proxy timeout, matching the backend's 120-second eKYC
+read timeout. Admission needs the memory limit plus 640 MiB of available RAM
+and 4 GiB of free Docker disk.
+
 ## Existing chatbot bootstrap
 
-The first chatbot CD run creates `ai-gateway`, initially forwarding to the
+The first AI Chatbot CD run creates `ai-gateway`, initially forwarding to the
 existing `ai:8000` container. It stops before changing chatbot traffic while
 the backend still uses the old URL. The original chatbot remains running.
 
@@ -63,7 +101,7 @@ its eventual retirement is a separate infrastructure action.
 ## Slot releases and recovery
 
 `docker-compose.ai.yml` owns a separate `daiphat-ai` project, attached to the
-existing production network. Chatbot and OCR each have blue/green slots and
+existing production network. Chatbot, OCR and eKYC each have blue/green slots and
 an internal Nginx gateway. No AI port is published on the host.
 
 The deployment starts the inactive slot, waits for container health, reloads
@@ -80,8 +118,7 @@ matching runtime values in `ENV_FILE_CONTENT`; prior digests are recorded in
 An interrupted transaction is retained and blocks subsequent deployments until
 the live route and the saved transaction have been reconciled under the VPS
 deployment lock. Do not delete a transaction directory to bypass this guard.
-A successful earlier component is not
-rolled back if a later component fails.
+Services deploy independently, so a failure in one never rolls back another.
 
 Each slot has its own model cache. Two slots must fit on the existing VPS
 during a rollout; Docker resource limits are not proof of available capacity.

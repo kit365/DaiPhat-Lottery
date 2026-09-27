@@ -4,11 +4,18 @@ set -Eeuo pipefail
 umask 077
 cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+# component/endpoint/legacy_service are live slot-state keys, backend URLs and
+# daiphat-prod service names; they intentionally predate the ai-* names.
 case "${1:-}" in
-  ai) component=chatbot; port=8000; endpoint=http://ai-gateway:8000 ;;
-  ticket-vision) component=ocr; port=8090; endpoint=http://ticket-vision:8090 ;;
-  *) echo 'Usage: deploy-ai.sh <ai|ticket-vision> <image@sha256:digest> <source-sha>' >&2; exit 2 ;;
+  ai-chatbot) component=chatbot; port=8000; endpoint=http://ai-gateway:8000; legacy_service=ai ;;
+  ai-ticket-ocr) component=ocr; port=8090; endpoint=http://ticket-vision:8090; legacy_service=ticket-vision ;;
+  ai-ekyc) component=ekyc; port=8000; endpoint=http://ekyc-vision:8000; legacy_service= ;;
+  *) echo 'Usage: deploy-ai.sh <ai-chatbot|ai-ticket-ocr|ai-ekyc> <image@sha256:digest> <source-sha>' >&2; exit 2 ;;
 esac
+# eKYC uploads two phone photos per call and the backend waits up to 120s for OCR.
+body_limit=6m
+proxy_timeout=65s
+[[ "$component" != ekyc ]] || { body_limit=25m; proxy_timeout=125s; }
 image=${2:?Image digest required}
 source_sha=${3:?Source SHA required}
 [[ "$image" =~ ^[a-zA-Z0-9./_-]+@sha256:[a-f0-9]{64}$ ]] || exit 2
@@ -17,7 +24,7 @@ source_sha=${3:?Source SHA required}
 trap 'rm -f .ai-runtime.env' EXIT
 
 state=.ai-deploy/$component
-for name in chatbot ocr; do
+for name in chatbot ocr ekyc; do
   mkdir -p ".ai-deploy/$name/nginx"
   for colour in blue green; do
     [[ -f ".ai-deploy/$name/$colour.env" ]] || touch ".ai-deploy/$name/$colour.env"
@@ -82,7 +89,7 @@ server {
 }
 server {
     listen $port;
-    client_max_body_size 6m;
+    client_max_body_size $body_limit;
     resolver 127.0.0.11 valid=10s ipv6=off;
     location / {
         set \$ai_upstream $upstream;
@@ -91,8 +98,8 @@ server {
         proxy_http_version 1.1;
         proxy_set_header Connection "";
         proxy_next_upstream off;
-        proxy_read_timeout 65s;
-        proxy_send_timeout 65s;
+        proxy_read_timeout $proxy_timeout;
+        proxy_send_timeout $proxy_timeout;
     }
 }
 
@@ -113,9 +120,11 @@ route_ready() {
 }
 
 # Admission control for overlapping slots; never stop the serving slot to make room.
-memory_key=AI_CHATBOT_MEMORY_LIMIT
-memory_default=256m
-[[ "$component" != ocr ]] || { memory_key=TICKET_VISION_MEMORY_LIMIT; memory_default=1g; }
+case "$component" in
+  chatbot) memory_key=AI_CHATBOT_MEMORY_LIMIT; memory_default=256m ;;
+  ocr) memory_key=TICKET_VISION_MEMORY_LIMIT; memory_default=1g ;;
+  ekyc) memory_key=EKYC_VISION_MEMORY_LIMIT; memory_default=2g ;;
+esac
 memory_limit=$(awk -F= -v key="$memory_key" '$1==key {v=substr($0,length(key)+2)} END {print v}' .ai-runtime.env)
 memory_limit=${memory_limit:-$memory_default}
 memory_limit=${memory_limit//\"/}
@@ -126,19 +135,27 @@ available_mb=$(awk '/MemAvailable:/ {print int($2/1024)}' /proc/meminfo)
 required_mb=$((requested_mb + 640))
 echo "AI available RAM: ${available_mb} MiB; required for candidate + reserve: ${required_mb} MiB"
 (( available_mb >= required_mb )) || { echo 'Not enough available RAM for the new slot and gateway; active services retained.' >&2; exit 1; }
-if [[ "$component" == ocr ]]; then
+disk_floor_mb=0
+case "$component" in
+  ocr) disk_floor_mb=10240 ;;
+  ekyc) disk_floor_mb=4096 ;;
+esac
+if (( disk_floor_mb > 0 )); then
   docker_root=$(docker info --format '{{.DockerRootDir}}')
   free_mb=$(df -Pm "$docker_root" | awk 'NR==2 {print $4}')
   # Admission uses available RAM above, not the host's installed RAM.
-  # Keep a 10 GiB disk floor for pulling/unpacking the current image and cache.
-  echo "OCR free Docker disk: ${free_mb} MiB; required: 10240 MiB"
-  (( free_mb >= 10240 )) || { echo 'OCR requires 10 GiB free Docker disk; active services retained.' >&2; exit 1; }
+  # Keep a disk floor for pulling/unpacking the current image and model cache.
+  echo "$component free Docker disk: ${free_mb} MiB; required: ${disk_floor_mb} MiB"
+  (( free_mb >= disk_floor_mb )) || { echo "$component requires ${disk_floor_mb} MiB free Docker disk; active services retained." >&2; exit 1; }
 fi
 
 # Never take over an already-running direct OCR endpoint by recreating it.
-legacy=$(docker ps -q --filter label=com.docker.compose.project=daiphat-prod --filter "label=com.docker.compose.service=${1}")
+legacy=
+if [[ -n "$legacy_service" ]]; then
+  legacy=$(docker ps -q --filter label=com.docker.compose.project=daiphat-prod --filter "label=com.docker.compose.service=$legacy_service")
+fi
 if [[ "$component" == ocr && -n "$legacy" ]]; then
-  echo 'A legacy ticket-vision container owns the endpoint; migrate its traffic before enabling blue/green CD.' >&2
+  echo 'A legacy ticket-vision container owns the AI Ticket OCR endpoint; migrate its traffic before enabling blue/green CD.' >&2
   exit 1
 fi
 
@@ -164,8 +181,11 @@ if [[ "$component" == chatbot && -z "$active" && ! -f "$state/nginx/default.conf
   compose up -d --no-deps "$router"
   healthy "$router" 24
 fi
-key=DAIPHAT_TICKET_VISION_BASE_URL
-[[ "$component" != chatbot ]] || key=DAIPHAT_AI_BASE_URL
+case "$component" in
+  chatbot) key=DAIPHAT_AI_BASE_URL ;;
+  ocr) key=DAIPHAT_TICKET_VISION_BASE_URL ;;
+  ekyc) key=DAIPHAT_EKYC_AI_BASE_URL ;;
+esac
 actual=$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$backend" | awk -F= -v key="$key" '$1==key {print substr($0,length(key)+2)}')
 if [[ "${actual%/}" != "$endpoint" ]]; then
   echo "Backend must use $key=$endpoint before this component can receive traffic. Existing backend was not restarted." >&2

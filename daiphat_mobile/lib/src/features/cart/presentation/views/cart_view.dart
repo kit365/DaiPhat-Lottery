@@ -28,9 +28,6 @@ class _CartViewState extends ConsumerState<CartView> {
   final Set<int> _selectedIndexes = <int>{};
   final Set<int> _checkoutSelectedIndexes = <int>{};
   bool _hasNotifiedExpiredItems = false;
-  bool _hasInitializedSelection = false;
-  bool _isValidating = false;
-  final Set<int> _serverUnavailableTicketIds = <int>{};
 
   @override
   void initState() {
@@ -39,114 +36,8 @@ class _CartViewState extends ConsumerState<CartView> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       ref.read(buyNowItemsProvider.notifier).clear();
-      _initDefaultSelection();
       _notifyExpiredItems();
-      _validateCartTickets();
     });
-  }
-
-  void _initDefaultSelection() {
-    if (_hasInitializedSelection) return;
-    _hasInitializedSelection = true;
-    final items = ref.read(cartProvider);
-    _checkoutSelectedIndexes.clear();
-    for (var i = 0; i < items.length; i++) {
-      if (!_isItemUnavailable(items[i])) {
-        _checkoutSelectedIndexes.add(i);
-      }
-    }
-  }
-
-  /// Kiểm tra trực tiếp kho và trạng thái từng vé với server
-  Future<void> _validateCartTickets({bool showNotice = true}) async {
-    if (_isValidating || !mounted) return;
-    _isValidating = true;
-
-    try {
-      final items = ref.read(cartProvider);
-      if (items.isEmpty) {
-        if (mounted) {
-          setState(() {
-            _serverUnavailableTicketIds.clear();
-          });
-        }
-        return;
-      }
-
-      final repo = ref.read(lotteryTicketRepositoryProvider);
-      final uniqueIds = items.map((e) => e.lotteryTicketId).toSet();
-      final newlyUnavailable = <int>{};
-      final updatedMaxStock = <int, int>{};
-
-      await Future.wait(
-        uniqueIds.map((id) async {
-          try {
-            final ticket = await repo.fetchTicketDetail(id);
-            final status = ticket.status.trim().toUpperCase();
-            final isAvailable = ticket.quantity > 0 &&
-                (status == 'AVAILABLE' ||
-                    status == 'IN_STOCK' ||
-                    status == 'ACTIVE' ||
-                    status.isEmpty);
-            if (!isAvailable) {
-              newlyUnavailable.add(id);
-            } else {
-              updatedMaxStock[id] = ticket.quantity;
-            }
-          } catch (_) {
-            // Khi API báo lỗi (404/not found hoặc không thể lấy chi tiết), coi như vé không còn bán
-            newlyUnavailable.add(id);
-          }
-        }),
-      );
-
-      if (!mounted) return;
-
-      // Cập nhật lại số lượng nếu vượt quá tồn kho thực tế
-      final notifier = ref.read(cartProvider.notifier);
-      for (var i = 0; i < items.length; i++) {
-        final it = items[i];
-        if (updatedMaxStock.containsKey(it.lotteryTicketId)) {
-          final maxQty = updatedMaxStock[it.lotteryTicketId]!;
-          if (it.quantity > maxQty && maxQty > 0) {
-            notifier.updateQuantityAtIndex(i, maxQty);
-          }
-        }
-      }
-
-      setState(() {
-        _serverUnavailableTicketIds
-          ..clear()
-          ..addAll(newlyUnavailable);
-
-        // Tự động bỏ chọn các vé không khả dụng khỏi danh sách thanh toán
-        final currentItems = ref.read(cartProvider);
-        _checkoutSelectedIndexes.removeWhere((idx) {
-          if (idx < 0 || idx >= currentItems.length) return true;
-          return _isItemUnavailable(currentItems[idx]);
-        });
-      });
-
-      if (showNotice &&
-          newlyUnavailable.isNotEmpty &&
-          !_hasNotifiedExpiredItems) {
-        _hasNotifiedExpiredItems = true;
-        AppToast.warning(
-          'Có ${newlyUnavailable.length} vé trong giỏ đã hết hàng hoặc kết thúc mở bán.',
-        );
-      }
-    } catch (_) {
-      // Ignored
-    } finally {
-      if (mounted) {
-        _isValidating = false;
-      }
-    }
-  }
-
-  bool _isItemUnavailable(CartItemData item) {
-    return _isPurchaseExpired(item) ||
-        _serverUnavailableTicketIds.contains(item.lotteryTicketId);
   }
 
   void _openDetail(BuildContext context, CartItemData item) {
@@ -231,8 +122,8 @@ class _CartViewState extends ConsumerState<CartView> {
   void _toggleCheckoutSelection(int index) {
     final items = ref.read(cartProvider);
     if (index < 0 || index >= items.length) return;
-    if (_isItemUnavailable(items[index])) {
-      AppToast.error('Vé này đã hết hạn hoặc hết hàng. Vui lòng xóa khỏi giỏ hàng.');
+    if (_isPurchaseExpired(items[index])) {
+      AppToast.error('Vé này đã hết hạn mua. Vui lòng xóa khỏi giỏ hàng.');
       return;
     }
     setState(() {
@@ -260,12 +151,12 @@ class _CartViewState extends ConsumerState<CartView> {
     if (_hasNotifiedExpiredItems) return;
     final expiredCount = ref
         .read(cartProvider)
-        .where(_isItemUnavailable)
+        .where(_isPurchaseExpired)
         .length;
     if (expiredCount == 0) return;
     _hasNotifiedExpiredItems = true;
     AppToast.error(
-      'Có $expiredCount vé đã hết hạn hoặc hết hàng. Vui lòng xóa vé hết hạn trước khi thanh toán.',
+      'Có $expiredCount vé đã hết hạn mua. Vui lòng xóa vé hết hạn trước khi thanh toán.',
     );
   }
 
@@ -273,7 +164,7 @@ class _CartViewState extends ConsumerState<CartView> {
     final items = ref.read(cartProvider);
     final expiredIndexes = <int>[];
     for (var i = 0; i < items.length; i++) {
-      if (_isItemUnavailable(items[i])) {
+      if (_isPurchaseExpired(items[i])) {
         expiredIndexes.add(i);
       }
     }
@@ -281,9 +172,9 @@ class _CartViewState extends ConsumerState<CartView> {
 
     final confirmed = await AppDialog.confirm(
       context,
-      title: 'Xóa vé không khả dụng',
+      title: 'Xóa vé hết hạn',
       message:
-          'Bạn có muốn xóa ${expiredIndexes.length} vé đã hết hạn hoặc hết hàng khỏi giỏ hàng không?',
+          'Bạn có muốn xóa ${expiredIndexes.length} vé đã hết hạn mua khỏi giỏ hàng không?',
       confirmLabel: 'Xóa',
       isDestructive: true,
     );
@@ -294,9 +185,8 @@ class _CartViewState extends ConsumerState<CartView> {
     setState(() {
       _selectedIndexes.clear();
       _checkoutSelectedIndexes.clear();
-      _serverUnavailableTicketIds.clear();
     });
-    AppToast.show('Đã xóa ${expiredIndexes.length} vé khỏi giỏ hàng');
+    AppToast.show('Đã xóa ${expiredIndexes.length} vé hết hạn khỏi giỏ hàng');
   }
 
   bool _isPurchaseExpired(CartItemData item) {
@@ -366,10 +256,10 @@ class _CartViewState extends ConsumerState<CartView> {
       0,
       (sum, item) => sum + item.quantity,
     );
-    final expiredCount = items.where(_isItemUnavailable).length;
+    final expiredCount = items.where(_isPurchaseExpired).length;
     final hasExpiredItems = expiredCount > 0;
     final selectedExpiredCount = selectedCheckoutItems
-        .where(_isItemUnavailable)
+        .where(_isPurchaseExpired)
         .length;
     final hasSelectedExpiredItems = selectedExpiredCount > 0;
     final canCheckout =
@@ -431,7 +321,6 @@ class _CartViewState extends ConsumerState<CartView> {
                           color: AppColors.primary,
                           onRefresh: () async {
                             ref.invalidate(cartProvider);
-                            await _validateCartTickets(showNotice: true);
                           },
                           child: ListView(
                             physics: const AlwaysScrollableScrollPhysics(),
@@ -448,14 +337,9 @@ class _CartViewState extends ConsumerState<CartView> {
                               ...items.asMap().entries.map((entry) {
                                 final index = entry.key;
                                 final item = entry.value;
-                                final isUnavailable = _isItemUnavailable(item);
                                 final card = _CartTicketCard(
                                   item: item,
-                                  isExpired: isUnavailable,
-                                  expiredLabel: _serverUnavailableTicketIds
-                                          .contains(item.lotteryTicketId)
-                                      ? 'HẾT HÀNG'
-                                      : 'HẾT HẠN',
+                                  isExpired: _isPurchaseExpired(item),
                                   isSelectionMode: _isSelectionMode,
                                   isSelected: _selectedIndexes.contains(index),
                                   isCheckoutSelected: _checkoutSelectedIndexes
@@ -524,13 +408,11 @@ class _CartViewState extends ConsumerState<CartView> {
                               : hasSelectedExpiredItems
                               ? 'Bỏ chọn hoặc xóa $selectedExpiredCount vé hết hạn để tiếp tục thanh toán'
                               : null,
-                          onCheckout: () async {
+                          onCheckout: () {
                             ref
                                 .read(buyNowItemsProvider.notifier)
                                 .start(selectedCheckoutItems);
-                            await context.pushNamed(AppRoute.checkout.name);
-                            if (!mounted) return;
-                            _validateCartTickets(showNotice: true);
+                            context.pushNamed(AppRoute.checkout.name);
                           },
                         ),
               ],
@@ -632,7 +514,7 @@ class _ExpiredCartNotice extends StatelessWidget {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                '$expiredCount vé đã hết hạn hoặc hết hàng. Hãy xóa để thanh toán.',
+                '$expiredCount vé đã hết hạn mua. Hãy xóa để thanh toán.',
                 style: AppTypography.bodyMedium(
                   color: AppColors.ink,
                   fontSize: 13,
@@ -683,7 +565,6 @@ class _CartTicketCard extends StatelessWidget {
   const _CartTicketCard({
     required this.item,
     required this.isExpired,
-    this.expiredLabel,
     required this.isSelectionMode,
     required this.isSelected,
     required this.isCheckoutSelected,
@@ -696,7 +577,6 @@ class _CartTicketCard extends StatelessWidget {
 
   final CartItemData item;
   final bool isExpired;
-  final String? expiredLabel;
   final bool isSelectionMode;
   final bool isSelected;
   final bool isCheckoutSelected;
@@ -717,9 +597,6 @@ class _CartTicketCard extends StatelessWidget {
               : 'Đài Miền Nam');
 
     Widget buildExpiredLabel() {
-      final label = (expiredLabel != null && expiredLabel!.isNotEmpty)
-          ? expiredLabel!
-          : 'HẾT HẠN';
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(
@@ -728,7 +605,7 @@ class _CartTicketCard extends StatelessWidget {
           border: Border.all(color: AppColors.borderDestructive, width: 0.8),
         ),
         child: Text(
-          label,
+          'HẾT HẠN',
           style: AppTypography.overline(
             fontSize: 9.5,
             fontWeight: FontWeight.w800,

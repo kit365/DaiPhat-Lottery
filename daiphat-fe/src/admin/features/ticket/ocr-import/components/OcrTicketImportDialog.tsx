@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import CloseIcon from '@mui/icons-material/Close';
 import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
 import DocumentScannerOutlinedIcon from '@mui/icons-material/DocumentScannerOutlined';
@@ -111,7 +111,10 @@ import {
 import OcrReviewImagePane, { type OcrFieldSelection } from './OcrReviewImagePane';
 import OcrReviewResultCards from './OcrReviewResultCards';
 import { getOcrTemplateDefaultReady } from '../../../station/services/ocrTemplateService';
-import { getOcrServiceReady } from '../services/ticketOcrService';
+import { getOcrServiceReady, type OcrServiceReady } from '../services/ticketOcrService';
+
+/** Re-check the OCR service this often while it is down (e.g. restarting / loading models). */
+const OCR_SERVICE_RECHECK_MS = 5_000;
 
 const OCR_EVIDENCE_ACCEPT: Accept = {
     'image/*': ['.jpg', '.jpeg', '.png', '.webp', '.gif'],
@@ -563,6 +566,7 @@ export const OcrTicketImportDialog = ({
     const [ocrServiceReady, setOcrServiceReady] = useState<boolean | null>(null);
     const [ocrServiceMessage, setOcrServiceMessage] = useState<string | null>(null);
     const [ocrServiceLoading, setOcrServiceLoading] = useState(false);
+    const [ocrServiceRechecking, setOcrServiceRechecking] = useState(false);
     const [isInvoiceUploading, setIsInvoiceUploading] = useState(false);
     const [isTicketListUploading, setIsTicketListUploading] = useState(false);
     const { data: activeSuppliers = [] } = useActiveSuppliers(open);
@@ -655,6 +659,35 @@ export const OcrTicketImportDialog = ({
         wizard.selectDraftBatch(null);
     }, [eligibleBatchOptions, wizard.selectedImportBatchId, wizard.supplierId, wizard.loadingBatches]);
 
+    const applyOcrServiceStatus = useCallback((status: OcrServiceReady | null) => {
+        const ready = Boolean(status?.ready);
+        setOcrServiceReady(ready);
+        setOcrServiceMessage(
+            ready
+                ? null
+                : normalizeOcrScanErrorMessage(status?.message) || OCR_SERVICE_UNAVAILABLE_MESSAGE
+        );
+    }, []);
+
+    const recheckOcrService = useCallback(async () => {
+        setOcrServiceRechecking(true);
+        try {
+            applyOcrServiceStatus(await getOcrServiceReady());
+        } catch {
+            applyOcrServiceStatus(null);
+        } finally {
+            setOcrServiceRechecking(false);
+        }
+    }, [applyOcrServiceStatus]);
+
+    useEffect(() => {
+        if (!open || ocrServiceReady !== false) {
+            return;
+        }
+        const timer = window.setInterval(() => void recheckOcrService(), OCR_SERVICE_RECHECK_MS);
+        return () => window.clearInterval(timer);
+    }, [open, ocrServiceReady, recheckOcrService]);
+
     useEffect(() => {
         if (!open) {
             setOcrReady(null);
@@ -684,18 +717,12 @@ export const OcrTicketImportDialog = ({
         getOcrServiceReady()
             .then((status) => {
                 if (!cancelled) {
-                    setOcrServiceReady(Boolean(status?.ready));
-                    setOcrServiceMessage(
-                        status?.ready
-                            ? null
-                            : normalizeOcrScanErrorMessage(status?.message) || OCR_SERVICE_UNAVAILABLE_MESSAGE
-                    );
+                    applyOcrServiceStatus(status);
                 }
             })
             .catch(() => {
                 if (!cancelled) {
-                    setOcrServiceReady(false);
-                    setOcrServiceMessage(OCR_SERVICE_UNAVAILABLE_MESSAGE);
+                    applyOcrServiceStatus(null);
                 }
             })
             .finally(() => {
@@ -706,7 +733,7 @@ export const OcrTicketImportDialog = ({
         return () => {
             cancelled = true;
         };
-    }, [open]);
+    }, [open, applyOcrServiceStatus]);
 
     const stationLabel = (stationId?: number) => {
         if (resolveStationName) {
@@ -1170,8 +1197,28 @@ export const OcrTicketImportDialog = ({
                                         <Typography variant="body2" color="#475569" sx={{ fontSize: '0.825rem', lineHeight: 1.5 }}>
                                             {ocrServiceMessage || OCR_SERVICE_UNAVAILABLE_MESSAGE}
                                         </Typography>
+                                        <Typography variant="caption" color="#64748b" sx={{ display: 'block', mt: 0.5 }}>
+                                            Hệ thống tự kiểm tra lại mỗi {OCR_SERVICE_RECHECK_MS / 1000} giây.
+                                        </Typography>
                                     </Box>
                                 </Stack>
+                                <Button
+                                    size="small"
+                                    variant="outlined"
+                                    color="error"
+                                    disabled={ocrServiceRechecking}
+                                    startIcon={
+                                        ocrServiceRechecking ? (
+                                            <CircularProgress size={14} color="inherit" />
+                                        ) : (
+                                            <RefreshOutlinedIcon fontSize="small" />
+                                        )
+                                    }
+                                    onClick={() => void recheckOcrService()}
+                                    sx={{ flexShrink: 0, textTransform: 'none', fontWeight: 700 }}
+                                >
+                                    Kiểm tra lại
+                                </Button>
                             </Paper>
                         )}
 

@@ -91,9 +91,12 @@ npm run dev
 ```
 * **Web Portal URL**: `http://localhost:5173` (or configured dev port)
 
-### 4. AI Service (`daiphat-ai`)
+### 4. AI Services (`daiphat-ai`)
+Each AI service is self-contained under `daiphat-ai/`: `ai-chatbot` (8000),
+`ai-ticket-ocr` (8090) and `ai-ekyc` (8091). For example, the chatbot:
+
 ```bash
-cd daiphat-ai
+cd daiphat-ai/ai-chatbot
 
 # Setup Python virtual environment
 python3 -m venv .venv
@@ -101,9 +104,11 @@ source .venv/bin/activate # On Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
 # Start FastAPI server
-uvicorn main:app --reload --port 8000
+PYTHONPATH=. uvicorn main:app --reload --port 8000
 ```
 * **Interactive API Docs**: `http://localhost:8000/docs`
+
+See [`daiphat-ai/README.md`](daiphat-ai/README.md) for the OCR and eKYC services.
 
 ---
 
@@ -114,7 +119,9 @@ uvicorn main:app --reload --port 8000
 | **Frontend Web** | `http://localhost:5173` | Customer & Admin Web Portal |
 | **Backend Core API** | `http://localhost:8080` | Core RESTful API & WebSocket |
 | **Swagger UI** | `http://localhost:8080/swagger-ui/index.html` | Interactive API Documentation |
-| **AI FastAPI Service** | `http://localhost:8000` | AI Chatbot & Intent Engine |
+| **AI Chatbot** (`ai-chatbot`) | `http://localhost:8000` | AI Chatbot & Intent Engine |
+| **AI Ticket OCR** (`ai-ticket-ocr`) | `http://localhost:8090` | Lottery ticket camera scan |
+| **AI eKYC** (`ai-ekyc`) | `http://localhost:8091` | CCCD OCR & face match |
 | **PostgreSQL** | `localhost:5434` (mapped) | Main Relational Database |
 | **Redis** | `localhost:6380` (mapped) | Session, Cache & Locks |
 | **MongoDB** | `localhost:27018` (mapped) | Chat History & System Logs |
