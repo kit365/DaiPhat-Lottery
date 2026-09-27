@@ -5,7 +5,6 @@ import { useRouteParams } from "@/hooks/useRouteParams";
 import { usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import QRCode from 'react-qr-code';
 import { useGetMyOrderDetail } from '../../../../hooks/useOrder';
 import { useGetPendingPaymentCountdown, useProcessPayment, useSyncPaymentFromGateway } from '../../../../hooks/useTransaction';
 import { useGetMyRefunds } from '../../../../hooks/useRefund';
@@ -643,19 +642,8 @@ export const OrderDetailTab = () => {
                                 <span className="text-[15px] font-bold text-[#212B36]">Nhận vé tại quầy</span>
                             </div>
                             <p className="text-[13px] text-[#637381] mb-6">
-                                {(order.orderType as string) === 'DIRECT'
-                                    ? 'Quý khách vui lòng mang theo mã đơn hàng và CMND/CCCD để nhận vé.'
-                                    : 'Quý khách vui lòng mang theo mã QR này hoặc mã đơn hàng và CMND/CCCD để nhận vé.'}
+                                Quý khách vui lòng mang theo mã đơn hàng và CMND/CCCD để nhận vé.
                             </p>
-                            
-                            {(order.orderType as string) !== 'DIRECT' && (
-                                <div className="flex flex-col items-center justify-center mb-6 flex-1">
-                                    <div className="p-4 bg-white border border-[#E5E8EB] rounded-2xl shadow-sm inline-block">
-                                        <QRCode value={order.orderCode} size={140} fgColor="#212B36" />
-                                    </div>
-                                    <span className="text-[12px] text-[#637381] mt-3">Quét mã QR để nhận vé tại quầy</span>
-                                </div>
-                            )}
                             <div className="bg-[#F9FAFB] rounded-xl p-4 border border-[#E5E8EB]">
                                 <span className="text-[12px] text-[#637381] block mb-1">Địa chỉ nhận vé</span>
                                 <span className="text-[14px] text-[#212B36] font-medium leading-relaxed">

@@ -147,10 +147,8 @@ const resolveCustomerLabel = (refund: RefundRequestResponse) => {
 const resolveCustomerSubLabel = (refund: RefundRequestResponse) => {
     if (refund.bankAccount) {
         const bank = refund.bankAccount.bankName?.trim();
-        const masked = refund.bankAccount.bankAccountNo
-            ? `****${refund.bankAccount.bankAccountNo.slice(-4)}`
-            : '';
-        return [bank, masked].filter(Boolean).join(' · ') || 'STK nhận hoàn';
+        const accNo = refund.bankAccount.bankAccountNo || '';
+        return [bank, accNo].filter(Boolean).join(' · ') || 'STK nhận hoàn';
     }
     return 'Chưa có STK nhận hoàn';
 };

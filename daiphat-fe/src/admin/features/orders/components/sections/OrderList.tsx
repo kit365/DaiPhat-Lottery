@@ -17,7 +17,6 @@ import {
     TableContainer,
     TableHead,
     TableRow,
-    Checkbox,
     TablePagination,
     Stack,
     Avatar,
@@ -58,8 +57,7 @@ export const OrderList = () => {
     const router = useAdminRouter();
     const { settings, setSettings } = useSettings();
     
-    const [tabStatus, setTabStatus] = useState('all');
-    const [selected, setSelected] = useState<string[]>([]);
+    const [tabStatus, setTabStatus] = useState('NEED_PROCESSING');
     const [openRows, setOpenRows] = useState<string[]>([]);
 
     const {
@@ -76,17 +74,29 @@ export const OrderList = () => {
         setPage,
         setLimit,
         refetch
-    } = useAdminOrderList({ status: tabStatus !== 'all' ? tabStatus : undefined } as any);
+    } = useAdminOrderList({
+        status: tabStatus === 'all'
+            ? undefined
+            : tabStatus === 'NEED_PROCESSING'
+              ? [OrderStatus.PREPARING, OrderStatus.PAYMENT_COMPLAINT_PENDING]
+              : [tabStatus]
+    } as any);
 
     const handleTabChange = (_event: SyntheticEvent, newValue: string) => {
         setTabStatus(newValue);
-        setFilter('status', newValue === 'all' ? [] : [newValue]);
+        if (newValue === 'all') {
+            setFilter('status', []);
+        } else if (newValue === 'NEED_PROCESSING') {
+            setFilter('status', [OrderStatus.PREPARING, OrderStatus.PAYMENT_COMPLAINT_PENDING]);
+        } else {
+            setFilter('status', [newValue]);
+        }
         setPage(1);
     };
 
     const openPendingPaymentComplaints = () => {
-        setTabStatus(OrderStatus.PAYMENT_COMPLAINT_PENDING);
-        setFilter('status', [OrderStatus.PAYMENT_COMPLAINT_PENDING]);
+        setTabStatus('NEED_PROCESSING');
+        setFilter('status', [OrderStatus.PREPARING, OrderStatus.PAYMENT_COMPLAINT_PENDING]);
         setPage(1);
     };
 
@@ -194,33 +204,7 @@ export const OrderList = () => {
 
 
 
-    const handleSelectAllClick = (event: React.ChangeEvent<HTMLInputElement>) => {
-        if (event.target.checked) {
-            const newSelected = orders.map((n: any) => n.id);
-            setSelected(newSelected);
-            return;
-        }
-        setSelected([]);
-    };
 
-    const handleSelectRow = (id: string) => {
-        const selectedIndex = selected.indexOf(id);
-        let newSelected: string[] = [];
-
-        if (selectedIndex === -1) {
-            newSelected = [...selected, id];
-        } else if (selectedIndex === 0) {
-            newSelected = selected.slice(1);
-        } else if (selectedIndex === selected.length - 1) {
-            newSelected = selected.slice(0, -1);
-        } else if (selectedIndex > 0) {
-            newSelected = [
-                ...selected.slice(0, selectedIndex),
-                ...selected.slice(selectedIndex + 1),
-            ];
-        }
-        setSelected(newSelected);
-    };
 
     const toggleRow = (id: string) => {
         setOpenRows(prev =>
@@ -228,13 +212,16 @@ export const OrderList = () => {
         );
     };
 
-    const safeStatusCounts = statusCounts || {};
+    const safeStatusCounts: Record<string, number> = { ...statusCounts };
     const totalCount = Object.keys(safeStatusCounts)
-        .filter(key => key !== 'all')
+        .filter(key => key !== 'all' && key !== 'NEED_PROCESSING')
         .reduce((sum, key) => sum + (Number(safeStatusCounts[key]) || 0), 0);
     safeStatusCounts['all'] = safeStatusCounts['all'] ?? totalCount;
+    safeStatusCounts['NEED_PROCESSING'] =
+        (Number(safeStatusCounts[OrderStatus.PREPARING]) || 0) +
+        (Number(safeStatusCounts[OrderStatus.PAYMENT_COMPLAINT_PENDING]) || 0);
 
-    const preparingCount = Number(safeStatusCounts.PREPARING) || 0;
+    const preparingCount = safeStatusCounts['NEED_PROCESSING'];
     const {
         phase: cutoffPhase,
         cutoffLabel,
@@ -276,7 +263,7 @@ export const OrderList = () => {
                 className="admin-tabs"
             >
                 {ORDER_STATUS_TABS.map((tab) => {
-                    const isPreparingUrgent = tab.value === 'PREPARING' && shouldHighlightPreparing;
+                    const isPreparingUrgent = (tab.value === 'NEED_PROCESSING' || tab.value === 'PREPARING') && shouldHighlightPreparing;
                     const badgeVariant = isPreparingUrgent && cutoffPhase === 'past'
                         ? 'error'
                         : tab.value;
@@ -319,14 +306,6 @@ export const OrderList = () => {
                 <Table sx={{ minWidth: 960 }} size={settings.density === 'compact' ? 'small' : 'medium'}>
                     <TableHead sx={{ bgcolor: 'var(--palette-background-neutral)' }}>
                         <TableRow>
-                            <TableCell padding="checkbox" sx={{ borderBottom: 'none', textAlign: 'center' }}>
-                                <Checkbox
-                                    indeterminate={selected.length > 0 && selected.length < orders.length}
-                                    checked={orders.length > 0 && selected.length === orders.length}
-                                    onChange={handleSelectAllClick}
-                                    sx={{ color: 'var(--palette-text-disabled)', p: 0 }}
-                                />
-                            </TableCell>
                             <TableCell sx={{ borderBottom: 'none', color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Mã đơn</TableCell>
                             <TableCell sx={{ borderBottom: 'none', color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Khách hàng</TableCell>
                             <TableCell sx={{ borderBottom: 'none', color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Loại đơn</TableCell>
@@ -340,7 +319,7 @@ export const OrderList = () => {
                     <TableBody>
                         {isLoading ? (
                             <TableRow>
-                                <TableCell colSpan={8} align="center" sx={{ borderBottom: 'none', py: 10 }}>
+                                <TableCell colSpan={7} align="center" sx={{ borderBottom: 'none', py: 10 }}>
                                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
                                         <CircularProgress size={32} />
                                     </Box>
@@ -348,7 +327,7 @@ export const OrderList = () => {
                             </TableRow>
                         ) : orders.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={8} align="center" sx={{ borderBottom: 'none', py: 10 }}>
+                                <TableCell colSpan={7} align="center" sx={{ borderBottom: 'none', py: 10 }}>
                                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
                                         <span className="admin-datagrid-empty">Không có dữ liệu</span>
                                     </Box>
@@ -356,7 +335,6 @@ export const OrderList = () => {
                             </TableRow>
                         ) : (
                             orders.map((row: any) => {
-                                const isItemSelected = selected.indexOf(row.id) !== -1;
                                 const isOpen = openRows.includes(row.id);
                                 const isPreparingUrgentRow =
                                     shouldHighlightPreparing && row.status === 'PREPARING';
@@ -365,7 +343,6 @@ export const OrderList = () => {
                                     <React.Fragment key={row.id}>
                                         <TableRow
                                             hover
-                                            selected={isItemSelected}
                                             sx={{
                                                 '&:hover': { bgcolor: 'var(--palette-action-hover)' },
                                                 ...(isOpen && {
@@ -387,14 +364,6 @@ export const OrderList = () => {
                                                 transition: 'background-color 0.2s'
                                             }}
                                         >
-                                            <TableCell padding="checkbox" sx={{ borderBottom: '1px dashed var(--palette-background-neutral)', textAlign: 'center' }}>
-                                                <Checkbox
-                                                    checked={isItemSelected}
-                                                    onClick={() => handleSelectRow(row.id)}
-                                                    sx={{ color: 'var(--palette-text-disabled)', p: 0 }}
-                                                />
-                                            </TableCell>
-
                                             <TableCell sx={{ borderBottom: '1px dashed var(--palette-background-neutral)' }}>
                                                 <Typography
                                                     onClick={() => handleViewDetail(row.id)}

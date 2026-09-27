@@ -535,9 +535,7 @@ export const RefundDetailPage = () => {
                                                             'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
                                                     }}
                                                 >
-                                                    {maskBankAccountNo(
-                                                        refund.bankAccount.bankAccountNo
-                                                    )}
+                                                    {refund.bankAccount.bankAccountNo}
                                                 </FieldValue>
                                             </Grid>
                                             <Grid size={{ xs: 12, sm: 4 }}>
