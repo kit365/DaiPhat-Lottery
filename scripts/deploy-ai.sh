@@ -123,7 +123,7 @@ route_ready() {
 case "$component" in
   chatbot) memory_key=AI_CHATBOT_MEMORY_LIMIT; memory_default=256m ;;
   ocr) memory_key=TICKET_VISION_MEMORY_LIMIT; memory_default=1g ;;
-  ekyc) memory_key=EKYC_VISION_MEMORY_LIMIT; memory_default=2g ;;
+  ekyc) memory_key=EKYC_VISION_MEMORY_LIMIT; memory_default=1g ;;
 esac
 memory_limit=$(awk -F= -v key="$memory_key" '$1==key {v=substr($0,length(key)+2)} END {print v}' .ai-runtime.env)
 memory_limit=${memory_limit:-$memory_default}
@@ -133,7 +133,7 @@ memory_limit=${memory_limit//\'/}
 requested_mb=$(awk -v limit="$memory_limit" 'BEGIN {unit=tolower(limit); value=limit+0; if(unit ~ /g/) value*=1024; else if(unit ~ /k/) value/=1024; else if(unit !~ /m/) value/=1048576; print int(value+0.999)}')
 sync; echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
 available_mb=$(awk '/MemAvailable:/ {print int($2/1024)}' /proc/meminfo)
-required_mb=$((requested_mb + 512))
+required_mb=$((requested_mb + 384))
 echo "AI available RAM: ${available_mb} MiB; required for candidate + reserve: ${required_mb} MiB"
 (( available_mb >= required_mb )) || { echo 'Not enough available RAM for the new slot and gateway; active services retained.' >&2; exit 1; }
 disk_floor_mb=0
