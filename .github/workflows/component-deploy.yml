@@ -276,9 +276,8 @@ jobs:
           test -n "$SSH_KEY" || { echo "VPS_SSH_KEY is unavailable; use a repository Actions secret." >&2; exit 1; }
           install -d -m 700 "$HOME/.ssh"
           key_file="$HOME/.ssh/daiphat_vps_deploy"
-          key_material=$(printf '%s\n' "$SSH_KEY" | sed -E 's/^[[:space:]]*\*\*//; s/\*\*[[:space:]]*$//; s/\r$//')
-          first_key_line=${key_material%%$'\n'*}
-          if [[ "$first_key_line" =~ ^-----BEGIN\ (OPENSSH|RSA)\ PRIVATE\ KEY-----$ ]]; then
+          key_material=$(printf '%s\n' "$SSH_KEY" | tr -d '\r' | sed -E 's/^[[:space:]]*\*\*//; s/\*\*[[:space:]]*$//')
+          if printf '%s\n' "$key_material" | grep -Eq '^-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----'; then
             printf '%s\n' "$key_material" > "$key_file"
           else
             key_body=$(printf '%s' "$key_material" | tr -d '[:space:]')
@@ -293,7 +292,8 @@ jobs:
             echo "VPS_SSH_KEY is not a valid OpenSSH private key after normalization." >&2
             exit 1
           }
-          ssh-keyscan -H "$VPS_HOST" >> "$HOME/.ssh/known_hosts"
+          vps_host_clean=$(printf '%s' "$VPS_HOST" | tr -d '[:space:]')
+          ssh-keyscan -H "$vps_host_clean" >> "$HOME/.ssh/known_hosts"
 
       - name: Stage component deployment package on VPS
         env:
