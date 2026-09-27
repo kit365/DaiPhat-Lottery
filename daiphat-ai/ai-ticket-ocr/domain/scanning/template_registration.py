@@ -88,18 +88,30 @@ def sample_features(sample: np.ndarray, ticket_box: tuple[float, float, float, f
     return SampleFeatures(points, descriptors, quad, width, height)
 
 
+@dataclass(frozen=True)
+class TicketFeatures:
+    """SIFT features of the detected ticket on the upload (upload pixels)."""
+
+    points: np.ndarray
+    descriptors: np.ndarray
+    quad: np.ndarray
+
+
+@dataclass(frozen=True)
+class Registration:
+    """A sample photo placed on the upload; ``inliers`` measures how well it fits."""
+
+    matrix: np.ndarray
+    inliers: int
+
+
 def _quad_area(quad: np.ndarray) -> float:
     return float(abs(cv2.contourArea(quad.reshape(-1, 1, 2).astype(np.float32))))
 
 
-def register(
-    sample: SampleFeatures, upload: np.ndarray, ticket_quad: Quad
-) -> np.ndarray | None:
-    """Homography: sample-photo pixels → ``upload`` pixels, or None if unreliable.
-
-    ``ticket_quad`` is the detected ticket in ``upload`` pixels; matching is
-    restricted to it and the result must land on it.
-    """
+def ticket_features(upload: np.ndarray, ticket_quad: Quad) -> TicketFeatures | None:
+    """Features inside the detected ticket (``ticket_quad``, upload pixels), computed once
+    so several template samples can be matched against the same ticket."""
     if upload is None or upload.size == 0 or not ticket_quad or len(ticket_quad) != 4:
         return None
     rough = np.float32(ticket_quad).reshape(4, 2)
@@ -109,13 +121,23 @@ def register(
     if found is None:
         return None
     points, descriptors = found
+    return TicketFeatures(points, descriptors, rough)
 
-    pairs = cv2.BFMatcher(cv2.NORM_L2).knnMatch(sample.descriptors, descriptors, k=2)
+
+def match(sample: SampleFeatures, ticket: TicketFeatures) -> Registration | None:
+    """Homography: sample-photo pixels → upload pixels, or None if unreliable.
+
+    The projected sample ticket must land on the detected ticket.
+    """
+    rough = ticket.quad
+    x0, y0 = rough.min(axis=0)
+    x1, y1 = rough.max(axis=0)
+    pairs = cv2.BFMatcher(cv2.NORM_L2).knnMatch(sample.descriptors, ticket.descriptors, k=2)
     good = [p[0] for p in pairs if len(p) == 2 and p[0].distance < _RATIO_TEST * p[1].distance]
     if len(good) < _MIN_GOOD_MATCHES:
         return None
     src = np.float32([sample.points[m.queryIdx] for m in good]).reshape(-1, 1, 2)
-    dst = np.float32([points[m.trainIdx] for m in good]).reshape(-1, 1, 2)
+    dst = np.float32([ticket.points[m.trainIdx] for m in good]).reshape(-1, 1, 2)
     tolerance = max(2.0, _RANSAC_TOLERANCE * float(np.hypot(x1 - x0, y1 - y0)))
     matrix, mask = cv2.findHomography(src, dst, cv2.RANSAC, tolerance)
     if matrix is None or mask is None:
@@ -137,7 +159,22 @@ def register(
     upper = np.float32([x1, y1]) + span * _MAX_CORNER_OVERSHOOT
     if np.any(projected < lower) or np.any(projected > upper):
         return None
-    return matrix
+    return Registration(matrix, inliers)
+
+
+def register(
+    sample: SampleFeatures, upload: np.ndarray, ticket_quad: Quad
+) -> np.ndarray | None:
+    """Homography: sample-photo pixels → ``upload`` pixels, or None if unreliable.
+
+    ``ticket_quad`` is the detected ticket in ``upload`` pixels; matching is
+    restricted to it and the result must land on it.
+    """
+    ticket = ticket_features(upload, ticket_quad)
+    if ticket is None:
+        return None
+    found = match(sample, ticket)
+    return found.matrix if found is not None else None
 
 
 def project(matrix: np.ndarray, points: list[tuple[float, float]]) -> list[tuple[float, float]]:
