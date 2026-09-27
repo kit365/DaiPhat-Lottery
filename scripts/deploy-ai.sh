@@ -131,8 +131,9 @@ memory_limit=${memory_limit//\"/}
 memory_limit=${memory_limit//\'/}
 [[ "$memory_limit" =~ ^[0-9]+([kKmMgG][bB]?|[bB])?$ ]] || { echo 'Unsupported AI memory limit.' >&2; exit 1; }
 requested_mb=$(awk -v limit="$memory_limit" 'BEGIN {unit=tolower(limit); value=limit+0; if(unit ~ /g/) value*=1024; else if(unit ~ /k/) value/=1024; else if(unit !~ /m/) value/=1048576; print int(value+0.999)}')
+sync; echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
 available_mb=$(awk '/MemAvailable:/ {print int($2/1024)}' /proc/meminfo)
-required_mb=$((requested_mb + 640))
+required_mb=$((requested_mb + 512))
 echo "AI available RAM: ${available_mb} MiB; required for candidate + reserve: ${required_mb} MiB"
 (( available_mb >= required_mb )) || { echo 'Not enough available RAM for the new slot and gateway; active services retained.' >&2; exit 1; }
 disk_floor_mb=0
