@@ -42,15 +42,18 @@ import {
     isRefundProcessingActionable,
     isRefundTransferComplete,
     maskBankAccountNo,
+    REFUND_COUNTER_PAYOUT_METHOD_LABELS,
     RefundRequestStatus,
     RefundType,
 } from '@/types/refund.type';
 import {
+    useCompleteCounterRefund,
     useGetStaffRefundDetail,
     useRequestBankInfoUpdate,
     useTransferRefund,
 } from '@/admin/features/refund/hooks/useRefundManagement';
 import { TransferRefundDialog } from '../TransferRefundDialog';
+import { CounterRefundDialog } from '../CounterRefundDialog';
 import { TransferEvidencePreview } from '../TransferEvidencePreview';
 import { ProcessingDeadlineCard } from '../ProcessingDeadlineCard';
 import { RefundTicketsTable } from '../RefundTicketsTable';
@@ -138,10 +141,12 @@ export const RefundDetailPage = () => {
             : 'Quay lại';
 
     const [transferOpen, setTransferOpen] = useState(false);
+    const [counterOpen, setCounterOpen] = useState(false);
 
     const { data, isLoading, isError } = useGetStaffRefundDetail(refundId);
     const transferMutation = useTransferRefund();
     const requestBankUpdateMutation = useRequestBankInfoUpdate();
+    const completeCounterMutation = useCompleteCounterRefund();
 
     const outerTheme = useTheme();
     const localTheme = useMemo(
@@ -190,6 +195,21 @@ export const RefundDetailPage = () => {
         router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
     }, [pathname, searchParams, router, refund, returnNav?.returnTo, returnNav?.returnLabel]);
 
+    useEffect(() => {
+        if (searchParams?.get("openCounter") !== "true" || !refund) {
+            return;
+        }
+
+        if (refund.status === RefundRequestStatus.MANUAL_RESOLUTION) {
+            setCounterOpen(true);
+        }
+
+        const nextParams = new URLSearchParams(searchParams?.toString() ?? "");
+        nextParams.delete("openCounter");
+        const nextQuery = nextParams.toString();
+        router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+    }, [pathname, searchParams, router, refund]);
+
     if (isLoading) {
         return (
             <ThemeProvider theme={localTheme}>
@@ -228,6 +248,9 @@ export const RefundDetailPage = () => {
         canTransfer && !actionsDisabled && retryCount < maxRetry;
     const customerUpdatedBankInfo =
         canTransfer && !actionsDisabled && retryCount > 0 && !refund.operatorNote;
+    const canProcessAtCounter = refund.status === RefundRequestStatus.MANUAL_RESOLUTION;
+    const counterIdentity = detail.counterIdentity;
+    const counterPayoutMethod = counterIdentity?.counterPayoutMethod ?? null;
     const sortedHistory = [...(detail.processingHistory || [])].sort((a, b) => {
         const aTime = a.occurredAt ? new Date(a.occurredAt).getTime() : 0;
         const bTime = b.occurredAt ? new Date(b.occurredAt).getTime() : 0;
@@ -268,6 +291,17 @@ export const RefundDetailPage = () => {
                                     Xác nhận chuyển khoản
                                 </Button>
                             )}
+                            {canProcessAtCounter && (
+                                <Button
+                                    variant="contained"
+                                    color="primary"
+                                    startIcon={<Icon icon="solar:user-id-bold-duotone" />}
+                                    onClick={() => setCounterOpen(true)}
+                                    sx={headerButtonSx}
+                                >
+                                    Xử lý hoàn tiền tại quầy
+                                </Button>
+                            )}
                         </CanAccess>
                         <Button
                             variant="outlined"
@@ -306,6 +340,13 @@ export const RefundDetailPage = () => {
                     remainingProcessingSeconds={refund.remainingProcessingSeconds}
                     processingUrgency={refund.processingUrgency}
                 />
+
+                {canProcessAtCounter && (
+                    <Alert severity="warning" sx={{ mb: 3 }}>
+                        Yêu cầu đã vượt quá số lần cập nhật STK. Khách hàng cần mang CCCD đến đại lý — nhân viên
+                        xác thực CCCD (mặt trước và mặt sau) rồi hoàn tiền tại quầy.
+                    </Alert>
+                )}
 
                 {customerUpdatedBankInfo && (
                     <Alert severity="info" sx={{ mb: 3 }}>
@@ -559,6 +600,93 @@ export const RefundDetailPage = () => {
                                 )}
                             </Card>
 
+                            {counterIdentity?.ekycStatus && (
+                                <Card sx={{ p: 3, ...cardSx }}>
+                                    <Stack
+                                        direction="row"
+                                        alignItems="flex-start"
+                                        justifyContent="space-between"
+                                        spacing={2}
+                                    >
+                                        <CardSectionTitle
+                                            icon="solar:user-id-bold-duotone"
+                                            title="CCCD xác thực tại quầy"
+                                        />
+                                        <AdminStatusBadge
+                                            label={
+                                                counterIdentity.ekycStatus === 'VERIFIED'
+                                                    ? 'Đã xác thực'
+                                                    : 'Xác thực thất bại'
+                                            }
+                                            modifier={
+                                                counterIdentity.ekycStatus === 'VERIFIED'
+                                                    ? 'admin-status-badge--success'
+                                                    : 'admin-status-badge--inactive'
+                                            }
+                                        />
+                                    </Stack>
+                                    <Grid container spacing={3}>
+                                        <Grid size={{ xs: 12, md: 5 }}>
+                                            <Stack direction="row" spacing={2}>
+                                                {counterIdentity.cccdFrontImageUrl && (
+                                                    <TransferEvidencePreview
+                                                        imageUrl={counterIdentity.cccdFrontImageUrl}
+                                                        title="Mặt trước CCCD"
+                                                        compact
+                                                    />
+                                                )}
+                                                {counterIdentity.cccdBackImageUrl && (
+                                                    <TransferEvidencePreview
+                                                        imageUrl={counterIdentity.cccdBackImageUrl}
+                                                        title="Mặt sau CCCD"
+                                                        compact
+                                                    />
+                                                )}
+                                            </Stack>
+                                        </Grid>
+                                        <Grid size={{ xs: 12, md: 7 }}>
+                                            {counterIdentity.ekycStatus === 'VERIFIED' ? (
+                                                <Grid container spacing={2}>
+                                                    {[
+                                                        ['Họ và tên', counterIdentity.ocrName],
+                                                        ['Số CCCD', counterIdentity.ocrIdNumber],
+                                                        ['Ngày sinh', counterIdentity.ocrDob],
+                                                        ['Ngày cấp', counterIdentity.ocrIssueDate],
+                                                        [
+                                                            'Thời gian xác thực',
+                                                            counterIdentity.verifiedAt
+                                                                ? dayjs(counterIdentity.verifiedAt).format(
+                                                                      'DD/MM/YYYY HH:mm'
+                                                                  )
+                                                                : null,
+                                                        ],
+                                                        [
+                                                            'Hình thức hoàn tiền',
+                                                            counterPayoutMethod
+                                                                ? REFUND_COUNTER_PAYOUT_METHOD_LABELS[counterPayoutMethod]
+                                                                : 'Chưa hoàn tất',
+                                                        ],
+                                                    ].map(([label, value]) => (
+                                                        <Grid key={label} size={{ xs: 12, sm: 6 }}>
+                                                            <FieldLabel>{label}</FieldLabel>
+                                                            <FieldValue>{value || '—'}</FieldValue>
+                                                        </Grid>
+                                                    ))}
+                                                </Grid>
+                                            ) : (
+                                                <Typography
+                                                    variant="body2"
+                                                    sx={{ color: 'var(--palette-error-main)', fontWeight: 600 }}
+                                                >
+                                                    {counterIdentity.ekycFailureReason ||
+                                                        'Chưa đọc được đủ thông tin CCCD. Vui lòng chụp lại.'}
+                                                </Typography>
+                                            )}
+                                        </Grid>
+                                    </Grid>
+                                </Card>
+                            )}
+
                             {/* Tickets */}
                             <Card sx={cardSx}>
                                 <Stack
@@ -743,6 +871,18 @@ export const RefundDetailPage = () => {
                                             Mở ảnh trong tab mới
                                         </Button>
                                     </Box>
+                                ) : counterPayoutMethod && isRefundTransferComplete(refund.status) ? (
+                                    <Typography
+                                        variant="body2"
+                                        sx={{
+                                            color: 'var(--palette-text-primary)',
+                                            fontWeight: 600,
+                                            mb: 2.5,
+                                        }}
+                                    >
+                                        Đã hoàn tiền tại quầy bằng{' '}
+                                        {REFUND_COUNTER_PAYOUT_METHOD_LABELS[counterPayoutMethod].toLowerCase()}.
+                                    </Typography>
                                 ) : (
                                     <Typography
                                         variant="body2"
@@ -781,6 +921,15 @@ export const RefundDetailPage = () => {
                                                     : refund.payoutTransaction?.type || '—'}
                                             </FieldValue>
                                         </Box>
+                                        {counterPayoutMethod && (
+                                            <Box>
+                                                <FieldLabel>Hình thức hoàn tiền</FieldLabel>
+                                                <FieldValue>
+                                                    Tại quầy —{' '}
+                                                    {REFUND_COUNTER_PAYOUT_METHOD_LABELS[counterPayoutMethod]}
+                                                </FieldValue>
+                                            </Box>
+                                        )}
                                         <Box>
                                             <FieldLabel>Số tiền</FieldLabel>
                                             <FieldValue>
@@ -959,6 +1108,27 @@ export const RefundDetailPage = () => {
                     requestBankUpdateMutation.mutate(
                         { id: refundId, operatorNote },
                         { onSuccess: () => setTransferOpen(false) }
+                    )
+                }
+            />
+
+            <CounterRefundDialog
+                open={counterOpen}
+                refundId={refundId}
+                refundAmount={refund.refundAmount}
+                customerName={detail.customerSummary.fullName}
+                bankAccount={refund.bankAccount}
+                initialIdentity={counterIdentity}
+                loading={completeCounterMutation.isPending}
+                onClose={() => setCounterOpen(false)}
+                onConfirm={(payload) =>
+                    completeCounterMutation.mutate(
+                        { id: refundId, data: payload },
+                        {
+                            onSuccess: (response) => {
+                                if (response.success) setCounterOpen(false);
+                            },
+                        }
                     )
                 }
             />
