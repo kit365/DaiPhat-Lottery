@@ -15,7 +15,7 @@ class CreatePrizePayout {
     int? orderDetailId,
     int? serialId,
     required int bankAccountId,
-    required String recipientIdNumber,
+    String? recipientIdNumber,
     required String recipientIdImageUrl,
     required String recipientIdImageBackUrl,
   }) => _repository.create(

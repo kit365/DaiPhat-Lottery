@@ -9,6 +9,7 @@ import 'package:daiphat_mobile/src/features/home/presentation/providers/lottery_
 import 'package:daiphat_mobile/src/features/tickets/domain/entities/purchased_ticket.dart';
 import 'package:daiphat_mobile/src/features/bank_accounts/presentation/providers/bank_accounts_providers.dart';
 import 'package:daiphat_mobile/src/features/prize_payouts/presentation/providers/prize_payouts_providers.dart';
+import 'package:daiphat_mobile/src/features/prize_payouts/domain/entities/prize_payout_request.dart';
 import 'package:daiphat_mobile/src/features/prize_payouts/presentation/widgets/prize_payout_request_sheet.dart';
 import 'package:daiphat_mobile/src/features/tickets/presentation/utils/ticket_display_utils.dart';
 import 'package:daiphat_mobile/src/features/tickets/presentation/utils/rebuy_ticket.dart';
@@ -117,62 +118,67 @@ class _TicketDetailBodyState extends ConsumerState<_TicketDetailBody> {
               ),
             ],
             const SizedBox(height: 16),
-            _buildViewDrawResultButton(context, ref),
-            const SizedBox(height: 10),
-            _buildRebuyButton(context),
+            _buildActionButtonsRow(context, ref),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildViewDrawResultButton(BuildContext context, WidgetRef ref) {
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton.icon(
-        onPressed: () => _openDrawResults(context, ref),
-        icon: const Icon(Icons.calendar_month_rounded, size: 18),
-        label: Text(
-          'Xem kết quả kỳ quay',
-          style: AppTypography.mainWith(
-            fontWeight: FontWeight.w800,
-            fontSize: 14,
+  Widget _buildActionButtonsRow(BuildContext context, WidgetRef ref) {
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: () => _openDrawResults(context, ref),
+            icon: const Icon(Icons.calendar_month_rounded, size: 16),
+            label: Text(
+              'Xem kết quả kỳ quay',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.mainWith(
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+                color: AppColors.contentHeading,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.contentHeading,
+              backgroundColor: AppColors.surfaceSlate100,
+              side: const BorderSide(color: AppColors.borderLight),
+              padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 6),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
           ),
         ),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.textMain,
-          backgroundColor: AppColors.surfaceSlate100,
-          side: BorderSide.none,
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+        const SizedBox(width: 10),
+        Expanded(
+          child: FilledButton.icon(
+            onPressed: () => openRebuyTicket(context, ticket),
+            icon: const Icon(Icons.add_shopping_cart_rounded, size: 16),
+            label: Text(
+              'Mua lại bộ số này',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.mainWith(
+                fontWeight: FontWeight.w800,
+                fontSize: 12,
+                color: AppColors.surfacePrimary,
+              ),
+            ),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.surfacePrimary,
+              padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 6),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildRebuyButton(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: FilledButton.icon(
-        onPressed: () => openRebuyTicket(context, ticket),
-        icon: const Icon(Icons.add_shopping_cart_rounded, size: 18),
-        label: Text(
-          'Mua lại bộ số này',
-          style: AppTypography.mainWith(
-            fontWeight: FontWeight.w800,
-            fontSize: 14,
-          ),
-        ),
-        style: FilledButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      ),
+      ],
     );
   }
 
@@ -553,22 +559,61 @@ class _TicketDetailBodyState extends ConsumerState<_TicketDetailBody> {
             ),
           ],
           if (_hasPayoutDetailLink) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
                 onPressed: () => _openPayoutDetail(context),
-                icon: const Icon(Icons.receipt_long_outlined, size: 18),
+                icon: const Icon(Icons.receipt_long_outlined, size: 16),
+                label: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Xem chi tiết yêu cầu đổi thưởng',
+                      style: AppTypography.mainWith(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 12,
+                      color: AppColors.primary,
+                    ),
+                  ],
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: BorderSide(
+                    color: AppColors.primary.withValues(alpha: 0.5),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+          ],
+          if (_ticket.activePayoutStatus == 'REJECTED') ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _openPayoutSheet(context),
+                icon: const Icon(Icons.refresh_rounded, size: 18),
                 label: Text(
-                  'Xem chi tiết yêu cầu đổi thưởng',
+                  'Gửi lại giấy tờ / yêu cầu mới',
                   style: AppTypography.mainWith(
                     fontWeight: FontWeight.w800,
                     fontSize: 13,
                   ),
                 ),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.contentSlate700,
-                  side: const BorderSide(color: AppColors.borderMuted),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.surfacePrimary,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -584,17 +629,23 @@ class _TicketDetailBodyState extends ConsumerState<_TicketDetailBody> {
 
   bool get _hasPayoutDetailLink {
     final status = _ticket.activePayoutStatus;
-    return _ticket.activePayoutRequestId != null &&
-        (status == 'PENDING' || status == 'APPROVED' || status == 'COMPLETED');
+    return _ticket.activePayoutRequestId != null ||
+        status == 'PENDING' ||
+        status == 'APPROVED' ||
+        status == 'COMPLETED' ||
+        status == 'REJECTED';
   }
 
   void _openPayoutDetail(BuildContext context) {
     final requestId = _ticket.activePayoutRequestId;
-    if (requestId == null) return;
-    context.pushNamed(
-      AppRoute.prizePayoutDetail.name,
-      pathParameters: {'id': '$requestId'},
-    );
+    if (requestId != null) {
+      context.pushNamed(
+        AppRoute.prizePayoutDetail.name,
+        pathParameters: {'id': '$requestId'},
+      );
+    } else {
+      context.pushNamed(AppRoute.prizePayouts.name);
+    }
   }
 
   Future<void> _openPayoutSheet(BuildContext context) async {
@@ -614,9 +665,13 @@ class _TicketDetailBodyState extends ConsumerState<_TicketDetailBody> {
       ),
     );
 
-    if (result == true && mounted) {
+    if (result != null && mounted) {
+      final int? newRequestId = result is PrizePayoutRequestResult
+          ? result.id
+          : (result is int ? result : null);
       setState(() {
         _ticket = _ticket.copyWith(
+          activePayoutRequestId: newRequestId ?? _ticket.activePayoutRequestId,
           activePayoutStatus: 'PENDING',
           canClaimOnline: false,
           payoutState: 'PAYOUT_PENDING',
