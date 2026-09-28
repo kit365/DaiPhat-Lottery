@@ -2,11 +2,15 @@ import { describe, expect, it } from 'vitest';
 import type { ImportBatch } from '../../import-batch/types/importBatch.type';
 import {
     buildReviewImageGroups,
+    buildReviewStationGroups,
     canConfirmReviewRow,
     collectOcrBatchOptions,
     createFailedReviewRow,
     formatConfidence,
     formatDenomination,
+    getOcrReviewFieldConfidence,
+    getOcrReviewIssueCounts,
+    hasHighConfidenceOcrFields,
     getScanStatusLabel,
     getUnreadableFieldCaption,
     reconcileOcrSerialAndBatchCode,
@@ -66,6 +70,101 @@ describe('OCR confidence display', () => {
         expect(resolveFieldDisplayConfidence(row, 'drawDate', 'invalid').confidence).toBe(0.99);
         const changed = scannedRow({ edited: true, stationName: 'Cần Thơ' });
         expect(resolveFieldDisplayConfidence(changed, 'stationName', 'corrected').confidence).toBe(0.88);
+    });
+
+    it('averages field recognition confidence instead of the backend overall score', () => {
+        const row = scannedRow({
+            confidence: 0.38,
+            adjustedConfidence: 0.4,
+            serialNumber: '424944A',
+            fieldConfidences: {
+                stationName: 0.8,
+                drawDate: 0.8,
+                numbers: 0.8,
+                serialNumber: 0.8,
+                ticketType: 0.8,
+            },
+            fieldValidations: {},
+        });
+        expect(getOcrReviewFieldConfidence(row)).toBeCloseTo(0.8);
+        expect(getOcrReviewFieldConfidence({
+            ...row,
+            fieldValidations: { stationName: { status: 'MATCHED' } },
+        })).toBeCloseTo(0.8);
+        expect(getOcrReviewFieldConfidence({
+            ...row,
+            fieldConfidences: { stationName: 0.8, drawDate: 0.8, numbers: 0.8, ticketType: 0.8 },
+        })).toBeCloseTo(0.64);
+    });
+
+    it('counts invalid fields once when system warnings repeat them', () => {
+        const row = scannedRow({
+            serialNumber: '424944A',
+            fieldValidations: {
+                stationName: { status: 'MISMATCHED', message: 'Đài không mở thưởng ngày này' },
+                drawDate: { status: 'MISMATCHED', message: 'Ngày quay không khớp' },
+            },
+            validationErrors: ['Ngày quay không khớp'],
+            businessValidationErrors: ['Đài không mở thưởng ngày này'],
+        });
+        expect(getOcrReviewIssueCounts(row)).toEqual({ errorCount: 2, warningCount: 0 });
+    });
+
+    it('still counts a standalone system error when no field is invalid', () => {
+        const row = scannedRow({
+            serialNumber: '424944A',
+            fieldValidations: {},
+            validationErrors: ['Không thể tiếp nhận vé vào phiếu'],
+            businessValidationErrors: [],
+        });
+        expect(getOcrReviewIssueCounts(row).errorCount).toBe(1);
+    });
+
+    it('shows old OCR errors as notes after all required fields are corrected', () => {
+        const row = scannedRow({
+            key: 'scan-21',
+            status: 'FAILED',
+            serialNumber: '424944A',
+            edited: true,
+            editedFields: { drawDate: true },
+            fieldValidations: { drawDate: { status: 'MISMATCHED', message: 'Ngày OCR sai' } },
+            validationErrors: ['Ngày OCR sai'],
+            businessValidationErrors: [],
+        });
+        expect(canConfirmReviewRow(row)).toBe(true);
+        expect(getOcrReviewIssueCounts(row)).toEqual({ errorCount: 0, warningCount: 1 });
+        expect(canConfirmReviewRow({ ...row, key: 'failed-img-1' })).toBe(false);
+    });
+
+    it('does not clear errors on untouched fields when another field is corrected', () => {
+        const row = scannedRow({
+            serialNumber: '424944A',
+            edited: true,
+            editedFields: { numbers: true },
+            fieldValidations: { drawDate: { status: 'MISMATCHED', message: 'Ngày OCR sai' } },
+        });
+        expect(canConfirmReviewRow(row)).toBe(false);
+        expect(getOcrReviewIssueCounts(row).errorCount).toBe(1);
+    });
+
+    it('keeps a clearly read ticket out of the OCR failure alert despite batch-rule errors', () => {
+        const row = scannedRow({
+            status: 'INCOMPLETE',
+            serialNumber: '424944A',
+            fieldConfidences: {
+                stationName: 0.95,
+                drawDate: 0.99,
+                numbers: 0.99,
+                serialNumber: 0.95,
+                ticketType: 0.99,
+            },
+            fieldValidations: {
+                stationName: { status: 'MISMATCHED' },
+                drawDate: { status: 'MISMATCHED' },
+            },
+        });
+        expect(hasHighConfidenceOcrFields(row)).toBe(true);
+        expect(hasHighConfidenceOcrFields({ ...row, fieldConfidences: { ...row.fieldConfidences, serialNumber: 0.5 } })).toBe(false);
     });
 });
 
@@ -301,3 +400,19 @@ describe('canConfirmReviewRow & evaluateOcrFieldUiStatus', () => {
     });
 });
 
+describe('review station groups', () => {
+    it('groups serial rows by station, draw date and numbers without dropping unresolved rows', () => {
+        const base = createFailedReviewRow('image-1', 'scan.jpg', null);
+        const rows = [
+            { ...base, key: 'a', stationId: 1, stationName: 'Bến Tre', drawDate: '2026-09-29', numbers: '123456', serialNumber: '123456A' },
+            { ...base, key: 'b', stationId: 1, stationName: 'Bến Tre', drawDate: '2026-09-29', numbers: '123456', serialNumber: '123456B' },
+            { ...base, key: 'c', stationId: 1, stationName: 'Bến Tre', drawDate: '2026-09-30', numbers: '123456', serialNumber: '123456C' },
+            { ...base, key: 'd', stationId: null, stationName: null, numbers: '789012' },
+        ];
+        const groups = buildReviewStationGroups(rows);
+        expect(groups).toHaveLength(2);
+        expect(groups[0].tickets.map((ticket) => ticket.rows.map((row) => row.key))).toEqual([['a', 'b'], ['c']]);
+        expect(groups[1].stationName).toBe('Chưa xác định nhà đài');
+        expect(groups[1].tickets[0].rows[0].key).toBe('d');
+    });
+});

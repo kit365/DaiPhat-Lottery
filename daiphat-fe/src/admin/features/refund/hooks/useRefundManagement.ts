@@ -7,6 +7,7 @@ import { QUERY_KEYS } from '@/admin/features/refund/constants/queryKeys';
 import { QUERY_KEYS as ORDER_QUERY_KEYS } from '@/admin/features/orders/constants/queryKeys';
 import {
     CompleteCounterRefundRequest,
+    CreateUserBankAccountRequest,
     GetStaffRefundsParams,
     TransferRefundRequestRequest,
     VerifyRefundCounterIdentityRequest,
@@ -90,6 +91,36 @@ export const useCompleteCounterRefund = () => {
                 });
             } else {
                 toast.error(response.message || 'Không thể hoàn tất hoàn tiền tại quầy');
+            }
+        },
+        onError: (error: any) => {
+            toast.error(getErrorMessage(error, 'Lỗi kết nối đến máy chủ'));
+        },
+    });
+};
+
+export const useRefundCustomerBankAccounts = (customerId: string | null | undefined, enabled: boolean) => {
+    return useQuery({
+        queryKey: [QUERY_KEYS.ADMIN_REFUND_CUSTOMER_BANK_ACCOUNTS, customerId],
+        queryFn: () => refundAdminApi.getCustomerBankAccounts(customerId!),
+        enabled: enabled && !!customerId,
+    });
+};
+
+export const useCreateRefundCustomerBankAccount = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ id, data }: { id: number; customerId: string; data: CreateUserBankAccountRequest }) =>
+            refundAdminApi.createCustomerBankAccount(id, data),
+        onSuccess: (response, variables) => {
+            if (response.success) {
+                toast.success(response.message || 'Đã thêm tài khoản ngân hàng cho khách hàng');
+                queryClient.invalidateQueries({
+                    queryKey: [QUERY_KEYS.ADMIN_REFUND_CUSTOMER_BANK_ACCOUNTS, variables.customerId],
+                });
+            } else {
+                toast.error(response.message || 'Không thể thêm tài khoản ngân hàng');
             }
         },
         onError: (error: any) => {

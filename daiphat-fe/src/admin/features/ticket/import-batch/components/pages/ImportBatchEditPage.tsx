@@ -61,6 +61,7 @@ import { ImportBatchLineImportHost } from '../../../inventory/components/section
 import { useImportBatchEditDraft } from '../../hooks/useImportBatchEditDraft';
 import { useActiveSuppliers } from '../../../../supplier';
 import { useStations } from '../../../../station/hooks/useStation';
+import type { Station } from '../../../../station/types/station.type';
 import {
     updateImportBatchSchema,
     type UpdateImportBatchFormValues,
@@ -183,8 +184,8 @@ export const ImportBatchEditPage = () => {
     const { data: activeSuppliers = [], isLoading: isLoadingSuppliers } = useActiveSuppliers();
     const { evaluate: evaluateIntake } = useImportBatchIntakeGate();
     const { data: providersRes } = useStations({ limit: 1000 });
-    const providers = useMemo(
-        () => (providersRes as { data?: { recordList?: Array<{ id?: number; _id?: number; name?: string }> } })?.data?.recordList ?? [],
+    const providers: Station[] = useMemo(
+        () => providersRes?.data?.recordList ?? [],
         [providersRes]
     );
     const formInitializedForBatchIdRef = useRef<string | null>(null);
@@ -301,7 +302,14 @@ export const ImportBatchEditPage = () => {
 
     const displayEligibleStations = useMemo(() => {
         const stationMap = new Map<number, ImportBatchEligibleStation>(
-            eligibleStations.map((station) => [station.lotteryStationId, station])
+            eligibleStations.map((station) => {
+                const provider = providers.find((item) => Number(item.id ?? item._id) === station.lotteryStationId);
+                return [station.lotteryStationId, {
+                    ...station,
+                    price: station.price ?? provider?.price,
+                    commissionRate: station.commissionRate ?? provider?.commissionRate,
+                }];
+            })
         );
 
         activeLines.forEach((line) => {
@@ -310,6 +318,7 @@ export const ImportBatchEditPage = () => {
                 return;
             }
 
+            const provider = providers.find((item) => Number(item.id ?? item._id) === stationId);
             stationMap.set(stationId, {
                 lotteryStationId: stationId,
                 name:
@@ -317,11 +326,13 @@ export const ImportBatchEditPage = () => {
                     providerStationNameById.get(stationId) ??
                     `Đài #${stationId}`,
                 resolvedBatchType: line.resolvedBatchType ?? 'NEW',
+                price: provider?.price,
+                commissionRate: provider?.commissionRate,
             });
         });
 
         return Array.from(stationMap.values());
-    }, [activeLines, eligibleStations, providerStationNameById]);
+    }, [activeLines, eligibleStations, providerStationNameById, providers]);
 
     const formSnapshot = useMemo(
         () => ({
@@ -1647,7 +1658,14 @@ export const ImportBatchEditPage = () => {
                             {/* Table */}
                             <Box sx={{ px: 0 }}>
                                 <TableContainer sx={{ padding: '0 !important' }}>
-                                    <Table size="small" sx={{ tableLayout: 'fixed', width: '100%' }}>
+                                    <Table
+                                        size="small"
+                                        sx={{
+                                            tableLayout: 'fixed',
+                                            width: '100%',
+                                            minWidth: 1050 + (showStatusColumn ? 135 : 0) + (showProgressColumn ? 115 : 0),
+                                        }}
+                                    >
                                         <TableHead>
                                             <TableRow
                                                 sx={{
@@ -1662,21 +1680,21 @@ export const ImportBatchEditPage = () => {
                                                     },
                                                 }}
                                             >
-                                                <TableCell sx={{ width: showStatusColumn || showProgressColumn ? '20%' : '28%' }}>Nhà đài</TableCell>
-
-
+                                                <TableCell align="center" sx={{ width: 180 }}>Nhà đài</TableCell>
                                                 {showStatusColumn && (
-                                                    <TableCell sx={{ width: 135, whiteSpace: 'nowrap' }}>Trạng thái dòng</TableCell>
+                                                    <TableCell align="center" sx={{ width: 135, whiteSpace: 'nowrap' }}>Trạng thái dòng</TableCell>
                                                 )}
                                                 {showProgressColumn && (
-                                                    <TableCell sx={{ width: 115, whiteSpace: 'nowrap' }}>Tiến độ nhập</TableCell>
+                                                    <TableCell align="center" sx={{ width: 115, whiteSpace: 'nowrap' }}>Tiến độ nhập</TableCell>
                                                 )}
-                                                <TableCell align="right" sx={{ width: 130 }}>SL phân bổ</TableCell>
-                                                <TableCell align="right" sx={{ width: 130 }}>Đơn giá vốn</TableCell>
-                                                <TableCell align="right" sx={{ width: 140, whiteSpace: 'nowrap' }}>
+                                                <TableCell align="center" sx={{ width: 130 }}>SL phân bổ</TableCell>
+                                                <TableCell align="center" sx={{ width: 110 }}>Giá vé</TableCell>
+                                                <TableCell align="center" sx={{ width: 100 }}>Hoa hồng</TableCell>
+                                                <TableCell align="center" sx={{ width: 130 }}>Đơn giá vốn</TableCell>
+                                                <TableCell align="center" sx={{ width: 140, whiteSpace: 'nowrap' }}>
                                                     Tổng giá vốn
                                                 </TableCell>
-                                                <TableCell align="center" width={260} />
+                                                <TableCell align="center" width={260}>Thao tác</TableCell>
                                             </TableRow>
                                         </TableHead>
                                         <TableBody>
@@ -1686,6 +1704,7 @@ export const ImportBatchEditPage = () => {
                                                 }
 
                                                 const line = lines[index];
+                                                const stationId = line?.lotteryStationId ?? 0;
                                                 const isReadOnly =
                                                     line?.readOnly ||
                                                     !canEditImportBatchLineCost(line?.status);
@@ -1722,6 +1741,11 @@ export const ImportBatchEditPage = () => {
                                                         }
                                                         canRemove={canRemove}
                                                         onRemove={() => handleRemoveLine(index)}
+                                                        onEditStation={stationId > 0
+                                                            ? () => router.push(ROUTES.ADMIN.TICKETS.PROVIDER_EDIT(stationId))
+                                                            : undefined}
+                                                        showStationPricing
+                                                        centerCells
                                                         canPause={canPause}
                                                         onPause={() => handlePauseLine(index)}
                                                         pausePending={isPausePending}
@@ -1768,16 +1792,18 @@ export const ImportBatchEditPage = () => {
                                                     >
                                                         Tổng cộng ({activeLines.length} đài)
                                                     </TableCell>
-                                                    <TableCell align="right" sx={{ color: '#0284c7' }}>
+                                                    <TableCell align="center" sx={{ color: '#0284c7' }}>
                                                         {totals.totalQty.toLocaleString('vi-VN')} vé
                                                     </TableCell>
-                                                    <TableCell align="right" sx={{ color: 'text.secondary', fontWeight: 600 }}>
+                                                    <TableCell align="center" sx={{ color: 'text.secondary', fontWeight: 600 }}>—</TableCell>
+                                                    <TableCell align="center" sx={{ color: 'text.secondary', fontWeight: 600 }}>—</TableCell>
+                                                    <TableCell align="center" sx={{ color: 'text.secondary', fontWeight: 600 }}>
                                                         —
                                                     </TableCell>
-                                                    <TableCell align="right" sx={{ color: '#15803d' }}>
+                                                    <TableCell align="center" sx={{ color: '#15803d' }}>
                                                         {formatVnd(totals.totalCost)}
                                                     </TableCell>
-                                                    <TableCell />
+                                                    <TableCell align="center" />
                                                 </TableRow>
                                             </TableFooter>
                                         )}

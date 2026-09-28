@@ -3,6 +3,7 @@ package com.daiphat.coreapi.application.service.refund;
 import com.daiphat.coreapi.application.dto.ekyc.EkycVerificationResult;
 import com.daiphat.coreapi.application.dto.request.refund.AttachRefundBankAccountRequest;
 import com.daiphat.coreapi.application.dto.request.refund.CompleteCounterRefundRequest;
+import com.daiphat.coreapi.application.dto.request.refund.CreateUserBankAccountRequest;
 import com.daiphat.coreapi.application.dto.request.refund.RequestBankInfoUpdateRequest;
 import com.daiphat.coreapi.application.dto.request.refund.StaffCancelOrderWithRefundRequest;
 import com.daiphat.coreapi.application.dto.request.refund.TransferRefundRequestRequest;
@@ -12,6 +13,7 @@ import com.daiphat.coreapi.application.dto.response.order.TransactionResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundProcessingHistoryItem;
 import com.daiphat.coreapi.application.dto.response.refund.RefundRequestAdminDetailResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundRequestResponse;
+import com.daiphat.coreapi.application.dto.response.refund.UserBankAccountResponse;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.application.event.OrderStatusChangedEvent;
@@ -20,6 +22,7 @@ import com.daiphat.coreapi.application.mapper.order.OrderApplicationMapper;
 import com.daiphat.coreapi.application.mapper.refund.RefundApplicationMapper;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
 import com.daiphat.coreapi.application.port.in.refund.RefundRequestStaffServicePort;
+import com.daiphat.coreapi.application.port.in.refund.UserBankAccountServicePort;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.port.out.order.OrderDetailSerialRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
@@ -102,6 +105,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
     private final ApplicationEventPublisher eventPublisher;
     private final com.daiphat.coreapi.application.port.in.order.OrderIncidentTicketServicePort orderIncidentTicketServicePort;
     private final EkycVerificationService ekycVerificationService;
+    private final UserBankAccountServicePort userBankAccountServicePort;
 
     @Override
     @Transactional(readOnly = true)
@@ -452,7 +456,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
     }
 
     /**
-     * Runs CCCD OCR eKYC (front + back, all nine fields) for a customer resolving a
+     * Reads CCCD front and back with OCR (all nine fields) for a customer resolving a
      * MANUAL_RESOLUTION refund at the counter. The outcome (including FAILED) is persisted,
      * so the DomainException raised for a failed OCR must not roll it back.
      */
@@ -501,7 +505,9 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
 
         RefundCounterPayoutMethod payoutMethod = request.paymentMethod();
         String evidenceUrl = null;
+        Long payoutBankAccountId = null;
         if (payoutMethod == RefundCounterPayoutMethod.TRANSFER) {
+            payoutBankAccountId = resolveCounterPayoutBankAccount(refund, request.bankAccountId()).getId();
             if (request.transferEvidenceUrl() == null || request.transferEvidenceUrl().isBlank()) {
                 throw new DomainException(ErrorCode.INVALID_INPUT, "Ảnh biên lai chuyển khoản là bắt buộc.");
             }
@@ -510,7 +516,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
         }
 
         UUID orderId = requireOrderId(refund);
-        refund.completeCounterResolution(payoutMethod);
+        refund.completeCounterResolution(payoutMethod, payoutBankAccountId);
         RefundRequestModel saved = refundRequestRepositoryPort.save(refund);
 
         OrderModel order = orderRepositoryPort.findById(orderId)
@@ -535,6 +541,29 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                 loadBankAccount(saved.getBankAccountId()),
                 order.getOrderCode(),
                 orderApplicationMapper.toTransactionResponse(savedPayout));
+    }
+
+    @Override
+    @Transactional
+    public UserBankAccountResponse createCustomerBankAccount(
+            Long id,
+            UUID staffId,
+            CreateUserBankAccountRequest request) {
+        log.info("Staff {} creating a customer bank account for refund {}", staffId, id);
+
+        RefundRequestModel refund = getRequestOrThrow(id);
+        refund.ensureAwaitingCounterResolution();
+        return userBankAccountServicePort.create(refund.getRequestedBy(), request);
+    }
+
+    private UserBankAccountModel resolveCounterPayoutBankAccount(RefundRequestModel refund, Long requestedBankAccountId) {
+        Long bankAccountId = requestedBankAccountId != null ? requestedBankAccountId : refund.getBankAccountId();
+        if (bankAccountId == null) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT, "Vui lòng chọn tài khoản ngân hàng nhận hoàn tiền.");
+        }
+        return userBankAccountRepositoryPort.findByIdAndUserId(bankAccountId, refund.getRequestedBy())
+                .orElseThrow(() -> new DomainException(ErrorCode.REFUND_REQUEST_BANK_ACCOUNT_MISMATCH));
     }
 
     private void applyCounterIdentityResult(
@@ -811,7 +840,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
 
         if (request.getEkycVerifiedAt() != null) {
             history.add(new RefundProcessingHistoryItem(
-                    "Xác thực CCCD tại quầy",
+                    "Đọc thông tin CCCD bằng OCR tại quầy",
                     "Họ tên: " + (request.getEkycOcrName() != null ? request.getEkycOcrName() : "—")
                             + " — Số CCCD: " + (request.getEkycOcrIdNumber() != null ? request.getEkycOcrIdNumber() : "—"),
                     request.getEkycVerifiedAt()));

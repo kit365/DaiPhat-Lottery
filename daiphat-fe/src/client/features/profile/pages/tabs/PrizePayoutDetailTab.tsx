@@ -384,7 +384,7 @@ export const PrizePayoutDetailTab = () => {
                         </div>
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#E4F8ED] text-[#118D57] border border-[#A6E9C8] text-[12px] font-bold">
                             <i className="fa-solid fa-circle-check text-[12px]" />
-                            Đã xác thực CCCD
+                            Đã đọc thông tin CCCD
                         </span>
                     </div>
 

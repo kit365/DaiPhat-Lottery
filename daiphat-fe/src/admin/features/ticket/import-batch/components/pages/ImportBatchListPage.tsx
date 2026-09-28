@@ -39,6 +39,8 @@ export const ImportBatchListPage = () => {
     const listHook = useImportBatchList();
     const { batches, pagination } = listHook;
     const [fileImportOpen, setFileImportOpen] = useState(false);
+    const [fileImportSupplierId, setFileImportSupplierId] = useState<number | null>(null);
+    const [fileImportBatchId, setFileImportBatchId] = useState<number | null>(null);
     const [ocrImportOpen, setOcrImportOpen] = useState(false);
     const [ocrRestoreFromDraft, setOcrRestoreFromDraft] = useState(false);
     const [ocrRestoreBatchId, setOcrRestoreBatchId] = useState<number | null>(null);
@@ -48,18 +50,31 @@ export const ImportBatchListPage = () => {
     useEffect(() => {
         const returnTo = searchParams?.get('returnTo');
         const draftKey = searchParams?.get('draftKey');
-        if (returnTo !== 'ocr-import') {
+        if (returnTo === 'ocr-import') {
+            if (draftKey && draftKey !== OCR_IMPORT_DRAFT_KEY) {
+                return;
+            }
+            const batchIdRaw = searchParams?.get('selectedImportBatchId');
+            const batchId = batchIdRaw ? Number(batchIdRaw) : null;
+            setOcrRestoreFromDraft(true);
+            setOcrRestoreBatchId(batchId != null && Number.isFinite(batchId) ? batchId : null);
+            setOcrImportOpen(true);
+            router.replace(ROUTES.ADMIN.IMPORT_BATCH.LIST);
             return;
         }
-        if (draftKey && draftKey !== OCR_IMPORT_DRAFT_KEY) {
+
+        if (returnTo === 'file-import') {
+            const batchIdRaw = searchParams?.get('selectedImportBatchId');
+            const batchId = batchIdRaw ? Number(batchIdRaw) : null;
+            const supplierIdRaw = searchParams?.get('supplierId');
+            const supId = supplierIdRaw ? Number(supplierIdRaw) : null;
+
+            setFileImportSupplierId(supId != null && Number.isFinite(supId) ? supId : null);
+            setFileImportBatchId(batchId != null && Number.isFinite(batchId) ? batchId : null);
+            setFileImportOpen(true);
+            router.replace(ROUTES.ADMIN.IMPORT_BATCH.LIST);
             return;
         }
-        const batchIdRaw = searchParams?.get('selectedImportBatchId');
-        const batchId = batchIdRaw ? Number(batchIdRaw) : null;
-        setOcrRestoreFromDraft(true);
-        setOcrRestoreBatchId(batchId != null && Number.isFinite(batchId) ? batchId : null);
-        setOcrImportOpen(true);
-        router.replace(ROUTES.ADMIN.IMPORT_BATCH.LIST);
     }, [searchParams, router]);
 
     const todayBlocked = todayIntake.anyBlockedForToday;
@@ -231,8 +246,14 @@ export const ImportBatchListPage = () => {
 
             <ImportBatchFileImportDialog
                 open={fileImportOpen}
-                onClose={() => setFileImportOpen(false)}
+                onClose={() => {
+                    setFileImportOpen(false);
+                    setFileImportSupplierId(null);
+                    setFileImportBatchId(null);
+                }}
                 onImported={() => listHook.refetch()}
+                prefillSupplierId={fileImportSupplierId}
+                prefillBatchId={fileImportBatchId}
             />
 
             <OcrTicketImportDialog

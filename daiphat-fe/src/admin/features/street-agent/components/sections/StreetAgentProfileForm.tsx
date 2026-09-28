@@ -499,7 +499,7 @@ export const StreetAgentProfileForm = ({
                             >
                                 <Box>
                                     <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                                        Xác thực CCCD (eKYC)
+                                        Đọc thông tin CCCD bằng OCR
                                     </Typography>
                                     <Typography variant="caption" sx={{ color: "var(--palette-text-secondary)" }}>
                                         Tải ảnh CCCD mặt trước và mặt sau. Sau khi lưu hồ sơ, hệ thống đọc thông tin CCCD bằng OCR (số CCCD được lấy tự động, không nhập tay).
@@ -510,10 +510,10 @@ export const StreetAgentProfileForm = ({
                                         size="small"
                                         label={
                                             ekycStatus === "VERIFIED"
-                                                ? "Đã xác thực"
+                                                ? "Đã đọc đủ thông tin"
                                                 : ekycStatus === "FAILED"
-                                                  ? "Thất bại"
-                                                  : "Chờ xác thực"
+                                                  ? "Chưa đọc đủ thông tin"
+                                                  : "Chờ quét CCCD"
                                         }
                                         sx={{
                                             ...STATUS_CHIP_SX,
@@ -595,7 +595,7 @@ export const StreetAgentProfileForm = ({
                                     disabled={isVerifyingEkyc}
                                     sx={{ mt: 2, fontWeight: 700, borderRadius: "8px" }}
                                 >
-                                    {isVerifyingEkyc ? "Đang xác thực…" : "Xác thực eKYC"}
+                                    {isVerifyingEkyc ? "Đang đọc CCCD…" : "Đọc thông tin CCCD"}
                                 </Button>
                             ) : null}
                         </Box>

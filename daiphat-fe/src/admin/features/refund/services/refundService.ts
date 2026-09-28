@@ -2,12 +2,14 @@ import { apiApp } from '@/api';
 import type { ApiResponse, PageResponse } from '@/types/api.type';
 import type {
     CompleteCounterRefundRequest,
+    CreateUserBankAccountRequest,
     GetStaffRefundsParams,
     RefundCounterIdentitySummary,
     RefundRequestAdminDetailResponse,
     RefundRequestResponse,
     StaffCancelOrderWithRefundRequest,
     TransferRefundRequestRequest,
+    UserBankAccountResponse,
     VerifyRefundCounterIdentityRequest,
 } from '@/types/refund.type';
 
@@ -90,6 +92,19 @@ export const refundAdminApi = {
         data: CompleteCounterRefundRequest,
     ): Promise<ApiResponse<RefundRequestResponse>> => {
         const response = await apiApp.patch(`${STAFF_BASE}/${id}/counter-complete`, data);
+        return response.data;
+    },
+
+    getCustomerBankAccounts: async (userId: string): Promise<ApiResponse<UserBankAccountResponse[]>> => {
+        const response = await apiApp.get(`/staff/users/${userId}/bank-accounts`);
+        return response.data;
+    },
+
+    createCustomerBankAccount: async (
+        id: number,
+        data: CreateUserBankAccountRequest,
+    ): Promise<ApiResponse<UserBankAccountResponse>> => {
+        const response = await apiApp.post(`${STAFF_BASE}/${id}/customer-bank-accounts`, data);
         return response.data;
     },
 };

@@ -489,7 +489,7 @@ export interface ImportBatchFileImportResult {
  * The file is uploaded again instead of the resolved rows being sent back, so the
  * backend re-reads and re-validates everything rather than trusting this copy.
  */
-export type ImportBatchFileCommitMode = 'AUTO' | 'MANUAL';
+export type ImportBatchFileCommitMode = 'MANUAL';
 
 /** Maps one preview draw-date group onto an existing editable import-batch (Manual). */
 export interface ImportBatchFileManualBatchBinding {
@@ -502,19 +502,9 @@ export interface ImportBatchFileCommitPayload {
     fileHash: string;
     mapping: ImportBatchFileMapping;
     drawDates: string[];
-    forceCreateDrawDates?: string[];
-    /** Shared invoice/receipt file URL (image or document). */
-    invoiceEvidenceUrl?: string | null;
-    /** Extra ticket-list evidence URLs (images or documents). */
-    ticketListImageUrls?: string[] | null;
-    /**
-     * When true (default), also attach the imported CSV/XLSX as ticket-list evidence
-     * on each created batch.
-     */
-    useOriginalFileAsTicketListEvidence?: boolean;
-    /** AUTO creates new batches (default); MANUAL attaches to selected import-batches. */
+    /** File import only attaches tickets to an existing batch. */
     commitMode?: ImportBatchFileCommitMode;
-    /** Required when commitMode=MANUAL: one importBatchId per selected drawDate. */
+    /** One existing importBatchId per selected drawDate. */
     manualBatchBindings?: ImportBatchFileManualBatchBinding[];
 }
 

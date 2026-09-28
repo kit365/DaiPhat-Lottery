@@ -329,6 +329,8 @@ export interface CompleteCounterRefundRequest {
     amount: number;
     transferEvidenceUrl?: string;
     identityConfirmed: boolean;
+    /** TRANSFER only: customer account that received the payout (defaults to the refund's account). */
+    bankAccountId?: number;
 }
 
 export interface RefundRequestAdminDetailResponse {

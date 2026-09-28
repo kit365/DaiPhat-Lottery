@@ -18,19 +18,17 @@ import {
     FormControlLabel,
     FormHelperText,
     Grid,
-    IconButton,
     Stack,
     Switch,
     TextField,
-    Tooltip,
     Typography,
 } from '@mui/material';
 import { Button } from '@/admin/components/ui/Button';
 import { Icon } from '@/admin/components/ui/AdminIcon';
-import { toast } from 'react-toastify';
 import { UploadSingleFile } from '@/admin/components/upload/UploadSingleFile';
 import { refundAdminApi } from "@/admin/features/refund/services/refundService";
 import type { UserBankAccountResponse } from '@/types/refund.type';
+import { RefundBankAccountCard } from './RefundBankAccountCard';
 
 const OPERATOR_NOTE_QUICK_REPLIES = [
     'Số tài khoản không hợp lệ. Vui lòng kiểm tra và cập nhật lại.',
@@ -51,15 +49,6 @@ interface TransferRefundDialogProps {
     onClose: () => void;
     onConfirm: (data: { paymentEvidenceUrl: string }) => void;
     onRequestBankUpdate?: (operatorNote: string) => void;
-}
-
-async function copyToClipboard(value: string, successMessage: string) {
-    try {
-        await navigator.clipboard.writeText(value);
-        toast.success(successMessage);
-    } catch {
-        toast.error('Không thể sao chép. Vui lòng thử lại.');
-    }
 }
 
 export const TransferRefundDialog = ({
@@ -184,7 +173,7 @@ export const TransferRefundDialog = ({
 
                     <Grid container spacing={2.5} alignItems="stretch">
                         <Grid size={{ xs: 12, md: 6 }}>
-                            <BankAccountCard bankAccount={bankAccount} compact />
+                            <RefundBankAccountCard bankAccount={bankAccount} compact />
                         </Grid>
 
                         <Grid size={{ xs: 12, md: 6 }}>
@@ -501,157 +490,3 @@ export const TransferRefundDialog = ({
         </>
     );
 };
-
-function BankAccountCard({
-    bankAccount,
-    compact = false,
-}: {
-    bankAccount?: UserBankAccountResponse | null;
-    compact?: boolean;
-}) {
-    return (
-        <Card
-            variant="outlined"
-            sx={{
-                height: '100%',
-                borderRadius: 2,
-                bgcolor: 'action.hover',
-            }}
-        >
-            <CardHeader
-                title="Thông tin tài khoản nhận hoàn tiền"
-                subheader="Chỉ xem — dùng để đối chiếu khi chuyển khoản"
-                slotProps={{
-                    title: { sx: { fontWeight: 700, fontSize: '1rem' } },
-                    subheader: { sx: { fontSize: '0.75rem' } },
-                }}
-                sx={{ pb: 1 }}
-            />
-            <Divider />
-            <CardContent sx={{ pt: 2 }}>
-                {bankAccount ? (
-                    <Stack spacing={compact ? 1.5 : 2}>
-                        <Stack direction="row" spacing={1.5} alignItems="center">
-                            {bankAccount.bankLogo ? (
-                                <Box
-                                    component="img"
-                                    src={bankAccount.bankLogo}
-                                    alt={bankAccount.bankName}
-                                    sx={{
-                                        width: 40,
-                                        height: 40,
-                                        objectFit: 'contain',
-                                        borderRadius: 1,
-                                        bgcolor: 'background.paper',
-                                        border: '1px solid',
-                                        borderColor: 'divider',
-                                        p: 0.5,
-                                    }}
-                                />
-                            ) : (
-                                <Box
-                                    sx={{
-                                        width: 40,
-                                        height: 40,
-                                        borderRadius: 1,
-                                        bgcolor: 'background.paper',
-                                        border: '1px solid',
-                                        borderColor: 'divider',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                    }}
-                                >
-                                    <Icon icon="mdi:bank" width={22} />
-                                </Box>
-                            )}
-                            <Box sx={{ minWidth: 0 }}>
-                                <Typography variant="caption" color="text.secondary" display="block">
-                                    Ngân hàng
-                                </Typography>
-                                <Typography variant="body1" fontWeight={700} color="primary.main">
-                                    {bankAccount.bankName || '—'}
-                                </Typography>
-                            </Box>
-                        </Stack>
-
-                        <Box>
-                            <Typography variant="caption" color="text.secondary" display="block">
-                                Số tài khoản
-                            </Typography>
-                            <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mt: 0.5 }}>
-                                <Typography
-                                    component="span"
-                                    sx={{
-                                        fontFamily:
-                                            'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                                        fontSize: '1.25rem',
-                                        fontWeight: 700,
-                                        letterSpacing: '0.04em',
-                                        color: 'text.primary',
-                                        wordBreak: 'break-all',
-                                    }}
-                                >
-                                    {bankAccount.bankAccountNo || '—'}
-                                </Typography>
-                                {bankAccount.bankAccountNo ? (
-                                    <Tooltip title="Sao chép số tài khoản">
-                                        <IconButton
-                                            size="small"
-                                            aria-label="Sao chép số tài khoản"
-                                            onClick={() =>
-                                                copyToClipboard(
-                                                    bankAccount.bankAccountNo,
-                                                    'Đã sao chép số tài khoản'
-                                                )
-                                            }
-                                            sx={{ color: 'primary.main' }}
-                                        >
-                                            <Icon icon="solar:copy-bold-duotone" width={18} />
-                                        </IconButton>
-                                    </Tooltip>
-                                ) : null}
-                            </Stack>
-                        </Box>
-
-                        <Box>
-                            <Typography variant="caption" color="text.secondary" display="block">
-                                Chủ tài khoản
-                            </Typography>
-                            <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mt: 0.5 }}>
-                                <Typography
-                                    variant="body1"
-                                    fontWeight={700}
-                                    sx={{ textTransform: 'uppercase' }}
-                                >
-                                    {bankAccount.bankAccountName || '—'}
-                                </Typography>
-                                {bankAccount.bankAccountName ? (
-                                    <Tooltip title="Sao chép tên chủ tài khoản">
-                                        <IconButton
-                                            size="small"
-                                            aria-label="Sao chép tên chủ tài khoản"
-                                            onClick={() =>
-                                                copyToClipboard(
-                                                    bankAccount.bankAccountName,
-                                                    'Đã sao chép tên chủ tài khoản'
-                                                )
-                                            }
-                                            sx={{ color: 'primary.main' }}
-                                        >
-                                            <Icon icon="solar:copy-bold-duotone" width={18} />
-                                        </IconButton>
-                                    </Tooltip>
-                                ) : null}
-                            </Stack>
-                        </Box>
-                    </Stack>
-                ) : (
-                    <Typography variant="body2" color="warning.main">
-                        Chưa có thông tin tài khoản ngân hàng trên yêu cầu hoàn tiền.
-                    </Typography>
-                )}
-            </CardContent>
-        </Card>
-    );
-}

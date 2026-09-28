@@ -130,6 +130,7 @@ export const ImportBatchCreatePage = () => {
     const returnToOcrImport =
         searchParams?.get('returnTo') === 'ocr-import' &&
         (searchParams?.get('draftKey') === OCR_IMPORT_DRAFT_KEY || !searchParams?.get('draftKey'));
+    const returnToFileImport = searchParams?.get('returnTo') === 'file-import';
 
     const redirectAfterCreate = useCallback(
         (createdBatchId?: number | null) => {
@@ -144,9 +145,23 @@ export const ImportBatchCreatePage = () => {
                 router.push(`${ROUTES.ADMIN.IMPORT_BATCH.LIST}?${params.toString()}`);
                 return;
             }
+            if (returnToFileImport) {
+                const params = new URLSearchParams({
+                    returnTo: 'file-import',
+                });
+                if (createdBatchId != null) {
+                    params.set('selectedImportBatchId', String(createdBatchId));
+                }
+                const supId = searchParams?.get('supplierId');
+                if (supId) {
+                    params.set('supplierId', supId);
+                }
+                router.push(`${ROUTES.ADMIN.IMPORT_BATCH.LIST}?${params.toString()}`);
+                return;
+            }
             router.push(ROUTES.ADMIN.IMPORT_BATCH.LIST);
         },
-        [returnToOcrImport, router]
+        [returnToOcrImport, returnToFileImport, router, searchParams]
     );
 
     const [confirmOpen, setConfirmOpen] = useState(false);
@@ -287,7 +302,7 @@ export const ImportBatchCreatePage = () => {
         const values = localDraft?.values ?? defaultValues;
         const restoredValues: CreateImportBatchFormValues = {
             ...values,
-            supplierId: (returnToOcrImport && paramSupplierId) ? paramSupplierId : (values.supplierId || paramSupplierId || 0),
+            supplierId: ((returnToOcrImport || returnToFileImport) && paramSupplierId) ? paramSupplierId : (values.supplierId || paramSupplierId || 0),
             lines: values.lines?.length > 0 ? values.lines : [emptyLine()],
         };
 
@@ -295,10 +310,10 @@ export const ImportBatchCreatePage = () => {
         formInitializedRef.current = true;
         setFormInitialized(true);
 
-        if (localDraft && !returnToOcrImport) {
+        if (localDraft && !returnToOcrImport && !returnToFileImport) {
             toast.info('Đã khôi phục bản nháp chỉnh sửa chưa lưu.');
         }
-    }, [isLoadingSuppliers, reset, searchParams, returnToOcrImport]);
+    }, [isLoadingSuppliers, reset, searchParams, returnToOcrImport, returnToFileImport]);
 
     const eligibleStationIds = useMemo(
         () => new Set(eligibleStations.map((s) => s.lotteryStationId)),
@@ -601,7 +616,7 @@ export const ImportBatchCreatePage = () => {
         setConfirmOpen(false);
         setPendingFormData(null);
         clearDraft();
-        if (returnToOcrImport) {
+        if (returnToOcrImport || returnToFileImport) {
             redirectAfterCreate(duplicateExistingBatch.id);
             return;
         }
@@ -681,7 +696,7 @@ export const ImportBatchCreatePage = () => {
 
     const handleCancel = () => {
         clearDraft();
-        if (returnToOcrImport) {
+        if (returnToOcrImport || returnToFileImport) {
             redirectAfterCreate(null);
             return;
         }
@@ -1253,7 +1268,7 @@ export const ImportBatchCreatePage = () => {
                             {/* Table */}
                             <Box sx={{ px: 0 }}>
                                 <TableContainer sx={{ padding: '0 !important' }}>
-                                    <Table size="small" sx={{ tableLayout: 'fixed', width: '100%' }}>
+                                    <Table size="small" sx={{ tableLayout: 'fixed', width: '100%', minWidth: 1050 }}>
                                         <TableHead>
                                             <TableRow
                                                 sx={{
@@ -1268,15 +1283,15 @@ export const ImportBatchCreatePage = () => {
                                                     },
                                                 }}
                                             >
-                                                <TableCell sx={{ width: '28%' }}>Nhà đài</TableCell>
-
-
-                                                <TableCell align="right" sx={{ width: 130 }}>SL phân bổ</TableCell>
-                                                <TableCell align="right" sx={{ width: 130 }}>Đơn giá vốn</TableCell>
-                                                <TableCell align="right" sx={{ width: 140, whiteSpace: 'nowrap' }}>
+                                                <TableCell align="center" sx={{ width: 180 }}>Nhà đài</TableCell>
+                                                <TableCell align="center" sx={{ width: 130 }}>SL phân bổ</TableCell>
+                                                <TableCell align="center" sx={{ width: 110 }}>Giá vé</TableCell>
+                                                <TableCell align="center" sx={{ width: 100 }}>Hoa hồng</TableCell>
+                                                <TableCell align="center" sx={{ width: 130 }}>Đơn giá vốn</TableCell>
+                                                <TableCell align="center" sx={{ width: 140, whiteSpace: 'nowrap' }}>
                                                     Tổng giá vốn
                                                 </TableCell>
-                                                <TableCell align="center" width={52} />
+                                                <TableCell align="center" width={260}>Thao tác</TableCell>
                                             </TableRow>
                                         </TableHead>
                                         <TableBody>
@@ -1297,6 +1312,11 @@ export const ImportBatchCreatePage = () => {
                                                         selectedStationIdsByRow[index] ?? []
                                                     }
                                                     canRemove
+                                                    onEditStation={lines[index]?.lotteryStationId
+                                                        ? () => router.push(ROUTES.ADMIN.TICKETS.PROVIDER_EDIT(lines[index].lotteryStationId))
+                                                        : undefined}
+                                                    showStationPricing
+                                                    centerCells
                                                     onRemove={() => {
                                                         confirmDelete(
                                                             'Dòng phiếu này sẽ bị xóa khỏi phiếu nhập lô đang tạo.',
@@ -1313,16 +1333,18 @@ export const ImportBatchCreatePage = () => {
                                                     <TableCell colSpan={1} sx={{ color: '#334155' }}>
                                                         Tổng cộng ({fields.length} đài)
                                                     </TableCell>
-                                                    <TableCell align="right" sx={{ color: '#0284c7' }}>
+                                                    <TableCell align="center" sx={{ color: '#0284c7' }}>
                                                         {totals.totalQty.toLocaleString('vi-VN')} vé
                                                     </TableCell>
-                                                    <TableCell align="right" sx={{ color: 'text.secondary', fontWeight: 600 }}>
+                                                    <TableCell align="center" sx={{ color: 'text.secondary', fontWeight: 600 }}>—</TableCell>
+                                                    <TableCell align="center" sx={{ color: 'text.secondary', fontWeight: 600 }}>—</TableCell>
+                                                    <TableCell align="center" sx={{ color: 'text.secondary', fontWeight: 600 }}>
                                                         —
                                                     </TableCell>
-                                                    <TableCell align="right" sx={{ color: '#15803d' }}>
+                                                    <TableCell align="center" sx={{ color: '#15803d' }}>
                                                         {formatImportCost(totals.totalCost)} đ
                                                     </TableCell>
-                                                    <TableCell />
+                                                    <TableCell align="center" />
                                                 </TableRow>
                                             </TableFooter>
                                         )}
