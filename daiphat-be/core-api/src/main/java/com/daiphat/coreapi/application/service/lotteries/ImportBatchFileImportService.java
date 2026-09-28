@@ -1,8 +1,6 @@
 package com.daiphat.coreapi.application.service.lotteries;
 
 import com.daiphat.coreapi.application.dto.request.lotteries.BulkCreateLotteryTicketsRequest;
-import com.daiphat.coreapi.application.dto.request.lotteries.CreateImportBatchLineRequest;
-import com.daiphat.coreapi.application.dto.request.lotteries.CreateImportBatchRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketNumberSectionRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketSerialRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ImportBatchFileImportCommitRequest;
@@ -59,6 +57,7 @@ import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchFileIssueCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchFileIssueSeverity;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchFileJobStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchFileRowStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchLineStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchImportMode;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchType;
 import com.daiphat.coreapi.domain.model.enums.lottery.InputSource;
@@ -128,6 +127,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -548,7 +548,8 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
         LocalDateTime now = LocalDateTime.now(clock);
 
         ImportBatchFileResolution resolution =
-                resolve(content, fileName, request.mapping(), supplier, operatorId, now, config);
+                resolve(content, fileName, request.mapping(), supplier, operatorId, now, config,
+                        request::manualBatchIdFor);
 
         List<ImportBatchFileRowResponse> allRows = resolution.allRows();
         return ImportBatchFilePreviewResponse.builder()
@@ -572,12 +573,8 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
     // ------------------------------------------------------------- commit
 
     /**
-     * Deliberately not transactional. Each batch is created through
-     * {@link ImportBatchServicePort#create} and each station's tickets through
-     * {@link LotteryTicketServicePort#createBulk}, every call in its own
-     * transaction, so one bad draw date - or one unreadable station - cannot roll
-     * back what already succeeded. A batch left short of its declared quantity
-     * stays open for the operator to finish by hand.
+     * Deliberately not transactional. Tickets are added to existing batch lines
+     * through {@link LotteryTicketServicePort#createBulk}, one station at a time.
      */
     @Override
     public ImportBatchFileImportResultResponse commit(
@@ -595,23 +592,24 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
         LotterySupplierModel supplier = lotterySupplierServicePort.getActiveModelById(request.supplierId());
         LocalDateTime now = LocalDateTime.now(clock);
 
-        if (request.resolvedCommitMode() == ImportBatchFileCommitMode.AUTO) {
-            if (request.invoiceEvidenceUrl() == null || request.invoiceEvidenceUrl().isBlank()) {
-                throw new DomainException(ErrorCode.IMPORT_BATCH_INVOICE_REQUIRED);
-            }
-            boolean hasUploadedTicketList = request.ticketListImageUrls() != null
-                    && request.ticketListImageUrls().stream()
-                            .anyMatch(url -> url != null && !url.isBlank());
-            if (!request.shouldUseOriginalFileAsTicketListEvidence() && !hasUploadedTicketList) {
-                throw new DomainException(ErrorCode.IMPORT_BATCH_TICKET_LIST_REQUIRED);
-            }
+        if (request.resolvedCommitMode() != ImportBatchFileCommitMode.MANUAL) {
+            throw new DomainException(ErrorCode.INVALID_INPUT,
+                    "Chỉ có thể nhập vé từ tệp vào phiếu nhập đã tạo trước.");
+        }
+        if (!request.mapping().importsTickets()) {
+            throw new DomainException(ErrorCode.INVALID_INPUT,
+                    "Tệp phải có dãy số và sê-ri vé để nhập vào phiếu.");
+        }
+        if (request.drawDates().stream().anyMatch(date -> request.manualBatchIdFor(date) == null)) {
+            throw new DomainException(ErrorCode.INVALID_INPUT,
+                    "Mỗi ngày quay cần có phiếu nhập đã tạo trước.");
         }
 
         ImportBatchFileResolution resolution =
-                resolve(content, fileName, request.mapping(), supplier, operatorId, now, config);
+                resolve(content, fileName, request.mapping(), supplier, operatorId, now, config,
+                        request::manualBatchIdFor);
 
-        // Stored before any batch is created, so evidence exists even if some draw
-        // date then fails. A failed upload must not block the import itself.
+        // Store the original file for the import log; a failed upload must not block import.
         StorageResult evidence = config.storeOriginalFile()
                 ? storeOriginalFile(content, fileName)
                 : null;
@@ -623,10 +621,10 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
             ImportBatchFileGroupResponse group = resolution.group(drawDate).orElse(null);
             if (group == null || group.status() != ImportBatchFileGroupStatus.IMPORTABLE) {
                 items.add(failure(drawDate, ErrorCode.INVALID_INPUT.getCode(),
-                        "Ngày quay này không còn hợp lệ để tạo phiếu."));
+                        "Ngày quay này không còn hợp lệ để nạp vé vào phiếu nhập."));
                 continue;
             }
-            items.add(createOne(request, fileName, evidence, job, group, supplier, operatorId));
+            items.add(importOne(request, fileName, evidence, job, group, supplier, operatorId));
         }
 
         int created = (int) items.stream().filter(ImportBatchFileImportItemResultResponse::success).count();
@@ -642,7 +640,7 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
         return result;
     }
 
-    private ImportBatchFileImportItemResultResponse createOne(
+    private ImportBatchFileImportItemResultResponse importOne(
             ImportBatchFileImportCommitRequest request,
             String fileName,
             StorageResult evidence,
@@ -657,22 +655,15 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
                 request.fileHash(), supplier.getId(), drawDate, operatorId)) {
             return failure(drawDate,
                     ErrorCode.IMPORT_BATCH_FILE_ALREADY_IMPORTED.getCode(),
-                    String.format("Tệp này đã được dùng để tạo phiếu nhập cho ngày quay %s.",
+                    String.format("Tệp này đã được dùng để nhập vé cho ngày quay %s.",
                             drawDate.format(DATE_DISPLAY)));
         }
 
         ImportBatchResponse batch;
         try {
-            if (request.resolvedCommitMode() == ImportBatchFileCommitMode.MANUAL) {
-                batch = attachToExistingBatch(request, group, supplier, operatorId);
-            } else {
-                batch = importBatchServicePort.create(
-                        toCreateRequest(request, group, supplier, evidence),
-                        operatorId
-                );
-            }
+            batch = attachToExistingBatch(request, group, supplier, operatorId);
         } catch (DomainException e) {
-            log.warn("File import could not create/attach the batch for drawDate={}: {}", drawDate, e.getMessage());
+            log.warn("File import could not attach to the batch for drawDate={}: {}", drawDate, e.getMessage());
             return failure(drawDate, e.getErrorCode().getCode(), e.getMessage());
         }
 
@@ -742,7 +733,7 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
         Map<Long, Integer> declareByStation = group.stations().stream()
                 .collect(Collectors.toMap(
                         ImportBatchFileStationSummaryResponse::lotteryStationId,
-                        ImportBatchFileStationSummaryResponse::declaredQuantity,
+                        ImportBatchFileStationSummaryResponse::serialCount,
                         Integer::sum,
                         LinkedHashMap::new
                 ));
@@ -750,59 +741,7 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
         return importBatchServicePort.getById(batchId);
     }
 
-    private CreateImportBatchRequest toCreateRequest(
-            ImportBatchFileImportCommitRequest request,
-            ImportBatchFileGroupResponse group,
-            LotterySupplierModel supplier,
-            StorageResult originalFileEvidence
-    ) {
-        List<CreateImportBatchLineRequest> lines = group.stations().stream()
-                .map(station -> CreateImportBatchLineRequest.builder()
-                        .lotteryStationId(station.lotteryStationId())
-                        .declareQuantity(station.declaredQuantity())
-                        .importCost(station.importCost())
-                        .build())
-                .toList();
-
-        List<String> ticketListUrls = new ArrayList<>();
-        if (request.ticketListImageUrls() != null) {
-            request.ticketListImageUrls().stream()
-                    .filter(url -> url != null && !url.isBlank())
-                    .map(String::trim)
-                    .forEach(ticketListUrls::add);
-        }
-        if (request.shouldUseOriginalFileAsTicketListEvidence()
-                && originalFileEvidence != null
-                && originalFileEvidence.url() != null
-                && !originalFileEvidence.url().isBlank()) {
-            String originalUrl = originalFileEvidence.url().trim();
-            if (!ticketListUrls.contains(originalUrl)) {
-                ticketListUrls.add(originalUrl);
-            }
-        }
-
-        String invoiceUrl = request.invoiceEvidenceUrl() == null || request.invoiceEvidenceUrl().isBlank()
-                ? null
-                : request.invoiceEvidenceUrl().trim();
-
-        return CreateImportBatchRequest.builder()
-                .drawDate(group.drawDate())
-                .supplierId(supplier.getId())
-                .importMode(group.importMode())
-                .totalDeclareQuantity(group.totalDeclareQuantity())
-                .forceCreate(request.isForced(group.drawDate()))
-                .invoiceEvidenceUrl(invoiceUrl)
-                .ticketListImageUrls(ticketListUrls.isEmpty() ? null : ticketListUrls)
-                .lines(lines)
-                .build();
-    }
-
-    /**
-     * Creates the tickets of every line of a freshly created batch.
-     *
-     * @return how many serials were actually created; a shortfall leaves the batch
-     *         partially imported rather than failing it
-     */
+    /** Import tickets into the already declared station lines of the selected batch. */
     private int importTickets(
             ImportBatchResponse batch,
             ImportBatchFileGroupResponse group,
@@ -810,6 +749,8 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
             UUID operatorId
     ) {
         Map<Long, Long> lineIdByStation = batch.lines().stream()
+                .filter(line -> line.status() != ImportBatchLineStatus.CANCELLED
+                        && line.status() != ImportBatchLineStatus.IMPORTED)
                 .collect(Collectors.toMap(
                         ImportBatchLineResponse::lotteryStationId,
                         ImportBatchLineResponse::id,
@@ -819,7 +760,7 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
         for (ImportBatchFileStationSummaryResponse station : group.stations()) {
             Long lineId = lineIdByStation.get(station.lotteryStationId());
             if (lineId == null) {
-                log.warn("No import batch line created for stationId={} in batchId={}",
+                log.warn("No open import batch line for stationId={} in batchId={}",
                         station.lotteryStationId(), batch.id());
                 continue;
             }
@@ -883,7 +824,8 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
             LotterySupplierModel supplier,
             UUID operatorId,
             LocalDateTime now,
-            ImportBatchFileConfig config
+            ImportBatchFileConfig config,
+            Function<LocalDate, Long> targetBatchResolver
     ) {
         TabularTable table = tabularFileParser.parse(content, fileName, new TabularParseOptions(
                 mapping.headerRowIndex(), mapping.delimiter(), mapping.charset(), config.maxRows()));
@@ -914,7 +856,8 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
                 .sorted(Map.Entry.comparingByKey())
                 .map(entry -> buildGroup(
                         entry.getKey(), entry.getValue(), mapping, supplier, aliasIndex, now,
-                        operatorId, config, supplierIdentity))
+                        operatorId, config, supplierIdentity,
+                        targetBatchResolver != null ? targetBatchResolver.apply(entry.getKey()) : null))
                 .collect(Collectors.toCollection(ArrayList::new));
         if (!undated.isEmpty()) {
             groups.add(buildUndatedGroup(undated, mapping));
@@ -1023,7 +966,8 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
             LocalDateTime now,
             UUID operatorId,
             ImportBatchFileConfig config,
-            ImportBatchFileSupplierIdentityResponse supplierIdentity
+            ImportBatchFileSupplierIdentityResponse supplierIdentity,
+            Long targetBatchId
     ) {
         if (!drawDateWindowPolicy.containsForFileImport(drawDate, now)) {
             // The file legitimately covers dates that are not importable yet;
@@ -1049,7 +993,7 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
                 : mapping.serialSeparator();
         GroupContext context = new GroupContext(
                 drawDate, importMode, candidates, stationsById, aliasIndex, now, serialSeparator,
-                offScheduleStationsByName(stationsById));
+                offScheduleStationsByName(stationsById), targetBatchId);
         List<ImportBatchFileRowResponse> resolved = new ArrayList<>();
         for (PendingRow row : rows) {
             resolved.add(mapping.importsTickets()
@@ -1139,7 +1083,7 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
                         operatorId, drawDate, supplier.getId(), importMode)
                 .map(batch -> batch.getId())
                 .orElse(null);
-        if (existingBatchId != null) {
+        if (existingBatchId != null && (targetBatchId == null || !targetBatchId.equals(existingBatchId))) {
             groupIssues.add(ImportBatchFileIssueResponse.of(
                     ImportBatchFileIssueCode.DRAFT_ALREADY_EXISTS,
                     null,
@@ -1437,12 +1381,17 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
             return StationResolution.unresolved();
         }
 
-        if (importBatchLineRepositoryPort.existsDraftLineForStationAndDrawDate(stationId, context.drawDate())) {
+        boolean draftExists = context.targetBatchId() != null
+                ? importBatchLineRepositoryPort.existsDraftLineForStationAndDrawDateExcludingBatch(
+                        stationId, context.drawDate(), context.targetBatchId())
+                : importBatchLineRepositoryPort.existsDraftLineForStationAndDrawDate(
+                        stationId, context.drawDate());
+        if (draftExists) {
             issues.add(ImportBatchFileIssueResponse.of(ImportBatchFileIssueCode.STATION_DRAFT_EXISTS));
             return StationResolution.blocked(stationId, station.getName());
         }
         if (!stationEligibilityResolver.isEligibleForSelection(
-                station, context.drawDate(), context.now(), context.importMode())) {
+                station, context.drawDate(), context.now(), context.importMode(), context.targetBatchId())) {
             issues.add(ImportBatchFileIssueResponse.of(ImportBatchFileIssueCode.STATION_NOT_ELIGIBLE));
             return StationResolution.blocked(stationId, station.getName());
         }
@@ -2849,6 +2798,7 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
              * a real station with the wrong schedule, rather than as an unknown one.
              */
             Map<String, LotteryStationModel> offScheduleByName,
+            Long targetBatchId,
             /** Filled while resolving rows; one entry per offending station. */
             Map<Long, ImportBatchFileScheduleMismatchResponse> scheduleMismatches,
             Map<Long, Integer> firstRowByStation,
@@ -2865,7 +2815,7 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
                 String serialSeparator
         ) {
             this(drawDate, importMode, candidates, stationsById, aliasIndex, now, serialSeparator,
-                    Map.of(), new LinkedHashMap<>(),
+                    Map.of(), null, new LinkedHashMap<>(),
                     new HashMap<>(), new HashMap<>(), new HashSet<>());
         }
 
@@ -2880,7 +2830,23 @@ public class ImportBatchFileImportService implements ImportBatchFileImportServic
                 Map<String, LotteryStationModel> offScheduleByName
         ) {
             this(drawDate, importMode, candidates, stationsById, aliasIndex, now, serialSeparator,
-                    offScheduleByName, new LinkedHashMap<>(),
+                    offScheduleByName, null, new LinkedHashMap<>(),
+                    new HashMap<>(), new HashMap<>(), new HashSet<>());
+        }
+
+        GroupContext(
+                LocalDate drawDate,
+                ImportBatchImportMode importMode,
+                List<LotteryStationNameResolver.Candidate> candidates,
+                Map<Long, LotteryStationModel> stationsById,
+                Map<String, Long> aliasIndex,
+                LocalDateTime now,
+                String serialSeparator,
+                Map<String, LotteryStationModel> offScheduleByName,
+                Long targetBatchId
+        ) {
+            this(drawDate, importMode, candidates, stationsById, aliasIndex, now, serialSeparator,
+                    offScheduleByName, targetBatchId, new LinkedHashMap<>(),
                     new HashMap<>(), new HashMap<>(), new HashSet<>());
         }
     }

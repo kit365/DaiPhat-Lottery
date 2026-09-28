@@ -12,6 +12,8 @@ public record CompleteCounterRefundRequest(
         @NotNull(message = "Vui lòng nhập số tiền hoàn.") @Positive BigDecimal amount,
         /* Required when paymentMethod = TRANSFER. */
         @Size(max = 500) String transferEvidenceUrl,
-        Boolean identityConfirmed
+        Boolean identityConfirmed,
+        /* TRANSFER only: customer account that received the payout; defaults to the refund's current account. */
+        @Positive Long bankAccountId
 ) {
 }
