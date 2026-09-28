@@ -183,7 +183,10 @@ export function FortuneCastPage() {
   const jarRef = useRef<HTMLDivElement>(null);
   const fireworksStopRef = useRef<(() => void) | null>(null);
 
-  const alreadyCastToday = hasCastToday || Boolean(result?.alreadyCastToday);
+  const hasActiveCooldown = Boolean(
+    result?.nextUnlockAt && getMsUntilUnlock(result.nextUnlockAt) > 0
+  );
+  const alreadyCastToday = hasCastToday || Boolean(result?.alreadyCastToday) || hasActiveCooldown;
   const profileHasDob = Boolean(user?.dob);
   const showCastSetup =
     Boolean(token) &&
@@ -192,7 +195,7 @@ export function FortuneCastPage() {
     (phase === 'idle' || phase === 'error');
 
   useEffect(() => {
-    if (!alreadyCastToday || phase !== 'result' || !result?.nextUnlockAt) {
+    if ((!alreadyCastToday && !hasActiveCooldown) || phase !== 'result' || !result?.nextUnlockAt) {
       setNextCastCountdownMs(0);
       return;
     }
@@ -245,6 +248,9 @@ export function FortuneCastPage() {
       if (today) {
         setResult(today);
         setHasCastToday(true);
+        if (today.nextUnlockAt) {
+          setNextCastCountdownMs(getMsUntilUnlock(today.nextUnlockAt));
+        }
         setPhase('result');
       } else {
         setHasCastToday(false);
@@ -363,7 +369,10 @@ export function FortuneCastPage() {
 
       const [castResult] = await Promise.all([apiPromise, waitForEjectComplete()]);
       setResult(castResult);
-      setHasCastToday(Boolean(castResult.alreadyCastToday));
+      setHasCastToday(true);
+      if (castResult.nextUnlockAt) {
+        setNextCastCountdownMs(getMsUntilUnlock(castResult.nextUnlockAt));
+      }
       rattleDevice([20, 40, 120]);
       setPhase('result');
       fireworksStopRef.current?.();
@@ -691,7 +700,7 @@ export function FortuneCastPage() {
                         </div>
                       </div>
 
-                      {alreadyCastToday ? (
+                      {(alreadyCastToday || hasActiveCooldown) && result?.nextUnlockAt ? (
                         <div className="flex shrink-0 flex-col items-center gap-2.5 rounded-2xl border border-amber-500/20 bg-[#1A0808]/70 p-4 text-center md:p-5">
                           <p className="text-[11px] font-bold uppercase tracking-wider text-amber-200/60">
                             Thời gian chờ giữa các lần gieo
