@@ -262,10 +262,10 @@ LotteryResult mergeResultWithLiveDetails(
     return result;
   }
 
-  final details = [...liveItem.details]..sort((a, b) => a.id.compareTo(b.id));
+  final details = [...liveItem.details];
 
   List<String> byCode(String code) => details
-      .where((item) => item.prizeCode == code)
+      .where((item) => item.prizeCode.trim().toUpperCase() == code.trim().toUpperCase())
       .map((item) => item.winningNumber)
       .where((value) => value.trim().isNotEmpty)
       .toList();

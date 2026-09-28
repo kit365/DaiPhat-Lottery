@@ -157,4 +157,26 @@ class TicketOcrService {
       throw const ApiException('Không nhận được URL tệp từ server.');
     return url;
   }
+
+  Future<OcrJson> joinOcrSession(String sessionCode, {String? deviceName}) async =>
+      requireData(await client.post(
+        '$base/ocr-sessions/$sessionCode/join',
+        data: {'deviceName': deviceName},
+      ));
+
+  Future<OcrJson> uploadOcrSessionTicket(String sessionCode, XFile file) async =>
+      requireData(await client.post(
+        '$base/ocr-sessions/$sessionCode/upload',
+        data: await imageForm(file),
+        timeout: const Duration(seconds: 210),
+      ));
+
+  Future<void> closeOcrSession(String sessionCode) async {
+    try {
+      await client.post(
+        '$base/ocr-sessions/$sessionCode/close',
+        data: <String, dynamic>{},
+      );
+    } catch (_) {}
+  }
 }

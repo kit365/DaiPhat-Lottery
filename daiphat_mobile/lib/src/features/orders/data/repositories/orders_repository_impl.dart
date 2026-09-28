@@ -51,4 +51,11 @@ class OrdersRepositoryImpl implements OrdersRepository {
     CreateOrderRefundRequest request,
   ) =>
       _remoteDataSource.requestOrderRefund(id, request);
+
+  @override
+  Future<OrderResponse> submitPaymentTimeoutComplaint(
+    String orderId,
+    String filePath,
+  ) =>
+      _remoteDataSource.submitPaymentTimeoutComplaint(orderId, filePath);
 }

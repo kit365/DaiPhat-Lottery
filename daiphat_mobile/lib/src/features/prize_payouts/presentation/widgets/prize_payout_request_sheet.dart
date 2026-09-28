@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 
@@ -43,68 +42,28 @@ class PrizePayoutRequestSheet extends StatefulWidget {
 
 class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
   int _step = 1;
-  bool _isLoadingPreview = true;
+  bool _isLoadingStep1 = false;
   bool _isLoadingBanks = false;
   bool _isSubmitting = false;
   bool _isUploadingFront = false;
   bool _isUploadingBack = false;
-  String? _error;
+  String? _step1Error;
   PrizePayoutPreview? _preview;
   List<UserBankAccountResponse> _bankAccounts = const [];
   int? _selectedBankAccountId;
 
-  final _idNumberController = TextEditingController();
   String? _frontLocalPath;
   String? _backLocalPath;
   String? _frontImageUrl;
   String? _backImageUrl;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadPreview();
-  }
-
-  @override
-  void dispose() {
-    _idNumberController.dispose();
-    super.dispose();
-  }
-
-  bool get _isValidCccd =>
-      RegExp(r'^\d{9,12}$').hasMatch(_idNumberController.text.trim());
-
-  bool get _canContinueIdentity =>
-      _isValidCccd &&
+  bool get _canSubmit =>
       (_frontImageUrl?.isNotEmpty ?? false) &&
       (_backImageUrl?.isNotEmpty ?? false) &&
+      _selectedBankAccountId != null &&
       !_isUploadingFront &&
-      !_isUploadingBack;
-
-  Future<void> _loadPreview() async {
-    setState(() {
-      _isLoadingPreview = true;
-      _error = null;
-    });
-
-    try {
-      final preview = await widget.previewPrizePayout(
-        orderDetailId: widget.ticket.orderDetailId,
-        serialId: widget.ticket.serialId,
-      );
-      if (!mounted) return;
-      setState(() {
-        _preview = preview;
-        _isLoadingPreview = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = _formatError(e);
-        _isLoadingPreview = false;
-      });
-    }
-  }
+      !_isUploadingBack &&
+      !_isSubmitting;
 
   String _formatError(Object error) {
     if (error is ApiException) {
@@ -113,10 +72,52 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
     return error.toString().replaceFirst('Exception: ', '');
   }
 
+  Future<void> _onStep1Continue() async {
+    setState(() {
+      _isLoadingStep1 = true;
+      _step1Error = null;
+    });
+
+    try {
+      final preview = await widget.previewPrizePayout(
+        orderDetailId: widget.ticket.orderDetailId,
+        serialId: widget.ticket.serialId,
+      );
+
+      if (!mounted) return;
+
+      if (!preview.canClaimOnline) {
+        setState(() {
+          _isLoadingStep1 = false;
+          _step1Error =
+              'Vé này hiện không thể nhận thưởng trực tuyến. Vui lòng mang vé đến đại lý hoặc văn phòng đài để nhận thưởng.';
+        });
+        return;
+      }
+
+      _preview = preview;
+
+      if (_bankAccounts.isEmpty) {
+        await _loadBankAccounts();
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _isLoadingStep1 = false;
+        _step = 2;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingStep1 = false;
+        _step1Error = _formatError(e);
+      });
+    }
+  }
+
   Future<void> _loadBankAccounts() async {
     setState(() {
       _isLoadingBanks = true;
-      _error = null;
     });
 
     try {
@@ -139,16 +140,8 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = _formatError(e);
         _isLoadingBanks = false;
       });
-    }
-  }
-
-  Future<void> _goToBankStep() async {
-    setState(() => _step = 3);
-    if (_bankAccounts.isEmpty) {
-      await _loadBankAccounts();
     }
   }
 
@@ -207,7 +200,6 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
         _backImageUrl = null;
         _isUploadingBack = true;
       }
-      _error = null;
     });
 
     try {
@@ -243,11 +235,10 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
     final created = await showDialog<UserBankAccountResponse>(
       context: context,
       useRootNavigator: true,
-      builder: (context) =>
-          BankAccountFormDialog(
-            getBanks: widget.getBanks,
-            createBankAccount: widget.createBankAccount,
-          ),
+      builder: (context) => BankAccountFormDialog(
+        getBanks: widget.getBanks,
+        createBankAccount: widget.createBankAccount,
+      ),
     );
     if (created == null || !mounted) return;
     await _loadBankAccounts();
@@ -256,20 +247,19 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
   }
 
   Future<void> _submit() async {
-    if (_selectedBankAccountId == null || !_canContinueIdentity) return;
+    if (!_canSubmit) return;
 
     setState(() => _isSubmitting = true);
     try {
-      await widget.createPrizePayout(
+      final result = await widget.createPrizePayout(
         orderDetailId: widget.ticket.orderDetailId,
         serialId: widget.ticket.serialId,
         bankAccountId: _selectedBankAccountId!,
-        recipientIdNumber: _idNumberController.text.trim(),
         recipientIdImageUrl: _frontImageUrl!,
         recipientIdImageBackUrl: _backImageUrl!,
       );
       if (!mounted) return;
-      Navigator.of(context).pop(true);
+      Navigator.of(context).pop(result);
       AppToast.success('Đã gửi yêu cầu trả thưởng thành công');
     } catch (e) {
       if (!mounted) return;
@@ -348,11 +338,7 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
             Flexible(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-                child: switch (_step) {
-                  1 => _buildStep1(),
-                  2 => _buildStep2Identity(),
-                  _ => _buildStep3Bank(),
-                },
+                child: _step == 1 ? _buildStep1() : _buildStep2(),
               ),
             ),
           ],
@@ -362,51 +348,59 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
   }
 
   Widget _buildStepIndicator() {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (var i = 1; i <= 3; i++) ...[
-          if (i > 1) const SizedBox(width: 8),
-          Expanded(
-            child: Container(
-              height: 4,
-              decoration: BoxDecoration(
-                color: _step >= i ? AppColors.primary : AppColors.borderLight,
-                borderRadius: BorderRadius.circular(999),
+        Row(
+          children: [
+            for (var i = 1; i <= 2; i++) ...[
+              if (i > 1) const SizedBox(width: 8),
+              Expanded(
+                child: Container(
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color:
+                        _step >= i ? AppColors.primary : AppColors.borderLight,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              '1. Xác nhận vé trúng',
+              style: AppTypography.mainWith(
+                fontSize: 12,
+                fontWeight: _step == 1 ? FontWeight.w700 : FontWeight.w500,
+                color: _step == 1
+                    ? AppColors.primary
+                    : AppColors.contentPlaceholderStrong,
               ),
             ),
-          ),
-        ],
+            Text(
+              '2. Thông tin nhận thưởng',
+              style: AppTypography.mainWith(
+                fontSize: 12,
+                fontWeight: _step == 2 ? FontWeight.w700 : FontWeight.w500,
+                color: _step == 2
+                    ? AppColors.primary
+                    : AppColors.contentPlaceholderStrong,
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
 
   Widget _buildStep1() {
     final ticket = widget.ticket;
-    final gross = _preview?.grossAmount ?? ticket.prizeAmount;
-    final tax = _preview?.taxAmount;
-    final commission = _preview?.commissionAmount;
-    final net = _preview?.netAmount;
-    final canContinue =
-        !_isLoadingPreview && (_preview == null || _preview!.canClaimOnline);
-
-    if (_error != null && _preview == null) {
-      return Column(
-        children: [
-          Text(
-            _error!,
-            style: AppTypography.mainWith(color: AppColors.textMuted),
-          ),
-          const SizedBox(height: 12),
-          TextButton(
-            onPressed: _loadPreview,
-            child: Text(
-              'Thử lại',
-              style: AppTypography.buttonSmall(color: AppColors.primary),
-            ),
-          ),
-        ],
-      );
-    }
+    final displayPrizeAmount = ticket.prizeAmount ?? _preview?.grossAmount;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -415,7 +409,8 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
           'Xác nhận thông tin vé trúng thưởng',
           style: AppTypography.mainWith(
             fontSize: 14,
-            color: AppColors.contentNeutral,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textMain,
           ),
         ),
         const SizedBox(height: 12),
@@ -425,6 +420,7 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: AppColors.borderLight),
+            color: AppColors.surfaceSoft,
           ),
           child: Column(
             children: [
@@ -434,67 +430,103 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
                 'Dãy số',
                 ticket.numbers,
                 valueStyle: AppTypography.mainWith(
-                  fontSize: 14,
+                  fontSize: 15,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.2,
                   color: AppColors.textMain,
                 ),
               ),
               _buildInfoRow(
-                'Giải',
+                'Giải trúng',
                 ticket.matchedPrizeDisplayName ??
                     ticket.matchedPrizeCode ??
                     '—',
               ),
-              if (_isLoadingPreview)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(
-                    'Đang tính số tiền thực nhận…',
-                    style: AppTypography.mainWith(
-                      fontSize: 13,
-                      color: AppColors.contentNeutral,
-                    ),
-                  ),
-                )
-              else ...[
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  child: Divider(height: 1, color: AppColors.borderLight),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Divider(height: 1, color: AppColors.borderLight),
+              ),
+              _buildInfoRow(
+                'Giá trị giải',
+                _formatMoney(displayPrizeAmount),
+                valueStyle: AppTypography.mainWith(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primary,
                 ),
-                _buildInfoRow('Giá trị giải', _formatMoney(gross)),
-                _buildInfoRow('Thuế TNCN', _formatMoney(tax)),
-                _buildInfoRow('Hoa hồng đại lý', _formatMoney(commission)),
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  child: Divider(height: 1, color: AppColors.borderLight),
-                ),
-                _buildInfoRow(
-                  'Thực nhận',
-                  _formatMoney(net ?? gross),
-                  valueStyle: AppTypography.mainWith(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ],
+              ),
             ],
           ),
         ),
-        const SizedBox(height: 12),
-        Text(
-          'Tên chủ tài khoản ngân hàng phải khớp tên khách hàng. Yêu cầu vẫn cần nhân viên duyệt trước khi chuyển tiền.',
-          style: AppTypography.mainWith(
-            fontSize: 12,
-            color: AppColors.contentPlaceholderStrong,
+        if (_step1Error != null) ...[
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceDestructiveSoft,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.error_outline_rounded,
+                  color: AppColors.primary,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _step1Error!,
+                    style: AppTypography.mainWith(
+                      fontSize: 12,
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+        const SizedBox(height: 14),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceSoft,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: AppColors.borderLight),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.info_outline_rounded,
+                size: 16,
+                color: AppColors.contentPlaceholderStrong,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Yêu cầu vẫn cần nhân viên duyệt đối soát trước khi giải ngân chuyển khoản.',
+                  style: AppTypography.mainWith(
+                    fontSize: 12,
+                    color: AppColors.contentNeutral,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            onPressed: canContinue ? () => setState(() => _step = 2) : null,
+            onPressed: _isLoadingStep1 ? null : _onStep1Continue,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: AppColors.surfacePrimary,
@@ -504,63 +536,180 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: Text(
-              'Tiếp tục',
-              style: AppTypography.mainWith(
-                fontWeight: FontWeight.w800,
-                fontSize: 14,
-              ),
-            ),
+            child: _isLoadingStep1
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.surfacePrimary,
+                    ),
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Tiếp tục',
+                        style: AppTypography.mainWith(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.arrow_forward_rounded, size: 16),
+                    ],
+                  ),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildStep2Identity() {
-    final idText = _idNumberController.text.trim();
-    final showIdError = idText.isNotEmpty && !_isValidCccd;
+  Widget _buildStep2() {
+    final preview = _preview;
+    final gross = preview?.grossAmount ?? widget.ticket.prizeAmount;
+    final tax = preview?.taxAmount ?? 0;
+    final commission = preview?.commissionAmount ?? 0;
+    final net = preview?.netAmount ?? gross;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Summary Breakdown Box
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceSoft,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.borderLight),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Chi tiết giải & khấu trừ',
+                style: AppTypography.mainWith(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.contentNeutral,
+                ),
+              ),
+              const SizedBox(height: 8),
+              _buildInfoRow('Giá trị giải thưởng', _formatMoney(gross)),
+              _buildInfoRow(
+                'Thuế TNCN',
+                tax > 0 ? '-${_formatMoney(tax)}' : '0 đ (Miễn thuế)',
+                valueStyle: AppTypography.mainWith(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: tax > 0 ? AppColors.primary : AppColors.textMain,
+                ),
+              ),
+              _buildInfoRow(
+                'Hoa hồng đại lý',
+                commission > 0 ? '-${_formatMoney(commission)}' : '0 đ',
+                valueStyle: AppTypography.mainWith(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color:
+                      commission > 0 ? AppColors.primary : AppColors.textMain,
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 6),
+                child: Divider(height: 1, color: AppColors.borderLight),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Thực nhận chuyển khoản',
+                        style: AppTypography.mainWith(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      Text(
+                        'Sau khi trừ thuế và phí',
+                        style: AppTypography.mainWith(
+                          fontSize: 10,
+                          color: AppColors.contentPlaceholderStrong,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    _formatMoney(net),
+                    style: AppTypography.mainWith(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Section 1: CCCD Upload (No manual CCCD input)
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 20,
+                  height: 20,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(
+                    color: AppColors.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    '1',
+                    style: AppTypography.mainWith(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Ảnh căn cước công dân (CCCD)',
+                  style: AppTypography.mainWith(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textMain,
+                  ),
+                ),
+              ],
+            ),
+            Text(
+              'Bắt buộc 2 mặt',
+              style: AppTypography.mainWith(
+                fontSize: 11,
+                color: AppColors.contentPlaceholderStrong,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
         Text(
-          'Xác minh danh tính — tải CCCD mặt trước, mặt sau và nhập số CCCD',
+          'Số CCCD được trích xuất tự động qua OCR (không cần nhập tay, không cần selfie).',
           style: AppTypography.mainWith(
-            fontSize: 14,
+            fontSize: 12,
             color: AppColors.contentNeutral,
           ),
         ),
         const SizedBox(height: 12),
-        Text(
-          'Số CCCD / CMND *',
-          style: AppTypography.mainWith(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _idNumberController,
-          keyboardType: TextInputType.number,
-          inputFormatters: [
-            FilteringTextInputFormatter.digitsOnly,
-            LengthLimitingTextInputFormatter(12),
-          ],
-          onChanged: (_) => setState(() {}),
-          decoration: InputDecoration(
-            hintText: 'Nhập 9–12 chữ số',
-            errorText: showIdError ? 'Số CCCD/CMND phải đủ 9 đến 12 chữ số' : null,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 12,
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
         Row(
           children: [
             Expanded(
@@ -592,222 +741,63 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
             ),
           ],
         ),
-        const SizedBox(height: 12),
-        Text(
-          'Ảnh CCCD dùng để nhân viên đối chiếu khi duyệt trả thưởng trực tuyến.',
-          style: AppTypography.mainWith(
-            fontSize: 12,
-            color: AppColors.contentPlaceholderStrong,
-          ),
-        ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
+
+        // Section 2: Bank Accounts
         Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: () => setState(() => _step = 1),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.textMain,
-                  side: const BorderSide(color: AppColors.borderLight),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+            Row(
+              children: [
+                Container(
+                  width: 20,
+                  height: 20,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(
+                    color: AppColors.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    '2',
+                    style: AppTypography.mainWith(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
-                child: Text(
-                  'Quay lại',
+                const SizedBox(width: 8),
+                Text(
+                  'Tài khoản ngân hàng nhận tiền',
                   style: AppTypography.mainWith(
-                    fontWeight: FontWeight.w800,
                     fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textMain,
+                  ),
+                ),
+              ],
+            ),
+            if (_bankAccounts.isNotEmpty)
+              InkWell(
+                onTap: _handleAddBankAccount,
+                child: Text(
+                  '+ Thêm tài khoản',
+                  style: AppTypography.mainWith(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
                   ),
                 ),
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: ElevatedButton(
-                onPressed: _canContinueIdentity ? _goToBankStep : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: AppColors.surfacePrimary,
-                  disabledBackgroundColor: AppColors.primary.withValues(
-                    alpha: 0.4,
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: Text(
-                  'Tiếp tục',
-                  style: AppTypography.mainWith(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            ),
           ],
         ),
-      ],
-    );
-  }
-
-  Widget _buildCccdPicker({
-    required String label,
-    required String? localPath,
-    required bool uploaded,
-    required bool uploading,
-    required VoidCallback onPick,
-    required VoidCallback onClear,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: AppTypography.mainWith(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 8),
-        AspectRatio(
-          aspectRatio: 3 / 4,
-          child: InkWell(
-            onTap: uploading ? null : onPick,
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.borderLight),
-                color: AppColors.surfaceSoft,
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (localPath != null)
-                    Image.file(File(localPath), fit: BoxFit.cover)
-                  else
-                    Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.add_a_photo_outlined,
-                            size: 22,
-                            color: AppColors.contentNeutral,
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Chụp / chọn ảnh',
-                            textAlign: TextAlign.center,
-                            style: AppTypography.mainWith(
-                              fontSize: 12,
-                              color: AppColors.contentNeutral,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  if (uploading)
-                    Container(
-                      color: Colors.black45,
-                      alignment: Alignment.center,
-                      child: const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  if (!uploading && localPath != null)
-                    Positioned(
-                      top: 6,
-                      right: 6,
-                      child: Material(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        child: InkWell(
-                          onTap: onClear,
-                          borderRadius: BorderRadius.circular(8),
-                          child: const Padding(
-                            padding: EdgeInsets.all(4),
-                            child: Icon(Icons.close, size: 16),
-                          ),
-                        ),
-                      ),
-                    ),
-                  if (!uploading && uploaded)
-                    Positioned(
-                      left: 6,
-                      bottom: 6,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          'Đã tải',
-                          style: AppTypography.mainWith(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStep3Bank() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Chọn tài khoản nhận thưởng',
-          style: AppTypography.mainWith(
-            fontSize: 14,
-            color: AppColors.contentNeutral,
-          ),
-        ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         if (_isLoadingBanks)
           const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
+            padding: EdgeInsets.symmetric(vertical: 20),
             child: Center(
               child: CircularProgressIndicator(color: AppColors.primary),
             ),
-          )
-        else if (_error != null && _bankAccounts.isEmpty)
-          Column(
-            children: [
-              Text(
-                _error!,
-                style: AppTypography.mainWith(color: AppColors.textMuted),
-              ),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: _loadBankAccounts,
-                child: Text(
-                  'Thử lại',
-                  style: AppTypography.buttonSmall(color: AppColors.primary),
-                ),
-              ),
-            ],
           )
         else if (_bankAccounts.isEmpty)
           Container(
@@ -815,21 +805,19 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: AppColors.borderLight,
-                style: BorderStyle.solid,
-              ),
+              border: Border.all(color: AppColors.borderLight),
+              color: AppColors.surfaceSoft,
             ),
             child: Column(
               children: [
                 Text(
-                  'Bạn chưa có tài khoản ngân hàng.',
+                  'Bạn chưa có tài khoản ngân hàng nào.',
                   style: AppTypography.mainWith(
-                    fontSize: 14,
+                    fontSize: 13,
                     color: AppColors.contentNeutral,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 ElevatedButton(
                   onPressed: _handleAddBankAccount,
                   style: ElevatedButton.styleFrom(
@@ -893,16 +881,49 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              account.bankName,
-                              style: AppTypography.mainWith(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 13,
-                              ),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    account.bankName,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: AppTypography.mainWith(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                                if (account.isDefault) ...[
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary.withValues(
+                                        alpha: 0.1,
+                                      ),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      'Mặc định',
+                                      style: AppTypography.mainWith(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                             const SizedBox(height: 2),
                             Text(
                               account.bankAccountNo,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: AppTypography.mainWith(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -911,6 +932,8 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
                             ),
                             Text(
                               account.bankAccountName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: AppTypography.mainWith(
                                 fontSize: 12,
                                 color: AppColors.contentNeutral,
@@ -925,29 +948,16 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
               ),
             );
           }),
-          TextButton(
-            onPressed: _handleAddBankAccount,
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.primary,
-              padding: EdgeInsets.zero,
-            ),
-            child: Text(
-              '+ Thêm tài khoản khác',
-              style: AppTypography.mainWith(
-                fontWeight: FontWeight.w700,
-                fontSize: 13,
-              ),
-            ),
-          ),
         ],
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
+
+        // Action Buttons
         Row(
           children: [
             Expanded(
               child: OutlinedButton(
-                onPressed: _isSubmitting
-                    ? null
-                    : () => setState(() => _step = 2),
+                onPressed:
+                    _isSubmitting ? null : () => setState(() => _step = 1),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.textMain,
                   side: const BorderSide(color: AppColors.borderLight),
@@ -968,11 +978,7 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
             const SizedBox(width: 10),
             Expanded(
               child: ElevatedButton(
-                onPressed: _selectedBankAccountId == null ||
-                        _isSubmitting ||
-                        !_canContinueIdentity
-                    ? null
-                    : _submit,
+                onPressed: _canSubmit ? _submit : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: AppColors.surfacePrimary,
@@ -1008,9 +1014,154 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
     );
   }
 
+  Widget _buildCccdPicker({
+    required String label,
+    required String? localPath,
+    required bool uploaded,
+    required bool uploading,
+    required VoidCallback onPick,
+    required VoidCallback onClear,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: AppTypography.mainWith(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 8),
+        AspectRatio(
+          aspectRatio: 3 / 2.2,
+          child: InkWell(
+            onTap: uploading ? null : onPick,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.borderLight),
+                color: AppColors.surfaceSoft,
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (localPath != null)
+                    Image.file(File(localPath), fit: BoxFit.cover)
+                  else
+                    Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.add_a_photo_outlined,
+                            size: 24,
+                            color: AppColors.contentNeutral,
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Chụp / chọn ảnh',
+                            textAlign: TextAlign.center,
+                            style: AppTypography.mainWith(
+                              fontSize: 12,
+                              color: AppColors.contentNeutral,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (uploading)
+                    Container(
+                      color: Colors.black45,
+                      alignment: Alignment.center,
+                      child: const Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          ),
+                          SizedBox(height: 6),
+                          Text(
+                            'Đang tải…',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (!uploading && localPath != null)
+                    Positioned(
+                      top: 6,
+                      right: 6,
+                      child: Material(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        child: InkWell(
+                          onTap: onClear,
+                          borderRadius: BorderRadius.circular(8),
+                          child: const Padding(
+                            padding: EdgeInsets.all(4),
+                            child: Icon(Icons.close, size: 16),
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (!uploading && uploaded)
+                    Positioned(
+                      left: 6,
+                      bottom: 6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade700,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.check,
+                              color: Colors.white,
+                              size: 11,
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              'Đã tải',
+                              style: AppTypography.mainWith(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildInfoRow(String label, String value, {TextStyle? valueStyle}) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1018,7 +1169,7 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
             child: Text(
               label,
               style: AppTypography.mainWith(
-                fontSize: 14,
+                fontSize: 13,
                 color: AppColors.contentNeutral,
               ),
             ),
@@ -1030,7 +1181,7 @@ class _PrizePayoutRequestSheetState extends State<PrizePayoutRequestSheet> {
               style:
                   valueStyle ??
                   AppTypography.mainWith(
-                    fontSize: 14,
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textMain,
                   ),

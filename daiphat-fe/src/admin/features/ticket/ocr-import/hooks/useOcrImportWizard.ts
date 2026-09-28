@@ -25,6 +25,7 @@ import type {
     OcrImportDraft,
     OcrQueuedImage,
     OcrReviewRow,
+    ScannedTicket,
 } from '../types/ticketOcr.type';
 import { OCR_IMPORT_DRAFT_KEY } from '../types/ticketOcr.type';
 import {
@@ -690,6 +691,33 @@ export const useOcrImportWizard = ({
         });
         setRows((prev) => prev.filter((row) => row.sourceImageId !== imageId));
     }, []);
+
+
+    const addScannedTicketsFromMobile = useCallback(
+        (scannedTickets: ScannedTicket[], scanId?: string) => {
+            if (!scannedTickets || scannedTickets.length === 0) return;
+            const addedRows: OcrReviewRow[] = [];
+            const nowIso = new Date().toISOString();
+            for (const ticket of scannedTickets) {
+                addedRows.push(
+                    mapScannedTicketToReviewRow(
+                        ticket,
+                        `mobile-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                        'mobile-scan.jpg',
+                        scanId || `SCAN-${Date.now()}`,
+                        ticket.sourceImageUrl || ticket.croppedImageUrl || '',
+                        ticket.imageWidth || null,
+                        ticket.imageHeight || null,
+                        nowIso,
+                        null
+                    )
+                );
+            }
+            setRows((prev) => [...prev, ...addedRows]);
+            setStep('review');
+        },
+        []
+    );
 
     const clearImages = useCallback(() => {
         setImages((prev) => {
@@ -1390,6 +1418,7 @@ export const useOcrImportWizard = ({
         scanMoreImages,
         removeImage,
         clearImages,
+        addScannedTicketsFromMobile,
         runScan,
         scanPendingImages,
         pendingImagesCount: images.filter((img) => img.status === 'pending').length,

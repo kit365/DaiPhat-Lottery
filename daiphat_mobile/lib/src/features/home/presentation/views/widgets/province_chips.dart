@@ -21,9 +21,9 @@ class ProvinceChips extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Row(
         children: [
-          // "Đầy đủ" chip: selected when nothing selected
+          // "Tất cả" chip: selected when nothing selected
           AppFilterChip(
-            label: 'Đầy đủ',
+            label: 'Tất cả',
             isSelected: selectedProvinces.isEmpty,
             onTap: () => onToggleProvince(null),
           ),

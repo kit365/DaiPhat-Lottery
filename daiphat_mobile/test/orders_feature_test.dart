@@ -84,6 +84,13 @@ class _FakeOrdersRepository implements OrdersRepository {
     String id,
     CreateOrderRefundRequest request,
   ) async {}
+
+  @override
+  Future<OrderResponse> submitPaymentTimeoutComplaint(
+    String orderId,
+    String filePath,
+  ) async =>
+      order;
 }
 
 void main() {

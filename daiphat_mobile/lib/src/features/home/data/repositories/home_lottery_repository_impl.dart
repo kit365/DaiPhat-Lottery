@@ -8,8 +8,11 @@ class HomeLotteryRepositoryImpl implements HomeLotteryRepository {
   final HomeLotteryApiService _apiService;
 
   @override
-  Future<HomeLotteryFetchResult> fetchResults(DateTime drawDate) async {
-    final summary = await _apiService.getBoard(drawDate);
+  Future<HomeLotteryFetchResult> fetchResults(
+    DateTime drawDate, {
+    String? region,
+  }) async {
+    final summary = await _apiService.getBoard(drawDate, region: region);
     final isToday = _isSameDate(drawDate, DateTime.now());
 
     if (summary.isEmpty) {
@@ -24,19 +27,28 @@ class HomeLotteryRepositoryImpl implements HomeLotteryRepository {
     }
 
     final baseResults = summary.map(mapSummaryToLotteryResult).toList();
-    final detailItems = await _apiService.getDetails(
-      summary.map((item) => item.id).where((id) => id > 0).toList(),
-    );
+    List<LotteryResultLiveItemApiResponse> detailItems = const [];
+    try {
+      detailItems = await _apiService.getDetails(
+        summary.map((item) => item.id).where((id) => id > 0).toList(),
+      );
+    } catch (_) {
+      // Giữ summary board khi getDetails lỗi hoặc timeout
+    }
 
     final detailByResultId = <int, LotteryResultLiveItemApiResponse>{
       for (final item in detailItems) item.result.id: item,
+    };
+    final detailByStationId = <int, LotteryResultLiveItemApiResponse>{
+      for (final item in detailItems)
+        if (item.result.stationId > 0) item.result.stationId: item,
     };
 
     final mergedResults = baseResults
         .map(
           (item) => mergeResultWithLiveDetails(
             item,
-            detailByResultId[item.id],
+            detailByResultId[item.id] ?? detailByStationId[item.stationId],
           ),
         )
         .toList();
@@ -62,6 +74,7 @@ class HomeLotteryRepositoryImpl implements HomeLotteryRepository {
         availableProvinces: provinces,
         isWaitingForResults: waiting,
       ),
+      shouldPollSummary: isToday || waiting,
       nextPollAfterSeconds: nextPollAfterSeconds,
     );
   }

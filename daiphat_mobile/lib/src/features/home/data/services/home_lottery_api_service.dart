@@ -11,11 +11,16 @@ class HomeLotteryApiService {
   static const _baseUrl = '/lottery-results';
   static const _defaultRegion = 'MIEN_NAM';
 
-  Future<List<LotteryResultSummaryApiResponse>> getBoard(DateTime drawDate) async {
+  Future<List<LotteryResultSummaryApiResponse>> getBoard(
+    DateTime drawDate, {
+    String? region,
+  }) async {
+    final resolvedRegion =
+        region != null && region.trim().isNotEmpty ? region.trim() : _defaultRegion;
     final response = await _apiClient.get(
       '$_baseUrl/board',
       queryParameters: <String, dynamic>{
-        'region': _defaultRegion,
+        'region': resolvedRegion,
         'drawDate': _toApiDate(drawDate),
       },
       includeAuth: false,
