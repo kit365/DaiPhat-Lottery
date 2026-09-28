@@ -110,6 +110,7 @@ services:
     cpus: ${LOCAL_TICKET_VISION_CPUS:-2}
 
   ai-ekyc:
+    container_name: daiphat-ai-cccd-ocr
     build:
       context: ./daiphat-ai/ai-ekyc
       dockerfile: Dockerfile

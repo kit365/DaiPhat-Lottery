@@ -1,4 +1,4 @@
-name: AI eKYC Deploy
+name: AI CCCD OCR Deploy
 
 on:
   push:
@@ -78,7 +78,7 @@ jobs:
             printf 'release_channel=%s\n' "$release_channel"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Decide whether AI eKYC changed
+      - name: Decide whether AI CCCD OCR changed
         id: select
         env:
           EVENT_NAME: ${{ github.event_name }}
@@ -116,7 +116,7 @@ jobs:
           echo "image=$IMAGE_DIGEST" >> "$GITHUB_OUTPUT"
 
   deploy:
-    name: AI eKYC
+    name: AI CCCD OCR
     needs: resolve
     if: ${{ needs.resolve.outputs.deploy == 'true' }}
     uses: ./.github/workflows/component-deploy.yml

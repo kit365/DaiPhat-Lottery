@@ -9,8 +9,8 @@ def create_app() -> FastAPI:
     configure_logging()
     
     app = FastAPI(
-        title="DaiPhat eKYC Vision",
-        description="CCCD OCR, liveness, and face verification for Street Agent and Prize Payout",
+        title="DaiPhat CCCD OCR",
+        description="CCCD OCR is used by Street Agent, Prize Payout, and counter refunds. Face and liveness endpoints are available but are not used by these flows.",
         version="1.1.0",
     )
     

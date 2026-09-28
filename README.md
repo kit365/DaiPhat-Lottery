@@ -108,7 +108,7 @@ PYTHONPATH=. uvicorn main:app --reload --port 8000
 ```
 * **Interactive API Docs**: `http://localhost:8000/docs`
 
-See [`daiphat-ai/README.md`](daiphat-ai/README.md) for the OCR and eKYC services.
+See [`daiphat-ai/README.md`](daiphat-ai/README.md) for the ticket OCR and CCCD OCR services.
 
 ---
 
@@ -121,7 +121,7 @@ See [`daiphat-ai/README.md`](daiphat-ai/README.md) for the OCR and eKYC services
 | **Swagger UI** | `http://localhost:8080/swagger-ui/index.html` | Interactive API Documentation |
 | **AI Chatbot** (`ai-chatbot`) | `http://localhost:8000` | AI Chatbot & Intent Engine |
 | **AI Ticket OCR** (`ai-ticket-ocr`) | `http://localhost:8090` | Lottery ticket camera scan |
-| **AI eKYC** (`ai-ekyc`) | `http://localhost:8091` | CCCD OCR & face match |
+| **AI CCCD OCR** (`ai-ekyc`) | `http://localhost:8091` | Reads CCCD fields; face/liveness endpoints are unused by current flows |
 | **PostgreSQL** | `localhost:5434` (mapped) | Main Relational Database |
 | **Redis** | `localhost:6380` (mapped) | Session, Cache & Locks |
 | **MongoDB** | `localhost:27018` (mapped) | Chat History & System Logs |

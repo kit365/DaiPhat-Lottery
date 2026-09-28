@@ -166,7 +166,7 @@ services:
       # unavailable OCR service into its existing soft result.
       DAIPHAT_TICKET_VISION_BASE_URL: ${DAIPHAT_TICKET_VISION_BASE_URL:-http://ticket-vision:8090}
       DAIPHAT_TICKET_VISION_RECOGNITION_ENGINE: ${TICKET_VISION_RECOGNITION_ENGINE:-groq}
-      # Served by the managed AI eKYC gateway (hostname ekyc-vision) in docker-compose.ai.yml.
+      # Served by the managed CCCD OCR gateway (legacy hostname ekyc-vision) in docker-compose.ai.yml.
       DAIPHAT_EKYC_AI_BASE_URL: ${DAIPHAT_EKYC_AI_BASE_URL:-http://ekyc-vision:8000}
       DAIPHAT_EKYC_AI_API_KEY: ${KYC_AI_API_KEY:-}
       JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--Xms256m -Xmx640m -XX:+UseContainerSupport}

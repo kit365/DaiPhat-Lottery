@@ -189,7 +189,7 @@ jobs:
           cache-from: type=registry,ref=docker.io/${{ secrets.DOCKER_USERNAME }}/daiphat-ai-ticket-ocr:buildcache
           cache-to: type=registry,ref=docker.io/${{ secrets.DOCKER_USERNAME }}/daiphat-ai-ticket-ocr:buildcache,mode=max
 
-      - name: Build and push AI eKYC
+      - name: Build and push AI CCCD OCR
         id: build-ekyc
         if: ${{ inputs.existing_image == '' && inputs.component == 'ai-ekyc' }}
         uses: docker/build-push-action@v7

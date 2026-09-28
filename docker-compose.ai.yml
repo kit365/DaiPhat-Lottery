@@ -121,18 +121,18 @@ services:
     labels: {dev.dozzle.group: AI, dev.dozzle.name: AI Ticket OCR (green)}
   ekyc-blue:
     <<: *ekyc
-    container_name: daiphat-ai-ekyc-blue
+    container_name: daiphat-ai-cccd-ocr-blue
     image: "${EKYC_BLUE_IMAGE:-docker.io/kitops365/daiphat-ai-ekyc:prod}"
     env_file: ./.ai-deploy/ekyc/blue.env
     volumes: ["ekyc_blue_cache:/cache"]
-    labels: {dev.dozzle.group: AI, dev.dozzle.name: AI eKYC (blue)}
+    labels: {dev.dozzle.group: AI, dev.dozzle.name: AI CCCD OCR (blue)}
   ekyc-green:
     <<: *ekyc
-    container_name: daiphat-ai-ekyc-green
+    container_name: daiphat-ai-cccd-ocr-green
     image: "${EKYC_GREEN_IMAGE:-docker.io/kitops365/daiphat-ai-ekyc:prod}"
     env_file: ./.ai-deploy/ekyc/green.env
     volumes: ["ekyc_green_cache:/cache"]
-    labels: {dev.dozzle.group: AI, dev.dozzle.name: AI eKYC (green)}
+    labels: {dev.dozzle.group: AI, dev.dozzle.name: AI CCCD OCR (green)}
   chatbot-router:
     <<: *router
     container_name: daiphat-ai-chatbot-gateway
@@ -151,9 +151,9 @@ services:
         aliases: [ticket-vision]
   ekyc-router:
     <<: *router
-    container_name: daiphat-ai-ekyc-gateway
+    container_name: daiphat-ai-cccd-ocr-gateway
     volumes: ["./.ai-deploy/ekyc/nginx:/etc/nginx/conf.d:ro"]
-    labels: {dev.dozzle.group: AI, dev.dozzle.name: AI eKYC Gateway}
+    labels: {dev.dozzle.group: AI, dev.dozzle.name: AI CCCD OCR Gateway}
     networks:
       production:
         aliases: [ekyc-vision]
