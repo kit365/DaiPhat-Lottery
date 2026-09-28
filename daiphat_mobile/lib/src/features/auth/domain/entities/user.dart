@@ -3,6 +3,8 @@ class User {
   final String username;
   final String accessToken;
   final String? email;
+  final String? firstName;
+  final String? lastName;
   final String? fullName;
   final String? avatarUrl;
   final String? phone;
@@ -16,6 +18,8 @@ class User {
     required this.username,
     required this.accessToken,
     this.email,
+    this.firstName,
+    this.lastName,
     this.fullName,
     this.avatarUrl,
     this.phone,
@@ -45,6 +49,8 @@ class User {
       username: json['username'] as String? ?? '',
       accessToken: '',
       email: json['email'] as String?,
+      firstName: json['firstName'] as String?,
+      lastName: json['lastName'] as String?,
       fullName: json['fullName'] as String?,
       avatarUrl: json['avatarUrl'] as String?,
       phone: (json['phone'] ?? json['phoneNumber']) as String?,
@@ -60,6 +66,8 @@ class User {
     String? username,
     String? accessToken,
     String? email,
+    String? firstName,
+    String? lastName,
     String? fullName,
     String? avatarUrl,
     String? phone,
@@ -73,6 +81,8 @@ class User {
       username: username ?? this.username,
       accessToken: accessToken ?? this.accessToken,
       email: email ?? this.email,
+      firstName: firstName ?? this.firstName,
+      lastName: lastName ?? this.lastName,
       fullName: fullName ?? this.fullName,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       phone: phone ?? this.phone,
@@ -89,6 +99,8 @@ class User {
       'username': username,
       'accessToken': accessToken,
       'email': email,
+      'firstName': firstName,
+      'lastName': lastName,
       'fullName': fullName,
       'avatarUrl': avatarUrl,
       'phone': phone,

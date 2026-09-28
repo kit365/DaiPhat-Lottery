@@ -8,7 +8,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:shimmer/shimmer.dart';
 
-import 'package:daiphat_mobile/src/app/routing/app_router.dart';
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
@@ -154,8 +153,8 @@ class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
     final router = GoRouter.of(context);
 
     AppToast.show(
-      'Đã thêm ${ticket.code} vào giỏ hàng',
-      actionLabel: 'Xem ngay',
+      'Đã thêm 1 vé ${ticket.code} vào giỏ hàng.',
+      actionLabel: 'Xem giỏ hàng',
       onAction: () => router.push(AppRoute.cart.path),
     );
   }
@@ -1433,9 +1432,18 @@ const Map<int, String> _kVnWeekdayLabels = {
 };
 
 class TicketDetailModalSheet extends ConsumerStatefulWidget {
-  const TicketDetailModalSheet({super.key, required this.ticket});
+  const TicketDetailModalSheet({
+    super.key,
+    required this.ticket,
+    this.initialQuantity = 1,
+    this.isCartMode = false,
+    this.onQuantityChanged,
+  });
 
   final LotteryTicketListItem ticket;
+  final int initialQuantity;
+  final bool isCartMode;
+  final ValueChanged<int>? onQuantityChanged;
 
   @override
   ConsumerState<TicketDetailModalSheet> createState() =>
@@ -1444,7 +1452,17 @@ class TicketDetailModalSheet extends ConsumerStatefulWidget {
 
 class _TicketDetailModalSheetState
     extends ConsumerState<TicketDetailModalSheet> {
-  int _quantity = 1;
+  late int _quantity;
+
+  @override
+  void initState() {
+    super.initState();
+    _quantity = widget.initialQuantity > 0 ? widget.initialQuantity : 1;
+    final max = _maxStock;
+    if (_quantity > max) {
+      _quantity = max;
+    }
+  }
 
   int get _maxStock => widget.ticket.quantity > 0 ? widget.ticket.quantity : 1;
 
@@ -1466,12 +1484,14 @@ class _TicketDetailModalSheetState
   void _increase() {
     if (_quantity < _maxStock) {
       setState(() => _quantity++);
+      widget.onQuantityChanged?.call(_quantity);
     }
   }
 
   void _decrease() {
     if (_quantity > 1) {
       setState(() => _quantity--);
+      widget.onQuantityChanged?.call(_quantity);
     }
   }
 
@@ -1521,6 +1541,7 @@ class _TicketDetailModalSheetState
       return;
     }
 
+    final router = GoRouter.of(context);
     ref.read(cartProvider.notifier).addItem(_buildCartItem());
     Navigator.of(context).pop();
 
@@ -1528,16 +1549,7 @@ class _TicketDetailModalSheetState
       'Đã thêm $_quantity vé ${widget.ticket.code} vào giỏ hàng.',
       actionLabel: 'Xem giỏ hàng',
       onAction: () {
-        final rootContext = rootNavigatorKey.currentContext;
-        if (rootContext != null) {
-          requireAuthOrGoLoginWithRef(
-            rootContext,
-            ref,
-            redirectPath: AppRoute.cart.path,
-            onAuthenticated: () =>
-                GoRouter.of(rootContext).push(AppRoute.cart.path),
-          );
-        }
+        router.push(AppRoute.cart.path);
       },
     );
   }
@@ -1785,7 +1797,7 @@ class _TicketDetailModalSheetState
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Số lượng mua',
+                          widget.isCartMode ? 'Số lượng' : 'Số lượng mua',
                           style: AppTypography.bodyMedium(
                             fontSize: 13.5,
                             color: AppColors.contentMuted,
@@ -1877,65 +1889,91 @@ class _TicketDetailModalSheetState
 
               const SizedBox(height: 20),
 
-              // Action Buttons: Add to cart vs Buy now
-              Row(
-                children: [
-                  Expanded(
-                    child: SizedBox(
-                      height: 48,
-                      child: OutlinedButton.icon(
-                        onPressed: _addToCart,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.primary,
-                          side: const BorderSide(
-                            color: AppColors.primary,
-                            width: 1.2,
+              // Action Buttons: Cart mode (Confirm) vs Buy mode (Add to cart / Buy now)
+              if (widget.isCartMode) ...[
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.surfacePrimary,
+                      elevation: 1,
+                      shadowColor: AppColors.shadowBrand,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: Text(
+                      'Xác nhận',
+                      style: AppTypography.buttonLarge(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+                ),
+              ] else ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: 48,
+                        child: OutlinedButton.icon(
+                          onPressed: _addToCart,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                            side: const BorderSide(
+                              color: AppColors.primary,
+                              width: 1.2,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
                           ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                          icon: const Icon(
+                            Icons.shopping_cart_outlined,
+                            size: 19,
                           ),
-                        ),
-                        icon: const Icon(
-                          Icons.shopping_cart_outlined,
-                          size: 19,
-                        ),
-                        label: Text(
-                          'Thêm vào giỏ',
-                          style: AppTypography.buttonMedium(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
+                          label: Text(
+                            'Thêm vào giỏ',
+                            style: AppTypography.buttonMedium(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: SizedBox(
-                      height: 48,
-                      child: ElevatedButton(
-                        onPressed: _buyNow,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: AppColors.surfacePrimary,
-                          elevation: 1,
-                          shadowColor: AppColors.shadowBrand,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: SizedBox(
+                        height: 48,
+                        child: ElevatedButton(
+                          onPressed: _buyNow,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: AppColors.surfacePrimary,
+                            elevation: 1,
+                            shadowColor: AppColors.shadowBrand,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
                           ),
-                        ),
-                        child: Text(
-                          'Mua ngay',
-                          style: AppTypography.buttonLarge(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 15,
+                          child: Text(
+                            'Mua ngay',
+                            style: AppTypography.buttonLarge(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 15,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),

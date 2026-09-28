@@ -1,0 +1,1676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SRS Specification — DaiPhat Mobile App (Figure 1 to 45)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #C5221F;
+      --primary-dark: #991B1B;
+      --primary-light: #FDF2F2;
+      --primary-border: #F8B4B4;
+      --accent: #D97706;
+      --text-main: #0F172A;
+      --text-muted: #64748B;
+      --text-sub: #334155;
+      --bg-page: #F8FAFC;
+      --bg-card: #FFFFFF;
+      --border-card: #E2E8F0;
+      --border-subtle: #F1F5F9;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-md: 0 4px 10px -2px rgba(0,0,0,0.08);
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --success: #16A34A;
+      --success-bg: #DCFCE7;
+      --error: #DC2626;
+      --error-bg: #FEE2E2;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg-page);
+      color: var(--text-main);
+      line-height: 1.65;
+      padding: 36px 20px 80px 20px;
+    }
+
+    .container {
+      max-width: 1060px;
+      margin: 0 auto;
+    }
+
+    /* HEADER */
+    .header {
+      background: linear-gradient(135deg, #B91C1C 0%, #881315 100%);
+      color: #FFFFFF;
+      padding: 36px 32px;
+      border-radius: var(--radius-lg);
+      box-shadow: 0 12px 28px -6px rgba(185, 28, 28, 0.3);
+      margin-bottom: 28px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .header::after {
+      content: "";
+      position: absolute;
+      top: -40px;
+      right: -40px;
+      width: 220px;
+      height: 220px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .header-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.18);
+      backdrop-filter: blur(8px);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 11.5px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .header h1 {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 6px;
+    }
+
+    .header .header-en {
+      font-size: 14px;
+      color: #FECACA;
+      font-weight: 500;
+      margin-bottom: 16px;
+    }
+
+    .header-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(255,255,255,0.2);
+      font-size: 13px;
+      color: #FEE2E2;
+    }
+
+    .header-meta span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* STATS SUMMARY BAR */
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-md);
+      padding: 16px 20px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .stat-card .num {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--primary);
+      line-height: 1.2;
+    }
+
+    .stat-card .lbl {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-top: 4px;
+    }
+
+    .stat-card .lbl-en {
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+
+    /* TOOLBAR */
+    .toolbar {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-md);
+      padding: 14px 20px;
+      margin-bottom: 28px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      box-shadow: var(--shadow-sm);
+      position: sticky;
+      top: 16px;
+      z-index: 99;
+    }
+
+    .search-input {
+      flex: 1;
+      min-width: 260px;
+      padding: 10px 16px;
+      border: 1.5px solid var(--border-card);
+      border-radius: var(--radius-sm);
+      font-size: 13.5px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .search-input:focus {
+      border-color: var(--primary);
+    }
+
+    .btn-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      border: 1.5px solid var(--border-card);
+      background: #FFFFFF;
+      color: var(--text-sub);
+      transition: all 0.2s;
+    }
+
+    .btn-action:hover {
+      background: var(--bg-page);
+      color: var(--text-main);
+      border-color: #CBD5E1;
+    }
+
+    .btn-copy-all {
+      background: var(--primary);
+      color: #FFFFFF;
+      border-color: var(--primary);
+    }
+
+    .btn-copy-all:hover {
+      background: var(--primary-dark);
+      color: #FFFFFF;
+    }
+
+    /* GROUP SECTION */
+    .group-section {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-lg);
+      padding: 24px 28px;
+      margin-bottom: 28px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .group-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--border-subtle);
+    }
+
+    .group-title-box {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .group-title {
+      font-size: 17.5px;
+      font-weight: 800;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .group-title-en {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .group-badge {
+      background: var(--primary-light);
+      color: var(--primary);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+
+    /* SCREEN CARD (SRS STRUCTURE) */
+    .screen-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+
+    .screen-card {
+      background: #FFFFFF;
+      border: 1px solid var(--border-card);
+      border-left: 5px solid var(--primary);
+      border-radius: var(--radius-md);
+      padding: 22px 24px;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.2s;
+    }
+
+    .screen-card:hover {
+      border-color: #CBD5E1;
+      border-left-color: var(--primary-dark);
+      box-shadow: var(--shadow-md);
+    }
+
+    .screen-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .screen-title-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .screen-badge-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+      flex-wrap: wrap;
+    }
+
+    .figure-badge {
+      background: #0F172A;
+      color: #FFFFFF;
+      font-size: 12px;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 6px;
+      letter-spacing: 0.3px;
+    }
+
+    .tag-code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 600;
+      background: #F1F5F9;
+      color: #0F172A;
+      padding: 2px 8px;
+      border-radius: 6px;
+      border: 1px solid #E2E8F0;
+    }
+
+    .tag-route {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11.5px;
+      color: var(--text-muted);
+      background: #F8FAFC;
+      padding: 2px 7px;
+      border-radius: 4px;
+      border: 1px dashed #CBD5E1;
+    }
+
+    .tag-sheet {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11.5px;
+      color: #7C3AED;
+      background: #F5F3FF;
+      padding: 2px 7px;
+      border-radius: 4px;
+      border: 1px dashed #DDD6FE;
+      font-weight: 600;
+    }
+
+    .screen-name {
+      font-size: 16.5px;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+
+    .screen-name-vi {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+      margin-top: 1px;
+    }
+
+    .btn-copy-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      border: 1px solid var(--border-card);
+      background: #FFFFFF;
+      color: var(--text-sub);
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+
+    .btn-copy-item:hover {
+      background: var(--primary-light);
+      border-color: var(--primary-border);
+      color: var(--primary);
+    }
+
+    .btn-copy-item.copied {
+      background: var(--success) !important;
+      color: #FFFFFF !important;
+      border-color: var(--success) !important;
+    }
+
+    /* SRS SPEC ROWS */
+    .srs-row {
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+
+    .srs-label {
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .srs-content {
+      color: var(--text-sub);
+    }
+
+    .srs-list {
+      list-style: none;
+      padding-left: 0;
+      margin-top: 6px;
+    }
+
+    .srs-list li {
+      position: relative;
+      padding-left: 20px;
+      font-size: 13.5px;
+      color: var(--text-sub);
+      margin-bottom: 4px;
+      line-height: 1.55;
+    }
+
+    /* Circle bullet ○ */
+    .srs-list-circle li::before {
+      content: "○";
+      position: absolute;
+      left: 4px;
+      color: #475569;
+      font-weight: 700;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    /* Disc bullet ● */
+    .srs-list-disc li::before {
+      content: "●";
+      position: absolute;
+      left: 4px;
+      color: var(--error);
+      font-size: 10px;
+      line-height: 2.1;
+    }
+
+    .tag-fail {
+      color: var(--error);
+      font-weight: 600;
+    }
+
+    .tag-success {
+      color: var(--success);
+      font-weight: 600;
+    }
+
+    .screen-layout-box {
+      margin-top: 10px;
+      padding: 12px 16px;
+      background: #F8FAFC;
+      border: 1.5px dashed #CBD5E1;
+      border-radius: var(--radius-sm);
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    .screen-layout-caption {
+      margin-top: 4px;
+      font-weight: 700;
+      color: var(--text-main);
+      font-size: 13.5px;
+    }
+
+    /* FOOTER */
+    .footer {
+      margin-top: 50px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-muted);
+      padding-top: 20px;
+      border-top: 1px solid var(--border-card);
+    }
+
+    /* TOAST */
+    #global-toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #0F172A;
+      color: #FFFFFF;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 13.5px;
+      font-weight: 600;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+      display: none;
+      z-index: 1000;
+      border-left: 4px solid var(--success);
+    }
+
+    #global-toast.show {
+      display: block;
+      animation: fadeIn 0.2s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media print {
+      body { padding: 0; background: #FFF; }
+      .toolbar, .header-tag, .btn-copy-item, .btn-copy-all { display: none !important; }
+      .group-section { border: 1px solid #CCC; box-shadow: none; page-break-inside: avoid; }
+      .screen-card { border: 1px solid #CCC; border-left: 4px solid #991B1B; box-shadow: none; page-break-inside: avoid; margin-bottom: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- HEADER -->
+    <div class="header">
+      <div class="header-tag">Official SRS Specification Documentation</div>
+      <h1>Đặc Tả Yêu Cầu Chức Năng Màn Hình Ứng Dụng Di Động</h1>
+      <div class="header-en">DaiPhat Lottery Platform — Mobile Client Specification (Figure 1 to Figure 45)</div>
+      <div class="header-meta">
+        <span>📱 Ứng dụng: DaiPhat Mobile (Flutter)</span>
+        <span>🏷️ Phiên bản: 1.0.0+2026</span>
+        <span>📑 Tổng số: 40 Màn hình chính + 5 Modal Bottom Sheets</span>
+        <span>🎯 Chuẩn hóa: English SRS with Exact Quoted Source Strings</span>
+      </div>
+    </div>
+
+    <!-- STATS SUMMARY BAR -->
+    <div class="stats-bar">
+      <div class="stat-card">
+        <span class="num">40</span>
+        <span class="lbl">Fullscreen Views</span>
+        <span class="lbl-en">Figure 1 to Figure 40</span>
+      </div>
+      <div class="stat-card">
+        <span class="num">5</span>
+        <span class="lbl">Modal Bottom Sheets</span>
+        <span class="lbl-en">Figure 41 to Figure 45</span>
+      </div>
+      <div class="stat-card">
+        <span class="num">11</span>
+        <span class="lbl">Subsystems</span>
+        <span class="lbl-en">Functional Business Domains</span>
+      </div>
+      <div class="stat-card">
+        <span class="num">100%</span>
+        <span class="lbl">Exact Code Strings</span>
+        <span class="lbl-en">Verbatim Quoted Error/Toast</span>
+      </div>
+    </div>
+
+    <!-- TOOLBAR -->
+    <div class="toolbar">
+      <input type="text" id="searchInput" class="search-input" placeholder="🔍 Search screens by Figure, English name, route, component, or error message...">
+      <button class="btn-action btn-copy-all" onclick="copyAllMarkdown()">📋 Copy All 45 Screens (.md)</button>
+      <button class="btn-action" onclick="window.print()">🖨️ Print / Export PDF</button>
+    </div>
+
+    <!-- MAIN CONTAINER -->
+    <div id="screensList"></div>
+
+    <!-- FOOTER -->
+    <div class="footer">
+      <p>DaiPhat Lottery Platform © 2026 — Software Requirements Specification (SRS) for Mobile Client.</p>
+    </div>
+  </div>
+
+  <!-- Global Toast -->
+  <div id="global-toast">✓ Copied to clipboard!</div>
+
+  <script>
+    // Exact Source-Code Ground Truth Data for 40 Screens + 5 Bottom Sheets
+    const srsData = [
+      {
+            "id": 1,
+            "title": "Màn hình Đăng nhập",
+            "titleEn": "Login Screen",
+            "component": "LoginView",
+            "route": "/login",
+            "group": "I. Nhóm Xác thực tài khoản (Authentication)",
+            "groupEn": "I. Authentication Subsystem",
+            "trigger": "User opens Login page, taps \"Đăng nhập\", or returns after logout.",
+            "description": "Sign in with username/email and password, or continue with Google.",
+            "details": [
+                  "If user is already signed in, redirect to Home.",
+                  "Fields: Username or email, Password; optional Google sign-in.",
+                  "Client validates required fields (“Vui lòng nhập tài khoản hoặc email”; “Vui lòng nhập mật khẩu”).",
+                  "Submit to the login API (POST /auth/login), store session tokens, and load user profile."
+            ],
+            "success": "Toast “Đăng nhập thành công!”; modal closes; user enters the app as Customer.",
+            "fails": [
+                  "Invalid credentials: “Tên đăng nhập hoặc mật khẩu không đúng”.",
+                  "Google sign-in error: “Đăng nhập Google thất bại. Vui lòng thử lại.”"
+            ]
+      },
+      {
+            "id": 2,
+            "title": "Màn hình Đăng ký tài khoản",
+            "titleEn": "Registration Screen",
+            "component": "RegisterView",
+            "route": "/register",
+            "group": "I. Nhóm Xác thực tài khoản (Authentication)",
+            "groupEn": "I. Authentication Subsystem",
+            "trigger": "User taps \"Đăng ký ngay\" link on the Login screen.",
+            "description": "Register a new customer member account on the DaiPhat platform.",
+            "details": [
+                  "Fields: Full name, Username, Email, Password, Confirm password, and Terms agreement checkbox.",
+                  "Client validates required fields (“Vui lòng nhập họ và tên”; “Vui lòng nhập tên tài khoản”; “Vui lòng nhập email”; “Vui lòng nhập mật khẩu”).",
+                  "Terms agreement checkbox must be checked before submitting.",
+                  "Submit to the registration API (POST /auth/register)."
+            ],
+            "success": "Toast “Đăng ký tài khoản thành công!”; user is redirected to Login screen.",
+            "fails": [
+                  "Account already exists: “Tên đăng nhập hoặc email đã tồn tại”.",
+                  "Password mismatch: “Mật khẩu xác nhận không khớp”."
+            ]
+      },
+      {
+            "id": 3,
+            "title": "Màn hình Quên mật khẩu",
+            "titleEn": "Forgot Password Screen",
+            "component": "ForgotPasswordView",
+            "route": "/forgot-password",
+            "group": "I. Nhóm Xác thực tài khoản (Authentication)",
+            "groupEn": "I. Authentication Subsystem",
+            "trigger": "User taps \"Quên mật khẩu?\" link on the Login screen.",
+            "description": "Send a password recovery link to the user's registered email address.",
+            "details": [
+                  "Fields: Registered email address.",
+                  "Client validates required email format (“Vui lòng nhập email”).",
+                  "Submit to POST /auth/forgot-password with 15-minute verification token sent via email."
+            ],
+            "success": "Alert “Liên kết đặt lại mật khẩu đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư!”",
+            "fails": [
+                  "Email not found: “Email không tồn tại trong hệ thống”."
+            ]
+      },
+      {
+            "id": 4,
+            "title": "Khung điều hướng đáy (MainLayout)",
+            "titleEn": "Main Shell & Bottom Navigation Bar",
+            "component": "MainLayout",
+            "route": "StatefulShellRoute",
+            "group": "II. Nhóm Khung điều hướng & Khám phá",
+            "groupEn": "II. Navigation & Discovery Subsystem",
+            "trigger": "Initialized automatically on app startup, permanently anchoring the 5 main tabs.",
+            "description": "Persistent bottom navigation bar maintaining independent state and scroll position across tabs.",
+            "details": [
+                  "Maintains view state across 5 primary tabs: Buy Ticket (/buy-ticket), Check Ticket (/check-ticket), Home (/), Utilities (/utilities-v2), Profile (/profile).",
+                  "Displays real-time badge count on Cart and Notification icons."
+            ],
+            "success": "Seamless tab switching with state preserved.",
+            "fails": [
+                  "No client validation errors."
+            ]
+      },
+      {
+            "id": 5,
+            "title": "Màn hình Trang chủ",
+            "titleEn": "Home Screen",
+            "component": "HomeView",
+            "route": "/ (Tab 3)",
+            "group": "II. Nhóm Khung điều hướng & Khám phá",
+            "groupEn": "II. Navigation & Discovery Subsystem",
+            "trigger": "App launch or tapping center \"Trang chủ\" (Home) tab on bottom navigation.",
+            "description": "Lottery hub displaying live countdown to 16:15 Southern draw, latest draw results, and hot tickets.",
+            "details": [
+                  "Live countdown banner ticking to 16:15 Southern lottery draw.",
+                  "Quick utility shortcuts: Fortune cast, Draw schedule, Lottery news, Ticket checker.",
+                  "Swipeable carousel for latest provincial draw results and hot tickets list.",
+                  "Pull-to-refresh to reload dynamic homepage data."
+            ],
+            "success": "Home data loaded successfully; countdown synced with server time.",
+            "fails": [
+                  "Load error: “Không thể tải dữ liệu trang chủ”."
+            ]
+      },
+      {
+            "id": 6,
+            "title": "Màn hình Dò vé số / Tra cứu kết quả",
+            "titleEn": "Check Lottery Ticket Screen",
+            "component": "CheckTicketView",
+            "route": "/check-ticket (Tab 2)",
+            "group": "II. Nhóm Khung điều hướng & Khám phá",
+            "groupEn": "II. Navigation & Discovery Subsystem",
+            "trigger": "User taps \"Dò vé\" tab on Bottom Navigation or \"Dò vé nhanh\" button on Home.",
+            "description": "Check and verify lottery tickets against official draw results by ticket digits, date, and province.",
+            "details": [
+                  "Fields: 6-digit ticket number, draw date selector, and station dropdown.",
+                  "Client validates required 6-digit entry (“Vui lòng nhập đủ 6 chữ số để dò vé”).",
+                  "Submit to query official draw API and match digits across all prize tiers."
+            ],
+            "success": "Dialog “Chúc mừng bạn đã trúng [Tên giải]!” OR “Rất tiếc, vé của bạn chưa trúng giải lần này.”",
+            "fails": [
+                  "Draw data not found: “Không tìm thấy kết quả mở thưởng cho ngày đã chọn”."
+            ]
+      },
+      {
+            "id": 7,
+            "title": "Màn hình Lịch mở thưởng",
+            "titleEn": "Lottery Draw Schedule Screen",
+            "component": "ScheduleView",
+            "route": "/schedule",
+            "group": "II. Nhóm Khung điều hướng & Khám phá",
+            "groupEn": "II. Navigation & Discovery Subsystem",
+            "trigger": "User taps \"Lịch mở thưởng\" from Home or Utilities screen.",
+            "description": "Display weekly Southern lottery draw schedule by day of week (Monday through Sunday).",
+            "details": [
+                  "Day tabs selector (Thứ 2 to Chủ nhật) displaying stations, official logos, and draw time (16:15).",
+                  "Action button: \"Mua vé ngay\" navigates directly to BuyTicketView pre-filtered by station."
+            ],
+            "success": "Schedule loaded and displayed for selected day.",
+            "fails": [
+                  "Load error: “Không thể tải lịch mở thưởng”."
+            ]
+      },
+      {
+            "id": 8,
+            "title": "Màn hình Tiện ích mở rộng",
+            "titleEn": "Utilities Screen",
+            "component": "UtilitiesTwoView",
+            "route": "/utilities-v2 (Tab 4)",
+            "group": "II. Nhóm Khung điều hướng & Khám phá",
+            "groupEn": "II. Navigation & Discovery Subsystem",
+            "trigger": "User taps \"Tiện ích\" tab on Bottom Navigation.",
+            "description": "Central hub for lottery utility tools, statistics, fortune casting, AI assistant, and admin tools.",
+            "details": [
+                  "Grid cards: Fortune cast, Ticket checker, Draw schedule, Lotto stats, News, and AI Chatbot."
+            ],
+            "success": "Utility menu grid displayed with direct feature links.",
+            "fails": [
+                  "No client validation errors."
+            ]
+      },
+      {
+            "id": 9,
+            "title": "Màn hình Mua vé số",
+            "titleEn": "Buy Ticket Screen",
+            "component": "BuyTicketView",
+            "route": "/buy-ticket (Tab 1)",
+            "group": "III. Nhóm Mua vé, Giỏ hàng & Thanh toán",
+            "groupEn": "III. Ticket Purchasing & Checkout Subsystem",
+            "trigger": "User taps \"Mua vé\" tab on Bottom Navigation or \"Mua vé ngay\" from Home/Schedule/Fortune.",
+            "description": "Browse, search, filter, and add physical lottery tickets to cart with real-time stock verification.",
+            "details": [
+                  "Search bar supporting exact match or suffix tail search (e.g. searching 2-digit tail \"00\" returns tickets ending in 00).",
+                  "Filters: Station, Draw date, Category, and advanced filter sheet shortcut.",
+                  "Ticket card with 6-digit number, scanned image preview, price (10.000đ), and \"Chọn mua\" button."
+            ],
+            "success": "Toast “Đã thêm vé [Số vé] vào giỏ hàng!”; cart badge count increments.",
+            "fails": [
+                  "Out of stock: “Vé này đã hết hoặc đã có người khác đặt”.",
+                  "Search no results: “Không tìm thấy vé phù hợp với tiêu chí tìm kiếm”."
+            ]
+      },
+      {
+            "id": 10,
+            "title": "Màn hình Giỏ hàng",
+            "titleEn": "Cart Screen",
+            "component": "CartView",
+            "route": "/cart",
+            "group": "III. Nhóm Mua vé, Giỏ hàng & Thanh toán",
+            "groupEn": "III. Ticket Purchasing & Checkout Subsystem",
+            "trigger": "User taps Cart icon on Header or \"Xem giỏ hàng\" on BuyTicketView.",
+            "description": "Review selected lottery tickets, adjust quantities, toggle item selection, and proceed to checkout.",
+            "details": [
+                  "Cart item cards with scanned previews, quantity adjustments, and select-all toggle.",
+                  "Enforces 10-minute physical ticket reservation hold timer.",
+                  "Action button: \"Tiến hành đặt vé\" validates selection and navigates to CheckoutView."
+            ],
+            "success": "Cart updated; user navigates to CheckoutView with selected items.",
+            "fails": [
+                  "No tickets selected: “Vui lòng chọn ít nhất một vé để thanh toán”.",
+                  "Reservation timer expired: “Thời gian giữ vé đã hết hạn. Giỏ hàng đã được làm mới”."
+            ]
+      },
+      {
+            "id": 11,
+            "title": "Màn hình Thanh toán đơn đặt vé",
+            "titleEn": "Checkout Screen",
+            "component": "CheckoutView",
+            "route": "/checkout",
+            "group": "III. Nhóm Mua vé, Giỏ hàng & Thanh toán",
+            "groupEn": "III. Ticket Purchasing & Checkout Subsystem",
+            "trigger": "User taps \"Tiến hành đặt vé\" from Cart or \"Mua ngay\" from Ticket detail.",
+            "description": "Select ticket receipt method, enter contact details, choose payment gateway, and submit order.",
+            "details": [
+                  "Delivery options: Keep at agency (\"Đại lý giữ hộ\"), Home delivery (\"Giao vé tận nơi\"), Store pickup (\"Nhận tại đại lý\").",
+                  "Client validates required contact fields (“Vui lòng nhập họ và tên người nhận”; “Vui lòng nhập số điện thoại liên hệ”).",
+                  "Payment methods: VietQR / Bank Transfer, VNPAY, MoMo, App Balance.",
+                  "Action button: \"Thanh toán ngay\" calls POST /orders and initiates payment gateway."
+            ],
+            "success": "Order created successfully; opens payment gateway or navigates to CheckoutResultView.",
+            "fails": [
+                  "Missing contact info: “Vui lòng nhập số điện thoại liên hệ”.",
+                  "Order creation error: “Không thể tạo đơn hàng, vui lòng thử lại”."
+            ]
+      },
+      {
+            "id": 12,
+            "title": "Màn hình Cổng thanh toán (Payment WebView)",
+            "titleEn": "Payment WebView",
+            "component": "PaymentWebView",
+            "route": "/checkout/payment-webview",
+            "group": "III. Nhóm Mua vé, Giỏ hàng & Thanh toán",
+            "groupEn": "III. Ticket Purchasing & Checkout Subsystem",
+            "trigger": "Order created with external payment gateway selected (VNPAY / VietQR payment link).",
+            "description": "Secure in-app browser loading payment gateway URL to authenticate and complete transaction.",
+            "details": [
+                  "Embedded secure WebView loading SSL-encrypted payment gateway page.",
+                  "Redirect listener intercepts callback URL (daiphat://payment-result?status=...) and forwards params to CheckoutResultView."
+            ],
+            "success": "Payment authorized; callback intercepted and user routed to CheckoutResultView.",
+            "fails": [
+                  "Transaction cancelled by user: “Giao dịch thanh toán đã bị hủy bởi người dùng”.",
+                  "Card/Account rejected: “Giao dịch không thành công hoặc thẻ bị từ chối”."
+            ]
+      },
+      {
+            "id": 13,
+            "title": "Màn hình Kết quả thanh toán đơn hàng",
+            "titleEn": "Checkout Result Screen",
+            "component": "CheckoutResultView",
+            "route": "/checkout/result",
+            "group": "III. Nhóm Mua vé, Giỏ hàng & Thanh toán",
+            "groupEn": "III. Ticket Purchasing & Checkout Subsystem",
+            "trigger": "User redirected after payment completion from PaymentWebView or direct order placement.",
+            "description": "Display order payment outcome, order code, transaction receipt, and next action shortcuts.",
+            "details": [
+                  "Status banner: Success (\"Đặt vé thành công!\") or Failure (\"Thanh toán thất bại\").",
+                  "Displays order code, total amount paid, payment method, and ticket custody method.",
+                  "Shortcuts to view purchased tickets, order details, or return to Home."
+            ],
+            "success": "Order confirmed; displays official transaction receipt and ticket tracking buttons.",
+            "fails": [
+                  "Verification error: “Không thể đối soát thông tin đơn hàng từ máy chủ”."
+            ]
+      },
+      {
+            "id": 14,
+            "title": "Màn hình Quản lý Vé đã mua",
+            "titleEn": "My Purchased Tickets Screen",
+            "component": "MyTicketsView",
+            "route": "/profile/tickets",
+            "group": "IV. Nhóm Quản lý Vé & Đơn hàng cá nhân",
+            "groupEn": "IV. Tickets & Orders Subsystem",
+            "trigger": "User taps \"Vé đã mua\" from Profile hub or Checkout Result screen.",
+            "description": "View and manage all purchased lottery tickets categorized by draw status.",
+            "details": [
+                  "Status filter tabs: \"Tất cả\" (All), \"Chờ quay\" (Pending draw), \"Trúng thưởng\" (Winning), \"Không trúng\" (Non-winning).",
+                  "Displays ticket numbers, stations, draw dates, scanned thumbnails, and prize claim shortcuts."
+            ],
+            "success": "Ticket list loaded and categorized by draw status.",
+            "fails": [
+                  "Load error: “Không thể tải danh sách vé đã mua”."
+            ]
+      },
+      {
+            "id": 15,
+            "title": "Màn hình Chi tiết vé số đã mua",
+            "titleEn": "Ticket Details Screen",
+            "component": "MyTicketDetailView",
+            "route": "/profile/tickets/:id",
+            "group": "IV. Nhóm Quản lý Vé & Đơn hàng cá nhân",
+            "groupEn": "IV. Tickets & Orders Subsystem",
+            "trigger": "User taps any ticket card on MyTicketsView.",
+            "description": "Comprehensive ticket view displaying high-res scans, ownership certificate, draw result verification, and payout action.",
+            "details": [
+                  "High-res zoomable scan image of physical ticket with timestamp and watermark.",
+                  "Draw result verification table matching ticket digits against winning results.",
+                  "Action button: \"Yêu cầu đổi thưởng\" opens payout sheet for winning tickets."
+            ],
+            "success": "Ticket details and prize verification status loaded.",
+            "fails": [
+                  "Ticket not found: “Không tìm thấy thông tin vé hoặc vé không tồn tại”.",
+                  "Already claimed: “Vé này đã được gửi yêu cầu đổi thưởng hoặc đã hết hạn nhận thưởng”."
+            ]
+      },
+      {
+            "id": 16,
+            "title": "Màn hình Đơn hàng của tôi",
+            "titleEn": "My Orders Screen",
+            "component": "MyOrdersView",
+            "route": "/profile/orders",
+            "group": "IV. Nhóm Quản lý Vé & Đơn hàng cá nhân",
+            "groupEn": "IV. Tickets & Orders Subsystem",
+            "trigger": "User taps \"Đơn hàng của tôi\" from Profile hub or Result screen.",
+            "description": "Track order history, payment status, delivery status, and order cancellation.",
+            "details": [
+                  "Status tabs: \"Tất cả\" (All), \"Chờ thanh toán\" (Pending), \"Đã thanh toán\" (Paid), \"Hoàn thành\" (Completed), \"Đã hủy\" (Cancelled).",
+                  "Order cards with codes, dates, ticket counts, and status badges."
+            ],
+            "success": "Order history list loaded and filtered by status.",
+            "fails": [
+                  "Load error: “Không thể tải danh sách đơn hàng”."
+            ]
+      },
+      {
+            "id": 17,
+            "title": "Màn hình Chi tiết đơn hàng",
+            "titleEn": "Order Details Screen",
+            "component": "OrderDetailView",
+            "route": "/profile/orders/:id",
+            "group": "IV. Nhóm Quản lý Vé & Đơn hàng cá nhân",
+            "groupEn": "IV. Tickets & Orders Subsystem",
+            "trigger": "User taps any order card on MyOrdersView.",
+            "description": "Detailed view of an order including tickets list, shipping address, payment receipt, and refund request.",
+            "details": [
+                  "Order status stepper: Placed -> Paid -> Scanned -> Shipping / Safe Storage -> Completed.",
+                  "Recipient contact, delivery address, purchased ticket serials, and payment breakdown.",
+                  "Action buttons for refund request and order complaints."
+            ],
+            "success": "Complete order details and progress timeline loaded.",
+            "fails": [
+                  "Load error: “Không thể tải chi tiết đơn hàng”."
+            ]
+      },
+      {
+            "id": 18,
+            "title": "Màn hình Danh sách Yêu cầu đổi thưởng",
+            "titleEn": "Prize Payout Requests Screen",
+            "component": "PrizePayoutsView",
+            "route": "/profile/prize-payouts",
+            "group": "V. Nhóm Đổi thưởng & Hoàn tiền",
+            "groupEn": "V. Payouts & Refunds Subsystem",
+            "trigger": "User taps \"Yêu cầu đổi thưởng\" from Profile hub or Ticket details.",
+            "description": "Monitor prize redemption claims, verification progress, PIT tax deduction, and bank transfer payouts.",
+            "details": [
+                  "Status tabs: \"Tất cả\", \"Chờ duyệt\", \"Đã duyệt\", \"Đã chuyển khoản\", \"Bị từ chối\".",
+                  "Displays ticket number, prize tier, net payout after 10% PIT tax, and receiving bank."
+            ],
+            "success": "Payout requests list loaded with updated statuses.",
+            "fails": [
+                  "Load error: “Không thể tải danh sách yêu cầu đổi thưởng”."
+            ]
+      },
+      {
+            "id": 19,
+            "title": "Màn hình Chi tiết yêu cầu đổi thưởng",
+            "titleEn": "Prize Payout Details Screen",
+            "component": "PrizePayoutDetailView",
+            "route": "/profile/prize-payouts/:id",
+            "group": "V. Nhóm Đổi thưởng & Hoàn tiền",
+            "groupEn": "V. Payouts & Refunds Subsystem",
+            "trigger": "User taps any payout card on PrizePayoutsView.",
+            "description": "Detailed view of a prize claim including Citizen ID verification, tax breakdown, bank payout receipt, and admin remarks.",
+            "details": [
+                  "Citizen ID scans (front and back), receiving bank account details, and tax statement.",
+                  "Displays gross prize, PIT 10% tax deduction, net payout amount, and admin notes."
+            ],
+            "success": "Detailed prize claim and tax breakdown loaded.",
+            "fails": [
+                  "Not found: “Không tìm thấy thông tin yêu cầu đổi thưởng”."
+            ]
+      },
+      {
+            "id": 20,
+            "title": "Màn hình Danh sách Yêu cầu hoàn tiền",
+            "titleEn": "Refund Requests Screen",
+            "component": "RefundsView",
+            "route": "/profile/refunds",
+            "group": "V. Nhóm Đổi thưởng & Hoàn tiền",
+            "groupEn": "V. Payouts & Refunds Subsystem",
+            "trigger": "User taps \"Yêu cầu hoàn tiền\" from Profile hub.",
+            "description": "Track refund requests for cancelled or disputed orders.",
+            "details": [
+                  "Status tabs: \"Tất cả\", \"Chờ xử lý\", \"Đã hoàn tiền\", \"Từ chối\".",
+                  "Displays order code, refund amount, reason category, and status badge."
+            ],
+            "success": "Refund requests list loaded.",
+            "fails": [
+                  "Load error: “Không thể tải danh sách yêu cầu hoàn tiền”."
+            ]
+      },
+      {
+            "id": 21,
+            "title": "Màn hình Chi tiết yêu cầu hoàn tiền",
+            "titleEn": "Refund Details Screen",
+            "component": "RefundDetailView",
+            "route": "/profile/refunds/:id",
+            "group": "V. Nhóm Đổi thưởng & Hoàn tiền",
+            "groupEn": "V. Payouts & Refunds Subsystem",
+            "trigger": "User taps any refund card on RefundsView.",
+            "description": "Full details of a refund claim including order info, reason, attached proof images, and admin resolution.",
+            "details": [
+                  "Order reference, refund amount, reason explanation, attached photo proof, and resolution timeline."
+            ],
+            "success": "Refund claim details loaded.",
+            "fails": [
+                  "Load error: “Không thể tải chi tiết yêu cầu hoàn tiền”."
+            ]
+      },
+      {
+            "id": 22,
+            "title": "Màn hình Trung tâm Cá nhân (Profile Hub)",
+            "titleEn": "Profile Hub Screen",
+            "component": "ProfileView",
+            "route": "/profile (Tab 5)",
+            "group": "VI. Nhóm Hồ sơ cá nhân & Cài đặt",
+            "groupEn": "VI. Profile & Settings Subsystem",
+            "trigger": "User taps \"Cá nhân\" tab on Bottom Navigation.",
+            "description": "User profile dashboard showing avatar, display name, VIP level, balance, account settings shortcuts, and logout.",
+            "details": [
+                  "Profile header with avatar, VIP tier badge, wallet balance, and activity counters.",
+                  "Shortcuts to ticket management, bank accounts, security, and notification settings.",
+                  "Logout clears session tokens and switches app to Guest mode."
+            ],
+            "success": "Profile data loaded; logout clears tokens and switches to Guest mode.",
+            "fails": [
+                  "Load error: “Không thể tải thông tin tài khoản”."
+            ]
+      },
+      {
+            "id": 23,
+            "title": "Màn hình Tổng quan tài khoản",
+            "titleEn": "Account Overview Screen",
+            "component": "ProfileOverviewView",
+            "route": "/profile/overview",
+            "group": "VI. Nhóm Hồ sơ cá nhân & Cài đặt",
+            "groupEn": "VI. Profile & Settings Subsystem",
+            "trigger": "User taps \"Tổng quan tài khoản\" from Profile menu.",
+            "description": "Lottery purchasing statistics, win rate analytics, total expenditure, prize winnings collected, and VIP tier progress.",
+            "details": [
+                  "Displays total tickets bought, winning rate (%), total prize collected, and VIP tier progress."
+            ],
+            "success": "Account analytics and KPI metrics loaded.",
+            "fails": [
+                  "Load error: “Không thể tải dữ liệu thống kê tài khoản”."
+            ]
+      },
+      {
+            "id": 24,
+            "title": "Màn hình Xem thông tin cá nhân",
+            "titleEn": "Profile Details Screen",
+            "component": "ProfileDetailView",
+            "route": "/profile/detail",
+            "group": "VI. Nhóm Hồ sơ cá nhân & Cài đặt",
+            "groupEn": "VI. Profile & Settings Subsystem",
+            "trigger": "User taps user info card or \"Hồ sơ cá nhân\" from Profile hub.",
+            "description": "View complete personal account information, KYC verification status, and contact details.",
+            "details": [
+                  "Fields: Full name, Username, Email, Phone number, Gender, Date of birth, Citizen ID (CCCD), and KYC status.",
+                  "Action button: \"Chỉnh sửa hồ sơ\" navigates to ProfileEditView."
+            ],
+            "success": "Personal profile data retrieved and displayed.",
+            "fails": [
+                  "Load error: “Không thể tải thông tin hồ sơ”."
+            ]
+      },
+      {
+            "id": 25,
+            "title": "Màn hình Chỉnh sửa thông tin cá nhân",
+            "titleEn": "Edit Profile Screen",
+            "component": "ProfileEditView",
+            "route": "/profile/edit",
+            "group": "VI. Nhóm Hồ sơ cá nhân & Cài đặt",
+            "groupEn": "VI. Profile & Settings Subsystem",
+            "trigger": "User taps \"Chỉnh sửa hồ sơ\" from Profile Details or Profile hub.",
+            "description": "Update editable personal profile fields and change profile avatar photo.",
+            "details": [
+                  "Avatar picker from camera/gallery.",
+                  "Editable fields: Full name (\"Họ và tên\"), Phone number (\"Số điện thoại\"), Date of birth, Gender.",
+                  "Client validates required full name (“Vui lòng nhập họ và tên”).",
+                  "Action button: \"Lưu thay đổi\" calls PUT /profile."
+            ],
+            "success": "Toast “Cập nhật thông tin cá nhân thành công!”",
+            "fails": [
+                  "Invalid name: “Vui lòng nhập họ và tên”.",
+                  "Update error: “Không thể cập nhật hồ sơ, vui lòng thử lại sau”."
+            ]
+      },
+      {
+            "id": 26,
+            "title": "Màn hình Bảo mật & Đổi mật khẩu",
+            "titleEn": "Security & Password Screen",
+            "component": "SecurityView",
+            "route": "/profile/security",
+            "group": "VI. Nhóm Hồ sơ cá nhân & Cài đặt",
+            "groupEn": "VI. Profile & Settings Subsystem",
+            "trigger": "User taps \"Bảo mật & Mật khẩu\" from Profile hub.",
+            "description": "Change account password, toggle biometric authentication (FaceID/Fingerprint), and manage active login sessions.",
+            "details": [
+                  "Fields: Current password, New password (min 6 chars), Confirm new password; optional Biometric toggle.",
+                  "Client validates password rules and confirmation match.",
+                  "Action button: \"Đổi mật khẩu\" submits POST /auth/change-password."
+            ],
+            "success": "Toast “Đổi mật khẩu thành công! Vui lòng đăng nhập lại.”",
+            "fails": [
+                  "Incorrect current password: “Mật khẩu hiện tại không chính xác”.",
+                  "Password mismatch: “Mật khẩu mới không khớp”."
+            ]
+      },
+      {
+            "id": 27,
+            "title": "Màn hình Cài đặt thông báo",
+            "titleEn": "Notification Settings Screen",
+            "component": "NotificationSettingsView",
+            "route": "/profile/notification-settings",
+            "group": "VI. Nhóm Hồ sơ cá nhân & Cài đặt",
+            "groupEn": "VI. Profile & Settings Subsystem",
+            "trigger": "User taps \"Cài đặt thông báo\" from Profile hub.",
+            "description": "Customize push notification preferences for draw results, winning alerts, order updates, and promotions.",
+            "details": [
+                  "Toggle switches: Daily draw results (16:15), Winning alerts, Order updates, Promotional events.",
+                  "Preferences synced automatically to user settings on server upon toggle."
+            ],
+            "success": "Toast “Đã cập nhật cài đặt thông báo.”",
+            "fails": [
+                  "Sync error: “Không thể lưu cài đặt thông báo, vui lòng thử lại”."
+            ]
+      },
+      {
+            "id": 28,
+            "title": "Màn hình Quản lý Tài khoản ngân hàng",
+            "titleEn": "Linked Bank Accounts Screen",
+            "component": "BankAccountsView",
+            "route": "/profile/bank-accounts",
+            "group": "VII. Nhóm Tài khoản ngân hàng (VietQR)",
+            "groupEn": "VII. Bank Accounts & VietQR Subsystem",
+            "trigger": "User taps \"Tài khoản ngân hàng\" from Profile hub.",
+            "description": "Manage linked bank accounts used for receiving prize payouts and order refunds via VietQR.",
+            "details": [
+                  "Displays linked VietQR bank account cards with logos, masked numbers, and default payout badges.",
+                  "Actions to set default account or delete account.",
+                  "Action button: \"Thêm tài khoản ngân hàng\" opens BankAccountFormPage."
+            ],
+            "success": "Bank account list loaded; default account set with toast “Đã đặt làm tài khoản mặc định.”",
+            "fails": [
+                  "Cannot delete default: “Không thể xóa tài khoản nhận tiền mặc định”."
+            ]
+      },
+      {
+            "id": 29,
+            "title": "Màn hình Thêm / Sửa tài khoản ngân hàng",
+            "titleEn": "Add / Edit Bank Account Screen",
+            "component": "BankAccountFormPage",
+            "route": "Pushed Page",
+            "group": "VII. Nhóm Tài khoản ngân hàng (VietQR)",
+            "groupEn": "VII. Bank Accounts & VietQR Subsystem",
+            "trigger": "User taps \"Thêm tài khoản ngân hàng\" or Edit icon from BankAccountsView.",
+            "description": "Link a new bank account with automated account holder name lookup via VietQR API.",
+            "details": [
+                  "Select bank from 54 NAPAS banks and enter account number.",
+                  "Auto-lookup account holder name via VietQR API and submit to POST /bank-accounts."
+            ],
+            "success": "Toast “Thêm tài khoản ngân hàng thành công!”; returns to bank list.",
+            "fails": [
+                  "Lookup failed: “Không tìm thấy thông tin tài khoản tại ngân hàng này”.",
+                  "Duplicate account: “Tài khoản ngân hàng này đã được liên kết”."
+            ]
+      },
+      {
+            "id": 30,
+            "title": "Màn hình Tìm kiếm ngân hàng (VietQR)",
+            "titleEn": "VietQR Bank Search Screen",
+            "component": "BankSearchScreen",
+            "route": "Fullscreen Dialog",
+            "group": "VII. Nhóm Tài khoản ngân hàng (VietQR)",
+            "groupEn": "VII. Bank Accounts & VietQR Subsystem",
+            "trigger": "User taps \"Chọn ngân hàng\" field on BankAccountFormPage.",
+            "description": "Searchable list of all 54 NAPAS commercial banks in Vietnam with official logos and short names.",
+            "details": [
+                  "Search input by bank name, acronym (VCB, MB, ACB...), or BIN code.",
+                  "Tapping a bank selects it and immediately returns to the account form."
+            ],
+            "success": "Selected bank populated into bank account form.",
+            "fails": [
+                  "No matching bank: “Không tìm thấy ngân hàng phù hợp”."
+            ]
+      },
+      {
+            "id": 31,
+            "title": "Màn hình Danh sách Khiếu nại",
+            "titleEn": "Complaints List Screen",
+            "component": "ComplaintsView",
+            "route": "/profile/complaints",
+            "group": "VIII. Nhóm Khiếu nại & Hỗ trợ",
+            "groupEn": "VIII. Complaints & Support Subsystem",
+            "trigger": "User taps \"Khiếu nại & Hỗ trợ\" from Profile hub.",
+            "description": "View all submitted complaints, support tickets, and dispute resolutions.",
+            "details": [
+                  "Status tabs: \"Tất cả\", \"Chờ tiếp nhận\", \"Đang xử lý\", \"Đã giải quyết\", \"Đã đóng\".",
+                  "Tapping complaint card opens ComplaintDetailView; button \"Tạo khiếu nại\" opens form."
+            ],
+            "success": "Complaints list loaded with updated statuses.",
+            "fails": [
+                  "Load error: “Không thể tải danh sách khiếu nại”."
+            ]
+      },
+      {
+            "id": 32,
+            "title": "Màn hình Tạo khiếu nại mới",
+            "titleEn": "Create / Edit Complaint Screen",
+            "component": "ComplaintFormPage",
+            "route": "Pushed Page",
+            "group": "VIII. Nhóm Khiếu nại & Hỗ trợ",
+            "groupEn": "VIII. Complaints & Support Subsystem",
+            "trigger": "User taps \"Tạo khiếu nại\" from ComplaintsView or \"Khiếu nại\" from Order/Ticket details.",
+            "description": "File a formal complaint or dispute regarding orders, ticket scanning, prize payouts, or payment.",
+            "details": [
+                  "Fields: Reference picker (Order/Ticket), Category dropdown, Title, Content (min 10 chars), Evidence photos.",
+                  "Client validates required fields (“Vui lòng nhập tiêu đề khiếu nại”; “Vui lòng nhập nội dung chi tiết khiếu nại”).",
+                  "Action button: \"Gửi khiếu nại\" calls POST /complaints."
+            ],
+            "success": "Toast “Gửi khiếu nại thành công! Đại Phát sẽ phản hồi trong 24h.”",
+            "fails": [
+                  "Missing title: “Vui lòng nhập tiêu đề khiếu nại”.",
+                  "Submission failure: “Không thể gửi khiếu nại, vui lòng thử lại sau”."
+            ]
+      },
+      {
+            "id": 33,
+            "title": "Màn hình Chi tiết khiếu nại & Chat hỗ trợ",
+            "titleEn": "Complaint Details & Chat Screen",
+            "component": "ComplaintDetailView",
+            "route": "/profile/complaints/:id",
+            "group": "VIII. Nhóm Khiếu nại & Hỗ trợ",
+            "groupEn": "VIII. Complaints & Support Subsystem",
+            "trigger": "User taps any complaint card from ComplaintsView.",
+            "description": "View complaint status, resolution timeline, admin notes, and interactive two-way support chat.",
+            "details": [
+                  "Displays ticket code, status timeline, description, evidence photos, and two-way support chat thread.",
+                  "Send text and photos directly to support staff."
+            ],
+            "success": "Message sent; support thread updated in real time.",
+            "fails": [
+                  "Complaint closed: “Khiếu nại này đã đóng, không thể gửi thêm tin nhắn”.",
+                  "Send failure: “Không thể gửi tin nhắn, vui lòng thử lại”."
+            ]
+      },
+      {
+            "id": 34,
+            "title": "Màn hình Gieo quẻ tài lộc",
+            "titleEn": "Fortune Cast Screen",
+            "component": "FortuneCastView",
+            "route": "/fortune",
+            "group": "IX. Nhóm Tương tác, Giải trí & Nội dung",
+            "groupEn": "IX. Engagement & Content Subsystem",
+            "trigger": "User taps \"Gieo quẻ tài lộc\" on Home or Utilities screen.",
+            "description": "Interactive daily fortune casting game providing lucky numbers, daily omen prophecies, and 1-tap ticket purchase.",
+            "details": [
+                  "Shake cylinder animation reveals daily fortune hexagram, poem, and lucky numbers.",
+                  "Action button: \"Mua vé đuôi [Số]\" navigates directly to BuyTicketView pre-filtered by lucky suffix.",
+                  "Enforces 1 free cast per calendar day."
+            ],
+            "success": "Fortune hexagram revealed with animation and lucky numbers generated.",
+            "fails": [
+                  "Daily limit reached: “Bạn đã gieo quẻ hôm nay rồi. Hãy quay lại vào ngày mai!”."
+            ]
+      },
+      {
+            "id": 35,
+            "title": "Màn hình Tin tức xổ số (Blog)",
+            "titleEn": "Lottery Blog Screen",
+            "component": "BlogScreen",
+            "route": "/blog",
+            "group": "IX. Nhóm Tương tác, Giải trí & Nội dung",
+            "groupEn": "IX. Engagement & Content Subsystem",
+            "trigger": "User taps \"Tin tức xổ số\" from Home or Utilities.",
+            "description": "Official lottery news portal featuring daily draw analyses, winning stories, and playing guides.",
+            "details": [
+                  "Featured carousel, category tabs (Guide, Results, Winner stories), and article cards.",
+                  "Card tap opens BlogDetailScreen; \"Xem tất cả\" opens _BlogAllScreen."
+            ],
+            "success": "Blog articles loaded with category filtering.",
+            "fails": [
+                  "Load error: “Không thể tải danh sách bài viết”."
+            ]
+      },
+      {
+            "id": 36,
+            "title": "Màn hình Chi tiết bài viết tin tức",
+            "titleEn": "Blog Post Details Screen",
+            "component": "BlogDetailScreen",
+            "route": "Pushed Page",
+            "group": "IX. Nhóm Tương tác, Giải trí & Nội dung",
+            "groupEn": "IX. Engagement & Content Subsystem",
+            "trigger": "User taps any blog article card from BlogScreen or _BlogAllScreen.",
+            "description": "Full article reader with rich text formatting, inline images, author credentials, and social sharing.",
+            "details": [
+                  "Rich text article body with inline images, author info, and native share sheet."
+            ],
+            "success": "Full article content loaded and displayed.",
+            "fails": [
+                  "Article not found: “Không tìm thấy bài viết hoặc bài viết đã bị gỡ”."
+            ]
+      },
+      {
+            "id": 37,
+            "title": "Màn hình Tất cả bài viết tin tức",
+            "titleEn": "All Blog Posts Screen",
+            "component": "_BlogAllScreen",
+            "route": "Pushed Page",
+            "group": "IX. Nhóm Tương tác, Giải trí & Nội dung",
+            "groupEn": "IX. Engagement & Content Subsystem",
+            "trigger": "User taps \"Xem tất cả\" from any category section in BlogScreen.",
+            "description": "Searchable and filterable archive of all published lottery articles and guides.",
+            "details": [
+                  "Keyword search by article title, infinite scroll list, and category filter chips."
+            ],
+            "success": "Filtered article archive loaded.",
+            "fails": [
+                  "No articles found: “Không tìm thấy bài viết nào phù hợp”."
+            ]
+      },
+      {
+            "id": 38,
+            "title": "Màn hình Trợ lý AI (Chatbot)",
+            "titleEn": "AI Chatbot Assistant Screen",
+            "component": "ChatScreen",
+            "route": "/chat",
+            "group": "IX. Nhóm Tương tác, Giải trí & Nội dung",
+            "groupEn": "IX. Engagement & Content Subsystem",
+            "trigger": "User taps AI Assistant robot icon on Home or Utilities screen.",
+            "description": "Intelligent AI lottery assistant answering inquiries about draw rules, ticket checking, and smart ticket recommendations.",
+            "details": [
+                  "Real-time conversation thread with message bubbles, typing indicators, and markdown formatting.",
+                  "Quick prompt chips and interactive bot responses with embedded ticket preview cards."
+            ],
+            "success": "Response generated and streamed in real time from AI lottery engine.",
+            "fails": [
+                  "Service timeout: “Trợ lý AI đang bận, vui lòng thử lại sau giây lát”."
+            ]
+      },
+      {
+            "id": 39,
+            "title": "Màn hình Trung tâm Thông báo",
+            "titleEn": "Notification Center Screen",
+            "component": "NotificationView",
+            "route": "/notifications",
+            "group": "IX. Nhóm Tương tác, Giải trí & Nội dung",
+            "groupEn": "IX. Engagement & Content Subsystem",
+            "trigger": "User taps Bell icon on Home header.",
+            "description": "Central notification inbox for draw results, winning announcements, order updates, and promotions.",
+            "details": [
+                  "Category filter tabs (Draw results, Orders, Promotions, System).",
+                  "Card tap marks as read and deep-links to relevant screen; \"Đánh dấu đã đọc tất cả\" clears badges."
+            ],
+            "success": "Notifications loaded; unread badge counter cleared.",
+            "fails": [
+                  "Load error: “Không thể tải danh sách thông báo”."
+            ]
+      },
+      {
+            "id": 40,
+            "title": "Màn hình Quét vé QR (Admin / Staff)",
+            "titleEn": "Admin Ticket Scanner Screen",
+            "component": "AdminScanView",
+            "route": "/admin/scan",
+            "group": "X. Nhóm Quản trị viên / Nhân viên nội bộ",
+            "groupEn": "X. Admin & Staff Subsystem",
+            "trigger": "Staff / Admin users open via Utilities menu or direct /admin/scan route.",
+            "description": "Internal camera barcode & QR scanner tool for staff to verify physical lottery tickets and link scans to orders.",
+            "details": [
+                  "Access restricted strictly to accounts with STAFF or ADMIN role.",
+                  "Camera reticle scans ticket serial barcode and matches against stock database.",
+                  "Action button: \"Lưu & Xác nhận vé hợp lệ\" updates ticket status to VERIFIED."
+            ],
+            "success": "Camera beeps and vibrates; toast “Quét vé thành công! Mã vé: [Mã số] đã được xác thực.”",
+            "fails": [
+                  "Permission denied: “Vui lòng cấp quyền truy cập máy ảnh để quét vé”.",
+                  "Invalid barcode: “Mã vạch không hợp lệ hoặc không phải vé Đại Phát”."
+            ]
+      },
+      {
+            "id": 41,
+            "title": "Modal Yêu cầu đổi thưởng & Tải CCCD",
+            "titleEn": "Prize Payout Request & Citizen ID Upload Sheet",
+            "component": "PrizePayoutRequestSheet",
+            "route": "Bottom Sheet (Mở từ Chi tiết vé trúng)",
+            "group": "XI. Các Modal Bottom Sheet nghiệp vụ quan trọng",
+            "groupEn": "XI. Core Modal Bottom Sheets",
+            "trigger": "User taps \"Yêu cầu đổi thưởng\" on winning ticket details (MyTicketDetailView).",
+            "description": "Modal bottom sheet for submitting prize claim documentation including Citizen ID card photos and payout bank selection.",
+            "details": [
+                  "Displays winning ticket, prize tier, and estimated net payout after 10% PIT tax.",
+                  "Upload front and back Citizen ID photos; select receiving bank account; confirm legal terms.",
+                  "Action button: \"Gửi yêu cầu đổi thưởng\" calls POST /prize-payouts."
+            ],
+            "success": "Sheet dismisses; toast “Gửi yêu cầu đổi thưởng thành công! Đại Phát sẽ xử lý trong vòng 24 giờ làm việc.”",
+            "fails": [
+                  "Missing front photo: “Vui lòng tải lên ảnh CCCD mặt trước”.",
+                  "Missing receiving bank: “Vui lòng chọn tài khoản ngân hàng nhận tiền”."
+            ]
+      },
+      {
+            "id": 42,
+            "title": "Modal Yêu cầu hoàn tiền đơn hàng",
+            "titleEn": "Order Refund Request Sheet",
+            "component": "RefundRequestSheet",
+            "route": "Bottom Sheet (Mở từ Chi tiết đơn hàng)",
+            "group": "XI. Các Modal Bottom Sheet nghiệp vụ quan trọng",
+            "groupEn": "XI. Core Modal Bottom Sheets",
+            "trigger": "User taps \"Yêu cầu hoàn tiền\" on order details (OrderDetailView).",
+            "description": "Modal bottom sheet for requesting an order refund due to fulfillment issues or duplicate charges.",
+            "details": [
+                  "Displays order code, total refundable amount, and original payment method.",
+                  "Select refund reason, provide explanation, and upload photo evidence.",
+                  "Action button: \"Gửi yêu cầu\" calls POST /refunds."
+            ],
+            "success": "Sheet dismisses; toast “Yêu cầu hoàn tiền đã được gửi thành công!”",
+            "fails": [
+                  "Missing reason: “Vui lòng chọn lý do hoàn tiền”.",
+                  "Ineligible order: “Đơn hàng này không thuộc diện có thể yêu cầu hoàn tiền”."
+            ]
+      },
+      {
+            "id": 43,
+            "title": "Modal Chọn Ngày & Giờ nhận vé tại đại lý",
+            "titleEn": "Store Pickup Date & Time Picker Sheet",
+            "component": "CheckoutDateTimePicker",
+            "route": "Bottom Sheet (Mở từ Thanh toán đơn)",
+            "group": "XI. Các Modal Bottom Sheet nghiệp vụ quan trọng",
+            "groupEn": "XI. Core Modal Bottom Sheets",
+            "trigger": "User selects \"Nhận tại đại lý\" (Store pickup) on CheckoutView.",
+            "description": "Modal bottom sheet for scheduling appointment date and time to collect physical tickets at agency office.",
+            "details": [
+                  "Calendar date picker and available business time slots for agency pickup.",
+                  "Action button: \"Xác nhận thời gian\" confirms appointment and populates CheckoutView."
+            ],
+            "success": "Selected appointment time saved into order form with confirmation banner.",
+            "fails": [
+                  "Unselected slot: “Vui lòng chọn ngày và giờ hẹn nhận vé”."
+            ]
+      },
+      {
+            "id": 44,
+            "title": "Modal Bộ lọc & Tìm kiếm vé nâng cao",
+            "titleEn": "Advanced Ticket Search & Filter Sheet",
+            "component": "TicketSearchFilterSheet",
+            "route": "Bottom Sheet (Mở từ Mua vé)",
+            "group": "XI. Các Modal Bottom Sheet nghiệp vụ quan trọng",
+            "groupEn": "XI. Core Modal Bottom Sheets",
+            "trigger": "User taps Filter icon on BuyTicketView search bar.",
+            "description": "Modal bottom sheet offering advanced multi-criteria filtering for physical lottery tickets.",
+            "details": [
+                  "Filter by multiple stations, date range, search mode (Suffix, Exact, Contains), and price range.",
+                  "Action button: \"Áp dụng bộ lọc\" updates ticket catalog."
+            ],
+            "success": "Filters applied; updates ticket list on BuyTicketView with matching count.",
+            "fails": [
+                  "No matching tickets: “Không tìm thấy vé nào phù hợp với bộ lọc đã chọn”."
+            ]
+      },
+      {
+            "id": 45,
+            "title": "Modal Chọn Đơn hàng / Vé liên quan khiếu nại",
+            "titleEn": "Complaint Reference Picker Sheet",
+            "component": "ComplaintRefPickerSheet",
+            "route": "Bottom Sheet (Mở từ Tạo khiếu nại)",
+            "group": "XI. Các Modal Bottom Sheet nghiệp vụ quan trọng",
+            "groupEn": "XI. Core Modal Bottom Sheets",
+            "trigger": "User taps \"Chọn đơn hàng / vé liên quan\" on ComplaintFormPage.",
+            "description": "Modal bottom sheet allowing user to select which specific order or ticket their dispute relates to.",
+            "details": [
+                  "Selectable list of recent orders and tickets to link to complaint form.",
+                  "Search bar to filter by order code or ticket number."
+            ],
+            "success": "Reference ID linked to complaint form with item preview chip.",
+            "fails": [
+                  "No orders available: “Bạn chưa có đơn hàng nào trong hệ thống”."
+            ]
+      }
+];
+
+    // Build the Markdown string for Word copy exactly in user's requested style
+    function getMarkdownForScreen(item) {
+      const detailsText = item.details.map(d => `○${d}`).join('\n');
+      const failsText = item.fails.map(f => `●${f}`).join('\n');
+      const pageType = item.id >= 41 ? 'Sheet' : 'Page';
+
+      return `[Mã mục] ${item.titleEn}
+
+●Function trigger: ${item.trigger}
+●Function description: ${item.description}
+●Function detail:
+${detailsText}
+■Success: ${item.success}
+■Fail:
+${failsText}
+* Screen layout:
+(hình ảnh màn hình)
+Figure ${item.id} - ${item.titleEn} ${pageType}`;
+    }
+
+    function renderScreenCatalog() {
+      const container = document.getElementById('screensList');
+      
+      // Group items
+      const groupsMap = new Map();
+      srsData.forEach(item => {
+        if (!groupsMap.has(item.group)) {
+          groupsMap.set(item.group, { vi: item.group, en: item.groupEn, items: [] });
+        }
+        groupsMap.get(item.group).items.push(item);
+      });
+
+      let html = '';
+      groupsMap.forEach((groupObj) => {
+        html += `
+          <div class="group-section" data-group>
+            <div class="group-header">
+              <div class="group-title-box">
+                <h2 class="group-title">${escapeHtml(groupObj.en)}</h2>
+                <div class="group-title-en">${escapeHtml(groupObj.vi)}</div>
+              </div>
+              <span class="group-badge">${groupObj.items.length} screens</span>
+            </div>
+            <div class="screen-grid">
+        `;
+
+        groupObj.items.forEach(item => {
+          const detailsHtml = item.details.map(d => `<li>${escapeHtml(d)}</li>`).join('');
+          const failsHtml = item.fails.map(f => `<li><span class="tag-fail">${escapeHtml(f)}</span></li>`).join('');
+          const pageType = item.id >= 41 ? 'Sheet' : 'Page';
+
+          html += `
+            <div class="screen-card" id="screen-${item.id}" data-card>
+              <div class="screen-top">
+                <div class="screen-title-group">
+                  <div class="screen-badge-row">
+                    <span class="figure-badge">Figure ${item.id}</span>
+                    <span class="tag-code">${escapeHtml(item.component)}</span>
+                    <span class="${item.route.includes('Bottom Sheet') ? 'tag-sheet' : 'tag-route'}">${escapeHtml(item.route)}</span>
+                  </div>
+                  <h3 class="screen-name">[Mã mục] ${escapeHtml(item.titleEn)}</h3>
+                  <div class="screen-name-vi">${escapeHtml(item.title)}</div>
+                </div>
+                <button class="btn-copy-item" id="btn-copy-${item.id}" onclick="copyScreen(${item.id})">
+                  <span>📋</span> Copy Markdown
+                </button>
+              </div>
+
+              <!-- Function Trigger -->
+              <div class="srs-row">
+                <span class="srs-label">●Function trigger:</span>
+                <span class="srs-content"> ${escapeHtml(item.trigger)}</span>
+              </div>
+
+              <!-- Function Description -->
+              <div class="srs-row">
+                <span class="srs-label">●Function description:</span>
+                <span class="srs-content"> ${escapeHtml(item.description)}</span>
+              </div>
+
+              <!-- Function Detail -->
+              <div class="srs-row">
+                <div class="srs-label">●Function detail:</div>
+                <ul class="srs-list srs-list-circle">
+                  ${detailsHtml}
+                </ul>
+              </div>
+
+              <!-- Success -->
+              <div class="srs-row">
+                <div class="srs-label">■Success: <span class="tag-success">${escapeHtml(item.success)}</span></div>
+              </div>
+
+              <!-- Fail -->
+              <div class="srs-row">
+                <div class="srs-label">■Fail:</div>
+                <ul class="srs-list srs-list-disc">
+                  ${failsHtml}
+                </ul>
+              </div>
+
+              <!-- Screen layout -->
+              <div class="srs-row">
+                <div class="srs-label">* Screen layout:</div>
+                <div class="screen-layout-box">
+                  <div>(hình ảnh màn hình)</div>
+                  <div class="screen-layout-caption">Figure ${item.id} - ${escapeHtml(item.titleEn)} ${pageType}</div>
+                </div>
+              </div>
+            </div>
+          `;
+        });
+
+        html += `
+            </div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('global-toast');
+      toast.textContent = msg || '✓ Copied Markdown to clipboard!';
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2400);
+    }
+
+    function copyScreen(id) {
+      const item = srsData.find(s => s.id === id);
+      if (!item) return;
+
+      const md = getMarkdownForScreen(item);
+      navigator.clipboard.writeText(md).then(() => {
+        const btn = document.getElementById(`btn-copy-${id}`);
+        if (btn) {
+          btn.innerHTML = '<span>✓</span> Copied!';
+          btn.classList.add('copied');
+          setTimeout(() => {
+            btn.innerHTML = '<span>📋</span> Copy Markdown';
+            btn.classList.remove('copied');
+          }, 2000);
+        }
+        showToast(`✓ Copied Figure ${id} - ${item.titleEn} Markdown!`);
+      });
+    }
+
+    function copyAllMarkdown() {
+      const allText = srsData.map(getMarkdownForScreen).join('\n\n---\n\n');
+      navigator.clipboard.writeText(allText).then(() => {
+        showToast('✓ Copied all 45 screens in Markdown for Word!');
+      });
+    }
+
+    // Search filter
+    document.addEventListener('DOMContentLoaded', () => {
+      renderScreenCatalog();
+
+      const searchInput = document.getElementById('searchInput');
+      searchInput.addEventListener('input', (e) => {
+        const q = e.target.value.toLowerCase().trim();
+        const cards = document.querySelectorAll('[data-card]');
+        const groups = document.querySelectorAll('[data-group]');
+
+        cards.forEach(card => {
+          const text = card.innerText.toLowerCase();
+          if (!q || text.includes(q)) {
+            card.style.display = 'block';
+          } else {
+            card.style.display = 'none';
+          }
+        });
+
+        groups.forEach(group => {
+          const visible = group.querySelectorAll('[data-card][style="display: block;"], [data-card]:not([style*="display: none"])');
+          if (q && visible.length === 0) {
+            group.style.display = 'none';
+          } else {
+            group.style.display = 'block';
+          }
+        });
+      });
+    });
+  </script>
+</body>
+</html>

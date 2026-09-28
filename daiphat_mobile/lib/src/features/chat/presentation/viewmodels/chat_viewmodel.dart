@@ -11,6 +11,7 @@ import '../../utils/chat_message_mapper.dart';
 class ChatState {
   const ChatState({
     this.isLoading = false,
+    this.isLoadingOlder = false,
     this.isSending = false,
     this.isAuthenticated = false,
     this.isAiEnabled = true,
@@ -26,9 +27,12 @@ class ChatState {
     this.showWelcome = true,
     this.isCancellingStaff = false,
     this.isDisconnectingStaff = false,
+    this.botReplyCountAtSend = 0,
+    this.awaitingBotReply = false,
   });
 
   final bool isLoading;
+  final bool isLoadingOlder;
   final bool isSending;
   final bool isAuthenticated;
   final bool isAiEnabled;
@@ -44,6 +48,8 @@ class ChatState {
   final bool showWelcome;
   final bool isCancellingStaff;
   final bool isDisconnectingStaff;
+  final int botReplyCountAtSend;
+  final bool awaitingBotReply;
 
   bool get showWaitingForStaff =>
       conversationStatus == ConversationStatus.waitingForOperator;
@@ -56,6 +62,8 @@ class ChatState {
     final merged = mergeTimelineWithOverlay(
       timeline: timelineMessages,
       overlay: overlayMessages,
+      botReplyCountAtSend: botReplyCountAtSend,
+      awaitingBotReply: awaitingBotReply,
     );
     if (merged.isEmpty && showWelcome) {
       return [welcomeMessage()];
@@ -68,6 +76,7 @@ class ChatState {
 
   ChatState copyWith({
     bool? isLoading,
+    bool? isLoadingOlder,
     bool? isSending,
     bool? isAuthenticated,
     bool? isAiEnabled,
@@ -83,12 +92,15 @@ class ChatState {
     bool? showWelcome,
     bool? isCancellingStaff,
     bool? isDisconnectingStaff,
+    int? botReplyCountAtSend,
+    bool? awaitingBotReply,
     bool clearConversation = false,
     bool clearStatusBanner = false,
     bool clearError = false,
   }) {
     return ChatState(
       isLoading: isLoading ?? this.isLoading,
+      isLoadingOlder: isLoadingOlder ?? this.isLoadingOlder,
       isSending: isSending ?? this.isSending,
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
       isAiEnabled: isAiEnabled ?? this.isAiEnabled,
@@ -112,6 +124,8 @@ class ChatState {
       showWelcome: showWelcome ?? this.showWelcome,
       isCancellingStaff: isCancellingStaff ?? this.isCancellingStaff,
       isDisconnectingStaff: isDisconnectingStaff ?? this.isDisconnectingStaff,
+      botReplyCountAtSend: botReplyCountAtSend ?? this.botReplyCountAtSend,
+      awaitingBotReply: awaitingBotReply ?? this.awaitingBotReply,
     );
   }
 }
@@ -212,11 +226,11 @@ class ChatViewModel extends Notifier<ChatState> {
   }
 
   Future<void> loadMoreTimeline() async {
-    if (!state.hasMoreTimeline || state.isLoading) return;
+    if (!state.hasMoreTimeline || state.isLoading || state.isLoadingOlder) return;
     final (beforeCreatedAt, beforeId) = parseTimelineCursor(_timelineCursor);
     if (beforeCreatedAt == null || beforeId == null) return;
 
-    state = state.copyWith(isLoading: true);
+    state = state.copyWith(isLoadingOlder: true);
     try {
       final page = await _chat.getTimeline(
         beforeCreatedAt: beforeCreatedAt,
@@ -229,7 +243,7 @@ class ChatViewModel extends Notifier<ChatState> {
       );
       _timelineCursor = page.nextCursor;
     } finally {
-      state = state.copyWith(isLoading: false);
+      state = state.copyWith(isLoadingOlder: false);
     }
   }
 
@@ -247,8 +261,10 @@ class ChatViewModel extends Notifier<ChatState> {
       timeLabel: formatMessageTime(DateTime.now()),
     );
 
+    final botCount = countBotReplies(state.timelineMessages);
     final overlay = [...state.overlayMessages, optimistic];
-    if (isOpenBotThread(state.conversationStatus) && !wantsStaff) {
+    final willAwaitBot = isOpenBotThread(state.conversationStatus) && !wantsStaff;
+    if (willAwaitBot) {
       overlay.add(typingMessage(sendToken));
       _startTypingTimeout(sendToken);
     }
@@ -258,6 +274,8 @@ class ChatViewModel extends Notifier<ChatState> {
       overlayMessages: overlay,
       showWelcome: false,
       clearError: true,
+      botReplyCountAtSend: botCount,
+      awaitingBotReply: willAwaitBot,
     );
     _refreshQuickReplies();
 
@@ -291,10 +309,11 @@ class ChatViewModel extends Notifier<ChatState> {
           final detail = await _chat.escalateConversation(conversationId);
           if (detail != null) _applyConversation(detail.conversation);
         }
-        unawaited(_refreshTimelineSoon());
+        unawaited(_refreshTimelineSoon(sendToken));
       }
     } catch (error) {
       state = state.copyWith(
+        awaitingBotReply: false,
         overlayMessages: state.overlayMessages
             .where((message) => !message.id.contains(sendToken))
             .toList(),
@@ -437,13 +456,7 @@ class ChatViewModel extends Notifier<ChatState> {
   }
 
   List<UiChatMessage> _pruneOverlay(List<UiChatMessage> timeline) {
-    return state.overlayMessages.where((overlay) {
-      if (overlay.id.startsWith('optimistic-user-')) {
-        return !timeline.any((item) => _customerMessagesMatch(item, overlay));
-      }
-      if (overlay.variant == ChatMessageVariant.typing) return true;
-      return true;
-    }).toList();
+    return pruneOverlayMessages(state.overlayMessages, timeline);
   }
 
   Future<void> _connectAndSubscribe({bool forceResubscribe = false}) async {
@@ -663,9 +676,16 @@ class ChatViewModel extends Notifier<ChatState> {
     }
   }
 
-  Future<void> _refreshTimelineSoon() async {
-    await Future<void>.delayed(const Duration(milliseconds: 1200));
+  Future<void> _refreshTimelineSoon(String sendToken) async {
+    await Future<void>.delayed(const Duration(milliseconds: 1500));
     if (!ref.mounted) return;
+    // Đồng bộ dự phòng giống web: nếu websocket đã merge tin nhắn vào timeline
+    // thì không cần reload lại toàn bộ timeline gây giật lag.
+    final stillPending = state.overlayMessages.any(
+      (message) => message.id == 'optimistic-user-$sendToken',
+    );
+    if (!stillPending) return;
+
     await _loadTimeline(reset: true);
     if (!ref.mounted) return;
     _refreshQuickReplies();
@@ -678,6 +698,7 @@ class ChatViewModel extends Notifier<ChatState> {
       () {
         if (!ref.mounted) return;
         state = state.copyWith(
+          awaitingBotReply: false,
           overlayMessages: state.overlayMessages
               .where((message) => message.id != 'typing-$token')
               .toList(),
@@ -689,6 +710,7 @@ class ChatViewModel extends Notifier<ChatState> {
   void _clearTypingIndicators() {
     _typingTimer?.cancel();
     state = state.copyWith(
+      awaitingBotReply: false,
       overlayMessages: state.overlayMessages
           .where((message) => message.variant != ChatMessageVariant.typing)
           .toList(),
@@ -732,15 +754,6 @@ class ChatViewModel extends Notifier<ChatState> {
     await _chat.disconnectWebSocket();
     await _chat.clearLastConversationId();
     state = const ChatState();
-  }
-
-  bool _customerMessagesMatch(
-    UiChatMessage timeline,
-    UiChatMessage optimistic,
-  ) {
-    final timelineKey = timeline.sentContent ?? timeline.text;
-    final optimisticKey = optimistic.sentContent ?? optimistic.text;
-    return timelineKey.trim() == optimisticKey.trim();
   }
 }
 

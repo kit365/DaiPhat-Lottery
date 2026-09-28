@@ -6,6 +6,7 @@ import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
+import 'package:daiphat_mobile/src/features/orders/presentation/widgets/payment_timeout_complaint_dialog.dart';
 import '../providers/checkout_provider.dart';
 
 enum _PaymentVerification { checking, success, failed, pending }
@@ -409,6 +410,50 @@ class _CheckoutResultViewState extends ConsumerState<CheckoutResultView> {
                   ),
                 ],
               ),
+              if (!isSuccess &&
+                  widget.orderId != null &&
+                  widget.orderId!.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      PaymentTimeoutComplaintDialog.show(
+                        context,
+                        orderId: widget.orderId!,
+                        orderCode: displayCode,
+                        onSubmitted: () {
+                          context.pushNamed(
+                            AppRoute.orderDetail.name,
+                            pathParameters: {'id': widget.orderId!},
+                          );
+                        },
+                      );
+                    },
+                    icon: const Icon(
+                      Icons.receipt_long_rounded,
+                      color: AppColors.primary,
+                      size: 20,
+                    ),
+                    label: Text(
+                      'Gửi khiếu nại thanh toán',
+                      style: AppTypography.buttonMedium(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      side: const BorderSide(color: AppColors.primary),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 32),
             ],
           ),

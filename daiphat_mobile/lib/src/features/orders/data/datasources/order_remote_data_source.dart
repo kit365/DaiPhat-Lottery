@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:dio/dio.dart';
 import 'package:daiphat_mobile/src/shared/network/api_client.dart';
 import 'package:daiphat_mobile/src/features/refunds/domain/entities/refund_request.dart';
 import 'package:daiphat_mobile/src/features/checkout/models/transaction_type.dart';
@@ -83,4 +86,22 @@ class OrderService {
     await _apiClient.post('$_baseOrders/$id/refund', data: request.toJson());
   }
 
+  Future<OrderResponse> submitPaymentTimeoutComplaint(
+    String orderId,
+    String filePath,
+  ) async {
+    final fileName = filePath.split(Platform.pathSeparator).last;
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(
+        filePath,
+        filename: fileName.isNotEmpty ? fileName : null,
+      ),
+    });
+    final response = await _apiClient.post(
+      '$_baseOrders/my-orders/$orderId/payment-timeout-complaint',
+      data: formData,
+    );
+    final data = response['data'] as Map<String, dynamic>;
+    return OrderResponse.fromJson(data);
+  }
 }

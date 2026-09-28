@@ -1,5 +1,8 @@
 import '../entities/lottery_result.dart';
 
 abstract class HomeLotteryRepository {
-  Future<HomeLotteryFetchResult> fetchResults(DateTime drawDate);
+  Future<HomeLotteryFetchResult> fetchResults(
+    DateTime drawDate, {
+    String? region,
+  });
 }

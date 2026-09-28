@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
@@ -8,8 +9,11 @@ import 'package:daiphat_mobile/src/features/chat/domain/entities/chat_models.dar
 import 'package:daiphat_mobile/src/features/chat/presentation/viewmodels/chat_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/chat/utils/chat_constants.dart';
 import 'package:daiphat_mobile/src/features/chat/utils/chat_message_mapper.dart';
+import 'package:daiphat_mobile/src/features/home/domain/entities/lottery_result.dart';
+import 'package:daiphat_mobile/src/features/home/presentation/viewmodels/home_viewmodel.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
+import 'package:daiphat_mobile/src/shared/widgets/app_date_picker_dialog.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({
@@ -31,6 +35,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _scrollController = ScrollController();
   final _inputController = TextEditingController();
   ProviderSubscription<ChatState>? _chatSubscription;
+  double _lastMaxScrollExtent = 0;
 
   @override
   void initState() {
@@ -40,9 +45,46 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       previous,
       next,
     ) {
-      if ((previous?.visibleMessages.length ?? 0) !=
-          next.visibleMessages.length) {
-        _scrollToBottom();
+      final prevList = previous?.visibleMessages ?? const [];
+      final nextList = next.visibleMessages;
+
+      // 1. Nếu tin nhắn cũ được tải thêm ở đầu danh sách:
+      // Giữ nguyên vị trí cuộn hiện tại của người dùng, không cuộn xuống đáy.
+      final prevFirstId = prevList.firstOrNull?.id;
+      final nextFirstId = nextList.firstOrNull?.id;
+      final wasPrepended = prevList.isNotEmpty &&
+          nextList.length > prevList.length &&
+          prevFirstId != nextFirstId;
+
+      if (wasPrepended) {
+        final prevMax = _lastMaxScrollExtent;
+        final prevPixels = _scrollController.hasClients
+            ? _scrollController.position.pixels
+            : 0.0;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!_scrollController.hasClients) return;
+          final newMax = _scrollController.position.maxScrollExtent;
+          final diff = newMax - prevMax;
+          if (diff > 0) {
+            _scrollController.jumpTo(prevPixels + diff);
+          }
+          _lastMaxScrollExtent = newMax;
+        });
+        return;
+      }
+
+      // 2. Nếu có tin nhắn mới ở cuối danh sách (tin người dùng vừa gửi hoặc bot vừa trả lời):
+      final prevLastId = prevList.lastOrNull?.id;
+      final nextLastId = nextList.lastOrNull?.id;
+      final isNewAtBottom = prevLastId != nextLastId ||
+          (prevList.isEmpty && nextList.isNotEmpty);
+
+      // Chỉ tự cuộn xuống đáy nếu người dùng gửi tin HOẶC người dùng đang ở gần đáy:
+      final userSent = next.isSending || (nextList.lastOrNull?.isUser == true);
+      final wasNearBottom = _isNearBottom();
+
+      if (isNewAtBottom && (userSent || wasNearBottom)) {
+        _scrollToBottom(animate: wasNearBottom);
       }
     });
     WidgetsBinding.instance.addPostFrameCallback((_) => _ensureBootstrap());
@@ -81,9 +123,27 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels <= 48) {
-      ref.read(chatViewModelProvider.notifier).loadMoreTimeline();
+    if (!_scrollController.hasClients) return;
+    final pos = _scrollController.position;
+    _lastMaxScrollExtent = pos.maxScrollExtent;
+
+    // Không kích hoạt tải thêm tin cũ đối với luồng chat ngắn (chưa vượt quá chiều cao màn hình)
+    if (pos.maxScrollExtent <= 96) return;
+
+    // Chỉ tải thêm khi người dùng chủ động vuốt lên chạm đỉnh danh sách
+    if (pos.pixels <= 48 &&
+        pos.userScrollDirection == ScrollDirection.forward) {
+      final state = ref.read(chatViewModelProvider);
+      if (state.hasMoreTimeline && !state.isLoading && !state.isLoadingOlder) {
+        ref.read(chatViewModelProvider.notifier).loadMoreTimeline();
+      }
     }
+  }
+
+  bool _isNearBottom() {
+    if (!_scrollController.hasClients) return true;
+    final pos = _scrollController.position;
+    return (pos.maxScrollExtent - pos.pixels) <= 120;
   }
 
   void _scrollToBottom({bool animate = true}) {
@@ -97,8 +157,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (animate) {
         _scrollController.animateTo(
           max,
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOutQuad,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
         );
       } else {
         _scrollController.jumpTo(max);
@@ -188,21 +248,36 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             )
           else
             Expanded(
-              child: RefreshIndicator(
-                color: AppColors.primary,
-                onRefresh: () =>
-                    ref.read(chatViewModelProvider.notifier).refresh(),
-                child: ListView.builder(
-                  controller: _scrollController,
-                  physics: const AlwaysScrollableScrollPhysics(
-                    parent: BouncingScrollPhysics(),
-                  ),
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                  itemCount: chatState.visibleMessages.length,
-                  itemBuilder: (context, index) {
-                    if (index < 0 || index >= visibleMessages.length) {
-                      return const SizedBox.shrink();
+              child: ListView.builder(
+                controller: _scrollController,
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                itemCount: visibleMessages.length +
+                    (chatState.isLoadingOlder ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if (chatState.isLoadingOlder) {
+                    if (index == 0) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8),
+                        child: Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                      );
                     }
+                    index -= 1;
+                  }
+                  if (index < 0 || index >= visibleMessages.length) {
+                    return const SizedBox.shrink();
+                  }
                     final message = visibleMessages[index];
                     Widget child;
                     if (message.variant == ChatMessageVariant.divider) {
@@ -235,7 +310,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   },
                 ),
               ),
-            ),
           if (chatState.errorMessage != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -264,6 +338,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             bottomInset: bottomInset,
             enabled: !chatState.isSending,
             onSend: _sendMessage,
+            onTap: () {
+              if (_isNearBottom()) {
+                _scrollToBottom();
+              }
+            },
           ),
         ],
       ),
@@ -731,6 +810,8 @@ class _SupportBubble extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final chatState = ref.watch(chatViewModelProvider);
     final isSending = chatState.isSending;
+    final isResultSummary =
+        message.variant == ChatMessageVariant.scheduleResultSummary;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -740,7 +821,8 @@ class _SupportBubble extends ConsumerWidget {
         Flexible(
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              maxWidth: MediaQuery.sizeOf(context).width * 0.76,
+              maxWidth: MediaQuery.sizeOf(context).width *
+                  (isResultSummary ? 0.90 : 0.76),
             ),
             child: Container(
               padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
@@ -785,6 +867,13 @@ class _SupportBubble extends ConsumerWidget {
                       color: AppColors.contentHeading,
                     ),
                   ),
+                  if (isResultSummary &&
+                      message.scheduleResultSummary != null) ...[
+                    const SizedBox(height: 8),
+                    _ChatLotteryResultSummary(
+                      data: message.scheduleResultSummary!,
+                    ),
+                  ],
                   if (message.actions.isNotEmpty) ...[
                     const SizedBox(height: 10),
                     Wrap(
@@ -794,42 +883,70 @@ class _SupportBubble extends ConsumerWidget {
                         return OutlinedButton(
                           onPressed: isSending
                               ? null
-                              : () {
-                                  ref
-                                      .read(chatViewModelProvider.notifier)
-                                      .sendText(action.payload);
+                              : () async {
+                                  final chatNotifier =
+                                      ref.read(chatViewModelProvider.notifier);
+                                  if (action.payload.startsWith('ACTION_PICK_DATE')) {
+                                    final isResult =
+                                        action.payload.contains('goal=RESULT');
+                                    final now = DateTime.now();
+                                    final picked = await AppDatePickerDialog.show(
+                                      context,
+                                      now,
+                                      firstDate: DateTime(now.year - 1),
+                                      lastDate: isResult
+                                          ? now
+                                          : now.add(const Duration(days: 30)),
+                                      title: isResult
+                                          ? 'Chọn ngày xem kết quả'
+                                          : 'Chọn ngày xem lịch',
+                                    );
+                                    if (picked != null && context.mounted) {
+                                      final d = picked.day
+                                          .toString()
+                                          .padLeft(2, '0');
+                                      final m = picked.month
+                                          .toString()
+                                          .padLeft(2, '0');
+                                      final y = picked.year.toString();
+                                      final dateText = '$d/$m/$y';
+                                      await chatNotifier.sendText(dateText);
+                                    }
+                                    return;
+                                  }
+                                  await chatNotifier.sendText(action.payload);
                                 },
                           style: OutlinedButton.styleFrom(
                             foregroundColor: action.primary
-                                ? AppColors.white
-                                : AppColors.primary,
-                            backgroundColor: action.primary
                                 ? AppColors.primary
-                                : AppColors.surfacePrimary,
+                                : AppColors.contentHeading,
+                            backgroundColor: action.primary
+                                ? AppColors.surfaceBrandWarm
+                                : AppColors.surfaceSoft,
                             side: BorderSide(
                               color: action.primary
-                                  ? AppColors.primary
-                                  : AppColors.brandPrimaryBorderLight,
+                                  ? AppColors.brandPrimaryBorderLight
+                                  : AppColors.borderLight,
                               width: 1.0,
                             ),
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
+                              horizontal: 14,
+                              vertical: 8,
                             ),
                             minimumSize: Size.zero,
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(999),
+                              borderRadius: BorderRadius.circular(12),
                             ),
                           ),
                           child: Text(
                             action.label,
                             style: AppTypography.buttonSmall(
-                              fontSize: 11.5,
+                              fontSize: 12.5,
                               fontWeight: FontWeight.w600,
                               color: action.primary
-                                  ? AppColors.white
-                                  : AppColors.primary,
+                                  ? AppColors.primary
+                                  : AppColors.contentHeading,
                             ),
                           ),
                         );
@@ -852,6 +969,424 @@ class _SupportBubble extends ConsumerWidget {
       ],
     );
   }
+}
+
+class _ChatLotteryResultSummary extends ConsumerStatefulWidget {
+  const _ChatLotteryResultSummary({required this.data});
+
+  final ScheduleResultSummaryData data;
+
+  @override
+  ConsumerState<_ChatLotteryResultSummary> createState() =>
+      _ChatLotteryResultSummaryState();
+}
+
+class _ChatLotteryResultSummaryState
+    extends ConsumerState<_ChatLotteryResultSummary> {
+  List<LotteryResult> _results = const [];
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  int _loadGeneration = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _loadGeneration++;
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ChatLotteryResultSummary oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.data.drawDate != widget.data.drawDate ||
+        oldWidget.data.region != widget.data.region ||
+        oldWidget.data.stationId != widget.data.stationId) {
+      _load();
+    }
+  }
+
+  DateTime _resolveDate(String? raw) {
+    if (raw == null || raw.isEmpty) return DateTime.now();
+    final upper = raw.toUpperCase().trim();
+    if (upper == 'YESTERDAY') {
+      return DateTime.now().subtract(const Duration(days: 1));
+    }
+    if (upper == 'TODAY') {
+      return DateTime.now();
+    }
+    if (upper == 'TOMORROW') {
+      return DateTime.now().add(const Duration(days: 1));
+    }
+    if (RegExp(r'^\d{4}-\d{2}-\d{2}').hasMatch(raw)) {
+      return DateTime.tryParse(raw) ?? DateTime.now();
+    }
+    if (RegExp(r'^\d{1,2}/\d{1,2}/\d{4}').hasMatch(raw)) {
+      final parts = raw.split('/');
+      final day = int.tryParse(parts[0]) ?? 1;
+      final month = int.tryParse(parts[1]) ?? 1;
+      final year = int.tryParse(parts[2].substring(0, 4)) ?? DateTime.now().year;
+      return DateTime(year, month, day);
+    }
+    return DateTime.now();
+  }
+
+  String _formatDateLabel(DateTime date) {
+    final d = date.day.toString().padLeft(2, '0');
+    final m = date.month.toString().padLeft(2, '0');
+    return '$d/$m/${date.year}';
+  }
+
+  String? _regionLabel(String? region) {
+    if (region == null) return null;
+    return switch (region) {
+      'MIEN_NAM' => 'Miền Nam',
+      'MIEN_TRUNG' => 'Miền Trung',
+      'MIEN_BAC' => 'Miền Bắc',
+      _ => region,
+    };
+  }
+
+  List<LotteryResult> _filterResults(
+    List<LotteryResult> results,
+    int? stationId,
+    List<int>? stationIds,
+  ) {
+    if (stationId != null && stationId > 0) {
+      final match = results.where((r) => r.stationId == stationId).toList();
+      if (match.isNotEmpty) return match;
+    }
+    if (stationIds != null && stationIds.isNotEmpty) {
+      final idSet = stationIds.toSet();
+      final match = results.where((r) => idSet.contains(r.stationId)).toList();
+      if (match.isNotEmpty) return match;
+    }
+    return results;
+  }
+
+  Future<void> _load() async {
+    final currentGen = ++_loadGeneration;
+    final targetDate = _resolveDate(widget.data.drawDate);
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+      _results = const [];
+    });
+
+    const maxAttempts = 6;
+    const pollInterval = Duration(milliseconds: 2500);
+
+    for (var attempt = 0; attempt < maxAttempts; attempt++) {
+      if (!mounted || currentGen != _loadGeneration) return;
+
+      try {
+        final fetch = ref.read(fetchHomeLotteryResultsProvider);
+        final fetchResult = await fetch(targetDate, region: widget.data.region);
+
+        if (!mounted || currentGen != _loadGeneration) return;
+
+        final filtered = _filterResults(
+          fetchResult.data.results,
+          widget.data.stationId,
+          widget.data.stationIds,
+        );
+
+        final hasPrizeData = filtered.any((r) =>
+            r.prizes.special.trim().isNotEmpty ||
+            r.prizes.first.trim().isNotEmpty ||
+            r.prizes.eighth.any((v) => v.trim().isNotEmpty));
+
+        if (filtered.isNotEmpty && hasPrizeData) {
+          setState(() {
+            _results = filtered;
+            _isLoading = false;
+          });
+          return;
+        }
+
+        if (attempt < maxAttempts - 1) {
+          await Future<void>.delayed(pollInterval);
+          continue;
+        }
+
+        setState(() {
+          _results = filtered;
+          _isLoading = false;
+        });
+        return;
+      } catch (_) {
+        if (!mounted || currentGen != _loadGeneration) return;
+        if (attempt < maxAttempts - 1) {
+          await Future<void>.delayed(pollInterval);
+          continue;
+        }
+        setState(() {
+          _errorMessage =
+              'Không thể tải kết quả. Bạn có thể xem chi tiết trên trang Kết quả.';
+          _isLoading = false;
+        });
+        return;
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final targetDate = _resolveDate(widget.data.drawDate);
+    final displayDate = _formatDateLabel(targetDate);
+    final region = _regionLabel(widget.data.region);
+
+    if (_isLoading) {
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceSoft,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Đang tải kết quả ngày $displayDate...',
+                style: AppTypography.bodySmall(color: AppColors.contentNeutral),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceSoft,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          _errorMessage!,
+          style: AppTypography.bodySmall(color: AppColors.contentMuted),
+        ),
+      );
+    }
+
+    final hasPrizeData = _results.any((r) =>
+        r.prizes.special.trim().isNotEmpty ||
+        r.prizes.first.trim().isNotEmpty ||
+        r.prizes.eighth.any((v) => v.trim().isNotEmpty));
+
+    if (_results.isEmpty || !hasPrizeData) {
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceSoft,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          'Chưa có kết quả cho ngày $displayDate${region != null ? ' ($region)' : ''}.',
+          style: AppTypography.bodySmall(color: AppColors.contentMuted),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < _results.length; i++) ...[
+          if (i > 0) const SizedBox(height: 10),
+          _ChatLotteryStationCard(
+            result: _results[i],
+            fallbackDate: displayDate,
+          ),
+        ],
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: ElevatedButton(
+            onPressed: () => context.go(AppRoute.checkTicket.path),
+            style: ElevatedButton.styleFrom(
+              foregroundColor: AppColors.white,
+              backgroundColor: AppColors.primary,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: Text(
+              'Xem chi tiết',
+              style: AppTypography.buttonSmall(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.white,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ChatLotteryStationCard extends StatelessWidget {
+  const _ChatLotteryStationCard({
+    required this.result,
+    required this.fallbackDate,
+  });
+
+  final LotteryResult result;
+  final String fallbackDate;
+
+  String _formatValues(List<String> values) {
+    final clean = values.where((v) => v.trim().isNotEmpty).toList();
+    return clean.isEmpty ? '—' : clean.join(' · ');
+  }
+
+  String _formatSingle(String value) {
+    return value.trim().isEmpty ? '—' : value.trim();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = <_PrizeItem>[
+      _PrizeItem(
+        label: 'Đặc biệt',
+        value: _formatSingle(result.prizes.special),
+        accent: true,
+      ),
+      _PrizeItem(label: 'Giải 1', value: _formatSingle(result.prizes.first)),
+      _PrizeItem(label: 'Giải 2', value: _formatSingle(result.prizes.second)),
+      _PrizeItem(label: 'Giải 3', value: _formatValues(result.prizes.third)),
+      _PrizeItem(label: 'Giải 4', value: _formatValues(result.prizes.fourth)),
+      _PrizeItem(label: 'Giải 5', value: _formatValues(result.prizes.fifth)),
+      _PrizeItem(label: 'Giải 6', value: _formatValues(result.prizes.sixth)),
+      _PrizeItem(label: 'Giải 7', value: _formatValues(result.prizes.seventh)),
+      _PrizeItem(label: 'Giải 8', value: _formatValues(result.prizes.eighth)),
+    ];
+
+    final dateLabel =
+        result.dateLabel.isNotEmpty ? result.dateLabel : fallbackDate;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.borderLight),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: const BoxDecoration(
+              color: AppColors.surfaceSlate100,
+              border: Border(bottom: BorderSide(color: AppColors.borderLight)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  result.province,
+                  style: AppTypography.caption(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.contentHeading,
+                  ),
+                ),
+                Text(
+                  dateLabel,
+                  style: AppTypography.caption(
+                    fontSize: 11,
+                    color: AppColors.contentMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          for (var i = 0; i < rows.length; i++) ...[
+            if (i > 0)
+              const Divider(
+                height: 1,
+                thickness: 1,
+                color: AppColors.borderSubtle,
+              ),
+            Container(
+              color: rows[i].accent
+                  ? AppColors.surfaceBrandWarm
+                  : AppColors.white,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 6.5,
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 66,
+                    child: Text(
+                      rows[i].label,
+                      style: AppTypography.caption(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: rows[i].accent
+                            ? AppColors.primary
+                            : AppColors.contentNeutral,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      rows[i].value,
+                      style: AppTypography.caption(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.4,
+                        color: rows[i].accent
+                            ? AppColors.primary
+                            : AppColors.contentHeading,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _PrizeItem {
+  const _PrizeItem({
+    required this.label,
+    required this.value,
+    this.accent = false,
+  });
+
+  final String label;
+  final String value;
+  final bool accent;
 }
 
 class _TypingBubble extends StatelessWidget {
@@ -1161,12 +1696,14 @@ class _ChatInputBar extends StatelessWidget {
     required this.controller,
     required this.bottomInset,
     required this.onSend,
+    this.onTap,
     this.enabled = true,
   });
 
   final TextEditingController controller;
   final double bottomInset;
   final VoidCallback onSend;
+  final VoidCallback? onTap;
   final bool enabled;
 
   @override
@@ -1183,6 +1720,7 @@ class _ChatInputBar extends StatelessWidget {
             child: TextField(
               controller: controller,
               enabled: enabled,
+              onTap: onTap,
               textInputAction: TextInputAction.send,
               onSubmitted: enabled ? (_) => onSend() : null,
               decoration: InputDecoration(

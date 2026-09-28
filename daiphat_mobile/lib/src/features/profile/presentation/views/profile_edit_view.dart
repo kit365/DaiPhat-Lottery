@@ -36,17 +36,51 @@ class _ProfileEditViewState extends State<ProfileEditView> {
     super.initState();
     final user = widget.viewModel.user;
 
+    final rawHo = user?.lastName?.trim() ?? '';
+    final rawTen = user?.firstName?.trim() ?? '';
     final names = (user?.fullName ?? '').trim().split(' ');
-    final ho = names.isNotEmpty ? names.first : '';
-    final ten = names.length > 1 ? names.sublist(1).join(' ') : '';
+    final fallbackHo = names.isNotEmpty ? names.first : '';
+    final fallbackTen = names.length > 1 ? names.sublist(1).join(' ') : '';
+    final ho = rawHo.isNotEmpty ? rawHo : fallbackHo;
+    final ten = rawTen.isNotEmpty ? rawTen : fallbackTen;
+
+    // Convert API dob (yyyy-MM-dd) to UI format (dd/MM/yyyy)
+    String formattedDob = '';
+    if (user?.dob != null && user!.dob!.trim().isNotEmpty) {
+      final raw = user.dob!.trim();
+      if (raw.contains('-')) {
+        final parts = raw.split('-');
+        if (parts.length == 3) {
+          final yyyy = parts[0];
+          final mm = parts[1].padLeft(2, '0');
+          final dd = parts[2].padLeft(2, '0');
+          formattedDob = '$dd/$mm/$yyyy';
+        }
+      } else {
+        formattedDob = raw;
+      }
+    }
+
+    // Map backend gender (MALE/FEMALE/OTHER) to UI (Nam/Nữ/Khác)
+    String uiGender = 'Nam';
+    final rawGender = user?.gender?.trim().toUpperCase();
+    if (rawGender == 'FEMALE' || rawGender == 'NỮ' || rawGender == 'NU') {
+      uiGender = 'Nữ';
+    } else if (rawGender == 'OTHER' ||
+        rawGender == 'KHÁC' ||
+        rawGender == 'KHAC') {
+      uiGender = 'Khác';
+    } else {
+      uiGender = 'Nam';
+    }
 
     _usernameController = TextEditingController(text: user?.username ?? '');
     _hoController = TextEditingController(text: ho);
     _tenController = TextEditingController(text: ten);
     _phoneController = TextEditingController(text: user?.phone ?? '');
     _emailController = TextEditingController(text: user?.email ?? '');
-    _dobController = TextEditingController(text: user?.dob ?? '');
-    _genderController = TextEditingController(text: user?.gender ?? 'Nam');
+    _dobController = TextEditingController(text: formattedDob);
+    _genderController = TextEditingController(text: uiGender);
   }
 
   @override
@@ -76,6 +110,15 @@ class _ProfileEditViewState extends State<ProfileEditView> {
     final formState = _formKey.currentState;
     if (formState == null || !formState.validate()) return;
 
+    if (_hoController.text.trim().isEmpty && _tenController.text.trim().isEmpty) {
+      AppToast.error('Họ và tên không được để trống');
+      return;
+    }
+    if (_phoneController.text.trim().isEmpty) {
+      AppToast.error('Số điện thoại không được để trống');
+      return;
+    }
+
     final selectedAvatar = _selectedAvatarFile;
     if (selectedAvatar != null) {
       final avatarSuccess = await widget.viewModel.uploadAvatar(
@@ -88,13 +131,37 @@ class _ProfileEditViewState extends State<ProfileEditView> {
       }
     }
 
+    // Convert UI dob (dd/MM/yyyy) to API dob (yyyy-MM-dd)
+    String? apiDob;
+    final dobText = _dobController.text.trim();
+    if (dobText.isNotEmpty) {
+      if (dobText.contains('/')) {
+        final parts = dobText.split('/');
+        if (parts.length == 3) {
+          final dd = parts[0].padLeft(2, '0');
+          final mm = parts[1].padLeft(2, '0');
+          final yyyy = parts[2];
+          apiDob = '$yyyy-$mm-$dd';
+        }
+      } else if (dobText.contains('-')) {
+        apiDob = dobText;
+      }
+    }
+
+    // Map UI gender to backend enum (MALE/FEMALE/OTHER)
+    String apiGender = 'MALE';
+    if (_genderController.text == 'Nữ') {
+      apiGender = 'FEMALE';
+    } else if (_genderController.text == 'Khác') {
+      apiGender = 'OTHER';
+    }
+
     final request = UpdateProfileRequest(
       firstName: _tenController.text.trim(),
       lastName: _hoController.text.trim(),
-      phone: _phoneController.text,
-      email: _emailController.text,
-      dob: _dobController.text,
-      gender: _genderController.text,
+      phone: _phoneController.text.trim(),
+      dob: apiDob,
+      gender: apiGender,
     );
 
     final success = await widget.viewModel.updateProfile(request);
@@ -316,6 +383,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
                                 _buildTextField(
                                   'Email',
                                   _emailController,
+                                  enabled: false,
                                   keyboardType: TextInputType.emailAddress,
                                 ),
                                 const SizedBox(height: 16),

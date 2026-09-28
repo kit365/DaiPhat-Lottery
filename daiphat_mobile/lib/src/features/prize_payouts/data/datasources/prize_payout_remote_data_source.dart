@@ -52,6 +52,7 @@ class PrizePayoutRemoteDataSource {
     final response = await _apiClient.post(
       '$_basePrizePayoutRequests/recipient-id/upload',
       data: formData,
+      timeout: const Duration(seconds: 120),
     );
     final data = response['data'];
     final url = data is Map<String, dynamic> ? data['url']?.toString() : null;
@@ -69,7 +70,7 @@ class PrizePayoutRemoteDataSource {
     int? orderDetailId,
     int? serialId,
     required int bankAccountId,
-    required String recipientIdNumber,
+    String? recipientIdNumber,
     required String recipientIdImageUrl,
     required String recipientIdImageBackUrl,
   }) async {
@@ -83,10 +84,12 @@ class PrizePayoutRemoteDataSource {
         'orderDetailId': ?orderDetailId,
         'serialId': ?serialId,
         'bankAccountId': bankAccountId,
-        'recipientIdNumber': recipientIdNumber,
+        if (recipientIdNumber != null && recipientIdNumber.isNotEmpty)
+          'recipientIdNumber': recipientIdNumber,
         'recipientIdImageUrl': recipientIdImageUrl,
         'recipientIdImageBackUrl': recipientIdImageBackUrl,
       },
+      timeout: const Duration(seconds: 120),
     );
 
     final apiResponse = ApiResponse<PrizePayoutRequestResult>.fromJson(

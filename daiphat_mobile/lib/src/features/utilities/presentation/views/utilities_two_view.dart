@@ -268,12 +268,16 @@ class _HeroBannerSlide {
     required this.eyebrow,
     required this.title,
     required this.ctaLabel,
+    required this.targetRoute,
+    this.isSwitchTab = false,
   });
 
   final String imageAsset;
   final String eyebrow;
   final String title;
   final String ctaLabel;
+  final AppRoute targetRoute;
+  final bool isSwitchTab;
 }
 
 class _HeroBanner extends StatefulWidget {
@@ -284,15 +288,32 @@ class _HeroBanner extends StatefulWidget {
   static const List<_HeroBannerSlide> slides = [
     _HeroBannerSlide(
       imageAsset: 'assets/images/hero_banner.jpg',
+      eyebrow: 'Đại Phát Lottery',
+      title: 'Mua vé ngay\nTrúng liền tay',
+      ctaLabel: 'Mua ngay',
+      targetRoute: AppRoute.buyTicket,
+      isSwitchTab: true,
+    ),
+    _HeroBannerSlide(
+      imageAsset: 'assets/images/hero_banner.jpg',
       eyebrow: 'Khám phá tiện ích',
-      title: 'Một chạm\nmở nhanh',
+      title: 'Một chạm\ndò vé nhanh',
       ctaLabel: 'Xem ngay',
+      targetRoute: AppRoute.checkTicket,
     ),
     _HeroBannerSlide(
       imageAsset: 'assets/images/lucky_girl_banner.png',
       eyebrow: 'Đại Phát hỗ trợ',
       title: 'Tiện ích\ntrong tay',
       ctaLabel: 'Bắt đầu',
+      targetRoute: AppRoute.chat,
+    ),
+    _HeroBannerSlide(
+      imageAsset: 'assets/images/lucky_girl_banner.png',
+      eyebrow: 'Lắc quẻ cầu may',
+      title: 'Gieo quẻ\nĐoán vận may',
+      ctaLabel: 'Gieo ngay',
+      targetRoute: AppRoute.fortune,
     ),
   ];
 
@@ -337,6 +358,14 @@ class _HeroBannerState extends State<_HeroBanner> {
     _startAutoPlay();
   }
 
+  void _onSlideTap(_HeroBannerSlide slide) {
+    if (slide.isSwitchTab) {
+      context.go(slide.targetRoute.path);
+    } else {
+      context.push(slide.targetRoute.path);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final slides = _HeroBanner.slides;
@@ -369,106 +398,112 @@ class _HeroBannerState extends State<_HeroBanner> {
             itemCount: slides.length,
             itemBuilder: (context, index) {
               final slide = slides[index];
-              return Stack(
-                fit: StackFit.expand,
-                children: [
-                  Image.asset(slide.imageAsset, fit: BoxFit.cover),
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                        colors: [
-                          AppColors.brandPrimaryDarkRed.withValues(alpha: 0.96),
-                          AppColors.brandPrimaryStrong.withValues(alpha: 0.76),
-                          AppColors.brandPrimaryCrimson.withValues(alpha: 0.18),
-                          AppColors.transparent,
-                        ],
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          slide.eyebrow,
-                          style: AppTypography.caption(
-                            color: AppColors.surfacePrimary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        SizedBox(
-                          width: 188,
-                          child: Text(
-                            slide.title,
-                            style: AppTypography.h3(
-                              color: AppColors.surfacePrimary,
-                              fontSize: 25,
-                              fontWeight: FontWeight.w900,
-                              height: 1.12,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                AppColors.fortuneGoldLight,
-                                AppColors.brandAccentYellow,
-                                AppColors.brandAccentGoldAmber,
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(999),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.brandAccentGoldAmber
-                                    .withValues(alpha: 0.42),
-                                blurRadius: 14,
-                                offset: const Offset(0, 6),
-                              ),
-                              BoxShadow(
-                                color: AppColors.white.withValues(alpha: 0.65),
-                                blurRadius: 1,
-                                offset: const Offset(0, -1),
-                              ),
+              return Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => _onSlideTap(slide),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.asset(slide.imageAsset, fit: BoxFit.cover),
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                            colors: [
+                              AppColors.brandPrimaryDarkRed.withValues(alpha: 0.96),
+                              AppColors.brandPrimaryStrong.withValues(alpha: 0.76),
+                              AppColors.brandPrimaryCrimson.withValues(alpha: 0.18),
+                              AppColors.transparent,
                             ],
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                slide.ctaLabel,
-                                style: AppTypography.buttonSmall(
-                                  color: AppColors.brandNavy,
-                                  fontSize: 13,
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              slide.eyebrow,
+                              style: AppTypography.caption(
+                                color: AppColors.surfacePrimary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            SizedBox(
+                              width: 188,
+                              child: Text(
+                                slide.title,
+                                style: AppTypography.h3(
+                                  color: AppColors.surfacePrimary,
+                                  fontSize: 25,
                                   fontWeight: FontWeight.w900,
+                                  height: 1.12,
                                 ),
                               ),
-                              const SizedBox(width: 8),
-                              const Icon(
-                                Icons.arrow_forward_ios_rounded,
-                                color: AppColors.brandNavy,
-                                size: 13,
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 10,
                               ),
-                            ],
-                          ),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    AppColors.fortuneGoldLight,
+                                    AppColors.brandAccentYellow,
+                                    AppColors.brandAccentGoldAmber,
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(999),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.brandAccentGoldAmber
+                                        .withValues(alpha: 0.42),
+                                    blurRadius: 14,
+                                    offset: const Offset(0, 6),
+                                  ),
+                                  BoxShadow(
+                                    color: AppColors.white.withValues(alpha: 0.65),
+                                    blurRadius: 1,
+                                    offset: const Offset(0, -1),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    slide.ctaLabel,
+                                    style: AppTypography.buttonSmall(
+                                      color: AppColors.brandNavy,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Icon(
+                                    Icons.arrow_forward_ios_rounded,
+                                    color: AppColors.brandNavy,
+                                    size: 13,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               );
             },
           ),

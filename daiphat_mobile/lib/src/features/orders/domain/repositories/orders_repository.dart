@@ -24,4 +24,9 @@ abstract interface class OrdersRepository {
     String id,
     CreateOrderRefundRequest request,
   );
+
+  Future<OrderResponse> submitPaymentTimeoutComplaint(
+    String orderId,
+    String filePath,
+  );
 }

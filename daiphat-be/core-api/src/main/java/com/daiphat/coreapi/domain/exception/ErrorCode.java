@@ -861,6 +861,14 @@ public enum ErrorCode {
     OCR_FIELD_VALIDATION_RULE_INVALID(
             "LT_129",
             "Cấu hình luật kiểm tra trường OCR không hợp lệ.",
+            HttpStatus.BAD_REQUEST),
+    OCR_SESSION_NOT_FOUND(
+            "LT_130",
+            "Phiên quét vé không tồn tại hoặc đã hết hạn.",
+            HttpStatus.NOT_FOUND),
+    OCR_SESSION_CLOSED(
+            "LT_131",
+            "Phiên quét vé đã kết thúc.",
             HttpStatus.BAD_REQUEST);
 
     private final String code;

@@ -71,7 +71,7 @@ const STATUS_TABS: {
         activeBg: 'var(--palette-grey-800)',
     },
     {
-        value: 'WAITING_FOR_INFO,APPROVED,READY_TO_PAY',
+        value: 'WAITING_FOR_INFO,APPROVED,READY_TO_PAY,MANUAL_RESOLUTION',
         label: 'Cần xử lý',
         color: 'var(--palette-warning-dark)',
         bg: 'var(--palette-warning-lighter)',
@@ -112,7 +112,7 @@ const STATUS_TABS: {
     },
 ];
 
-const DEFAULT_STATUS_TAB = 'WAITING_FOR_INFO,APPROVED,READY_TO_PAY';
+const DEFAULT_STATUS_TAB = 'WAITING_FOR_INFO,APPROVED,READY_TO_PAY,MANUAL_RESOLUTION';
 
 const cellBorderSx = {
     borderBottom: '1px dashed var(--palette-background-neutral)',

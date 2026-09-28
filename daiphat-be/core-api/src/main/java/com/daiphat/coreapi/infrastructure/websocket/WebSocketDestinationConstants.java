@@ -28,7 +28,16 @@ public final class WebSocketDestinationConstants {
     public static final String USER_OVERRUN_ALERTS_QUEUE =
             USER_PREFIX + QUEUE_PREFIX + OVERRUN_ALERTS_SEGMENT;
 
+    public static final String OCR_SEGMENT = "/ocr";
+    public static final String SESSIONS_SEGMENT = "/sessions";
+    public static final String OCR_SESSION_TOPIC_PREFIX =
+            TOPIC_PREFIX + OCR_SEGMENT + SESSIONS_SEGMENT + "/";
+
     public static String conversationTopic(Long conversationId) {
         return CHAT_CONVERSATION_TOPIC_PREFIX + conversationId;
+    }
+
+    public static String ocrSessionTopic(String sessionCode) {
+        return OCR_SESSION_TOPIC_PREFIX + sessionCode;
     }
 }

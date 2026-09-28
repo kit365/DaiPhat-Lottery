@@ -1,5 +1,3 @@
-import 'dart:ui' show Tristate;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -111,16 +109,12 @@ void main() {
     );
     await tester.pump();
 
-    final minus = find.bySemanticsLabel('Giảm số lượng');
-    expect(minus, findsOneWidget);
-    expect(
-      tester.getSemantics(minus).flagsCollection.isEnabled,
-      Tristate.isFalse,
-    );
+    final deleteBtn = find.bySemanticsLabel('Xóa vé');
+    expect(deleteBtn, findsOneWidget);
 
-    await tester.tap(minus);
-    await tester.pump();
-    expect(find.text('1'), findsOneWidget);
+    await tester.tap(deleteBtn);
+    await tester.pumpAndSettle();
+    expect(find.text('Xác nhận xóa vé'), findsOneWidget);
     semantics.dispose();
   });
 

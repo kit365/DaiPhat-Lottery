@@ -15,6 +15,7 @@ import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
 import 'package:daiphat_mobile/src/shared/widgets/app_status_tab_bar.dart';
 import 'package:daiphat_mobile/src/shared/widgets/brand_scrollbar.dart';
 import 'package:daiphat_mobile/src/shared/widgets/ticket_number_display.dart';
+import 'package:daiphat_mobile/src/features/orders/presentation/widgets/payment_timeout_complaint_dialog.dart';
 import '../viewmodels/my_orders_viewmodel.dart';
 
 class MyOrdersView extends ConsumerStatefulWidget {
@@ -824,6 +825,75 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
           ),
         ),
       );
+    } else if (order.canSubmitPaymentTimeoutComplaint) {
+      buttons.add(
+        ElevatedButton.icon(
+          onPressed: () {
+            PaymentTimeoutComplaintDialog.show(
+              context,
+              orderId: order.id,
+              orderCode: order.orderCode,
+              totalAmount: order.totalAmount,
+              onSubmitted: () => _viewModel.fetchOrders(refresh: true),
+            );
+          },
+          icon: const Icon(
+            Icons.receipt_long_rounded,
+            size: 14,
+            color: AppColors.surfacePrimary,
+          ),
+          label: Text(
+            'Khiếu nại thanh toán',
+            style: AppTypography.buttonSmall(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: AppColors.surfacePrimary,
+            ),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: AppColors.surfacePrimary,
+            elevation: 0,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(6),
+            ),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
+      );
+    } else if (order.isPaymentComplaintPending) {
+      buttons.add(
+        OutlinedButton.icon(
+          onPressed: () => context.pushNamed(
+            AppRoute.orderDetail.name,
+            pathParameters: {'id': order.id},
+          ),
+          icon: const Icon(
+            Icons.access_time_rounded,
+            size: 14,
+            color: AppColors.contentMuted,
+          ),
+          label: Text(
+            'Đang chờ xác minh',
+            style: AppTypography.buttonSmall(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: AppColors.contentMuted,
+            ),
+          ),
+          style: OutlinedButton.styleFrom(
+            side: const BorderSide(color: AppColors.borderLight),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(6),
+            ),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
+      );
     } else if (order.refundEligible == true) {
       buttons.add(
         OutlinedButton(
@@ -914,6 +984,12 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
           surface: AppColors.statusSuccessSurface,
           text: AppColors.statusSuccessForeground,
           label: 'Hoàn thành',
+        );
+      case 'PAYMENT_COMPLAINT_PENDING':
+        return (
+          surface: AppColors.statusWarningSurface,
+          text: AppColors.statusWarningForeground,
+          label: 'Chờ xác minh',
         );
       case 'CANCELLED':
         return (
