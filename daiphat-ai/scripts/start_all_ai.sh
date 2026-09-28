@@ -1,37 +1,35 @@
-#!/bin/sh
-# Start chat-bot (8000) and ticket-vision (8090) in one container.
-# Manual compatibility helper only. The Docker stack intentionally runs
-# chat-bot and ticket-vision as separate services and does not call this file.
-set -eu
+#!/usr/bin/env bash
+set -euo pipefail
 
-CHAT_PID=""
-TV_PID=""
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+AI_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-shutdown() {
-    if [ -n "${CHAT_PID}" ]; then
-        kill -TERM "${CHAT_PID}" 2>/dev/null || true
-    fi
-    if [ -n "${TV_PID}" ]; then
-        kill -TERM "${TV_PID}" 2>/dev/null || true
-    fi
-    wait 2>/dev/null || true
+echo "=========================================="
+echo " Starting all 3 AI Services (Background) "
+echo " - eKYC Vision:    http://localhost:8091 "
+echo " - Ticket Vision:  http://localhost:8090 "
+echo " - Chatbot:        http://localhost:8000 "
+echo "=========================================="
+
+bash "${AI_ROOT}/ai-ekyc/scripts/run.sh" &
+PID_EKYC=$!
+
+bash "${AI_ROOT}/ai-ticket-ocr/scripts/run.sh" &
+PID_TICKET=$!
+
+bash "${AI_ROOT}/ai-chatbot/scripts/run.sh" &
+PID_CHATBOT=$!
+
+cleanup() {
+  echo ""
+  echo ">>> Đang dừng các tiến trình AI..."
+  kill -TERM "$PID_EKYC" 2>/dev/null || true
+  kill -TERM "$PID_TICKET" 2>/dev/null || true
+  kill -TERM "$PID_CHATBOT" 2>/dev/null || true
+  wait
+  echo ">>> Đã tắt toàn bộ AI Services."
 }
 
-trap shutdown INT TERM EXIT
+trap cleanup SIGINT SIGTERM EXIT
 
-PYTHONPATH=/app:/app/services/chat-bot \
-    uvicorn main:app --app-dir services/chat-bot --host 0.0.0.0 --port 8000 &
-CHAT_PID=$!
-
-PYTHONPATH=/app:/app/services/ticket-vision \
-    uvicorn main:app --app-dir services/ticket-vision --host 0.0.0.0 --port 8090 &
-TV_PID=$!
-
-# Stay up while both children are alive; exit if either dies.
-while kill -0 "${CHAT_PID}" 2>/dev/null && kill -0 "${TV_PID}" 2>/dev/null; do
-    sleep 2
-done
-
-echo "One AI process exited; shutting down the other." >&2
-shutdown
-exit 1
+wait

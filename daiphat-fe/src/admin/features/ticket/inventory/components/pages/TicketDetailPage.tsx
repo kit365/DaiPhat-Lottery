@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useAdminRouter } from "@/admin/hooks/useAdminRouter";
 import { useRouteParams } from "@/hooks/useRouteParams";
 import {
+    Alert,
     Box,
     Button,
     Card,
@@ -316,6 +317,19 @@ export const TicketDetailPage = () => {
                     </Stack>
                 }
             />
+
+            {ticketDetail.cancelReason && (
+                <Alert
+                    severity="error"
+                    icon={<WarningAmberOutlinedIcon fontSize="inherit" />}
+                    sx={{ mb: 3, borderRadius: "12px", "& .MuiAlert-message": { fontSize: "0.85rem" } }}
+                >
+                    <Typography variant="body2" fontWeight={800} sx={{ mb: 0.25 }}>
+                        Lý do hủy dãy vé
+                    </Typography>
+                    {ticketDetail.cancelReason}
+                </Alert>
+            )}
 
             {/* Hero Information Card */}
             <Card

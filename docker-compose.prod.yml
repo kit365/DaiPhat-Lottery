@@ -41,13 +41,14 @@ services:
       retries: 12
     mem_limit: 384m
 
+  # Legacy chatbot container behind the `ai` hostname; managed slots live in docker-compose.ai.yml.
   ai:
-    image: ${AI_IMAGE:-docker.io/kitops365/daiphat-ai:prod}
+    image: ${AI_IMAGE:-docker.io/kitops365/daiphat-ai-chatbot:prod}
     pull_policy: always
     restart: unless-stopped
     labels:
       dev.dozzle.group: AI
-      dev.dozzle.name: AI
+      dev.dozzle.name: AI Chatbot (legacy)
     healthcheck:
       test:
         [
@@ -62,19 +63,18 @@ services:
       retries: 8
     mem_limit: 256m
 
-  # Legacy direct OCR deployment. Unified AI CD uses docker-compose.ai.yml.
-  # Do not enable this profile when the managed OCR gateway owns ticket-vision.
-  # Disabled in a full-stack deploy unless COMPOSE_PROFILES includes "ocr".
-  # `scripts/deploy-component.sh ticket-vision ...` targets this service
-  # directly after an immutable OCR image has been published.
+  # Legacy direct AI Ticket OCR deployment. AI CD uses docker-compose.ai.yml.
+  # Do not enable this profile when the managed OCR gateway owns the
+  # `ticket-vision` hostname. Disabled in a full-stack deploy unless
+  # COMPOSE_PROFILES includes "ocr".
   ticket-vision:
-    image: ${TICKET_VISION_IMAGE:-docker.io/kitops365/daiphat-ticket-vision:prod}
+    image: ${TICKET_VISION_IMAGE:-docker.io/kitops365/daiphat-ai-ticket-ocr:prod}
     pull_policy: always
     restart: unless-stopped
     profiles: ["ocr"]
     labels:
       dev.dozzle.group: AI
-      dev.dozzle.name: Ticket Vision
+      dev.dozzle.name: AI Ticket OCR (legacy)
     environment:
       HOME: /cache
       EASYOCR_MODULE_PATH: /cache/easyocr
@@ -166,6 +166,9 @@ services:
       # unavailable OCR service into its existing soft result.
       DAIPHAT_TICKET_VISION_BASE_URL: ${DAIPHAT_TICKET_VISION_BASE_URL:-http://ticket-vision:8090}
       DAIPHAT_TICKET_VISION_RECOGNITION_ENGINE: ${TICKET_VISION_RECOGNITION_ENGINE:-groq}
+      # Served by the managed AI eKYC gateway (hostname ekyc-vision) in docker-compose.ai.yml.
+      DAIPHAT_EKYC_AI_BASE_URL: ${DAIPHAT_EKYC_AI_BASE_URL:-http://ekyc-vision:8000}
+      DAIPHAT_EKYC_AI_API_KEY: ${KYC_AI_API_KEY:-}
       JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--Xms256m -Xmx640m -XX:+UseContainerSupport}
       TZ: Asia/Ho_Chi_Minh
     depends_on:

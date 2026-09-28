@@ -6,6 +6,7 @@ import 'package:daiphat_mobile/src/shared/theme/app_typography.dart';
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/features/chat/domain/entities/chat_models.dart';
 import 'package:daiphat_mobile/src/features/chat/presentation/viewmodels/chat_viewmodel.dart';
+import 'package:daiphat_mobile/src/features/chat/utils/chat_constants.dart';
 import 'package:daiphat_mobile/src/features/chat/utils/chat_message_mapper.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/shared/utils/app_formatters.dart';
@@ -85,15 +86,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
-  void _scrollToBottom() {
+  void _scrollToBottom({bool animate = true}) {
     if (!_scrollController.hasClients) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scrollController.hasClients) return;
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 280),
-        curve: Curves.easeOut,
-      );
+      final max = _scrollController.position.maxScrollExtent;
+      final current = _scrollController.position.pixels;
+      if ((max - current).abs() < 4) return;
+
+      if (animate) {
+        _scrollController.animateTo(
+          max,
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutQuad,
+        );
+      } else {
+        _scrollController.jumpTo(max);
+      }
     });
   }
 
@@ -102,7 +111,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (text.trim().isEmpty) return;
     _inputController.clear();
     await ref.read(chatViewModelProvider.notifier).sendText(text);
-    _scrollToBottom();
   }
 
   void _showOfficialProfile() {
@@ -117,6 +125,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final chatState = ref.watch(chatViewModelProvider);
+    final visibleMessages = chatState.visibleMessages;
 
     final bottomInset = MediaQuery.paddingOf(context).bottom;
 
@@ -139,10 +148,39 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           _ChatHeader(
             onBack: widget.onBack,
             onOpenOfficialProfile: _showOfficialProfile,
+            subtitle: chatState.showChattingWithStaff
+                ? 'Hỗ trợ bởi Nhân viên'
+                : chatState.showWaitingForStaff
+                ? 'Đang chờ Nhân viên tiếp nhận...'
+                : 'Hỗ trợ trực tuyến',
           ),
-          if (chatState.statusBanner != null)
+          if (chatState.showWaitingForStaff)
+            _StaffSessionBar(
+              tone: _StaffSessionTone.waiting,
+              label: 'Đang kết nối nhân viên...',
+              actionLabel: chatState.isCancellingStaff
+                  ? 'Đang huỷ...'
+                  : 'Huỷ gặp nhân viên',
+              busy: chatState.isCancellingStaff || chatState.isSending,
+              onAction: () => ref
+                  .read(chatViewModelProvider.notifier)
+                  .cancelStaffRequest(),
+            )
+          else if (chatState.showChattingWithStaff)
+            _StaffSessionBar(
+              tone: _StaffSessionTone.active,
+              label: 'Đang chat với Nhân viên',
+              actionLabel: chatState.isDisconnectingStaff
+                  ? 'Đang ngắt...'
+                  : 'Ngắt kết nối',
+              actionIcon: Icons.phone_disabled_rounded,
+              busy: chatState.isDisconnectingStaff || chatState.isSending,
+              onAction: () =>
+                  ref.read(chatViewModelProvider.notifier).disconnectStaff(),
+            )
+          else if (chatState.statusBanner != null)
             _StatusBanner(text: chatState.statusBanner!),
-          if (chatState.isLoading && chatState.visibleMessages.isEmpty)
+          if (chatState.isLoading && visibleMessages.isEmpty)
             const Expanded(
               child: Center(
                 child: CircularProgressIndicator(color: AppColors.primary),
@@ -162,31 +200,37 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
                   itemCount: chatState.visibleMessages.length,
                   itemBuilder: (context, index) {
-                    final message = chatState.visibleMessages[index];
+                    if (index < 0 || index >= visibleMessages.length) {
+                      return const SizedBox.shrink();
+                    }
+                    final message = visibleMessages[index];
+                    Widget child;
                     if (message.variant == ChatMessageVariant.divider) {
-                      return Padding(
+                      child = Padding(
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         child: _SystemNotice(text: message.text),
                       );
-                    }
-                    if (message.variant == ChatMessageVariant.typing) {
-                      return const Padding(
+                    } else if (message.variant == ChatMessageVariant.typing) {
+                      child = const Padding(
                         padding: EdgeInsets.only(bottom: 12),
                         child: _TypingBubble(),
                       );
-                    }
-                    if (message.variant == ChatMessageVariant.ticketSuggest) {
-                      return Padding(
+                    } else if (message.variant == ChatMessageVariant.ticketSuggest) {
+                      child = Padding(
                         padding: const EdgeInsets.only(bottom: 12),
                         child: _TicketSuggestBlock(message: message),
                       );
+                    } else {
+                      child = Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: message.isUser
+                            ? _UserBubble(message: message)
+                            : _SupportBubble(message: message),
+                      );
                     }
-
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: message.isUser
-                          ? _UserBubble(message: message)
-                          : _SupportBubble(message: message),
+                    return KeyedSubtree(
+                      key: ValueKey(message.id),
+                      child: child,
                     );
                   },
                 ),
@@ -212,7 +256,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   await ref
                       .read(chatViewModelProvider.notifier)
                       .handleQuickReply(chip);
-                  _scrollToBottom();
                 },
               ),
             ),
@@ -251,11 +294,117 @@ class _StatusBanner extends StatelessWidget {
   }
 }
 
+enum _StaffSessionTone { waiting, active }
+
+class _StaffSessionBar extends StatelessWidget {
+  const _StaffSessionBar({
+    required this.tone,
+    required this.label,
+    required this.actionLabel,
+    required this.busy,
+    required this.onAction,
+    this.actionIcon,
+  });
+
+  final _StaffSessionTone tone;
+  final String label;
+  final String actionLabel;
+  final IconData? actionIcon;
+  final bool busy;
+  final VoidCallback onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final isWaiting = tone == _StaffSessionTone.waiting;
+    final background = isWaiting
+        ? AppColors.surfaceWarning
+        : AppColors.surfaceSuccess;
+    final border = isWaiting
+        ? AppColors.surfaceWarningSubtle
+        : AppColors.statusSuccessBorder;
+    final accent = isWaiting
+        ? AppColors.statusWarningAccent
+        : AppColors.statusSuccessMedium;
+    final textColor = isWaiting
+        ? AppColors.statusAttentionForeground
+        : AppColors.statusSuccessDeep;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 8, 10, 8),
+      decoration: BoxDecoration(
+        color: background,
+        border: Border(bottom: BorderSide(color: border)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 8),
+          if (!isWaiting) ...[
+            Icon(Icons.headset_mic_rounded, size: 14, color: accent),
+            const SizedBox(width: 4),
+          ],
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.caption(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: textColor,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton(
+            onPressed: busy ? null : onAction,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              backgroundColor: AppColors.white,
+              side: const BorderSide(color: AppColors.brandPrimaryBorderLight),
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              minimumSize: const Size(0, 30),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              textStyle: AppTypography.buttonSmall(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (actionIcon != null) ...[
+                  Icon(actionIcon, size: 14),
+                  const SizedBox(width: 4),
+                ],
+                Text(actionLabel),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ChatHeader extends StatelessWidget {
-  const _ChatHeader({this.onBack, required this.onOpenOfficialProfile});
+  const _ChatHeader({
+    this.onBack,
+    required this.onOpenOfficialProfile,
+    required this.subtitle,
+  });
 
   final VoidCallback? onBack;
   final VoidCallback onOpenOfficialProfile;
+  final String subtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -318,7 +467,7 @@ class _ChatHeader extends StatelessWidget {
                   ],
                 ),
                 Text(
-                  'Hỗ trợ trực tuyến',
+                  subtitle,
                   style: AppTypography.caption(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
@@ -573,13 +722,16 @@ class _UserBubble extends StatelessWidget {
   }
 }
 
-class _SupportBubble extends StatelessWidget {
+class _SupportBubble extends ConsumerWidget {
   const _SupportBubble({required this.message});
 
   final UiChatMessage message;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final chatState = ref.watch(chatViewModelProvider);
+    final isSending = chatState.isSending;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
@@ -588,7 +740,7 @@ class _SupportBubble extends StatelessWidget {
         Flexible(
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              maxWidth: MediaQuery.sizeOf(context).width * 0.72,
+              maxWidth: MediaQuery.sizeOf(context).width * 0.76,
             ),
             child: Container(
               padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
@@ -633,6 +785,57 @@ class _SupportBubble extends StatelessWidget {
                       color: AppColors.contentHeading,
                     ),
                   ),
+                  if (message.actions.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: message.actions.map((action) {
+                        return OutlinedButton(
+                          onPressed: isSending
+                              ? null
+                              : () {
+                                  ref
+                                      .read(chatViewModelProvider.notifier)
+                                      .sendText(action.payload);
+                                },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: action.primary
+                                ? AppColors.white
+                                : AppColors.primary,
+                            backgroundColor: action.primary
+                                ? AppColors.primary
+                                : AppColors.surfacePrimary,
+                            side: BorderSide(
+                              color: action.primary
+                                  ? AppColors.primary
+                                  : AppColors.brandPrimaryBorderLight,
+                              width: 1.0,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                          ),
+                          child: Text(
+                            action.label,
+                            style: AppTypography.buttonSmall(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                              color: action.primary
+                                  ? AppColors.white
+                                  : AppColors.primary,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
                   const SizedBox(height: 4),
                   Text(
                     message.timeLabel,
@@ -686,13 +889,20 @@ class _TypingBubble extends StatelessWidget {
   }
 }
 
-class _TicketSuggestBlock extends StatelessWidget {
+class _TicketSuggestBlock extends ConsumerWidget {
   const _TicketSuggestBlock({required this.message});
 
   final UiChatMessage message;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final chatState = ref.watch(chatViewModelProvider);
+    final isSending = chatState.isSending;
+    final canSuggestAgain = isOpenBotThread(chatState.conversationStatus) &&
+        chatState.conversationStatus !=
+            ConversationStatus.waitingForOperator &&
+        message.suggestedTickets.isNotEmpty;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -714,12 +924,63 @@ class _TicketSuggestBlock extends StatelessWidget {
               itemCount: message.suggestedTickets.length,
               separatorBuilder: (_, _) => const SizedBox(width: 8),
               itemBuilder: (context, index) {
+                if (index < 0 || index >= message.suggestedTickets.length) {
+                  return const SizedBox.shrink();
+                }
                 final ticket = message.suggestedTickets[index];
                 return _TicketSuggestCard(ticket: ticket);
               },
             ),
           ),
         ),
+        if (canSuggestAgain) ...[
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.only(left: 36),
+            child: OutlinedButton.icon(
+              onPressed: isSending
+                  ? null
+                  : () {
+                      final excludeIds = collectSuggestedTicketIds(
+                        chatState.visibleMessages,
+                      );
+                      final nextMessage = buildSuggestAgainMessage(excludeIds);
+                      ref
+                          .read(chatViewModelProvider.notifier)
+                          .sendText(nextMessage);
+                    },
+              icon: const Icon(
+                Icons.refresh_rounded,
+                size: 15,
+                color: AppColors.primary,
+              ),
+              label: Text(
+                'Gợi ý số khác',
+                style: AppTypography.buttonSmall(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                backgroundColor: AppColors.surfacePrimary,
+                side: const BorderSide(
+                  color: AppColors.brandPrimaryBorderLight,
+                  width: 1.0,
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 6,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                elevation: 0,
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -854,13 +1115,23 @@ class _QuickReplyChips extends StatelessWidget {
         itemCount: replies.length,
         separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
+          if (index < 0 || index >= replies.length) {
+            return const SizedBox.shrink();
+          }
           final reply = replies[index];
+          final textColor = reply.primary ? AppColors.white : AppColors.primary;
           return OutlinedButton(
             onPressed: () => onTap(reply),
             style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.primary,
-              backgroundColor: AppColors.surfacePrimary,
-              side: const BorderSide(color: AppColors.brandPrimaryBorderLight),
+              foregroundColor: textColor,
+              backgroundColor: reply.primary
+                  ? AppColors.primary
+                  : AppColors.surfacePrimary,
+              side: BorderSide(
+                color: reply.primary
+                    ? AppColors.primary
+                    : AppColors.brandPrimaryBorderLight,
+              ),
               padding: const EdgeInsets.symmetric(horizontal: 12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(999),
@@ -875,7 +1146,7 @@ class _QuickReplyChips extends StatelessWidget {
               style: AppTypography.buttonSmall(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: AppColors.primary,
+                color: textColor,
               ),
             ),
           );
@@ -901,27 +1172,13 @@ class _ChatInputBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.fromLTRB(12, 10, 12, 10 + bottomInset),
+      padding: EdgeInsets.fromLTRB(16, 10, 16, 10 + bottomInset),
       decoration: const BoxDecoration(
         color: AppColors.surfacePrimary,
         border: Border(top: BorderSide(color: AppColors.borderLight)),
       ),
       child: Row(
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceBrandWarm,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: IconButton(
-              onPressed: enabled ? () {} : null,
-              padding: EdgeInsets.zero,
-              icon: const Icon(Icons.add_rounded, color: AppColors.primary),
-            ),
-          ),
-          const SizedBox(width: 10),
           Expanded(
             child: TextField(
               controller: controller,

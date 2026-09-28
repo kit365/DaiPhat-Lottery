@@ -32,9 +32,9 @@ services:
       timeout: 5s
       retries: 12
 
-  ai:
+  ai-chatbot:
     build:
-      context: ./daiphat-ai
+      context: ./daiphat-ai/ai-chatbot
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
@@ -51,10 +51,10 @@ services:
       timeout: 5s
       retries: 6
 
-  ticket-vision:
+  ai-ticket-ocr:
     build:
-      context: ./daiphat-ai
-      dockerfile: services/ticket-vision/Dockerfile
+      context: ./daiphat-ai/ai-ticket-ocr
+      dockerfile: Dockerfile
     restart: unless-stopped
     environment:
       HOME: /cache
@@ -87,10 +87,10 @@ services:
     ports:
       - "127.0.0.1:${LOCAL_TICKET_VISION_PORT:-8090}:8090"
     volumes:
-      - ticket_vision_model_cache:/cache
+      - ai_ticket_ocr_model_cache:/cache
       - type: bind
-        source: ./daiphat-ai/services/ticket-vision/models
-        target: /app/services/ticket-vision/models
+        source: ./daiphat-ai/ai-ticket-ocr/models
+        target: /app/models
         read_only: true
         bind:
           create_host_path: false
@@ -109,9 +109,9 @@ services:
     mem_limit: ${LOCAL_TICKET_VISION_MEMORY:-4g}
     cpus: ${LOCAL_TICKET_VISION_CPUS:-2}
 
-  ekyc-vision:
+  ai-ekyc:
     build:
-      context: ./daiphat-ai/services/ekyc-vision
+      context: ./daiphat-ai/ai-ekyc
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
@@ -121,7 +121,7 @@ services:
     ports:
       - "127.0.0.1:${LOCAL_EKYC_VISION_PORT:-8091}:8000"
     volumes:
-      - ekyc_vision_model_cache:/cache
+      - ai_ekyc_model_cache:/cache
     healthcheck:
       test:
         [
@@ -152,10 +152,10 @@ services:
       SPRING_DATASOURCE_PASSWORD: "12345"
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
-      DAIPHAT_AI_BASE_URL: http://ai:8000
-      DAIPHAT_TICKET_VISION_BASE_URL: http://ticket-vision:8090
+      DAIPHAT_AI_BASE_URL: http://ai-chatbot:8000
+      DAIPHAT_TICKET_VISION_BASE_URL: http://ai-ticket-ocr:8090
       DAIPHAT_TICKET_VISION_RECOGNITION_ENGINE: ${TICKET_VISION_RECOGNITION_ENGINE:-groq}
-      DAIPHAT_EKYC_AI_BASE_URL: http://ekyc-vision:8000
+      DAIPHAT_EKYC_AI_BASE_URL: http://ai-ekyc:8000
       DAIPHAT_EKYC_AI_API_KEY: ${KYC_AI_API_KEY:-dev-kyc-ai-secret}
     ports:
       - "${LOCAL_BACKEND_PORT:-8080}:8080"
@@ -164,11 +164,11 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      ai:
+      ai-chatbot:
         condition: service_healthy
-      ticket-vision:
+      ai-ticket-ocr:
         condition: service_started
-      ekyc-vision:
+      ai-ekyc:
         condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/actuator/health/readiness"]
@@ -205,5 +205,5 @@ secrets:
 volumes:
   postgres_data:
   redis_data:
-  ticket_vision_model_cache:
-  ekyc_vision_model_cache:
+  ai_ticket_ocr_model_cache:
+  ai_ekyc_model_cache:

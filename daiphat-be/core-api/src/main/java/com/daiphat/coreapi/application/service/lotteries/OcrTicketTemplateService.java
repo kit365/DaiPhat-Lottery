@@ -250,7 +250,22 @@ public class OcrTicketTemplateService implements OcrTicketTemplateServicePort {
     public OcrFieldLayoutResponse createFieldLayout(Long templateId, CreateOcrFieldLayoutRequest request) {
         getTemplateOrThrow(templateId);
         validateNormalizedBox(request.boundingBox());
-        int priority = resolveCreatePriority(templateId, request.fieldName(), request.priority());
+        List<OcrFieldLayoutModel> existingLayouts = fieldLayoutRepositoryPort.findByTemplateId(templateId);
+        boolean isFrame = request.fieldName() != null && request.fieldName().isTicketFrame();
+        if (isFrame) {
+            if (findTicketFrame(existingLayouts, null) != null) {
+                throw new DomainException(
+                        ErrorCode.INVALID_INPUT,
+                        "Mỗi mẫu vé chỉ có một Khung vé. Hãy chọn khung hiện có để cập nhật."
+                );
+            }
+            validateFieldsInsideFrame(request.boundingBox(), existingLayouts, null);
+        } else {
+            validateInsideFrame(request.fieldName(), request.boundingBox(), findTicketFrame(existingLayouts, null));
+        }
+        int priority = isFrame
+                ? 1
+                : resolveCreatePriority(templateId, request.fieldName(), request.priority());
         if (fieldLayoutRepositoryPort.existsByTemplateIdAndFieldNameAndPriority(
                 templateId, request.fieldName(), priority
         )) {
@@ -264,8 +279,10 @@ public class OcrTicketTemplateService implements OcrTicketTemplateServicePort {
                         .templateId(templateId)
                         .fieldName(request.fieldName())
                         .boundingBox(request.boundingBox())
-                        .dataType(request.dataType() != null ? request.dataType() : OcrFieldDataType.STRING)
-                        .required(request.isRequired() == null || request.isRequired())
+                        .dataType(isFrame || request.dataType() == null
+                                ? OcrFieldDataType.STRING
+                                : request.dataType())
+                        .required(!isFrame && (request.isRequired() == null || request.isRequired()))
                         .priority(priority)
                         .build()
         );
@@ -291,6 +308,21 @@ public class OcrTicketTemplateService implements OcrTicketTemplateServicePort {
         if (nextPriority < 1) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "Priority phải >= 1.");
         }
+        OcrNormalizedBoundingBox nextBox =
+                request.boundingBox() != null ? request.boundingBox() : model.getBoundingBox();
+        List<OcrFieldLayoutModel> siblings = fieldLayoutRepositoryPort.findByTemplateId(templateId);
+        if (nextFieldName != null && nextFieldName.isTicketFrame()) {
+            if (findTicketFrame(siblings, layoutId) != null) {
+                throw new DomainException(
+                        ErrorCode.INVALID_INPUT,
+                        "Mỗi mẫu vé chỉ có một Khung vé. Hãy chọn khung hiện có để cập nhật."
+                );
+            }
+            nextPriority = 1;
+            validateFieldsInsideFrame(nextBox, siblings, layoutId);
+        } else {
+            validateInsideFrame(nextFieldName, nextBox, findTicketFrame(siblings, layoutId));
+        }
         if (nextFieldName != model.getFieldName() || nextPriority != model.getPriority()) {
             if (fieldLayoutRepositoryPort.existsByTemplateIdAndFieldNameAndPriority(
                     templateId, nextFieldName, nextPriority
@@ -304,8 +336,8 @@ public class OcrTicketTemplateService implements OcrTicketTemplateServicePort {
         if (request.fieldName() != null) {
             model.setFieldName(request.fieldName());
         }
-        if (request.priority() != null) {
-            model.setPriority(request.priority());
+        if (request.priority() != null || nextPriority != model.getPriority()) {
+            model.setPriority(nextPriority);
         }
         if (request.boundingBox() != null) {
             validateNormalizedBox(request.boundingBox());
@@ -316,6 +348,9 @@ public class OcrTicketTemplateService implements OcrTicketTemplateServicePort {
         }
         if (request.isRequired() != null) {
             model.setRequired(request.isRequired());
+        }
+        if (nextFieldName != null && nextFieldName.isTicketFrame()) {
+            model.setRequired(false);
         }
         return toLayoutResponse(fieldLayoutRepositoryPort.save(model));
     }
@@ -355,6 +390,78 @@ public class OcrTicketTemplateService implements OcrTicketTemplateServicePort {
             throw new DomainException(
                     ErrorCode.INVALID_INPUT,
                     "Vùng nhận dạng phải nằm trong khoảng chuẩn hóa 0–1."
+            );
+        }
+    }
+
+    /** Share of a field box that must lie inside the ticket frame. */
+    private static final double MIN_INSIDE_FRAME_RATIO = 0.6;
+    private static final double FRAME_TOLERANCE = 0.005;
+
+    private static OcrFieldLayoutModel findTicketFrame(List<OcrFieldLayoutModel> layouts, Long excludeId) {
+        if (layouts == null) {
+            return null;
+        }
+        return layouts.stream()
+                .filter(l -> l.getFieldName() != null && l.getFieldName().isTicketFrame())
+                .filter(l -> excludeId == null || !excludeId.equals(l.getId()))
+                .filter(l -> l.getBoundingBox() != null)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private static boolean liesInsideFrame(OcrNormalizedBoundingBox box, OcrNormalizedBoundingBox frame) {
+        double fx0 = frame.getX() - FRAME_TOLERANCE;
+        double fy0 = frame.getY() - FRAME_TOLERANCE;
+        double fx1 = frame.getX() + frame.getWidth() + FRAME_TOLERANCE;
+        double fy1 = frame.getY() + frame.getHeight() + FRAME_TOLERANCE;
+        double cx = box.getX() + box.getWidth() / 2.0;
+        double cy = box.getY() + box.getHeight() / 2.0;
+        if (cx < fx0 || cx > fx1 || cy < fy0 || cy > fy1) {
+            return false;
+        }
+        double ix = Math.max(0.0, Math.min(box.getX() + box.getWidth(), fx1) - Math.max(box.getX(), fx0));
+        double iy = Math.max(0.0, Math.min(box.getY() + box.getHeight(), fy1) - Math.max(box.getY(), fy0));
+        double area = box.getWidth() * box.getHeight();
+        return area > 0 && (ix * iy) / area >= MIN_INSIDE_FRAME_RATIO;
+    }
+
+    private static void validateInsideFrame(
+            OcrTemplateFieldName fieldName,
+            OcrNormalizedBoundingBox box,
+            OcrFieldLayoutModel frame
+    ) {
+        if (frame == null || box == null) {
+            return;
+        }
+        if (!liesInsideFrame(box, frame.getBoundingBox())) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Vùng " + (fieldName != null ? fieldName.name() : "trường")
+                            + " nằm ngoài Khung vé. Hãy kéo vùng bên trong khung vé."
+            );
+        }
+    }
+
+    private static void validateFieldsInsideFrame(
+            OcrNormalizedBoundingBox frameBox,
+            List<OcrFieldLayoutModel> layouts,
+            Long excludeId
+    ) {
+        if (frameBox == null || layouts == null) {
+            return;
+        }
+        List<String> outside = layouts.stream()
+                .filter(l -> excludeId == null || !excludeId.equals(l.getId()))
+                .filter(l -> l.getFieldName() != null && !l.getFieldName().isTicketFrame())
+                .filter(l -> l.getBoundingBox() != null && !liesInsideFrame(l.getBoundingBox(), frameBox))
+                .map(l -> l.getFieldName().name() + " #" + (l.getPriority() > 0 ? l.getPriority() : 1))
+                .toList();
+        if (!outside.isEmpty()) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Khung vé phải bao trọn các vùng đã gắn. Vùng nằm ngoài khung: "
+                            + String.join(", ", outside)
             );
         }
     }

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:daiphat_mobile/src/features/admin/presentation/providers/admin_ocr_providers.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/login_viewmodel.dart';
@@ -38,7 +40,6 @@ import 'package:daiphat_mobile/src/features/profile/presentation/views/complaint
 import 'package:daiphat_mobile/src/features/profile/presentation/views/complaint_detail_view.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/views/security_view.dart';
 import 'package:daiphat_mobile/src/features/admin/presentation/views/admin_scan_view.dart';
-import 'package:daiphat_mobile/src/features/admin/presentation/viewmodels/admin_scan_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/fortune/presentation/views/fortune_cast_view.dart';
 import 'package:daiphat_mobile/src/features/blog/presentation/views/blog_screen.dart';
 import 'package:daiphat_mobile/src/features/schedule/presentation/views/schedule_view.dart';
@@ -76,7 +77,8 @@ GoRouter createAppRouter({
               'orderCode': queryParams['orderCode']!,
             if (queryParams.containsKey('internalCode'))
               'internalCode': queryParams['internalCode']!,
-            if (queryParams.containsKey('orderId')) 'orderId': queryParams['orderId']!,
+            if (queryParams.containsKey('orderId'))
+              'orderId': queryParams['orderId']!,
             if (queryParams.containsKey('status'))
               'status': queryParams['status']!,
             if (queryParams.containsKey('cancel'))
@@ -97,7 +99,8 @@ GoRouter createAppRouter({
               'orderCode': queryParams['orderCode']!,
             if (queryParams.containsKey('internalCode'))
               'internalCode': queryParams['internalCode']!,
-            if (queryParams.containsKey('orderId')) 'orderId': queryParams['orderId']!,
+            if (queryParams.containsKey('orderId'))
+              'orderId': queryParams['orderId']!,
             if (queryParams.containsKey('status'))
               'status': queryParams['status']!,
             if (queryParams.containsKey('cancel'))
@@ -107,7 +110,8 @@ GoRouter createAppRouter({
       }
 
       final path = state.uri.path;
-      final isProtectedPath = path == AppRoute.cart.path ||
+      final isProtectedPath =
+          path == AppRoute.cart.path ||
           path == AppRoute.checkout.path ||
           path == AppRoute.paymentWebView.path ||
           path == AppRoute.profile.path ||
@@ -154,18 +158,6 @@ GoRouter createAppRouter({
           StatefulShellBranch(
             routes: [
               _route(
-                AppRoute.checkTicket,
-                loginViewModel,
-                registerViewModel,
-                forgotPasswordViewModel,
-                profileViewModel,
-                notificationViewModel,
-              ),
-            ],
-          ),
-          StatefulShellBranch(
-            routes: [
-              _route(
                 AppRoute.home,
                 loginViewModel,
                 registerViewModel,
@@ -182,10 +174,20 @@ GoRouter createAppRouter({
                 name: AppRoute.utilitiesTwo.name,
                 builder: (context, state) => UtilitiesTwoView(
                   isAuthenticated: loginViewModel.isAuthenticated,
-                  onOpenNotifications: () =>
-                      context.push(AppRoute.notifications.path),
                   onOpenBlog: () => context.push(AppRoute.blog.path),
                 ),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              _route(
+                AppRoute.notifications,
+                loginViewModel,
+                registerViewModel,
+                forgotPasswordViewModel,
+                profileViewModel,
+                notificationViewModel,
               ),
             ],
           ),
@@ -230,6 +232,14 @@ GoRouter createAppRouter({
       ),
       _route(
         AppRoute.forgotPassword,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
+      _route(
+        AppRoute.checkTicket,
         loginViewModel,
         registerViewModel,
         forgotPasswordViewModel,
@@ -390,14 +400,6 @@ GoRouter createAppRouter({
       ),
       _route(
         AppRoute.bankAccounts,
-        loginViewModel,
-        registerViewModel,
-        forgotPasswordViewModel,
-        profileViewModel,
-        notificationViewModel,
-      ),
-      _route(
-        AppRoute.notifications,
         loginViewModel,
         registerViewModel,
         forgotPasswordViewModel,
@@ -571,7 +573,10 @@ Widget _buildRoute(
         orderId: orderId,
       );
     case AppRoute.notifications:
-      return NotificationView(viewModel: notificationViewModel);
+      return NotificationView(
+        viewModel: notificationViewModel,
+        showBackButton: false,
+      );
     case AppRoute.chat:
       return ChatScreen(
         isAuthenticated: loginViewModel.isAuthenticated,
@@ -613,7 +618,10 @@ Widget _buildRoute(
       if (loginViewModel.user?.isAdmin != true) {
         return const SizedBox.shrink();
       }
-      return AdminScanView(viewModel: AdminScanViewModel());
+      return Consumer(
+        builder: (context, ref, _) =>
+            AdminScanView(viewModel: ref.watch(adminScanViewModelProvider)),
+      );
     case AppRoute.fortune:
       return FortuneCastView(profileViewModel: profileViewModel);
     case AppRoute.schedule:
@@ -631,13 +639,11 @@ Widget _buildRoute(
     case AppRoute.utilities:
       return UtilitiesTwoView(
         isAuthenticated: loginViewModel.isAuthenticated,
-        onOpenNotifications: () => context.push(AppRoute.notifications.path),
         onOpenBlog: () => context.push(AppRoute.blog.path),
       );
     case AppRoute.utilitiesTwo:
       return UtilitiesTwoView(
         isAuthenticated: loginViewModel.isAuthenticated,
-        onOpenNotifications: () => context.push(AppRoute.notifications.path),
         onOpenBlog: () => context.push(AppRoute.blog.path),
       );
   }

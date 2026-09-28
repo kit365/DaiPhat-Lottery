@@ -43,6 +43,8 @@ import {
     evaluateOcrFieldUiStatus,
     formatConfidence,
     formatDenomination,
+    resolveFieldDisplayConfidence,
+    toConfidenceRatio,
     toShortFieldHint,
     type OcrRowValidationContext,
 } from '../utils/ocrImportHelpers';
@@ -55,7 +57,7 @@ const formatFieldConfidenceChip = (conf?: number | null) => {
     if (conf == null || !Number.isFinite(conf)) {
         return { label: 'Độ chính xác: —', color: '#64748b', bg: '#f1f5f9', border: '#e2e8f0' };
     }
-    const pct = conf <= 1 ? Math.round(conf * 100) : Math.round(conf);
+    const pct = Math.round(toConfidenceRatio(conf) * 100);
     if (pct >= 85) {
         return { label: `Độ chính xác: ${pct}%`, color: '#15803d', bg: '#dcfce7', border: '#bbf7d0' };
     }
@@ -793,11 +795,7 @@ export default function OcrReviewResultCards({
                                                     size="small"
                                                     fullWidth
                                                     displayEmpty
-                                                    value={
-                                                        row.drawDate
-                                                            ? dayjs(row.drawDate).format('YYYY-MM-DD')
-                                                            : dayjs(batchDrawDate).format('YYYY-MM-DD')
-                                                    }
+                                                    value={row.drawDate ? dayjs(row.drawDate).format('YYYY-MM-DD') : ''}
                                                     error={drawDateStatus.status === 'invalid'}
                                                     onFocus={() => onSelect({ rowKey: row.key, fieldName: 'drawDate' })}
                                                     onChange={(e) => {
@@ -1275,7 +1273,7 @@ export default function OcrReviewResultCards({
             <Dialog
                 open={Boolean(zoomImage)}
                 onClose={() => setZoomImage(null)}
-                maxWidth="sm"
+                maxWidth="md"
                 fullWidth
                 PaperProps={{
                     sx: {
@@ -1320,6 +1318,7 @@ export default function OcrReviewResultCards({
                     {zoomImage && (
                         <OcrCroppedTicketOverlay
                             imageUrl={zoomImage.url}
+                            space="crop"
                             row={zoomImage.row}
                             selection={selection}
                             alt={zoomImage.title}
@@ -1353,7 +1352,7 @@ export default function OcrReviewResultCards({
                         label: 'Dãy số vé',
                         scannedValue: row.fields?.numbers?.value ?? (row.numbers ? row.numbers : null),
                         currentValue: row.numbers || '(Trống)',
-                        confidence: row.fieldConfidences?.numbers ?? row.fields?.numbers?.confidence ?? null,
+                        ...resolveFieldDisplayConfidence(row, 'numbers', numbersStatus.status),
                         status: numbersStatus.status,
                         message: numbersStatus.message,
                         required: true,
@@ -1363,7 +1362,7 @@ export default function OcrReviewResultCards({
                         label: 'Số sê-ri',
                         scannedValue: row.fields?.serialNumber?.value ?? (row.serialNumber ? row.serialNumber : null),
                         currentValue: row.serialNumber || '(Trống)',
-                        confidence: row.fieldConfidences?.serialNumber ?? row.fields?.serialNumber?.confidence ?? null,
+                        ...resolveFieldDisplayConfidence(row, 'serialNumber', serialStatus.status),
                         status: serialStatus.status,
                         message: serialStatus.message,
                         required: true,
@@ -1373,7 +1372,11 @@ export default function OcrReviewResultCards({
                         label: 'Nhà đài',
                         scannedValue: row.fields?.stationName?.value ?? (row.stationName ? row.stationName : null),
                         currentValue: row.stationName || (missingStation ? '(Chưa chọn đài)' : `Đài #${row.stationId}`),
-                        confidence: row.fieldConfidences?.stationName ?? row.fields?.stationName?.confidence ?? null,
+                        ...resolveFieldDisplayConfidence(
+                            row,
+                            'stationName',
+                            missingStation ? 'invalid' : stationStatus.status
+                        ),
                         status: missingStation ? 'invalid' : stationStatus.status,
                         message: missingStation ? (stationStatus.message || 'Chưa chọn nhà đài mở thưởng.') : stationStatus.message,
                         required: true,
@@ -1383,7 +1386,7 @@ export default function OcrReviewResultCards({
                         label: 'Ngày mở thưởng',
                         scannedValue: row.fields?.drawDate?.value ? dayjs(row.fields.drawDate.value).format('DD/MM/YYYY') : (row.drawDate ? dayjs(row.drawDate).format('DD/MM/YYYY') : null),
                         currentValue: row.drawDate ? dayjs(row.drawDate).format('DD/MM/YYYY') : '(Chưa chọn)',
-                        confidence: row.fieldConfidences?.drawDate ?? row.fields?.drawDate?.confidence ?? null,
+                        ...resolveFieldDisplayConfidence(row, 'drawDate', drawDateStatus.status),
                         status: drawDateStatus.status,
                         message: drawDateStatus.message,
                         required: true,
@@ -1393,7 +1396,7 @@ export default function OcrReviewResultCards({
                         label: 'Ký hiệu / Lô',
                         scannedValue: row.fields?.batchCode?.value ?? (row.batchCode ? row.batchCode : null),
                         currentValue: row.batchCode || '(Không có)',
-                        confidence: row.fieldConfidences?.batchCode ?? row.fields?.batchCode?.confidence ?? null,
+                        ...resolveFieldDisplayConfidence(row, 'batchCode', batchCodeStatus.status),
                         status: batchCodeStatus.status,
                         message: batchCodeStatus.message,
                         required: false,
@@ -1403,7 +1406,7 @@ export default function OcrReviewResultCards({
                         label: 'Mệnh giá',
                         scannedValue: row.fields?.ticketType?.value ? `${formatDenomination(row.fields.ticketType.value)} đ` : (row.ticketType ? `${formatDenomination(row.ticketType)} đ` : null),
                         currentValue: row.ticketType ? `${formatDenomination(row.ticketType)} đ` : '(Chưa nhập mệnh giá)',
-                        confidence: row.fieldConfidences?.ticketType ?? row.fields?.ticketType?.confidence ?? null,
+                        ...resolveFieldDisplayConfidence(row, 'ticketType', priceStatus.status),
                         status: priceStatus.status,
                         message: priceStatus.message,
                         required: true,
@@ -1766,18 +1769,27 @@ export default function OcrReviewResultCards({
 
                                                         <Stack direction="row" spacing={1} alignItems="center">
                                                             {/* Field Confidence Badge */}
-                                                            <Chip
-                                                                size="small"
-                                                                label={confStyle.label}
-                                                                sx={{
-                                                                    height: 22,
-                                                                    fontSize: '0.7rem',
-                                                                    fontWeight: 700,
-                                                                    bgcolor: confStyle.bg,
-                                                                    color: confStyle.color,
-                                                                    border: `1px solid ${confStyle.border}`,
-                                                                }}
-                                                            />
+                                                            <Tooltip
+                                                                arrow
+                                                                title={
+                                                                    f.confirmed
+                                                                        ? 'Giá trị OCR đã được đối chiếu khớp với cấu hình hệ thống.'
+                                                                        : 'Độ tin cậy nhận dạng ký tự của OCR.'
+                                                                }
+                                                            >
+                                                                <Chip
+                                                                    size="small"
+                                                                    label={confStyle.label}
+                                                                    sx={{
+                                                                        height: 22,
+                                                                        fontSize: '0.7rem',
+                                                                        fontWeight: 700,
+                                                                        bgcolor: confStyle.bg,
+                                                                        color: confStyle.color,
+                                                                        border: `1px solid ${confStyle.border}`,
+                                                                    }}
+                                                                />
+                                                            </Tooltip>
 
                                                             {/* Validation Status Badge */}
                                                             <Chip

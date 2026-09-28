@@ -20,6 +20,10 @@ public interface ImportBatchRepository extends JpaRepository<ImportBatchEntity, 
 
     List<ImportBatchEntity> findByBatchCodeStartingWithAndDeletedAtIsNull(String batchCodePrefix);
 
+    List<ImportBatchEntity> findByCreatedByInAndDeletedAtIsNull(Collection<String> createdBy);
+
+    List<ImportBatchEntity> findByNoteStartingWithAndDeletedAtIsNull(String notePrefix);
+
     boolean existsByImportedBy_IdAndStatus(UUID importedBy, ImportBatchStatus status);
 
     Optional<ImportBatchEntity> findFirstByImportedBy_IdAndStatusOrderByImportedAtDesc(

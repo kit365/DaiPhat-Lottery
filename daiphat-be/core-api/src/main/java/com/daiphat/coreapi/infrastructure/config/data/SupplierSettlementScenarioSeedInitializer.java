@@ -4,7 +4,6 @@ import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchImportMode;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchType;
 import com.daiphat.coreapi.domain.model.enums.lottery.InputSource;
-import com.daiphat.coreapi.domain.model.enums.lottery.LotterySupplierType;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialFaultedBy;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ReturnBatchLineStatus;
@@ -51,16 +50,17 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
- * Compact, known-quantity inventory for supplier-settlement QA.
+ * Compact, known-quantity inventory for supplier-settlement scenarios.
  *
- * <p>Supplier {@code DOI_SOAT_QA} is isolated from {@code MINH_CHINH} so matching,
+ * <p>Supplier {@code MINH_NGOC} is isolated from {@code MINH_CHINH} so matching,
  * VOIDED exclusion, leftover inspectable serials, freeze timestamps, and station
  * commissions can be exercised without the large mixed PN-SEED inventory.
  *
@@ -83,20 +83,13 @@ import java.util.Set;
 public class SupplierSettlementScenarioSeedInitializer implements ApplicationRunner {
 
     static final String SYSTEM_ACTOR = "settlement-scenario-seed";
-    static final String SUPPLIER_CODE = "DOI_SOAT_QA";
-    static final String HEADER_CODE_PREFIX = "PN-SETTLE-";
-    static final String LINE_CODE_PREFIX = "LO-SETTLE-";
+    static final String SUPPLIER_CODE = SharedSeedConstants.SUPPLIER_MINH_NGOC_CODE;
     static final String SERIAL_PREFIX = "IBSETTLE-";
-    static final String RETURN_NOTE_PREFIX = "SEED-RETURN-SETTLE-";
-    static final String RETURN_CODE_PREFIX = "PT-SETTLE-";
+    static final String RETURN_NOTE_PREFIX = SeedDocumentCodes.RETURN_NOTE_PREFIX;
 
-    private static final String SUPPLIER_NAME = "Đối soát QA";
     private static final BigDecimal DEFAULT_IMPORT_COST = BigDecimal.valueOf(10_000);
-    private static final DateTimeFormatter BASIC_DATE = DateTimeFormatter.BASIC_ISO_DATE;
     private static final int NUMBER_CURSOR_START = 650_000;
     private static final int STATION_LIMIT = 2;
-    private static final LocalTime PAYMENT_CUT_OFF = LocalTime.of(18, 0);
-    private static final LocalTime RETURN_CUT_OFF = LocalTime.of(14, 30);
 
     private static final List<SerialKind> STATION_A = List.of(
             new SerialKind(LotteryTicketSerialStatus.IN_STOCK, TicketCondition.GOOD, null, 12),
@@ -157,6 +150,7 @@ public class SupplierSettlementScenarioSeedInitializer implements ApplicationRun
     private final SupplierSettlementAdjustmentRepository supplierSettlementAdjustmentRepository;
     private final SupplierSettlementCodeGenerator supplierSettlementCodeGenerator;
     private final UserRepository userRepository;
+    private final SeedSupplierSupport seedSupplierSupport;
     private final Clock clock;
 
     @Override
@@ -172,10 +166,11 @@ public class SupplierSettlementScenarioSeedInitializer implements ApplicationRun
         LocalDate today = now.toLocalDate();
         resetPreviousSeedData();
 
-        LotterySupplierEntity supplier = ensureSupplier(now);
+        LotterySupplierEntity supplier = seedSupplierSupport.ensureMinhNgoc(now);
         int batchCount = 0;
         int ticketCount = 0;
         int serialCount = 0;
+        int dayIndex = 0;
 
         for (LocalDate drawDate : List.of(today.minusDays(1), today, today.plusDays(1))) {
             List<LotteryStationEntity> stations = findIssuersForDrawDate(drawDate).stream()
@@ -191,12 +186,13 @@ public class SupplierSettlementScenarioSeedInitializer implements ApplicationRun
                 continue;
             }
 
-            SeededImport seeded = seedImportBatch(supplier, operator, stations, drawDate, today, now);
+            SeededImport seeded = seedImportBatch(supplier, operator, stations, drawDate, today, now, dayIndex);
             SupplierSettlementEntity settlement = ensureSettlement(supplier, drawDate, now);
             seeded.batch().setSupplierSettlementId(settlement.getId());
             importBatchRepository.save(seeded.batch());
 
-            seedReturnBatch(supplier, settlement, seeded, drawDate, today, now, operator);
+            seedReturnBatch(supplier, settlement, seeded, drawDate, today, now, operator, dayIndex);
+            dayIndex++;
 
             batchCount++;
             ticketCount += seeded.ticketCount();
@@ -230,10 +226,14 @@ public class SupplierSettlementScenarioSeedInitializer implements ApplicationRun
             List<LotteryStationEntity> stations,
             LocalDate drawDate,
             LocalDate today,
-            LocalDateTime now
+            LocalDateTime now,
+            int dayIndex
     ) {
         LocalDateTime importedAt = resolveImportedAt(drawDate, today, now);
-        String headerCode = HEADER_CODE_PREFIX + drawDate.format(BASIC_DATE) + "-NEW-QA";
+        String headerCode = SeedDocumentCodes.importHeader(
+                drawDate,
+                SeedDocumentCodes.LANE_IMPORT_SETTLE + dayIndex
+        );
         ImportBatchEntity batch = importBatchRepository.save(
                 ImportBatchEntity.builder()
                         .batchCode(headerCode)
@@ -254,7 +254,7 @@ public class SupplierSettlementScenarioSeedInitializer implements ApplicationRun
                         .totalImportedCostValue(BigDecimal.ZERO)
                         .submittedAt(importedAt)
                         .completedAt(importedAt.plusMinutes(30))
-                        .note("SEED settlement QA import for " + drawDate)
+                        .note(SeedDocumentCodes.importNote("SETTLE", drawDate))
                         .createdAt(importedAt)
                         .updatedAt(now)
                         .createdBy(SYSTEM_ACTOR)
@@ -274,7 +274,7 @@ public class SupplierSettlementScenarioSeedInitializer implements ApplicationRun
         for (int stationIndex = 0; stationIndex < stations.size(); stationIndex++) {
             LotteryStationEntity station = stations.get(stationIndex);
             ImportBatchLineEntity line = importBatchLineRepository.save(
-                    createLine(batch, station, drawDate, importedAt, now)
+                    createLine(batch, station, drawDate, importedAt, now, dayIndex, stationIndex)
             );
             List<SerialKind> kinds = stationIndex == 0 ? STATION_A : STATION_B;
             LineSeedResult lineResult = seedTicketsForLine(
@@ -349,7 +349,7 @@ public class SupplierSettlementScenarioSeedInitializer implements ApplicationRun
                 ticketCount++;
                 String numbers = String.format("%06d", Math.floorMod(numberCursor++, 1_000_000));
                 String ticketSeedKey = SERIAL_PREFIX
-                        + drawDate.format(BASIC_DATE)
+                        + SeedDocumentCodes.dateToken(drawDate)
                         + "-"
                         + station.getId()
                         + "-"
@@ -410,7 +410,8 @@ public class SupplierSettlementScenarioSeedInitializer implements ApplicationRun
             LocalDate drawDate,
             LocalDate today,
             LocalDateTime now,
-            UserEntity operator
+            UserEntity operator,
+            int dayIndex
     ) {
         boolean handOver = seeded.handOverReturn();
         // Auto-gen / prior seeds may already hold PENDING_INSPECTION for this supplier+draw
@@ -419,11 +420,14 @@ public class SupplierSettlementScenarioSeedInitializer implements ApplicationRun
 
         ReturnBatchEntity batch = returnBatchRepository.save(
                 ReturnBatchEntity.builder()
-                        .batchCode(RETURN_CODE_PREFIX + drawDate.format(BASIC_DATE) + "-0001")
+                        .batchCode(SeedDocumentCodes.returnBatch(
+                                drawDate,
+                                SeedDocumentCodes.LANE_RETURN_SETTLE + dayIndex
+                        ))
                         .lotterySupplier(supplier)
                         .drawDate(drawDate)
                         .supplierSettlementId(settlement.getId())
-                        .note(RETURN_NOTE_PREFIX + supplier.getCode() + "-" + drawDate)
+                        .note(SeedDocumentCodes.returnNote(supplier.getCode(), drawDate))
                         .status(handOver ? ReturnBatchStatus.HANDED_OVER : ReturnBatchStatus.PENDING_INSPECTION)
                         .deliveryMode(handOver ? ReturnDeliveryMode.RETAILER_DELIVERS : null)
                         .returnReceiptUrl(handOver ? imageUrl("return-receipt-" + drawDate) : null)
@@ -490,14 +494,20 @@ public class SupplierSettlementScenarioSeedInitializer implements ApplicationRun
             LotteryStationEntity station,
             LocalDate drawDate,
             LocalDateTime importedAt,
-            LocalDateTime now
+            LocalDateTime now,
+            int dayIndex,
+            int stationIndex
     ) {
-        String stationCode = toStationCode(station.getName());
         return ImportBatchLineEntity.builder()
                 .importBatch(batch)
                 .lotteryStation(station)
                 .batchType(ImportBatchType.NEW)
-                .batchCode(LINE_CODE_PREFIX + drawDate.format(BASIC_DATE) + "-" + stationCode + "-NEW-QA")
+                .batchCode(SeedDocumentCodes.importLine(
+                        drawDate,
+                        station.getName(),
+                        ImportBatchType.NEW,
+                        SeedDocumentCodes.LANE_IMPORT_LINE_SETTLE + dayIndex * 10 + stationIndex
+                ))
                 .declareQuantity(0)
                 .declaredCostValue(BigDecimal.ZERO)
                 .totalQuantity(0)
@@ -624,12 +634,18 @@ public class SupplierSettlementScenarioSeedInitializer implements ApplicationRun
     }
 
     private void resetPreviousSeedData() {
-        deleteReturnBatchesFully(
-                returnBatchRepository.findByNoteStartingWithAndDeletedAtIsNull(RETURN_NOTE_PREFIX)
+        List<ReturnBatchEntity> returnBatches = new ArrayList<>(
+                returnBatchRepository.findByCreatedByAndDeletedAtIsNull(SYSTEM_ACTOR)
         );
+        // Legacy notes before note unification.
+        returnBatches.addAll(
+                returnBatchRepository.findByNoteStartingWithAndDeletedAtIsNull("SEED-RETURN-SETTLE-")
+        );
+        deleteReturnBatchesFully(returnBatches);
 
-        // Clear leftover return batches for DOI_SOAT_QA (incl. auto-generated PENDING_INSPECTION)
+        // Clear leftover return batches for Minh Ngọc (incl. auto-generated PENDING_INSPECTION)
         // so re-seed cannot hit uq_return_batches_pending_inspection_supplier_draw.
+        // Do not wipe Minh Chính returns created by return-batch-seed earlier in this boot.
         lotterySupplierRepository.findByCodeIgnoreCaseAndDeletedAtIsNull(SUPPLIER_CODE).ifPresent(supplier -> {
             if (supplier.getId() == null) {
                 return;
@@ -640,8 +656,20 @@ public class SupplierSettlementScenarioSeedInitializer implements ApplicationRun
             }
         });
 
-        List<ImportBatchEntity> seedBatches =
-                importBatchRepository.findByBatchCodeStartingWithAndDeletedAtIsNull(HEADER_CODE_PREFIX);
+        Map<Long, ImportBatchEntity> seedBatchesById = new HashMap<>();
+        for (ImportBatchEntity batch : importBatchRepository
+                .findByNoteStartingWithAndDeletedAtIsNull(SeedDocumentCodes.IMPORT_NOTE_PREFIX + "SETTLE")) {
+            if (batch.getId() != null) {
+                seedBatchesById.put(batch.getId(), batch);
+            }
+        }
+        for (ImportBatchEntity batch : importBatchRepository
+                .findByBatchCodeStartingWithAndDeletedAtIsNull("PN-SETTLE-")) {
+            if (batch.getId() != null) {
+                seedBatchesById.putIfAbsent(batch.getId(), batch);
+            }
+        }
+        List<ImportBatchEntity> seedBatches = new ArrayList<>(seedBatchesById.values());
         Set<Long> lineIds = new HashSet<>();
         for (ImportBatchEntity batch : seedBatches) {
             if (batch.getId() == null) {
@@ -712,50 +740,6 @@ public class SupplierSettlementScenarioSeedInitializer implements ApplicationRun
         });
     }
 
-    private LotterySupplierEntity ensureSupplier(LocalDateTime now) {
-        return lotterySupplierRepository.findByCodeIgnoreCaseAndDeletedAtIsNull(SUPPLIER_CODE)
-                .map(existing -> {
-                    existing.setName(SUPPLIER_NAME);
-                    existing.setType(LotterySupplierType.DISTRIBUTOR);
-                    existing.setContactName(SUPPLIER_NAME);
-                    existing.setContactPhone("0909000111");
-                    existing.setContactEmail("doisoat.qa@seed.local");
-                    existing.setAddress("1 Nguyen Hue, Quan 1, TP.HCM");
-                    existing.setTaxCode("0311111111");
-                    existing.setPaymentTermDays(1);
-                    existing.setDefaultImportCost(DEFAULT_IMPORT_COST);
-                    existing.setImportAllowFrom(LocalTime.of(8, 0));
-                    existing.setReturnCutOffTime(RETURN_CUT_OFF);
-                    existing.setPaymentCutOffTime(PAYMENT_CUT_OFF);
-                    existing.setActive(true);
-                    existing.setUpdatedAt(now);
-                    existing.setLastModifiedBy(SYSTEM_ACTOR);
-                    return lotterySupplierRepository.save(existing);
-                })
-                .orElseGet(() -> lotterySupplierRepository.save(
-                        LotterySupplierEntity.builder()
-                                .name(SUPPLIER_NAME)
-                                .code(SUPPLIER_CODE)
-                                .type(LotterySupplierType.DISTRIBUTOR)
-                                .contactName(SUPPLIER_NAME)
-                                .contactPhone("0909000111")
-                                .contactEmail("doisoat.qa@seed.local")
-                                .address("1 Nguyen Hue, Quan 1, TP.HCM")
-                                .taxCode("0311111111")
-                                .paymentTermDays(1)
-                                .defaultImportCost(DEFAULT_IMPORT_COST)
-                                .importAllowFrom(LocalTime.of(8, 0))
-                                .returnCutOffTime(RETURN_CUT_OFF)
-                                .paymentCutOffTime(PAYMENT_CUT_OFF)
-                                .isActive(true)
-                                .createdAt(now)
-                                .updatedAt(now)
-                                .createdBy(SYSTEM_ACTOR)
-                                .lastModifiedBy(SYSTEM_ACTOR)
-                                .build()
-                ));
-    }
-
     private SupplierSettlementEntity ensureSettlement(
             LotterySupplierEntity supplier,
             LocalDate drawDate,
@@ -786,7 +770,7 @@ public class SupplierSettlementScenarioSeedInitializer implements ApplicationRun
 
     private List<LotteryStationEntity> findIssuersForDrawDate(LocalDate drawDate) {
         DayOfWeek day = drawDate.getDayOfWeek();
-        return lotteryStationRepository.findAll().stream()
+        return SouthernStationSeedSupport.filterCanonical(lotteryStationRepository.findAll()).stream()
                 .filter(station -> station.getDeletedAt() == null)
                 .filter(LotteryStationEntity::isActive)
                 .filter(station -> station.getDrawDays() != null && station.getDrawDays().contains(day))
@@ -826,22 +810,6 @@ public class SupplierSettlementScenarioSeedInitializer implements ApplicationRun
 
     private static String imageUrl(String seed) {
         return "https://picsum.photos/seed/" + seed + "/800/500";
-    }
-
-    private static String toStationCode(String stationName) {
-        if (stationName == null || stationName.isBlank()) {
-            return "STATION";
-        }
-        String normalized = java.text.Normalizer.normalize(stationName.trim(), java.text.Normalizer.Form.NFD)
-                .replaceAll("\\p{M}+", "")
-                .replace('đ', 'd')
-                .replace('Đ', 'D')
-                .replaceAll("[^A-Za-z0-9]+", "")
-                .toUpperCase(java.util.Locale.ROOT);
-        if (normalized.isBlank()) {
-            return "STATION";
-        }
-        return normalized.length() > 16 ? normalized.substring(0, 16) : normalized;
     }
 
     private record SerialKind(

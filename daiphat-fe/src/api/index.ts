@@ -48,7 +48,7 @@ const API_ROOT = `${BASE_URL}${API_PREFIX}${API_VERSION}`
 
 const apiApp = axios.create({
     baseURL: API_ROOT,
-    timeout: 15_000,
+    timeout: 30_000,
     withCredentials: true, // gửi cookie HttpOnly (refresh_token) khi same-origin
     headers: {
         "Content-Type": "application/json",
@@ -100,8 +100,8 @@ apiApp.interceptors.request.use((config) => {
             delete headers["Content-Type"];
             delete headers["content-type"];
         }
-        // Upload tệp/ảnh thường cần thời gian dài hơn timeout mặc định 15s
-        if (!config.timeout || config.timeout === 15_000) {
+        // Upload tệp/ảnh thường cần thời gian dài hơn timeout mặc định
+        if (!config.timeout || config.timeout === 15_000 || config.timeout === 30_000) {
             config.timeout = 120_000;
         }
     }

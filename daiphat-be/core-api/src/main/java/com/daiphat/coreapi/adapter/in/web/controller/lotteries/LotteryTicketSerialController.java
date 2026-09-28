@@ -7,6 +7,9 @@ import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketRespo
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketSerialServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
+import com.daiphat.coreapi.domain.exception.DomainException;
+import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
 import com.daiphat.coreapi.shared.util.StorageUtils;
 import com.daiphat.coreapi.application.dto.request.lotteries.ReportSerialFaultRequest;
@@ -55,6 +58,14 @@ public class LotteryTicketSerialController {
             @Valid @RequestBody ReportSerialFaultRequest request,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         log.info("REST request to report fault on lottery ticket serial: {}", id);
+        // Settlement reconciliation voids serials without replacement through the service directly;
+        // the admin incident flow must always supply one, otherwise the ticket silently loses a unit.
+        if (request.ticketCondition() == TicketCondition.VOIDED
+                && (request.replacementSerialNumber() == null || request.replacementSerialNumber().isBlank())) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Hủy sê-ri do lỗi nhập liệu cần nhập số sê-ri thay thế.");
+        }
         LotteryTicketSerialModel serial = lotteryTicketSerialServicePort.reportFault(
                 id, request, principal != null ? principal.getId() : null);
         return ApiResponse.success("Báo cáo hủy vé thành công.",

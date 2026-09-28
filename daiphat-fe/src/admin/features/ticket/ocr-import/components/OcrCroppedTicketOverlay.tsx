@@ -9,9 +9,13 @@ import {
     type OcrFieldKey,
 } from '../utils/ocrImportHelpers';
 import {
+    boxPolygonPoints,
     computeContainedImageRect,
+    fillForField,
     mapBoxToNaturalPixels,
     resolveCoordSize,
+    resolveSourceFieldBox,
+    strokeForField,
     type ContainedImageRect,
 } from '../utils/ocrBboxOverlay';
 import type { OcrFieldSelection } from './OcrReviewImagePane';
@@ -23,6 +27,11 @@ type Props = {
     onSelectField?: (fieldName: OcrFieldKey) => void;
     maxHeight?: number | string;
     alt?: string;
+    /**
+     * `crop`: `imageUrl` is the cropped ticket, boxes are crop-local `fieldBoxes`.
+     * `source`: `imageUrl` is the original upload, boxes are `sourceFieldBoxes`.
+     */
+    space?: 'crop' | 'source';
 };
 
 const resolveFieldBox = (row: OcrReviewRow, field: OcrFieldKey): TicketBoundingBox | null => {
@@ -68,37 +77,10 @@ const toCropLocalBox = (
     };
 };
 
-const strokeForField = (
-    confidence: number | null | undefined,
-    selected: boolean,
-    validationStatus?: string | null
-): string => {
-    if (selected) return '#2563eb';
-    if (validationStatus === 'UNREADABLE' || validationStatus === 'MISMATCHED' || validationStatus === 'NOT_FOUND') {
-        return '#dc2626';
-    }
-    if (confidence != null && confidence < 0.6) return '#d97706';
-    if (confidence != null && confidence >= 0.85) return '#16a34a';
-    return '#0ea5e9';
-};
-
-const fillForField = (
-    confidence: number | null | undefined,
-    selected: boolean,
-    validationStatus?: string | null
-): string => {
-    if (selected) return 'rgba(37,99,235,0.22)';
-    if (validationStatus === 'UNREADABLE') return 'rgba(220,38,38,0.28)';
-    if (validationStatus === 'MISMATCHED' || validationStatus === 'NOT_FOUND') {
-        return 'rgba(239,68,68,0.22)';
-    }
-    if (confidence != null && confidence < 0.6) return 'rgba(217,119,6,0.18)';
-    return 'rgba(14,165,233,0.14)';
-};
-
 /**
- * Cropped ticket preview with per-field bounding boxes (crop-local coords).
- * Source-image overlay intentionally shows ticket boxes only.
+ * Ticket image with per-field bounding boxes: the cropped ticket with
+ * crop-local boxes, or the original upload with the template regions
+ * projected onto it (`space="source"`).
  */
 export default function OcrCroppedTicketOverlay({
     imageUrl,
@@ -107,6 +89,7 @@ export default function OcrCroppedTicketOverlay({
     onSelectField,
     maxHeight = '70vh',
     alt = 'Ảnh vé',
+    space = 'crop',
 }: Props) {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const imgRef = useRef<HTMLImageElement | null>(null);
@@ -142,12 +125,27 @@ export default function OcrCroppedTicketOverlay({
 
     const naturalWidth = layout?.naturalWidth ?? 0;
     const naturalHeight = layout?.naturalHeight ?? 0;
-    const { coordWidth, coordHeight } = resolveCoordSize(0, 0, naturalWidth, naturalHeight);
+    const onSource = space === 'source';
+    const { coordWidth, coordHeight } = onSource
+        ? resolveCoordSize(row.imageWidth, row.imageHeight, naturalWidth, naturalHeight)
+        : resolveCoordSize(0, 0, naturalWidth, naturalHeight);
     const viewWidth = naturalWidth > 0 ? naturalWidth : coordWidth;
     const viewHeight = naturalHeight > 0 ? naturalHeight : coordHeight;
 
     const toOverlayBox = (box: TicketBoundingBox): TicketBoundingBox =>
         mapBoxToNaturalPixels(box, coordWidth, coordHeight, viewWidth, viewHeight);
+
+    const fieldBoxInCoords = (fieldName: OcrFieldKey): TicketBoundingBox | null => {
+        if (onSource) {
+            return resolveSourceFieldBox(row, fieldName);
+        }
+        const raw = resolveFieldBox(row, fieldName);
+        return raw ? toCropLocalBox(raw, row, viewWidth, viewHeight) : null;
+    };
+    const ticketOutline =
+        onSource && row.bbox && row.bbox.width > 0 && row.bbox.height > 0
+            ? toOverlayBox(row.bbox)
+            : null;
 
     return (
         <Box
@@ -192,12 +190,18 @@ export default function OcrCroppedTicketOverlay({
                         overflow: 'visible',
                     }}
                 >
+                    {ticketOutline && (
+                        <polygon
+                            points={boxPolygonPoints(ticketOutline)}
+                            fill="none"
+                            stroke="#16a34a"
+                            strokeWidth={Math.max(viewWidth, viewHeight) * 0.0025}
+                        />
+                    )}
                     {OCR_FIELD_KEYS.map((fieldName) => {
-                        const raw = resolveFieldBox(row, fieldName);
-                        if (!raw) return null;
-                        const cropLocal = toCropLocalBox(raw, row, viewWidth, viewHeight);
-                        if (!cropLocal) return null;
-                        const box = toOverlayBox(cropLocal);
+                        const inCoords = fieldBoxInCoords(fieldName);
+                        if (!inCoords) return null;
+                        const box = toOverlayBox(inCoords);
                         const confidence =
                             row.fields?.[fieldName]?.confidence ?? row.fieldConfidences[fieldName];
                         const validationStatus =
@@ -217,11 +221,8 @@ export default function OcrCroppedTicketOverlay({
                                     cursor: onSelectField ? 'pointer' : 'default',
                                 }}
                             >
-                                <rect
-                                    x={box.x}
-                                    y={box.y}
-                                    width={box.width}
-                                    height={box.height}
+                                <polygon
+                                    points={boxPolygonPoints(box)}
                                     fill={fillForField(confidence, selected, validationStatus)}
                                     stroke={strokeForField(confidence, selected, validationStatus)}
                                     strokeWidth={Math.max(viewWidth, viewHeight) * (selected ? 0.004 : 0.0025)}
@@ -236,7 +237,7 @@ export default function OcrCroppedTicketOverlay({
                                     x={box.x + 2}
                                     y={Math.max(10, box.y - 3)}
                                     fill={strokeForField(confidence, selected, validationStatus)}
-                                    fontSize={Math.max(10, Math.round(viewWidth * 0.028))}
+                                    fontSize={Math.max(10, Math.round(viewWidth * (onSource ? 0.014 : 0.028)))}
                                     fontWeight={700}
                                     style={{ pointerEvents: 'none' }}
                                 >

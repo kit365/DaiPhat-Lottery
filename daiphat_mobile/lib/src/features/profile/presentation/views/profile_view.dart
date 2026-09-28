@@ -139,17 +139,6 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
             right: 16,
             child: Row(
               children: [
-                ListenableBuilder(
-                  listenable: widget.notificationViewModel,
-                  builder: (context, _) => AppHeaderActionButton(
-                    icon: ProfileIconography.notifications,
-                    tooltip: 'Thông báo',
-                    badgeCount: widget.notificationViewModel.unreadCount,
-                    variant: AppHeaderActionVariant.bare,
-                    onTap: () => context.push(AppRoute.notifications.path),
-                  ),
-                ),
-                const SizedBox(width: 8),
                 AppHeaderActionButton(
                   icon: ProfileIconography.chat,
                   tooltip: 'Chat hỗ trợ',
@@ -651,9 +640,9 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                   const SizedBox(width: 10),
                 ],
                 _buildUtilityItemIcon(
-                  ProfileIconography.notifications,
-                  'Thông báo',
-                  onTap: () => context.push(AppRoute.notifications.path),
+                  ProfileIconography.chat,
+                  'Chat hỗ trợ',
+                  onTap: () => context.push(AppRoute.chat.path),
                 ),
                 const SizedBox(width: 10),
                 _buildUtilityItemIcon(

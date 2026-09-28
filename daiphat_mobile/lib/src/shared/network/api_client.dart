@@ -83,6 +83,9 @@ class ApiClient {
             final newToken = await _refreshAccessToken();
             if (newToken != null && newToken.isNotEmpty) {
               final retryOptions = requestOptions.copyWith(
+                data: requestOptions.data is FormData
+                    ? (requestOptions.data as FormData).clone()
+                    : requestOptions.data,
                 extra: {...requestOptions.extra, 'isRetry': true},
                 headers: {
                   ...requestOptions.headers,
@@ -148,12 +151,17 @@ class ApiClient {
     String path, {
     Map<String, dynamic>? queryParameters,
     bool includeAuth = true,
+    Duration? timeout,
   }) async {
     return _send(
       () => _dio.get<Map<String, dynamic>>(
         path,
         queryParameters: queryParameters,
-        options: Options(extra: {'includeAuth': includeAuth}),
+        options: Options(
+          extra: {'includeAuth': includeAuth},
+          receiveTimeout: timeout,
+          sendTimeout: timeout,
+        ),
       ),
     );
   }
@@ -163,6 +171,7 @@ class ApiClient {
     Object? data,
     Map<String, dynamic>? queryParameters,
     bool includeAuth = true,
+    Duration? timeout,
   }) async {
     final isMultipart = data is FormData;
     return _send(
@@ -172,8 +181,12 @@ class ApiClient {
         queryParameters: queryParameters,
         options: Options(
           extra: {'includeAuth': includeAuth},
+          receiveTimeout: timeout,
+          sendTimeout: timeout,
           // Clear default JSON Content-Type so Dio can set multipart boundary.
-          headers: isMultipart ? <String, dynamic>{Headers.contentTypeHeader: null} : null,
+          headers: isMultipart
+              ? <String, dynamic>{Headers.contentTypeHeader: null}
+              : null,
         ),
       ),
     );

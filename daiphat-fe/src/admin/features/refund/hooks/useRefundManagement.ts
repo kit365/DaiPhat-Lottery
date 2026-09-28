@@ -6,8 +6,10 @@ import { refundAdminApi } from "@/admin/features/refund/services/refundService";
 import { QUERY_KEYS } from '@/admin/features/refund/constants/queryKeys';
 import { QUERY_KEYS as ORDER_QUERY_KEYS } from '@/admin/features/orders/constants/queryKeys';
 import {
+    CompleteCounterRefundRequest,
     GetStaffRefundsParams,
     TransferRefundRequestRequest,
+    VerifyRefundCounterIdentityRequest,
 } from '@/types/refund.type';
 import { invalidateAdminBadgeCounts } from '@/admin/utils/invalidateAdminBadgeCounts';
 
@@ -49,6 +51,45 @@ export const useTransferRefund = () => {
                 });
             } else {
                 toast.error(response.message || 'Không thể xác nhận chuyển khoản');
+            }
+        },
+        onError: (error: any) => {
+            toast.error(getErrorMessage(error, 'Lỗi kết nối đến máy chủ'));
+        },
+    });
+};
+
+/** Errors are rendered inside the counter dialog (missing CCCD fields, retake sides). */
+export const useVerifyCounterIdentity = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ id, data }: { id: number; data: VerifyRefundCounterIdentityRequest }) =>
+            refundAdminApi.verifyCounterIdentity(id, data),
+        onSettled: (_response, _error, variables) => {
+            queryClient.invalidateQueries({
+                queryKey: [QUERY_KEYS.ADMIN_REFUND_DETAIL, variables.id],
+            });
+        },
+    });
+};
+
+export const useCompleteCounterRefund = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ id, data }: { id: number; data: CompleteCounterRefundRequest }) =>
+            refundAdminApi.completeCounterRefund(id, data),
+        onSuccess: (response, variables) => {
+            if (response.success) {
+                toast.success(response.message || 'Đã hoàn tất hoàn tiền tại quầy');
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_REFUNDS] });
+                invalidateAdminBadgeCounts(queryClient);
+                queryClient.invalidateQueries({
+                    queryKey: [QUERY_KEYS.ADMIN_REFUND_DETAIL, variables.id],
+                });
+            } else {
+                toast.error(response.message || 'Không thể hoàn tất hoàn tiền tại quầy');
             }
         },
         onError: (error: any) => {

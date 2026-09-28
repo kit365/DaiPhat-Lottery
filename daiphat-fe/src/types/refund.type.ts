@@ -291,6 +291,46 @@ export interface RefundCustomerSummary {
     phone?: string;
 }
 
+export type RefundCounterPayoutMethod = 'CASH' | 'TRANSFER';
+
+export const REFUND_COUNTER_PAYOUT_METHOD_LABELS: Record<RefundCounterPayoutMethod, string> = {
+    CASH: 'Tiền mặt',
+    TRANSFER: 'Chuyển khoản',
+};
+
+export type RefundCounterEkycStatus = 'PENDING' | 'VERIFIED' | 'FAILED';
+
+/** CCCD verified at the counter for MANUAL_RESOLUTION refunds (staff-only). */
+export interface RefundCounterIdentitySummary {
+    cccdFrontImageUrl?: string | null;
+    cccdBackImageUrl?: string | null;
+    ekycStatus?: RefundCounterEkycStatus | null;
+    ekycFailureReason?: string | null;
+    ocrName?: string | null;
+    ocrIdNumber?: string | null;
+    ocrDob?: string | null;
+    ocrGender?: string | null;
+    ocrNationality?: string | null;
+    ocrPlaceOfBirth?: string | null;
+    ocrPlaceOfResidence?: string | null;
+    ocrIssueDate?: string | null;
+    ocrExpiryDate?: string | null;
+    verifiedAt?: string | null;
+    counterPayoutMethod?: RefundCounterPayoutMethod | null;
+}
+
+export interface VerifyRefundCounterIdentityRequest {
+    cccdFrontImageUrl: string;
+    cccdBackImageUrl: string;
+}
+
+export interface CompleteCounterRefundRequest {
+    paymentMethod: RefundCounterPayoutMethod;
+    amount: number;
+    transferEvidenceUrl?: string;
+    identityConfirmed: boolean;
+}
+
 export interface RefundRequestAdminDetailResponse {
     refund: RefundRequestResponse;
     orderSummary?: RefundOrderSummary | null;
@@ -299,6 +339,7 @@ export interface RefundRequestAdminDetailResponse {
     transferrerName?: string;
     processingHistory: RefundProcessingHistoryItem[];
     refundTickets?: RefundEligibleTicketItem[];
+    counterIdentity?: RefundCounterIdentitySummary | null;
 }
 
 export const REFUND_STATUS_LABELS: Record<RefundRequestStatus, string> = {

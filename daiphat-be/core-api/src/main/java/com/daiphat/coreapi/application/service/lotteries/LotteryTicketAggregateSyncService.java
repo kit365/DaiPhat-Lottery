@@ -58,16 +58,17 @@ public class LotteryTicketAggregateSyncService implements LotteryTicketAggregate
         int totalSerialCount = (int) allSerials.stream().filter(LotteryTicketSerialModel::isVisibleInventory).count();
         int soldSerialCount = (int) lotteryTicketSerialRepositoryPort.countByTicketIdAndStatuses(
                 ticketId, SOLD_SERIAL_STATUSES);
-        int faultySerialCount = (int) allSerials.stream()
+        List<LotteryTicketSerialModel> faultySerials = allSerials.stream()
                 .filter(LotteryTicketSerialModel::isVisibleInventory)
                 .filter(serial -> serial.getTicketCondition() != null && serial.getTicketCondition().isIncidentReported())
-                .count();
+                .toList();
         ticket.syncAggregateState(
                 (int) availableSerialCount,
                 totalSerialCount,
                 soldSerialCount,
-                faultySerialCount,
-                cutoffTime);
+                faultySerials.size(),
+                cutoffTime,
+                LotteryTicketModel.buildAllSerialsFaultyReason(faultySerials));
         lotteryTicketRepositoryPort.save(ticket);
         lotteryStationServicePort.recalculateInventory(ticket.getStationId());
     }

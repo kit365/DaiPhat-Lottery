@@ -15,7 +15,7 @@ void main() {
     expect(
       routes,
       contains(
-        'case AppRoute.notifications:\n'
+        'case AppRoute.bankAccounts:\n'
         '      case AppRoute.chat:\n'
         '      case AppRoute.notificationSettings:',
       ),

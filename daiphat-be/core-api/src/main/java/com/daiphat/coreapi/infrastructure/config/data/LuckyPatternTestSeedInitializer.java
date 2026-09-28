@@ -7,7 +7,6 @@ import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchLineStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchType;
 import com.daiphat.coreapi.domain.model.enums.lottery.InputSource;
-import com.daiphat.coreapi.domain.model.enums.lottery.LotterySupplierType;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.TicketCondition;
@@ -23,7 +22,6 @@ import com.daiphat.coreapi.infrastructure.persistence.repository.UserRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.ImportBatchLineRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.ImportBatchRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryStationRepository;
-import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotterySupplierRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryTicketRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryTicketSerialRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.streetagent.LuckyPatternConfigRepository;
@@ -63,13 +61,9 @@ import java.util.stream.Collectors;
 @Slf4j
 public class LuckyPatternTestSeedInitializer implements ApplicationRunner {
 
-    private static final String SUPPLIER_CODE = "LOCAL-LUCKY-TEST";
-    private static final String BATCH_PREFIX = "LOCAL-LUCKY-";
-
     private final LuckyPatternConfigRepository luckyPatternConfigRepository;
     private final LuckyPatternConfigServicePort luckyPatternConfigService;
     private final LotteryStationRepository stationRepository;
-    private final LotterySupplierRepository supplierRepository;
     private final ImportBatchRepository importBatchRepository;
     private final ImportBatchLineRepository importBatchLineRepository;
     private final LotteryTicketRepository ticketRepository;
@@ -78,12 +72,12 @@ public class LuckyPatternTestSeedInitializer implements ApplicationRunner {
     private final TransactionTemplate transaction;
     private final VendorTestSeedProperties properties;
     private final VietnamClock vietnamClock;
+    private final SeedSupplierSupport seedSupplierSupport;
 
     public LuckyPatternTestSeedInitializer(
             LuckyPatternConfigRepository luckyPatternConfigRepository,
             LuckyPatternConfigServicePort luckyPatternConfigService,
             LotteryStationRepository stationRepository,
-            LotterySupplierRepository supplierRepository,
             ImportBatchRepository importBatchRepository,
             ImportBatchLineRepository importBatchLineRepository,
             LotteryTicketRepository ticketRepository,
@@ -91,12 +85,12 @@ public class LuckyPatternTestSeedInitializer implements ApplicationRunner {
             UserRepository userRepository,
             PlatformTransactionManager transactionManager,
             VendorTestSeedProperties properties,
-            VietnamClock vietnamClock
+            VietnamClock vietnamClock,
+            SeedSupplierSupport seedSupplierSupport
     ) {
         this.luckyPatternConfigRepository = luckyPatternConfigRepository;
         this.luckyPatternConfigService = luckyPatternConfigService;
         this.stationRepository = stationRepository;
-        this.supplierRepository = supplierRepository;
         this.importBatchRepository = importBatchRepository;
         this.importBatchLineRepository = importBatchLineRepository;
         this.ticketRepository = ticketRepository;
@@ -105,6 +99,7 @@ public class LuckyPatternTestSeedInitializer implements ApplicationRunner {
         this.transaction = new TransactionTemplate(transactionManager);
         this.properties = properties;
         this.vietnamClock = vietnamClock;
+        this.seedSupplierSupport = seedSupplierSupport;
     }
 
     @Override
@@ -163,25 +158,11 @@ public class LuckyPatternTestSeedInitializer implements ApplicationRunner {
         }
 
         LocalDateTime now = vietnamClock.now();
-        LotterySupplierEntity supplier = supplierRepository
-                .findByCodeIgnoreCaseAndDeletedAtIsNull(SUPPLIER_CODE)
-                .orElseGet(() -> supplierRepository.save(LotterySupplierEntity.builder()
-                        .name("Nhà cung cấp test số đẹp local")
-                        .code(SUPPLIER_CODE)
-                        .type(LotterySupplierType.DISTRIBUTOR)
-                        .contactName("Local Lucky Test")
-                        .contactPhone("0900000068")
-                        .address("LOCAL")
-                        .paymentTermDays(0)
-                        .defaultImportCost(properties.getFaceValue())
-                        .importAllowFrom(properties.getSupplierImportAllowedFrom())
-                        .returnCutOffTime(properties.getSupplierReturnCutoff())
-                        .isActive(true)
-                        .createdBy(LuckyPatternTestSeedCatalog.SEED_MARKER)
-                        .lastModifiedBy(LuckyPatternTestSeedCatalog.SEED_MARKER)
-                        .build()));
+        LotterySupplierEntity supplier = seedSupplierSupport.ensureMinhNgoc(now);
 
-        String batchCode = BATCH_PREFIX + drawDate.toString().replace("-", "");
+        int dayOffset = (int) java.time.temporal.ChronoUnit.DAYS.between(vietnamClock.today(), drawDate);
+        int headerSeq = SeedDocumentCodes.LANE_IMPORT_LUCKY + dayOffset + 10;
+        String batchCode = SeedDocumentCodes.importHeader(drawDate, headerSeq);
         ImportBatchEntity batch = importBatchRepository
                 .findByBatchCodeAndDeletedAtIsNull(batchCode)
                 .orElseGet(() -> importBatchRepository.save(ImportBatchEntity.builder()
@@ -193,20 +174,29 @@ public class LuckyPatternTestSeedInitializer implements ApplicationRunner {
                         .importedAt(now)
                         .status(ImportBatchStatus.IMPORTED)
                         .completedAt(now)
-                        .note("Local fixture for lucky pattern / vendor override.")
+                        .note(SeedDocumentCodes.importNote("LUCKY", drawDate))
                         .createdBy(LuckyPatternTestSeedCatalog.SEED_MARKER)
                         .lastModifiedBy(LuckyPatternTestSeedCatalog.SEED_MARKER)
                         .build()));
 
-        Set<String> existingLuckySerials = serialRepository
+        Set<String> existingLuckySerials = new HashSet<>();
+        serialRepository
                 .findBySerialNumberStartingWithAndDeletedAtIsNull(LuckyPatternTestSeedCatalog.SERIAL_PREFIX)
-                .stream()
-                .map(LotteryTicketSerialEntity::getSerialNumber)
-                .collect(Collectors.toCollection(HashSet::new));
+                .forEach(s -> existingLuckySerials.add(s.getSerialNumber()));
+        serialRepository
+                .findBySerialNumberStartingWithAndDeletedAtIsNull(SharedSeedConstants.LEGACY_LUCKY_SERIAL_PREFIX)
+                .forEach(s -> existingLuckySerials.add(s.getSerialNumber()));
 
         int createdSerials = 0;
+        int stationOrder = 0;
         for (LotteryStationEntity station : stations) {
-            String lineCode = batchCode + "-" + station.getId();
+            stationOrder++;
+            String lineCode = SeedDocumentCodes.importLine(
+                    drawDate,
+                    station.getName(),
+                    ImportBatchType.NEW,
+                    SeedDocumentCodes.LANE_IMPORT_LINE_LUCKY + headerSeq * 10 + stationOrder
+            );
             ImportBatchLineEntity line = importBatchLineRepository
                     .findByBatchCodeAndDeletedAtIsNull(lineCode)
                     .orElseGet(() -> importBatchLineRepository.save(ImportBatchLineEntity.builder()
@@ -309,7 +299,8 @@ public class LuckyPatternTestSeedInitializer implements ApplicationRunner {
     }
 
     private List<LotteryStationEntity> resolveStations(LocalDate drawDate) {
-        List<LotteryStationEntity> active = stationRepository.findAll().stream()
+        List<LotteryStationEntity> active = SouthernStationSeedSupport
+                .filterCanonical(stationRepository.findAll()).stream()
                 .filter(station -> station.getDeletedAt() == null)
                 .filter(LotteryStationEntity::isActive)
                 .sorted(Comparator.comparing(LotteryStationEntity::getId))

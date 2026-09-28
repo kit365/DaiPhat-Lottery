@@ -3,6 +3,7 @@ package com.daiphat.coreapi.infrastructure.persistence.repository.lotteries;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryResultDetailEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -13,6 +14,8 @@ public interface LotteryResultDetailRepository extends JpaRepository<LotteryResu
     List<LotteryResultDetailEntity> findByLotteryResult_IdAndDeletedAtIsNullOrderByPrizeStructure_DisplayOrderAscWinningNumberAsc(
             Long lotteryResultId
     );
+
+    List<LotteryResultDetailEntity> findByPrizeStructure_PrizeCodeInAndDeletedAtIsNull(Collection<String> prizeCodes);
 
     boolean existsByLotteryResult_IdAndPrizeStructure_IdAndWinningNumberAndDeletedAtIsNull(
             Long lotteryResultId,

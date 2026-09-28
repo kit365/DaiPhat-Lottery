@@ -1,12 +1,6 @@
 package com.daiphat.coreapi.infrastructure.config.data;
 
-import java.math.BigInteger;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
-import java.util.HexFormat;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -29,27 +23,26 @@ public final class Win50PayoutSeedCatalog {
     public static final List<String> PRIZES = List.of(
             "DB", "G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8", "DB_PHU", "KK"
     );
-    /** Counts per prize: 20 large (handed over) + 30 online-claimable. */
-    public static final int[] PRIZE_COUNTS = {5, 5, 5, 5, 5, 5, 4, 4, 4, 5, 3};
+    /**
+     * Clean member demo: 8 online-claimable winners (G3–G7) for payout / request testing.
+     * Counts align with {@link #PRIZES} order; zeros skip that prize.
+     */
+    public static final int[] PRIZE_COUNTS = {0, 0, 0, 2, 2, 2, 1, 1, 0, 0, 0};
+    public static final int TARGET_WINNERS = 8;
+    public static final int EXPECTED_ONLINE_CLAIMABLE = 8;
     public static final Set<String> ONLINE_CLAIMABLE = Set.of("G3", "G4", "G5", "G6", "G7", "G8", "KK");
     public static final List<String> RESULT_DETAIL_CODES = List.of(
             "DB", "G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8"
     );
+    /**
+     * Result crawlers only store DB–G8; details on these derived prizes were written
+     * by the old overlay that faked lottery results.
+     */
+    public static final List<String> FAKE_RESULT_PRIZE_CODES = List.of("DB_PHU", "KK");
 
-    /** order_n -> (slots, cumStart exclusive, cumEnd inclusive) covering winners 1..50. */
+    /** One COMPLETED order on {@code member} with 8 winning tickets. */
     public static final List<OrderPlan> ORDER_PLANS = List.of(
-            new OrderPlan(1, 6, 0, 6),
-            new OrderPlan(2, 5, 6, 11),
-            new OrderPlan(3, 5, 11, 16),
-            new OrderPlan(4, 4, 16, 20),
-            new OrderPlan(5, 4, 20, 24),
-            new OrderPlan(6, 4, 24, 28),
-            new OrderPlan(7, 3, 28, 31),
-            new OrderPlan(8, 3, 31, 34),
-            new OrderPlan(9, 3, 34, 37),
-            new OrderPlan(10, 3, 37, 40),
-            new OrderPlan(11, 5, 40, 45),
-            new OrderPlan(12, 5, 45, 50)
+            new OrderPlan(1, 8, 0, 8)
     );
 
     private Win50PayoutSeedCatalog() {
@@ -70,24 +63,6 @@ public final class Win50PayoutSeedCatalog {
             String prize,
             String serial
     ) {
-    }
-
-    public static String digitBlock(String seed, int len, int salt) {
-        String digest = md5Hex(seed + ":" + salt);
-        String hex15 = digest.substring(0, 15);
-        BigInteger n = new BigInteger(hex15, 16);
-        long mod = pow10(len);
-        long value = Math.abs(n.longValue()) % mod;
-        return String.format("%0" + len + "d", value);
-    }
-
-    public static String nudge(String tail, String forbidden) {
-        if (tail == null || !tail.equals(forbidden)) {
-            return tail;
-        }
-        int last = Character.getNumericValue(tail.charAt(tail.length() - 1));
-        char next = Character.forDigit((last + 1) % 10, 10);
-        return tail.substring(0, tail.length() - 1) + next;
     }
 
     public static String padWin(String prizeCode, String win) {
@@ -133,12 +108,12 @@ public final class Win50PayoutSeedCatalog {
         return right(ticket, digits).equals(right(padWin(prize, win), digits));
     }
 
-    public static String firstPrize(String ticket, Map<String, String> results) {
+    public static String firstPrize(String ticket, Map<String, List<String>> results) {
         for (String prize : PRIZES) {
-            String win = ("DB_PHU".equals(prize) || "KK".equals(prize))
+            List<String> wins = ("DB_PHU".equals(prize) || "KK".equals(prize))
                     ? results.get("DB")
                     : results.get(prize);
-            if (win != null && matches(ticket, win, prize)) {
+            if (wins != null && wins.stream().anyMatch(win -> matches(ticket, win, prize))) {
                 return prize;
             }
         }
@@ -178,31 +153,6 @@ public final class Win50PayoutSeedCatalog {
         return String.format("%0" + prefLen + "d", salt % mod) + tail;
     }
 
-    public static Map<String, String> buildResults(long stationId, LocalDate drawDate) {
-        String seed = stationId + ":" + drawDate;
-        String db = digitBlock(seed, 6, 1);
-        String g1 = nudge(right(digitBlock(seed, 6, 11), 5), right(db, 5));
-        String g2 = nudge(right(digitBlock(seed, 6, 12), 5), right(db, 5));
-        String g3 = nudge(right(digitBlock(seed, 6, 13), 5), right(db, 5));
-        String g4 = nudge(right(digitBlock(seed, 6, 14), 5), right(db, 5));
-        String g5 = nudge(right(digitBlock(seed, 6, 15), 4), right(db, 4));
-        String g6 = nudge(right(digitBlock(seed, 6, 16), 4), right(db, 4));
-        String g7 = nudge(right(digitBlock(seed, 6, 17), 3), right(db, 3));
-        String g8 = nudge(right(digitBlock(seed, 6, 18), 2), right(db, 2));
-
-        Map<String, String> results = new LinkedHashMap<>();
-        results.put("DB", db);
-        results.put("G1", digitBlock(seed, 1, 21) + g1);
-        results.put("G2", digitBlock(seed, 1, 22) + g2);
-        results.put("G3", digitBlock(seed, 1, 23) + g3);
-        results.put("G4", digitBlock(seed, 1, 24) + g4);
-        results.put("G5", g5);
-        results.put("G6", g6);
-        results.put("G7", g7);
-        results.put("G8", g8);
-        return results;
-    }
-
     private static int matchDigits(String prize) {
         return switch (prize) {
             case "G1", "G2", "G3", "G4" -> 5;
@@ -211,16 +161,6 @@ public final class Win50PayoutSeedCatalog {
             case "G8" -> 2;
             default -> 0;
         };
-    }
-
-    private static String md5Hex(String input) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("MD5");
-            byte[] digest = md.digest(input.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(digest);
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("MD5 not available", e);
-        }
     }
 
     private static String lpad(String value, int len) {

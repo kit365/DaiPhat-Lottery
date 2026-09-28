@@ -1,7 +1,10 @@
 package com.daiphat.coreapi.application.service.refund;
 
+import com.daiphat.coreapi.application.dto.ekyc.EkycVerificationResult;
+import com.daiphat.coreapi.application.dto.request.refund.CompleteCounterRefundRequest;
 import com.daiphat.coreapi.application.dto.request.refund.RequestBankInfoUpdateRequest;
 import com.daiphat.coreapi.application.dto.request.refund.TransferRefundRequestRequest;
+import com.daiphat.coreapi.application.dto.request.refund.VerifyRefundCounterIdentityRequest;
 import com.daiphat.coreapi.application.event.OrderStatusChangedEvent;
 import com.daiphat.coreapi.application.event.RefundRequestStatusChangedEvent;
 import com.daiphat.coreapi.application.mapper.order.OrderApplicationMapper;
@@ -14,10 +17,13 @@ import com.daiphat.coreapi.application.port.out.refund.RefundRequestRepositoryPo
 import com.daiphat.coreapi.application.port.out.refund.UserBankAccountRepositoryPort;
 import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
 import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
+import com.daiphat.coreapi.application.service.ekyc.EkycVerificationService;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.ekyc.EkycStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
+import com.daiphat.coreapi.domain.model.enums.order.refund.RefundCounterPayoutMethod;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundProcessingUrgency;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
 import com.daiphat.coreapi.domain.model.enums.settings.SystemConfigEnum;
@@ -71,6 +77,7 @@ class RefundRequestStaffServiceTest {
     private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
 
     private final com.daiphat.coreapi.application.port.in.order.OrderIncidentTicketServicePort orderIncidentTicketServicePort = mock(com.daiphat.coreapi.application.port.in.order.OrderIncidentTicketServicePort.class);
+    private final EkycVerificationService ekycVerificationService = mock(EkycVerificationService.class);
 
     private RefundRequestStaffService refundRequestStaffService;
 
@@ -96,7 +103,8 @@ class RefundRequestStaffServiceTest {
                 transactionRepositoryPort,
                 systemConfigRepositoryPort,
                 eventPublisher,
-                orderIncidentTicketServicePort);
+                orderIncidentTicketServicePort,
+                ekycVerificationService);
 
         when(refundProcessingDeadlineService.evaluate(any())).thenReturn(
                 new RefundProcessingDeadlineService.ProcessingEvaluation(
@@ -448,6 +456,207 @@ class RefundRequestStaffServiceTest {
                 .isEqualTo(ErrorCode.INVALID_INPUT);
 
         verify(refundRequestRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("verifyCounterIdentity: persists verified OCR on a MANUAL_RESOLUTION refund")
+    void verifyCounterIdentity_success() {
+        RefundRequestModel refund = manualResolutionRefund();
+        EkycVerificationResult ocr = new EkycVerificationResult(
+                EkycStatus.VERIFIED, "NGUYEN VAN A", "079204016924", "01/01/1990", "Nam", "Việt Nam",
+                "TP.HCM", "TP.HCM", "01/01/2021", "01/01/2041", null, null, null, null);
+        when(refundRequestRepositoryPort.findById(refundId)).thenReturn(Optional.of(refund));
+        when(refundRequestRepositoryPort.save(any(RefundRequestModel.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(ekycVerificationService.verifyIdCardOcrOnlyFromUrls("https://front.url", "https://back.url"))
+                .thenReturn(ocr);
+
+        var summary = refundRequestStaffService.verifyCounterIdentity(
+                refundId, staffId, new VerifyRefundCounterIdentityRequest("https://front.url", "https://back.url"));
+
+        assertThat(summary.ekycStatus()).isEqualTo(EkycStatus.VERIFIED);
+        assertThat(summary.ocrIdNumber()).isEqualTo("079204016924");
+        assertThat(refund.getCccdFrontImageUrl()).isEqualTo("https://front.url");
+        assertThat(refund.getEkycVerifiedAt()).isNotNull();
+        assertThat(refund.getStatus()).isEqualTo(RefundRequestStatus.MANUAL_RESOLUTION);
+        verify(ekycVerificationService).assertVerified(ocr);
+    }
+
+    @Test
+    @DisplayName("verifyCounterIdentity: saves FAILED OCR before surfacing the eKYC error")
+    void verifyCounterIdentity_failedOcrIsPersisted() {
+        RefundRequestModel refund = manualResolutionRefund();
+        EkycVerificationResult ocr = new EkycVerificationResult(
+                EkycStatus.FAILED, null, null, null, null, null, null, null, null, null, null, null, null,
+                "Thiếu/không hợp lệ — Mặt trước: Số CCCD", List.of("personal_identification_number"));
+        when(refundRequestRepositoryPort.findById(refundId)).thenReturn(Optional.of(refund));
+        when(refundRequestRepositoryPort.save(any(RefundRequestModel.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(ekycVerificationService.verifyIdCardOcrOnlyFromUrls(any(), any())).thenReturn(ocr);
+        org.mockito.Mockito.doThrow(new DomainException(ErrorCode.EKYC_OCR_FAILED))
+                .when(ekycVerificationService).assertVerified(ocr);
+
+        assertThatThrownBy(() -> refundRequestStaffService.verifyCounterIdentity(
+                refundId, staffId, new VerifyRefundCounterIdentityRequest("https://front.url", "https://back.url")))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.EKYC_OCR_FAILED);
+
+        verify(refundRequestRepositoryPort).save(refund);
+        assertThat(refund.getEkycStatus()).isEqualTo(EkycStatus.FAILED);
+        assertThat(refund.getEkycVerifiedAt()).isNull();
+    }
+
+    @Test
+    @DisplayName("verifyCounterIdentity: rejects refunds not awaiting manual resolution")
+    void verifyCounterIdentity_rejectsOtherStatuses() {
+        when(refundRequestRepositoryPort.findById(refundId)).thenReturn(Optional.of(pendingRefund()));
+
+        assertThatThrownBy(() -> refundRequestStaffService.verifyCounterIdentity(
+                refundId, staffId, new VerifyRefundCounterIdentityRequest("https://front.url", "https://back.url")))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.REFUND_REQUEST_INVALID_STATUS);
+
+        verify(ekycVerificationService, never()).verifyIdCardOcrOnlyFromUrls(any(), any());
+    }
+
+    @Test
+    @DisplayName("completeCounterRefund: cash payout → PAID, refunds tickets, records REFUND transaction")
+    void completeCounterRefund_cash() {
+        RefundRequestModel refund = verifiedManualResolutionRefund();
+        OrderDetailModel detail = OrderDetailModel.builder()
+                .id(99L)
+                .orderId(orderId)
+                .refundRequestId(refundId)
+                .status(com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.REFUND_PENDING)
+                .price(BigDecimal.valueOf(20000))
+                .build();
+        when(refundRequestRepositoryPort.findById(refundId)).thenReturn(Optional.of(refund));
+        when(refundRequestRepositoryPort.save(any(RefundRequestModel.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(orderRepositoryPort.findById(orderId)).thenReturn(Optional.of(
+                OrderModel.builder().id(orderId).orderCode("ORD-001").orderDetails(List.of(detail)).build()));
+        when(orderRepositoryPort.save(any(OrderModel.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(transactionRepositoryPort.save(any(TransactionModel.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(userRepositoryPort.findById(staffId)).thenReturn(Optional.of(
+                com.daiphat.coreapi.domain.model.UserModel.builder()
+                        .id(staffId)
+                        .lastName("Le")
+                        .firstName("Van C")
+                        .build()));
+
+        refundRequestStaffService.completeCounterRefund(
+                refundId,
+                staffId,
+                new CompleteCounterRefundRequest(
+                        RefundCounterPayoutMethod.CASH, BigDecimal.valueOf(20000), null, true));
+
+        assertThat(refund.getStatus()).isEqualTo(RefundRequestStatus.PAID);
+        assertThat(refund.getCounterPayoutMethod()).isEqualTo(RefundCounterPayoutMethod.CASH);
+        assertThat(detail.getStatus())
+                .isEqualTo(com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.REFUNDED);
+
+        ArgumentCaptor<TransactionModel> txCaptor = ArgumentCaptor.forClass(TransactionModel.class);
+        verify(transactionRepositoryPort).save(txCaptor.capture());
+        TransactionModel tx = txCaptor.getValue();
+        assertThat(tx.getType()).isEqualTo(TransactionType.REFUND);
+        assertThat(tx.getRefundRequestId()).isEqualTo(refundId);
+        assertThat(tx.getAmount()).isEqualByComparingTo(BigDecimal.valueOf(20000));
+        assertThat(tx.getPaymentEvidenceUrl()).isNull();
+        assertThat(tx.getPaymentBy()).isEqualTo(staffId);
+        assertThat(tx.getNote())
+                .isEqualTo("Yêu cầu hoàn tiền đã được xử lý tại quầy (tiền mặt) bởi nhân viên Le Van C.");
+        verify(eventPublisher).publishEvent(any(RefundRequestStatusChangedEvent.class));
+    }
+
+    @Test
+    @DisplayName("completeCounterRefund: transfer payout stores the receipt as evidence")
+    void completeCounterRefund_transfer() {
+        RefundRequestModel refund = verifiedManualResolutionRefund();
+        when(refundRequestRepositoryPort.findById(refundId)).thenReturn(Optional.of(refund));
+        when(refundRequestRepositoryPort.save(any(RefundRequestModel.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(orderRepositoryPort.findById(orderId)).thenReturn(Optional.of(
+                OrderModel.builder().id(orderId).orderCode("ORD-001").build()));
+        when(orderRepositoryPort.save(any(OrderModel.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(transactionRepositoryPort.save(any(TransactionModel.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        refundRequestStaffService.completeCounterRefund(
+                refundId,
+                staffId,
+                new CompleteCounterRefundRequest(
+                        RefundCounterPayoutMethod.TRANSFER, BigDecimal.valueOf(20000), "https://receipt.url", true));
+
+        assertThat(refund.getStatus()).isEqualTo(RefundRequestStatus.PAID);
+        ArgumentCaptor<TransactionModel> txCaptor = ArgumentCaptor.forClass(TransactionModel.class);
+        verify(transactionRepositoryPort).save(txCaptor.capture());
+        assertThat(txCaptor.getValue().getPaymentEvidenceUrl()).isEqualTo("https://receipt.url");
+    }
+
+    @Test
+    @DisplayName("completeCounterRefund: rejects when CCCD has not been verified")
+    void completeCounterRefund_requiresVerifiedIdentity() {
+        when(refundRequestRepositoryPort.findById(refundId)).thenReturn(Optional.of(manualResolutionRefund()));
+
+        assertThatThrownBy(() -> refundRequestStaffService.completeCounterRefund(
+                refundId,
+                staffId,
+                new CompleteCounterRefundRequest(
+                        RefundCounterPayoutMethod.CASH, BigDecimal.valueOf(20000), null, true)))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.REFUND_REQUEST_COUNTER_IDENTITY_REQUIRED);
+
+        verify(refundRequestRepositoryPort, never()).save(any());
+        verify(transactionRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("completeCounterRefund: rejects missing identity confirmation, wrong amount, or transfer without receipt")
+    void completeCounterRefund_validatesInput() {
+        when(refundRequestRepositoryPort.findById(refundId))
+                .thenAnswer(inv -> Optional.of(verifiedManualResolutionRefund()));
+
+        assertThatThrownBy(() -> refundRequestStaffService.completeCounterRefund(
+                refundId, staffId, new CompleteCounterRefundRequest(
+                        RefundCounterPayoutMethod.CASH, BigDecimal.valueOf(20000), null, false)))
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_INPUT);
+        assertThatThrownBy(() -> refundRequestStaffService.completeCounterRefund(
+                refundId, staffId, new CompleteCounterRefundRequest(
+                        RefundCounterPayoutMethod.CASH, BigDecimal.valueOf(15000), null, true)))
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.REFUND_REQUEST_COUNTER_AMOUNT_MISMATCH);
+        assertThatThrownBy(() -> refundRequestStaffService.completeCounterRefund(
+                refundId, staffId, new CompleteCounterRefundRequest(
+                        RefundCounterPayoutMethod.TRANSFER, BigDecimal.valueOf(20000), "  ", true)))
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_INPUT);
+
+        verify(refundRequestRepositoryPort, never()).save(any());
+        verify(transactionRepositoryPort, never()).save(any());
+    }
+
+    private RefundRequestModel manualResolutionRefund() {
+        return RefundRequestModel.builder()
+                .id(refundId)
+                .orderId(orderId)
+                .requestedBy(customerId)
+                .status(RefundRequestStatus.MANUAL_RESOLUTION)
+                .refundReason("Đổi ý")
+                .bankAccountId(1L)
+                .retryCount(3)
+                .operatorNote(RefundRequestModel.MANUAL_RESOLUTION_NOTE)
+                .refundAmount(BigDecimal.valueOf(20000))
+                .build();
+    }
+
+    private RefundRequestModel verifiedManualResolutionRefund() {
+        RefundRequestModel refund = manualResolutionRefund();
+        refund.setCccdFrontImageUrl("https://front.url");
+        refund.setCccdBackImageUrl("https://back.url");
+        refund.setEkycStatus(EkycStatus.VERIFIED);
+        refund.setEkycOcrName("NGUYEN VAN A");
+        refund.setEkycOcrIdNumber("079204016924");
+        refund.setEkycVerifiedAt(LocalDateTime.now());
+        return refund;
     }
 
     private RefundRequestModel pendingRefund() {

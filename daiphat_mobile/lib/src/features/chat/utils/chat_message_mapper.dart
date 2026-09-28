@@ -23,17 +23,9 @@ class QuickReplyChip {
 
 List<QuickReplyChip> buildHubActionChips() => const [
   QuickReplyChip(
-    id: 'hub-schedule',
-    label: 'Xem lịch xổ',
-    action: QuickReplyAction.send,
-    message: 'SCHEDULE_SHOW:goal=SCHEDULE:region=MIEN_NAM:scope=all',
-    primary: true,
-  ),
-  QuickReplyChip(
-    id: 'hub-results',
-    label: 'Kết quả',
-    action: QuickReplyAction.send,
-    message: 'SCHEDULE_SET_GOAL:RESULT',
+    id: 'hub-staff',
+    label: 'Gặp nhân viên',
+    action: QuickReplyAction.staff,
     primary: true,
   ),
   QuickReplyChip(
@@ -41,6 +33,7 @@ List<QuickReplyChip> buildHubActionChips() => const [
     label: 'Gợi ý vé',
     action: QuickReplyAction.send,
     message: suggestTicketsMessage,
+    primary: true,
   ),
   QuickReplyChip(
     id: 'hub-search',
@@ -49,31 +42,38 @@ List<QuickReplyChip> buildHubActionChips() => const [
     message: searchSuffixMessage,
   ),
   QuickReplyChip(
-    id: 'hub-staff',
-    label: 'Gặp nhân viên',
-    action: QuickReplyAction.staff,
+    id: 'hub-results',
+    label: 'Kết quả',
+    action: QuickReplyAction.send,
+    message: 'SCHEDULE_SET_GOAL:RESULT',
   ),
 ];
 
 List<QuickReplyChip> buildWelcomeQuickReplies() => const [
   QuickReplyChip(
-    id: 'welcome-schedule',
-    label: 'Xem lịch xổ',
-    action: QuickReplyAction.send,
-    message: 'SCHEDULE_SHOW:goal=SCHEDULE:region=MIEN_NAM:scope=all',
+    id: 'welcome-staff',
+    label: 'Gặp nhân viên',
+    action: QuickReplyAction.staff,
     primary: true,
-  ),
-  QuickReplyChip(
-    id: 'welcome-result',
-    label: 'Tra cứu kết quả',
-    action: QuickReplyAction.send,
-    message: 'SCHEDULE_SET_GOAL:RESULT',
   ),
   QuickReplyChip(
     id: 'welcome-ticket',
     label: 'Gợi ý vé',
     action: QuickReplyAction.send,
     message: suggestTicketsMessage,
+    primary: true,
+  ),
+  QuickReplyChip(
+    id: 'welcome-search',
+    label: 'Tìm đuôi số',
+    action: QuickReplyAction.send,
+    message: searchSuffixMessage,
+  ),
+  QuickReplyChip(
+    id: 'welcome-result',
+    label: 'Kết quả',
+    action: QuickReplyAction.send,
+    message: 'SCHEDULE_SET_GOAL:RESULT',
   ),
 ];
 
@@ -146,6 +146,7 @@ class UiChatMessage {
     this.variant = ChatMessageVariant.bubble,
     this.sentContent,
     this.suggestedTickets = const [],
+    this.actions = const [],
   });
 
   final String id;
@@ -158,6 +159,7 @@ class UiChatMessage {
   final ChatMessageVariant variant;
   final String? sentContent;
   final List<SuggestedTicketModel> suggestedTickets;
+  final List<ChatMessageAction> actions;
 
   UiChatMessage copyWith({
     String? id,
@@ -170,6 +172,7 @@ class UiChatMessage {
     ChatMessageVariant? variant,
     String? sentContent,
     List<SuggestedTicketModel>? suggestedTickets,
+    List<ChatMessageAction>? actions,
   }) {
     return UiChatMessage(
       id: id ?? this.id,
@@ -182,6 +185,7 @@ class UiChatMessage {
       variant: variant ?? this.variant,
       sentContent: sentContent ?? this.sentContent,
       suggestedTickets: suggestedTickets ?? this.suggestedTickets,
+      actions: actions ?? this.actions,
     );
   }
 }
@@ -228,6 +232,22 @@ String mapCustomerDisplayText(String rawContent) {
     };
   }
   if (raw.startsWith(scheduleShowPrefix)) {
+    if (raw.contains('date=TODAY')) return 'Hôm nay';
+    if (raw.contains('date=YESTERDAY')) return 'Hôm qua';
+    if (raw.contains('date=TOMORROW')) return 'Ngày mai';
+    if (raw.contains('day=2')) return 'Thứ 2';
+    if (raw.contains('day=3')) return 'Thứ 3';
+    if (raw.contains('day=4')) return 'Thứ 4';
+    if (raw.contains('day=5')) return 'Thứ 5';
+    if (raw.contains('day=6')) return 'Thứ 6';
+    if (raw.contains('day=7')) return 'Thứ 7';
+    if (raw.contains('day=CN') || raw.contains('day=8')) return 'Chủ nhật';
+    if (raw.contains('station=')) {
+      final match = RegExp(r'station=([^|&]+)').firstMatch(raw);
+      if (match != null) {
+        return Uri.decodeComponent(match.group(1)!);
+      }
+    }
     if (raw.contains('goal=SCHEDULE')) return 'Xem lịch xổ';
     if (raw.contains('goal=RESULT')) return 'Kết quả';
     if (raw.contains('goal=TICKET')) return 'Gợi ý vé';
@@ -275,14 +295,29 @@ UiChatMessage mapApiMessage(ChatMessageModel message) {
     );
   }
 
+  if (!isUser &&
+      (message.intent == 'WEB_SCHEDULE' ||
+          raw.startsWith('SCHEDULE_') ||
+          raw.contains('SCHEDULE_'))) {
+    final schedule = _parseScheduleMessage(raw);
+    return UiChatMessage(
+      id: message.id.toString(),
+      isUser: false,
+      text: schedule.text,
+      timeLabel: formatMessageTime(message.createdAt),
+      conversationId: message.conversationId,
+      fromStaff: fromStaff,
+      isRead: message.isRead,
+      actions: schedule.actions,
+    );
+  }
+
   var displayText = raw;
   String? sentContent;
   if (isUser) {
     final mapped = mapCustomerDisplayText(raw);
     displayText = mapped;
     if (mapped != raw) sentContent = raw;
-  } else if (message.intent == 'WEB_SCHEDULE') {
-    displayText = _resolveScheduleDisplayText(raw);
   }
 
   return UiChatMessage(
@@ -363,40 +398,206 @@ bool _isSystemNotice(String text) {
       normalized.contains('nhân viên đã');
 }
 
-String _resolveScheduleDisplayText(String raw) {
-  if (raw.contains('Mình chưa nhận ra khu vực') ||
-      raw.contains('Mình chưa tìm thấy đài')) {
-    return 'Bạn muốn xem lịch xổ — dùng nút Xem lịch xổ bên dưới nhé.';
-  }
-  if (raw.contains('Mình chưa nhận ra ngày/thứ')) return raw;
-  if (raw.startsWith('SCHEDULE_ASK_DATE_MODE')) {
-    return raw.contains('goal=RESULT')
+class _ParsedScheduleMessage {
+  const _ParsedScheduleMessage({required this.text, this.actions = const []});
+
+  final String text;
+  final List<ChatMessageAction> actions;
+}
+
+_ParsedScheduleMessage _parseScheduleMessage(String raw) {
+  final trimmed = raw.trim();
+
+  if (trimmed.startsWith('SCHEDULE_ASK_DATE_MODE') ||
+      trimmed == 'SCHEDULE_ASK_DATE') {
+    final isResult = trimmed.contains('goal=RESULT');
+    final isTicket = trimmed.contains('goal=TICKET');
+    final goal = isResult
+        ? 'RESULT'
+        : (isTicket ? 'TICKET' : 'SCHEDULE');
+    final text = isResult
         ? 'Bạn muốn xem kết quả ngày nào?'
-        : 'Bạn muốn xem lịch ngày nào?';
+        : (isTicket
+            ? 'Bạn muốn xem vé ngày nào?'
+            : 'Bạn muốn xem lịch ngày nào?');
+
+    final actions = <ChatMessageAction>[
+      ChatMessageAction(
+        label: 'Hôm nay',
+        payload: 'SCHEDULE_SHOW:date=TODAY|goal=$goal',
+        primary: true,
+      ),
+      if (isResult)
+        ChatMessageAction(
+          label: 'Hôm qua',
+          payload: 'SCHEDULE_SHOW:date=YESTERDAY|goal=$goal',
+        )
+      else
+        ChatMessageAction(
+          label: 'Ngày mai',
+          payload: 'SCHEDULE_SHOW:date=TOMORROW|goal=$goal',
+        ),
+      ChatMessageAction(
+        label: 'Thứ 2',
+        payload: 'SCHEDULE_SHOW:day=2|goal=$goal',
+      ),
+      ChatMessageAction(
+        label: 'Thứ 3',
+        payload: 'SCHEDULE_SHOW:day=3|goal=$goal',
+      ),
+      ChatMessageAction(
+        label: 'Thứ 4',
+        payload: 'SCHEDULE_SHOW:day=4|goal=$goal',
+      ),
+      ChatMessageAction(
+        label: 'Thứ 5',
+        payload: 'SCHEDULE_SHOW:day=5|goal=$goal',
+      ),
+      ChatMessageAction(
+        label: 'Thứ 6',
+        payload: 'SCHEDULE_SHOW:day=6|goal=$goal',
+      ),
+      ChatMessageAction(
+        label: 'Thứ 7',
+        payload: 'SCHEDULE_SHOW:day=7|goal=$goal',
+      ),
+      ChatMessageAction(
+        label: 'Chủ nhật',
+        payload: 'SCHEDULE_SHOW:day=CN|goal=$goal',
+      ),
+    ];
+    return _ParsedScheduleMessage(text: text, actions: actions);
   }
-  if (raw == 'SCHEDULE_ASK_DATE') {
-    return 'Bạn muốn xem lịch ngày/thứ nào? (vd: hôm nay, thứ 7)';
+
+  if (trimmed == 'SCHEDULE_ASK_GOAL') {
+    return const _ParsedScheduleMessage(
+      text: 'Bạn muốn tra cứu lịch quay, kết quả xổ số hay xem vé ạ?',
+      actions: [
+        ChatMessageAction(
+          label: 'Tra cứu kết quả',
+          payload: 'SCHEDULE_SET_GOAL:RESULT',
+          primary: true,
+        ),
+        ChatMessageAction(
+          label: 'Xem lịch mở thưởng',
+          payload: 'SCHEDULE_SET_GOAL:SCHEDULE',
+        ),
+        ChatMessageAction(
+          label: 'Gợi ý vé số',
+          payload: 'SCHEDULE_SET_GOAL:TICKET',
+        ),
+      ],
+    );
   }
-  if (raw == 'SCHEDULE_ASK_GOAL') {
-    return 'Bạn muốn tra cứu lịch quay, kết quả xổ số hay xem vé ạ?';
+
+  if (trimmed.startsWith('SCHEDULE_CONFIRM_STATION:') ||
+      trimmed.startsWith('SCHEDULE_PICK_STATION_LIST:') ||
+      trimmed.startsWith('SCHEDULE_ASK_STATION:')) {
+    final colonIdx = trimmed.indexOf(':');
+    final payload =
+        colonIdx >= 0 ? trimmed.substring(colonIdx + 1).trim() : '';
+    const text = 'Chọn đài bạn muốn xem:';
+    final actions = <ChatMessageAction>[];
+
+    if (payload.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(payload);
+        if (decoded is List) {
+          for (final item in decoded) {
+            final name = item is Map
+                ? (item['name'] ?? item['stationName'] ?? '').toString()
+                : item.toString();
+            if (name.isNotEmpty) {
+              actions.add(
+                ChatMessageAction(
+                  label: name,
+                  payload:
+                      'SCHEDULE_SHOW:station=${Uri.encodeComponent(name)}',
+                ),
+              );
+            }
+          }
+        }
+      } catch (_) {
+        final parts = payload.split(RegExp(r'[,|]'));
+        for (final p in parts) {
+          final clean = p.replaceAll(RegExp(r'^(station=)?'), '').trim();
+          if (clean.isNotEmpty && !clean.contains('=')) {
+            actions.add(
+              ChatMessageAction(
+                label: clean,
+                payload:
+                    'SCHEDULE_SHOW:station=${Uri.encodeComponent(clean)}',
+              ),
+            );
+          }
+        }
+      }
+    }
+
+    return _ParsedScheduleMessage(text: text, actions: actions);
   }
-  if (raw.startsWith('SCHEDULE_RESULT_SUMMARY:')) {
-    return 'Kết quả xổ số theo yêu cầu của bạn:';
+
+  if (trimmed.startsWith('SCHEDULE_RESULT_SUMMARY:') ||
+      trimmed.startsWith('SCHEDULE_RESULT:') ||
+      trimmed.startsWith('SCHEDULE_SHOW:') ||
+      trimmed.startsWith('SCHEDULE_STATION_BUNDLE:')) {
+    final colonIdx = trimmed.indexOf(':');
+    final payload =
+        colonIdx >= 0 ? trimmed.substring(colonIdx + 1).trim() : '';
+    String displayText;
+
+    if (trimmed.startsWith('SCHEDULE_RESULT_SUMMARY:')) {
+      displayText = payload.isNotEmpty
+          ? payload
+          : 'Kết quả xổ số theo yêu cầu của bạn:';
+    } else if (trimmed.startsWith('SCHEDULE_STATION_BUNDLE:')) {
+      displayText = payload.isNotEmpty
+          ? payload
+          : 'Dưới đây là lịch quay và kết quả gần nhất của đài:';
+    } else {
+      displayText = payload.isNotEmpty
+          ? payload
+          : 'Lịch mở thưởng theo yêu cầu của bạn:';
+    }
+
+    final actions = const [
+      ChatMessageAction(
+        label: 'Tra cứu kết quả khác',
+        payload: 'SCHEDULE_SET_GOAL:RESULT',
+      ),
+      ChatMessageAction(
+        label: 'Xem lịch mở thưởng',
+        payload: 'SCHEDULE_SET_GOAL:SCHEDULE',
+      ),
+      ChatMessageAction(
+        label: 'Gợi ý vé',
+        payload: suggestTicketsMessage,
+      ),
+    ];
+
+    return _ParsedScheduleMessage(text: displayText, actions: actions);
   }
-  if (raw.startsWith('SCHEDULE_RESULT:') || raw.startsWith('SCHEDULE_SHOW:')) {
-    return 'Lịch mở thưởng theo yêu cầu của bạn:';
+
+  if (trimmed.contains('Mình chưa nhận ra khu vực') ||
+      trimmed.contains('Mình chưa tìm thấy đài')) {
+    return const _ParsedScheduleMessage(
+      text: 'Bạn muốn xem lịch xổ — dùng nút bên dưới nhé.',
+      actions: [
+        ChatMessageAction(
+          label: 'Xem lịch xổ',
+          payload: 'SCHEDULE_SET_GOAL:SCHEDULE',
+          primary: true,
+        ),
+        ChatMessageAction(
+          label: 'Tra cứu kết quả',
+          payload: 'SCHEDULE_SET_GOAL:RESULT',
+        ),
+      ],
+    );
   }
-  if (raw.startsWith('SCHEDULE_STATION_BUNDLE:')) {
-    return 'Dưới đây là lịch quay và kết quả gần nhất của đài bạn chọn:';
-  }
-  if (raw.startsWith('SCHEDULE_CONFIRM_STATION:') ||
-      raw.startsWith('SCHEDULE_PICK_STATION_LIST:')) {
-    return 'Chọn đài bạn muốn xem:';
-  }
-  if (raw.startsWith('SCHEDULE_ASK_STATION:')) {
-    return 'Bạn muốn xem đài nào ạ?';
-  }
-  return raw;
+
+  return _ParsedScheduleMessage(text: trimmed);
 }
 
 List<UiChatMessage> mergeTimelineWithOverlay({

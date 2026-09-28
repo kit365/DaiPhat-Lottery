@@ -5,12 +5,69 @@ import {
     canConfirmReviewRow,
     collectOcrBatchOptions,
     createFailedReviewRow,
+    formatConfidence,
     formatDenomination,
     getScanStatusLabel,
     getUnreadableFieldCaption,
     reconcileOcrSerialAndBatchCode,
+    resolveFieldDisplayConfidence,
     toShortFieldHint,
 } from './ocrImportHelpers';
+import type { OcrReviewRow } from '../types/ticketOcr.type';
+
+describe('OCR confidence display', () => {
+    it('formats 0..1 fractions and legacy over-1 ranking scores as percentages', () => {
+        expect(formatConfidence(0.99)).toBe('99%');
+        expect(formatConfidence(1)).toBe('100%');
+        // Station ranking score saved before it was capped: not "1%".
+        expect(formatConfidence(1.0808)).toBe('100%');
+        expect(formatConfidence(88)).toBe('88%');
+    });
+
+    const scannedRow = (overrides: Partial<OcrReviewRow> = {}): OcrReviewRow => ({
+        ...createFailedReviewRow('img-1', 'a.jpg', null),
+        status: 'COMPLETE',
+        stationId: 20,
+        stationName: 'Kiên Giang',
+        numbers: '424944',
+        drawDate: '2026-08-23',
+        ticketType: '10000',
+        fieldConfidences: { stationName: 0.88, numbers: 0.99, drawDate: 0.99, ticketType: 0.9 },
+        fieldValidations: {
+            stationName: { status: 'MATCHED' },
+            numbers: { status: 'MATCHED' },
+            drawDate: { status: 'MISMATCHED' },
+            ticketType: { status: 'MATCHED' },
+        },
+        fields: {
+            stationName: { fieldName: 'stationName', value: 'Kiên Giang' },
+            numbers: { fieldName: 'numbers', value: '424944' },
+            drawDate: { fieldName: 'drawDate', value: '2026-08-23' },
+            ticketType: { fieldName: 'ticketType', value: '10.000 VND' },
+        },
+        ...overrides,
+    });
+
+    it('reports 100% for values confirmed against their reference', () => {
+        const row = scannedRow({ edited: true });
+        expect(resolveFieldDisplayConfidence(row, 'stationName', 'corrected')).toEqual({
+            confidence: 1,
+            confirmed: true,
+        });
+        expect(resolveFieldDisplayConfidence(row, 'ticketType', 'valid').confidence).toBe(1);
+    });
+
+    it('keeps OCR confidence without a reference, on mismatch, or after a manual change', () => {
+        const row = scannedRow();
+        expect(resolveFieldDisplayConfidence(row, 'numbers', 'valid')).toEqual({
+            confidence: 0.99,
+            confirmed: false,
+        });
+        expect(resolveFieldDisplayConfidence(row, 'drawDate', 'invalid').confidence).toBe(0.99);
+        const changed = scannedRow({ edited: true, stationName: 'Cần Thơ' });
+        expect(resolveFieldDisplayConfidence(changed, 'stationName', 'corrected').confidence).toBe(0.88);
+    });
+});
 
 const editableBatch = (
     partial: Partial<ImportBatch> & Pick<ImportBatch, 'id' | 'batchCode' | 'drawDate'>
@@ -126,6 +183,28 @@ describe('OCR soft-fail helpers', () => {
         expect(toShortFieldHint('Mệnh giá nhận diện không khớp với giá nhà đài.')).toBe('Lệch mệnh giá');
         expect(toShortFieldHint('Không nhận diện được nhà đài trên vé. Thông tin có thể bị che bởi vé khác.')).toBe('Chưa chọn đài');
         expect(toShortFieldHint('Không thể đọc rõ thông tin do ảnh mờ')).toBe('Ảnh mờ/bị che');
+    });
+
+    it('does not label a recognized station or a missing denomination with the wrong hint', () => {
+        expect(
+            toShortFieldHint(
+                "Nhà đài OCR 'Tây Ninh' không mở thưởng vào Thứ Hai (ngày phiếu 28/09/2026). Giữ kết quả OCR để bạn kiểm tra."
+            )
+        ).toBe('Sai lịch quay');
+        expect(toShortFieldHint("Nhà đài OCR 'Tây Ninh' khác đài gắn với phiếu/dòng lô (Hồ Chí Minh). Vui lòng kiểm tra lại.")).toBe(
+            'Khác đài phiếu'
+        );
+        expect(toShortFieldHint("Nhà đài nhận diện 'Tay Nin' không tìm thấy trong hệ thống.")).toBe('Không tìm thấy đài');
+        expect(toShortFieldHint('Vui lòng nhập mệnh giá (chuẩn: 10.000 đ).')).toBe('Thiếu mệnh giá');
+        expect(toShortFieldHint('Mệnh giá không hợp lệ.')).toBe('Sai mệnh giá');
+        expect(toShortFieldHint('Không nhận diện được mệnh giá trên vé. Thông tin có thể bị che.')).toBe('Ảnh mờ/bị che');
+        expect(toShortFieldHint('Chưa xác định nhà đài để kiểm tra mệnh giá vé.')).toBe('Chưa chọn đài');
+        expect(
+            toShortFieldHint('Ngày mở thưởng (11/06/2026) không khớp với ngày quay của phiếu (28/09/2026).')
+        ).toBe('Lệch ngày phiếu');
+        expect(toShortFieldHint('Ngày mở thưởng nhận diện (11/06/2026) không khớp phiếu nhập lô (28/09/2026).')).toBe(
+            'Lệch ngày phiếu'
+        );
     });
 });
 

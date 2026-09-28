@@ -8,9 +8,9 @@ import {
     Typography,
     Box,
     Stack,
-    IconButton,
-    Button
+    IconButton
 } from '@mui/material';
+import { Button } from '../ui/Button';
 import ReactCrop, { Crop, PixelCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import CloseIcon from '@mui/icons-material/Close';
@@ -159,32 +159,17 @@ export const ImageCropModal: React.FC<ImageCropModalProps> = ({ open, imageFile,
                     className="btn-outlined-admin"
                     onClick={onClose} 
                     disabled={loading} 
-                >
-                    Hủy
-                </Button>
+                    label="Hủy" 
+                />
                 <Button 
                     variant="contained" 
                     className="btn-primary-admin"
                     onClick={() => void handleSave()} 
-                    disabled={!imageUrl || loading} 
-                    sx={{ 
-                        bgcolor: '#212b36 !important', 
-                        color: '#ffffff !important',
-                        minWidth: 140,
-                        fontWeight: 700,
-                        textTransform: 'none',
-                        borderRadius: '8px',
-                        '&:hover': {
-                            bgcolor: '#454f5b !important'
-                        },
-                        '&.Mui-disabled': {
-                            bgcolor: 'rgba(145, 158, 171, 0.24) !important',
-                            color: 'rgba(145, 158, 171, 0.8) !important',
-                        }
-                    }}
-                >
-                    {loading ? "Đang xử lý..." : "Xác nhận và Tải lên"}
-                </Button>
+                    disabled={!imageUrl} 
+                    loading={loading}
+                    label="Xác nhận và Tải lên"
+                    loadingLabel="Đang xử lý..."
+                />
             </DialogActions>
         </Dialog>
     );

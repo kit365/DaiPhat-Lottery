@@ -1,6 +1,8 @@
 # daiphat-ai
 
-Python monorepo for DaiPhat AI services (computer vision, OCR, chatbot analytics, fortune telling).
+DaiPhat AI services (computer vision, OCR, chatbot analytics, fortune telling).
+Each service is fully self-contained: its own code, requirements, Dockerfile,
+Docker build context, CI workflow and deploy workflow.
 
 **Jira:** [DP-269](https://jira.atlassian.com) — Thêm mới vé số bằng Camera
 
@@ -17,65 +19,49 @@ DaiPhat-Lottery-System/
 └── daiphat-ai/       # FastAPI AI microservices
 ```
 
-## Folder structure
+## Services
 
-| Path | Purpose |
-|------|---------|
-| `libs/` | Shared internal packages (OCR wrappers, schemas, vision utils) |
-| `services/` | One deployable microservice per feature |
-| `services/chat-bot/` | NLP intent classification for the web chat widget |
-| `services/ticket-vision/` | Camera ticket scan (DP-269) — Phase 1, port 8090 |
-| `contracts/` | Response envelopes shared with Java and mobile (`APIResponse`) |
-| `infra/` | Shared runtime config (`config.py` `Settings`) and logging |
-| `scripts/` | Dev run helpers (`run_chat_bot.sh`, `run_ticket_vision.sh`) |
+| Folder | Display name | Purpose | Port |
+|--------|--------------|---------|------|
+| `ai-chatbot/` | AI Chatbot | NLP intent classification and fortune replies for the web chat widget | 8000 |
+| `ai-ticket-ocr/` | AI Ticket OCR | Camera ticket scan (DP-269): detection, OCR, parsing, validation | 8090 |
+| `ai-ekyc/` | AI eKYC | CCCD OCR and face matching for customer eKYC | 8000 (8091 locally) |
 
 ## Conventions
 
-- **libs/** = reusable code imported by services
-- **services/** = independent FastAPI apps, each with `main.py` at the service
-  root as its entrypoint (`uvicorn main:app --app-dir services/<name>`),
-  `domain/` for business code, `dto/request` + `dto/response` for wire types,
-  and `test_*.py` flat at the service root
-- Shared `contracts/`, `infra/`, `libs/` are resolved from the `daiphat-ai/`
-  root via `PYTHONPATH`, never copied into a service
-- Mobile calls Java; Java calls Python (not direct mobile → Python)
+- Every service is an independent FastAPI app with `main.py` as its entrypoint
+  (`ai-ekyc` uses `app/main.py`). Run `uvicorn` and `pytest` from the service
+  folder with `PYTHONPATH=.`.
+- Nothing is shared between services. Helper packages (`contracts/`, `infra/`,
+  `libs/`) live inside the service that uses them.
+- The Docker build context is the service folder itself.
+- Mobile calls Java; Java calls Python (not direct mobile → Python).
 
 ## Roadmap (DP-269)
 
 | Phase | Scope | Status |
 |-------|-------|--------|
 | 0 | Monorepo skeleton | Done |
-| 1 | FastAPI `ticket-vision` + `/health` + `/v1/scan`: OpenCV contour detection (MVP), EasyOCR with a PaddleOCR fallback strategy, station fuzzy matching, Layer-1 format validation, green/yellow/red status resolution | Done — not yet calibrated against real ticket photos (see `services/ticket-vision/fixtures/README.md`) |
+| 1 | FastAPI AI Ticket OCR + `/health` + `/v1/scan`: OpenCV contour detection (MVP), EasyOCR with a PaddleOCR fallback strategy, station fuzzy matching, Layer-1 format validation, green/yellow/red status resolution | Done — not yet calibrated against real ticket photos (see `ai-ticket-ocr/fixtures/README.md`) |
 | 2 | Fine-tuned YOLOv8 detector for overlapping/cluttered photos; per-station OCR region layouts | Done, off by default — `YoloObbTicketDetector` (`TICKET_VISION_DETECTOR_STRATEGY=yolov8_obb`) and `YoloFieldLayoutStrategy` (`TICKET_VISION_LAYOUT_STRATEGY=yolo_field`). Both need `models/best.pt`; they fall back to contour/generic without it. Not yet benchmarked against the MVP, so the defaults stay unchanged |
 | 3 | Java `core-api` integration + Flutter scan UI | Java side done (`TicketVisionAdapter` → `POST /v1/scan`, Layer-2 business validation in `TicketScanImportService`); Flutter scan UI not started |
 
 ## Local setup
 
-> Bạn đã đứng trong folder `daiphat-ai` rồi thì **không** `cd daiphat-ai` nữa.
 > **Không** dùng `pip install -e .` (package chưa cấu hình sẵn). Dùng lệnh bên dưới.
 
-```bash
-# Nếu đang ở DaiPhat-Lottery-Platform:
-cd daiphat-ai
+Each service may have its own `.venv`; the run scripts fall back to a shared
+`daiphat-ai/.venv` when the service has none.
 
+### Run AI Chatbot (port 8000 — khớp Java `daiphat.chat.ai.service.base-url`)
+
+```bash
+cd daiphat-ai/ai-chatbot
 python3 -m venv .venv
-source .venv/bin/activate          # macOS/Linux
-# Windows: .venv\Scripts\activate
-
-python -m pip install -r services/chat-bot/requirements.txt
-```
-
-### Run chat-bot (port 8000 — khớp Java `daiphat.chat.ai.service.base-url`)
-
-```bash
-# Cách 1 (khuyên dùng) — từ trong daiphat-ai, đã activate .venv cũng được:
-./scripts/run_chat_bot.sh
-
-# Cách 2 — bấm Run file services/chat-bot/main.py trong IDE
-# Cách 3:
-# source .venv/bin/activate
-# export PYTHONPATH="$(pwd):$(pwd)/services/chat-bot"
-# uvicorn main:app --app-dir services/chat-bot --host 127.0.0.1 --port 8000 --reload
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+python -m pip install -r requirements.txt
+./scripts/run.sh
+# or: PYTHONPATH=. uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
 Endpoints:
@@ -94,16 +80,17 @@ curl -X POST http://localhost:8000/v1/chat/classify \
   -d '{"message":"lịch quay miền nam","conversation_id":1}'
 ```
 
-### Run ticket-vision (port 8090)
+### Run AI Ticket OCR (port 8090)
 
 ```bash
-python -m pip install -r services/ticket-vision/requirements.txt
-./scripts/run_ticket_vision.sh
+cd daiphat-ai/ai-ticket-ocr
+python -m pip install -r requirements.txt
+./scripts/run.sh                   # Windows: scripts\run.bat
 ```
 
 > EasyOCR/PaddleOCR pull in a full ML framework each (torch, paddlepaddle) —
 > the first install and the first `/v1/scan` call (model download + load)
-> are noticeably slower than chat-bot's.
+> are noticeably slower than the chatbot's.
 
 Endpoints:
 
@@ -119,56 +106,70 @@ curl -X POST http://localhost:8090/v1/scan \
   -F "file=@/path/to/ticket-photo.jpg"
 ```
 
-See `services/ticket-vision/` for the full pipeline (detection → preprocessing →
+See `ai-ticket-ocr/` for the full pipeline (detection → preprocessing →
 OCR → parsing → validation → status) and its test suite.
+
+### Run AI eKYC (port 8091 locally)
+
+See [`ai-ekyc/README.md`](ai-ekyc/README.md). On Windows: `ai-ekyc\scripts\run.bat`.
 
 ## Docker
 
-From the repository root, the standard local stack builds and starts both AI services (`ai` = chat-bot on 8000, `ticket-vision` on 8090) alongside PostgreSQL, Redis, backend and frontend:
+From the repository root, the standard local stack builds and starts all AI
+services (`ai-chatbot` on 8000, `ai-ticket-ocr` on 8090, `ai-ekyc` on 8091)
+alongside PostgreSQL, Redis, backend and frontend:
 
 ```bash
 docker compose up -d --build
 ```
 
-The services remain separate containers in the same `daiphat-local` network.
-The backend calls `http://ai:8000` and `http://ticket-vision:8090`; OCR port
-8090 is also bound to localhost for direct testing. Start, rebuild, restart,
-or stop either AI service independently:
+The services are separate containers in the same `daiphat-local` network. The
+backend calls `http://ai-chatbot:8000`, `http://ai-ticket-ocr:8090` and
+`http://ai-ekyc:8000`. Start, rebuild, restart or stop any AI service
+independently:
 
 ```bash
-docker compose up -d ai ticket-vision
-docker compose up -d --build ticket-vision
-docker compose restart ticket-vision
-docker compose stop ticket-vision
+docker compose up -d ai-chatbot ai-ticket-ocr ai-ekyc
+docker compose up -d --build ai-ticket-ocr
+docker compose restart ai-ticket-ocr
+docker compose stop ai-ticket-ocr
 ```
 
-Ticket Vision runs as the unprivileged `daiphat` user with one Uvicorn worker,
+AI Ticket OCR runs as the unprivileged `daiphat` user with one Uvicorn worker,
 2 CPUs and 4 GB RAM by default. Override the latter two with
 `LOCAL_TICKET_VISION_CPUS` and `LOCAL_TICKET_VISION_MEMORY`. OCR model downloads
-persist in the `ticket_vision_model_cache` volume, while the local
-`services/ticket-vision/models/` directory is mounted read-only so replacing
-`best.pt` only requires restarting `ticket-vision`. The Docker stack does not
-use `scripts/start_all_ai.sh`; that file is retained only as a manual
-compatibility helper.
+persist in the `ai_ticket_ocr_model_cache` volume, while the local
+`ai-ticket-ocr/models/` directory is mounted read-only so replacing `best.pt`
+only requires restarting `ai-ticket-ocr`.
 
-Production publishes each service as an immutable image tagged with the same commit SHA as FE and BE, reachable only on the internal Docker network — neither is exposed publicly on the VPS:
+## Production
 
-| Service | Image | Internal URL | Workflow |
-|---------|-------|--------------|----------|
-| chat-bot | `daiphat-ai` | `http://ai-gateway:8000` after bootstrap | `ai-deploy.yml`, target `chatbot` |
-| ticket-vision | `daiphat-ticket-vision` | `http://ticket-vision:8090` | `ai-deploy.yml`, target `ocr` |
+Each service is published as an immutable image tagged with the commit SHA and
+reachable only on the internal Docker network. Blue/green slots, gateways and
+Dozzle names are defined in `docker-compose.ai.yml`:
 
-One AI CD workflow selects the changed component; shared runtime changes select both.
-OCR and chatbot remain separate images, with independent blue/green slots and internal
-gateways. Manual dispatch also supports `both` and deploying an existing digest.
-The currently running chatbot stays at `ai:8000` until its gateway bootstrap and
-the separate backend URL migration are complete. See [AI deployment](../docs/ai-deployment.md).
+| Service | Image | Containers (Dozzle) | Internal URL | CI / CD workflows |
+|---------|-------|---------------------|--------------|-------------------|
+| AI Chatbot | `daiphat-ai-chatbot` | `daiphat-ai-chatbot-{blue,green,gateway}` | `http://ai-gateway:8000` after bootstrap | `ai-chatbot-ci.yml`, `ai-chatbot-deploy.yml` |
+| AI Ticket OCR | `daiphat-ai-ticket-ocr` | `daiphat-ai-ticket-ocr-{blue,green,gateway}` | `http://ticket-vision:8090` | `ai-ticket-ocr-ci.yml`, `ai-ticket-ocr-deploy.yml` |
+| AI eKYC | `daiphat-ai-ekyc` | `daiphat-ai-ekyc-{blue,green,gateway}` | `http://ekyc-vision:8000` | `ai-ekyc-ci.yml`, `ai-ekyc-deploy.yml` |
 
-**Model weights in CD builds.** `models/best.pt` is gitignored. New OCR builds require
-the `TICKET_VISION_WEIGHTS_URL` repository secret and `TICKET_VISION_WEIGHTS_SHA256`
-Actions variable. Builds stop when the artifact is missing or does not match its
-checksum. Existing-image deployments reuse the weights inside that image.
-Groq uses YOLO guidance independently of the legacy `contour`/`generic` strategies.
+The internal hostnames, `TICKET_VISION_*` / `KYC_AI_*` / `EKYC_VISION_*`
+variables and VPS slot state (`.ai-deploy/chatbot|ocr|ekyc`) keep their original
+names, because the backend and the running slots depend on them.
+
+Each deploy workflow runs only when its own service (or shared deploy tooling)
+changes, and can be dispatched manually to build or to redeploy an existing
+digest. The currently running chatbot stays at `ai:8000` until its gateway
+bootstrap and the separate backend URL migration are complete. See
+[AI deployment](../docs/ai-deployment.md).
+
+**Model weights in CD builds.** `models/best.pt` is gitignored. New AI Ticket OCR
+builds require the `TICKET_VISION_WEIGHTS_URL` repository secret and
+`TICKET_VISION_WEIGHTS_SHA256` Actions variable. Builds stop when the artifact is
+missing or does not match its checksum. Existing-image deployments reuse the
+weights inside that image. Groq uses YOLO guidance independently of the legacy
+`contour`/`generic` strategies.
 
 
 ## License

@@ -483,7 +483,14 @@ export const BuyTicketPage = () => {
     );
     const drawDateFilter = selectedDates.map(resolveDrawDateToken).join(',');
     const activeFilterCount = countActiveTicketFilters(appliedFilters);
-    const { data: ticketsRes, isLoading: isLoadingTickets, isFetching: isFetchingTickets } = useBuyTicketList({
+    const {
+        data: ticketsRes,
+        isLoading: isLoadingTickets,
+        isFetching: isFetchingTickets,
+        hasNextPage: hasMoreTickets,
+        isFetchingNextPage: isFetchingMoreTickets,
+        fetchNextPage: fetchMoreTickets,
+    } = useBuyTicketList({
                 stationIds: selectedStationIdsForQuery,
                 drawDate: drawDateFilter,
                 search: appliedSearch || undefined,
@@ -491,10 +498,29 @@ export const BuyTicketPage = () => {
                 tailRanges: appliedFilters.tailRanges.length > 0 ? appliedFilters.tailRanges : undefined,
                 numberTypes: appliedFilters.numberTypes.length > 0 ? appliedFilters.numberTypes : undefined,
             });
-    const availableTickets = Array.isArray(ticketsRes?.data?.recordList)
-        ? ticketsRes.data.recordList
-        : [];
-    const totalTicketCount = ticketsRes?.data?.pagination?.totalRecords ?? availableTickets.length;
+    const availableTickets = useMemo(
+        () => ticketsRes?.pages.flatMap((page) => page.recordList) ?? [],
+        [ticketsRes]
+    );
+    const totalTicketCount = ticketsRes?.pages[0]?.totalRecords ?? availableTickets.length;
+    const ticketListSentinelRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const sentinel = ticketListSentinelRef.current;
+        if (!sentinel || !hasMoreTickets) {
+            return;
+        }
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0]?.isIntersecting && !isFetchingMoreTickets) {
+                    void fetchMoreTickets();
+                }
+            },
+            { root: ticketListRef.current, rootMargin: '240px' }
+        );
+        observer.observe(sentinel);
+        return () => observer.disconnect();
+    }, [hasMoreTickets, isFetchingMoreTickets, fetchMoreTickets, availableTickets.length]);
     const selectedTicket = (availableTickets as unknown as PublicLotteryTicket[]).find(
         (ticket) => getTicketKey(ticket) === selectedTicketId
     );
@@ -573,6 +599,9 @@ export const BuyTicketPage = () => {
             (ticket) => String(ticket.id ?? ticket._id) === String(urlTicketId)
         );
         if (!matched?.numbers) {
+            if (hasMoreTickets && !isFetchingMoreTickets) {
+                void fetchMoreTickets();
+            }
             return;
         }
 
@@ -596,7 +625,7 @@ export const BuyTicketPage = () => {
             const node = ticketListRef.current?.querySelector(`[data-ticket-id="${urlTicketId}"]`);
             node?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         });
-    }, [urlTicketId, availableTickets]);
+    }, [urlTicketId, availableTickets, hasMoreTickets, isFetchingMoreTickets, fetchMoreTickets]);
 
     useEffect(() => {
         if (!urlTicketNumber) {
@@ -1099,7 +1128,8 @@ export const BuyTicketPage = () => {
                                             <i className="fa-solid fa-spinner fa-spin mr-2"></i> Đang tải vé số...
                                         </div>
                                     ) : availableTickets.length > 0 ? (
-                                        availableTickets.map((ticket: any, i: number) => {
+                                        <>
+                                        {availableTickets.map((ticket: any, i: number) => {
                                             const ticketKey = String(ticket.id ?? ticket._id ?? i);
                                             const isSelected = selectedTicketId === ticketKey;
                                             const isDeepLinked =
@@ -1122,7 +1152,20 @@ export const BuyTicketPage = () => {
                                                     onSelect={toggleTicket}
                                                 />
                                             );
-                                        })
+                                        })}
+                                        {hasMoreTickets && (
+                                            <div
+                                                ref={ticketListSentinelRef}
+                                                className="col-span-full py-4 flex justify-center text-[#637381] text-[14px] font-medium"
+                                            >
+                                                {isFetchingMoreTickets && (
+                                                    <>
+                                                        <i className="fa-solid fa-spinner fa-spin mr-2"></i> Đang tải thêm vé...
+                                                    </>
+                                                )}
+                                            </div>
+                                        )}
+                                        </>
                                     ) : (
                                         <div className="col-span-full py-10 flex flex-col items-center justify-center text-[#637381] gap-2">
                                             <i className="fa-solid fa-box-open text-3xl opacity-50"></i>

@@ -1,9 +1,12 @@
 package com.daiphat.coreapi.application.service.refund;
 
+import com.daiphat.coreapi.application.dto.ekyc.EkycVerificationResult;
 import com.daiphat.coreapi.application.dto.request.refund.AttachRefundBankAccountRequest;
+import com.daiphat.coreapi.application.dto.request.refund.CompleteCounterRefundRequest;
 import com.daiphat.coreapi.application.dto.request.refund.RequestBankInfoUpdateRequest;
 import com.daiphat.coreapi.application.dto.request.refund.StaffCancelOrderWithRefundRequest;
 import com.daiphat.coreapi.application.dto.request.refund.TransferRefundRequestRequest;
+import com.daiphat.coreapi.application.dto.request.refund.VerifyRefundCounterIdentityRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.order.TransactionResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundProcessingHistoryItem;
@@ -25,6 +28,7 @@ import com.daiphat.coreapi.application.port.out.refund.RefundRequestRepositoryPo
 import com.daiphat.coreapi.application.port.out.refund.UserBankAccountRepositoryPort;
 import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
 import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
+import com.daiphat.coreapi.application.service.ekyc.EkycVerificationService;
 import com.daiphat.coreapi.application.service.refund.RefundProcessingDeadlineService.ProcessingEvaluation;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
@@ -34,6 +38,7 @@ import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.order.TicketIncidentReason;
 import com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus;
+import com.daiphat.coreapi.domain.model.enums.order.refund.RefundCounterPayoutMethod;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestRole;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundType;
@@ -61,6 +66,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -95,6 +101,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
     private final SystemConfigRepositoryPort systemConfigRepositoryPort;
     private final ApplicationEventPublisher eventPublisher;
     private final com.daiphat.coreapi.application.port.in.order.OrderIncidentTicketServicePort orderIncidentTicketServicePort;
+    private final EkycVerificationService ekycVerificationService;
 
     @Override
     @Transactional(readOnly = true)
@@ -169,7 +176,8 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                 buildProcessingHistory(request, reviewerName, transferrerName, payoutTransaction),
                 order != null
                         ? refundTicketItemResolver.resolveFromOrder(order, request.getOrderDetailIds())
-                        : List.of());
+                        : List.of(),
+                toCounterIdentitySummary(request));
     }
 
     @Override
@@ -433,6 +441,153 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                 StorageFolderConstants.REFUND_TRANSFER_EVIDENCE_FOLDER));
     }
 
+    @Override
+    public StorageResult uploadCounterIdentityImage(UploadRequest request) {
+        StorageUtils.validateImageUpload(request);
+        return storagePort.upload(new UploadRequest(
+                request.data(),
+                request.fileName(),
+                request.contentType(),
+                StorageFolderConstants.REFUND_COUNTER_CCCD_FOLDER));
+    }
+
+    /**
+     * Runs CCCD OCR eKYC (front + back, all nine fields) for a customer resolving a
+     * MANUAL_RESOLUTION refund at the counter. The outcome (including FAILED) is persisted,
+     * so the DomainException raised for a failed OCR must not roll it back.
+     */
+    @Override
+    @Transactional(noRollbackFor = DomainException.class)
+    public RefundRequestAdminDetailResponse.RefundCounterIdentitySummary verifyCounterIdentity(
+            Long id,
+            UUID staffId,
+            VerifyRefundCounterIdentityRequest request) {
+        log.info("Staff {} verifying counter CCCD for refund {}", staffId, id);
+
+        RefundRequestModel refund = getRequestOrThrow(id);
+        refund.ensureAwaitingCounterResolution();
+        String frontUrl = request.cccdFrontImageUrl().trim();
+        String backUrl = request.cccdBackImageUrl().trim();
+        StorageUtils.validateImageEvidenceUrl(frontUrl);
+        StorageUtils.validateImageEvidenceUrl(backUrl);
+
+        EkycVerificationResult result = ekycVerificationService.verifyIdCardOcrOnlyFromUrls(frontUrl, backUrl);
+        applyCounterIdentityResult(refund, frontUrl, backUrl, result);
+        RefundRequestModel saved = refundRequestRepositoryPort.save(refund);
+        ekycVerificationService.assertVerified(result);
+        return toCounterIdentitySummary(saved);
+    }
+
+    @Override
+    @Transactional
+    public RefundRequestResponse completeCounterRefund(
+            Long id,
+            UUID staffId,
+            CompleteCounterRefundRequest request) {
+        log.info("Staff {} completing refund {} at the counter ({})", staffId, id, request.paymentMethod());
+
+        RefundRequestModel refund = getRequestOrThrow(id);
+        refund.ensureAwaitingCounterResolution();
+        refund.ensureCounterIdentityVerified();
+        if (!Boolean.TRUE.equals(request.identityConfirmed())) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Vui lòng xác nhận đã đối chiếu CCCD với khách hàng tại quầy.");
+        }
+        if (request.amount() == null || refund.getRefundAmount() == null
+                || request.amount().compareTo(refund.getRefundAmount()) != 0) {
+            throw new DomainException(ErrorCode.REFUND_REQUEST_COUNTER_AMOUNT_MISMATCH);
+        }
+
+        RefundCounterPayoutMethod payoutMethod = request.paymentMethod();
+        String evidenceUrl = null;
+        if (payoutMethod == RefundCounterPayoutMethod.TRANSFER) {
+            if (request.transferEvidenceUrl() == null || request.transferEvidenceUrl().isBlank()) {
+                throw new DomainException(ErrorCode.INVALID_INPUT, "Ảnh biên lai chuyển khoản là bắt buộc.");
+            }
+            evidenceUrl = request.transferEvidenceUrl().trim();
+            StorageUtils.validateImageEvidenceUrl(evidenceUrl);
+        }
+
+        UUID orderId = requireOrderId(refund);
+        refund.completeCounterResolution(payoutMethod);
+        RefundRequestModel saved = refundRequestRepositoryPort.save(refund);
+
+        OrderModel order = orderRepositoryPort.findById(orderId)
+                .orElseThrow(() -> new DomainException(ErrorCode.ORDER_NOT_FOUND));
+        markOrderDetailsRefunded(order, saved.getId());
+        orderRepositoryPort.save(order);
+
+        TransactionModel payout = TransactionModel.builder()
+                .refundRequestId(saved.getId())
+                .amount(saved.getRefundAmount())
+                .type(TransactionType.REFUND)
+                .transactionType(TransactionBusinessType.ORDER_REFUND)
+                .build();
+        payout.initializeForCreate();
+        payout.markRefundCounterPayoutCompleted(staffId, evidenceUrl, buildCounterRefundPayoutNote(staffId, payoutMethod));
+        TransactionModel savedPayout = transactionRepositoryPort.save(payout);
+
+        publishRefundStatusChanged(saved);
+
+        return toEnrichedResponse(
+                saved,
+                loadBankAccount(saved.getBankAccountId()),
+                order.getOrderCode(),
+                orderApplicationMapper.toTransactionResponse(savedPayout));
+    }
+
+    private void applyCounterIdentityResult(
+            RefundRequestModel refund,
+            String frontUrl,
+            String backUrl,
+            EkycVerificationResult result) {
+        refund.setCccdFrontImageUrl(frontUrl);
+        refund.setCccdBackImageUrl(backUrl);
+        refund.setEkycStatus(result.status());
+        refund.setEkycFailureReason(truncate(result.failureReason(), 500));
+        refund.setEkycOcrName(result.ocrName());
+        refund.setEkycOcrIdNumber(result.ocrIdNumber());
+        refund.setEkycOcrDob(result.ocrDob());
+        refund.setEkycOcrGender(result.ocrGender());
+        refund.setEkycOcrNationality(result.ocrNationality());
+        refund.setEkycOcrPlaceOfBirth(result.ocrPlaceOfBirthRegistration());
+        refund.setEkycOcrPlaceOfResidence(result.ocrPlaceOfResidence());
+        refund.setEkycOcrIssueDate(result.ocrIssueDate());
+        refund.setEkycOcrExpiryDate(result.ocrExpiryDate());
+        refund.setEkycVerifiedAt(result.verified() ? LocalDateTime.now() : null);
+    }
+
+    private RefundRequestAdminDetailResponse.RefundCounterIdentitySummary toCounterIdentitySummary(
+            RefundRequestModel refund) {
+        if (refund.getEkycStatus() == null && refund.getCounterPayoutMethod() == null) {
+            return null;
+        }
+        return new RefundRequestAdminDetailResponse.RefundCounterIdentitySummary(
+                refund.getCccdFrontImageUrl(),
+                refund.getCccdBackImageUrl(),
+                refund.getEkycStatus(),
+                refund.getEkycFailureReason(),
+                refund.getEkycOcrName(),
+                refund.getEkycOcrIdNumber(),
+                refund.getEkycOcrDob(),
+                refund.getEkycOcrGender(),
+                refund.getEkycOcrNationality(),
+                refund.getEkycOcrPlaceOfBirth(),
+                refund.getEkycOcrPlaceOfResidence(),
+                refund.getEkycOcrIssueDate(),
+                refund.getEkycOcrExpiryDate(),
+                refund.getEkycVerifiedAt(),
+                refund.getCounterPayoutMethod());
+    }
+
+    private static String truncate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength);
+    }
+
     private RefundRequestModel getRequestOrThrow(Long id) {
         return refundRequestRepositoryPort.findById(id)
                 .orElseThrow(() -> new DomainException(ErrorCode.REFUND_REQUEST_NOT_FOUND));
@@ -654,13 +809,21 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
             }
         }
 
+        if (request.getEkycVerifiedAt() != null) {
+            history.add(new RefundProcessingHistoryItem(
+                    "Xác thực CCCD tại quầy",
+                    "Họ tên: " + (request.getEkycOcrName() != null ? request.getEkycOcrName() : "—")
+                            + " — Số CCCD: " + (request.getEkycOcrIdNumber() != null ? request.getEkycOcrIdNumber() : "—"),
+                    request.getEkycVerifiedAt()));
+        }
+
         if (payoutTransaction != null && payoutTransaction.paidAt() != null) {
             String detail = payoutTransaction.note();
             if (transferrerName != null && !transferrerName.isBlank()) {
                 detail = (detail != null ? detail + " — " : "") + "Bởi: " + transferrerName;
             }
             history.add(new RefundProcessingHistoryItem(
-                    "Đã chuyển khoản",
+                    request.getCounterPayoutMethod() != null ? "Đã hoàn tiền tại quầy" : "Đã chuyển khoản",
                     detail,
                     payoutTransaction.paidAt()));
         }
@@ -686,6 +849,15 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
             employeeName = "không xác định";
         }
         return "Yêu cầu hoàn tiền đã được xử lý chuyển khoản bởi nhân viên " + employeeName.trim() + ".";
+    }
+
+    private String buildCounterRefundPayoutNote(UUID staffId, RefundCounterPayoutMethod payoutMethod) {
+        String employeeName = resolveUserName(staffId);
+        if (employeeName == null || employeeName.isBlank()) {
+            employeeName = "không xác định";
+        }
+        return "Yêu cầu hoàn tiền đã được xử lý tại quầy (" + payoutMethod.getLabel().toLowerCase()
+                + ") bởi nhân viên " + employeeName.trim() + ".";
     }
 
     private UserBankAccountModel loadBankAccount(Long bankAccountId) {
