@@ -57,6 +57,7 @@ import { CounterRefundDialog } from '../CounterRefundDialog';
 import { TransferEvidencePreview } from '../TransferEvidencePreview';
 import { ProcessingDeadlineCard } from '../ProcessingDeadlineCard';
 import { RefundTicketsTable } from '../RefundTicketsTable';
+import { CccdOcrFieldsGrid } from '@/admin/components/ekyc/CccdOcrFieldsGrid';
 
 function FieldLabel({ children }: { children: ReactNode }) {
     return (
@@ -331,6 +332,7 @@ export const RefundDetailPage = () => {
                     <RefundStatusStepper
                         status={refund.status}
                         requestRole={refund.requestRole}
+                        counterPayoutMethod={counterPayoutMethod}
                     />
                 </DashboardCard>
 
@@ -340,13 +342,6 @@ export const RefundDetailPage = () => {
                     remainingProcessingSeconds={refund.remainingProcessingSeconds}
                     processingUrgency={refund.processingUrgency}
                 />
-
-                {canProcessAtCounter && (
-                    <Alert severity="warning" sx={{ mb: 3 }}>
-                        Yêu cầu đã vượt quá số lần cập nhật STK. Khách hàng cần mang CCCD đến đại lý — nhân viên
-                        xác thực CCCD (mặt trước và mặt sau) rồi hoàn tiền tại quầy.
-                    </Alert>
-                )}
 
                 {customerUpdatedBankInfo && (
                     <Alert severity="info" sx={{ mb: 3 }}>
@@ -608,13 +603,13 @@ export const RefundDetailPage = () => {
                                     >
                                         <CardSectionTitle
                                             icon="solar:user-id-bold-duotone"
-                                            title="CCCD xác thực tại quầy"
+                                            title="Thông tin CCCD đọc tại quầy"
                                         />
                                         <AdminStatusBadge
                                             label={
                                                 counterIdentity.ekycStatus === 'VERIFIED'
-                                                    ? 'Đã xác thực'
-                                                    : 'Xác thực thất bại'
+                                                    ? 'Đã đọc đủ thông tin'
+                                                    : 'Chưa đọc đủ thông tin'
                                             }
                                             modifier={
                                                 counterIdentity.ekycStatus === 'VERIFIED'
@@ -644,33 +639,39 @@ export const RefundDetailPage = () => {
                                         </Grid>
                                         <Grid size={{ xs: 12, md: 7 }}>
                                             {counterIdentity.ekycStatus === 'VERIFIED' ? (
-                                                <Grid container spacing={2}>
-                                                    {[
-                                                        ['Họ và tên', counterIdentity.ocrName],
-                                                        ['Số CCCD', counterIdentity.ocrIdNumber],
-                                                        ['Ngày sinh', counterIdentity.ocrDob],
-                                                        ['Ngày cấp', counterIdentity.ocrIssueDate],
-                                                        [
-                                                            'Thời gian xác thực',
-                                                            counterIdentity.verifiedAt
-                                                                ? dayjs(counterIdentity.verifiedAt).format(
-                                                                      'DD/MM/YYYY HH:mm'
-                                                                  )
-                                                                : null,
-                                                        ],
-                                                        [
-                                                            'Hình thức hoàn tiền',
-                                                            counterPayoutMethod
-                                                                ? REFUND_COUNTER_PAYOUT_METHOD_LABELS[counterPayoutMethod]
-                                                                : 'Chưa hoàn tất',
-                                                        ],
-                                                    ].map(([label, value]) => (
-                                                        <Grid key={label} size={{ xs: 12, sm: 6 }}>
-                                                            <FieldLabel>{label}</FieldLabel>
-                                                            <FieldValue>{value || '—'}</FieldValue>
+                                                <>
+                                                    <CccdOcrFieldsGrid
+                                                        fields={{
+                                                            name: counterIdentity.ocrName,
+                                                            idNumber: counterIdentity.ocrIdNumber,
+                                                            dob: counterIdentity.ocrDob,
+                                                            gender: counterIdentity.ocrGender,
+                                                            nationality: counterIdentity.ocrNationality,
+                                                            issueDate: counterIdentity.ocrIssueDate,
+                                                            expiryDate: counterIdentity.ocrExpiryDate,
+                                                            placeOfBirth: counterIdentity.ocrPlaceOfBirth,
+                                                            placeOfResidence: counterIdentity.ocrPlaceOfResidence,
+                                                        }}
+                                                    />
+                                                    <Grid container spacing={2} sx={{ mt: 1.5 }}>
+                                                        <Grid size={{ xs: 12, sm: 6 }}>
+                                                            <FieldLabel>Thời gian đọc CCCD</FieldLabel>
+                                                            <FieldValue>
+                                                                {counterIdentity.verifiedAt
+                                                                    ? dayjs(counterIdentity.verifiedAt).format('DD/MM/YYYY HH:mm')
+                                                                    : '—'}
+                                                            </FieldValue>
                                                         </Grid>
-                                                    ))}
-                                                </Grid>
+                                                        <Grid size={{ xs: 12, sm: 6 }}>
+                                                            <FieldLabel>Hình thức hoàn tiền</FieldLabel>
+                                                            <FieldValue>
+                                                                {counterPayoutMethod
+                                                                    ? REFUND_COUNTER_PAYOUT_METHOD_LABELS[counterPayoutMethod]
+                                                                    : 'Chưa hoàn tất'}
+                                                            </FieldValue>
+                                                        </Grid>
+                                                    </Grid>
+                                                </>
                                             ) : (
                                                 <Typography
                                                     variant="body2"
@@ -1114,6 +1115,11 @@ export const RefundDetailPage = () => {
                 open={counterOpen}
                 refundId={refundId}
                 refundAmount={refund.refundAmount}
+                orderSummary={detail.orderSummary}
+                tickets={detail.refundTickets ?? refund.refundTickets ?? []}
+                refundReason={refund.refundReason}
+                orderCode={refund.orderCode || detail.orderSummary?.orderCode}
+                customerId={detail.customerSummary.id ? String(detail.customerSummary.id) : undefined}
                 customerName={detail.customerSummary.fullName}
                 bankAccount={refund.bankAccount}
                 initialIdentity={counterIdentity}

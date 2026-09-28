@@ -1,7 +1,7 @@
 # Publish AI Ticket OCR from local
 
 Only `docker.io/kitops365/daiphat-ai-ticket-ocr` is prepared/published, built
-from the `daiphat-ai/ai-ticket-ocr/` folder. AI Chatbot, AI eKYC, VPS,
+from the `daiphat-ai/ai-ticket-ocr/` folder. AI Chatbot, AI CCCD OCR, VPS,
 production Compose and CI/CD are not touched. The selected repository is
 public: source under `/app` and `models/best.pt` will be downloadable by anyone.
 

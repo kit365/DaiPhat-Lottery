@@ -11,10 +11,9 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * Create / attach import batches for the draw dates selected in the preview.
+ * Import tickets into existing batches for the draw dates selected in the preview.
  *
- * @param commitMode          AUTO creates new batches; MANUAL maps into selected import-batches
- * @param manualBatchBindings required when commitMode=MANUAL: one importBatchId per drawDate
+ * @param manualBatchBindings one existing importBatchId per drawDate
  */
 @Builder
 public record ImportBatchFileImportCommitRequest(
@@ -28,32 +27,18 @@ public record ImportBatchFileImportCommitRequest(
         @Valid
         ImportBatchFileMappingRequest mapping,
 
-        @NotEmpty(message = "Chưa chọn ngày quay nào để tạo phiếu")
+        @NotEmpty(message = "Chưa chọn ngày quay nào để nhập vé")
         List<LocalDate> drawDates,
-
-        List<LocalDate> forceCreateDrawDates,
-
-        String invoiceEvidenceUrl,
-
-        List<String> ticketListImageUrls,
-
-        Boolean useOriginalFileAsTicketListEvidence,
 
         ImportBatchFileCommitMode commitMode,
 
+        @NotEmpty(message = "Chưa có phiếu nhập cho ngày quay đã chọn")
+        @Valid
         List<ImportBatchFileManualBatchBinding> manualBatchBindings
 ) {
 
-    public boolean isForced(LocalDate drawDate) {
-        return forceCreateDrawDates != null && forceCreateDrawDates.contains(drawDate);
-    }
-
-    public boolean shouldUseOriginalFileAsTicketListEvidence() {
-        return useOriginalFileAsTicketListEvidence == null || useOriginalFileAsTicketListEvidence;
-    }
-
     public ImportBatchFileCommitMode resolvedCommitMode() {
-        return commitMode != null ? commitMode : ImportBatchFileCommitMode.AUTO;
+        return commitMode != null ? commitMode : ImportBatchFileCommitMode.MANUAL;
     }
 
     public Long manualBatchIdFor(LocalDate drawDate) {

@@ -146,7 +146,7 @@ export const uploadStreetAgentEkycImage = async (file: File): Promise<string> =>
     const response = await apiApp.post(`${BASE_URL}/ekyc/upload`, formData);
     const url = response.data?.data?.url;
     if (!url) {
-        throw new Error(response.data?.message || 'Không nhận được URL ảnh eKYC từ server');
+        throw new Error(response.data?.message || 'Không nhận được URL ảnh CCCD từ server');
     }
     return url;
 };
@@ -169,7 +169,7 @@ export const verifyStreetAgentEkyc = async (
     } catch (error: any) {
         if (!error?.response) {
             throw new Error(
-                'Máy chủ xử lý ảnh CCCD quá lâu hoặc mất kết nối. Vui lòng tải lại hồ sơ để xem kết quả trước khi xác thực lại.'
+                'Máy chủ xử lý ảnh CCCD quá lâu hoặc mất kết nối. Vui lòng tải lại hồ sơ để xem kết quả trước khi đọc lại.'
             );
         }
         throw error;

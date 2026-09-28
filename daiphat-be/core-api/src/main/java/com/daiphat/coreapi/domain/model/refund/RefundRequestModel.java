@@ -177,12 +177,22 @@ public class RefundRequestModel {
         }
     }
 
-    /** Staff paid the customer in person after verifying their CCCD → PAID. */
-    public void completeCounterResolution(RefundCounterPayoutMethod payoutMethod) {
+    /**
+     * Staff paid the customer in person after verifying their CCCD → PAID.
+     * A TRANSFER payout records the account it was sent to, which may differ from the rejected one.
+     */
+    public void completeCounterResolution(RefundCounterPayoutMethod payoutMethod, Long payoutBankAccountId) {
         ensureAwaitingCounterResolution();
         ensureCounterIdentityVerified();
         if (payoutMethod == null) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "Vui lòng chọn hình thức hoàn tiền.");
+        }
+        if (payoutMethod == RefundCounterPayoutMethod.TRANSFER) {
+            if (payoutBankAccountId == null) {
+                throw new DomainException(
+                        ErrorCode.INVALID_INPUT, "Vui lòng chọn tài khoản ngân hàng nhận hoàn tiền.");
+            }
+            this.bankAccountId = payoutBankAccountId;
         }
         this.counterPayoutMethod = payoutMethod;
         this.status = RefundRequestStatus.PAID;

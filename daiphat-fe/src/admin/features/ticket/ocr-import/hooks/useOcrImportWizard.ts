@@ -390,7 +390,7 @@ export const useOcrImportWizard = ({
             if (activeDraft?.id) {
                 byId.set(activeDraft.id, activeDraft);
             }
-            if (prefillBatch?.id) {
+            if (prefillBatch?.id && !byId.has(prefillBatch.id)) {
                 byId.set(prefillBatch.id, prefillBatch);
             }
 
@@ -689,6 +689,27 @@ export const useOcrImportWizard = ({
             }
             return prev.filter((image) => image.id !== imageId);
         });
+        setRows((prev) => prev.filter((row) => row.sourceImageId !== imageId));
+    }, []);
+
+    const replaceImage = useCallback((imageId: string, file: File) => {
+        const previewUrl = URL.createObjectURL(file);
+        setImages((prev) => {
+            const existing = prev.find((image) => image.id === imageId);
+            if (existing?.previewUrl.startsWith('blob:')) {
+                URL.revokeObjectURL(existing.previewUrl);
+            }
+            const replacement: OcrQueuedImage = {
+                id: imageId,
+                file,
+                previewUrl,
+                status: 'pending',
+            };
+            return existing
+                ? prev.map((image) => image.id === imageId ? replacement : image)
+                : [...prev, replacement];
+        });
+        // Old OCR boxes, validation and serials refer to the previous pixels.
         setRows((prev) => prev.filter((row) => row.sourceImageId !== imageId));
     }, []);
 
@@ -1037,6 +1058,21 @@ export const useOcrImportWizard = ({
                     patch.stationName !== undefined
                 ) {
                     next.edited = true;
+                    next.editedFields = {
+                        ...row.editedFields,
+                        ...(patch.numbers !== undefined && { numbers: true }),
+                        ...(patch.serialNumber !== undefined && { serialNumber: true }),
+                        ...((patch.stationId !== undefined || patch.stationName !== undefined) && { stationName: true }),
+                        ...(patch.drawDate !== undefined && { drawDate: true }),
+                        ...(patch.batchCode !== undefined && { batchCode: true }),
+                        ...(patch.ticketType !== undefined && { ticketType: true }),
+                    };
+                    if ((patch.numbers !== undefined && patch.numbers !== row.numbers) ||
+                        (patch.serialNumber !== undefined && patch.serialNumber !== row.serialNumber)) {
+                        // The duplicate result belongs to the old ticket identity.
+                        // The import endpoint checks the corrected identity again.
+                        next.duplicate = false;
+                    }
                 }
                 return next;
             });
@@ -1102,22 +1138,26 @@ export const useOcrImportWizard = ({
 
     const getRowValidationContext = useCallback(
         (row: OcrReviewRow): OcrRowValidationContext => {
-            const drawKey = row.drawDate ? dayjs(row.drawDate).format('YYYY-MM-DD') : '';
+            const batchDrawDate = selectedImportBatch?.drawDate || selectedBatch?.drawDate || null;
+            const drawKey = batchDrawDate
+                ? dayjs(batchDrawDate).format('YYYY-MM-DD')
+                : row.drawDate ? dayjs(row.drawDate).format('YYYY-MM-DD') : '';
             const scheduleLoaded = Object.keys(stationsByDrawDate).length > 0;
             const scheduleStations = drawKey ? stationsByDrawDate[drawKey] : undefined;
             let allowedStationIds: Set<number> | null = null;
             if (drawKey && scheduleStations) {
                 allowedStationIds = new Set(scheduleStations.map((s) => s.id));
-            } else if (drawKey && scheduleLoaded) {
-                // Schedule fetch finished but this date has no stations → block selection.
+            } else if (drawKey && (batchDrawDate || scheduleLoaded)) {
+                // Never accept an arbitrary station while the selected batch's schedule is unavailable.
                 allowedStationIds = new Set();
             }
             return {
                 allowedStationIds,
                 stationPriceById,
+                batchDrawDate,
             };
         },
-        [stationsByDrawDate, stationPriceById]
+        [stationsByDrawDate, stationPriceById, selectedImportBatch?.drawDate, selectedBatch?.drawDate]
     );
 
     const isRowConfirmable = useCallback(
@@ -1125,19 +1165,20 @@ export const useOcrImportWizard = ({
         [getRowValidationContext]
     );
 
+    const scheduleDateKey = useMemo(() => {
+        const batchDrawDate = selectedImportBatch?.drawDate || selectedBatch?.drawDate;
+        return Array.from(new Set(
+            [batchDrawDate, ...rows.map((row) => row.drawDate)]
+                .map((date) => date && dayjs(date).isValid() ? dayjs(date).format('YYYY-MM-DD') : '')
+                .filter(Boolean)
+        )).sort().join('|');
+    }, [rows, selectedImportBatch?.drawDate, selectedBatch?.drawDate]);
+
     useEffect(() => {
-        if (!open || rows.length === 0) {
+        if (!open) {
             return;
         }
-        const dates = Array.from(
-            new Set(
-                rows
-                    .map((row) =>
-                        row.drawDate ? dayjs(row.drawDate).format('YYYY-MM-DD') : ''
-                    )
-                    .filter(Boolean)
-            )
-        );
+        const dates = scheduleDateKey ? scheduleDateKey.split('|') : [];
         if (dates.length === 0) {
             return;
         }
@@ -1186,7 +1227,7 @@ export const useOcrImportWizard = ({
         return () => {
             cancelled = true;
         };
-    }, [open, rows]);
+    }, [open, scheduleDateKey]);
 
     const toggleRow = useCallback((key: string, selected: boolean) => {
         setRows((prev) => prev.map((row) => (row.key === key ? { ...row, selected } : row)));
@@ -1417,6 +1458,7 @@ export const useOcrImportWizard = ({
         addImages,
         scanMoreImages,
         removeImage,
+        replaceImage,
         clearImages,
         addScannedTicketsFromMobile,
         runScan,

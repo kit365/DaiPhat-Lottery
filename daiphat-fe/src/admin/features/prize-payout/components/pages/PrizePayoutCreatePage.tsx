@@ -246,7 +246,7 @@ export const PrizePayoutCreatePage = () => {
     const totalCommission = selectedItems.reduce((sum, item) => sum + (Number(item.commissionAmount) || 0), 0);
     const totalNet = selectedItems.reduce((sum, item) => sum + (Number(item.netAmount) || 0), 0);
 
-    // Counter payout captures CCCD front + back for OCR eKYC (no selfie / no manual CCCD).
+    // Counter payout captures CCCD front + back for OCR (no selfie / no manual CCCD).
     const needsIdImage = selectedItems.length > 0;
     const cccdImagesReady =
         Boolean(recipientIdImageUrl.trim()) && Boolean(recipientIdImageBackUrl.trim());
@@ -1013,7 +1013,7 @@ export const PrizePayoutCreatePage = () => {
 
                                     <Stack spacing={1.5}>
                                         <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary' }}>
-                                            Ảnh CCCD * (OCR eKYC)
+                                            Ảnh CCCD * (đọc thông tin bằng OCR)
                                         </Typography>
                                         <Grid container spacing={1.5}>
                                             <Grid size={{ xs: 12, sm: 6 }}>
