@@ -147,6 +147,7 @@ class ChatViewModel extends Notifier<ChatState> {
 
   Timer? _typingTimer;
   Timer? _aiStatusTimer;
+  Timer? _statusBannerTimer;
   String? _timelineCursor;
   bool _bootstrapped = false;
   int? _subscribedConversationId;
@@ -547,6 +548,9 @@ class ChatViewModel extends Notifier<ChatState> {
           ? state.statusBanner
           : _bannerForEvent(event.eventType, previousStatus: previousStatus),
     );
+    if (!isStaleEscalation && event.eventType == 'CONVERSATION_CLOSED') {
+      _dismissClosedBannerAfterDelay();
+    }
 
     // The backend emits MESSAGE_READ after the detail/read endpoints update
     // the conversation. Calling getConversationDetail here would emit another
@@ -608,6 +612,16 @@ class ChatViewModel extends Notifier<ChatState> {
       'CONVERSATION_CLOSED' => 'Phiên chat đã kết thúc.',
       _ => state.statusBanner,
     };
+  }
+
+  void _dismissClosedBannerAfterDelay() {
+    _statusBannerTimer?.cancel();
+    _statusBannerTimer = Timer(const Duration(seconds: 3), () {
+      if (!ref.mounted || state.statusBanner != 'Phiên chat đã kết thúc.') {
+        return;
+      }
+      state = state.copyWith(clearStatusBanner: true);
+    });
   }
 
   void _applyConversation(ChatConversationModel conversation) {
@@ -738,6 +752,7 @@ class ChatViewModel extends Notifier<ChatState> {
   void _disposeTimers(ChatUseCases chat) {
     _typingTimer?.cancel();
     _aiStatusTimer?.cancel();
+    _statusBannerTimer?.cancel();
     _lastReadAckKey = null;
     _subscribedConversationId = null;
     unawaited(chat.disconnectWebSocket());
@@ -754,6 +769,7 @@ class ChatViewModel extends Notifier<ChatState> {
     _timelineRefreshInFlight = false;
     _typingTimer?.cancel();
     _aiStatusTimer?.cancel();
+    _statusBannerTimer?.cancel();
     _lastReadAckKey = null;
     _subscribedConversationId = null;
     _activeAccessToken = null;
