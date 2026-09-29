@@ -21,8 +21,8 @@ The internal hostnames, `.ai-deploy/chatbot|ocr|ekyc` slot state and the
 names because the backend and running slots depend on them.
 Container health and route rollback remain runtime operations.
 The script refuses to start an overlapping slot unless available RAM covers
-the candidate's memory limit plus 640 MiB reserve (1664 MiB for a 1 GiB OCR
-slot). There is no minimum installed-RAM gate; a 4 GiB host can qualify.
+the candidate's memory limit plus 384 MiB reserve (2432 MiB for the default
+2 GiB OCR slot). There is no minimum installed-RAM gate.
 OCR requires 10 GiB free on Docker's data filesystem for image pull/unpacking
 and cache. This is an admission budget, not a measured runtime guarantee.
 
@@ -48,6 +48,22 @@ current chatbot. Use `TICKET_VISION_RECOGNITION_ENGINE`; the older
 
 The per-call Groq timeout is 45 seconds in the example; retries and alternate
 crops can still exceed that time. This is not an end-to-end request deadline.
+
+The Ticket OCR defaults target a Cheap 6 host (4 vCPU / 8 GiB): one OCR slot
+receives 2 vCPU and 2 GiB, while Paddle, PyTorch, OpenMP, MKL, OpenBLAS and
+NumExpr are capped at two threads. PyTorch and Paddle MKL-DNN are disabled by
+default because affected virtual CPUs can terminate native convolution with
+SIGFPE. Override only after testing the exact production CPU and image:
+
+```env
+TICKET_VISION_CPU_LIMIT=2
+TICKET_VISION_MEMORY_LIMIT=2g
+TICKET_VISION_CPU_THREADS=2
+TICKET_VISION_PADDLE_CPU_THREADS=2
+TICKET_VISION_TORCH_NUM_THREADS=2
+TICKET_VISION_PADDLE_ENABLE_MKLDNN=false
+TICKET_VISION_TORCH_ENABLE_MKLDNN=false
+```
 
 ## First OCR rollout
 

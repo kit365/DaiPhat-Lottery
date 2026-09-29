@@ -122,7 +122,7 @@ route_ready() {
 # Admission control for overlapping slots; never stop the serving slot to make room.
 case "$component" in
   chatbot) memory_key=AI_CHATBOT_MEMORY_LIMIT; memory_default=256m ;;
-  ocr) memory_key=TICKET_VISION_MEMORY_LIMIT; memory_default=1g ;;
+  ocr) memory_key=TICKET_VISION_MEMORY_LIMIT; memory_default=2g ;;
   ekyc) memory_key=EKYC_VISION_MEMORY_LIMIT; memory_default=1g ;;
 esac
 memory_limit=$(awk -F= -v key="$memory_key" '$1==key {v=substr($0,length(key)+2)} END {print v}' .ai-runtime.env)
