@@ -128,9 +128,6 @@ public class OcrTicketTemplateService implements OcrTicketTemplateServicePort {
         OcrTicketTemplateModel model = getTemplateOrThrow(id);
         StorageUtils.validateOcrTemplateSampleImage(request);
 
-        // Replacing the sample invalidates existing tags — purge hard to avoid junk rows.
-        purgeSampleArtifacts(model);
-
         StorageResult result = storagePort.upload(new UploadRequest(
                 request.data(),
                 request.fileName(),
@@ -138,6 +135,8 @@ public class OcrTicketTemplateService implements OcrTicketTemplateServicePort {
                 StorageFolderConstants.OCR_TEMPLATE_SAMPLE_FOLDER
         ));
 
+        // Only discard the previous image and its coordinates after the new upload succeeds.
+        purgeSampleArtifacts(model);
         model.setSampleImageUrl(result.url());
         return toTemplateResponse(templateRepositoryPort.save(model));
     }
