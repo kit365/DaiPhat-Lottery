@@ -37,7 +37,10 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
   @override
   void initState() {
     super.initState();
-    _viewModel = MyTicketsViewModel(ref.read(getMyTicketsProvider));
+    _viewModel = MyTicketsViewModel(
+      ref.read(getMyTicketsProvider),
+      ref.read(getMyTicketsSummaryProvider),
+    );
     _scrollController.addListener(_onScroll);
     _searchController.addListener(() {
       _viewModel.setSearchQuery(_searchController.text);
@@ -122,21 +125,21 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
         children: [
           _buildMetricCard(
             'Tổng vé',
-            '${_viewModel.displayedTotalRecords}',
+            '${_viewModel.totalAllCount}',
             ProfileIconography.ticket,
             AppColors.primary,
           ),
           const SizedBox(width: 10),
           _buildMetricCard(
             'Chờ quay',
-            '${_viewModel.pendingCountOnPage}',
+            '${_viewModel.totalPendingCount}',
             ProfileIconography.pendingTicket,
             AppColors.ticketResultPendingForeground,
           ),
           const SizedBox(width: 10),
           _buildMetricCard(
             'Trúng',
-            '${_viewModel.wonCountOnPage}',
+            '${_viewModel.totalWonCount}',
             ProfileIconography.prize,
             AppColors.ticketResultWonForeground,
           ),
@@ -666,11 +669,16 @@ class _MyTicketsViewState extends ConsumerState<MyTicketsView> {
                     borderRadius: BorderRadius.circular(16),
                     splashColor: AppColors.primary.withValues(alpha: 0.08),
                     highlightColor: AppColors.primary.withValues(alpha: 0.04),
-                    onTap: () => context.pushNamed(
-                      AppRoute.myTicketDetail.name,
-                      pathParameters: {'id': ticket.detailRouteId},
-                      extra: ticket,
-                    ),
+                    onTap: () async {
+                      await context.pushNamed(
+                        AppRoute.myTicketDetail.name,
+                        pathParameters: {'id': ticket.detailRouteId},
+                        extra: ticket,
+                      );
+                      if (mounted) {
+                        _viewModel.fetchTickets(refresh: true);
+                      }
+                    },
                     child: _buildTicketCard(ticket),
                   ),
                 ),

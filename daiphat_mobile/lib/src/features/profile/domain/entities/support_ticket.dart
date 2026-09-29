@@ -279,6 +279,8 @@ class SupportTicketPageResult {
 
 bool canCustomerCancelTicket(TicketStatus status) => !status.isTerminal;
 
+bool canCustomerConfirmTicket(TicketStatus status) => !status.isTerminal;
+
 bool canCustomerSendComment(
   TicketStatus status,
   List<SupportTicketCommentResponse> comments,

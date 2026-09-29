@@ -165,6 +165,8 @@ class UiChatMessage {
     this.suggestedTickets = const [],
     this.actions = const [],
     this.scheduleResultSummary,
+    this.createdAt,
+    this.rawId,
   });
 
   final String id;
@@ -179,6 +181,8 @@ class UiChatMessage {
   final List<SuggestedTicketModel> suggestedTickets;
   final List<ChatMessageAction> actions;
   final ScheduleResultSummaryData? scheduleResultSummary;
+  final DateTime? createdAt;
+  final int? rawId;
 
   UiChatMessage copyWith({
     String? id,
@@ -193,6 +197,8 @@ class UiChatMessage {
     List<SuggestedTicketModel>? suggestedTickets,
     List<ChatMessageAction>? actions,
     ScheduleResultSummaryData? scheduleResultSummary,
+    DateTime? createdAt,
+    int? rawId,
   }) {
     return UiChatMessage(
       id: id ?? this.id,
@@ -208,6 +214,8 @@ class UiChatMessage {
       actions: actions ?? this.actions,
       scheduleResultSummary:
           scheduleResultSummary ?? this.scheduleResultSummary,
+      createdAt: createdAt ?? this.createdAt,
+      rawId: rawId ?? this.rawId,
     );
   }
 }
@@ -219,16 +227,19 @@ UiChatMessage welcomeMessage() {
     isUser: false,
     text: welcomeMessageText,
     timeLabel: _formatTime(now),
+    createdAt: DateTime.fromMillisecondsSinceEpoch(0),
   );
 }
 
 UiChatMessage typingMessage(String token) {
+  final now = DateTime.now();
   return UiChatMessage(
     id: 'typing-$token',
     isUser: false,
     text: 'Đại Phát đang soạn tin...',
-    timeLabel: _formatTime(DateTime.now()),
+    timeLabel: _formatTime(now),
     variant: ChatMessageVariant.typing,
+    createdAt: now,
   );
 }
 
@@ -304,6 +315,8 @@ UiChatMessage mapApiMessage(ChatMessageModel message) {
       conversationId: message.conversationId,
       isRead: message.isRead,
       variant: ChatMessageVariant.divider,
+      createdAt: message.createdAt,
+      rawId: message.id,
     );
   }
 
@@ -321,6 +334,8 @@ UiChatMessage mapApiMessage(ChatMessageModel message) {
           ? ChatMessageVariant.bubble
           : ChatMessageVariant.ticketSuggest,
       suggestedTickets: ticketSuggest.tickets,
+      createdAt: message.createdAt,
+      rawId: message.id,
     );
   }
 
@@ -343,6 +358,8 @@ UiChatMessage mapApiMessage(ChatMessageModel message) {
       variant: schedule.variant,
       scheduleResultSummary: schedule.scheduleResultSummary,
       actions: schedule.actions,
+      createdAt: message.createdAt,
+      rawId: message.id,
     );
   }
 
@@ -363,6 +380,8 @@ UiChatMessage mapApiMessage(ChatMessageModel message) {
     fromStaff: fromStaff,
     isRead: message.isRead,
     sentContent: sentContent,
+    createdAt: message.createdAt,
+    rawId: message.id,
   );
 }
 
@@ -375,7 +394,7 @@ UiChatMessage mapSocketMessage(ChatSocketMessageEvent event) {
       type: event.type,
       content: event.content,
       intent: event.intent,
-      createdAt: event.createdAt,
+      createdAt: event.createdAt ?? DateTime.now(),
     ),
   );
 }
@@ -732,20 +751,7 @@ _ParsedScheduleMessage _parseScheduleMessage(String raw) {
       text: displayText,
       variant: ChatMessageVariant.scheduleResultSummary,
       scheduleResultSummary: resultSummary,
-      actions: const [
-        ChatMessageAction(
-          label: 'Tra cứu kết quả khác',
-          payload: 'SCHEDULE_SET_GOAL:RESULT',
-        ),
-        ChatMessageAction(
-          label: 'Xem lịch mở thưởng',
-          payload: 'SCHEDULE_SET_GOAL:SCHEDULE',
-        ),
-        ChatMessageAction(
-          label: 'Gợi ý vé',
-          payload: suggestTicketsMessage,
-        ),
-      ],
+      actions: const [],
     );
   }
 
@@ -772,20 +778,26 @@ _ParsedScheduleMessage _parseScheduleMessage(String raw) {
           : 'Lịch mở thưởng theo yêu cầu của bạn:';
     }
 
-    final actions = const [
-      ChatMessageAction(
-        label: 'Tra cứu kết quả khác',
-        payload: 'SCHEDULE_SET_GOAL:RESULT',
-      ),
-      ChatMessageAction(
-        label: 'Xem lịch mở thưởng',
-        payload: 'SCHEDULE_SET_GOAL:SCHEDULE',
-      ),
-      ChatMessageAction(
-        label: 'Gợi ý vé',
-        payload: suggestTicketsMessage,
-      ),
-    ];
+    final isResult = trimmed.startsWith('SCHEDULE_RESULT_SUMMARY:') ||
+        trimmed.startsWith('SCHEDULE_RESULT:') ||
+        trimmed.contains('goal=RESULT');
+
+    final actions = isResult
+        ? const <ChatMessageAction>[]
+        : const [
+            ChatMessageAction(
+              label: 'Tra cứu kết quả khác',
+              payload: 'SCHEDULE_SET_GOAL:RESULT',
+            ),
+            ChatMessageAction(
+              label: 'Xem lịch mở thưởng',
+              payload: 'SCHEDULE_SET_GOAL:SCHEDULE',
+            ),
+            ChatMessageAction(
+              label: 'Gợi ý vé',
+              payload: suggestTicketsMessage,
+            ),
+          ];
 
     return _ParsedScheduleMessage(text: displayText, actions: actions);
   }
@@ -811,6 +823,39 @@ _ParsedScheduleMessage _parseScheduleMessage(String raw) {
   return _ParsedScheduleMessage(text: trimmed);
 }
 
+int compareChatMessages(UiChatMessage a, UiChatMessage b) {
+  if (identical(a, b) || a.id == b.id) return 0;
+  if (a.id == 'welcome') return -1;
+  if (b.id == 'welcome') return 1;
+  if (a.variant == ChatMessageVariant.typing) return 1;
+  if (b.variant == ChatMessageVariant.typing) return -1;
+
+  final aTime = a.createdAt;
+  final bTime = b.createdAt;
+  if (aTime != null && bTime != null) {
+    final diff = aTime.compareTo(bTime);
+    if (diff != 0) return diff;
+  } else if (aTime != null) {
+    return -1;
+  } else if (bTime != null) {
+    return 1;
+  }
+
+  final aId = a.rawId ?? int.tryParse(a.id);
+  final bId = b.rawId ?? int.tryParse(b.id);
+  if (aId != null && bId != null) {
+    final diff = aId.compareTo(bId);
+    if (diff != 0) return diff;
+  }
+
+  // If one is user message and one is bot reply at same time:
+  // User question always precedes bot answer!
+  if (a.isUser && !b.isUser) return -1;
+  if (!a.isUser && b.isUser) return 1;
+
+  return 0;
+}
+
 bool isCountableBotReply(UiChatMessage message) =>
     !message.isUser &&
     !message.fromStaff &&
@@ -822,6 +867,9 @@ int countBotReplies(List<UiChatMessage> messages) =>
     messages.where(isCountableBotReply).length;
 
 bool customerMessagesMatch(UiChatMessage timeline, UiChatMessage optimistic) {
+  if (!timeline.isUser || !optimistic.isUser) return false;
+  if (timeline.id == optimistic.id) return true;
+
   final timelineKey = timeline.sentContent ?? timeline.text;
   final optimisticKey = optimistic.sentContent ?? optimistic.text;
   if (timelineKey.trim() == optimisticKey.trim()) return true;
@@ -880,8 +928,8 @@ List<UiChatMessage> mergeTimelineWithOverlay({
   bool awaitingBotReply = false,
   bool holdTypingReveal = false,
 }) {
-  final base = timeline;
-  var prunedOverlay = pruneOverlayMessages(overlay, timeline);
+  final base = [...timeline]..sort(compareChatMessages);
+  var prunedOverlay = pruneOverlayMessages(overlay, base);
 
   if (!awaitingBotReply && !holdTypingReveal) {
     prunedOverlay = prunedOverlay
@@ -910,9 +958,7 @@ List<UiChatMessage> mergeTimelineWithOverlay({
       ? optimisticUsers.where((m) => m.id != pendingOptimistic.id).toList()
       : optimisticUsers;
 
-  if (!hideBotRepliesAfterSend &&
-      pendingOptimistic == null &&
-      botReplyCountAtSend >= countBotReplies(base)) {
+  if (!hideBotRepliesAfterSend && pendingOptimistic == null) {
     return [...base, ...settledOptimistics, ...restOverlay];
   }
 

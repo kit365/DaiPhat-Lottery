@@ -4,12 +4,17 @@ import 'package:flutter/foundation.dart';
 import 'package:daiphat_mobile/src/features/tickets/domain/entities/purchased_ticket.dart';
 import 'package:daiphat_mobile/src/features/tickets/presentation/utils/ticket_display_utils.dart';
 import 'package:daiphat_mobile/src/features/tickets/domain/usecases/get_my_tickets.dart';
+import 'package:daiphat_mobile/src/features/tickets/domain/usecases/get_my_tickets_summary.dart';
 
 class MyTicketsViewModel extends ChangeNotifier {
   final GetMyTickets _getMyTickets;
+  final GetMyTicketsSummary? _getMyTicketsSummary;
 
   List<PurchasedTicket> _tickets = [];
   List<PurchasedTicket> get tickets => _tickets;
+
+  TicketSummaryStats? _summaryStats;
+  TicketSummaryStats? get summaryStats => _summaryStats;
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -43,7 +48,7 @@ class MyTicketsViewModel extends ChangeNotifier {
   int _requestGeneration = 0;
   bool _disposed = false;
 
-  MyTicketsViewModel(this._getMyTickets) {
+  MyTicketsViewModel(this._getMyTickets, [this._getMyTicketsSummary]) {
     fetchTickets(refresh: true);
   }
 
@@ -55,6 +60,18 @@ class MyTicketsViewModel extends ChangeNotifier {
     super.dispose();
   }
 
+  Future<void> _fetchSummaryStats() async {
+    if (_getMyTicketsSummary == null || _disposed) return;
+    try {
+      final stats = await _getMyTicketsSummary();
+      if (_disposed) return;
+      _summaryStats = stats;
+      notifyListeners();
+    } catch (e) {
+      if (kDebugMode) debugPrint('MyTicketsViewModel summary error: $e');
+    }
+  }
+
   Future<void> fetchTickets({bool refresh = false}) async {
     if (_disposed) return;
     if (refresh) {
@@ -64,6 +81,7 @@ class MyTicketsViewModel extends ChangeNotifier {
       _error = null;
       _isLoading = true;
       notifyListeners();
+      _fetchSummaryStats();
     } else {
       if (!_hasMore || _isLoading || _isLoadingMore) return;
       _isLoadingMore = true;
@@ -147,6 +165,14 @@ class MyTicketsViewModel extends ChangeNotifier {
   int get wonCountOnPage =>
       visibleTickets.where((t) => t.drawResultStatus == 'WON').length;
 
+  int get totalPendingCount => _summaryStats?.pendingCount ?? pendingCountOnPage;
+
+  int get totalWonCount => _summaryStats?.wonCount ?? wonCountOnPage;
+
+  int get totalAllCount => _summaryStats != null
+      ? (_summaryStats!.pendingCount + _summaryStats!.drawnCount)
+      : displayedTotalRecords;
+
   List<PurchasedTicket> get visibleTickets {
     if (_selectedRedeemed != false || _selectedChannel == 'ALL') {
       return _tickets;
@@ -162,6 +188,6 @@ class MyTicketsViewModel extends ChangeNotifier {
 
   int get displayedTotalRecords =>
       _selectedRedeemed == false && _selectedChannel != 'ALL'
-      ? visibleTickets.length
-      : _totalRecords;
+          ? visibleTickets.length
+          : _totalRecords;
 }

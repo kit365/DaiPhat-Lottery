@@ -134,7 +134,6 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
             });
           },
         ),
-        _buildChatActionButton(),
         const SizedBox(width: 4),
       ],
     );
@@ -164,36 +163,6 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
         ),
       ),
       centerTitle: true,
-      actions: [_buildChatActionButton(), const SizedBox(width: 4)],
-    );
-  }
-
-  Widget _buildChatActionButton() {
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        IconButton(
-          icon: const Icon(
-            ProfileIconography.chat,
-            size: 23,
-            color: AppColors.primary,
-          ),
-          tooltip: 'Chat hỗ trợ',
-          onPressed: () => context.push(AppRoute.chat.path),
-        ),
-        Positioned(
-          top: 10,
-          right: 10,
-          child: Container(
-            width: 7.5,
-            height: 7.5,
-            decoration: const BoxDecoration(
-              color: AppColors.primary,
-              shape: BoxShape.circle,
-            ),
-          ),
-        ),
-      ],
     );
   }
 

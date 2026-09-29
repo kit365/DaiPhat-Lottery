@@ -4,6 +4,7 @@ import 'package:daiphat_mobile/src/shared/domain/entities/pagination_meta.dart';
 import 'package:daiphat_mobile/src/features/tickets/domain/entities/purchased_ticket.dart';
 import 'package:daiphat_mobile/src/features/tickets/domain/repositories/purchased_tickets_repository.dart';
 import 'package:daiphat_mobile/src/features/tickets/domain/usecases/get_my_tickets.dart';
+import 'package:daiphat_mobile/src/features/tickets/domain/usecases/get_my_tickets_summary.dart';
 import 'package:daiphat_mobile/src/features/tickets/presentation/viewmodels/my_tickets_viewmodel.dart';
 
 class _FakePurchasedTicketsRepository implements PurchasedTicketsRepository {
@@ -82,13 +83,19 @@ void main() {
 
   test('tickets view model preserves paging and status filters', () async {
     final repository = _FakePurchasedTicketsRepository();
-    final viewModel = MyTicketsViewModel(GetMyTickets(repository));
+    final viewModel = MyTicketsViewModel(
+      GetMyTickets(repository),
+      GetMyTicketsSummary(repository),
+    );
     addTearDown(viewModel.dispose);
 
     await Future<void>.delayed(Duration.zero);
     expect(viewModel.tickets, [repository.ticket]);
     expect(repository.page, 1);
     expect(repository.size, 10);
+    expect(viewModel.totalPendingCount, 1);
+    expect(viewModel.totalWonCount, 0);
+    expect(viewModel.totalAllCount, 1);
 
     viewModel.setStatusFilter('WON');
     await Future<void>.delayed(Duration.zero);

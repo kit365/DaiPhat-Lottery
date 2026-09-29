@@ -7,8 +7,42 @@ import '../../domain/repositories/cart_repository.dart';
 import '../../domain/usecases/cart_usecases.dart';
 
 final cartRepositoryProvider = Provider<CartRepository>((ref) {
-  return HiveCartRepository(Hive.box('cartBox'));
+  try {
+    if (Hive.isBoxOpen('cartBox')) {
+      return HiveCartRepository(Hive.box('cartBox'));
+    }
+  } catch (_) {}
+  return _InMemoryCartRepository();
 });
+
+class _InMemoryCartRepository implements CartRepository {
+  List<CartItemData> _items = const [];
+  final Map<String, List<CartItemData>> _pending = {};
+
+  @override
+  void clearLegacyExpiredSeedFlag() {}
+
+  @override
+  void deletePendingPurchase(String orderId) {
+    _pending.remove(orderId);
+  }
+
+  @override
+  List<CartItemData> loadItems() => _items;
+
+  @override
+  List<CartItemData>? loadPendingPurchase(String orderId) => _pending[orderId];
+
+  @override
+  void recordPendingPurchase(String orderId, List<CartItemData> items) {
+    _pending[orderId] = items;
+  }
+
+  @override
+  void saveItems(List<CartItemData> items) {
+    _items = items;
+  }
+}
 
 final loadCartItemsProvider = Provider<LoadCartItems>((ref) {
   return LoadCartItems(ref.watch(cartRepositoryProvider));

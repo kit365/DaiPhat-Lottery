@@ -8,9 +8,9 @@ class SiteOperatingHours {
 
   const SiteOperatingHours({
     this.openHour = 8,
-    this.closeHour = 20,
+    this.closeHour = 22,
     this.openTime = '08:00',
-    this.closeTime = '20:00',
+    this.closeTime = '22:00',
   });
 
   @override
@@ -34,7 +34,7 @@ class SystemConfigService {
 
       final data = res['data'];
       String openStr = '08:00';
-      String closeStr = '20:00';
+      String closeStr = '22:00';
 
       if (data is Map<String, dynamic>) {
         final openObj = data['SITE_SUPPORT_OPEN_TIME'];
@@ -50,7 +50,7 @@ class SystemConfigService {
       }
 
       final openHour = int.tryParse(openStr.split(':').first) ?? 8;
-      final closeHour = int.tryParse(closeStr.split(':').first) ?? 20;
+      final closeHour = int.tryParse(closeStr.split(':').first) ?? 22;
 
       return SiteOperatingHours(
         openHour: openHour,

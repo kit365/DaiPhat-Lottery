@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:daiphat_mobile/src/features/refunds/domain/entities/refund_request.dart';
@@ -8,7 +10,9 @@ import 'package:daiphat_mobile/src/shared/domain/entities/pagination_meta.dart';
 import 'package:daiphat_mobile/src/features/orders/domain/repositories/orders_repository.dart';
 import 'package:daiphat_mobile/src/features/orders/domain/usecases/get_my_order_detail.dart';
 import 'package:daiphat_mobile/src/features/orders/domain/usecases/get_my_orders.dart';
+import 'package:daiphat_mobile/src/features/orders/presentation/providers/orders_providers.dart';
 import 'package:daiphat_mobile/src/features/orders/presentation/viewmodels/my_orders_viewmodel.dart';
+import 'package:daiphat_mobile/src/features/orders/presentation/views/my_orders_view.dart';
 
 class _FakeOrdersRepository implements OrdersRepository {
   String? detailId;
@@ -148,5 +152,27 @@ void main() {
     viewModel.setSearch('DP 123');
     await Future<void>.delayed(Duration.zero);
     expect(repository.search, '123');
+  });
+
+  testWidgets('MyOrdersView AppBar displays only the search icon and no chat action', (
+    tester,
+  ) async {
+    final repository = _FakeOrdersRepository();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          getMyOrdersProvider.overrideWithValue(GetMyOrders(repository)),
+        ],
+        child: const MaterialApp(
+          home: MyOrdersView(),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Đơn hàng của tôi'), findsOneWidget);
+    expect(find.byIcon(Icons.search_rounded), findsOneWidget);
+    expect(find.byTooltip('Tìm kiếm đơn hàng'), findsOneWidget);
+    expect(find.byTooltip('Chat hỗ trợ'), findsNothing);
   });
 }
